@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Organization {
+  id     String @id @default(uuid()) @map("organization_id") @db.Uuid
+  name   String @db.VarChar(255)
+  type   String @db.VarChar(50)
+  status String @db.VarChar(50)
+
+  users                User[]
+  batches              Batch[]
+  transportedShipments Shipment[] @relation("ShipmentTransporter")
+  retailerShipments    Shipment[] @relation("ShipmentRetailer")
+
+  @@map("organizations")
+}
+
+model User {
+  id             String @id @default(uuid()) @map("user_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  role           String @db.VarChar(50)
+  accountStatus  String @map("account_status") @db.VarChar(50)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("users")
+}
+
+model Batch {
+  id           String   @id @default(uuid()) @map("batch_id") @db.Uuid
+  farmOrgId    String   @map("farm_org_id") @db.Uuid
+  batchCode    String   @unique @map("batch_code") @db.VarChar(100)
+  productName  String   @map("product_name") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  currentState String   @map("current_state") @db.VarChar(50)
+
+  farmOrganization Organization    @relation(fields: [farmOrgId], references: [id], onDelete: Restrict)
+  shipment         Shipment?
+  traceEvents      TraceEvent[]
+  sensorReadings   SensorReading[]
+  sensorDigests    SensorDigest[]
+
+  @@map("batches")
+}
+
+model Shipment {
+  id               String    @id @default(uuid()) @map("shipment_id") @db.Uuid
+  batchId          String    @unique @map("batch_id") @db.Uuid
+  transporterOrgId String    @map("transporter_org_id") @db.Uuid
+  retailerOrgId    String    @map("retailer_org_id") @db.Uuid
+  origin           String    @db.VarChar(255)
+  destination      String    @db.VarChar(255)
+  pickupTime       DateTime? @map("pickup_time") @db.Timestamptz(3)
+  deliveryTime     DateTime? @map("delivery_time") @db.Timestamptz(3)
+  status           String    @db.VarChar(50)
+
+  batch          Batch        @relation(fields: [batchId], references: [id])
+  transporterOrg Organization @relation("ShipmentTransporter", fields: [transporterOrgId], references: [id])
+  retailerOrg    Organization @relation("ShipmentRetailer", fields: [retailerOrgId], references: [id])
+
+  @@map("shipments")
+}
+
+model TraceEvent {
+  id            String   @id @default(uuid()) @map("event_id") @db.Uuid
+  batchId       String   @map("batch_id") @db.Uuid
+  eventType     String   @map("event_type") @db.VarChar(50)
+  actorContext  Json     @map("actor_context") @db.JsonB
+  eventTime     DateTime @map("event_time") @db.Timestamptz(3)
+  businessData  Json     @map("business_data") @db.JsonB
+  schemaVersion String   @map("schema_version") @db.VarChar(50)
+  dataHash      String   @map("data_hash") @db.VarChar(64)
+
+  batch           Batch            @relation(fields: [batchId], references: [id])
+  blockchainProof BlockchainProof?
+
+  @@map("trace_events")
+}
+
+model BlockchainProof {
+  transactionId  String   @id @map("transaction_id") @db.VarChar(255)
+  eventId        String   @unique @map("event_id") @db.Uuid
+  network        String   @db.VarChar(100)
+  dataHash       String   @map("data_hash") @db.VarChar(64)
+  recordedAt     DateTime @map("recorded_at") @db.Timestamptz(3)
+  relayerAddress String   @map("relayer_address") @db.VarChar(255)
+
+  traceEvent TraceEvent @relation(fields: [eventId], references: [id])
+
+  @@map("blockchain_proofs")
+}
+
+model SensorReading {
+  id          String   @id @default(uuid()) @map("reading_id") @db.Uuid
+  deviceId    String   @map("device_id") @db.VarChar(100)
+  batchId     String   @map("batch_id") @db.Uuid
+  temperature Decimal  @db.Decimal(5, 2)
+  humidity    Decimal  @db.Decimal(5, 2)
+  timestamp   DateTime @db.Timestamptz(3)
+  ingestTime  DateTime @default(now()) @map("ingest_time") @db.Timestamptz(3)
+
+  batch Batch @relation(fields: [batchId], references: [id])
+
+  @@map("sensor_readings")
+}
+
+model SensorDigest {
+  id           String   @id @default(uuid()) @map("digest_id") @db.Uuid
+  batchId      String   @map("batch_id") @db.Uuid
+  periodStart  DateTime @map("period_start") @db.Timestamptz(3)
+  periodEnd    DateTime @map("period_end") @db.Timestamptz(3)
+  readingCount Int      @map("reading_count")
+  digestHash   String   @map("digest_hash") @db.VarChar(64)
+  isFinal      Boolean  @default(false) @map("is_final")
+
+  batch Batch @relation(fields: [batchId], references: [id])
+
+  @@map("sensor_digests")
+}
