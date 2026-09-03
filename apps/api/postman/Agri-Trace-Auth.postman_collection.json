@@ -1,0 +1,62 @@
+{
+  "info": {
+    "name": "Agri Trace - Local JWT Auth",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Register",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"farmer@example.com\",\n  \"password\": \"Password123!\",\n  \"fullName\": \"Demo Farmer\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('Registered', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));",
+          "if (pm.response.code === 201) pm.collectionVariables.set('accessToken', pm.response.json().accessToken);"
+        ] }
+      }]
+    },
+    {
+      "name": "2. Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"farmer@example.com\",\n  \"password\": \"Password123!\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('Logged in', () => pm.response.to.have.status(201));",
+          "pm.collectionVariables.set('accessToken', pm.response.json().accessToken);"
+        ] }
+      }]
+    },
+    {
+      "name": "3. Get profile with JWT",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/auth/me"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": ["pm.test('JWT accepted', () => pm.response.to.have.status(200));"] }
+      }]
+    }
+  ]
+}

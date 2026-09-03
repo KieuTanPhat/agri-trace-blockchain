@@ -27,12 +27,17 @@ model Organization {
 }
 
 model User {
-  id             String @id @default(uuid()) @map("user_id") @db.Uuid
-  organizationId String @map("organization_id") @db.Uuid
-  role           String @db.VarChar(50)
-  accountStatus  String @map("account_status") @db.VarChar(50)
+  id             String   @id @default(uuid()) @map("user_id") @db.Uuid
+  email          String   @unique @db.VarChar(255)
+  passwordHash   String   @map("password_hash") @db.VarChar(255)
+  fullName       String?  @map("full_name") @db.VarChar(255)
+  organizationId String?  @map("organization_id") @db.Uuid
+  role           String   @default("USER") @db.VarChar(50)
+  accountStatus  String   @default("ACTIVE") @map("account_status") @db.VarChar(50)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
   @@map("users")
 }
