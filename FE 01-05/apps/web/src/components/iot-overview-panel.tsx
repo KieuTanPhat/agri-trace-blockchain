@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { IconActivity, IconThermometer, IconDroplet } from "./icons";
 import { readStoredIotReadings, type StoredIotReading } from "@/lib/iot-local-store";
+
+const statMeta: Record<string, { icon: React.ReactNode }> = {
+  "Bản ghi IoT đã gửi": { icon: <IconActivity size={20} /> },
+  "Lô gửi gần nhất": { icon: <IconDroplet size={20} /> },
+  "Nhiệt độ gần nhất": { icon: <IconThermometer size={20} /> },
+};
 
 export function IotOverviewPanel() {
   const [readings, setReadings] = useState<StoredIotReading[]>([]);
@@ -31,18 +39,27 @@ export function IotOverviewPanel() {
   );
 
   return (
-    <section className="panel">
+    <section className="panel iot-panel">
       <div className="panel-title">
-        <div>
-          <p className="eyebrow">Cập nhật từ IoT giả lập</p>
-          <h2>Tín hiệu mới trong phiên duyệt</h2>
+        <div className="panel-title-left">
+          <span className="panel-icon info"><IconActivity size={18} /></span>
+          <div>
+            <p className="eyebrow">IoT giả lập</p>
+            <h2>Điều kiện môi trường</h2>
+          </div>
         </div>
+        <Link href="/iot-simulator" className="button secondary">Xem cảm biến →</Link>
       </div>
-      <div className="grid three">
+      <div className="stats-row" style={{ marginBottom: 16 }}>
         {stats.map((stat) => (
-          <div className="card compact-card" key={stat.label}>
-            <p className="muted">{stat.label}</p>
-            <h2>{stat.value}</h2>
+          <div className="stat-card" key={stat.label}>
+            <div className="stat-icon">
+              {statMeta[stat.label]?.icon ?? <IconActivity size={20} />}
+            </div>
+            <div className="stat-body">
+              <span className="stat-value" style={{ fontSize: 20 }}>{stat.value}</span>
+              <span className="stat-label">{stat.label}</span>
+            </div>
           </div>
         ))}
       </div>
@@ -53,7 +70,7 @@ export function IotOverviewPanel() {
               <div>
                 <h3>{reading.batchId}</h3>
                 <p className="muted">
-                  {reading.temperature}°C - {reading.humidity}% - {reading.timestampUtc}
+                  {reading.temperature}°C — {reading.humidity}% — {reading.timestampUtc}
                 </p>
               </div>
               <span className="badge success">Đã tiếp nhận</span>
@@ -62,7 +79,7 @@ export function IotOverviewPanel() {
         </div>
       ) : (
         <div className="notice">
-          <strong>Chưa có dữ liệu mới:</strong> gửi một bản ghi ở màn hình IoT giả lập rồi quay lại Tổng quan để thấy cập nhật.
+          Chưa có bản ghi cảm biến.
         </div>
       )}
     </section>
