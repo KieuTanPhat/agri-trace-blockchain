@@ -10,23 +10,9 @@ import { TraceModule } from './modules/trace/trace.module.js';
 import { IotModule } from './modules/iot/iot.module.js';
 import { BlockchainAdapterModule } from './modules/blockchain-adapter/blockchain-adapter.module.js';
 import { HealthModule } from './health/health.module.js';
-import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from './prisma/prisma.module.js';
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    PrismaModule,
-    AuthModule,
-    UsersModule,
-    OrganizationsModule,
-    BatchesModule,
-    ShipmentsModule,
-    TraceModule,
-    IotModule,
-    BlockchainAdapterModule,
-    HealthModule,
-  ],
+  imports: [AuthModule, UsersModule, OrganizationsModule, BatchesModule, ShipmentsModule, TraceModule, IotModule, BlockchainAdapterModule, HealthModule],
   controllers: [AppController],
   providers: [AppService],
 })
