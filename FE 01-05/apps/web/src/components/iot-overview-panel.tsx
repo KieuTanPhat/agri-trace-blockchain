@@ -7,7 +7,7 @@ import { readStoredIotReadings, type StoredIotReading } from "@/lib/iot-local-st
 
 const statMeta: Record<string, { icon: React.ReactNode }> = {
   "Bản ghi IoT đã gửi": { icon: <IconActivity size={20} /> },
-  "Lô gửi gần nhất": { icon: <IconDroplet size={20} /> },
+  "Độ ẩm gần nhất": { icon: <IconDroplet size={20} /> },
   "Nhiệt độ gần nhất": { icon: <IconThermometer size={20} /> },
 };
 
@@ -32,7 +32,7 @@ export function IotOverviewPanel() {
   const stats = useMemo(
     () => [
       { label: "Bản ghi IoT đã gửi", value: String(readings.length) },
-      { label: "Lô gửi gần nhất", value: latest?.batchId ?? "Chưa có" },
+      { label: "Độ ẩm gần nhất", value: latest ? `${latest.humidity}%` : "Chưa có" },
       { label: "Nhiệt độ gần nhất", value: latest ? `${latest.temperature}°C` : "Chưa có" }
     ],
     [latest, readings.length]
@@ -44,8 +44,9 @@ export function IotOverviewPanel() {
         <div className="panel-title-left">
           <span className="panel-icon info"><IconActivity size={18} /></span>
           <div>
-            <p className="eyebrow">IoT giả lập</p>
+            <p className="eyebrow">IOT GIẢ LẬP</p>
             <h2>Điều kiện môi trường</h2>
+            <p className="muted" style={{marginTop: 4, fontSize: 13}}>Theo dõi dữ liệu cảm biến trong thời gian thực từ các lô nông sản của trang trại.</p>
           </div>
         </div>
         <Link href="/iot-simulator" className="button secondary">Xem cảm biến →</Link>

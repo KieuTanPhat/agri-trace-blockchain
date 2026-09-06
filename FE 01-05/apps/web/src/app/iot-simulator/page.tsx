@@ -6,6 +6,7 @@ import { ErrorState } from "@/components/error-state";
 import { sendSensorReading } from "@/lib/api-client";
 import { saveStoredIotReading } from "@/lib/iot-local-store";
 import type { SensorReadingResponse } from "@/lib/types";
+import { ShieldCheck, Code2, Copy, Check } from "lucide-react";
 
 const statusLabels: Record<string, string> = {
   idle: "Sẵn sàng",
@@ -23,6 +24,7 @@ export default function IotSimulatorPage() {
   const [timestampUtc, setTimestampUtc] = useState("");
   const [response, setResponse] = useState<SensorReadingResponse | null>(null);
   const [status, setStatus] = useState("idle");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => { setTimestampUtc(new Date().toISOString()); }, []);
 
@@ -46,7 +48,7 @@ export default function IotSimulatorPage() {
   }
 
   return (
-    <>
+    <div className="design-page simulator-page">
       <section className="page-header">
         <div className="page-header-icon">
           <IconWifi size={22} />
@@ -56,14 +58,22 @@ export default function IotSimulatorPage() {
           <h1>Bộ giả lập cảm biến IoT</h1>
           <p className="muted">Mô phỏng gói dữ liệu thiết bị gửi nhiệt độ, độ ẩm và thời điểm UTC.</p>
         </div>
+        <div className="header-features">
+          <span className="header-feature"><IconThermometer size={14} /> Giám sát môi trường</span>
+          <span className="header-feature"><IconActivity size={14} /> Dữ liệu thời gian thực</span>
+          <span className="header-feature"><IconWifi size={14} /> Kết nối minh bạch</span>
+        </div>
       </section>
 
       <section className="grid two">
         <div className="panel form-grid">
           <div className="panel-title">
-            <div className="panel-title-left">
+          <div className="panel-title-left">
               <span className="panel-icon info"><IconActivity size={16} /></span>
-              <h2>Cấu hình cảm biến</h2>
+              <div>
+                <h2>Cấu hình cảm biến</h2>
+                <p className="muted" style={{marginTop: 2, fontSize: 12}}>Thiết lập thiết bị, lô nông sản và dữ liệu cảm biến cần gửi.</p>
+              </div>
             </div>
           </div>
           <div className="field">
@@ -84,15 +94,18 @@ export default function IotSimulatorPage() {
             <div className="field">
               <label htmlFor="temperature"><IconThermometer size={12} /> Nhiệt độ °C</label>
               <input className="input" id="temperature" type="number" value={temperature} onChange={(e) => setTemperature(Number(e.target.value))} />
+              <p className="field-hint">Ví dụ: -10 đến 50</p>
             </div>
             <div className="field">
               <label htmlFor="humidity"><IconDroplet size={12} /> Độ ẩm %</label>
               <input className="input" id="humidity" type="number" value={humidity} onChange={(e) => setHumidity(Number(e.target.value))} />
+              <p className="field-hint">Ví dụ: 0 đến 100</p>
             </div>
           </div>
           <div className="field">
             <label htmlFor="timestamp">Thời điểm UTC</label>
             <input className="input" id="timestamp" value={timestampUtc} onChange={(e) => setTimestampUtc(e.target.value)} />
+            <p className="field-hint">Định dạng ISO 8601 (UTC)</p>
           </div>
           <div className="form-row">
             <button className="button" onClick={() => submitReading(false)} disabled={status === "sending" || status === "retrying"}>
@@ -110,9 +123,14 @@ export default function IotSimulatorPage() {
             title={`Tình trạng: ${statusLabels[status] ?? status}`}
             message={response?.error?.message ?? "Gói dữ liệu sẵn sàng gửi đến điểm nhận mô phỏng."}
           />
-          <pre className="contract-preview">{JSON.stringify({ request: payload, response }, null, 2)}</pre>
+          <div className="system-health">
+            <span className="health-dot" />
+            <span className="health-text">Hệ thống hoạt động bình thường<br/><small>Sẵn sàng nhận dữ liệu</small></span>
+          </div>
+          <div className="json-panel"><div className="json-heading"><span><Code2 size={22} />Dữ liệu yêu cầu (JSON)</span><button onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify({ request: payload, response }, null, 2)); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { setCopied(false); } }}><span>{copied ? <Check size={17} /> : <Copy size={17} />}{copied ? "Đã sao chép" : "Sao chép"}</span></button></div><pre className="contract-preview">{JSON.stringify({ request: payload, response }, null, 2)}</pre></div>
+          <div className="design-note"><ShieldCheck size={40} /><div><strong>Dữ liệu sẽ được gửi an toàn</strong><p>Mô phỏng giao thức gửi dữ liệu IoT tới điểm nhận chuẩn và có thể được ghi nhận trên blockchain.</p></div></div>
         </div>
       </section>
-    </>
+    </div>
   );
 }

@@ -25,19 +25,30 @@ export default async function DashboardPage() {
 
   return (
     <div className="dashboard">
+      <div className="dashboard-heading">
+        <div><p className="workspace-kicker">KHÔNG GIAN QUẢN LÝ</p><h1>Tổng quan</h1></div>
+        <Link href="/batches" className="overview-link">Danh sách lô <span aria-hidden="true">↗</span></Link>
+      </div>
       <section className="hero-banner">
         <div className="hero-deco" aria-hidden="true">
           <IconSprout size={100} className="hero-icon" />
         </div>
         <div className="hero-content">
           <p className="eyebrow">Hệ thống truy xuất nông sản</p>
-          <h1>Tổng quan nông sản</h1>
+          <h2>Mỗi nông sản,<br />một hành trình <span>minh bạch.</span></h2>
           <p className="hero-desc">
             Từ trang trại đến điểm bán, minh bạch từng hành trình.
           </p>
+          <div className="hero-actions">
+            <Link className="button" href="/batches"><IconPackage size={18} /> Quản lý lô nông sản <span aria-hidden="true">↗</span></Link>
+            <Link className="hero-text-link" href="/scan">Quét mã truy xuất <span aria-hidden="true">→</span></Link>
+          </div>
+          <div className="hero-journey" aria-label="Các chặng trong chuỗi cung ứng">
+            <span><IconSprout size={16} />Trang trại</span><i aria-hidden="true" /><span><IconTruck size={16} />Vận chuyển</span><i aria-hidden="true" /><span><IconStore size={16} />Điểm bán</span>
+          </div>
         </div>
         <div className="hero-badge">
-          <StateBadge state={batch.currentState} />
+          <IconLeaf size={16} /> Từ nông trại đến bàn ăn
         </div>
       </section>
 
@@ -58,8 +69,9 @@ export default async function DashboardPage() {
       <section className="grid two dashboard-feature-row">
         <div className="grid">
           <div className="panel featured-panel">
-            <img className="produce-photo" src="/farm-greens.png" alt="Ảnh minh họa rau xanh tại vườn" />
+            <div className="produce-visual"><img className="produce-photo" src="/farm-greens.png" alt="Ảnh minh họa rau xanh tại vườn" /><span className="produce-label"><IconLeaf size={14} /> Nông sản từ trang trại</span></div>
             <div className="featured-details">
+            <div className="featured-caption"><span>Lô nông sản nổi bật</span><StateBadge state={batch.currentState} /></div>
             <div className="panel-title">
               <div className="panel-title-left">
                 <span className="panel-icon accent"><IconLeaf size={16} /></span>
@@ -94,8 +106,12 @@ export default async function DashboardPage() {
             <div className="panel-title">
               <div className="panel-title-left">
                 <span className="panel-icon warning"><IconClock size={16} /></span>
-                <h2>Dòng thời gian gần nhất</h2>
+                <div>
+                  <h2>Dòng thời gian gần nhất</h2>
+                  <p className="muted" style={{marginTop: 2, fontSize: 13}}>Các hoạt động mới nhất của lô nông sản này trên hệ thống.</p>
+                </div>
               </div>
+              <Link href="/batches" className="button secondary">Xem tất cả →</Link>
             </div>
             <div className="timeline">
               {batch.timeline.slice(0, 4).map((event) => (

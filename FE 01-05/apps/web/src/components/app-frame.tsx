@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { PanelLeftClose, PanelLeftOpen, X, LayoutDashboard, Package, ScanLine, Thermometer, ShieldCheck, Blocks, Search } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, X, LayoutDashboard, Package, ScanLine, Thermometer, ShieldCheck, Blocks, Search, Bell } from "lucide-react";
 import { getBatches } from "@/lib/api-client";
 import type { Batch } from "@/lib/types";
 
@@ -46,6 +46,10 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             {searchFailed ? <p>Chưa tải được danh sách lô.</p> : !batches.some(batch => `${batch.productName} ${batch.batchCode} ${batch.farmOrg.name}`.toLocaleLowerCase("vi").includes(query.trim().toLocaleLowerCase("vi"))) && <p>Không tìm thấy lô phù hợp.</p>}
           </div>}
         </div>
+        <button className="icon-button notification-btn" title="Thông báo" aria-label="Thông báo">
+          <Bell size={20} />
+          <span className="notification-dot" aria-hidden="true" />
+        </button>
         <div className="topbar-meta"><span className="workspace-avatar">HTX</span><span>HTX Rau Sạch Củ Chi<small>Nhân viên trang trại</small></span></div>
         <button className="icon-button desktop-toggle" title={collapsed ? "Mở rộng điều hướng" : "Thu gọn điều hướng"} aria-label={collapsed ? "Mở rộng điều hướng" : "Thu gọn điều hướng"} aria-expanded={!collapsed} aria-controls="main-navigation" onClick={() => setCollapsed(!collapsed)}>{collapsed ? <PanelLeftOpen size={21} /> : <PanelLeftClose size={21} />}</button>
         <button className="icon-button mobile-toggle" title="Điều hướng" aria-label={mobileOpen ? "Đóng điều hướng" : "Mở điều hướng"} aria-expanded={mobileOpen} aria-controls="main-navigation" onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X size={21} /> : <PanelLeftOpen size={21} />}</button>
@@ -60,6 +64,10 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
               return <Link className="nav-link" href={href} key={href} title={label} aria-current={active ? "page" : undefined} onClick={() => setMobileOpen(false)}><Icon size={21} /><span>{label}</span></Link>;
             })}
           </nav>
+          <div className="sidebar-garden">
+            <img src="/farm-landscape.png" alt="" className="sidebar-garden-photo" />
+            <p className="sidebar-garden-caption">Nông sản minh bạch<br />Giá trị bền vững</p>
+          </div>
           <div className="sidebar-network"><Blocks size={22} /><div><strong>Hyperledger Fabric</strong><span>Dữ liệu truy xuất chuỗi khối</span></div></div>
         </aside>
         <main className="content"><div className="page-content" key={pathname}>{children}</div><footer className="footer"><span>AgriTrace</span><span>Nguồn gốc rõ ràng. Hành trình minh bạch.</span></footer></main>
@@ -67,3 +75,4 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
