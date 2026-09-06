@@ -12,49 +12,111 @@ datasource db {
   provider = "postgresql"
 }
 
+enum OrganizationType {
+  FARM
+  COOPERATIVE
+  TRANSPORTER
+  RETAILER
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AccountStatus {
+  ACTIVE
+  LOCKED
+}
+
+enum BatchState {
+  CREATED
+  PLANTED
+  HARVESTED
+  IN_TRANSPORT
+  TRANSPORTED
+  RETAIL_RECEIVED
+  FOR_SALE
+  CANCELLED
+  DAMAGED
+  REJECTED
+}
+
+enum DeviceType {
+  TEMPERATURE
+  HUMIDITY
+  TEMPERATURE_HUMIDITY
+  SOIL_MOISTURE
+}
+
+enum DeviceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum IdempotencyStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model Organization {
-  id     String @id @default(uuid()) @map("organization_id") @db.Uuid
-  name   String @db.VarChar(255)
-  type   String @db.VarChar(50)
-  status String @db.VarChar(50)
+  id     String             @id @default(uuid()) @map("organization_id") @db.Uuid
+  name   String             @db.VarChar(255)
+  type   OrganizationType
+  status OrganizationStatus @default(ACTIVE)
 
   users                User[]
   batches              Batch[]
+  devices              Device[]
   transportedShipments Shipment[] @relation("ShipmentTransporter")
   retailerShipments    Shipment[] @relation("ShipmentRetailer")
 
   @@map("organizations")
 }
 
-model User {
-  id             String   @id @default(uuid()) @map("user_id") @db.Uuid
-  email          String   @unique @db.VarChar(255)
-  passwordHash   String   @map("password_hash") @db.VarChar(255)
-  fullName       String?  @map("full_name") @db.VarChar(255)
-  organizationId String?  @map("organization_id") @db.Uuid
-  role           String   @default("USER") @db.VarChar(50)
-  accountStatus  String   @default("ACTIVE") @map("account_status") @db.VarChar(50)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+model Role {
+  id          String  @id @default(uuid()) @map("role_id") @db.Uuid
+  code        String  @unique @db.VarChar(50)
+  name        String  @db.VarChar(100)
+  description String? @db.VarChar(500)
 
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id             String        @id @default(uuid()) @map("user_id") @db.Uuid
+  email          String        @unique @db.VarChar(255)
+  passwordHash   String        @map("password_hash") @db.VarChar(255)
+  fullName       String?       @map("full_name") @db.VarChar(255)
+  organizationId String        @map("organization_id") @db.Uuid
+  roleId         String        @map("role_id") @db.Uuid
+  accountStatus  AccountStatus @default(ACTIVE) @map("account_status")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  role         Role         @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
   @@map("users")
 }
 
 model Batch {
-  id           String   @id @default(uuid()) @map("batch_id") @db.Uuid
-  farmOrgId    String   @map("farm_org_id") @db.Uuid
-  batchCode    String   @unique @map("batch_code") @db.VarChar(100)
-  productName  String   @map("product_name") @db.VarChar(255)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  currentState String   @map("current_state") @db.VarChar(50)
+  id           String     @id @default(uuid()) @map("batch_id") @db.Uuid
+  farmOrgId    String     @map("farm_org_id") @db.Uuid
+  batchCode    String     @unique @map("batch_code") @db.VarChar(100)
+  productName  String     @map("product_name") @db.VarChar(255)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  currentState BatchState @default(CREATED) @map("current_state")
 
   farmOrganization Organization    @relation(fields: [farmOrgId], references: [id], onDelete: Restrict)
   shipment         Shipment?
   traceEvents      TraceEvent[]
   sensorReadings   SensorReading[]
   sensorDigests    SensorDigest[]
+  devices          Device[]
 
   @@map("batches")
 }
@@ -68,13 +130,30 @@ model Shipment {
   destination      String    @db.VarChar(255)
   pickupTime       DateTime? @map("pickup_time") @db.Timestamptz(3)
   deliveryTime     DateTime? @map("delivery_time") @db.Timestamptz(3)
-  status           String    @db.VarChar(50)
 
   batch          Batch        @relation(fields: [batchId], references: [id])
   transporterOrg Organization @relation("ShipmentTransporter", fields: [transporterOrgId], references: [id])
   retailerOrg    Organization @relation("ShipmentRetailer", fields: [retailerOrgId], references: [id])
 
   @@map("shipments")
+}
+
+model Device {
+  id             String       @id @default(uuid()) @map("device_id") @db.Uuid
+  deviceCode     String       @unique @map("device_code") @db.VarChar(100)
+  organizationId String       @map("organization_id") @db.Uuid
+  batchId        String?      @map("batch_id") @db.Uuid
+  name           String?      @db.VarChar(255)
+  type           DeviceType
+  status         DeviceStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  batch          Batch?          @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  sensorReadings SensorReading[]
+
+  @@map("devices")
 }
 
 model TraceEvent {
@@ -108,14 +187,15 @@ model BlockchainProof {
 
 model SensorReading {
   id          String   @id @default(uuid()) @map("reading_id") @db.Uuid
-  deviceId    String   @map("device_id") @db.VarChar(100)
+  deviceId    String   @map("device_id") @db.Uuid
   batchId     String   @map("batch_id") @db.Uuid
   temperature Decimal  @db.Decimal(5, 2)
   humidity    Decimal  @db.Decimal(5, 2)
   timestamp   DateTime @db.Timestamptz(3)
   ingestTime  DateTime @default(now()) @map("ingest_time") @db.Timestamptz(3)
 
-  batch Batch @relation(fields: [batchId], references: [id])
+  batch  Batch  @relation(fields: [batchId], references: [id])
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Restrict)
 
   @@map("sensor_readings")
 }
@@ -132,4 +212,23 @@ model SensorDigest {
   batch Batch @relation(fields: [batchId], references: [id])
 
   @@map("sensor_digests")
+}
+
+model IdempotencyRecord {
+  id             String            @id @default(uuid()) @map("idempotency_record_id") @db.Uuid
+  idempotencyKey String            @map("idempotency_key") @db.VarChar(255)
+  operation      String            @db.VarChar(100)
+  requesterType  String            @map("requester_type") @db.VarChar(50)
+  requesterId    String            @map("requester_id") @db.VarChar(255)
+  requestHash    String            @map("request_hash") @db.Char(64)
+  status         IdempotencyStatus @default(PROCESSING)
+  responseStatus Int?              @map("response_status")
+  responseBody   Json?             @map("response_body") @db.JsonB
+  resourceId     String?           @map("resource_id") @db.VarChar(255)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  expiresAt      DateTime          @map("expires_at") @db.Timestamptz(3)
+
+  @@unique([idempotencyKey, operation, requesterType, requesterId])
+  @@map("idempotency_records")
 }
