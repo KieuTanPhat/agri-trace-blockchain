@@ -28,8 +28,8 @@ jobs:
       run:
         working-directory: ${{ matrix.package }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -41,8 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Bootstrap pinned Fabric runtime
@@ -57,6 +57,11 @@ jobs:
       - name: Deploy and run end-to-end smoke test
         working-directory: blockchain/network
         run: ./network.sh smoke
+      - name: Collect Fabric diagnostics
+        if: failure()
+        run: |
+          docker logs peer0.org1.example.com 2>&1 | tail -n 500 || true
+          docker logs peer0.org2.example.com 2>&1 | tail -n 200 || true
       - name: Stop network
         if: always()
         working-directory: blockchain/network
