@@ -13,3 +13,18 @@ blockchain/network/identities/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Keep Markdown notes and AI workspace files local
+*.md
+.codex/
+.claude/
+.cursor/
+.ai/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.cursorrules
+.cursorignore
+.github/copilot-instructions.md
+.github/instructions/
+.github/prompts/
