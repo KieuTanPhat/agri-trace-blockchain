@@ -14,12 +14,13 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check": "npm run typecheck && npm run test:coverage && npm run build"
+    "runtime:load": "node -e \"require('./dist/index.js')\"",
+    "check": "npm run typecheck && npm run test:coverage && npm run build && npm run runtime:load"
   },
   "dependencies": {
-    "canonicalize": "4.0.0",
     "fabric-contract-api": "2.5.8",
     "fabric-shim": "2.5.8",
+    "json-canonicalize": "3.0.0",
     "reflect-metadata": "0.2.2"
   },
   "devDependencies": {

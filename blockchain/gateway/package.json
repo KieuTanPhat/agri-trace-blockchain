@@ -10,13 +10,14 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "check": "npm run typecheck && npm test && npm run build",
+    "runtime:load": "node -e \"require('./dist/index.js')\"",
+    "check": "npm run typecheck && npm test && npm run build && npm run runtime:load",
     "smoke": "tsx src/smoke.ts"
   },
   "dependencies": {
     "@grpc/grpc-js": "1.14.4",
     "@hyperledger/fabric-gateway": "1.12.1",
-    "canonicalize": "4.0.0"
+    "json-canonicalize": "3.0.0"
   },
   "devDependencies": {
     "@types/node": "22.18.1",

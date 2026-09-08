@@ -1,4 +1,4 @@
-import canonicalize from "canonicalize";
+import { canonicalize } from "json-canonicalize";
 
 import { contractError } from "./errors";
 
@@ -10,6 +10,9 @@ export const KEY_TYPES = {
 } as const;
 
 export function toLedgerBytes(value: unknown): Buffer {
+  if (value === undefined || typeof value === "function" || typeof value === "symbol") {
+    throw contractError("INVALID_INPUT", "Value cannot be canonicalized as JSON");
+  }
   const serialized = canonicalize(value);
   if (serialized === undefined) {
     throw contractError("INVALID_INPUT", "Value cannot be canonicalized as JSON");

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import canonicalize from "canonicalize";
+import { canonicalize } from "json-canonicalize";
 import { describe, expect, it } from "vitest";
 
 describe("RFC 8785 and SHA-256 vectors", () => {

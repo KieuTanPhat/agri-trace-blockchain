@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-import canonicalizeJson from "canonicalize";
+import { canonicalize as canonicalizeJson } from "json-canonicalize";
 
 import { FabricBlockchainAdapter, type TraceEventInput } from "./adapter.js";
 import { loadConfig } from "./config.js";
