@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+.env
+*.log
+
+# Local Fabric runtime and generated identities
+blockchain/.fabric/
+blockchain/network/identities/
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
