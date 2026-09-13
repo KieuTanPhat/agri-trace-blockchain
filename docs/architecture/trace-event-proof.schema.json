@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agri-trace.local/schemas/trace-event-proof-v1.json",
+  "title": "Agri TraceEvent input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "batchId",
+    "eventType",
+    "eventTime",
+    "dataHash",
+    "schemaVersion",
+    "canonicalizationVersion",
+    "actorContext",
+    "actorAuthProof"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "batchId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+    "eventType": { "const": "BATCH_CREATED" },
+    "eventTime": { "type": "string", "format": "date-time" },
+    "dataHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "schemaVersion": { "const": "1.0.0" },
+    "canonicalizationVersion": { "const": "RFC8785" },
+    "actorContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actorId", "role", "organizationId"],
+      "properties": {
+        "actorId": { "type": "string", "format": "uuid" },
+        "role": { "const": "FARM_STAFF" },
+        "organizationId": { "type": "string", "format": "uuid" }
+      }
+    },
+    "actorAuthProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proofType", "principalId", "authenticatedAt", "requestId", "proofHash"],
+      "properties": {
+        "proofType": { "const": "BACKEND_AUTH_CONTEXT" },
+        "principalId": { "type": "string", "format": "uuid" },
+        "authenticatedAt": { "type": "string", "format": "date-time" },
+        "requestId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "proofHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "payloadMetadata": {
+      "type": "object",
+      "maxProperties": 32,
+      "additionalProperties": true
+    }
+  }
+}

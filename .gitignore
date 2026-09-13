@@ -2,7 +2,7 @@
 node_modules/
 **/node_modules/
 
-# Compiled output
+# Compiled output and coverage
 dist/
 **/dist/
 coverage/
@@ -19,12 +19,9 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 
-# Operating system
-.DS_Store
-
-# IDE
-.vscode/
-.idea/
+# Local Fabric runtime and generated identities
+blockchain/.fabric/
+blockchain/network/identities/
 
 # Prisma local databases
 *.db
@@ -32,3 +29,13 @@ pnpm-debug.log*
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Editor, AI workspace, and operating-system files
+.idea/
+.vscode/
+.codex/
+.claude/
+.cursor/
+.ai/
+.DS_Store
+Thumbs.db

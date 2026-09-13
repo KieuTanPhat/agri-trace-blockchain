@@ -1,0 +1,68 @@
+name: Blockchain CI
+
+on:
+  push:
+    paths:
+      - "blockchain/**"
+      - "docs/architecture/**"
+      - ".github/workflows/blockchain-ci.yml"
+  pull_request:
+    paths:
+      - "blockchain/**"
+      - "docs/architecture/**"
+      - ".github/workflows/blockchain-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - blockchain/chaincode
+          - blockchain/gateway
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.package }}/package-lock.json
+      - run: npm ci
+      - run: npm run check
+
+  fabric-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Bootstrap pinned Fabric runtime
+        working-directory: blockchain/network
+        run: ./network.sh bootstrap
+      - name: Start network and create channel
+        working-directory: blockchain/network
+        run: ./network.sh up
+      - name: Enroll technical relayer
+        working-directory: blockchain/network
+        run: ./network.sh enroll-relayer
+      - name: Deploy and run end-to-end smoke test
+        working-directory: blockchain/network
+        run: ./network.sh smoke
+      - name: Collect Fabric diagnostics
+        if: failure()
+        run: |
+          docker logs peer0.org1.example.com 2>&1 | tail -n 500 || true
+          docker logs peer0.org2.example.com 2>&1 | tail -n 200 || true
+      - name: Stop network
+        if: always()
+        working-directory: blockchain/network
+        run: ./network.sh down

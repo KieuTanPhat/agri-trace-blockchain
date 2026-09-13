@@ -1,0 +1,32 @@
+{
+  "name": "@agri-trace/fabric-chaincode",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hyperledger Fabric traceability contract for Agri Trace",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "fabric-chaincode-node start",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "runtime:load": "node -e \"require('./dist/index.js')\"",
+    "check": "npm run typecheck && npm run test:coverage && npm run build && npm run runtime:load"
+  },
+  "dependencies": {
+    "fabric-contract-api": "2.5.8",
+    "fabric-shim": "2.5.8",
+    "json-canonicalize": "3.0.0",
+    "reflect-metadata": "0.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.1",
+    "@vitest/coverage-v8": "3.2.7",
+    "typescript": "5.9.2",
+    "vitest": "3.2.7"
+  }
+}
