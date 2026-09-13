@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen, X, LayoutDashboard, Package, ScanLine, Thermometer, ShieldCheck, Blocks, Search, Bell } from "lucide-react";
@@ -35,7 +36,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     <div className="app-shell" data-collapsed={collapsed} data-mobile-open={mobileOpen}>
       <header className="topbar">
         <Link className="brand" href="/" aria-label="AgriTrace - Tổng quan">
-          <img className="brand-logo" src="/logo.png" alt="" width={64} height={64} />
+          <Image className="brand-logo" src="/logo.png" alt="" width={64} height={64} priority />
           <span className="brand-text"><span className="brand-name">AgriTrace</span><span className="brand-sub">Truy xuất nguồn gốc nông sản</span></span>
         </Link>
         <div className="header-search">
@@ -65,7 +66,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             })}
           </nav>
           <div className="sidebar-garden">
-            <img src="/farm-landscape.png" alt="" className="sidebar-garden-photo" />
+            <Image src="/farm-landscape.png" alt="" className="sidebar-garden-photo" fill sizes="260px" />
             <p className="sidebar-garden-caption">Nông sản minh bạch<br />Giá trị bền vững</p>
           </div>
           <div className="sidebar-network"><Blocks size={22} /><div><strong>Hyperledger Fabric</strong><span>Dữ liệu truy xuất chuỗi khối</span></div></div>

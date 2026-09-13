@@ -5,11 +5,15 @@ on:
     paths:
       - "blockchain/**"
       - "docs/architecture/**"
+      - "package.json"
+      - "package-lock.json"
       - ".github/workflows/blockchain-ci.yml"
   pull_request:
     paths:
       - "blockchain/**"
       - "docs/architecture/**"
+      - "package.json"
+      - "package-lock.json"
       - ".github/workflows/blockchain-ci.yml"
 
 permissions:
@@ -24,18 +28,15 @@ jobs:
         package:
           - blockchain/chaincode
           - blockchain/gateway
-    defaults:
-      run:
-        working-directory: ${{ matrix.package }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: ${{ matrix.package }}/package-lock.json
-      - run: npm ci
-      - run: npm run check
+          cache-dependency-path: package-lock.json
+      - run: npm ci --workspace ${{ matrix.package }}
+      - run: npm run check --workspace ${{ matrix.package }}
 
   fabric-smoke:
     runs-on: ubuntu-latest

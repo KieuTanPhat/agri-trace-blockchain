@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Inject,
   NotImplementedException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -12,8 +13,8 @@ import type { RegisterDto } from './dto/register.dto.js';
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly jwtService: JwtService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(JwtService) private readonly jwtService: JwtService,
   ) {}
 
   register(_input: RegisterDto): never {

@@ -7,6 +7,7 @@ import { TimelineItem } from "@/components/timeline-item";
 import { getBatches, getPublicTrace } from "@/lib/api-client";
 import { labelForProof } from "@/lib/display-labels";
 import { formatTraceDate } from "@/lib/format-date";
+import Image from "next/image";
 
 export default async function PublicTracePage({ params }: { params: Promise<{ batchId: string }> }) {
   const { batchId } = await params;
@@ -20,7 +21,7 @@ export default async function PublicTracePage({ params }: { params: Promise<{ ba
   return (
     <div className="design-page trace-page">
       <section className="page-header">
-        <img className="trace-product-photo" src="/farm-greens.png" alt="Ảnh minh họa nông sản tại trang trại" />
+        <Image className="trace-product-photo" src="/farm-greens.png" alt="Ảnh minh họa nông sản tại trang trại" width={500} height={500} />
         <div>
           <p className="eyebrow">Tra cứu công khai</p>
           <h1>{trace.productName}</h1>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ActionPanel } from "@/components/action-panel";
 import { IconBarChart, IconClock, IconLeaf, IconPackage, IconShield, IconSprout, IconStore, IconTruck, IconZap } from "@/components/icons";
 import { IotOverviewPanel } from "@/components/iot-overview-panel";
@@ -69,7 +70,7 @@ export default async function DashboardPage() {
       <section className="grid two dashboard-feature-row">
         <div className="grid">
           <div className="panel featured-panel">
-            <div className="produce-visual"><img className="produce-photo" src="/farm-greens.png" alt="Ảnh minh họa rau xanh tại vườn" /><span className="produce-label"><IconLeaf size={14} /> Nông sản từ trang trại</span></div>
+            <div className="produce-visual"><Image className="produce-photo" src="/farm-greens.png" alt="Ảnh minh họa rau xanh tại vườn" width={1200} height={800} priority /><span className="produce-label"><IconLeaf size={14} /> Nông sản từ trang trại</span></div>
             <div className="featured-details">
             <div className="featured-caption"><span>Lô nông sản nổi bật</span><StateBadge state={batch.currentState} /></div>
             <div className="panel-title">

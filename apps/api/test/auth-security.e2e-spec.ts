@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
-import { hash, compare } from 'bcrypt';
+import { hash } from 'bcrypt';
 import request from 'supertest';
 import { vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
@@ -18,7 +18,11 @@ describe('Auth security (e2e)', () => {
     passwordHash: string;
     fullName: string | null;
     organizationId: string | null;
-    role: string;
+    role: {
+      id: string;
+      code: string;
+      name: string;
+    };
     accountStatus: string;
   } | null;
   const password = 'test-password-123';
@@ -32,7 +36,11 @@ describe('Auth security (e2e)', () => {
       passwordHash: await hash(password, 4),
       fullName: 'Staff',
       organizationId: null,
-      role: 'USER',
+      role: {
+        id: '8fb589c9-e423-4b3e-a492-a521b9094166',
+        code: 'USER',
+        name: 'User',
+      },
       accountStatus: 'ACTIVE',
     };
     prisma.user.findUnique.mockImplementation(({ where, select }) => {
@@ -67,6 +75,7 @@ describe('Auth security (e2e)', () => {
       })
       .compile();
     app = fixture.createNestApplication();
+    app.setGlobalPrefix('api');
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -82,22 +91,15 @@ describe('Auth security (e2e)', () => {
     await app?.close();
   });
 
-  it('registers an unassigned USER and hashes the password', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/auth/register')
-      .send({ email: 'new@example.com', password, fullName: 'New User' })
-      .expect(201);
-    expect(response.body.user).toMatchObject({
-      organizationId: null,
-      role: 'USER',
-      accountStatus: 'ACTIVE',
-    });
-    expect(response.body.user).not.toHaveProperty('passwordHash');
-    expect(await compare(password, user!.passwordHash)).toBe(true);
+  it('keeps public registration disabled', async () => {
     await request(app.getHttpServer())
-      .get('/auth/me')
-      .set('Authorization', `Bearer ${response.body.accessToken}`)
-      .expect(200);
+      .post('/api/auth/register')
+      .send({ email: 'new@example.com', password, fullName: 'New User' })
+      .expect(501)
+      .expect(({ body }) => {
+        expect(body.message).toContain('Đăng ký đang tạm khóa');
+      });
+    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -107,7 +109,7 @@ describe('Auth security (e2e)', () => {
     { accountStatus: 'ACTIVE' },
   ])('rejects self-assignment: %j', async (extra) => {
     await request(app.getHttpServer())
-      .post('/auth/register')
+      .post('/api/auth/register')
       .send({ email: 'new@example.com', password, ...extra })
       .expect(400);
     expect(prisma.user.create).not.toHaveBeenCalled();
@@ -117,21 +119,21 @@ describe('Auth security (e2e)', () => {
     'rejects an existing token after account becomes %s',
     async (status) => {
       const login = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/auth/login')
         .send({ email: user!.email, password })
         .expect(201);
       const authorization = `Bearer ${login.body.accessToken}`;
       await request(app.getHttpServer())
-        .get('/auth/me')
+        .get('/api/auth/me')
         .set('Authorization', authorization)
         .expect(200);
       user!.accountStatus = status;
       await request(app.getHttpServer())
-        .get('/auth/me')
+        .get('/api/auth/me')
         .set('Authorization', authorization)
         .expect(401);
       await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/api/auth/login')
         .send({ email: user!.email, password })
         .expect(401);
     },
@@ -141,19 +143,19 @@ describe('Auth security (e2e)', () => {
     const token = jwt.sign({
       sub: user!.id,
       email: user!.email,
-      role: user!.role,
+      role: user!.role.code,
     });
     user = null;
     await request(app.getHttpServer())
-      .get('/auth/me')
+      .get('/api/auth/me')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
   });
 
   it('rejects missing and invalid tokens before querying persistence', async () => {
-    await request(app.getHttpServer()).get('/auth/me').expect(401);
+    await request(app.getHttpServer()).get('/api/auth/me').expect(401);
     await request(app.getHttpServer())
-      .get('/auth/me')
+      .get('/api/auth/me')
       .set('Authorization', 'Bearer invalid')
       .expect(401);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
@@ -162,7 +164,7 @@ describe('Auth security (e2e)', () => {
   it('rejects expired tokens', async () => {
     const token = jwt.sign({ sub: user!.id }, { expiresIn: -1 });
     await request(app.getHttpServer())
-      .get('/auth/me')
+      .get('/api/auth/me')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
@@ -173,7 +175,7 @@ describe('Auth security (e2e)', () => {
     async (payload) => {
       const token = jwt.sign(payload);
       await request(app.getHttpServer())
-        .get('/auth/me')
+        .get('/api/auth/me')
         .set('Authorization', `Bearer ${token}`)
         .expect(401);
       expect(prisma.user.findUnique).not.toHaveBeenCalled();

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { IconPackage } from "@/components/icons";
 import { BatchTable } from "@/components/batch-table";
 import { getBatches } from "@/lib/api-client";

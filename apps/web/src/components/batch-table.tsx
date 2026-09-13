@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Search, Download, Leaf, Sprout, Truck, Award, House, ChevronRight, MoreHorizontal, Clock, MapPin } from "lucide-react";
 import type { Batch } from "@/lib/types";
 import { StateBadge } from "./state-badge";
@@ -40,7 +41,7 @@ export function BatchTable({ batches }: { batches: Batch[] }) {
       </div>
       <div className="table-scroll"><table className="batch-table"><thead><tr><th>#</th><th>Nông sản</th><th>Mã lô</th><th>Trang trại</th><th>Cập nhật gần nhất</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{filtered.slice((page-1)*perPage, page*perPage).map((b, i) => {
         const latest = [...b.timeline].sort((a, c) => c.eventTime.localeCompare(a.eventTime))[0];
-        return <tr key={b.batchId}><td>{(page-1)*perPage + i + 1}</td><td><Link href={`/batches/${b.batchId}`} className="product-cell"><span className={`product-thumb ${b.productName.toLowerCase().includes("xoài") ? "mango-thumb" : ""}`}>{b.productName.toLowerCase().includes("xoài") ? "🥭" : <img src="/farm-greens.png" alt="" />}</span><strong>{b.productName}</strong></Link></td><td>{b.batchCode}</td><td><span className="farm-cell"><House size={20} /><div><strong>{b.farmOrg.name}</strong><span className="farm-location"><MapPin size={12} />{b.farmOrg.type === 'FARM' ? 'Cù Chi, TP. Hồ Chí Minh' : 'Nhà Bè, TP. Hồ Chí Minh'}</span></div></span></td><td><div className="update-cell"><span className="update-time"><Clock size={14} />{latest ? formatTraceDate(latest.eventTime) : "Chưa ghi nhận"}</span><span className="update-by">Bởi {b.farmOrg.name}</span></div></td><td><StateBadge state={b.currentState} /></td><td><button className="icon-button" aria-label={`Thao tác ${b.productName}`}><MoreHorizontal size={18} /></button></td></tr>;
+        return <tr key={b.batchId}><td>{(page-1)*perPage + i + 1}</td><td><Link href={`/batches/${b.batchId}`} className="product-cell"><span className={`product-thumb ${b.productName.toLowerCase().includes("xoài") ? "mango-thumb" : ""}`}>{b.productName.toLowerCase().includes("xoài") ? "🥭" : <Image src="/farm-greens.png" alt="" width={104} height={112} />}</span><strong>{b.productName}</strong></Link></td><td>{b.batchCode}</td><td><span className="farm-cell"><House size={20} /><div><strong>{b.farmOrg.name}</strong><span className="farm-location"><MapPin size={12} />{b.farmOrg.type === 'FARM' ? 'Cù Chi, TP. Hồ Chí Minh' : 'Nhà Bè, TP. Hồ Chí Minh'}</span></div></span></td><td><div className="update-cell"><span className="update-time"><Clock size={14} />{latest ? formatTraceDate(latest.eventTime) : "Chưa ghi nhận"}</span><span className="update-by">Bởi {b.farmOrg.name}</span></div></td><td><StateBadge state={b.currentState} /></td><td><button className="icon-button" aria-label={`Thao tác ${b.productName}`}><MoreHorizontal size={18} /></button></td></tr>;
       })}</tbody></table></div>
       {!filtered.length && <p className="table-empty">Không có lô phù hợp với bộ lọc.</p>}
       <div className="table-footer">
