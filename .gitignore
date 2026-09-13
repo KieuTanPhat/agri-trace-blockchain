@@ -7,6 +7,8 @@ dist/
 **/dist/
 coverage/
 **/coverage/
+.next/
+**/.next/
 
 # Environment variables
 .env

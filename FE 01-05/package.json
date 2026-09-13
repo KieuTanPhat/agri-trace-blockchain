@@ -1,0 +1,16 @@
+{
+  "name": "agri-traceability-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "npm --workspace apps/web run dev",
+    "build": "npm --workspace apps/web run build",
+    "lint": "npm --workspace apps/web run lint",
+    "typecheck": "npm --workspace apps/web run typecheck"
+  },
+  "workspaces": [
+    "apps/web"
+  ],
+  "dependencies": {
+    "@next/swc-wasm-nodejs": "^15.5.25"
+  }
+}
