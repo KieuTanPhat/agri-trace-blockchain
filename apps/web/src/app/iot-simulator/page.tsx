@@ -18,18 +18,19 @@ const statusLabels: Record<string, string> = {
 
 export default function IotSimulatorPage() {
   const [deviceId, setDeviceId] = useState("device-cu-chi-01");
-  const [batchId, setBatchId] = useState("batch-rau-001");
-  const [temperature, setTemperature] = useState(27.5);
-  const [humidity, setHumidity] = useState(68);
-  const [timestampUtc, setTimestampUtc] = useState("");
+  const [cycleId, setCycleId] = useState("21111111-1111-4111-8111-111111111111");
+  const [sensorType, setSensorType] = useState("TEMPERATURE");
+  const [value, setValue] = useState(27.5);
+  const [unit, setUnit] = useState("°C");
+  const [timestamp, setTimestamp] = useState("");
   const [response, setResponse] = useState<SensorReadingResponse | null>(null);
   const [status, setStatus] = useState("idle");
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => { setTimestampUtc(new Date().toISOString()); }, []);
+  useEffect(() => { setTimestamp(new Date().toISOString()); }, []);
 
-  const payload = useMemo(() => ({ deviceId, batchId, temperature, humidity, timestampUtc }), [
-    batchId, deviceId, humidity, temperature, timestampUtc
+  const payload = useMemo(() => ({ deviceId, cycleId, sensorType, value, unit, timestamp }), [
+    cycleId, deviceId, sensorType, timestamp, unit, value
   ]);
 
   async function submitReading(retry = false) {
@@ -56,7 +57,7 @@ export default function IotSimulatorPage() {
         <div>
           <p className="eyebrow">IOT-01</p>
           <h1>Bộ giả lập cảm biến IoT</h1>
-          <p className="muted">Mô phỏng gói dữ liệu thiết bị gửi nhiệt độ, độ ẩm và thời điểm UTC.</p>
+          <p className="muted">Mô phỏng một bản ghi cảm biến chuẩn hóa gắn với ProductionCycle.</p>
         </div>
         <div className="header-features">
           <span className="header-feature"><IconThermometer size={14} /> Giám sát môi trường</span>
@@ -72,7 +73,7 @@ export default function IotSimulatorPage() {
               <span className="panel-icon info"><IconActivity size={16} /></span>
               <div>
                 <h2>Cấu hình cảm biến</h2>
-                <p className="muted" style={{marginTop: 2, fontSize: 12}}>Thiết lập thiết bị, lô nông sản và dữ liệu cảm biến cần gửi.</p>
+                <p className="muted" style={{marginTop: 2, fontSize: 12}}>Thiết lập thiết bị, vụ trồng và dữ liệu cảm biến cần gửi.</p>
               </div>
             </div>
           </div>
@@ -84,27 +85,26 @@ export default function IotSimulatorPage() {
             </select>
           </div>
           <div className="field">
-            <label htmlFor="batch">Lô nông sản</label>
-            <select className="select" id="batch" value={batchId} onChange={(e) => setBatchId(e.target.value)}>
-              <option value="batch-rau-001">batch-rau-001</option>
-              <option value="batch-xoai-002">batch-xoai-002</option>
+            <label htmlFor="cycle">Vụ trồng</label>
+            <select className="select" id="cycle" value={cycleId} onChange={(e) => setCycleId(e.target.value)}>
+              <option value="21111111-1111-4111-8111-111111111111">CYCLE-RAU-2026-01</option>
+              <option value="22222222-2222-4222-8222-222222222222">CYCLE-XOA-2026-02</option>
             </select>
           </div>
           <div className="form-row">
             <div className="field">
-              <label htmlFor="temperature"><IconThermometer size={12} /> Nhiệt độ °C</label>
-              <input className="input" id="temperature" type="number" value={temperature} onChange={(e) => setTemperature(Number(e.target.value))} />
-              <p className="field-hint">Ví dụ: -10 đến 50</p>
+              <label htmlFor="sensor-type"><IconThermometer size={12} /> Loại cảm biến</label>
+              <select className="select" id="sensor-type" value={sensorType} onChange={(e) => { setSensorType(e.target.value); setUnit(e.target.value === "HUMIDITY" ? "%" : "°C"); }}><option value="TEMPERATURE">Nhiệt độ</option><option value="HUMIDITY">Độ ẩm</option><option value="SOIL_MOISTURE">Độ ẩm đất</option></select>
             </div>
             <div className="field">
-              <label htmlFor="humidity"><IconDroplet size={12} /> Độ ẩm %</label>
-              <input className="input" id="humidity" type="number" value={humidity} onChange={(e) => setHumidity(Number(e.target.value))} />
-              <p className="field-hint">Ví dụ: 0 đến 100</p>
+              <label htmlFor="sensor-value"><IconDroplet size={12} /> Giá trị và đơn vị</label>
+              <input className="input" id="sensor-value" type="number" value={value} onChange={(e) => setValue(Number(e.target.value))} />
+              <input className="input" aria-label="Đơn vị" value={unit} onChange={(e) => setUnit(e.target.value)} />
             </div>
           </div>
           <div className="field">
             <label htmlFor="timestamp">Thời điểm UTC</label>
-            <input className="input" id="timestamp" value={timestampUtc} onChange={(e) => setTimestampUtc(e.target.value)} />
+            <input className="input" id="timestamp" value={timestamp} onChange={(e) => setTimestamp(e.target.value)} />
             <p className="field-hint">Định dạng ISO 8601 (UTC)</p>
           </div>
           <div className="form-row">

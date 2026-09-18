@@ -25,8 +25,8 @@ describe("FabricBlockchainAdapter", () => {
     await expect(adapter.queryEvent("event-1")).resolves.toEqual({ ok: true });
     await expect(adapter.getProof("event-1")).resolves.toEqual({ ok: true });
     await expect(adapter.getExpectedHash("event-1")).resolves.toBe("a".repeat(64));
-    await expect(adapter.queryBatchHistory("batch-1")).resolves.toEqual({ ok: true });
-    await expect(adapter.getBatchState("batch-1")).resolves.toEqual({ ok: true });
+    await expect(adapter.queryEntityHistory("LOT", "lot-1")).resolves.toEqual({ ok: true });
+    await expect(adapter.getEntityHead("LOT", "lot-1")).resolves.toEqual({ ok: true });
     await expect(adapter.healthCheck()).resolves.toEqual({ ok: true });
 
     expect(getNetwork).toHaveBeenCalledWith("agritrace");
@@ -36,8 +36,8 @@ describe("FabricBlockchainAdapter", () => {
       "QueryEvent",
       "GetProof",
       "GetExpectedHash",
-      "QueryBatchHistory",
-      "GetBatchState",
+      "QueryEntityHistory",
+      "GetEntityHead",
       "HealthCheck"
     ]);
   });

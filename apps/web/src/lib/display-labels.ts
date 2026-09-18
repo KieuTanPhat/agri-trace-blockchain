@@ -3,31 +3,40 @@ import type { ProofStatus, Role } from "./types";
 const stateLabels: Record<string, string> = {
   CREATED: "Mới tạo",
   PLANTED: "Đang trồng",
+  GROWING: "Đang sinh trưởng",
+  COMPLETED: "Đã kết thúc vụ",
   HARVESTED: "Đã thu hoạch",
   IN_TRANSPORT: "Đang vận chuyển",
+  ARRIVED: "Đã đến điểm nhận",
   RETAIL_RECEIVED: "Cửa hàng đã nhận",
   FOR_SALE: "Đang bán",
+  SOLD: "Đã bán",
+  RECALLED: "Đã thu hồi",
+  EXPIRED: "Đã hết hạn",
   CANCELLED: "Đã hủy",
   DAMAGED: "Bị hỏng",
   REJECTED: "Bị từ chối",
-  verified: "Đã xác minh",
-  pending: "Chờ xác minh",
-  mismatch: "Lệch bằng chứng",
-  unavailable: "Chưa có bằng chứng"
+  VERIFIED: "Đã xác minh",
+  PENDING: "Chờ xác minh",
+  INTEGRITY_WARNING: "Cảnh báo toàn vẹn",
+  BLOCKCHAIN_UNAVAILABLE: "Blockchain tạm không khả dụng"
 };
 
 const eventLabels: Record<string, string> = {
-  BATCH_CREATED: "Khởi tạo lô",
+  PRODUCTION_CYCLE_CREATED: "Khởi tạo vụ trồng",
   PLANTING_RECORDED: "Ghi nhận gieo trồng",
   CARE_RECORDED: "Ghi nhận chăm sóc",
   SENSOR_RECORDED: "Ghi nhận cảm biến",
   HARVEST_RECORDED: "Ghi nhận thu hoạch",
   SHIPMENT_CREATED: "Tạo chuyến vận chuyển",
   TRANSPORT_STARTED: "Bắt đầu vận chuyển",
-  TRANSPORT_COMPLETED: "Hoàn tất vận chuyển",
+  TRANSPORT_ARRIVED: "Đến điểm nhận",
   RETAIL_RECEIVED: "Cửa hàng nhận lô",
   RETAIL_REJECTED: "Cửa hàng từ chối",
-  MARKED_FOR_SALE: "Đưa lên kệ bán"
+  MARKED_FOR_SALE: "Đưa lên kệ bán",
+  LOT_SOLD: "Đã bán",
+  RECALL_RECORDED: "Thu hồi lô",
+  LOT_EXPIRED: "Lô hết hạn"
 };
 
 const roleLabels: Record<Role, string> = {
@@ -37,14 +46,14 @@ const roleLabels: Record<Role, string> = {
   TRANSPORTER: "Đơn vị vận chuyển",
   RETAILER: "Nhà bán lẻ",
   AUDITOR: "Kiểm tra viên",
-  CONSUMER: "Người tiêu dùng"
+  SYSTEM_ACTOR: "Tác vụ hệ thống"
 };
 
 const proofLabels: Record<ProofStatus, string> = {
-  verified: "Đã khớp bằng chứng",
-  pending: "Đang chờ ghi nhận",
-  mismatch: "Dữ liệu không khớp",
-  unavailable: "Chưa có dữ liệu"
+  VERIFIED: "Đã khớp bằng chứng",
+  PENDING: "Đang chờ ghi nhận",
+  INTEGRITY_WARNING: "Dữ liệu không khớp",
+  BLOCKCHAIN_UNAVAILABLE: "Không truy vấn được blockchain"
 };
 
 export function labelForState(state: string) {

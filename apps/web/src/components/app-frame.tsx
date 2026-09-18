@@ -5,14 +5,14 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen, X, LayoutDashboard, Package, ScanLine, Thermometer, ShieldCheck, Blocks, Search, Bell } from "lucide-react";
-import { getBatches } from "@/lib/api-client";
-import type { Batch } from "@/lib/types";
+import { getLots } from "@/lib/api-client";
+import type { LotTrace } from "@/lib/types";
 
 const navigation = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
-  { href: "/batches", label: "Lô nông sản", icon: Package },
+  { href: "/lots", label: "Lô nông sản", icon: Package },
   { href: "/scan", label: "Quét mã QR", icon: ScanLine },
-  { href: "/trace/batch-rau-001", label: "Truy xuất nguồn gốc", icon: ShieldCheck },
+  { href: "/trace/11111111-1111-4111-8111-111111111111", label: "Truy xuất nguồn gốc", icon: ShieldCheck },
   { href: "/iot-simulator", label: "Cảm biến IoT", icon: Thermometer }
 ];
 
@@ -21,9 +21,9 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [batches, setBatches] = useState<Batch[]>([]);
+  const [lots, setLots] = useState<LotTrace[]>([]);
   const [searchFailed, setSearchFailed] = useState(false);
-  useEffect(() => { getBatches().then(setBatches).catch(() => setSearchFailed(true)); }, []);
+  useEffect(() => { getLots().then(setLots).catch(() => setSearchFailed(true)); }, []);
   useEffect(() => { setMobileOpen(false); }, [pathname]);
   useEffect(() => {
     if (!mobileOpen) return;
@@ -43,8 +43,8 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           <Search size={20} />
           <input aria-label="Tìm lô nông sản" placeholder="Tìm nông sản, mã lô, trang trại..." value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === "Escape") setQuery(""); }} />
           {query.trim() && <div className="search-results">
-            {batches.filter(batch => `${batch.productName} ${batch.batchCode} ${batch.farmOrg.name}`.toLocaleLowerCase("vi").includes(query.trim().toLocaleLowerCase("vi"))).map(batch => <Link key={batch.batchId} href={`/batches/${batch.batchId}`} onClick={() => setQuery("")}><strong>{batch.productName}</strong><span>{batch.batchCode}</span></Link>)}
-            {searchFailed ? <p>Chưa tải được danh sách lô.</p> : !batches.some(batch => `${batch.productName} ${batch.batchCode} ${batch.farmOrg.name}`.toLocaleLowerCase("vi").includes(query.trim().toLocaleLowerCase("vi"))) && <p>Không tìm thấy lô phù hợp.</p>}
+            {lots.filter(lot => `${lot.productName} ${lot.lotCode} ${lot.farmOrg.name}`.toLocaleLowerCase("vi").includes(query.trim().toLocaleLowerCase("vi"))).map(lot => <Link key={lot.lotId} href={`/lots/${lot.lotId}`} onClick={() => setQuery("")}><strong>{lot.productName}</strong><span>{lot.lotCode}</span></Link>)}
+            {searchFailed ? <p>Chưa tải được danh sách lô.</p> : !lots.some(lot => `${lot.productName} ${lot.lotCode} ${lot.farmOrg.name}`.toLocaleLowerCase("vi").includes(query.trim().toLocaleLowerCase("vi"))) && <p>Không tìm thấy lô phù hợp.</p>}
           </div>}
         </div>
         <button className="icon-button notification-btn" title="Thông báo" aria-label="Thông báo">

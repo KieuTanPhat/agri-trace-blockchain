@@ -8,7 +8,7 @@
 ├──────────────┬─────────────────────────────────────────────┤
 │ Sidebar      │ Page content                                 │
 │ - Dashboard  │ ┌───────────────┐ ┌───────────────────────┐ │
-│ - Batches    │ │ Summary state │ │ Allowed action panel  │ │
+│ - Cycles/Lots│ │ Summary state │ │ Allowed action panel  │ │
 │ - Shipments  │ └───────────────┘ └───────────────────────┘ │
 │ - QR Scan    │ ┌─────────────────────────────────────────┐ │
 │ - IoT Sim    │ │ Timeline                                │ │
@@ -16,11 +16,11 @@
 └──────────────┴─────────────────────────────────────────────┘
 ```
 
-## Batch Detail
+## ProductionCycle và Lot Detail
 
 ```text
-Batch title + StateBadge + verification
-Metadata: product, farm, batchCode, shipment, retailer destination
+Cycle: product, farm, cycleCode, plot, planting/care/sensor/harvest history
+Lot: lotCode, harvest, quantity, state, shipment, retailer destination
 
 [ActionPanel]
 - Buttons come only from `allowedCommands`
@@ -28,8 +28,8 @@ Metadata: product, farm, batchCode, shipment, retailer destination
 - API error mapped to 403/409/422/503 components
 
 [Timeline]
-- CREATED
-- PLANTED
+- PRODUCTION_CYCLE_CREATED
+- PLANTING_RECORDED
 - CARE_RECORDED
 - SENSOR_RECORDED
 - HARVEST_RECORDED
@@ -41,7 +41,7 @@ Metadata: product, farm, batchCode, shipment, retailer destination
 
 ```text
 Public header: product + current state + blockchain verification
-Batch facts
+Lot facts + ProductionCycle public summary
 Timeline
 Proof section: network, tx hash, data hash, recorded time
 ```
@@ -53,15 +53,15 @@ Scan screen
 ┌─────────────────────────────┐
 │ Camera placeholder / upload │
 └─────────────────────────────┘
-[Manual batch/trace code input]
+[Manual lot/trace token input]
 [Open public trace]
 ```
 
 ## IoT Simulator
 
 ```text
-Device selector | Batch selector
-Temperature input | Humidity input | Timestamp UTC
+Device selector | ProductionCycle selector
+Sensor type | Value | Unit | Timestamp UTC
 [Send reading]
 Status: queued / sending / accepted / rejected / retrying
 Last payload preview

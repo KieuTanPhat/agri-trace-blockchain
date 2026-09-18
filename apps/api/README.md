@@ -20,6 +20,10 @@ npm exec --workspace apps/api -- prisma generate
 npm exec --workspace apps/api -- prisma migrate deploy
 ```
 
+Schema hiện dùng mô hình `ProductionCycle -> HarvestEvent -> Lot -> Shipment`,
+không còn bảng `Batch`. Xem `docs/database/traceability-core.md` để biết các
+invariant và hướng dẫn xử lý database local đã chạy migration legacy.
+
 Các endpoint hiện có:
 
 - `GET /api` và `GET /api/health`

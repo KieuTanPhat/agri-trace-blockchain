@@ -4,12 +4,12 @@ import { IconPalette, IconCheckCircle, IconAlertTriangle } from "@/components/ic
 import { LoadingState } from "@/components/loading-state";
 import { StateBadge } from "@/components/state-badge";
 import { TimelineItem } from "@/components/timeline-item";
-import { mockBatches } from "@/lib/mock-api";
+import { mockLots } from "@/lib/mock-api";
 
-const states = ["CREATED", "PLANTED", "HARVESTED", "IN_TRANSPORT", "FOR_SALE", "DAMAGED", "REJECTED", "verified", "pending", "mismatch"];
+const states = ["HARVESTED", "IN_TRANSPORT", "ARRIVED", "RETAIL_RECEIVED", "FOR_SALE", "SOLD", "RECALLED", "EXPIRED", "DAMAGED", "REJECTED", "VERIFIED", "PENDING", "INTEGRITY_WARNING"];
 
 export default function ComponentsPage() {
-  const batch = mockBatches[0];
+  const lot = mockLots[0];
 
   return (
     <>
@@ -38,7 +38,7 @@ export default function ComponentsPage() {
         </div>
 
         <div className="grid two">
-          <ActionPanel allowedCommands={batch.allowedCommands} batchId={batch.batchId} />
+          <ActionPanel allowedCommands={lot.allowedCommands} lotId={lot.lotId} />
           <div className="panel">
             <div className="panel-title">
               <div className="panel-title-left">
@@ -46,7 +46,7 @@ export default function ComponentsPage() {
                 <h2>Một dòng timeline</h2>
               </div>
             </div>
-            <TimelineItem event={batch.timeline[0]} />
+            <TimelineItem event={lot.timeline[0]} />
           </div>
         </div>
 

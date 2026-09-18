@@ -4,28 +4,28 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Search, Download, Leaf, Sprout, Truck, Award, House, ChevronRight, MoreHorizontal, Clock, MapPin } from "lucide-react";
-import type { Batch } from "@/lib/types";
+import type { LotTrace } from "@/lib/types";
 import { StateBadge } from "./state-badge";
 import { labelForState } from "@/lib/display-labels";
 import { formatTraceDate } from "@/lib/format-date";
 
-export function BatchTable({ batches }: { batches: Batch[] }) {
+export function LotTable({ lots }: { lots: LotTrace[] }) {
   const [query, setQuery] = useState("");
   const [state, setState] = useState("");
   const [farm, setFarm] = useState("");
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
-  const filtered = batches.filter(b => (!state || b.currentState === state) && (!farm || b.farmOrg.organizationId === farm) && `${b.productName} ${b.batchCode} ${b.farmOrg.name}`.toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi")));
-  const farms = [...new Map(batches.map(b => [b.farmOrg.organizationId, b.farmOrg])).values()];
+  const filtered = lots.filter(lot => (!state || lot.currentState === state) && (!farm || lot.farmOrg.organizationId === farm) && `${lot.productName} ${lot.lotCode} ${lot.farmOrg.name}`.toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi")));
+  const farms = [...new Map(lots.map(lot => [lot.farmOrg.organizationId, lot.farmOrg])).values()];
   const stats = [
-    { label: "Tổng số lô nông sản", value: batches.length, icon: Leaf, state: "" },
-    { label: "Đang trồng", value: batches.filter(b => b.currentState === "PLANTED").length, icon: Sprout, state: "PLANTED" },
-    { label: "Đang vận chuyển", value: batches.filter(b => b.currentState === "IN_TRANSPORT").length, icon: Truck, state: "IN_TRANSPORT" },
-    { label: "Đã thu hoạch", value: batches.filter(b => b.currentState === "HARVESTED").length, icon: Award, state: "HARVESTED" }
+    { label: "Tổng số lô nông sản", value: lots.length, icon: Leaf, state: "" },
+    { label: "Đã đến điểm nhận", value: lots.filter(lot => lot.currentState === "ARRIVED").length, icon: Sprout, state: "ARRIVED" },
+    { label: "Đang vận chuyển", value: lots.filter(lot => lot.currentState === "IN_TRANSPORT").length, icon: Truck, state: "IN_TRANSPORT" },
+    { label: "Đã thu hoạch", value: lots.filter(lot => lot.currentState === "HARVESTED").length, icon: Award, state: "HARVESTED" }
   ];
   function exportCsv() {
     const cell = (value: string) => `"${value.replace(/^[=+@-]/, "'$&").replaceAll('"', '""')}"`;
-    const rows = [["Nông sản", "Mã lô", "Trang trại", "Trạng thái"], ...filtered.map(b => [b.productName, b.batchCode, b.farmOrg.name, labelForState(b.currentState)])];
+    const rows = [["Nông sản", "Mã lô", "Trang trại", "Trạng thái"], ...filtered.map(lot => [lot.productName, lot.lotCode, lot.farmOrg.name, labelForState(lot.currentState)])];
     const url = URL.createObjectURL(new Blob(["\uFEFF" + rows.map(row => row.map(cell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = "agritrace-lo-nong-san.csv"; a.click(); URL.revokeObjectURL(url);
   }
@@ -34,14 +34,14 @@ export function BatchTable({ batches }: { batches: Batch[] }) {
     <section className="panel batch-table-panel">
       <div className="table-toolbar">
         <label className="table-search"><Search size={20} /><input placeholder="Tìm theo tên nông sản, mã lô, trang trại..." aria-label="Tìm lô" value={query} onChange={e => setQuery(e.target.value)} /></label>
-        <select className="select" aria-label="Lọc trạng thái" value={state} onChange={e => setState(e.target.value)}><option value="">Tất cả trạng thái</option>{[...new Set(batches.map(b => b.currentState))].map(s => <option key={s} value={s}>{labelForState(s)}</option>)}</select>
+        <select className="select" aria-label="Lọc trạng thái" value={state} onChange={e => setState(e.target.value)}><option value="">Tất cả trạng thái</option>{[...new Set(lots.map(lot => lot.currentState))].map(s => <option key={s} value={s}>{labelForState(s)}</option>)}</select>
         <select className="select" aria-label="Lọc trang trại" value={farm} onChange={e => setFarm(e.target.value)}><option value="">Tất cả trang trại</option>{farms.map(f => <option key={f.organizationId} value={f.organizationId}>{f.name}</option>)}</select>
         <select className="select" aria-label="Thời gian" defaultValue=""><option value="">Mọi thời gian</option></select>
         <button className="button secondary" onClick={exportCsv}><Download size={18} />Xuất dữ liệu</button>
       </div>
       <div className="table-scroll"><table className="batch-table"><thead><tr><th>#</th><th>Nông sản</th><th>Mã lô</th><th>Trang trại</th><th>Cập nhật gần nhất</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{filtered.slice((page-1)*perPage, page*perPage).map((b, i) => {
         const latest = [...b.timeline].sort((a, c) => c.eventTime.localeCompare(a.eventTime))[0];
-        return <tr key={b.batchId}><td>{(page-1)*perPage + i + 1}</td><td><Link href={`/batches/${b.batchId}`} className="product-cell"><span className={`product-thumb ${b.productName.toLowerCase().includes("xoài") ? "mango-thumb" : ""}`}>{b.productName.toLowerCase().includes("xoài") ? "🥭" : <Image src="/farm-greens.png" alt="" width={104} height={112} />}</span><strong>{b.productName}</strong></Link></td><td>{b.batchCode}</td><td><span className="farm-cell"><House size={20} /><div><strong>{b.farmOrg.name}</strong><span className="farm-location"><MapPin size={12} />{b.farmOrg.type === 'FARM' ? 'Cù Chi, TP. Hồ Chí Minh' : 'Nhà Bè, TP. Hồ Chí Minh'}</span></div></span></td><td><div className="update-cell"><span className="update-time"><Clock size={14} />{latest ? formatTraceDate(latest.eventTime) : "Chưa ghi nhận"}</span><span className="update-by">Bởi {b.farmOrg.name}</span></div></td><td><StateBadge state={b.currentState} /></td><td><button className="icon-button" aria-label={`Thao tác ${b.productName}`}><MoreHorizontal size={18} /></button></td></tr>;
+        return <tr key={b.lotId}><td>{(page-1)*perPage + i + 1}</td><td><Link href={`/lots/${b.lotId}`} className="product-cell"><span className={`product-thumb ${b.productName.toLowerCase().includes("xoài") ? "mango-thumb" : ""}`}>{b.productName.toLowerCase().includes("xoài") ? "🥭" : <Image src="/farm-greens.png" alt="" width={104} height={112} />}</span><strong>{b.productName}</strong></Link></td><td>{b.lotCode}</td><td><span className="farm-cell"><House size={20} /><div><strong>{b.farmOrg.name}</strong><span className="farm-location"><MapPin size={12} />{b.farmOrg.type === 'FARM' ? 'Cù Chi, TP. Hồ Chí Minh' : 'Nhà Bè, TP. Hồ Chí Minh'}</span></div></span></td><td><div className="update-cell"><span className="update-time"><Clock size={14} />{latest ? formatTraceDate(latest.eventTime) : "Chưa ghi nhận"}</span><span className="update-by">Bởi {b.farmOrg.name}</span></div></td><td><StateBadge state={b.currentState} /></td><td><button className="icon-button" aria-label={`Thao tác ${b.productName}`}><MoreHorizontal size={18} /></button></td></tr>;
       })}</tbody></table></div>
       {!filtered.length && <p className="table-empty">Không có lô phù hợp với bộ lọc.</p>}
       <div className="table-footer">

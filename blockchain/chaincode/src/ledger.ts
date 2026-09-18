@@ -5,8 +5,8 @@ import { contractError } from "./errors";
 export const KEY_TYPES = {
   event: "traceEvent",
   proof: "traceProof",
-  batch: "traceBatch",
-  batchEvent: "batchEvent"
+  entityHead: "entityHead",
+  entityEvent: "entityEvent"
 } as const;
 
 export function toLedgerBytes(value: unknown): Buffer {

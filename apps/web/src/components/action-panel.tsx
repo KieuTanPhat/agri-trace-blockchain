@@ -8,20 +8,19 @@ import { IconZap } from "./icons";
 import { ErrorState } from "./error-state";
 
 const labels: Record<AllowedCommand, string> = {
-  createBatch: "Tạo lô",
-  recordPlanting: "Ghi gieo trồng",
-  recordCare: "Ghi chăm sóc",
-  recordHarvest: "Ghi thu hoạch",
   createShipment: "Tạo chuyến vận chuyển",
   reportDamage: "Báo hỏng",
   startTransport: "Bắt đầu vận chuyển",
-  completeTransport: "Hoàn tất vận chuyển",
+  reportArrival: "Báo đã đến điểm nhận",
   receiveRetail: "Nhận lô",
   rejectRetail: "Từ chối lô",
-  markForSale: "Đưa lên kệ"
+  markForSale: "Đưa lên kệ",
+  markSold: "Đánh dấu đã bán",
+  recallLot: "Thu hồi lô",
+  expireLot: "Đánh dấu hết hạn"
 };
 
-export function ActionPanel({ allowedCommands, batchId }: { allowedCommands: AllowedCommand[]; batchId: string }) {
+export function ActionPanel({ allowedCommands, lotId }: { allowedCommands: AllowedCommand[]; lotId: string }) {
   const [pending, setPending] = useState<AllowedCommand | null>(null);
   const [selected, setSelected] = useState<AllowedCommand | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -30,7 +29,7 @@ export function ActionPanel({ allowedCommands, batchId }: { allowedCommands: All
   async function runCommand(command: AllowedCommand) {
     setPending(command);
     try {
-      const response = await submitCommand(batchId, command);
+      const response = await submitCommand(lotId, command);
       setResult(response.message);
       dialog.current?.close();
     } catch {
@@ -78,7 +77,7 @@ export function ActionPanel({ allowedCommands, batchId }: { allowedCommands: All
             <button className="icon-button" type="button" title="Đóng" aria-label="Đóng" disabled={pending !== null} onClick={() => dialog.current?.close()}><X size={18} /></button>
           </div>
           <p className="muted">Kiểm tra lô nông sản trước khi gửi yêu cầu.</p>
-          <dl className="dialog-summary"><dt>Mã lô</dt><dd>{batchId}</dd><dt>Thao tác</dt><dd>{selected && labels[selected]}</dd></dl>
+          <dl className="dialog-summary"><dt>Mã lô</dt><dd>{lotId}</dd><dt>Thao tác</dt><dd>{selected && labels[selected]}</dd></dl>
           <div className="dialog-actions">
             <button className="button secondary" type="button" disabled={pending !== null} onClick={() => dialog.current?.close()}>Hủy</button>
             <button className="button" type="submit" disabled={pending !== null}>{pending ? <LoaderCircle size={18} className="spinner" /> : <ClipboardCheck size={18} />}{pending ? "Đang gửi..." : "Xác nhận"}</button>

@@ -3,15 +3,14 @@ import { Context, Contract, Info, Returns, Transaction } from "fabric-contract-a
 import { contractError } from "./errors";
 import { fromLedgerBytes, KEY_TYPES, timestampToIso, toLedgerBytes } from "./ledger";
 import {
-  INITIAL_BATCH_STATE,
   SCHEMA_VERSION,
-  type BatchLedgerState,
   type BlockchainProof,
+  type EntityLedgerHead,
   type HealthResult,
   type StoredTraceEvent,
   type SubmitReceipt
 } from "./types";
-import { parseTraceEventInput, requireBatchId, requireEventId } from "./validation";
+import { parseTraceEventInput, requireEntityId, requireEntityType, requireEventId } from "./validation";
 
 @Info({
   title: "AgriTraceContract",
@@ -27,15 +26,18 @@ export class AgriTraceContract extends Contract {
   public async RecordTraceEvent(ctx: Context, inputJson: string): Promise<string> {
     this.assertTechnicalRelayer(ctx);
     const input = parseTraceEventInput(inputJson);
-
     const eventKey = ctx.stub.createCompositeKey(KEY_TYPES.event, [input.eventId]);
     if ((await ctx.stub.getState(eventKey)).length > 0) {
       throw contractError("DUPLICATE_EVENT", `eventId ${input.eventId} already exists`);
     }
 
-    const batchKey = ctx.stub.createCompositeKey(KEY_TYPES.batch, [input.batchId]);
-    if ((await ctx.stub.getState(batchKey)).length > 0) {
-      throw contractError("DUPLICATE_BATCH", `batchId ${input.batchId} already exists`);
+    const headKey = ctx.stub.createCompositeKey(KEY_TYPES.entityHead, [input.entityType, input.entityId]);
+    const existingHeadBytes = await ctx.stub.getState(headKey);
+    const existingHead = existingHeadBytes.length > 0
+      ? fromLedgerBytes<EntityLedgerHead>(existingHeadBytes, `entity ${input.entityType}/${input.entityId}`)
+      : undefined;
+    if (input.previousEventHash && input.previousEventHash !== existingHead?.lastDataHash) {
+      throw contractError("HASH_CHAIN_CONFLICT", "previousEventHash does not match the current entity head");
     }
 
     const txId = ctx.stub.getTxID();
@@ -43,7 +45,6 @@ export class AgriTraceContract extends Contract {
     const channelId = ctx.stub.getChannelID();
     const submitterMspId = ctx.clientIdentity.getMSPID();
     const submitterId = ctx.clientIdentity.getID();
-
     const event: StoredTraceEvent = {
       docType: "traceEvent",
       ...input,
@@ -56,8 +57,14 @@ export class AgriTraceContract extends Contract {
     const proof: BlockchainProof = {
       docType: "blockchainProof",
       eventId: input.eventId,
-      batchId: input.batchId,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      cycleId: input.cycleId,
+      lotId: input.lotId,
+      eventType: input.eventType,
+      eventTime: input.eventTime,
       dataHash: input.dataHash,
+      previousEventHash: input.previousEventHash,
       schemaVersion: input.schemaVersion,
       canonicalizationVersion: input.canonicalizationVersion,
       txId,
@@ -66,39 +73,37 @@ export class AgriTraceContract extends Contract {
       submitterMspId,
       submitterId
     };
-    const batch: BatchLedgerState = {
-      docType: "batchState",
-      batchId: input.batchId,
-      currentState: INITIAL_BATCH_STATE,
-      eventCount: 1,
-      createdEventId: input.eventId,
+    const head: EntityLedgerHead = {
+      docType: "entityHead",
+      entityType: input.entityType,
+      entityId: input.entityId,
+      eventCount: (existingHead?.eventCount ?? 0) + 1,
+      firstEventId: existingHead?.firstEventId ?? input.eventId,
       lastEventId: input.eventId,
       lastEventTime: input.eventTime,
+      lastDataHash: input.dataHash,
       updatedAt: recordedAt
     };
     const proofKey = ctx.stub.createCompositeKey(KEY_TYPES.proof, [input.eventId]);
-    const historyKey = ctx.stub.createCompositeKey(KEY_TYPES.batchEvent, [
-      input.batchId,
-      recordedAt,
-      txId,
-      input.eventId
+    const historyKey = ctx.stub.createCompositeKey(KEY_TYPES.entityEvent, [
+      input.entityType, input.entityId, recordedAt, txId, input.eventId
     ]);
 
     await ctx.stub.putState(eventKey, toLedgerBytes(event));
     await ctx.stub.putState(proofKey, toLedgerBytes(proof));
-    await ctx.stub.putState(batchKey, toLedgerBytes(batch));
+    await ctx.stub.putState(headKey, toLedgerBytes(head));
     await ctx.stub.putState(historyKey, Buffer.from(input.eventId, "utf8"));
     await ctx.stub.setEvent("TraceEventRecorded", toLedgerBytes(proof));
 
     const receipt: SubmitReceipt = {
       status: "SUBMITTED",
       eventId: input.eventId,
-      batchId: input.batchId,
+      entityType: input.entityType,
+      entityId: input.entityId,
       dataHash: input.dataHash,
       txId,
       recordedAt,
-      submitterMspId,
-      currentState: INITIAL_BATCH_STATE
+      submitterMspId
     };
     return this.stringify(receipt);
   }
@@ -120,22 +125,24 @@ export class AgriTraceContract extends Contract {
   @Transaction(false)
   @Returns("string")
   public async GetExpectedHash(ctx: Context, eventId: string): Promise<string> {
-    const proof = JSON.parse(await this.GetProof(ctx, eventId)) as BlockchainProof;
-    return proof.dataHash;
+    return (JSON.parse(await this.GetProof(ctx, eventId)) as BlockchainProof).dataHash;
   }
 
   @Transaction(false)
   @Returns("string")
-  public async GetBatchState(ctx: Context, batchId: string): Promise<string> {
-    const key = ctx.stub.createCompositeKey(KEY_TYPES.batch, [requireBatchId(batchId)]);
-    return this.stringify(fromLedgerBytes<BatchLedgerState>(await ctx.stub.getState(key), `batch ${batchId}`));
+  public async GetEntityHead(ctx: Context, entityType: string, entityId: string): Promise<string> {
+    const safeType = requireEntityType(entityType);
+    const safeId = requireEntityId(entityId);
+    const key = ctx.stub.createCompositeKey(KEY_TYPES.entityHead, [safeType, safeId]);
+    return this.stringify(fromLedgerBytes<EntityLedgerHead>(await ctx.stub.getState(key), `entity ${safeType}/${safeId}`));
   }
 
   @Transaction(false)
   @Returns("string")
-  public async QueryBatchHistory(ctx: Context, batchId: string): Promise<string> {
-    const safeBatchId = requireBatchId(batchId);
-    const iterator = await ctx.stub.getStateByPartialCompositeKey(KEY_TYPES.batchEvent, [safeBatchId]);
+  public async QueryEntityHistory(ctx: Context, entityType: string, entityId: string): Promise<string> {
+    const safeType = requireEntityType(entityType);
+    const safeId = requireEntityId(entityId);
+    const iterator = await ctx.stub.getStateByPartialCompositeKey(KEY_TYPES.entityEvent, [safeType, safeId]);
     const events: StoredTraceEvent[] = [];
     try {
       while (true) {
@@ -150,20 +157,14 @@ export class AgriTraceContract extends Contract {
     } finally {
       await iterator.close();
     }
-    if (events.length === 0) {
-      throw contractError("NOT_FOUND", `batch history ${safeBatchId} does not exist`);
-    }
+    if (events.length === 0) throw contractError("NOT_FOUND", `entity history ${safeType}/${safeId} does not exist`);
     return this.stringify(events);
   }
 
   @Transaction(false)
   @Returns("string")
   public async HealthCheck(_ctx: Context): Promise<string> {
-    const result: HealthResult = {
-      status: "OK",
-      contract: "AgriTraceContract",
-      schemaVersion: SCHEMA_VERSION
-    };
+    const result: HealthResult = { status: "OK", contract: "AgriTraceContract", schemaVersion: SCHEMA_VERSION };
     return this.stringify(result);
   }
 

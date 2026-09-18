@@ -1,70 +1,49 @@
-# User Flow v1
+# User Flow v2
 
-Nguyên tắc FE: màn hình chỉ render action khi API trả về `allowedCommands`. FE không tự quyết định role/state matrix; khi BE-03 chốt matrix, thay mock contract bằng API thật.
+Frontend chỉ render action do API trả về trong `allowedCommands`. Frontend không tự quyết định role, ownership, custody hoặc state transition.
 
 ```mermaid
 flowchart TD
   Login[Đăng nhập nội bộ] --> Dashboard[Dashboard theo tổ chức]
-  Dashboard --> BatchList[Danh sách lô]
-  BatchList --> BatchDetail[Chi tiết lô + timeline]
-  BatchDetail --> ActionPanel[Action panel đọc allowedCommands]
-
-  ActionPanel -->|createBatch| CreateBatch[Tạo lô]
-  ActionPanel -->|recordPlanting| Planting[Ghi gieo trồng]
-  ActionPanel -->|recordCare| Care[Ghi chăm sóc]
-  ActionPanel -->|recordHarvest| Harvest[Ghi thu hoạch]
-  ActionPanel -->|createShipment| Shipment[Tạo/gán shipment]
-  ActionPanel -->|reportDamage| Damage[Báo hỏng]
-
-  ActionPanel -->|startTransport| StartTransport[Bắt đầu vận chuyển]
-  ActionPanel -->|completeTransport| CompleteTransport[Hoàn tất vận chuyển]
-
-  ActionPanel -->|receiveRetail| ReceiveRetail[Nhận lô]
-  ActionPanel -->|rejectRetail| RejectRetail[Từ chối lô]
-  ActionPanel -->|markForSale| MarkForSale[Đưa lên kệ]
-
-  PublicScan[Quét/nhập mã QR] --> PublicTrace[Public trace /trace/:batchId]
-  PublicTrace --> Verify[Timeline + trạng thái xác minh blockchain]
+  Dashboard --> CycleList[Danh sách vụ trồng]
+  CycleList --> CycleDetail[Chi tiết ProductionCycle]
+  CycleDetail -->|recordPlanting| Planting[Ghi gieo trồng]
+  CycleDetail -->|recordCare| Care[Ghi chăm sóc]
+  CycleDetail -->|recordHarvest| Harvest[Thu hoạch và tạo Lot]
+  Harvest --> LotDetail[Chi tiết Lot + timeline]
+  LotDetail -->|createShipment| Shipment[Tạo Shipment duy nhất]
+  LotDetail -->|startTransport| StartTransport[Bắt đầu vận chuyển]
+  LotDetail -->|reportArrival| Arrival[Transporter báo đã đến]
+  Arrival -->|receiveRetail| ReceiveRetail[Retailer nhận lô]
+  Arrival -->|rejectRetail| RejectRetail[Retailer từ chối]
+  ReceiveRetail -->|markForSale| ForSale[Đưa lên bán]
+  ForSale -->|markSold| Sold[Đánh dấu đã bán]
+  PublicScan[Quét hoặc nhập QR] --> PublicTrace[Public trace /trace/:lotId]
+  PublicTrace --> Verify[Timeline và verification status]
 ```
 
 ## FARM_STAFF
 
-Entry: đăng nhập -> dashboard -> danh sách lô thuộc farm organization.
-
-Màn hình/action:
-
-- Batch list: tạo lô nếu backend trả `createBatch`.
-- Batch detail: ghi gieo trồng, chăm sóc, thu hoạch, tạo shipment, báo hỏng nếu các command tương ứng xuất hiện trong `allowedCommands`.
-- QR panel: xem URL truy xuất công khai của batch.
+- Tạo và quản lý `ProductionCycle` thuộc farm organization của mình.
+- Ghi planting, care và harvest khi cycle đang ở state hợp lệ.
+- Mỗi harvest tạo một `HarvestEvent` và một `Lot`; cycle có thể tiếp tục cho lần thu hoạch khác.
+- Tạo một Shipment cho Lot `HARVESTED` nếu core chưa hỗ trợ split.
 
 ## TRANSPORTER
 
-Entry: đăng nhập -> shipment được gán cho organization vận chuyển.
-
-Màn hình/action:
-
-- Shipment list: xem các shipment được gán.
-- Batch/shipment detail: bắt đầu vận chuyển, hoàn tất vận chuyển, báo hỏng nếu API trả command tương ứng.
-- Timeline: xem bằng chứng chain/off-chain liên quan shipment.
+- Chỉ thao tác Shipment được gán cho organization của mình.
+- `startTransport` chuyển Lot sang `IN_TRANSPORT`.
+- `reportArrival` chỉ chuyển Lot sang `ARRIVED`; không được tự xác nhận retailer đã nhận.
 
 ## RETAILER
 
-Entry: đăng nhập -> shipment có `destinationRetailerOrg` là organization hiện tại.
+- Chỉ receive/reject Shipment có `retailerOrgId` đúng organization hiện tại.
+- Sau `ARRIVED`, chọn `receiveRetail` hoặc `rejectRetail`.
+- Chỉ Lot `RETAIL_RECEIVED` mới được `markForSale`; `FOR_SALE` có thể sold, recall hoặc expire.
 
-Màn hình/action:
+## CONSUMER VÀ AUDITOR
 
-- Incoming shipments: xem shipment đang chờ nhận/từ chối.
-- Batch/shipment detail: nhận lô, từ chối lô, đưa lên kệ nếu API trả command tương ứng.
-- QR/public preview: kiểm tra trải nghiệm người tiêu dùng trước khi bán.
-
-## CONSUMER/AUDITOR
-
-Entry consumer: quét QR hoặc nhập mã batch, không cần đăng nhập.
-
-Entry auditor: đăng nhập hoặc link nội bộ, chỉ đọc.
-
-Màn hình/action:
-
-- Scan/manual entry: mở `/trace/{batchId}`.
-- Public trace: hồ sơ lô, trạng thái hiện tại, timeline, proof status.
-- Auditor view: đọc lịch sử và bằng chứng; không render action ghi dữ liệu.
+- Consumer mở `/trace/{lotId|traceToken}` mà không cần tài khoản hoặc ví blockchain.
+- Public trace hiển thị Product, Farm, ProductionCycle công khai, harvest, Lot, Shipment, retailer, timeline và cảnh báo terminal state.
+- Verification phân biệt `VERIFIED`, `INTEGRITY_WARNING` và `BLOCKCHAIN_UNAVAILABLE`.
+- Auditor đọc lịch sử và proof theo phạm vi; không render command ghi dữ liệu.

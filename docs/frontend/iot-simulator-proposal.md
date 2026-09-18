@@ -2,14 +2,13 @@
 
 ## Mục tiêu
 
-Tạo màn hình giả lập thiết bị gửi sensor reading cho batch đang được gán. Simulator chỉ gửi dữ liệu IoT, không chuyển state nghiệp vụ.
+Tạo màn hình giả lập thiết bị gửi sensor reading cho `ProductionCycle` đang được gán. Simulator chỉ gửi dữ liệu IoT, không chuyển state nghiệp vụ.
 
 ## UI
 
 - Device selector: chọn thiết bị mô phỏng.
-- Batch selector: chọn batch được mock/API trả về.
-- Temperature: số thập phân, đơn vị °C.
-- Humidity: số thập phân, đơn vị `%`.
+- ProductionCycle selector: chọn vụ trồng được mock/API trả về.
+- Sensor type, value và unit: một reading chuẩn hóa cho mỗi giá trị cảm biến.
 - Timestamp UTC: mặc định `new Date().toISOString()`, cho phép sửa.
 - Send/retry: gửi payload và thử lại payload gần nhất.
 - Status: `idle`, `sending`, `accepted`, `rejected`, `retrying`.
@@ -20,10 +19,11 @@ Tạo màn hình giả lập thiết bị gửi sensor reading cho batch đang �
 ```ts
 type SensorReadingRequest = {
   deviceId: string;
-  batchId: string;
-  temperature: number;
-  humidity: number;
-  timestampUtc: string;
+  cycleId: string;
+  sensorType: string;
+  value: number;
+  unit: string;
+  timestamp: string;
 };
 
 type SensorReadingResponse = {
@@ -44,8 +44,7 @@ type SensorReadingResponse = {
 
 ## Validation đề xuất
 
-- `deviceId`, `batchId` bắt buộc.
-- `temperature` và `humidity` là số hữu hạn.
-- `timestampUtc` là ISO-8601 UTC.
-- Backend kiểm tra thiết bị có được gán batch và batch có cho phép nhận sensor hay không.
+- `deviceId`, `cycleId`, `sensorType`, `value`, `unit` bắt buộc.
+- `value` là số hữu hạn; `timestamp` là ISO-8601 UTC.
+- Backend kiểm tra thiết bị active, được bind đúng cycle và cycle đang `PLANTED/GROWING`.
 - FE chỉ hiển thị accepted/rejected theo response, không tự kết luận state hợp lệ.

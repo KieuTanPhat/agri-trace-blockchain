@@ -1,18 +1,18 @@
 import Link from "next/link";
 import { ActionPanel } from "@/components/action-panel";
-import { BatchPicker } from "@/components/batch-picker";
+import { LotPicker } from "@/components/lot-picker";
 import { IconPackage, IconClock, IconShield, IconLink } from "@/components/icons";
 import { QrCodeCard } from "@/components/qr-code-card";
 import { StateBadge } from "@/components/state-badge";
 import { TimelineItem } from "@/components/timeline-item";
-import { getBatchById, getBatches } from "@/lib/api-client";
+import { getLotById, getLots } from "@/lib/api-client";
 import { labelForProof } from "@/lib/display-labels";
 
-export default async function BatchDetailPage({ params }: { params: Promise<{ batchId: string }> }) {
-  const { batchId } = await params;
-  const batches = await getBatches();
-  const batch = await getBatchById(batchId);
-  const traceUrl = `${process.env.NEXT_PUBLIC_TRACE_BASE_URL ?? "http://localhost:3000/trace"}/${batch.batchId}`;
+export default async function LotDetailPage({ params }: { params: Promise<{ lotId: string }> }) {
+  const { lotId } = await params;
+  const lots = await getLots();
+  const lot = await getLotById(lotId);
+  const traceUrl = `${process.env.NEXT_PUBLIC_TRACE_BASE_URL ?? "http://localhost:3000/trace"}/${lot.lotId}`;
 
   return (
     <>
@@ -22,12 +22,12 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ ba
         </div>
         <div>
           <p className="eyebrow">Chi tiết lô</p>
-          <h1>{batch.productName}</h1>
-          <p className="muted">{batch.batchCode} — {batch.farmOrg.name}</p>
+          <h1>{lot.productName}</h1>
+          <p className="muted">{lot.lotCode} — {lot.farmOrg.name}</p>
         </div>
         <div className="header-actions">
-          <StateBadge state={batch.currentState} />
-          <BatchPicker batches={batches} currentBatchId={batch.batchId} basePath="batches" />
+          <StateBadge state={lot.currentState} />
+          <LotPicker lots={lots} currentLotId={lot.lotId} basePath="lots" />
         </div>
       </section>
 
@@ -43,22 +43,22 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ ba
             <div className="info-grid">
               <div className="info-item">
                 <span className="info-label">Mã định danh lô</span>
-                <span className="info-value">{batch.batchId}</span>
+                <span className="info-value">{lot.lotId}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">Trang trại/HTX</span>
-                <span className="info-value">{batch.farmOrg.name}</span>
+                <span className="info-value">{lot.farmOrg.name}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">Điểm bán đích</span>
-                <span className="info-value">{batch.retailerOrg?.name ?? "Chưa gán"}</span>
+                <span className="info-value">{lot.retailerOrg?.name ?? "Chưa gán"}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">Bằng chứng</span>
-                <span className="info-value">{labelForProof(batch.proofStatus)}</span>
+                <span className="info-value">{labelForProof(lot.proofStatus)}</span>
               </div>
             </div>
-            <Link className="button secondary" href={`/trace/${batch.batchId}`}>
+            <Link className="button secondary" href={`/trace/${lot.lotId}`}>
               <IconLink size={14} /> Xem trang tra cứu công khai
             </Link>
           </div>
@@ -71,7 +71,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ ba
               </div>
             </div>
             <div className="timeline">
-              {batch.timeline.map((event) => (
+              {lot.timeline.map((event) => (
                 <TimelineItem event={event} key={event.eventId} />
               ))}
             </div>
@@ -79,7 +79,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ ba
         </div>
 
         <div className="grid">
-          <ActionPanel allowedCommands={batch.allowedCommands} batchId={batch.batchId} />
+          <ActionPanel allowedCommands={lot.allowedCommands} lotId={lot.lotId} />
           <div className="panel">
             <div className="panel-title">
               <div className="panel-title-left">

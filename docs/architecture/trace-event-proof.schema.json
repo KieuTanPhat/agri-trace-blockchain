@@ -1,54 +1,50 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agri-trace.local/schemas/trace-event-proof-v1.json",
-  "title": "Agri TraceEvent input",
+  "$id": "https://agri-trace.local/schemas/trace-event-proof-v2.json",
+  "title": "Agri TraceEvent proof input",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "eventId",
-    "batchId",
-    "eventType",
-    "eventTime",
-    "dataHash",
-    "schemaVersion",
-    "canonicalizationVersion",
-    "actorContext",
-    "actorAuthProof"
+    "eventId", "entityType", "entityId", "eventType", "eventTime",
+    "dataHash", "schemaVersion", "canonicalizationVersion", "actorContext"
   ],
   "properties": {
     "eventId": { "type": "string", "format": "uuid" },
-    "batchId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
-    "eventType": { "const": "BATCH_CREATED" },
+    "entityType": {
+      "enum": ["PRODUCTION_CYCLE", "CARE", "SENSOR", "HARVEST", "LOT", "SHIPMENT", "INSPECTION", "CERTIFICATE"]
+    },
+    "entityId": { "type": "string", "format": "uuid" },
+    "cycleId": { "type": "string", "format": "uuid" },
+    "lotId": { "type": "string", "format": "uuid" },
+    "eventType": {
+      "enum": [
+        "PRODUCTION_CYCLE_CREATED", "PLANTING_RECORDED", "CARE_RECORDED", "SENSOR_RECORDED",
+        "HARVEST_RECORDED", "PRODUCTION_CYCLE_COMPLETED", "INSPECTION_RECORDED",
+        "CERTIFICATE_ATTACHED", "SHIPMENT_CREATED", "TRANSPORT_STARTED", "TRANSPORT_ARRIVED",
+        "PARTIAL_DAMAGE_RECORDED", "DAMAGE_RECORDED", "RETAIL_RECEIVED", "RETAIL_REJECTED",
+        "MARKED_FOR_SALE", "LOT_SOLD", "RECALL_RECORDED", "LOT_EXPIRED",
+        "ENTITY_CANCELLED", "CORRECTION_RECORDED"
+      ]
+    },
     "eventTime": { "type": "string", "format": "date-time" },
     "dataHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "schemaVersion": { "const": "1.0.0" },
+    "previousEventHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "schemaVersion": { "const": "2.0.0" },
     "canonicalizationVersion": { "const": "RFC8785" },
     "actorContext": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["actorId", "role", "organizationId"],
+      "required": ["role", "authProofType", "actorAuthProof"],
       "properties": {
-        "actorId": { "type": "string", "format": "uuid" },
-        "role": { "const": "FARM_STAFF" },
-        "organizationId": { "type": "string", "format": "uuid" }
+        "actorUserId": { "type": "string", "format": "uuid" },
+        "organizationId": { "type": "string", "format": "uuid" },
+        "role": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,49}$" },
+        "authProofType": {
+          "enum": ["DIGITAL_SIGNATURE", "SIGNED_ASSERTION", "TOKEN_FINGERPRINT", "DEVICE_SIGNATURE", "SYSTEM_ASSERTION"]
+        },
+        "actorAuthProof": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
       }
     },
-    "actorAuthProof": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["proofType", "principalId", "authenticatedAt", "requestId", "proofHash"],
-      "properties": {
-        "proofType": { "const": "BACKEND_AUTH_CONTEXT" },
-        "principalId": { "type": "string", "format": "uuid" },
-        "authenticatedAt": { "type": "string", "format": "date-time" },
-        "requestId": { "type": "string", "minLength": 1, "maxLength": 128 },
-        "proofHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
-      }
-    },
-    "payloadMetadata": {
-      "type": "object",
-      "maxProperties": 32,
-      "additionalProperties": true
-    }
+    "payloadMetadata": { "type": "object", "maxProperties": 32, "additionalProperties": true }
   }
 }

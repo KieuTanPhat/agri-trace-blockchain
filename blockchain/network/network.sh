@@ -33,7 +33,7 @@ Commands:
   up               Start the CA-backed test network and create the channel
   deploy           Build and deploy the TypeScript chaincode
   enroll-relayer   Register a dedicated client identity with app.role=relayer
-  smoke            Deploy, submit BATCH_CREATED, and query proof/history/state
+  smoke            Deploy, submit PRODUCTION_CYCLE_CREATED, and query proof/history/head
   down             Stop and remove the local test network
 EOF
 }

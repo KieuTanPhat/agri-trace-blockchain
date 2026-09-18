@@ -5,14 +5,14 @@ import { describe, expect, it } from "vitest";
 
 describe("RFC 8785 and SHA-256 vectors", () => {
   it("produces the same digest regardless of object property insertion order", () => {
-    const left = { batchId: "BATCH-1", quantity: 120.5, nested: { z: true, a: "cà phê" } };
-    const right = { nested: { a: "cà phê", z: true }, quantity: 120.5, batchId: "BATCH-1" };
+    const left = { lotId: "LOT-1", quantity: 120.5, nested: { z: true, a: "cà phê" } };
+    const right = { nested: { a: "cà phê", z: true }, quantity: 120.5, lotId: "LOT-1" };
     const canonicalLeft = canonicalize(left);
     const canonicalRight = canonicalize(right);
 
     expect(canonicalLeft).toBe(canonicalRight);
     expect(createHash("sha256").update(canonicalLeft!, "utf8").digest("hex")).toBe(
-      "cc14c679185dea21522b06bfe2e0e5993efdeec197cad31d684219dab3f9749f"
+      "c0031306b3cabea4e520cc7b91fb048e7a56a2604e94f63f17e6ff3f31fac0d7"
     );
   });
 

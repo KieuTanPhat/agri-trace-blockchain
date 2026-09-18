@@ -7,8 +7,8 @@ import { readStoredIotReadings, type StoredIotReading } from "@/lib/iot-local-st
 
 const statMeta: Record<string, { icon: React.ReactNode }> = {
   "Bản ghi IoT đã gửi": { icon: <IconActivity size={20} /> },
-  "Độ ẩm gần nhất": { icon: <IconDroplet size={20} /> },
-  "Nhiệt độ gần nhất": { icon: <IconThermometer size={20} /> },
+  "Giá trị gần nhất": { icon: <IconDroplet size={20} /> },
+  "Loại cảm biến": { icon: <IconThermometer size={20} /> },
 };
 
 export function IotOverviewPanel() {
@@ -32,8 +32,8 @@ export function IotOverviewPanel() {
   const stats = useMemo(
     () => [
       { label: "Bản ghi IoT đã gửi", value: String(readings.length) },
-      { label: "Độ ẩm gần nhất", value: latest ? `${latest.humidity}%` : "Chưa có" },
-      { label: "Nhiệt độ gần nhất", value: latest ? `${latest.temperature}°C` : "Chưa có" }
+      { label: "Giá trị gần nhất", value: latest ? `${latest.value} ${latest.unit}` : "Chưa có" },
+      { label: "Loại cảm biến", value: latest?.sensorType ?? "Chưa có" }
     ],
     [latest, readings.length]
   );
@@ -69,9 +69,9 @@ export function IotOverviewPanel() {
           {readings.slice(0, 3).map((reading) => (
             <div className="list-row" key={reading.readingId}>
               <div>
-                <h3>{reading.batchId}</h3>
+                <h3>{reading.cycleId}</h3>
                 <p className="muted">
-                  {reading.temperature}°C — {reading.humidity}% — {reading.timestampUtc}
+                  {reading.sensorType}: {reading.value} {reading.unit} — {reading.timestamp}
                 </p>
               </div>
               <span className="badge success">Đã tiếp nhận</span>

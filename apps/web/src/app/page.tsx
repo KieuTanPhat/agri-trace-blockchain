@@ -22,13 +22,13 @@ function getStatIcon(label: string) {
 
 export default async function DashboardPage() {
   const dashboard = await getDashboard();
-  const batch = dashboard.featuredBatch;
+  const lot = dashboard.featuredLot;
 
   return (
     <div className="dashboard">
       <div className="dashboard-heading">
         <div><p className="workspace-kicker">KHÔNG GIAN QUẢN LÝ</p><h1>Tổng quan</h1></div>
-        <Link href="/batches" className="overview-link">Danh sách lô <span aria-hidden="true">↗</span></Link>
+        <Link href="/lots" className="overview-link">Danh sách lô <span aria-hidden="true">↗</span></Link>
       </div>
       <section className="hero-banner">
         <div className="hero-deco" aria-hidden="true">
@@ -41,7 +41,7 @@ export default async function DashboardPage() {
             Từ trang trại đến điểm bán, minh bạch từng hành trình.
           </p>
           <div className="hero-actions">
-            <Link className="button" href="/batches"><IconPackage size={18} /> Quản lý lô nông sản <span aria-hidden="true">↗</span></Link>
+            <Link className="button" href="/lots"><IconPackage size={18} /> Quản lý lô nông sản <span aria-hidden="true">↗</span></Link>
             <Link className="hero-text-link" href="/scan">Quét mã truy xuất <span aria-hidden="true">→</span></Link>
           </div>
           <div className="hero-journey" aria-label="Các chặng trong chuỗi cung ứng">
@@ -72,34 +72,34 @@ export default async function DashboardPage() {
           <div className="panel featured-panel">
             <div className="produce-visual"><Image className="produce-photo" src="/farm-greens.png" alt="Ảnh minh họa rau xanh tại vườn" width={1200} height={800} priority /><span className="produce-label"><IconLeaf size={14} /> Nông sản từ trang trại</span></div>
             <div className="featured-details">
-            <div className="featured-caption"><span>Lô nông sản nổi bật</span><StateBadge state={batch.currentState} /></div>
+            <div className="featured-caption"><span>Lô nông sản nổi bật</span><StateBadge state={lot.currentState} /></div>
             <div className="panel-title">
               <div className="panel-title-left">
                 <span className="panel-icon accent"><IconLeaf size={16} /></span>
-                <h2>{batch.productName}</h2>
+                <h2>{lot.productName}</h2>
               </div>
-              <Link className="button secondary" href={`/batches/${batch.batchId}`}>
+              <Link className="button secondary" href={`/lots/${lot.lotId}`}>
                 Chi tiết →
               </Link>
             </div>
             <div className="info-grid">
               <div className="info-item">
                 <span className="info-label">Mã lô</span>
-                <span className="info-value">{batch.batchCode}</span>
+                <span className="info-value">{lot.lotCode}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">Trang trại</span>
-                <span className="info-value">{batch.farmOrg.name}</span>
+                <span className="info-value">{lot.farmOrg.name}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">Điểm bán đích</span>
-                <span className="info-value">{batch.retailerOrg?.name ?? "Chưa gán"}</span>
+                <span className="info-value">{lot.retailerOrg?.name ?? "Chưa gán"}</span>
               </div>
             </div>
             </div>
           </div>
         </div>
-        <ActionPanel allowedCommands={batch.allowedCommands} batchId={batch.batchId} />
+        <ActionPanel allowedCommands={lot.allowedCommands} lotId={lot.lotId} />
       </section>
       <IotOverviewPanel />
 
@@ -112,17 +112,17 @@ export default async function DashboardPage() {
                   <p className="muted" style={{marginTop: 2, fontSize: 13}}>Các hoạt động mới nhất của lô nông sản này trên hệ thống.</p>
                 </div>
               </div>
-              <Link href="/batches" className="button secondary">Xem tất cả →</Link>
+              <Link href="/lots" className="button secondary">Xem tất cả →</Link>
             </div>
             <div className="timeline">
-              {batch.timeline.slice(0, 4).map((event) => (
+              {lot.timeline.slice(0, 4).map((event) => (
                 <TimelineItem event={event} key={event.eventId} />
               ))}
             </div>
           </div>
 
       <section className="quick-links">
-        <Link className="quick-link-card" href="/batches">
+        <Link className="quick-link-card" href="/lots">
           <span className="quick-link-icon"><IconPackage size={18} /></span>
           <span className="quick-link-text">
             <strong>Lô nông sản</strong>
@@ -143,7 +143,7 @@ export default async function DashboardPage() {
             <span>Mô phỏng cảm biến</span>
           </span>
         </Link>
-        <Link className="quick-link-card" href="/trace/batch-rau-001">
+        <Link className="quick-link-card" href="/trace/11111111-1111-4111-8111-111111111111">
           <span className="quick-link-icon info"><IconTruck size={18} /></span>
           <span className="quick-link-text">
             <strong>Tra cứu công khai</strong>

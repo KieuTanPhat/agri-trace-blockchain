@@ -15,6 +15,7 @@ blockchain/
   network/             Script dựng mạng Fabric local
 docs/
   architecture/        ERD và schema proof
+  database/            Source of truth cho PostgreSQL/Prisma
   frontend/            User flow, wireframe, QR và IoT proposal
   business-specification-v1.2.md
 ```
@@ -58,3 +59,7 @@ npm run check --workspace blockchain/gateway
 ```
 
 Mạng Fabric local cần thêm Docker; xem script trong `blockchain/network`.
+
+Mô hình dữ liệu core hiện tại tách rõ `ProductionCycle`, `HarvestEvent`, `Lot`
+và `Shipment`. Tài liệu `docs/business-specification-v1.2.md` chỉ còn là baseline
+lịch sử; schema đang chạy được mô tả tại `docs/database/traceability-core.md`.

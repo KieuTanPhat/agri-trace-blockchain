@@ -1,10 +1,10 @@
 import { IconPackage } from "@/components/icons";
-import { BatchTable } from "@/components/batch-table";
-import { getBatches } from "@/lib/api-client";
+import { LotTable } from "@/components/lot-table";
+import { getLots } from "@/lib/api-client";
 import { Plus } from "lucide-react";
 
-export default async function BatchesPage() {
-  const batches = await getBatches();
+export default async function LotsPage() {
+  const lots = await getLots();
   return <div className="design-page batches-page">
     <section className="page-header">
       <div className="page-header-icon"><IconPackage size={32} /></div>
@@ -14,9 +14,9 @@ export default async function BatchesPage() {
         <p className="muted">Theo dõi trạng thái, timeline và thao tác được backend cho phép trên từng lô.</p>
       </div>
       <div className="header-actions">
-        <button className="button"><Plus size={18} /> Tạo lô mới</button>
+        <button className="button"><Plus size={18} /> Ghi nhận thu hoạch</button>
       </div>
     </section>
-    <BatchTable batches={batches} />
+    <LotTable lots={lots} />
   </div>;
 }

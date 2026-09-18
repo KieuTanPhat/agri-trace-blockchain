@@ -4,7 +4,8 @@ import { AppService } from './app.service.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { OrganizationsModule } from './modules/organizations/organizations.module.js';
-import { BatchesModule } from './modules/batches/batches.module.js';
+import { LotsModule } from './modules/lots/lots.module.js';
+import { ProductionCyclesModule } from './modules/production-cycles/production-cycles.module.js';
 import { ShipmentsModule } from './modules/shipments/shipments.module.js';
 import { TraceModule } from './modules/trace/trace.module.js';
 import { IotModule } from './modules/iot/iot.module.js';
@@ -12,7 +13,7 @@ import { BlockchainAdapterModule } from './modules/blockchain-adapter/blockchain
 import { HealthModule } from './health/health.module.js';
 
 @Module({
-  imports: [AuthModule, UsersModule, OrganizationsModule, BatchesModule, ShipmentsModule, TraceModule, IotModule, BlockchainAdapterModule, HealthModule],
+  imports: [AuthModule, UsersModule, OrganizationsModule, ProductionCyclesModule, LotsModule, ShipmentsModule, TraceModule, IotModule, BlockchainAdapterModule, HealthModule],
   controllers: [AppController],
   providers: [AppService],
 })

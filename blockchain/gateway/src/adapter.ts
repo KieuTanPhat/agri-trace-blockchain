@@ -6,23 +6,22 @@ const decoder = new TextDecoder();
 
 export interface TraceEventInput {
   eventId: string;
-  batchId: string;
-  eventType: "BATCH_CREATED";
+  entityType: "PRODUCTION_CYCLE" | "CARE" | "SENSOR" | "HARVEST" | "LOT" | "SHIPMENT" | "INSPECTION" | "CERTIFICATE";
+  entityId: string;
+  cycleId?: string;
+  lotId?: string;
+  eventType: string;
   eventTime: string;
   dataHash: string;
-  schemaVersion: "1.0.0";
+  previousEventHash?: string;
+  schemaVersion: "2.0.0";
   canonicalizationVersion: "RFC8785";
   actorContext: {
-    actorId: string;
-    role: "FARM_STAFF";
-    organizationId: string;
-  };
-  actorAuthProof: {
-    proofType: "BACKEND_AUTH_CONTEXT";
-    principalId: string;
-    authenticatedAt: string;
-    requestId: string;
-    proofHash: string;
+    actorUserId?: string;
+    organizationId?: string;
+    role: string;
+    authProofType: "DIGITAL_SIGNATURE" | "SIGNED_ASSERTION" | "TOKEN_FINGERPRINT" | "DEVICE_SIGNATURE" | "SYSTEM_ASSERTION";
+    actorAuthProof: string;
   };
   payloadMetadata?: Record<string, unknown>;
 }
@@ -52,12 +51,12 @@ export class FabricBlockchainAdapter {
     return decoder.decode(await this.contract.evaluateTransaction("GetExpectedHash", eventId));
   }
 
-  public async queryBatchHistory(batchId: string): Promise<unknown> {
-    return this.decode(await this.contract.evaluateTransaction("QueryBatchHistory", batchId));
+  public async queryEntityHistory(entityType: TraceEventInput["entityType"], entityId: string): Promise<unknown> {
+    return this.decode(await this.contract.evaluateTransaction("QueryEntityHistory", entityType, entityId));
   }
 
-  public async getBatchState(batchId: string): Promise<unknown> {
-    return this.decode(await this.contract.evaluateTransaction("GetBatchState", batchId));
+  public async getEntityHead(entityType: TraceEventInput["entityType"], entityId: string): Promise<unknown> {
+    return this.decode(await this.contract.evaluateTransaction("GetEntityHead", entityType, entityId));
   }
 
   public async healthCheck(): Promise<unknown> {

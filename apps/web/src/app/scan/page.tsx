@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { IconQrCode, IconSearch } from "@/components/icons";
 import { QrCodeCard } from "@/components/qr-code-card";
-import { mockBatches } from "@/lib/mock-api";
+import { mockLots } from "@/lib/mock-api";
 import { Smartphone, Leaf, ShieldCheck, Lightbulb, Link as LinkIcon } from "lucide-react";
 
 export default function ScanPage() {
   const router = useRouter();
-  const [code, setCode] = useState("batch-rau-001");
+  const [code, setCode] = useState("11111111-1111-4111-8111-111111111111");
   const traceBaseUrl = process.env.NEXT_PUBLIC_TRACE_BASE_URL ?? "http://localhost:3000/trace";
   const selectedTraceUrl = code.startsWith("http://") || code.startsWith("https://") ? code : `${traceBaseUrl}/${code}`;
 
@@ -24,7 +24,7 @@ export default function ScanPage() {
         return;
       }
     } catch {
-      // Plain batch ids are accepted.
+      // Plain lot ids are accepted.
     }
     router.push(`/trace/${encodeURIComponent(trimmed)}`);
   }
@@ -66,11 +66,11 @@ export default function ScanPage() {
             </div>
           </div>
           <div className="field">
-            <label htmlFor="batch-select">Chọn nông sản mẫu</label>
-            <select className="select" id="batch-select" value={code} onChange={(event) => setCode(event.target.value)}>
-              {mockBatches.map((batch) => (
-                <option key={batch.batchId} value={batch.batchId}>
-                  {batch.productName} — {batch.batchCode}
+            <label htmlFor="lot-select">Chọn nông sản mẫu</label>
+            <select className="select" id="lot-select" value={code} onChange={(event) => setCode(event.target.value)}>
+              {mockLots.map((lot) => (
+                <option key={lot.lotId} value={lot.lotId}>
+                  {lot.productName} — {lot.lotCode}
                 </option>
               ))}
             </select>
