@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bán lẻ - AgriTrace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#F0FDF4', 100: '#DCFCE7', 200: '#BBF7D0', 300: '#86EFAC',
+              400: '#4ADE80', 500: '#22C55E', 600: '#16A34A', 700: '#15803D',
+              800: '#166534', 900: '#14532D'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .animate-on-scroll { opacity: 0; transform: translateY(20px); transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+    .animate-on-scroll.visible { opacity: 1; transform: translateY(0); }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+      color: white; border-radius: 8px; font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.2), 0 2px 4px -1px rgba(34, 197, 94, 0.1);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+      box-shadow: 0 10px 15px -3px rgba(34, 197, 94, 0.3);
+      transform: translateY(-1px);
+    }
+    .btn-outline {
+      border: 1.5px solid #E2E8F0; background: white; color: #334155;
+      border-radius: 8px; font-weight: 600; transition: all 0.3s ease;
+    }
+    .btn-outline:hover { 
+      border-color: #94A3B8; background: #F8FAFC; 
+    }
+    
+    .sidebar-link {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; border-radius: 12px; color: #64748B;
+      font-size: 14px; font-weight: 500; transition: all 0.3s ease;
+      text-decoration: none; margin-bottom: 4px;
+    }
+    .sidebar-link:hover { 
+      background: linear-gradient(to right, #F0FDF4, transparent); 
+      color: #15803D; 
+      transform: translateX(4px);
+    }
+    .sidebar-link.active {
+      background: linear-gradient(to right, #DCFCE7, #F0FDF4); 
+      color: #15803D; font-weight: 600;
+      border-left: 4px solid #16A34A;
+    }
+    
+    .card {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      transition: box-shadow 0.3s ease, transform 0.3s ease;
+    }
+    .card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    }
+    
+    .kpi-card {
+      background: white; border-radius: 16px; padding: 24px;
+      border: 1px solid #F1F5F9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03);
+      transition: all 0.3s ease; position: relative; overflow: hidden;
+    }
+    .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 12px 20px -5px rgba(0,0,0,0.08); }
+    
+    .table-row { transition: all 0.2s ease; }
+    .table-row:hover { background: #F8FAFC; transform: scale(1.001); }
+    
+    .tab-btn {
+      position: relative; transition: color 0.3s ease;
+    }
+    .tab-btn::after {
+      content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 3px;
+      background: #16A34A; border-radius: 3px 3px 0 0;
+      transform: scaleX(0); transition: transform 0.3s ease;
+    }
+    .tab-btn.active { color: #15803D; font-weight: 700; }
+    .tab-btn.active::after { transform: scaleX(1); }
+    
+    .tab-content { display: none; opacity: 0; transition: opacity 0.3s ease; }
+    .tab-content.active { display: block; opacity: 1; }
+    
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; z-index: 50;
+      opacity: 0; visibility: hidden; transition: all 0.3s ease;
+    }
+    .modal-overlay.show { opacity: 1; visibility: visible; }
+    .modal-content {
+      background: white; border-radius: 20px; padding: 32px;
+      max-width: 560px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+      transform: scale(0.95) translateY(20px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .modal-overlay.show .modal-content { transform: scale(1) translateY(0); }
+    
+    .status-badge {
+      padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.025em;
+    }
+  </style>
+</head>
+<body class="bg-slate-50/50 text-slate-800">
+
+  <!-- Sidebar -->
+  <aside class="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-200 z-40 flex flex-col shadow-sm">
+    <div class="h-20 px-6 flex items-center border-b border-slate-100">
+      <a href="../public/home.html" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-primary-500/30 transition-all duration-300">
+          <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C9.5 2 7 4.5 5.5 8.5C4 12.5 6.5 18 9.5 21C11 18 12 14 12 10C12 14 13 18 14.5 21C17.5 18 20 12.5 18.5 8.5C17 4.5 14.5 2 12 2Z"/></svg>
+        </div>
+        <div>
+          <span class="text-2xl font-bold tracking-tight"><span class="text-primary-700">Agri</span><span class="text-primary-500">Trace</span></span>
+        </div>
+      </a>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+      <p class="px-4 mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Tổng quan</p>
+      <a href="dashboard.html" class="sidebar-link">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+        Tổng quan
+      </a>
+
+      <p class="px-4 mt-6 mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Hàng hóa</p>
+      <a href="retail.html" class="sidebar-link active">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+        Bán lẻ
+      </a>
+      <a href="iot.html" class="sidebar-link">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        IoT & Sensor
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Topbar -->
+  <header class="fixed top-0 left-64 right-0 h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 z-30 flex items-center justify-between px-8">
+    <div class="flex items-center gap-2 text-sm">
+      <span class="text-slate-400">Admin</span>
+      <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <span class="text-slate-800 font-bold">Bán lẻ</span>
+    </div>
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-3 pl-6 border-l border-slate-200 cursor-pointer">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-100 to-primary-200 flex items-center justify-center text-primary-700 font-bold text-lg shadow-sm">A</div>
+        <div class="text-sm">
+          <p class="font-bold text-slate-800">Admin</p>
+          <p class="text-xs text-slate-500">Quản trị viên</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="ml-64 pt-20 min-h-screen pb-12">
+    <div class="p-8 max-w-7xl mx-auto space-y-8">
+      
+      <!-- Header -->
+      <div class="animate-on-scroll">
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Bán lẻ</h1>
+        <p class="text-slate-500 mt-2 text-sm">Quản lý hàng hóa tại điểm bán, đóng gói và truy xuất nguồn gốc</p>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-on-scroll">
+        <div class="kpi-card flex items-start gap-5">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center flex-shrink-0 text-primary-600 shadow-inner">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+          <div>
+            <p class="text-3xl font-extrabold text-slate-800">1,250 <span class="text-sm font-semibold text-slate-400">kg</span></p>
+            <p class="text-sm font-bold text-slate-500 mt-1 uppercase tracking-wider text-[10px]">Tổng tồn kho</p>
+          </div>
+        </div>
+        <div class="kpi-card flex items-start gap-5">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center flex-shrink-0 text-blue-600 shadow-inner">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <p class="text-3xl font-extrabold text-slate-800">6 <span class="text-sm font-semibold text-slate-400">lô</span></p>
+            <p class="text-sm font-bold text-slate-500 mt-1 uppercase tracking-wider text-[10px]">Hàng chờ nhận</p>
+          </div>
+        </div>
+        <div class="kpi-card flex items-start gap-5 border-l-4 border-l-amber-400 bg-amber-50/20">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center flex-shrink-0 text-amber-700 shadow-inner">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div>
+            <p class="text-3xl font-extrabold text-amber-700">3 <span class="text-sm font-semibold text-amber-500">lô</span></p>
+            <p class="text-sm font-bold text-amber-600 mt-1 uppercase tracking-wider text-[10px]">Sắp hết hạn</p>
+          </div>
+        </div>
+        <div class="kpi-card flex items-start gap-5">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 flex items-center justify-center flex-shrink-0 text-indigo-600 shadow-inner">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+          </div>
+          <div>
+            <p class="text-3xl font-extrabold text-slate-800">892 <span class="text-sm font-semibold text-slate-400">mã</span></p>
+            <p class="text-sm font-bold text-slate-500 mt-1 uppercase tracking-wider text-[10px]">Đã tạo mã QR</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col xl:flex-row items-start gap-8 animate-on-scroll">
+        <!-- Main Area -->
+        <div class="flex-1 w-full space-y-6">
+          <!-- Tabs Navigation -->
+          <div class="flex border-b border-slate-200 bg-white px-2 rounded-t-xl overflow-x-auto hide-scroll">
+            <button class="tab-btn active px-6 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 whitespace-nowrap" onclick="switchTab(event, 'tab-cho-nhan')">
+              Chờ nhận <span class="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">6</span>
+            </button>
+            <button class="tab-btn px-6 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 whitespace-nowrap" onclick="switchTab(event, 'tab-da-nhan')">
+              Đã nhận
+            </button>
+            <button class="tab-btn px-6 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 whitespace-nowrap" onclick="switchTab(event, 'tab-dang-ban')">
+              Đang bán <span class="ml-2 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">12</span>
+            </button>
+            <button class="tab-btn px-6 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 whitespace-nowrap" onclick="switchTab(event, 'tab-da-ban')">
+              Đã bán
+            </button>
+            <button class="tab-btn px-6 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 whitespace-nowrap" onclick="switchTab(event, 'tab-tu-choi')">
+              Bị từ chối
+            </button>
+          </div>
+
+          <!-- Tab Content: Chờ Nhận -->
+          <div id="tab-cho-nhan" class="tab-content active space-y-6">
+            <div class="card overflow-hidden">
+              <table class="w-full">
+                <thead>
+                  <tr class="bg-slate-50/80 text-left border-b border-slate-100">
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Mã lô</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Sản phẩm</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Số lượng</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Ngày đến</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Nhà cung cấp</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Trạng thái</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr class="table-row">
+                    <td class="px-6 py-5 font-bold text-primary-600 text-sm hover:underline cursor-pointer">LOT-2026-0003</td>
+                    <td class="px-6 py-5 text-sm font-semibold text-slate-800">Dưa lưới</td>
+                    <td class="px-6 py-5 text-sm font-medium text-slate-600">150 kg</td>
+                    <td class="px-6 py-5 text-sm font-medium text-slate-600">17/03/2026</td>
+                    <td class="px-6 py-5 text-sm font-medium text-slate-600">Trang trại Việt</td>
+                    <td class="px-6 py-5"><span class="status-badge bg-indigo-50 text-indigo-700 border border-indigo-200">ARRIVED</span></td>
+                    <td class="px-6 py-5 text-right space-x-3">
+                      <button class="text-sm font-bold text-primary-600 hover:text-primary-800 transition-colors" onclick="toggleModal('receiveModal')">Nhận lô</button>
+                      <button class="text-sm font-bold text-red-500 hover:text-red-700 transition-colors" onclick="toggleModal('rejectModal')">Từ chối</button>
+                    </td>
+                  </tr>
+                  <tr class="table-row">
+                    <td class="px-6 py-5 font-bold text-primary-600 text-sm hover:underline cursor-pointer">LOT-2026-0009</td>
+                    <td class="px-6 py-5 text-sm font-semibold text-slate-800">Rau cải xanh</td>
+                    <td class="px-6 py-5 text-sm font-medium text-slate-600">200 kg</td>
+                    <td class="px-6 py-5 text-sm font-medium text-slate-600">18/03/2026</td>
+                    <td class="px-6 py-5 text-sm font-medium text-slate-600">Nông trại An Phú</td>
+                    <td class="px-6 py-5"><span class="status-badge bg-indigo-50 text-indigo-700 border border-indigo-200">ARRIVED</span></td>
+                    <td class="px-6 py-5 text-right space-x-3">
+                      <button class="text-sm font-bold text-primary-600 hover:text-primary-800 transition-colors">Nhận lô</button>
+                      <button class="text-sm font-bold text-red-500 hover:text-red-700 transition-colors">Từ chối</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Quick Action Bar -->
+            <div class="card p-6 flex flex-wrap gap-4 items-center justify-between bg-gradient-to-r from-slate-50 to-white">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <div>
+                  <h4 class="font-bold text-slate-800">Thao tác nhanh</h4>
+                  <p class="text-xs font-medium text-slate-500">Cho các lô hàng đã chọn</p>
+                </div>
+              </div>
+              <div class="flex gap-3">
+                <button class="btn-primary px-6 py-2.5 shadow-md flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  Chấp nhận tất cả
+                </button>
+                <button class="px-6 py-2.5 bg-white border-2 border-red-200 text-red-600 rounded-lg font-bold hover:border-red-500 hover:bg-red-50 transition-colors flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                  Từ chối
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab Content: Đang Bán (Mockup) -->
+          <div id="tab-dang-ban" class="tab-content space-y-6">
+            <div class="card overflow-hidden">
+              <table class="w-full">
+                <thead>
+                  <tr class="bg-slate-50/80 text-left border-b border-slate-100">
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Mã lô</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Sản phẩm</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Số lượng</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Điểm bán</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Trạng thái</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr class="table-row">
+                    <td class="px-6 py-5 font-bold text-primary-600 text-sm">LOT-2026-0001</td>
+                    <td class="px-6 py-5 text-sm font-semibold text-slate-800">Rau cải xanh</td>
+                    <td class="px-6 py-5 text-sm font-medium text-slate-600">195 kg</td>
+                    <td class="px-6 py-5 text-sm font-medium text-slate-600">FreshMart Q7</td>
+                    <td class="px-6 py-5"><span class="status-badge bg-green-50 text-green-700 border border-green-200">FOR_SALE</span></td>
+                    <td class="px-6 py-5 text-right space-x-2">
+                      <button class="text-sm font-bold text-primary-600 hover:text-primary-800 bg-primary-50 px-3 py-1.5 rounded-lg transition-colors">Bán xong</button>
+                      <button class="text-sm font-bold text-amber-600 hover:text-amber-800 bg-amber-50 px-3 py-1.5 rounded-lg transition-colors">Thu hồi</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-4 flex gap-4 justify-end">
+               <button class="btn-outline px-6 py-2.5 flex items-center gap-2">
+                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                 In mã QR
+               </button>
+            </div>
+          </div>
+          
+          <!-- Empty mocks for others -->
+          <div id="tab-da-nhan" class="tab-content"><div class="card p-12 text-center text-slate-500 font-medium">Chưa có dữ liệu</div></div>
+          <div id="tab-da-ban" class="tab-content"><div class="card p-12 text-center text-slate-500 font-medium">Chưa có dữ liệu</div></div>
+          <div id="tab-tu-choi" class="tab-content"><div class="card p-12 text-center text-slate-500 font-medium">Chưa có dữ liệu</div></div>
+        </div>
+
+        <!-- Right Side: Expiring Soon Alert -->
+        <div class="w-full xl:w-80 shrink-0">
+          <div class="card p-6 border-amber-200 bg-gradient-to-b from-amber-50 to-white shadow-md">
+            <h3 class="font-extrabold text-amber-800 flex items-center gap-2 mb-5">
+              <span class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              </span>
+              Sắp hết hạn
+            </h3>
+            <div class="space-y-4">
+              <div class="p-4 bg-white rounded-xl border border-amber-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-amber-400"></div>
+                <p class="font-bold text-slate-800 text-sm mb-1">Rau cải xanh <span class="font-medium text-slate-500">(LOT-2026-0001)</span></p>
+                <div class="mt-3 flex justify-between items-center text-xs">
+                  <span class="font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded">HSD: 22/03/2026</span>
+                  <span class="font-extrabold text-amber-600 bg-amber-50 px-2 py-1 rounded">Còn 4 ngày</span>
+                </div>
+              </div>
+              <div class="p-4 bg-white rounded-xl border border-amber-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-amber-500 animate-pulse"></div>
+                <p class="font-bold text-slate-800 text-sm mb-1">Cà chua <span class="font-medium text-slate-500">(LOT-2026-0006)</span></p>
+                <div class="mt-3 flex justify-between items-center text-xs">
+                  <span class="font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded">HSD: 21/03/2026</span>
+                  <span class="font-extrabold text-amber-600 bg-amber-50 px-2 py-1 rounded">Còn 3 ngày</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Modals -->
+  <div id="receiveModal" class="modal-overlay">
+    <div class="modal-content">
+      <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight mb-5">Xác nhận nhận lô</h2>
+      <div class="p-5 bg-blue-50/50 rounded-xl border border-blue-100 mb-6 text-sm">
+        <div class="grid grid-cols-2 gap-4">
+          <div><span class="text-slate-500 font-bold uppercase tracking-wider text-[10px] block mb-1">Mã lô</span> <span class="font-bold text-slate-800">LOT-2026-0003</span></div>
+          <div><span class="text-slate-500 font-bold uppercase tracking-wider text-[10px] block mb-1">Sản phẩm</span> <span class="font-bold text-slate-800">Dưa lưới</span></div>
+          <div><span class="text-slate-500 font-bold uppercase tracking-wider text-[10px] block mb-1">SL giao</span> <span class="font-bold text-blue-600 text-lg">150 kg</span></div>
+        </div>
+      </div>
+      <form class="space-y-5">
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1.5">Số lượng nhận thực tế (kg) *</label>
+          <input type="number" value="150" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white transition-all font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1.5">Thời gian nhận *</label>
+          <input type="datetime-local" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white transition-all font-medium text-slate-700" value="2026-03-17T09:30">
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1.5">Ghi chú kiểm tra</label>
+          <textarea class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white transition-all font-medium text-slate-700" rows="3" placeholder="Ghi chú về chất lượng, số lượng..."></textarea>
+        </div>
+        <div class="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
+          <button type="button" class="btn-outline px-6 py-2.5" onclick="toggleModal('receiveModal')">Hủy</button>
+          <button type="button" class="btn-primary px-6 py-2.5" onclick="toggleModal('receiveModal')">Nhận lô</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="rejectModal" class="modal-overlay">
+    <div class="modal-content border-t-8 border-red-500">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Từ chối lô hàng</h2>
+      </div>
+      
+      <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 mb-6 text-sm flex items-center justify-between">
+        <span class="text-slate-500 font-medium">Đang xử lý lô:</span>
+        <span class="font-extrabold text-slate-800 bg-white px-3 py-1 rounded shadow-sm border border-slate-100">LOT-2026-0003</span>
+      </div>
+      <form class="space-y-5">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1.5">Số lượng (kg)*</label>
+            <input type="number" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400 focus:bg-white transition-all font-medium" placeholder="VD: 150">
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1.5">Lý do *</label>
+            <select class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400 focus:bg-white transition-all font-medium text-slate-700">
+              <option>Không đạt chất lượng</option>
+              <option>Hư hỏng trong vận chuyển</option>
+              <option>Sai sản phẩm/Số lượng</option>
+              <option>Khác</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1.5">Mô tả chi tiết *</label>
+          <textarea class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400 focus:bg-white transition-all font-medium" rows="3" placeholder="Nhập chi tiết tình trạng lỗi..."></textarea>
+        </div>
+        <div class="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
+          <button type="button" class="btn-outline px-6 py-2.5" onclick="toggleModal('rejectModal')">Hủy</button>
+          <button type="button" class="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold shadow-md shadow-red-500/30 transition-all" onclick="toggleModal('rejectModal')">Xác nhận từ chối</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function toggleModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal.classList.contains('show')) {
+        modal.classList.remove('show');
+      } else {
+        modal.classList.add('show');
+      }
+    }
+    
+    function switchTab(evt, tabId) {
+      const tabContents = document.getElementsByClassName("tab-content");
+      for (let i = 0; i < tabContents.length; i++) {
+        tabContents[i].classList.remove("active");
+      }
+      const tabBtns = document.getElementsByClassName("tab-btn");
+      for (let i = 0; i < tabBtns.length; i++) {
+        tabBtns[i].className = tabBtns[i].className.replace(" active", "");
+      }
+      document.getElementById(tabId).classList.add("active");
+      evt.currentTarget.className += " active";
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      }, { threshold: 0.1 });
+      document.querySelectorAll('.animate-on-scroll').forEach((el, index) => {
+        el.style.transitionDelay = `${index * 50}ms`;
+        observer.observe(el);
+      });
+    });
+  </script>
+</body>
+</html>

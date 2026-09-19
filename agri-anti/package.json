@@ -1,0 +1,1 @@
+{"name":"agritrace-original-ui-functional","private":true,"type":"module","scripts":{"start":"node functionality/server.mjs","dev":"node functionality/server.mjs","build":"node functionality/check.mjs"}}

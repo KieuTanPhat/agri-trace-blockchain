@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit / Blockchain - AgriTrace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { primary: { 50: '#F0FDF4', 100: '#DCFCE7', 200: '#BBF7D0', 300: '#86EFAC', 400: '#4ADE80', 500: '#22C55E', 600: '#16A34A', 700: '#15803D', 800: '#166534', 900: '#14532D' } }, fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background-color: #F8FAFC; }
+    
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-soft {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+    
+    .animate-fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; opacity: 0; }
+    .delay-100 { animation-delay: 100ms; }
+    .delay-200 { animation-delay: 200ms; }
+    
+    .btn-outline { border: 1.5px solid #E2E8F0; background: white; color: #475569; border-radius: 8px; font-weight: 600; transition: all 0.3s ease; padding: 8px 16px; }
+    .btn-outline:hover { border-color: #22C55E; color: #16A34A; background: #F0FDF4; transform: translateY(-1px); }
+    
+    .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; color: #64748B; font-size: 14px; font-weight: 500; text-decoration: none; transition: all 0.3s ease; margin-bottom: 4px; }
+    .sidebar-link:hover { background: #F0FDF4; color: #15803D; transform: translateX(4px); }
+    .sidebar-link.active { background: linear-gradient(to right, #F0FDF4, #DCFCE7); color: #15803D; font-weight: 600; border-left: 4px solid #16A34A; box-shadow: inset 0 0 0 1px rgba(34,197,94,0.1); }
+    
+    .search-input { transition: all 0.3s ease; }
+    .search-input:focus { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); border-color: #4ADE80; outline: none; }
+    .bell-icon { transition: all 0.3s ease; }
+    .bell-icon:hover { animation: pulse-soft 1s infinite; color: #16A34A; }
+    
+    .card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-radius: 16px; border: 1px solid #F1F5F9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); transition: all 0.3s ease; }
+    .card:hover { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02); }
+    
+    .table-row { transition: all 0.2s ease; border-left: 2px solid transparent; }
+    .table-row:hover { background: #F8FAFC; border-left-color: #22C55E; transform: scale(1.002); }
+    .table-row.active { background: #F0FDF4; border-left-color: #16A34A; }
+    
+    .badge { padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+    .badge-verified { background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }
+    .badge-warning { background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A; }
+    
+    .hash-box { background: rgba(15, 23, 42, 0.5); padding: 8px 12px; border-radius: 8px; font-family: monospace; border: 1px solid rgba(255,255,255,0.1); position: relative; }
+    .copy-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.1); padding: 4px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .copy-btn:hover { background: rgba(255,255,255,0.2); }
+    
+    /* Code block syntax highlighting styling for hash */
+    .proof-card { background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); }
+  </style>
+</head>
+<body class="bg-slate-50">
+  <aside class="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-100 z-40 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+    <div class="h-16 px-5 flex items-center border-b border-slate-100">
+      <a href="../public/home.html" class="flex items-center gap-2 group">
+        <div class="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30 group-hover:shadow-primary-500/50 transition-all group-hover:scale-105">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C9.5 2 7 4.5 5.5 8.5C4 12.5 6.5 18 9.5 21C11 18 12 14 12 10C12 14 13 18 14.5 21C17.5 18 20 12.5 18.5 8.5C17 4.5 14.5 2 12 2Z"/></svg>
+        </div>
+        <div><span class="text-xl font-bold tracking-tight"><span class="text-primary-700">Agri</span><span class="text-primary-500">Trace</span></span></div>
+      </a>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+      <p class="px-3 mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Chất lượng</p>
+      <a href="audit.html" class="sidebar-link active">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        Audit / Blockchain
+      </a>
+    </nav>
+  </aside>
+
+  <header class="fixed top-0 left-64 right-0 h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 z-30 flex items-center justify-between px-8 transition-all duration-300">
+    <div class="flex items-center gap-2 text-sm">
+      <span class="text-slate-400 font-medium">Admin</span>
+      <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <span class="text-slate-700 font-semibold">Audit / Blockchain</span>
+    </div>
+    
+    <div class="flex items-center gap-6">
+      <div class="relative group">
+        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 group-focus-within:text-primary-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" placeholder="Tìm kiếm mã lô, TX hash..." class="search-input pl-9 pr-4 py-2 w-64 bg-slate-50 border border-slate-200 rounded-full text-sm focus:bg-white transition-all">
+      </div>
+      
+      <button class="relative text-slate-400 hover:text-slate-600 bell-icon">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+      </button>
+      
+      <div class="flex items-center gap-3 border-l border-slate-200 pl-6">
+        <div class="w-9 h-9 bg-gradient-to-r from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ring-2 ring-white cursor-pointer hover:shadow-md transition-all">
+          AD
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="ml-64 pt-16 min-h-screen">
+    <div class="p-8">
+      <div class="mb-8 animate-fade-in-up">
+        <h1 class="text-3xl font-bold text-slate-800 tracking-tight">Audit / Blockchain</h1>
+        <p class="text-slate-500 mt-2 text-sm">Theo dõi lịch sử sự kiện và xác thực minh chứng trên mạng lưới Blockchain</p>
+      </div>
+
+      <div class="card p-5 mb-8 flex gap-4 items-center bg-white animate-fade-in-up delay-100">
+        <div class="relative flex-1">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" placeholder="Tìm kiếm mã lô, sự kiện, giao dịch..." class="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+        </div>
+        <select class="p-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer"><option>Tất cả sự kiện</option></select>
+        <select class="p-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer"><option>Mọi trạng thái xác thực</option></select>
+        <input type="date" class="p-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer">
+      </div>
+
+      <div class="flex gap-8">
+        <div class="flex-1 card overflow-hidden bg-white animate-fade-in-up delay-200">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-100 text-left text-slate-500 uppercase text-[11px] font-bold tracking-wider">
+                  <th class="px-6 py-4">Sự kiện</th>
+                  <th class="px-6 py-4">Entity</th>
+                  <th class="px-6 py-4">Tác nhân / Tổ chức</th>
+                  <th class="px-6 py-4">Thời gian</th>
+                  <th class="px-6 py-4">Ghi nhận server</th>
+                  <th class="px-6 py-4">State change</th>
+                  <th class="px-6 py-4">Proof</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-slate-600">
+                <tr class="table-row cursor-pointer active">
+                  <td class="px-6 py-4 font-semibold text-slate-800 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-primary-500"></div>HARVEST_RECORDED</td>
+                  <td class="px-6 py-4 font-medium text-slate-700">LOT-2026-0001</td>
+                  <td class="px-6 py-4">Nguyễn Văn Nam <br><span class="text-xs text-slate-400">An Phú</span></td>
+                  <td class="px-6 py-4 font-medium">15/03 08:30</td>
+                  <td class="px-6 py-4 text-slate-400 text-xs">15/03 08:30:05</td>
+                  <td class="px-6 py-4 font-mono text-[11px] bg-slate-50 rounded px-2 py-1 mx-2 my-2 inline-block">→ HARVESTED</td>
+                  <td class="px-6 py-4"><span class="badge badge-verified shadow-sm">✅ VERIFIED</span></td>
+                </tr>
+                <tr class="table-row cursor-pointer">
+                  <td class="px-6 py-4 font-semibold text-slate-800 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-500"></div>SHIPMENT_CREATED</td>
+                  <td class="px-6 py-4 font-medium text-slate-700">SH-2026-001</td>
+                  <td class="px-6 py-4">Admin <br><span class="text-xs text-slate-400">System</span></td>
+                  <td class="px-6 py-4 font-medium">16/03 10:00</td>
+                  <td class="px-6 py-4 text-slate-400 text-xs">16/03 10:00:02</td>
+                  <td class="px-6 py-4 font-mono text-[11px] bg-slate-50 rounded px-2 py-1 mx-2 my-2 inline-block">→ CREATED</td>
+                  <td class="px-6 py-4"><span class="badge badge-verified shadow-sm">✅ VERIFIED</span></td>
+                </tr>
+                <tr class="table-row cursor-pointer">
+                  <td class="px-6 py-4 font-semibold text-slate-800 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-purple-500"></div>TRANSPORT_STARTED</td>
+                  <td class="px-6 py-4 font-medium text-slate-700">SH-2026-001</td>
+                  <td class="px-6 py-4">Trần Minh Quân <br><span class="text-xs text-slate-400">GreenTrans</span></td>
+                  <td class="px-6 py-4 font-medium">16/03 14:30</td>
+                  <td class="px-6 py-4 text-slate-400 text-xs">16/03 14:30:08</td>
+                  <td class="px-6 py-4 font-mono text-[11px] bg-slate-50 rounded px-2 py-1 mx-2 my-2 inline-block">→ IN_TRANSIT</td>
+                  <td class="px-6 py-4"><span class="badge badge-verified shadow-sm">✅ VERIFIED</span></td>
+                </tr>
+                <tr class="table-row cursor-pointer">
+                  <td class="px-6 py-4 font-semibold text-slate-800 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-orange-500"></div>DAMAGE_RECORDED</td>
+                  <td class="px-6 py-4 font-medium text-slate-700">LOT-2026-0001</td>
+                  <td class="px-6 py-4">Trần Minh Quân <br><span class="text-xs text-slate-400">GreenTrans</span></td>
+                  <td class="px-6 py-4 font-medium">16/03 16:00</td>
+                  <td class="px-6 py-4 text-slate-400 text-xs">16/03 16:00:03</td>
+                  <td class="px-6 py-4 font-mono text-[11px] bg-orange-50 text-orange-700 rounded px-2 py-1 mx-2 my-2 inline-block">Partial -5kg</td>
+                  <td class="px-6 py-4"><span class="badge badge-verified shadow-sm">✅ VERIFIED</span></td>
+                </tr>
+                <tr class="table-row cursor-pointer">
+                  <td class="px-6 py-4 font-semibold text-slate-800 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-teal-500"></div>ARRIVAL_RECORDED</td>
+                  <td class="px-6 py-4 font-medium text-slate-700">SH-2026-001</td>
+                  <td class="px-6 py-4">Lê Thị Hương <br><span class="text-xs text-slate-400">FreshMart</span></td>
+                  <td class="px-6 py-4 font-medium">17/03 09:00</td>
+                  <td class="px-6 py-4 text-slate-400 text-xs">17/03 09:00:12</td>
+                  <td class="px-6 py-4 font-mono text-[11px] bg-slate-50 rounded px-2 py-1 mx-2 my-2 inline-block">→ ARRIVED</td>
+                  <td class="px-6 py-4"><span class="badge badge-verified shadow-sm">✅ VERIFIED</span></td>
+                </tr>
+                <tr class="table-row cursor-pointer bg-red-50/10">
+                  <td class="px-6 py-4 font-semibold text-red-600 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-red-500"></div>RECALL_ISSUED</td>
+                  <td class="px-6 py-4 font-medium text-slate-700">LOT-2026-0005</td>
+                  <td class="px-6 py-4">Admin <br><span class="text-xs text-slate-400">System</span></td>
+                  <td class="px-6 py-4 font-medium text-red-600">18/03 14:00</td>
+                  <td class="px-6 py-4 text-slate-400 text-xs">18/03 14:00:01</td>
+                  <td class="px-6 py-4 font-mono text-[11px] bg-red-100 text-red-700 rounded px-2 py-1 mx-2 my-2 inline-block font-bold">→ RECALLED</td>
+                  <td class="px-6 py-4"><span class="badge badge-warning shadow-sm">⚠ INTEGRITY_WARNING</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="w-[400px] animate-fade-in-up delay-200">
+          <div class="card p-6 proof-card text-slate-200 sticky top-24 rounded-2xl">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-700/50">
+              <h3 class="font-bold text-white flex items-center gap-3 text-lg">
+                <div class="w-8 h-8 rounded-lg bg-primary-500/20 flex items-center justify-center text-primary-400">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+                Proof Detail
+              </h3>
+              <div class="px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-bold border border-green-500/30">
+                VERIFIED
+              </div>
+            </div>
+            
+            <div class="space-y-5 text-sm">
+              <div class="grid grid-cols-2 gap-4">
+                <div><p class="text-slate-400 text-[10px] mb-1 font-sans uppercase font-bold tracking-wider">Entity</p><p class="text-white font-medium">LOT-2026-0001</p></div>
+                <div><p class="text-slate-400 text-[10px] mb-1 font-sans uppercase font-bold tracking-wider">Event</p><p class="text-white font-medium">HARVEST_RECORDED</p></div>
+              </div>
+              
+              <div>
+                <p class="text-slate-400 text-[10px] mb-2 font-sans uppercase font-bold tracking-wider flex justify-between items-center">
+                  Data Hash 
+                </p>
+                <div class="hash-box group">
+                  <p class="break-all text-primary-300 text-xs">0x7a8b9c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b</p>
+                  <button class="copy-btn opacity-0 group-hover:opacity-100" title="Copy">
+                    <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div>
+                <p class="text-slate-400 text-[10px] mb-2 font-sans uppercase font-bold tracking-wider flex justify-between items-center">
+                  Transaction ID
+                </p>
+                <div class="hash-box group">
+                  <p class="text-blue-300 text-xs">0x3a7f...9c21</p>
+                  <button class="copy-btn opacity-0 group-hover:opacity-100" title="Copy">
+                    <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="grid grid-cols-2 gap-4 pt-2">
+                <div><p class="text-slate-400 text-[10px] mb-1 font-sans uppercase font-bold tracking-wider">Recorded At</p><p class="text-slate-200">15/03/2026 08:30:05</p></div>
+                <div><p class="text-slate-400 text-[10px] mb-1 font-sans uppercase font-bold tracking-wider">Block Number</p><p class="text-slate-200">15,234,567</p></div>
+              </div>
+              
+              <div class="pt-4 border-t border-slate-700/50">
+                <p class="text-slate-400 text-[10px] mb-2 font-sans uppercase font-bold tracking-wider">Verification Result</p>
+                <div class="p-3 rounded-lg bg-green-900/20 border border-green-500/20 flex items-start gap-3">
+                  <div class="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 flex-shrink-0 mt-0.5">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <div>
+                    <p class="text-green-400 font-medium text-sm">Toàn vẹn dữ liệu</p>
+                    <p class="text-slate-400 text-xs mt-1">Dữ liệu trên hệ thống khớp hoàn toàn với bản ghi trên blockchain.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

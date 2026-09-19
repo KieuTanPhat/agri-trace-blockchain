@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chi tiết lô - AgriTrace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#F0FDF4', 100: '#DCFCE7', 200: '#BBF7D0', 300: '#86EFAC',
+              400: '#4ADE80', 500: '#22C55E', 600: '#16A34A', 700: '#15803D',
+              800: '#166534', 900: '#14532D'
+            }
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .btn-primary {
+      background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+      color: white; border-radius: 8px; font-weight: 600; transition: all 0.2s;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+      box-shadow: 0 4px 12px rgba(22,163,74,0.35); transform: translateY(-1px);
+    }
+    .btn-outline {
+      border: 1.5px solid #E2E8F0; background: white; color: #334155;
+      border-radius: 8px; font-weight: 500; transition: all 0.2s;
+    }
+    .btn-outline:hover { border-color: #22C55E; color: #15803D; }
+    .btn-danger-outline {
+      border: 1.5px solid #FECACA; background: white; color: #EF4444;
+      border-radius: 8px; font-weight: 500; transition: all 0.2s;
+    }
+    .btn-danger-outline:hover { border-color: #EF4444; background: #FEF2F2; }
+    .btn-orange-outline {
+      border: 1.5px solid #FED7AA; background: white; color: #F97316;
+      border-radius: 8px; font-weight: 500; transition: all 0.2s;
+    }
+    .btn-orange-outline:hover { border-color: #F97316; background: #FFF7ED; }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; border-radius: 8px; color: #64748B;
+      font-size: 14px; font-weight: 500; transition: all 0.2s;
+      text-decoration: none;
+    }
+    .sidebar-link:hover { background: #F0FDF4; color: #15803D; padding-left: 20px; }
+    .sidebar-link.active {
+      background: linear-gradient(135deg, #F0FDF4, #DCFCE7); color: #15803D;
+      font-weight: 600; border-right: 3px solid #15803D;
+    }
+    .card {
+      background: white; border-radius: 12px;
+      border: 1px solid #F1F5F9; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .qty-card {
+      border-radius: 12px; padding: 16px; transition: all 0.2s; border: 1px solid;
+    }
+    .qty-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+    /* Timeline */
+    .timeline-container { position: relative; padding-left: 52px; }
+    .timeline-vline {
+      position: absolute; left: 19px; top: 36px; bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, #22C55E, #DCFCE7 80%, transparent);
+    }
+    .timeline-dot {
+      position: absolute; left: 7px; width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; z-index: 1;
+      border: 2px solid #22C55E; background: white; transition: all 0.3s;
+    }
+    .timeline-dot.completed { background: linear-gradient(135deg, #22C55E, #16A34A); border-color: transparent; }
+    .timeline-dot.warning { background: #FFF7ED; border-color: #F97316; }
+    .timeline-event { margin-bottom: 28px; position: relative; }
+    .timeline-event:last-child { margin-bottom: 0; }
+    /* Trace chain */
+    .chain-node {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      flex: 1; min-width: 0;
+    }
+    .chain-icon {
+      width: 52px; height: 52px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .chain-icon:hover { transform: scale(1.1); }
+    .chain-line {
+      flex: 1; height: 3px; margin: 0 -4px; position: relative; overflow: hidden;
+      border-radius: 2px; background: #DCFCE7;
+    }
+    .chain-line-fill {
+      position: absolute; inset: 0; border-radius: 2px;
+      background: linear-gradient(90deg, #22C55E, #16A34A);
+    }
+    /* Tabs */
+    .tab-btn {
+      padding: 10px 20px; font-size: 14px; font-weight: 500;
+      color: #64748B; border-bottom: 2px solid transparent;
+      transition: all 0.2s; cursor: pointer; white-space: nowrap;
+    }
+    .tab-btn:hover { color: #15803D; }
+    .tab-btn.active { color: #15803D; font-weight: 600; border-bottom-color: #15803D; }
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; z-index: 50;
+    }
+    .modal-content {
+      background: white; border-radius: 16px; padding: 32px;
+      max-width: 560px; width: 100%;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(24px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-on-scroll { opacity: 0; transform: translateY(20px); transition: all 0.6s cubic-bezier(0.4,0,0.2,1); }
+    .animate-on-scroll.visible { opacity: 1; transform: translateY(0); }
+    .notification-dot { animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0.7; }
+    }
+    /* Progress bar */
+    .progress-bar { height: 6px; border-radius: 3px; background: #E2E8F0; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+  </style>
+</head>
+<body class="bg-slate-50">
+
+  <!-- Sidebar -->
+  <aside class="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-100 z-40 flex flex-col shadow-sm">
+    <div class="h-16 px-5 flex items-center border-b border-slate-100">
+      <a href="../public/home.html" class="flex items-center gap-2">
+        <div class="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center shadow-sm">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C9.5 2 7 4.5 5.5 8.5C4 12.5 6.5 18 9.5 21C11 18 12 14 12 10C12 14 13 18 14.5 21C17.5 18 20 12.5 18.5 8.5C17 4.5 14.5 2 12 2Z"/></svg>
+        </div>
+        <div>
+          <span class="text-xl font-bold"><span class="text-primary-700">Agri</span><span class="text-primary-500">Trace</span></span>
+          <p class="text-[10px] text-slate-400 -mt-1">Minh bạch hôm nay</p>
+        </div>
+      </a>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+      <p class="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tổng quan</p>
+      <a href="dashboard.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg> Tổng quan</a>
+      <p class="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Sản xuất</p>
+      <a href="cycles-list.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Vụ trồng</a>
+      <a href="iot.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> IoT & Sensor</a>
+      <p class="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Hàng hóa</p>
+      <a href="lots-list.html" class="sidebar-link active"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> Lô sản phẩm</a>
+      <a href="shipments-list.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg> Shipment</a>
+      <a href="retail.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg> Bán lẻ</a>
+      <p class="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Chất lượng</p>
+      <a href="quality.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> Chứng nhận</a>
+      <a href="audit.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg> Audit / Blockchain</a>
+      <p class="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nội dung</p>
+      <a href="news-admin.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg> Tin tức</a>
+      <p class="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Hệ thống</p>
+      <a href="master-data.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg> Quản trị dữ liệu</a>
+    </nav>
+    <div class="px-5 py-4 border-t border-slate-100 bg-gradient-to-r from-primary-50 to-white">
+      <p class="text-[10px] text-slate-400">Kết nối nông sản Việt<br>Tạo giá trị bền vững</p>
+    </div>
+  </aside>
+
+  <!-- Topbar -->
+  <header class="fixed top-0 left-64 right-0 h-16 bg-white border-b border-slate-100 z-30 flex items-center justify-between px-6 shadow-sm">
+    <div class="flex items-center gap-2 text-sm">
+      <a href="lots-list.html" class="text-slate-400 hover:text-primary-600 transition font-medium">Lô sản phẩm</a>
+      <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <span class="text-slate-700 font-semibold">LOT-2026-0001</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="relative">
+        <input type="text" placeholder="Tìm kiếm..." class="w-64 pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400 transition-all">
+        <svg class="absolute left-3 top-2.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+      <button class="relative p-2 text-slate-400 hover:text-slate-600 transition rounded-lg hover:bg-slate-50">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="notification-dot absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+      </button>
+      <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-semibold text-sm">A</div>
+        <div class="text-sm"><p class="font-medium text-slate-700">Admin</p><p class="text-xs text-slate-400">Quản trị viên</p></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="ml-64 pt-16 min-h-screen">
+    <div class="p-6 max-w-6xl mx-auto">
+
+      <!-- Header Section -->
+      <div class="animate-on-scroll">
+        <div class="card p-6 mb-6" style="background: linear-gradient(135deg, #F0FDF4 0%, white 60%); border-color: #DCFCE7;">
+          <div class="flex items-start justify-between">
+            <div class="flex items-center gap-5">
+              <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-md">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Mã lô</span>
+                </div>
+                <h1 class="text-2xl font-bold text-slate-800 font-mono">LOT-2026-0001</h1>
+                <p class="text-slate-500 text-sm mt-0.5">Rau cải xanh — Nông trại An Phú</p>
+                <div class="flex items-center gap-3 mt-3">
+                  <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-600 border border-green-200">FOR_SALE</span>
+                  <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-600 border border-green-200">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                    VERIFIED
+                  </span>
+                  <span class="text-xs text-slate-400">Thu hoạch: 15/03/2026</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2 flex-wrap justify-end">
+              <button onclick="toggleModal('damageModal')" class="btn-orange-outline px-4 py-2 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                Ghi nhận hư hỏng
+              </button>
+              <button class="btn-outline px-4 py-2 text-sm">Hết hạn</button>
+              <button class="btn-danger-outline px-4 py-2 text-sm">Thu hồi</button>
+              <button onclick="toggleModal('soldModal')" class="btn-primary px-4 py-2 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Đánh dấu đã bán
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quantity Cards -->
+      <div class="grid grid-cols-6 gap-4 mb-6 animate-on-scroll">
+        <div class="qty-card bg-slate-50 border-slate-200">
+          <p class="text-xs text-slate-500 mb-2 font-medium uppercase tracking-wide">Ban đầu</p>
+          <p class="text-2xl font-bold text-slate-800">200<span class="text-sm font-normal text-slate-400 ml-1">kg</span></p>
+          <div class="progress-bar mt-3"><div class="progress-fill bg-slate-300" style="width:100%"></div></div>
+        </div>
+        <div class="qty-card bg-green-50 border-green-200">
+          <p class="text-xs text-green-600 mb-2 font-medium uppercase tracking-wide">Khả dụng</p>
+          <p class="text-2xl font-bold text-green-700">195<span class="text-sm font-normal text-green-500 ml-1">kg</span></p>
+          <div class="progress-bar mt-3"><div class="progress-fill" style="width:97.5%; background: linear-gradient(90deg,#22C55E,#16A34A)"></div></div>
+        </div>
+        <div class="qty-card bg-blue-50 border-blue-200">
+          <p class="text-xs text-blue-600 mb-2 font-medium uppercase tracking-wide">Đã vận chuyển</p>
+          <p class="text-2xl font-bold text-blue-700">200<span class="text-sm font-normal text-blue-400 ml-1">kg</span></p>
+          <div class="progress-bar mt-3"><div class="progress-fill" style="width:100%; background: linear-gradient(90deg,#3B82F6,#2563EB)"></div></div>
+        </div>
+        <div class="qty-card bg-orange-50 border-orange-200">
+          <p class="text-xs text-orange-600 mb-2 font-medium uppercase tracking-wide">Hư hỏng</p>
+          <p class="text-2xl font-bold text-orange-700">5<span class="text-sm font-normal text-orange-400 ml-1">kg</span></p>
+          <div class="progress-bar mt-3"><div class="progress-fill" style="width:2.5%; background: linear-gradient(90deg,#F97316,#EA580C)"></div></div>
+        </div>
+        <div class="qty-card bg-teal-50 border-teal-200">
+          <p class="text-xs text-teal-600 mb-2 font-medium uppercase tracking-wide">Đã nhận</p>
+          <p class="text-2xl font-bold text-teal-700">195<span class="text-sm font-normal text-teal-400 ml-1">kg</span></p>
+          <div class="progress-bar mt-3"><div class="progress-fill" style="width:97.5%; background: linear-gradient(90deg,#14B8A6,#0D9488)"></div></div>
+        </div>
+        <div class="qty-card bg-emerald-50 border-emerald-200">
+          <p class="text-xs text-emerald-700 mb-2 font-medium uppercase tracking-wide">Đã bán</p>
+          <p class="text-2xl font-bold text-emerald-800">0<span class="text-sm font-normal text-emerald-500 ml-1">kg</span></p>
+          <div class="progress-bar mt-3"><div class="progress-fill" style="width:0%; background: linear-gradient(90deg,#10B981,#059669)"></div></div>
+        </div>
+      </div>
+
+      <!-- Trace Chain Visual -->
+      <div class="card p-6 mb-6 animate-on-scroll">
+        <h3 class="text-sm font-bold text-slate-700 mb-5 uppercase tracking-wider flex items-center gap-2">
+          <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Chuỗi cung ứng
+        </h3>
+        <div class="flex items-center">
+          <!-- Node 1: Farm -->
+          <div class="chain-node">
+            <div class="chain-icon bg-green-100">
+              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+            </div>
+            <div class="text-center">
+              <p class="font-semibold text-slate-800 text-xs">Nông trại An Phú</p>
+              <p class="text-xs text-slate-400 mt-0.5">Thu hoạch 15/03</p>
+              <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-600">HARVESTED</span>
+            </div>
+          </div>
+          <!-- Arrow -->
+          <div class="chain-line mx-2"><div class="chain-line-fill"></div></div>
+          <!-- Node 2: Shipment -->
+          <div class="chain-node">
+            <div class="chain-icon bg-blue-100">
+              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+            </div>
+            <div class="text-center">
+              <a href="shipment-detail.html" class="font-semibold text-primary-600 hover:underline text-xs">SH-2026-001</a>
+              <p class="text-xs text-slate-400 mt-0.5">GreenTrans Logistics</p>
+              <p class="text-[10px] text-slate-400">16/03 → 17/03</p>
+            </div>
+          </div>
+          <!-- Arrow -->
+          <div class="chain-line mx-2"><div class="chain-line-fill"></div></div>
+          <!-- Node 3: Retail -->
+          <div class="chain-node">
+            <div class="chain-icon bg-teal-100">
+              <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+            </div>
+            <div class="text-center">
+              <p class="font-semibold text-slate-800 text-xs">FreshMart Quận 7</p>
+              <p class="text-xs text-slate-400 mt-0.5">Nhận 17/03</p>
+              <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-50 text-green-600">FOR_SALE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content Grid -->
+      <div class="grid grid-cols-3 gap-6">
+        <!-- Left: Timeline + Tabs -->
+        <div class="col-span-2 animate-on-scroll">
+          <!-- Tabs -->
+          <div class="flex border-b border-slate-200 mb-5 bg-white rounded-t-xl overflow-hidden -mx-0">
+            <button class="tab-btn active" onclick="switchTab(this,'timeline')">
+              <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Timeline</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab(this,'shipment')">Shipment</button>
+            <button class="tab-btn" onclick="switchTab(this,'quality')">Chất lượng</button>
+            <button class="tab-btn" onclick="switchTab(this,'quantity')">Số lượng</button>
+            <button class="tab-btn" onclick="switchTab(this,'blockchain')">Blockchain Proof</button>
+          </div>
+
+          <!-- Tab: Timeline -->
+          <div id="tab-timeline" class="card p-6">
+            <div class="timeline-container">
+              <div class="timeline-vline"></div>
+
+              <div class="timeline-event">
+                <div class="timeline-dot completed" style="top:2px">
+                  <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="bg-green-50 rounded-xl p-4 border border-green-100">
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 class="font-semibold text-slate-800 text-sm">Đưa ra bán <span class="font-normal text-slate-400 ml-1">— FOR_SALE</span></h4>
+                      <p class="text-sm text-slate-500 mt-1">FreshMart Quận 7 đưa lên kệ bán</p>
+                    </div>
+                    <span class="text-xs text-slate-400 whitespace-nowrap">18/03/2026 08:00</span>
+                  </div>
+                  <span class="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                    Đã xác thực
+                  </span>
+                </div>
+              </div>
+
+              <div class="timeline-event">
+                <div class="timeline-dot completed" style="top:2px">
+                  <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 class="font-semibold text-slate-800 text-sm">Nhận hàng <span class="font-normal text-slate-400 ml-1">— RETAIL_RECEIVED</span></h4>
+                      <p class="text-sm text-slate-500 mt-1">195kg được chấp nhận tại kho FreshMart Quận 7</p>
+                    </div>
+                    <span class="text-xs text-slate-400 whitespace-nowrap">17/03/2026 10:30</span>
+                  </div>
+                  <span class="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                    Đã xác thực
+                  </span>
+                  <p class="text-xs text-slate-400 mt-1.5 font-mono">0x3a7f...1fb2</p>
+                </div>
+              </div>
+
+              <div class="timeline-event">
+                <div class="timeline-dot completed" style="top:2px">
+                  <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 class="font-semibold text-slate-800 text-sm">Đến nơi <span class="font-normal text-slate-400 ml-1">— ARRIVED</span></h4>
+                      <p class="text-sm text-slate-500 mt-1">Đơn vị: FreshMart Quận 7, TP. Hồ Chí Minh</p>
+                    </div>
+                    <span class="text-xs text-slate-400 whitespace-nowrap">17/03/2026 09:15</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="timeline-event">
+                <div class="timeline-dot warning" style="top:2px">
+                  <span class="text-orange-600 font-bold text-xs">!</span>
+                </div>
+                <div class="bg-orange-50 rounded-xl p-4 border border-orange-100">
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 class="font-semibold text-orange-700 text-sm">Hư hỏng vận chuyển <span class="font-normal text-slate-500 ml-1">— Partial Damage</span></h4>
+                      <p class="text-sm text-slate-500 mt-1">5kg hư hỏng do va đập trong quá trình vận chuyển</p>
+                    </div>
+                    <span class="text-xs text-slate-400 whitespace-nowrap">16/03/2026 15:20</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="timeline-event">
+                <div class="timeline-dot completed" style="top:2px">
+                  <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 class="font-semibold text-slate-800 text-sm">Bắt đầu vận chuyển <span class="font-normal text-slate-400 ml-1">— IN_TRANSPORT</span></h4>
+                      <p class="text-sm text-slate-500 mt-1">Đơn vị: GreenTrans Logistics</p>
+                    </div>
+                    <span class="text-xs text-slate-400 whitespace-nowrap">16/03/2026 10:00</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mt-1.5 font-mono">0x9cd4...e2b7</p>
+                </div>
+              </div>
+
+              <div class="timeline-event">
+                <div class="timeline-dot completed" style="top:2px">
+                  <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 class="font-semibold text-slate-800 text-sm">Tạo Shipment <span class="font-normal text-slate-400 ml-1">— SH-2026-001</span></h4>
+                      <p class="text-sm text-slate-500 mt-1">200kg → FreshMart Quận 7</p>
+                    </div>
+                    <span class="text-xs text-slate-400 whitespace-nowrap">16/03/2026 08:30</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="timeline-event">
+                <div class="timeline-dot completed" style="top:2px">
+                  <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="bg-primary-50 rounded-xl p-4 border border-primary-100">
+                  <div class="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 class="font-semibold text-slate-800 text-sm">Thu hoạch <span class="font-normal text-slate-400 ml-1">— HARVESTED</span></h4>
+                      <p class="text-sm text-slate-500 mt-1">Nông trại An Phú — 200kg Grade A</p>
+                      <p class="text-xs text-slate-400 mt-0.5">Từ vụ trồng: <a href="cycle-detail.html" class="text-primary-600 hover:underline">CYC-2026-001</a></p>
+                    </div>
+                    <span class="text-xs text-slate-400 whitespace-nowrap">15/03/2026 07:00</span>
+                  </div>
+                  <span class="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-700">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                    Đã xác thực trên Blockchain
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Other tabs (hidden) -->
+          <div id="tab-shipment" class="card p-6 hidden">
+            <p class="text-slate-500 text-sm">Thông tin shipment liên quan đến lô này.</p>
+            <div class="mt-4 p-4 bg-slate-50 rounded-lg">
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-slate-800">SH-2026-001</span>
+                <span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">DELIVERED</span>
+              </div>
+              <p class="text-sm text-slate-500 mt-1">GreenTrans Logistics · 16/03 → 17/03/2026</p>
+              <a href="shipment-detail.html" class="text-sm text-primary-600 hover:underline mt-2 block">Xem chi tiết Shipment →</a>
+            </div>
+          </div>
+          <div id="tab-quality" class="card p-6 hidden">
+            <p class="text-slate-500 text-sm">Kết quả kiểm định chất lượng cho lô này.</p>
+          </div>
+          <div id="tab-quantity" class="card p-6 hidden">
+            <p class="text-slate-500 text-sm">Lịch sử biến động số lượng của lô.</p>
+          </div>
+          <div id="tab-blockchain" class="card p-6 hidden">
+            <p class="text-sm text-slate-500 mb-3">Bằng chứng xác thực trên Blockchain</p>
+            <div class="bg-slate-900 rounded-xl p-4 font-mono text-xs text-green-400 space-y-1.5">
+              <p><span class="text-slate-400">Tx Hash:</span> 0x3a7f...9c21</p>
+              <p><span class="text-slate-400">Block:</span> #18,234,567</p>
+              <p><span class="text-slate-400">Network:</span> Ethereum Mainnet</p>
+              <p><span class="text-slate-400">Status:</span> <span class="text-green-400">✓ Confirmed</span></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: QR + Info -->
+        <div class="col-span-1 space-y-5 animate-on-scroll">
+          <!-- QR Code Card -->
+          <div class="card p-6 text-center">
+            <h3 class="font-semibold text-slate-800 mb-4 flex items-center justify-center gap-2">
+              <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+              Mã QR Truy xuất
+            </h3>
+            <div class="w-44 h-44 mx-auto bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center mb-3 relative overflow-hidden">
+              <svg class="w-28 h-28 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+              <div class="absolute bottom-2 left-0 right-0 text-center">
+                <span class="text-[10px] font-semibold text-slate-400 font-mono">LOT-2026-0001</span>
+              </div>
+            </div>
+            <a href="../public/trace-detail.html" class="block text-sm text-primary-600 hover:text-primary-700 font-medium mb-4 hover:underline">
+              Xem trang truy xuất công khai →
+            </a>
+            <div class="grid grid-cols-2 gap-2">
+              <button class="btn-outline py-2 text-sm flex items-center justify-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Tải QR
+              </button>
+              <button class="btn-primary py-2 text-sm flex items-center justify-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                In QR
+              </button>
+            </div>
+          </div>
+
+          <!-- Lot Info Card -->
+          <div class="card p-5">
+            <h3 class="font-semibold text-slate-800 mb-4 text-sm">Thông tin lô hàng</h3>
+            <div class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <span class="text-slate-500">Sản phẩm</span>
+                <span class="font-medium text-slate-800">Rau cải xanh</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Nông trại</span>
+                <span class="font-medium text-slate-800">Nông trại An Phú</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Vụ trồng</span>
+                <a href="cycle-detail.html" class="font-medium text-primary-600 hover:underline">CYC-2026-001</a>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Thu hoạch</span>
+                <span class="font-medium text-slate-800">15/03/2026</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Hạn sử dụng</span>
+                <span class="font-medium text-slate-800">22/03/2026</span>
+              </div>
+              <div class="border-t border-slate-100 pt-3 flex justify-between">
+                <span class="text-slate-500">Mã truy xuất</span>
+                <span class="font-mono text-xs font-medium text-slate-600">AT000123456</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Blockchain Quick Info -->
+          <div class="card p-5">
+            <h3 class="font-semibold text-slate-800 mb-3 text-sm flex items-center gap-2">
+              <div class="w-5 h-5 rounded bg-purple-100 flex items-center justify-center">
+                <svg class="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+              </div>
+              Blockchain
+            </h3>
+            <div class="text-xs space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
+                <span class="text-slate-500">7 sự kiện đã ghi nhận</span>
+              </div>
+              <div class="font-mono text-slate-600 bg-slate-50 rounded px-2 py-1 truncate">0x3a7f...9c21</div>
+              <a href="audit.html" class="text-primary-600 hover:underline font-medium block">Xem toàn bộ audit log →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Mark Sold Modal -->
+  <div id="soldModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800">Đánh dấu đã bán</h2>
+          <p class="text-sm text-slate-500 mt-1">LOT-2026-0001 — Rau cải xanh</p>
+        </div>
+        <button onclick="toggleModal('soldModal')" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Thời gian bán <span class="text-red-500">*</span></label>
+            <input type="datetime-local" value="2026-03-18T10:00" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Số lượng đã bán (kg) <span class="text-red-500">*</span></label>
+            <input type="number" max="195" value="195" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition">
+            <p class="text-xs text-slate-400 mt-1">Tối đa khả dụng: 195 kg</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Ghi chú</label>
+            <textarea class="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition resize-none" rows="3" placeholder="Nhập ghi chú (tùy chọn)"></textarea>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-8">
+          <button type="button" onclick="toggleModal('soldModal')" class="btn-outline px-6 py-2.5">Hủy</button>
+          <button type="button" onclick="toggleModal('soldModal')" class="btn-primary px-6 py-2.5">
+            <span class="flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Xác nhận đã bán</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Damage Modal -->
+  <div id="damageModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="flex justify-between items-center mb-5">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800">Ghi nhận hư hỏng</h2>
+          <p class="text-sm text-slate-500 mt-0.5">Dữ liệu sẽ được ghi lên Blockchain</p>
+        </div>
+        <button onclick="toggleModal('damageModal')" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="bg-orange-50 p-3 rounded-xl border border-orange-200 mb-5 text-sm flex items-center gap-3">
+        <svg class="w-5 h-5 text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <div>
+          <span class="font-medium text-orange-800">LOT-2026-0001</span>
+          <span class="text-orange-600 mx-1">|</span>
+          <span class="text-orange-600">FOR_SALE — Khả dụng: 195 kg</span>
+        </div>
+      </div>
+      <form>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Số lượng hư hỏng (kg) <span class="text-red-500">*</span></label>
+            <input type="number" max="195" placeholder="Nhập số lượng..." class="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 transition">
+            <p class="text-xs text-slate-400 mt-1">Tối đa: 195 kg. Nếu hư hỏng toàn bộ, hệ thống tự động chuyển sang DAMAGED.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Loại hư hỏng <span class="text-red-500">*</span></label>
+            <select class="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 transition">
+              <option>Va đập</option>
+              <option>Ẩm mốc</option>
+              <option>Nhiệt độ</option>
+              <option>Khác</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Lý do / Mô tả chi tiết <span class="text-red-500">*</span></label>
+            <textarea class="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 transition resize-none" rows="2"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Minh chứng (Hình ảnh/Biên bản)</label>
+            <div class="border-2 border-dashed border-slate-200 rounded-xl p-5 text-center hover:border-orange-300 transition cursor-pointer">
+              <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span class="text-sm text-slate-500">Kéo thả file hoặc <a href="#" class="text-orange-500 font-medium">chọn file</a></span>
+              <p class="text-xs text-slate-400 mt-1">PNG, JPG, PDF tối đa 10MB</p>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-8">
+          <button type="button" onclick="toggleModal('damageModal')" class="btn-outline px-6 py-2.5">Hủy</button>
+          <button type="button" onclick="toggleModal('damageModal')" class="px-6 py-2.5 rounded-lg text-white font-semibold transition" style="background:linear-gradient(135deg,#F97316,#EA580C)">
+            <span class="flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>Ghi nhận hư hỏng</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function toggleModal(modalId) {
+      const modal = document.getElementById(modalId);
+      modal.classList.toggle('hidden');
+    }
+    function switchTab(btn, tabName) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tabs = ['timeline', 'shipment', 'quality', 'quantity', 'blockchain'];
+      tabs.forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        if (el) el.classList.add('hidden');
+      });
+      const active = document.getElementById('tab-' + tabName);
+      if (active) active.classList.remove('hidden');
+    }
+    // Scroll animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => entry.target.classList.add('visible'), i * 100);
+        }
+      });
+    }, { threshold: 0.08 });
+    document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
+    // Progress bar animation
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.querySelectorAll('.progress-fill').forEach(bar => {
+          const w = bar.style.width;
+          bar.style.width = '0%';
+          setTimeout(() => { bar.style.width = w; }, 200);
+        });
+      }, 400);
+    });
+  </script>
+</body>
+</html>

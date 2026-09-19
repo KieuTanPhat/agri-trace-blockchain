@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiểm định - AgriTrace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { primary: { 50: '#F0FDF4', 100: '#DCFCE7', 200: '#BBF7D0', 300: '#86EFAC', 400: '#4ADE80', 500: '#22C55E', 600: '#16A34A', 700: '#15803D', 800: '#166534', 900: '#14532D' } }, fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background-color: #F8FAFC; }
+    
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    @keyframes pulse-soft {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+    
+    .animate-fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; opacity: 0; }
+    .delay-100 { animation-delay: 100ms; }
+    .delay-200 { animation-delay: 200ms; }
+    .delay-300 { animation-delay: 300ms; }
+    
+    .animate-on-scroll { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+    .animate-on-scroll.visible { opacity: 1; transform: translateY(0); }
+    
+    .btn-primary { background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: white; border-radius: 8px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2); padding: 8px 16px; }
+    .btn-primary:hover { background: linear-gradient(135deg, #16A34A 0%, #15803D 100%); box-shadow: 0 6px 16px rgba(22, 163, 74, 0.3); transform: translateY(-1px); }
+    .btn-outline { border: 1.5px solid #E2E8F0; background: white; color: #475569; border-radius: 8px; font-weight: 600; transition: all 0.3s ease; padding: 8px 16px; }
+    .btn-outline:hover { border-color: #22C55E; color: #16A34A; background: #F0FDF4; transform: translateY(-1px); }
+    
+    .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; color: #64748B; font-size: 14px; font-weight: 500; text-decoration: none; transition: all 0.3s ease; margin-bottom: 4px; }
+    .sidebar-link:hover { background: #F0FDF4; color: #15803D; transform: translateX(4px); }
+    .sidebar-link.active { background: linear-gradient(to right, #F0FDF4, #DCFCE7); color: #15803D; font-weight: 600; border-left: 4px solid #16A34A; box-shadow: inset 0 0 0 1px rgba(34,197,94,0.1); }
+    
+    .search-input { transition: all 0.3s ease; }
+    .search-input:focus { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); border-color: #4ADE80; outline: none; }
+    .bell-icon { transition: all 0.3s ease; }
+    .bell-icon:hover { animation: pulse-soft 1s infinite; color: #16A34A; }
+    
+    .card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-radius: 16px; border: 1px solid #F1F5F9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); transition: all 0.3s ease; }
+    .card:hover { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02); }
+    
+    .kpi-card { background: white; border-radius: 16px; padding: 24px; border: 1px solid #F1F5F9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: all 0.3s ease; }
+    .kpi-card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px -3px rgba(0,0,0,0.08); }
+    
+    .table-row { transition: all 0.2s ease; border-left: 2px solid transparent; }
+    .table-row:hover { background: #F8FAFC; border-left-color: #22C55E; transform: scale(1.002); }
+    
+    .donut { width: 140px; height: 140px; border-radius: 50%; background: conic-gradient(#22C55E 0% 96%, #FCD34D 96% 99%, #EF4444 99% 100%); position: relative; box-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.3); }
+    .donut::after { content: ''; position: absolute; inset: 22px; background: white; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+    
+    .badge { padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+    .badge-success { background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }
+    .badge-warning { background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A; }
+    .badge-danger { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
+  </style>
+</head>
+<body class="bg-slate-50">
+  <aside class="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-100 z-40 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+    <div class="h-16 px-5 flex items-center border-b border-slate-100">
+      <a href="../public/home.html" class="flex items-center gap-2 group">
+        <div class="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30 group-hover:shadow-primary-500/50 transition-all group-hover:scale-105">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C9.5 2 7 4.5 5.5 8.5C4 12.5 6.5 18 9.5 21C11 18 12 14 12 10C12 14 13 18 14.5 21C17.5 18 20 12.5 18.5 8.5C17 4.5 14.5 2 12 2Z"/></svg>
+        </div>
+        <div><span class="text-xl font-bold tracking-tight"><span class="text-primary-700">Agri</span><span class="text-primary-500">Trace</span></span></div>
+      </a>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+      <p class="px-3 mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Chất lượng</p>
+      <a href="quality.html" class="sidebar-link active">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        Chứng nhận
+      </a>
+      <a href="audit.html" class="sidebar-link">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        Audit / Blockchain
+      </a>
+    </nav>
+  </aside>
+
+  <header class="fixed top-0 left-64 right-0 h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 z-30 flex items-center justify-between px-8 transition-all duration-300">
+    <div class="flex items-center gap-2 text-sm">
+      <span class="text-slate-400 font-medium">Admin</span>
+      <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <span class="text-slate-700 font-semibold">Kiểm định</span>
+    </div>
+    
+    <div class="flex items-center gap-6">
+      <div class="relative group">
+        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 group-focus-within:text-primary-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" placeholder="Tìm kiếm..." class="search-input pl-9 pr-4 py-2 w-64 bg-slate-50 border border-slate-200 rounded-full text-sm focus:bg-white transition-all">
+      </div>
+      
+      <button class="relative text-slate-400 hover:text-slate-600 bell-icon">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+      </button>
+      
+      <div class="flex items-center gap-3 border-l border-slate-200 pl-6">
+        <div class="w-9 h-9 bg-gradient-to-r from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ring-2 ring-white cursor-pointer hover:shadow-md transition-all">
+          AD
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="ml-64 pt-16 min-h-screen">
+    <div class="p-8">
+      <div class="mb-8 flex justify-between items-start animate-fade-in-up">
+        <div>
+          <h1 class="text-3xl font-bold text-slate-800 tracking-tight">Kiểm định</h1>
+          <p class="text-slate-500 mt-2 text-sm">Đánh giá chất lượng và xác thực nguồn gốc nông sản</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-4 gap-6 mb-10">
+        <div class="kpi-card flex items-start gap-5 animate-fade-in-up delay-100">
+          <div class="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-600 shadow-inner"><svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+          <div><p class="text-3xl font-bold text-slate-800 tracking-tight">7</p><p class="text-sm font-medium text-slate-500 mt-1">Hồ sơ chất lượng</p></div>
+        </div>
+        <div class="kpi-card flex items-start gap-5 animate-fade-in-up delay-100">
+          <div class="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center flex-shrink-0 text-green-600 shadow-inner"><svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+          <div><p class="text-3xl font-bold text-slate-800 tracking-tight">28</p><p class="text-sm font-medium text-slate-500 mt-1">Đã đạt tiêu chuẩn</p></div>
+        </div>
+        <div class="kpi-card flex items-start gap-5 animate-fade-in-up delay-200">
+          <div class="w-14 h-14 rounded-2xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-primary-600 shadow-inner"><svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg></div>
+          <div><p class="text-3xl font-bold text-slate-800 tracking-tight">96%</p><p class="text-sm font-medium text-slate-500 mt-1">Tỷ lệ tuân thủ</p></div>
+        </div>
+        <div class="kpi-card flex items-start gap-5 border border-red-100 bg-red-50/10 animate-fade-in-up delay-200">
+          <div class="w-14 h-14 rounded-2xl bg-red-100 flex items-center justify-center flex-shrink-0 text-red-600 shadow-inner"><svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
+          <div><p class="text-3xl font-bold text-slate-800 tracking-tight">1</p><p class="text-sm text-red-600 font-semibold mt-1">Vi phạm phát hiện</p></div>
+        </div>
+      </div>
+
+      <div class="flex gap-8">
+        <div class="flex-1 space-y-8">
+          <div class="flex border-b border-slate-200 animate-fade-in-up delay-300">
+            <button class="px-6 py-4 font-semibold text-primary-700 border-b-2 border-primary-600 transition-colors">Kiểm tra</button>
+            <button class="px-6 py-4 font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors">Chứng nhận</button>
+          </div>
+
+          <!-- Tab Kiểm tra -->
+          <div class="card overflow-hidden animate-fade-in-up delay-300">
+            <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white/50">
+              <h3 class="font-bold text-slate-800 text-lg">Lịch sử kiểm tra</h3>
+              <button class="btn-primary text-sm shadow-md">+ Ghi kiểm tra</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-50 border-b border-slate-100 text-left text-slate-500 uppercase text-[11px] font-bold tracking-wider">
+                    <th class="px-6 py-4">Mã lô</th>
+                    <th class="px-6 py-4">Sản phẩm</th>
+                    <th class="px-6 py-4">Kết quả</th>
+                    <th class="px-6 py-4">Ngày kiểm tra</th>
+                    <th class="px-6 py-4">Ghi chú</th>
+                    <th class="px-6 py-4">Minh chứng</th>
+                    <th class="px-6 py-4 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-600 bg-white">
+                  <tr class="table-row group">
+                    <td class="px-6 py-4 font-semibold text-slate-800">LOT-2026-0001</td>
+                    <td class="px-6 py-4">Rau cải xanh</td>
+                    <td class="px-6 py-4"><span class="badge badge-success">✅ Đạt</span></td>
+                    <td class="px-6 py-4 font-medium">15/03/2026</td>
+                    <td class="px-6 py-4">Đạt tiêu chuẩn VietGAP</td>
+                    <td class="px-6 py-4"><span class="flex items-center gap-1 text-slate-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg> Có</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-primary-600 font-semibold hover:text-primary-700 transition-colors">Xem chi tiết</button></td>
+                  </tr>
+                  <tr class="table-row group">
+                    <td class="px-6 py-4 font-semibold text-slate-800">LOT-2026-0003</td>
+                    <td class="px-6 py-4">Dưa lưới</td>
+                    <td class="px-6 py-4"><span class="badge badge-success">✅ Đạt</span></td>
+                    <td class="px-6 py-4 font-medium">17/03/2026</td>
+                    <td class="px-6 py-4">Chất lượng tốt</td>
+                    <td class="px-6 py-4"><span class="flex items-center gap-1 text-slate-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg> Có</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-primary-600 font-semibold hover:text-primary-700 transition-colors">Xem chi tiết</button></td>
+                  </tr>
+                  <tr class="table-row group bg-red-50/20">
+                    <td class="px-6 py-4 font-semibold text-slate-800">LOT-2026-0005</td>
+                    <td class="px-6 py-4">Rau cải xanh</td>
+                    <td class="px-6 py-4"><span class="badge badge-danger">❌ Không đạt</span></td>
+                    <td class="px-6 py-4 font-medium">18/03/2026</td>
+                    <td class="px-6 py-4 text-red-600 font-medium">Dư lượng thuốc BVTV vượt ngưỡng</td>
+                    <td class="px-6 py-4"><span class="flex items-center gap-1 text-slate-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg> Có</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-primary-600 font-semibold hover:text-primary-700 transition-colors">Xem chi tiết</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tab Chứng nhận (preview) -->
+          <div class="card overflow-hidden mt-8 animate-fade-in-up delay-300">
+            <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white/50">
+              <h3 class="font-bold text-slate-800 text-lg">Danh sách Chứng nhận</h3>
+              <button class="btn-outline text-sm shadow-sm hover:shadow-md">+ Thêm chứng nhận</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-50 border-b border-slate-100 text-left text-slate-500 uppercase text-[11px] font-bold tracking-wider">
+                    <th class="px-6 py-4">Loại</th>
+                    <th class="px-6 py-4">Tổ chức cấp</th>
+                    <th class="px-6 py-4">Ngày cấp</th>
+                    <th class="px-6 py-4">Ngày hết hạn</th>
+                    <th class="px-6 py-4 text-center">Công khai</th>
+                    <th class="px-6 py-4">Proof</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-600 bg-white">
+                  <tr class="table-row">
+                    <td class="px-6 py-4 font-semibold text-slate-800">VietGAP</td>
+                    <td class="px-6 py-4">Trung tâm Chất lượng NN</td>
+                    <td class="px-6 py-4 font-medium">01/01/2026</td>
+                    <td class="px-6 py-4 font-medium">31/12/2026</td>
+                    <td class="px-6 py-4 text-center"><span class="text-green-500 text-lg">✅</span></td>
+                    <td class="px-6 py-4"><span class="badge badge-success shadow-sm">✅ VERIFIED</span></td>
+                  </tr>
+                  <tr class="table-row">
+                    <td class="px-6 py-4 font-semibold text-slate-800">ISO 22000</td>
+                    <td class="px-6 py-4">TÜV SÜD Vietnam</td>
+                    <td class="px-6 py-4 font-medium">15/02/2026</td>
+                    <td class="px-6 py-4 font-medium">14/02/2027</td>
+                    <td class="px-6 py-4 text-center"><span class="text-green-500 text-lg">✅</span></td>
+                    <td class="px-6 py-4"><span class="badge badge-success shadow-sm">✅ VERIFIED</span></td>
+                  </tr>
+                  <tr class="table-row">
+                    <td class="px-6 py-4 font-semibold text-slate-800">Hữu cơ</td>
+                    <td class="px-6 py-4">Control Union</td>
+                    <td class="px-6 py-4 font-medium">01/03/2026</td>
+                    <td class="px-6 py-4 font-medium">28/02/2027</td>
+                    <td class="px-6 py-4 text-center"><span class="text-slate-300 text-lg">❌</span></td>
+                    <td class="px-6 py-4"><span class="badge badge-warning shadow-sm">⏳ PENDING</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="w-[340px] animate-fade-in-up delay-300">
+          <div class="card p-8 flex flex-col items-center bg-white sticky top-24">
+            <h3 class="font-bold text-slate-800 mb-8 self-start text-lg">Tỷ lệ tuân thủ</h3>
+            <div class="donut mb-10 flex items-center justify-center transition-transform hover:scale-105 duration-500">
+              <span class="absolute font-black text-3xl text-slate-800 z-10">96%</span>
+            </div>
+            <div class="w-full space-y-4">
+              <div class="flex justify-between items-center text-sm p-3 rounded-lg bg-green-50 border border-green-100">
+                <span class="flex items-center gap-3 font-medium text-green-800"><div class="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>Đạt</span>
+                <span class="font-bold text-green-700 text-base">96%</span>
+              </div>
+              <div class="flex justify-between items-center text-sm p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent">
+                <span class="flex items-center gap-3 font-medium text-slate-600"><div class="w-3 h-3 bg-amber-400 rounded-full shadow-sm"></div>Cần bổ sung</span>
+                <span class="font-bold text-slate-700 text-base">3%</span>
+              </div>
+              <div class="flex justify-between items-center text-sm p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent">
+                <span class="flex items-center gap-3 font-medium text-slate-600"><div class="w-3 h-3 bg-red-500 rounded-full shadow-sm"></div>Không đạt</span>
+                <span class="font-bold text-slate-700 text-base">1%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      }, { threshold: 0.1 });
+      document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>

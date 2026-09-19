@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản trị dữ liệu - AgriTrace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { primary: { 50: '#F0FDF4', 100: '#DCFCE7', 200: '#BBF7D0', 300: '#86EFAC', 400: '#4ADE80', 500: '#22C55E', 600: '#16A34A', 700: '#15803D', 800: '#166534', 900: '#14532D' } }, fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background-color: #F8FAFC; }
+    
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-soft {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+    
+    .animate-fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; opacity: 0; }
+    .delay-100 { animation-delay: 100ms; }
+    
+    .btn-primary { background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: white; border-radius: 8px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2); padding: 8px 16px; }
+    .btn-primary:hover { background: linear-gradient(135deg, #16A34A 0%, #15803D 100%); box-shadow: 0 6px 16px rgba(22, 163, 74, 0.3); transform: translateY(-1px); }
+    
+    .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; color: #64748B; font-size: 14px; font-weight: 500; text-decoration: none; transition: all 0.3s ease; margin-bottom: 4px; }
+    .sidebar-link:hover { background: #F0FDF4; color: #15803D; transform: translateX(4px); }
+    .sidebar-link.active { background: linear-gradient(to right, #F0FDF4, #DCFCE7); color: #15803D; font-weight: 600; border-left: 4px solid #16A34A; box-shadow: inset 0 0 0 1px rgba(34,197,94,0.1); }
+    
+    .search-input { transition: all 0.3s ease; }
+    .search-input:focus { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); border-color: #4ADE80; outline: none; }
+    .bell-icon { transition: all 0.3s ease; }
+    .bell-icon:hover { animation: pulse-soft 1s infinite; color: #16A34A; }
+    
+    .card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-radius: 16px; border: 1px solid #F1F5F9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); transition: all 0.3s ease; }
+    
+    .table-row { transition: all 0.2s ease; border-left: 2px solid transparent; }
+    .table-row:hover { background: #F8FAFC; border-left-color: #22C55E; transform: scale(1.002); }
+    
+    /* Tabs */
+    .tab-btn { position: relative; overflow: hidden; }
+    .tab-btn::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background: #16A34A; transform: scaleX(0); transition: transform 0.3s ease; transform-origin: left; }
+    .tab-btn.active::after { transform: scaleX(1); }
+    .tab-btn.active { color: #15803D; font-weight: 600; background: white; }
+    
+    .status-badge { padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; text-transform: uppercase; letter-spacing: 0.5px; background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }
+  </style>
+</head>
+<body class="bg-slate-50">
+  <aside class="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-100 z-40 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+    <div class="h-16 px-5 flex items-center border-b border-slate-100">
+      <a href="../public/home.html" class="flex items-center gap-2 group">
+        <div class="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30 group-hover:shadow-primary-500/50 transition-all group-hover:scale-105">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C9.5 2 7 4.5 5.5 8.5C4 12.5 6.5 18 9.5 21C11 18 12 14 12 10C12 14 13 18 14.5 21C17.5 18 20 12.5 18.5 8.5C17 4.5 14.5 2 12 2Z"/></svg>
+        </div>
+        <div><span class="text-xl font-bold tracking-tight"><span class="text-primary-700">Agri</span><span class="text-primary-500">Trace</span></span></div>
+      </a>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+      <p class="px-3 mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Hệ thống</p>
+      <a href="master-data.html" class="sidebar-link active">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Quản trị dữ liệu
+      </a>
+    </nav>
+  </aside>
+
+  <header class="fixed top-0 left-64 right-0 h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 z-30 flex items-center justify-between px-8 transition-all duration-300">
+    <div class="flex items-center gap-2 text-sm">
+      <span class="text-slate-400 font-medium">Admin</span>
+      <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <span class="text-slate-700 font-semibold">Quản trị dữ liệu</span>
+    </div>
+    
+    <div class="flex items-center gap-6">
+      <div class="relative group">
+        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 group-focus-within:text-primary-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" placeholder="Tìm kiếm..." class="search-input pl-9 pr-4 py-2 w-64 bg-slate-50 border border-slate-200 rounded-full text-sm focus:bg-white transition-all">
+      </div>
+      
+      <button class="relative text-slate-400 hover:text-slate-600 bell-icon">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+      </button>
+      
+      <div class="flex items-center gap-3 border-l border-slate-200 pl-6">
+        <div class="w-9 h-9 bg-gradient-to-r from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ring-2 ring-white cursor-pointer hover:shadow-md transition-all">
+          AD
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="ml-64 pt-16 min-h-screen">
+    <div class="p-8">
+      <div class="mb-8 flex justify-between items-end animate-fade-in-up">
+        <div>
+          <h1 class="text-3xl font-bold text-slate-800 tracking-tight">Quản trị dữ liệu</h1>
+          <p class="text-slate-500 mt-2 text-sm">Quản lý danh mục và dữ liệu nền tảng hệ thống</p>
+        </div>
+      </div>
+
+      <div class="card overflow-hidden bg-white animate-fade-in-up delay-100">
+        <div class="flex border-b border-slate-200 px-2 bg-slate-50/80 backdrop-blur">
+          <button class="tab-btn active px-6 py-4 font-medium text-slate-600 hover:text-slate-800 hover:bg-white transition-colors" onclick="switchTab(this)">Tổ chức</button>
+          <button class="tab-btn px-6 py-4 font-medium text-slate-500 hover:text-slate-800 hover:bg-white transition-colors" onclick="switchTab(this)">Người dùng</button>
+          <button class="tab-btn px-6 py-4 font-medium text-slate-500 hover:text-slate-800 hover:bg-white transition-colors" onclick="switchTab(this)">Sản phẩm</button>
+          <button class="tab-btn px-6 py-4 font-medium text-slate-500 hover:text-slate-800 hover:bg-white transition-colors" onclick="switchTab(this)">Nông trại / Lô đất</button>
+          <button class="tab-btn px-6 py-4 font-medium text-slate-500 hover:text-slate-800 hover:bg-white transition-colors" onclick="switchTab(this)">Thiết bị</button>
+        </div>
+
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
+          <div class="flex items-center gap-4">
+            <h3 class="font-bold text-slate-800 text-lg">Danh sách Tổ chức</h3>
+            <div class="relative">
+              <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input type="text" placeholder="Tìm tổ chức..." class="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all w-64">
+            </div>
+            <select class="py-2 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer bg-white">
+              <option>Tất cả loại</option>
+              <option>Nông trại</option>
+              <option>Vận chuyển</option>
+              <option>Bán lẻ</option>
+            </select>
+          </div>
+          <button class="btn-primary text-sm shadow-md shadow-primary-500/20">+ Thêm tổ chức</button>
+        </div>
+
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-100 text-left text-slate-500 uppercase text-[11px] font-bold tracking-wider">
+              <th class="px-6 py-4">Tên tổ chức</th>
+              <th class="px-6 py-4">Loại</th>
+              <th class="px-6 py-4">Trạng thái</th>
+              <th class="px-6 py-4 text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 text-slate-600 bg-white">
+            <tr class="table-row group">
+              <td class="px-6 py-4 font-semibold text-slate-800 flex items-center gap-3">
+                <div class="w-8 h-8 rounded bg-primary-100 text-primary-600 flex items-center justify-center font-bold text-xs">AP</div>
+                HTX Nông nghiệp An Phú
+              </td>
+              <td class="px-6 py-4 font-medium">Nông trại</td>
+              <td class="px-6 py-4"><span class="status-badge shadow-sm">🟢 Active</span></td>
+              <td class="px-6 py-4 text-right"><button class="text-primary-600 font-semibold hover:text-primary-700 transition-colors">Sửa</button></td>
+            </tr>
+            <tr class="table-row group">
+              <td class="px-6 py-4 font-semibold text-slate-800 flex items-center gap-3">
+                <div class="w-8 h-8 rounded bg-green-100 text-green-600 flex items-center justify-center font-bold text-xs">GF</div>
+                HTX GreenFarm
+              </td>
+              <td class="px-6 py-4 font-medium">Nông trại</td>
+              <td class="px-6 py-4"><span class="status-badge shadow-sm">🟢 Active</span></td>
+              <td class="px-6 py-4 text-right"><button class="text-primary-600 font-semibold hover:text-primary-700 transition-colors">Sửa</button></td>
+            </tr>
+            <tr class="table-row group">
+              <td class="px-6 py-4 font-semibold text-slate-800 flex items-center gap-3">
+                <div class="w-8 h-8 rounded bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">GT</div>
+                GreenTrans Logistics
+              </td>
+              <td class="px-6 py-4 font-medium">Vận chuyển</td>
+              <td class="px-6 py-4"><span class="status-badge shadow-sm">🟢 Active</span></td>
+              <td class="px-6 py-4 text-right"><button class="text-primary-600 font-semibold hover:text-primary-700 transition-colors">Sửa</button></td>
+            </tr>
+            <tr class="table-row group">
+              <td class="px-6 py-4 font-semibold text-slate-800 flex items-center gap-3">
+                <div class="w-8 h-8 rounded bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xs">FM</div>
+                FreshMart
+              </td>
+              <td class="px-6 py-4 font-medium">Bán lẻ</td>
+              <td class="px-6 py-4"><span class="status-badge shadow-sm">🟢 Active</span></td>
+              <td class="px-6 py-4 text-right"><button class="text-primary-600 font-semibold hover:text-primary-700 transition-colors">Sửa</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+  
+  <script>
+    function switchTab(clickedBtn) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      clickedBtn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

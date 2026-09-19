@@ -1,0 +1,2 @@
+const fs=require('fs'),path=require('path');const ts=require('D:/Study/Ky 7/KhoaLuan/node_modules/typescript');
+for(const f of fs.readdirSync(path.join(__dirname,'source')).filter(f=>f.endsWith('.ts'))){let s=ts.transpileModule(fs.readFileSync(path.join(__dirname,'source',f),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;s=s.replace(/from "\.\/([^"]+)"/g,(_,n)=>'from '+JSON.stringify('./'+n+'.mjs'));fs.writeFileSync(path.join(__dirname,'lib',f.replace('.ts','.mjs')),s);}

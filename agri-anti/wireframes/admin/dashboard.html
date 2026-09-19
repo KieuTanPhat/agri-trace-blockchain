@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tổng quan hệ thống - AgriTrace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#F0FDF4', 100: '#DCFCE7', 200: '#BBF7D0', 300: '#86EFAC',
+              400: '#4ADE80', 500: '#22C55E', 600: '#16A34A', 700: '#15803D',
+              800: '#166534', 900: '#14532D'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    @keyframes countUp {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.8; }
+    }
+    @keyframes flowArrow {
+      0% { transform: translateX(0); opacity: 0.5; }
+      50% { transform: translateX(6px); opacity: 1; }
+      100% { transform: translateX(0); opacity: 0.5; }
+    }
+    
+    .animate-on-scroll { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+    .animate-on-scroll.visible { opacity: 1; transform: translateY(0); }
+    
+    .counter-value {
+      display: inline-block;
+    }
+    .counter-value.visible {
+      animation: countUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+      color: white; border-radius: 8px; font-weight: 600;
+      transition: all 0.3s ease;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+      box-shadow: 0 6px 15px rgba(22, 163, 74, 0.3);
+      transform: translateY(-1px);
+    }
+    .btn-outline {
+      border: 1.5px solid #E2E8F0; background: white; color: #334155;
+      border-radius: 8px; font-weight: 500; transition: all 0.3s ease;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-outline:hover { 
+      border-color: #22C55E; color: #15803D; background: #F0FDF4;
+      transform: translateY(-1px);
+    }
+    
+    /* Sidebar */
+    aside {
+      box-shadow: 2px 0 10px rgba(0,0,0,0.02);
+    }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; border-radius: 8px; color: #64748B;
+      font-size: 14px; font-weight: 500; transition: all 0.25s ease;
+      text-decoration: none;
+      position: relative;
+    }
+    .sidebar-link::before {
+      content: ''; position: absolute; left: 0; top: 10%; bottom: 10%;
+      width: 0; border-radius: 0 4px 4px 0;
+      background: linear-gradient(180deg, #22C55E, #16A34A);
+      transition: all 0.25s ease;
+      opacity: 0;
+    }
+    .sidebar-link:hover { 
+      background: #F0FDF4; color: #15803D; 
+      transform: translateX(4px);
+    }
+    .sidebar-link:hover svg { color: #22C55E; }
+    .sidebar-link.active {
+      background: #F0FDF4; color: #15803D; font-weight: 600;
+    }
+    .sidebar-link.active::before { width: 3px; opacity: 1; top: 0; bottom: 0; }
+    .sidebar-link.active svg { color: #16A34A; }
+
+    /* Cards */
+    .card {
+      background: white; border-radius: 12px;
+      border: 1px solid #F1F5F9; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    }
+    
+    /* KPI Card */
+    .kpi-card {
+      background: white; border-radius: 12px; padding: 20px;
+      border: 1px solid #F1F5F9; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .kpi-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--tw-gradient-stops));
+      opacity: 0.9;
+    }
+    .kpi-card.kpi-green::before { --tw-gradient-stops: #22C55E, #16A34A; }
+    .kpi-card.kpi-blue::before { --tw-gradient-stops: #3B82F6, #2563EB; }
+    .kpi-card.kpi-red::before { --tw-gradient-stops: #EF4444, #DC2626; }
+    .kpi-card.kpi-teal::before { --tw-gradient-stops: #14B8A6, #0D9488; }
+    .kpi-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.08);
+    }
+
+    .notification-dot { animation: pulse 2s infinite; }
+    .flow-arrow svg { animation: flowArrow 2s infinite ease-in-out; }
+    
+    /* Custom Scrollbar for sidebar */
+    aside nav::-webkit-scrollbar { width: 4px; }
+    aside nav::-webkit-scrollbar-track { background: transparent; }
+    aside nav::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 4px; }
+    aside nav:hover::-webkit-scrollbar-thumb { background: #CBD5E1; }
+    
+    .timeline-item { transition: background-color 0.2s ease; }
+    .timeline-item:hover { background-color: #F8FAFC; }
+    
+  </style>
+</head>
+<body class="bg-slate-50">
+
+  <!-- Sidebar -->
+  <aside class="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-100 z-40 flex flex-col transition-all">
+    <div class="h-16 px-5 flex items-center border-b border-slate-100">
+      <a href="../public/home.html" class="flex items-center gap-2 group">
+        <div class="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 group-hover:shadow-md group-hover:shadow-primary-500/30">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C9.5 2 7 4.5 5.5 8.5C4 12.5 6.5 18 9.5 21C11 18 12 14 12 10C12 14 13 18 14.5 21C17.5 18 20 12.5 18.5 8.5C17 4.5 14.5 2 12 2Z"/>
+          </svg>
+        </div>
+        <div>
+          <span class="text-xl font-bold"><span class="text-primary-700">Agri</span><span class="text-primary-500">Trace</span></span>
+          <p class="text-[10px] text-slate-400 -mt-1 group-hover:text-primary-500 transition-colors">Minh bạch hôm nay</p>
+        </div>
+      </a>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+      <p class="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tổng quan</p>
+      <a href="dashboard.html" class="sidebar-link active">
+        <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+        Tổng quan
+      </a>
+
+      <p class="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Sản xuất</p>
+      <a href="cycles-list.html" class="sidebar-link">
+        <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Vụ trồng
+      </a>
+      <a href="iot.html" class="sidebar-link">
+        <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        IoT & Sensor
+      </a>
+
+      <p class="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Hàng hóa</p>
+      <a href="lots-list.html" class="sidebar-link">
+        <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        Lô sản phẩm
+      </a>
+      <a href="shipments-list.html" class="sidebar-link">
+        <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+        Shipment
+      </a>
+      <a href="retail.html" class="sidebar-link">
+        <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+        Bán lẻ
+      </a>
+
+      <p class="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Chất lượng</p>
+      <a href="quality.html" class="sidebar-link">
+        <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        Chứng nhận
+      </a>
+      <a href="audit.html" class="sidebar-link">
+        <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        Audit / Blockchain
+      </a>
+
+      <p class="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nội dung</p>
+      <a href="news-admin.html" class="sidebar-link">
+        <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
+        Tin tức
+      </a>
+
+      <p class="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Hệ thống</p>
+      <a href="master-data.html" class="sidebar-link">
+        <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Quản trị dữ liệu
+      </a>
+    </nav>
+    <div class="px-5 py-4 border-t border-slate-100 bg-slate-50/50">
+      <p class="text-[10px] text-slate-400 font-medium leading-relaxed">Kết nối nông sản Việt<br>Tạo giá trị bền vững</p>
+    </div>
+  </aside>
+
+  <!-- Topbar -->
+  <header class="fixed top-0 left-64 right-0 h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 z-30 flex items-center justify-between px-6 transition-all">
+    <div class="flex items-center gap-2 text-sm">
+      <span class="text-slate-400 font-medium">Admin</span>
+      <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <span class="text-slate-700 font-semibold">Tổng quan hệ thống</span>
+    </div>
+    <div class="flex items-center gap-5">
+      <div class="relative group">
+        <input type="text" placeholder="Tìm kiếm sản phẩm, lô, mã QR..." class="w-72 pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-400/50 focus:border-primary-400 focus:bg-white focus:shadow-sm focus:shadow-primary-100">
+        <svg class="absolute left-3 top-2.5 w-4 h-4 text-slate-400 group-focus-within:text-primary-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+      <button class="relative p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-all">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full notification-dot"></span>
+      </button>
+      <div class="flex items-center gap-3 pl-5 border-l border-slate-200 cursor-pointer hover:bg-slate-50 p-1.5 pr-3 rounded-lg transition-colors">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center text-primary-700 font-bold text-sm shadow-sm border border-primary-100">A</div>
+        <div class="text-sm">
+          <p class="font-semibold text-slate-700">Admin</p>
+          <p class="text-xs text-slate-500">Quản trị viên</p>
+        </div>
+        <svg class="w-4 h-4 text-slate-400 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <main class="ml-64 pt-20 pb-10 min-h-screen">
+    <div class="p-6 max-w-7xl mx-auto space-y-8">
+      
+      <!-- KPI Row -->
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-5 animate-on-scroll">
+        <div class="kpi-card kpi-teal flex items-start gap-4">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 flex items-center justify-center flex-shrink-0 shadow-inner">
+            <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-slate-800 counter-value">8</p>
+            <p class="text-sm font-medium text-slate-500 mt-0.5">Vụ đang hoạt động</p>
+            <p class="text-xs font-semibold text-green-600 mt-1.5 flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded inline-flex">
+              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"/></svg>
+              +2 so với tuần trước
+            </p>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-green flex items-start gap-4" style="animation-delay: 0.1s">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center flex-shrink-0 shadow-inner">
+            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-slate-800 counter-value">24</p>
+            <p class="text-sm font-medium text-slate-500 mt-0.5">Tổng lô sản phẩm</p>
+            <p class="text-xs font-semibold text-green-600 mt-1.5 flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded inline-flex">
+              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"/></svg>
+              +5 so với tháng trước
+            </p>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-blue flex items-start gap-4" style="animation-delay: 0.2s">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center flex-shrink-0 shadow-inner">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-slate-800 counter-value">6</p>
+            <p class="text-sm font-medium text-slate-500 mt-0.5">Shipment vận chuyển</p>
+            <p class="text-xs font-semibold text-blue-600 mt-1.5 flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded inline-flex">
+              3 đang di chuyển
+            </p>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-green flex items-start gap-4" style="animation-delay: 0.3s">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 flex items-center justify-center flex-shrink-0 shadow-inner">
+            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-slate-800 counter-value">12</p>
+            <p class="text-sm font-medium text-slate-500 mt-0.5">Lô đang bán lẻ</p>
+            <p class="text-xs font-semibold text-green-600 mt-1.5 flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded inline-flex">
+              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"/></svg>
+              +3 mới tuần này
+            </p>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-red flex items-start gap-4" style="animation-delay: 0.4s">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center flex-shrink-0 shadow-inner">
+            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-slate-800 counter-value">3</p>
+            <p class="text-sm font-medium text-slate-500 mt-0.5">Cảnh báo rủi ro</p>
+            <p class="text-xs font-semibold text-red-600 mt-1.5 flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded inline-flex">
+              1 recall, 2 expired
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flow Overview -->
+      <div class="card p-7 animate-on-scroll" style="animation-delay: 0.2s">
+        <h3 class="font-bold text-lg text-slate-800 mb-8 flex items-center gap-2">
+          <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Luồng hoạt động chuỗi cung ứng
+        </h3>
+        <div class="flex items-center justify-between px-4">
+          <div class="flex flex-col items-center text-center w-1/5 relative group">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 flex items-center justify-center mb-4 shadow-sm border border-emerald-100 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+            </div>
+            <p class="text-sm font-bold text-slate-800">Sản xuất</p>
+            <span class="mt-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[11px] font-semibold">8 vụ trồng</span>
+          </div>
+          
+          <div class="flex-1 h-1.5 bg-slate-100 mx-2 rounded-full relative overflow-hidden flow-arrow">
+            <div class="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-300 to-primary-400 w-full rounded-full"></div>
+            <svg class="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 text-primary-500 bg-white rounded-full z-10" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"/></svg>
+          </div>
+
+          <div class="flex flex-col items-center text-center w-1/5 relative group">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 text-primary-600 flex items-center justify-center mb-4 shadow-sm border border-primary-100 group-hover:scale-110 group-hover:shadow-md transition-all duration-300 ring-4 ring-primary-50">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            </div>
+            <p class="text-sm font-bold text-slate-800">Thu hoạch</p>
+            <span class="mt-2 bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full text-[11px] font-semibold">5 lô mới</span>
+          </div>
+          
+          <div class="flex-1 h-1.5 bg-slate-100 mx-2 rounded-full relative overflow-hidden flow-arrow" style="animation-delay: 0.3s">
+            <div class="absolute inset-y-0 left-0 bg-gradient-to-r from-primary-400 to-blue-400 w-full rounded-full"></div>
+            <svg class="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-500 bg-white rounded-full z-10" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"/></svg>
+          </div>
+
+          <div class="flex flex-col items-center text-center w-1/5 relative group">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 flex items-center justify-center mb-4 shadow-sm border border-blue-100 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+            </div>
+            <p class="text-sm font-bold text-slate-800">Vận chuyển</p>
+            <span class="mt-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[11px] font-semibold">6 chuyến</span>
+          </div>
+          
+          <div class="flex-1 h-1.5 bg-slate-100 mx-2 rounded-full relative overflow-hidden flow-arrow" style="animation-delay: 0.6s">
+             <div class="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-400 to-teal-400 w-full rounded-full"></div>
+             <svg class="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 text-teal-500 bg-white rounded-full z-10" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"/></svg>
+          </div>
+
+          <div class="flex flex-col items-center text-center w-1/5 relative group">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-50 to-teal-100 text-teal-600 flex items-center justify-center mb-4 shadow-sm border border-teal-100 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+            </div>
+            <p class="text-sm font-bold text-slate-800">Bán lẻ</p>
+            <span class="mt-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[11px] font-semibold">12 lô</span>
+          </div>
+          
+          <div class="flex-1 h-1.5 bg-slate-100 mx-2 rounded-full relative overflow-hidden flow-arrow" style="animation-delay: 0.9s">
+             <div class="absolute inset-y-0 left-0 bg-gradient-to-r from-teal-400 to-indigo-400 w-full rounded-full"></div>
+             <svg class="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-500 bg-white rounded-full z-10" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"/></svg>
+          </div>
+
+          <div class="flex flex-col items-center text-center w-1/5 relative group">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-600 flex items-center justify-center mb-4 shadow-sm border border-indigo-100 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+               <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <p class="text-sm font-bold text-slate-800">Truy xuất</p>
+            <span class="mt-2 bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[11px] font-semibold">1,248 lượt</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Chart 1: Số lô theo trạng thái -->
+          <div class="card p-6 animate-on-scroll" style="animation-delay: 0.3s">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="font-bold text-lg text-slate-800">Phân bố lô sản phẩm</h3>
+              <div class="flex items-center gap-4 text-xs font-medium text-slate-500">
+                <span class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-sm bg-gradient-to-r from-green-400 to-green-500"></div> Đang xử lý</span>
+                <span class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-sm bg-gradient-to-r from-primary-700 to-primary-800"></div> Hoàn tất</span>
+              </div>
+            </div>
+            <div class="space-y-5">
+              <div class="group cursor-pointer">
+                <div class="flex justify-between text-sm mb-1.5"><span class="font-semibold text-slate-700">HARVESTED</span><span class="font-bold text-slate-800">4 lô</span></div>
+                <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner"><div class="bg-gradient-to-r from-amber-400 to-amber-500 h-3 rounded-full transition-all duration-1000 group-hover:brightness-110" style="width: 15%"></div></div>
+              </div>
+              <div class="group cursor-pointer">
+                <div class="flex justify-between text-sm mb-1.5"><span class="font-semibold text-slate-700">IN_TRANSPORT</span><span class="font-bold text-slate-800">3 lô</span></div>
+                <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner"><div class="bg-gradient-to-r from-blue-400 to-blue-500 h-3 rounded-full transition-all duration-1000 group-hover:brightness-110" style="width: 12%"></div></div>
+              </div>
+              <div class="group cursor-pointer">
+                <div class="flex justify-between text-sm mb-1.5"><span class="font-semibold text-slate-700">ARRIVED</span><span class="font-bold text-slate-800">2 lô</span></div>
+                <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner"><div class="bg-gradient-to-r from-indigo-400 to-indigo-500 h-3 rounded-full transition-all duration-1000 group-hover:brightness-110" style="width: 8%"></div></div>
+              </div>
+              <div class="group cursor-pointer">
+                <div class="flex justify-between text-sm mb-1.5"><span class="font-semibold text-slate-700">RETAIL_RECEIVED</span><span class="font-bold text-slate-800">3 lô</span></div>
+                <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner"><div class="bg-gradient-to-r from-teal-400 to-teal-500 h-3 rounded-full transition-all duration-1000 group-hover:brightness-110" style="width: 12%"></div></div>
+              </div>
+              <div class="group cursor-pointer">
+                <div class="flex justify-between text-sm mb-1.5"><span class="font-semibold text-slate-700">FOR_SALE</span><span class="font-bold text-slate-800">8 lô</span></div>
+                <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner"><div class="bg-gradient-to-r from-green-400 to-green-500 h-3 rounded-full transition-all duration-1000 group-hover:brightness-110" style="width: 30%"></div></div>
+              </div>
+              <div class="group cursor-pointer">
+                <div class="flex justify-between text-sm mb-1.5"><span class="font-semibold text-slate-700">SOLD</span><span class="font-bold text-slate-800">4 lô</span></div>
+                <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner"><div class="bg-gradient-to-r from-primary-700 to-primary-800 h-3 rounded-full transition-all duration-1000 group-hover:brightness-110" style="width: 15%"></div></div>
+              </div>
+            </div>
+            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-center gap-10 text-xs text-slate-400">
+              <span>0%</span>
+              <span>25%</span>
+              <span>50%</span>
+              <span>75%</span>
+              <span>100%</span>
+            </div>
+          </div>
+
+          <!-- Chart 2: Hoạt động gần đây -->
+          <div class="card p-0 animate-on-scroll overflow-hidden" style="animation-delay: 0.4s">
+            <div class="p-6 border-b border-slate-100 bg-white">
+              <h3 class="font-bold text-lg text-slate-800">Hoạt động blockchain gần đây</h3>
+            </div>
+            <div class="divide-y divide-slate-50 bg-white">
+              <div class="p-5 flex gap-5 timeline-item">
+                <div class="w-11 h-11 rounded-full bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center text-green-600 flex-shrink-0 shadow-sm border border-green-100"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg></div>
+                <div class="flex-1">
+                  <div class="flex justify-between items-start">
+                    <p class="text-sm text-slate-700 leading-relaxed">Lô <a href="#" class="font-semibold text-primary-600 hover:text-primary-700 hover:underline">LOT-2026-0003</a> đã chuyển sang trạng thái <span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-0.5 rounded ml-1">FOR_SALE</span></p>
+                    <span class="text-xs font-medium text-slate-400 whitespace-nowrap bg-slate-100 px-2 py-1 rounded">5 phút trước</span>
+                  </div>
+                </div>
+              </div>
+              <div class="p-5 flex gap-5 timeline-item bg-slate-50/50">
+                <div class="w-11 h-11 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0 shadow-sm border border-blue-100"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg></div>
+                <div class="flex-1">
+                  <div class="flex justify-between items-start">
+                    <p class="text-sm text-slate-700 leading-relaxed">Shipment <a href="#" class="font-semibold text-primary-600 hover:text-primary-700 hover:underline">SH-2026-002</a> đã bắt đầu vận chuyển</p>
+                    <span class="text-xs font-medium text-slate-400 whitespace-nowrap bg-slate-100 px-2 py-1 rounded">30 phút trước</span>
+                  </div>
+                </div>
+              </div>
+              <div class="p-5 flex gap-5 timeline-item">
+                <div class="w-11 h-11 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center text-amber-600 flex-shrink-0 shadow-sm border border-amber-100"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/></svg></div>
+                <div class="flex-1">
+                  <div class="flex justify-between items-start">
+                    <p class="text-sm text-slate-700 leading-relaxed">Vụ <a href="#" class="font-semibold text-primary-600 hover:text-primary-700 hover:underline">CYC-2026-003</a> ghi nhận thu hoạch <span class="font-semibold text-slate-800">250kg</span></p>
+                    <span class="text-xs font-medium text-slate-400 whitespace-nowrap bg-slate-100 px-2 py-1 rounded">1 giờ trước</span>
+                  </div>
+                </div>
+              </div>
+              <div class="p-5 flex gap-5 timeline-item bg-slate-50/50">
+                <div class="w-11 h-11 rounded-full bg-gradient-to-br from-teal-50 to-teal-100 flex items-center justify-center text-teal-600 flex-shrink-0 shadow-sm border border-teal-100"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
+                <div class="flex-1">
+                  <div class="flex justify-between items-start">
+                    <p class="text-sm text-slate-700 leading-relaxed">Lô <a href="#" class="font-semibold text-primary-600 hover:text-primary-700 hover:underline">LOT-2026-0004</a> đã được chứng nhận <span class="font-semibold text-slate-800">VietGAP</span></p>
+                    <span class="text-xs font-medium text-slate-400 whitespace-nowrap bg-slate-100 px-2 py-1 rounded">2 giờ trước</span>
+                  </div>
+                </div>
+              </div>
+              <div class="p-5 flex gap-5 timeline-item">
+                <div class="w-11 h-11 rounded-full bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center text-primary-600 flex-shrink-0 shadow-sm border border-primary-100"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></div>
+                <div class="flex-1">
+                  <div class="flex justify-between items-start">
+                    <p class="text-sm text-slate-700 leading-relaxed">Vụ <a href="#" class="font-semibold text-primary-600 hover:text-primary-700 hover:underline">CYC-2026-005</a> bắt đầu gieo trồng</p>
+                    <span class="text-xs font-medium text-slate-400 whitespace-nowrap bg-slate-100 px-2 py-1 rounded">Hôm qua</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="p-3 bg-slate-50 text-center border-t border-slate-100">
+              <a href="#" class="text-sm font-semibold text-primary-600 hover:text-primary-700 hover:underline inline-flex items-center gap-1">
+                Xem toàn bộ lịch sử
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="space-y-6">
+          <!-- Alerts Panel -->
+          <div class="card p-0 overflow-hidden border border-red-200 shadow-sm shadow-red-100/50 animate-on-scroll" style="animation-delay: 0.5s">
+            <div class="px-5 py-4 bg-gradient-to-r from-red-50 to-red-100 border-b border-red-200 flex items-center justify-between relative overflow-hidden">
+              <h3 class="font-bold text-red-800 flex items-center gap-2 relative z-10">
+                <div class="relative">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                  <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping opacity-75"></span>
+                  <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+                </div>
+                Cảnh báo cần xử lý
+              </h3>
+              <span class="bg-red-500 text-white text-xs font-bold px-2.5 py-0.5 rounded-full relative z-10 shadow-sm">4</span>
+            </div>
+            <div class="divide-y divide-red-100/50 bg-white">
+              <div class="p-4 hover:bg-red-50/30 transition group cursor-pointer border-l-4 border-red-500">
+                <div class="flex gap-3">
+                  <div>
+                    <p class="text-sm font-bold text-slate-800 group-hover:text-red-700 transition-colors">Thu hồi: Lô LOT-2026-0005</p>
+                    <p class="text-sm text-slate-600 mt-1">Phát hiện dư lượng thuốc BVTV vượt ngưỡng an toàn.</p>
+                    <div class="flex items-center justify-between mt-3">
+                      <span class="text-xs font-medium text-slate-400 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> 2 giờ trước</span>
+                      <button class="text-xs font-bold text-red-600 hover:text-red-800 uppercase tracking-wide">Xử lý ngay &rarr;</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="p-4 hover:bg-amber-50/30 transition group cursor-pointer border-l-4 border-amber-400">
+                <div class="flex gap-3">
+                  <div>
+                    <p class="text-sm font-bold text-slate-800 group-hover:text-amber-700 transition-colors">Hết hạn: Lô LOT-2026-0007</p>
+                    <p class="text-sm text-slate-600 mt-1">Sản phẩm đã quá hạn sử dụng 2 ngày tại kho bán lẻ.</p>
+                    <div class="flex items-center justify-between mt-3">
+                      <span class="text-xs font-medium text-slate-400 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> 5 giờ trước</span>
+                      <button class="text-xs font-bold text-amber-600 hover:text-amber-800 uppercase tracking-wide">Xem chi tiết &rarr;</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="p-4 hover:bg-red-50/30 transition group cursor-pointer border-l-4 border-red-500">
+                <div class="flex gap-3">
+                  <div>
+                    <p class="text-sm font-bold text-slate-800 group-hover:text-red-700 transition-colors">Từ chối: Shipment SH-2026-004</p>
+                    <p class="text-sm text-slate-600 mt-1">Cảm biến IoT báo nhiệt độ vượt ngưỡng (8°C) liên tục.</p>
+                    <div class="flex items-center justify-between mt-3">
+                      <span class="text-xs font-medium text-slate-400 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> 1 ngày trước</span>
+                      <button class="text-xs font-bold text-red-600 hover:text-red-800 uppercase tracking-wide">Xem chi tiết &rarr;</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="p-4 hover:bg-yellow-50/50 transition group cursor-pointer border-l-4 border-yellow-400">
+                <div class="flex gap-3">
+                  <div>
+                    <p class="text-sm font-bold text-slate-800 group-hover:text-yellow-700 transition-colors">Blockchain: LOT-2026-0002</p>
+                    <p class="text-sm font-mono text-slate-600 mt-1 bg-slate-50 px-2 py-1 rounded inline-block">INTEGRITY_WARNING</p>
+                    <div class="flex items-center justify-between mt-3">
+                      <span class="text-xs font-medium text-slate-400 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> 3 giờ trước</span>
+                      <button class="text-xs font-bold text-yellow-600 hover:text-yellow-800 uppercase tracking-wide">Xác minh &rarr;</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="card p-6 animate-on-scroll" style="animation-delay: 0.6s">
+            <h3 class="font-bold text-lg text-slate-800 mb-5">Thao tác nhanh</h3>
+            <div class="grid grid-cols-1 gap-3.5">
+              <a href="cycles-list.html" class="btn-primary w-full py-3 shadow-md shadow-primary-500/20">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Tạo vụ trồng mới
+              </a>
+              <button class="btn-outline w-full py-3 hover:shadow-sm">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                Ghi nhận chăm sóc
+              </button>
+              <button class="btn-outline w-full py-3 hover:shadow-sm">
+                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                Tạo lô thu hoạch
+              </button>
+              <a href="shipments-list.html" class="btn-outline w-full py-3 hover:shadow-sm">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                Điều phối Shipment
+              </a>
+              <a href="news-admin.html" class="btn-outline w-full py-3 hover:shadow-sm">
+                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                Viết tin tức mới
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            
+            // Trigger counter animation if it has counters inside
+            const counters = entry.target.querySelectorAll('.counter-value');
+            counters.forEach(counter => {
+              counter.classList.add('visible');
+            });
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+      
+      document.querySelectorAll('.animate-on-scroll, .kpi-card').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>

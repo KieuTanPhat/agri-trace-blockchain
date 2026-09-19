@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "originalHomeMarkupUnchanged": true,
+  "flows": [
+    "QR mẫu",
+    "QR sai",
+    "lọc lô và chi tiết",
+    "gửi thao tác",
+    "chặn thao tác ngoài allowedCommands",
+    "IoT gửi/gửi lại/lưu/dashboard",
+    "đăng nhập mô phỏng và hiện mật khẩu"
+  ],
+  "browserErrors": []
+}

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shipments - AgriTrace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#F0FDF4', 100: '#DCFCE7', 200: '#BBF7D0', 300: '#86EFAC',
+              400: '#4ADE80', 500: '#22C55E', 600: '#16A34A', 700: '#15803D',
+              800: '#166534', 900: '#14532D'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+      50% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    
+    .animate-on-scroll { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+    .animate-on-scroll.visible { opacity: 1; transform: translateY(0); }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+      color: white; border-radius: 8px; font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.2), 0 2px 4px -1px rgba(34, 197, 94, 0.1);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+      box-shadow: 0 10px 15px -3px rgba(34, 197, 94, 0.3), 0 4px 6px -2px rgba(34, 197, 94, 0.15);
+      transform: translateY(-1px);
+    }
+    .btn-outline {
+      border: 1.5px solid #E2E8F0; background: white; color: #334155;
+      border-radius: 8px; font-weight: 500; transition: all 0.3s ease;
+    }
+    .btn-outline:hover { 
+      border-color: #22C55E; color: #15803D; 
+      background: #F0FDF4;
+    }
+    
+    .sidebar-link {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; border-radius: 12px; color: #64748B;
+      font-size: 14px; font-weight: 500; transition: all 0.3s ease;
+      text-decoration: none; margin-bottom: 4px;
+    }
+    .sidebar-link:hover { 
+      background: linear-gradient(to right, #F0FDF4, transparent); 
+      color: #15803D; 
+      transform: translateX(4px);
+    }
+    .sidebar-link.active {
+      background: linear-gradient(to right, #DCFCE7, #F0FDF4); 
+      color: #15803D; font-weight: 600;
+      border-left: 4px solid #16A34A;
+    }
+    
+    .card {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+    }
+    
+    .table-row { transition: all 0.2s ease; }
+    .table-row:hover { 
+      background: #F8FAFC; 
+      transform: scale(1.002);
+    }
+    
+    .kpi-card {
+      background: white; border-radius: 16px; padding: 24px;
+      border: 1px solid #F1F5F9; 
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 20px -5px rgba(0,0,0,0.08);
+    }
+    
+    .icon-gradient {
+      background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .search-input:focus {
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+    }
+    
+    .bell-pulse {
+      animation: pulse-glow 2s infinite;
+    }
+    
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.025em;
+    }
+    .status-created { background: #F1F5F9; color: #475569; }
+    .status-in-transit { background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; }
+    .status-arrived { background: #FEF3C7; color: #D97706; border: 1px solid #FDE68A; }
+    .status-delivered { background: #DCFCE7; color: #16A34A; border: 1px solid #BBF7D0; }
+    .status-rejected { background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; }
+    .status-failed { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
+  </style>
+</head>
+<body class="bg-slate-50/50 text-slate-800">
+  <!-- Sidebar -->
+  <aside class="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-200 z-40 flex flex-col shadow-sm">
+    <div class="h-20 px-6 flex items-center border-b border-slate-100">
+      <a href="../public/home.html" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-primary-500/30 transition-all duration-300">
+          <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C9.5 2 7 4.5 5.5 8.5C4 12.5 6.5 18 9.5 21C11 18 12 14 12 10C12 14 13 18 14.5 21C17.5 18 20 12.5 18.5 8.5C17 4.5 14.5 2 12 2Z"/></svg>
+        </div>
+        <div>
+          <span class="text-2xl font-bold tracking-tight"><span class="text-primary-700">Agri</span><span class="text-primary-500">Trace</span></span>
+        </div>
+      </a>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+      <p class="px-4 mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Tổng quan</p>
+      <a href="dashboard.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg> Tổng quan</a>
+
+      <p class="px-4 mt-6 mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Sản xuất</p>
+      <a href="cycles-list.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Vụ trồng</a>
+      <a href="iot.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> IoT & Sensor</a>
+
+      <p class="px-4 mt-6 mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Hàng hóa</p>
+      <a href="lots-list.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> Lô sản phẩm</a>
+      <a href="shipments-list.html" class="sidebar-link active"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg> Shipment</a>
+      <a href="retail.html" class="sidebar-link"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg> Bán lẻ</a>
+    </nav>
+  </aside>
+
+  <!-- Topbar -->
+  <header class="fixed top-0 left-64 right-0 h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 z-30 flex items-center justify-between px-8">
+    <div class="flex items-center gap-2 text-sm">
+      <span class="text-slate-400">Admin</span>
+      <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <span class="text-slate-800 font-semibold">Shipment</span>
+    </div>
+    <div class="flex items-center gap-6">
+      <div class="relative">
+        <input type="text" placeholder="Tìm kiếm nhanh..." class="search-input w-64 pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm focus:outline-none focus:ring-0 transition-shadow">
+        <svg class="absolute left-3.5 top-2.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+      <button class="relative p-2 text-slate-400 hover:text-primary-600 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full bell-pulse"></span>
+      </button>
+      <div class="flex items-center gap-3 pl-6 border-l border-slate-200 cursor-pointer group">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-100 to-primary-200 flex items-center justify-center text-primary-700 font-bold text-lg shadow-sm group-hover:shadow-md transition-shadow">A</div>
+        <div class="text-sm hidden md:block">
+          <p class="font-bold text-slate-800">Admin</p>
+          <p class="text-xs text-slate-500">Quản trị viên</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="ml-64 pt-20 min-h-screen pb-12">
+    <div class="p-8 max-w-7xl mx-auto space-y-8">
+      
+      <!-- Header -->
+      <div class="flex items-center justify-between animate-on-scroll">
+        <div>
+          <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Shipment</h1>
+          <p class="text-slate-500 mt-2 text-sm">Quản lý và theo dõi quá trình vận chuyển hàng hóa</p>
+        </div>
+        <button class="btn-primary px-5 py-2.5 text-sm flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Tạo Shipment
+        </button>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-on-scroll">
+        <div class="kpi-card bg-gradient-to-br from-white to-slate-50">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-slate-500 uppercase">Tổng Shipments</h3>
+            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            </div>
+          </div>
+          <p class="text-4xl font-extrabold text-slate-800">10</p>
+          <div class="mt-4 flex items-center gap-2 text-sm">
+            <span class="text-green-600 flex items-center font-medium"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg> 12%</span>
+            <span class="text-slate-400">so với tháng trước</span>
+          </div>
+        </div>
+
+        <div class="kpi-card bg-gradient-to-br from-blue-50 to-white border-blue-100">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-blue-600 uppercase">Đang vận chuyển</h3>
+            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 relative">
+               <span class="absolute inset-0 rounded-full border-2 border-blue-400 animate-ping opacity-20"></span>
+               <svg class="w-5 h-5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+            </div>
+          </div>
+          <p class="text-4xl font-extrabold text-blue-700">3</p>
+          <div class="mt-4 flex gap-2">
+            <span class="status-badge status-in-transit">IN_TRANSIT: 3</span>
+          </div>
+        </div>
+
+        <div class="kpi-card bg-gradient-to-br from-green-50 to-white border-green-100">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-green-600 uppercase">Đã giao</h3>
+            <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+          <p class="text-4xl font-extrabold text-green-700">4</p>
+          <div class="mt-4 flex gap-2">
+            <span class="status-badge status-delivered">DELIVERED: 4</span>
+          </div>
+        </div>
+
+        <div class="kpi-card bg-gradient-to-br from-red-50 to-white border-red-100">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-red-600 uppercase">Sự cố</h3>
+            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+          </div>
+          <p class="text-4xl font-extrabold text-red-700">1</p>
+          <div class="mt-4 flex gap-2">
+            <span class="status-badge status-rejected">REJECTED: 1</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="card p-5 flex flex-wrap items-center gap-4 animate-on-scroll">
+        <div class="relative flex-1 min-w-[200px]">
+          <input type="text" placeholder="Tìm kiếm mã shipment..." class="search-input w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm transition-all">
+          <svg class="absolute left-3.5 top-3 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </div>
+        <div class="relative w-48">
+          <input type="text" placeholder="Lô hàng..." class="search-input w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm transition-all">
+        </div>
+        <select class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all cursor-pointer">
+          <option value="">Đơn vị vận chuyển</option>
+          <option>GreenTrans Logistics</option>
+          <option>VietFarm Express</option>
+        </select>
+        <select class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all cursor-pointer">
+          <option value="">Điểm nhận</option>
+          <option>FreshMart Quận 7</option>
+          <option>VinMart Bình Thạnh</option>
+          <option>CoopMart Gò Vấp</option>
+        </select>
+        <select class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all cursor-pointer">
+          <option value="">Trạng thái</option>
+          <option>CREATED</option>
+          <option>IN_TRANSIT</option>
+          <option>ARRIVED</option>
+          <option>DELIVERED</option>
+          <option>REJECTED</option>
+          <option>FAILED</option>
+        </select>
+      </div>
+
+      <!-- Table -->
+      <div class="card overflow-hidden animate-on-scroll">
+        <table class="w-full">
+          <thead>
+            <tr class="bg-slate-50/80 text-left border-b border-slate-100">
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Mã shipment</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Lô hàng</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Xuất phát</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Đích đến</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">SL vận chuyển</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Trạng thái</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr class="table-row">
+              <td class="px-6 py-5 text-sm font-bold text-slate-800">SH-2026-001</td>
+              <td class="px-6 py-5 text-sm font-semibold text-primary-600 hover:text-primary-700"><a href="lot-detail.html" class="hover:underline">LOT-2026-0001</a></td>
+              <td class="px-6 py-5 text-sm text-slate-600 font-medium">Nông trại An Phú</td>
+              <td class="px-6 py-5 text-sm text-slate-600 font-medium">FreshMart Q7</td>
+              <td class="px-6 py-5 text-sm text-slate-600">200 kg</td>
+              <td class="px-6 py-5"><span class="status-badge status-delivered">DELIVERED</span></td>
+              <td class="px-6 py-5 text-sm text-right"><a href="shipment-detail.html" class="text-primary-600 hover:text-primary-800 font-bold bg-primary-50 px-3 py-1.5 rounded-lg transition-colors">Xem</a></td>
+            </tr>
+            <tr class="table-row">
+              <td class="px-6 py-5 text-sm font-bold text-slate-800">SH-2026-002</td>
+              <td class="px-6 py-5 text-sm font-semibold text-primary-600 hover:text-primary-700"><a href="lot-detail.html" class="hover:underline">LOT-2026-0002</a></td>
+              <td class="px-6 py-5 text-sm text-slate-600 font-medium">HTX GreenFarm</td>
+              <td class="px-6 py-5 text-sm text-slate-600 font-medium">VinMart BT</td>
+              <td class="px-6 py-5 text-sm text-slate-600">350 kg</td>
+              <td class="px-6 py-5">
+                <span class="status-badge status-in-transit flex inline-flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                  IN_TRANSIT
+                </span>
+              </td>
+              <td class="px-6 py-5 text-sm text-right"><a href="shipment-detail.html" class="text-primary-600 hover:text-primary-800 font-bold bg-primary-50 px-3 py-1.5 rounded-lg transition-colors">Xem</a></td>
+            </tr>
+            <tr class="table-row">
+              <td class="px-6 py-5 text-sm font-bold text-slate-800">SH-2026-003</td>
+              <td class="px-6 py-5 text-sm font-semibold text-primary-600 hover:text-primary-700"><a href="lot-detail.html" class="hover:underline">LOT-2026-0003</a></td>
+              <td class="px-6 py-5 text-sm text-slate-600 font-medium">Trang trại Việt</td>
+              <td class="px-6 py-5 text-sm text-slate-600 font-medium">CoopMart GV</td>
+              <td class="px-6 py-5 text-sm text-slate-600">150 kg</td>
+              <td class="px-6 py-5"><span class="status-badge status-arrived">ARRIVED</span></td>
+              <td class="px-6 py-5 text-sm text-right"><a href="shipment-detail.html" class="text-primary-600 hover:text-primary-800 font-bold bg-primary-50 px-3 py-1.5 rounded-lg transition-colors">Xem</a></td>
+            </tr>
+            <tr class="table-row">
+              <td class="px-6 py-5 text-sm font-bold text-slate-800">SH-2026-004</td>
+              <td class="px-6 py-5 text-sm font-semibold text-primary-600 hover:text-primary-700"><a href="lot-detail.html" class="hover:underline">LOT-2026-0005</a></td>
+              <td class="px-6 py-5 text-sm text-slate-600 font-medium">Nông trại An Phú</td>
+              <td class="px-6 py-5 text-sm text-slate-600 font-medium">FreshMart Q7</td>
+              <td class="px-6 py-5 text-sm text-slate-600">250 kg</td>
+              <td class="px-6 py-5"><span class="status-badge status-rejected">REJECTED</span></td>
+              <td class="px-6 py-5 text-sm text-right"><a href="shipment-detail.html" class="text-primary-600 hover:text-primary-800 font-bold bg-primary-50 px-3 py-1.5 rounded-lg transition-colors">Xem</a></td>
+            </tr>
+            <tr class="table-row">
+              <td class="px-6 py-5 text-sm font-bold text-slate-800">SH-2026-005</td>
+              <td class="px-6 py-5 text-sm font-semibold text-primary-600 hover:text-primary-700"><a href="lot-detail.html" class="hover:underline">LOT-2026-0006</a></td>
+              <td class="px-6 py-5 text-sm text-slate-600 font-medium">Nông trại Phú Hòa</td>
+              <td class="px-6 py-5 text-sm text-slate-600 font-medium">VinMart BT</td>
+              <td class="px-6 py-5 text-sm text-slate-600">300 kg</td>
+              <td class="px-6 py-5"><span class="status-badge status-delivered">DELIVERED</span></td>
+              <td class="px-6 py-5 text-sm text-right"><a href="shipment-detail.html" class="text-primary-600 hover:text-primary-800 font-bold bg-primary-50 px-3 py-1.5 rounded-lg transition-colors">Xem</a></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500 bg-slate-50/50">
+          <span class="font-medium">Hiển thị 1-5 của 15 shipments</span>
+          <div class="flex gap-2">
+            <button class="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-50 transition-colors font-medium shadow-sm" disabled>Trước</button>
+            <button class="px-3 py-1.5 border border-primary-500 rounded-lg bg-primary-50 text-primary-700 font-bold shadow-sm">1</button>
+            <button class="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-white transition-colors font-medium shadow-sm">2</button>
+            <button class="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-white transition-colors font-medium shadow-sm">Sau</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      }, { threshold: 0.1 });
+      document.querySelectorAll('.animate-on-scroll').forEach((el, index) => {
+        el.style.transitionDelay = `${index * 100}ms`;
+        observer.observe(el);
+      });
+    });
+  </script>
+</body>
+</html>

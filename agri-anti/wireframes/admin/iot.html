@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IoT & Sensor - AgriTrace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#F0FDF4', 100: '#DCFCE7', 200: '#BBF7D0', 300: '#86EFAC',
+              400: '#4ADE80', 500: '#22C55E', 600: '#16A34A', 700: '#15803D',
+              800: '#166534', 900: '#14532D'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+    @keyframes countUp {
+      from { opacity: 0; transform: scale(0.5); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; opacity: 0; }
+    .delay-100 { animation-delay: 100ms; }
+    .delay-200 { animation-delay: 200ms; }
+    .delay-300 { animation-delay: 300ms; }
+    
+    .btn-primary { background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: white; border-radius: 8px; font-weight: 600; transition: all 0.2s; }
+    .btn-primary:hover { background: linear-gradient(135deg, #16A34A 0%, #15803D 100%); box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3); }
+    
+    /* Sidebar */
+    .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; color: #64748B; font-size: 14px; font-weight: 500; transition: all 0.2s; text-decoration: none; }
+    .sidebar-link:hover { background: linear-gradient(90deg, #F0FDF4 0%, transparent 100%); color: #15803D; }
+    .sidebar-link.active { background: linear-gradient(90deg, #DCFCE7 0%, transparent 100%); color: #15803D; font-weight: 600; border-right: 3px solid #15803D; }
+    
+    /* Topbar Search & Bell */
+    .search-glow { transition: all 0.3s; }
+    .search-glow:focus-within { box-shadow: 0 0 15px rgba(34, 197, 94, 0.2); border-color: #22C55E; }
+    .bell-pulse { animation: pulse 2s infinite; }
+    
+    .card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid #F1F5F9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); transition: transform 0.2s, box-shadow 0.2s; }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.025); }
+    
+    .kpi-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #F1F5F9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: all 0.3s; }
+    .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px -5px rgba(34,197,94,0.15); }
+    
+    .bar-chart { display: flex; align-items: flex-end; height: 160px; gap: 8px; padding-top: 20px;}
+    .bar { background: linear-gradient(180deg, #22C55E 0%, rgba(34,197,94,0.2) 100%); width: 100%; border-radius: 4px 4px 0 0; transition: height 1s ease-out; }
+    .bar:hover { background: linear-gradient(180deg, #16A34A 0%, rgba(22,163,74,0.3) 100%); }
+    
+    .live-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+    .dot-green { background-color: #22C55E; box-shadow: 0 0 8px #22C55E; }
+    .dot-red { background-color: #EF4444; box-shadow: 0 0 8px #EF4444; }
+    .dot-amber { background-color: #F59E0B; box-shadow: 0 0 8px #F59E0B; }
+
+    .counter-anim { animation: countUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    
+    /* Device Card styling */
+    .device-card { background: white; border-radius: 12px; padding: 16px; border: 1px solid #E2E8F0; transition: all 0.2s; }
+    .device-card:hover { border-color: #22C55E; box-shadow: 0 4px 12px rgba(34,197,94,0.1); transform: translateY(-2px); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+  <!-- Sidebar -->
+  <aside class="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-100 z-40 flex flex-col shadow-sm transition-all duration-300">
+    <div class="h-16 px-5 flex items-center border-b border-slate-100">
+      <a href="../public/home.html" class="flex items-center gap-2 group">
+        <div class="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C9.5 2 7 4.5 5.5 8.5C4 12.5 6.5 18 9.5 21C11 18 12 14 12 10C12 14 13 18 14.5 21C17.5 18 20 12.5 18.5 8.5C17 4.5 14.5 2 12 2Z"/></svg>
+        </div>
+        <div><span class="text-xl font-bold"><span class="text-primary-700">Agri</span><span class="text-primary-500">Trace</span></span></div>
+      </a>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+      <p class="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Sản xuất</p>
+      <a href="iot.html" class="sidebar-link active">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        IoT & Sensor
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Topbar -->
+  <header class="fixed top-0 left-64 right-0 h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 z-30 flex items-center justify-between px-6 transition-all duration-300">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2 text-sm">
+        <span class="text-slate-400">Admin</span>
+        <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <span class="text-primary-600 font-medium">IoT & Sensor</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="relative search-glow border border-slate-200 rounded-lg flex items-center px-3 py-1.5 bg-slate-50">
+        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" placeholder="Tìm kiếm thiết bị..." class="bg-transparent border-none focus:outline-none text-sm ml-2 w-48 text-slate-700">
+      </div>
+      <button class="relative p-2 text-slate-400 hover:text-slate-600 transition-colors">
+        <svg class="w-5 h-5 bell-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+      </button>
+      <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-r from-primary-400 to-primary-600 flex items-center justify-center text-white font-semibold text-sm shadow-md">A</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="ml-64 pt-20 px-8 pb-10 min-h-screen">
+    
+    <!-- Header Section -->
+    <div class="mb-8 animate-fade-in-up flex justify-between items-end">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">IoT & Sensor Dashboard</h1>
+        <p class="text-slate-500 mt-1">Theo dõi dữ liệu cảm biến thời gian thực & cảnh báo</p>
+      </div>
+      <button class="btn-primary px-4 py-2 text-sm flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        Thêm thiết bị mới
+      </button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-4 gap-6 mb-8 animate-fade-in-up delay-100">
+      <div class="kpi-card flex items-start gap-4">
+        <div class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <div>
+          <p class="text-3xl font-bold text-slate-800 counter-anim">12</p>
+          <p class="text-sm text-slate-500 mt-0.5">Thiết bị hoạt động</p>
+        </div>
+      </div>
+      <div class="kpi-card flex items-start gap-4">
+        <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </div>
+        <div>
+          <p class="text-3xl font-bold text-slate-800 counter-anim">8</p>
+          <p class="text-sm text-slate-500 mt-0.5">Gắn vụ trồng</p>
+        </div>
+      </div>
+      <div class="kpi-card flex items-start gap-4">
+        <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+          <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <div>
+          <p class="text-3xl font-bold text-slate-800 counter-anim">1,456</p>
+          <p class="text-sm text-slate-500 mt-0.5">Số lần đo hôm nay</p>
+        </div>
+      </div>
+      <div class="kpi-card flex items-start gap-4 border border-red-200 bg-red-50/30">
+        <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+          <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <div>
+          <p class="text-3xl font-bold text-red-600 counter-anim">2</p>
+          <p class="text-sm text-red-600 font-medium mt-0.5">Cảnh báo sensor</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-fade-in-up delay-200">
+      
+      <!-- Left Column: Devices & Digest -->
+      <div class="xl:col-span-2 space-y-6">
+        
+        <!-- Alerts Section -->
+        <div class="card p-5 border-l-4 border-l-red-500 bg-red-50/20">
+          <h3 class="font-semibold text-red-700 flex items-center gap-2 mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Cảnh báo ngưỡng hiện tại
+          </h3>
+          <div class="space-y-3">
+            <div class="bg-white p-3 rounded-lg border border-red-200 flex justify-between items-center shadow-sm">
+              <div>
+                <p class="text-sm font-semibold text-slate-800">SENSOR-004 (Độ pH đất)</p>
+                <p class="text-xs text-red-600 mt-1">pH đất 4.1 (⚠ Dưới ngưỡng an toàn 5.5-7.0)</p>
+                <p class="text-xs text-slate-500 mt-0.5">Vị trí: Lô đất CYC-2026-003</p>
+              </div>
+              <button class="text-xs font-medium bg-red-100 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors">Xử lý</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Devices List (Cards Grid) -->
+        <div class="card overflow-hidden">
+          <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <h3 class="font-semibold text-slate-800">Danh sách thiết bị</h3>
+            <div class="flex gap-2">
+              <select class="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:border-primary-500">
+                <option>Tất cả trạng thái</option>
+                <option>Online</option>
+                <option>Offline/Warning</option>
+              </select>
+            </div>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Device 1 -->
+              <div class="device-card relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-3"><span class="live-dot dot-green"></span></div>
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-slate-800 text-sm">SENSOR-001</h4>
+                    <p class="text-xs text-slate-500">Nhiệt độ & Độ ẩm</p>
+                  </div>
+                </div>
+                <div class="text-sm space-y-1">
+                  <div class="flex justify-between"><span class="text-slate-500">Liên kết:</span> <span class="font-medium">CYC-2026-001</span></div>
+                  <div class="flex justify-between"><span class="text-slate-500">Lần đo cuối:</span> <span class="text-slate-700">5 phút trước</span></div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+                  <button class="text-primary-600 text-sm font-medium hover:text-primary-700 group-hover:underline">Chi tiết →</button>
+                </div>
+              </div>
+              
+              <!-- Device 2 -->
+              <div class="device-card relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-3"><span class="live-dot dot-green"></span></div>
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-slate-800 text-sm">SENSOR-002</h4>
+                    <p class="text-xs text-slate-500">Ánh sáng</p>
+                  </div>
+                </div>
+                <div class="text-sm space-y-1">
+                  <div class="flex justify-between"><span class="text-slate-500">Liên kết:</span> <span class="font-medium">CYC-2026-001</span></div>
+                  <div class="flex justify-between"><span class="text-slate-500">Lần đo cuối:</span> <span class="text-slate-700">5 phút trước</span></div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+                  <button class="text-primary-600 text-sm font-medium hover:text-primary-700 group-hover:underline">Chi tiết →</button>
+                </div>
+              </div>
+              
+              <!-- Device 3 -->
+              <div class="device-card relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-3"><span class="live-dot dot-green"></span></div>
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-slate-800 text-sm">SENSOR-003</h4>
+                    <p class="text-xs text-slate-500">Nhiệt độ & Độ ẩm</p>
+                  </div>
+                </div>
+                <div class="text-sm space-y-1">
+                  <div class="flex justify-between"><span class="text-slate-500">Liên kết:</span> <span class="font-medium">CYC-2026-002</span></div>
+                  <div class="flex justify-between"><span class="text-slate-500">Lần đo cuối:</span> <span class="text-slate-700">10 phút trước</span></div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+                  <button class="text-primary-600 text-sm font-medium hover:text-primary-700 group-hover:underline">Chi tiết →</button>
+                </div>
+              </div>
+              
+              <!-- Device 4 (Warning) -->
+              <div class="device-card relative overflow-hidden group border-red-200 bg-red-50/20">
+                <div class="absolute top-0 right-0 p-3"><span class="live-dot dot-red"></span></div>
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center text-red-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-slate-800 text-sm">SENSOR-004</h4>
+                    <p class="text-xs text-slate-500">Độ pH đất</p>
+                  </div>
+                </div>
+                <div class="text-sm space-y-1">
+                  <div class="flex justify-between"><span class="text-slate-500">Liên kết:</span> <span class="font-medium">CYC-2026-003</span></div>
+                  <div class="flex justify-between"><span class="text-slate-500">Lần đo cuối:</span> <span class="text-red-600 font-medium">2 giờ trước (Cảnh báo)</span></div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-red-100 flex justify-end">
+                  <button class="text-red-600 text-sm font-medium hover:text-red-700 group-hover:underline">Chi tiết →</button>
+                </div>
+              </div>
+              
+              <!-- Device 5 -->
+              <div class="device-card relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-3"><span class="live-dot dot-green"></span></div>
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-slate-800 text-sm">SENSOR-005</h4>
+                    <p class="text-xs text-slate-500">Nhiệt độ vận chuyển</p>
+                  </div>
+                </div>
+                <div class="text-sm space-y-1">
+                  <div class="flex justify-between"><span class="text-slate-500">Liên kết:</span> <span class="font-medium">SH-2026-002</span></div>
+                  <div class="flex justify-between"><span class="text-slate-500">Lần đo cuối:</span> <span class="text-slate-700">1 phút trước</span></div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+                  <button class="text-primary-600 text-sm font-medium hover:text-primary-700 group-hover:underline">Chi tiết →</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="card overflow-hidden">
+          <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+            <h3 class="font-semibold text-slate-800">Lịch sử bản ghi Blockchain (Digest)</h3>
+            <span class="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md font-medium border border-indigo-100">Smart Contract</span>
+          </div>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-slate-50/80 text-left border-b border-slate-200">
+                <th class="px-6 py-3 font-semibold text-slate-500 uppercase text-xs">Kỳ đóng gói</th>
+                <th class="px-6 py-3 font-semibold text-slate-500 uppercase text-xs">Số lần đo</th>
+                <th class="px-6 py-3 font-semibold text-slate-500 uppercase text-xs">Trạng thái</th>
+                <th class="px-6 py-3 font-semibold text-slate-500 uppercase text-xs">Digest Hash</th>
+                <th class="px-6 py-3 font-semibold text-slate-500 uppercase text-xs">Proof</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-6 py-4 font-medium text-slate-700">18/03/2026 AM</td>
+                <td class="px-6 py-4">728 bản ghi</td>
+                <td class="px-6 py-4"><span class="w-2 h-2 rounded-full bg-green-500 inline-block mr-1"></span> Hoàn tất</td>
+                <td class="px-6 py-4 font-mono text-xs text-slate-500 bg-slate-50 rounded px-2">0x7a8b...3f2d</td>
+                <td class="px-6 py-4"><span class="text-xs font-semibold bg-green-50 text-green-600 px-2.5 py-1 rounded-full border border-green-200">✅ VERIFIED</span></td>
+              </tr>
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-6 py-4 font-medium text-slate-700">17/03/2026 PM</td>
+                <td class="px-6 py-4">712 bản ghi</td>
+                <td class="px-6 py-4"><span class="w-2 h-2 rounded-full bg-green-500 inline-block mr-1"></span> Hoàn tất</td>
+                <td class="px-6 py-4 font-mono text-xs text-slate-500 bg-slate-50 rounded px-2">0x4c5e...8a1b</td>
+                <td class="px-6 py-4"><span class="text-xs font-semibold bg-green-50 text-green-600 px-2.5 py-1 rounded-full border border-green-200">✅ VERIFIED</span></td>
+              </tr>
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-6 py-4 font-medium text-slate-700">17/03/2026 AM</td>
+                <td class="px-6 py-4">695 bản ghi</td>
+                <td class="px-6 py-4"><span class="w-2 h-2 rounded-full bg-green-500 inline-block mr-1"></span> Hoàn tất</td>
+                <td class="px-6 py-4 font-mono text-xs text-slate-500 bg-slate-50 rounded px-2">0x2d3f...7c4a</td>
+                <td class="px-6 py-4"><span class="text-xs font-semibold bg-green-50 text-green-600 px-2.5 py-1 rounded-full border border-green-200">✅ VERIFIED</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="px-6 py-3 border-t border-slate-100 bg-slate-50/50 text-center">
+            <button class="text-sm font-medium text-primary-600 hover:text-primary-700">Xem tất cả lịch sử blockchain →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Sidebar (Latest Readings & Chart) -->
+      <div class="space-y-6 animate-fade-in-up delay-300">
+        
+        <!-- Live Current Readings Cards -->
+        <div class="card p-6 bg-slate-800 text-white border-slate-700 shadow-xl relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full blur-3xl"></div>
+          <div class="flex justify-between items-center mb-5 relative z-10">
+            <h3 class="font-semibold text-slate-100">Thông số Live Mới nhất</h3>
+            <span class="flex items-center gap-1 text-xs text-slate-300"><span class="live-dot dot-green w-2 h-2"></span> Đang cập nhật</span>
+          </div>
+          <div class="space-y-4 relative z-10">
+            <!-- Reading 1 -->
+            <div class="bg-slate-700/60 p-4 rounded-xl border border-slate-600 hover:border-slate-500 transition-colors">
+              <div class="flex justify-between mb-2">
+                <p class="text-xs font-medium text-slate-300">SENSOR-001 (CYC-2026-001)</p>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <p class="text-xs text-slate-400 mb-1">Nhiệt độ</p>
+                  <p class="text-2xl font-bold flex items-end gap-2">28.5<span class="text-sm font-normal text-slate-400 pb-1">°C</span></p>
+                  <p class="text-[10px] text-green-400 mt-1">✅ Normal (20-35°C)</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-400 mb-1">Độ ẩm</p>
+                  <p class="text-2xl font-bold flex items-end gap-2">72<span class="text-sm font-normal text-slate-400 pb-1">%</span></p>
+                  <p class="text-[10px] text-green-400 mt-1">✅ Normal (60-80%)</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Reading 2 -->
+            <div class="bg-slate-700/60 p-4 rounded-xl border border-slate-600 hover:border-slate-500 transition-colors">
+              <div class="flex justify-between mb-2">
+                <p class="text-xs font-medium text-slate-300">SENSOR-005 (SH-2026-002)</p>
+                <span class="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Vận chuyển</span>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <p class="text-xs text-slate-400 mb-1">Nhiệt độ lạnh</p>
+                  <p class="text-2xl font-bold flex items-end gap-2 text-blue-300">4.2<span class="text-sm font-normal text-slate-400 pb-1">°C</span></p>
+                  <p class="text-[10px] text-green-400 mt-1">✅ Normal (2-8°C)</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-400 mb-1">Độ ẩm</p>
+                  <p class="text-2xl font-bold flex items-end gap-2">65<span class="text-sm font-normal text-slate-400 pb-1">%</span></p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Reading 3 Alert -->
+            <div class="bg-red-900/40 p-4 rounded-xl border border-red-500/50">
+              <div class="flex justify-between mb-2">
+                <p class="text-xs font-medium text-red-300">SENSOR-004 (CYC-2026-003)</p>
+              </div>
+              <div>
+                <p class="text-xs text-red-300/70 mb-1">Độ pH đất</p>
+                <div class="flex items-center gap-3">
+                  <p class="text-3xl font-bold text-red-400">4.1</p>
+                  <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
+                </div>
+                <p class="text-[10px] text-amber-400 mt-1">⚠ Cảnh báo giảm mạnh: Ngưỡng an toàn 5.5-7.0</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart Area -->
+        <div class="card p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-semibold text-slate-800">Hoạt động gửi dữ liệu (24h)</h3>
+            <select class="text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none">
+              <option>Tất cả Node</option>
+              <option>Chỉ cảnh báo</option>
+            </select>
+          </div>
+          
+          <div class="relative h-[200px] border-b border-l border-slate-200 pb-1 pl-1">
+            <!-- Y-axis labels -->
+            <div class="absolute left-[-25px] top-0 bottom-0 flex flex-col justify-between text-[10px] text-slate-400 h-full py-1">
+              <span>100</span>
+              <span>75</span>
+              <span>50</span>
+              <span>25</span>
+              <span>0</span>
+            </div>
+            <!-- Horizontal grid lines -->
+            <div class="absolute inset-0 flex flex-col justify-between pointer-events-none w-full h-[180px] mt-1 ml-1">
+              <div class="w-full border-b border-slate-100 border-dashed h-0"></div>
+              <div class="w-full border-b border-slate-100 border-dashed h-0"></div>
+              <div class="w-full border-b border-slate-100 border-dashed h-0"></div>
+              <div class="w-full border-b border-slate-100 border-dashed h-0"></div>
+              <div class="w-full border-b border-slate-100 border-dashed h-0"></div>
+            </div>
+            
+            <div class="bar-chart w-full ml-1 z-10 relative h-[180px]">
+              <div class="bar h-[40%]" title="40 pings"></div>
+              <div class="bar h-[50%]" title="50 pings"></div>
+              <div class="bar h-[45%]" title="45 pings"></div>
+              <div class="bar h-[60%]" title="60 pings"></div>
+              <div class="bar h-[80%]" title="80 pings"></div>
+              <div class="bar h-[70%]" title="70 pings"></div>
+              <div class="bar h-[90%]" title="90 pings"></div>
+              <div class="bar h-[85%]" title="85 pings"></div>
+              <div class="bar h-[100%] !bg-primary-600" title="100 pings (Peak)"></div>
+              <div class="bar h-[80%]" title="80 pings"></div>
+              <div class="bar h-[60%]" title="60 pings"></div>
+              <div class="bar h-[75%]" title="75 pings"></div>
+            </div>
+          </div>
+          <div class="flex justify-between text-[10px] text-slate-400 mt-2 ml-4">
+            <span>00:00</span>
+            <span>04:00</span>
+            <span>08:00</span>
+            <span>12:00</span>
+            <span>16:00</span>
+            <span>20:00</span>
+            <span>23:59</span>
+          </div>
+          
+          <div class="mt-4 flex items-center justify-center gap-4 text-xs">
+            <div class="flex items-center gap-1 text-slate-600"><span class="w-3 h-3 rounded bg-primary-400"></span> Lưu lượng ghi nhận</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</body>
+</html>

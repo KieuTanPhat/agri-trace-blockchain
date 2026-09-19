@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tra cứu nguồn gốc - AgriTrace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#F0FDF4', 100: '#DCFCE7', 200: '#BBF7D0', 300: '#86EFAC',
+              400: '#4ADE80', 500: '#22C55E', 600: '#16A34A', 700: '#15803D',
+              800: '#166534', 900: '#14532D'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; overflow-x: hidden; }
+    .btn-primary {
+      background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+      color: white; border-radius: 8px; font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+      box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+      transform: translateY(-1px);
+    }
+    .btn-outline {
+      border: 1.5px solid #E2E8F0; background: white; color: #334155;
+      border-radius: 8px; font-weight: 500; transition: all 0.3s ease;
+    }
+    .btn-outline:hover { border-color: #22C55E; color: #15803D; }
+    .card {
+      background: white; border-radius: 12px;
+      border: 1px solid #F1F5F9; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      transform: translateY(-5px);
+    }
+    
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .animate-on-scroll { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+    .animate-on-scroll.visible { opacity: 1; transform: translateY(0); }
+    
+    .hero-element { animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards; opacity: 0; }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    
+    .search-container {
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+    .search-container:focus-within {
+      border-color: #22C55E;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15), 0 10px 25px -5px rgba(0,0,0,0.1);
+    }
+    .search-container:focus-within .search-btn {
+      animation: pulse-glow 2s infinite;
+    }
+    
+    .step-circle {
+      background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+    }
+    
+    .leaf-bg {
+      background-image: radial-gradient(#22c55e 1px, transparent 1px);
+      background-size: 32px 32px;
+      opacity: 0.05;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 pt-16 flex flex-col min-h-screen">
+
+<!-- HEADER -->
+<header class="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-slate-100 z-50">
+  <div class="max-w-[1440px] mx-auto px-8 h-16 flex items-center justify-between">
+    <a href="home.html" class="flex items-center gap-2">
+      <div class="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+        <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2C9.5 2 7 4.5 5.5 8.5C4 12.5 6.5 18 9.5 21C11 18 12 14 12 10C12 14 13 18 14.5 21C17.5 18 20 12.5 18.5 8.5C17 4.5 14.5 2 12 2Z"/>
+        </svg>
+      </div>
+      <div>
+        <span class="text-xl font-bold"><span class="text-primary-700">Agri</span><span class="text-primary-500">Trace</span></span>
+        <p class="text-[10px] text-slate-400 -mt-1">Minh bạch hôm nay</p>
+      </div>
+    </a>
+    <nav class="hidden md:flex items-center gap-8">
+      <a href="home.html" class="text-sm font-medium text-slate-600 hover:text-primary-600 transition">Trang chủ</a>
+      <a href="#" class="text-sm font-medium text-slate-600 hover:text-primary-600 transition">Quy trình</a>
+      <a href="#" class="text-sm font-medium text-slate-600 hover:text-primary-600 transition">Công nghệ</a>
+      <a href="trace-search.html" class="text-sm font-medium text-primary-600 transition">Truy xuất</a>
+      <a href="news-list.html" class="text-sm font-medium text-slate-600 hover:text-primary-600 transition">Tin tức</a>
+    </nav>
+    <div class="flex items-center gap-3">
+      <a href="login.html" class="btn-outline px-4 py-2 text-sm">Đăng nhập</a>
+      <a href="trace-search.html" class="btn-primary px-4 py-2 text-sm inline-flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+        Quét mã QR
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN CONTENT -->
+<main class="flex-grow">
+  <!-- Breadcrumb -->
+  <div class="max-w-[1440px] mx-auto px-8 pt-4 pb-2 text-sm text-slate-500">
+    <a href="home.html" class="hover:text-primary-600 transition">Trang chủ</a> / 
+    <span class="text-slate-700 font-medium">Truy xuất</span>
+  </div>
+
+  <!-- Hero Search -->
+  <section class="relative bg-gradient-to-b from-primary-50 to-white py-24 border-b border-slate-100 overflow-hidden">
+    <div class="absolute inset-0 leaf-bg"></div>
+    <div class="absolute top-10 left-10 w-32 h-32 bg-primary-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-[float_6s_ease-in-out_infinite]"></div>
+    <div class="absolute bottom-10 right-10 w-40 h-40 bg-green-300 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-[float_8s_ease-in-out_infinite_reverse]"></div>
+    
+    <div class="max-w-4xl mx-auto px-8 text-center relative z-10">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white shadow-xl text-primary-600 mb-8 hero-element">
+        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+      <h1 class="text-5xl font-extrabold text-slate-800 mb-6 tracking-tight hero-element delay-1">Tra cứu nguồn gốc sản phẩm</h1>
+      <p class="text-xl text-slate-600 mb-12 max-w-2xl mx-auto leading-relaxed hero-element delay-2">Nhập mã truy xuất trên bao bì hoặc quét mã QR để xem chi tiết hành trình sản phẩm, từ nông trại đến bàn ăn một cách minh bạch.</p>
+      
+      <div class="search-container bg-white p-3 rounded-2xl shadow-xl flex items-center relative hero-element delay-3 max-w-3xl mx-auto">
+        <div class="pl-5 pr-3 text-slate-400">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+        </div>
+        <input type="text" value="AT000123456" placeholder="Nhập mã truy xuất (VD: AT000123456)" class="flex-1 px-4 py-4 text-xl font-medium text-slate-800 focus:outline-none bg-transparent placeholder-slate-400">
+        <a href="trace-detail.html" class="search-btn btn-primary px-10 py-4 text-lg font-bold rounded-xl whitespace-nowrap flex items-center gap-2">
+          <span>Tra cứu</span>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </a>
+      </div>
+      
+      <!-- Recent searches -->
+      <div class="mt-8 hero-element delay-3 flex items-center justify-center gap-3 flex-wrap">
+        <span class="text-sm text-slate-500 font-medium">Tìm kiếm phổ biến:</span>
+        <a href="trace-detail.html" class="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:border-primary-400 hover:text-primary-600 shadow-sm transition-all cursor-pointer">AT000123456</a>
+        <a href="#" class="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:border-primary-400 hover:text-primary-600 shadow-sm transition-all cursor-pointer">AT000234567</a>
+        <a href="#" class="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:border-primary-400 hover:text-primary-600 shadow-sm transition-all cursor-pointer">AT000987654</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Guide -->
+  <section class="py-24 bg-white relative overflow-hidden">
+    <div class="max-w-[1440px] mx-auto px-8">
+      <div class="text-center mb-16 animate-on-scroll">
+        <h2 class="text-3xl font-extrabold text-slate-800 mb-4">Hướng dẫn truy xuất nhanh chóng</h2>
+        <p class="text-lg text-slate-600 max-w-2xl mx-auto">Chỉ với 3 bước đơn giản, bạn có thể kiểm tra toàn bộ thông tin nguồn gốc và quá trình sản xuất của sản phẩm.</p>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-6xl mx-auto relative">
+        <!-- Connecting Line -->
+        <div class="hidden md:block absolute top-12 left-[16%] right-[16%] h-1 bg-gradient-to-r from-primary-100 via-primary-300 to-primary-100 z-0 rounded-full"></div>
+        
+        <!-- Step 1 -->
+        <div class="card p-8 text-center relative z-10 animate-on-scroll">
+          <div class="w-24 h-24 mx-auto step-circle rounded-full flex items-center justify-center text-white mb-6 shadow-lg shadow-primary-500/30 relative">
+            <span class="absolute -top-3 -right-3 w-8 h-8 bg-white border-2 border-primary-500 rounded-full text-primary-600 font-bold flex items-center justify-center text-sm shadow-sm">1</span>
+            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-800 mb-3">Nhập mã / Quét QR</h3>
+          <p class="text-slate-600 mb-6">Sử dụng mã truy xuất được in trên bao bì sản phẩm hoặc dùng camera để quét mã QR trực tiếp.</p>
+          <img src="../../AgriTrace-Full-UI-and-Assets/assets/images/qr-scan-photo.png" alt="Quét QR Code" class="w-full h-32 object-cover rounded-lg shadow-sm border border-slate-100" onerror="this.src='data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22200%22%20height%3D%22120%22%20viewBox%3D%220%200%20200%20120%22%3E%3Crect%20fill%3D%22%23f1f5f9%22%20width%3D%22200%22%20height%3D%22120%22%2F%3E%3Ctext%20fill%3D%22%2394a3b8%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20x%3D%2250%25%22%20y%3D%2250%25%22%20text-anchor%3D%22middle%22%3EQR%20Scan%20Image%3C%2Ftext%3E%3C%2Fsvg%3E'">
+        </div>
+        
+        <!-- Step 2 -->
+        <div class="card p-8 text-center relative z-10 animate-on-scroll" style="transition-delay: 100ms;">
+          <div class="w-24 h-24 mx-auto step-circle rounded-full flex items-center justify-center text-white mb-6 shadow-lg shadow-primary-500/30 relative">
+            <span class="absolute -top-3 -right-3 w-8 h-8 bg-white border-2 border-primary-500 rounded-full text-primary-600 font-bold flex items-center justify-center text-sm shadow-sm">2</span>
+            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-800 mb-3">Xem thông tin chi tiết</h3>
+          <p class="text-slate-600">Khám phá chi tiết toàn bộ hành trình của sản phẩm từ quá trình gieo trồng, chăm sóc, thu hoạch đến khi được vận chuyển lên kệ.</p>
+        </div>
+        
+        <!-- Step 3 -->
+        <div class="card p-8 text-center relative z-10 animate-on-scroll" style="transition-delay: 200ms;">
+          <div class="w-24 h-24 mx-auto step-circle rounded-full flex items-center justify-center text-white mb-6 shadow-lg shadow-primary-500/30 relative">
+            <span class="absolute -top-3 -right-3 w-8 h-8 bg-white border-2 border-primary-500 rounded-full text-primary-600 font-bold flex items-center justify-center text-sm shadow-sm">3</span>
+            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-800 mb-3">Xác thực Blockchain</h3>
+          <p class="text-slate-600">Mỗi bước trong quy trình đều được ghi nhận và mã hóa trên Blockchain, đảm bảo dữ liệu minh bạch, an toàn và không thể bị giả mạo.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- FOOTER -->
+<footer class="bg-slate-800 text-slate-300 mt-auto border-t-4 border-primary-500">
+  <div class="max-w-[1440px] mx-auto px-8 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 bg-primary-500 rounded-md flex items-center justify-center">
+        <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C9.5 2 7 4.5 5.5 8.5C4 12.5 6.5 18 9.5 21C11 18 12 14 12 10C12 14 13 18 14.5 21C17.5 18 20 12.5 18.5 8.5C17 4.5 14.5 2 12 2Z"/></svg>
+      </div>
+      <span class="font-bold text-white text-lg">AgriTrace</span>
+    </div>
+    <p class="text-sm text-slate-400">© 2026 AgriTrace. Nông sản Việt – Giá trị thật, niềm tin thật.</p>
+  </div>
+</footer>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
+  });
+</script>
+
+</body>
+</html>
