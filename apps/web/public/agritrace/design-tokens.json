@@ -1,0 +1,27 @@
+{
+  "colors": {
+    "primary": "#84CC16",
+    "primaryDark": "#65A30D",
+    "forest": "#166534",
+    "emerald": "#22C55E",
+    "mint": "#F0FDF4",
+    "text": "#0F172A",
+    "muted": "#64748B",
+    "border": "#DCFCE7",
+    "warning": "#F59E0B",
+    "danger": "#EF4444",
+    "info": "#3B82F6"
+  },
+  "radius": {
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24
+  },
+  "shadow": {
+    "card": "0 8px 24px rgba(22,101,52,0.08)"
+  },
+  "font": {
+    "family": "Be Vietnam Pro, Inter, sans-serif"
+  }
+}

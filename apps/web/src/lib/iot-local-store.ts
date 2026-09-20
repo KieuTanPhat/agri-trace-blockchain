@@ -1,6 +1,6 @@
 import type { SensorReadingRequest } from "./types";
 
-export const IOT_READING_STORAGE_KEY = "agri-traceability:iot-readings";
+export const IOT_READING_STORAGE_KEY = "agri-traceability:iot-readings:v2";
 
 export type StoredIotReading = SensorReadingRequest & {
   readingId: string;

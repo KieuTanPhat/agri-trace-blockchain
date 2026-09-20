@@ -85,7 +85,7 @@ export type SensorReadingRequest = {
   sensorType: string;
   value: number;
   unit: string;
-  timestamp: string;
+  recordedAt: string;
 };
 
 export type SensorReadingResponse = {

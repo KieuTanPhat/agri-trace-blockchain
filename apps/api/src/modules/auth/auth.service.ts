@@ -26,7 +26,10 @@ export class AuthService {
   async login(input: LoginDto) {
     const email = input.email.trim().toLowerCase();
 
-    const user = await this.prisma.user.findUnique({
+    // The live database enforces case-insensitive uniqueness through
+    // ux_app_user_email_lower, an expression index Prisma cannot expose as a
+    // findUnique selector.
+    const user = await this.prisma.user.findFirst({
       where: { email },
       include: {
         role: {

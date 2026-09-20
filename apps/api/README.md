@@ -21,8 +21,10 @@ npm exec --workspace apps/api -- prisma migrate deploy
 ```
 
 Schema hiện dùng mô hình `ProductionCycle -> HarvestEvent -> Lot -> Shipment`,
-không còn bảng `Batch`. Xem `docs/database/traceability-core.md` để biết các
-invariant và hướng dẫn xử lý database local đã chạy migration legacy.
+không còn bảng `Batch`. Prisma schema map trực tiếp database PostgreSQL
+`agri_traceDB`; source of truth trong repository là `apps/api/prisma/schema.prisma`.
+Migration baseline cũng bao gồm telemetry vận chuyển, check constraint, trigger,
+view truy xuất và năm role mặc định của hệ thống.
 
 Các endpoint hiện có:
 

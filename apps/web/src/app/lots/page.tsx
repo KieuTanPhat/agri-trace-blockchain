@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 
 export default async function LotsPage() {
   const lots = await getLots();
-  return <div className="design-page batches-page">
+  return <div className="design-page lots-page">
     <section className="page-header">
       <div className="page-header-icon"><IconPackage size={32} /></div>
       <div>

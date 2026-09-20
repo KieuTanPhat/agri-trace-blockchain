@@ -23,7 +23,7 @@ export async function getLotById(lotId: string): Promise<LotTrace> {
 
 export async function getPublicTrace(lotId: string): Promise<LotTrace | null> {
   if (USE_MOCK_API) {
-    return mockLots.find((lot) => lot.lotId === lotId) ?? null;
+    return mockLots.find((lot) => lot.lotId === lotId || lot.lotCode === lotId) ?? null;
   }
   return request(`/public/trace/${lotId}`);
 }

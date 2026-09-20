@@ -26,7 +26,9 @@ describe('Auth security (e2e)', () => {
     accountStatus: string;
   } | null;
   const password = 'test-password-123';
-  const prisma = { user: { findUnique: vi.fn(), create: vi.fn() } };
+  const prisma = {
+    user: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn() },
+  };
 
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -43,7 +45,13 @@ describe('Auth security (e2e)', () => {
       },
       accountStatus: 'ACTIVE',
     };
-    prisma.user.findUnique.mockImplementation(({ where, select }) => {
+    const findUser = ({
+      where,
+      select,
+    }: {
+      where: { id?: string; email?: string };
+      select?: Record<string, boolean>;
+    }) => {
       if (
         !user ||
         (where.id && where.id !== user.id) ||
@@ -58,7 +66,9 @@ describe('Auth security (e2e)', () => {
             ]),
           )
         : { ...user };
-    });
+    };
+    prisma.user.findFirst.mockImplementation(findUser);
+    prisma.user.findUnique.mockImplementation(findUser);
     prisma.user.create.mockImplementation(({ data }) => {
       user = { id: 'af542810-92f9-4506-982b-30a1d77af793', ...data };
       const { passwordHash: _secret, ...safe } = user!;

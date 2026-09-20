@@ -22,15 +22,15 @@ export default function IotSimulatorPage() {
   const [sensorType, setSensorType] = useState("TEMPERATURE");
   const [value, setValue] = useState(27.5);
   const [unit, setUnit] = useState("°C");
-  const [timestamp, setTimestamp] = useState("");
+  const [recordedAt, setRecordedAt] = useState("");
   const [response, setResponse] = useState<SensorReadingResponse | null>(null);
   const [status, setStatus] = useState("idle");
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => { setTimestamp(new Date().toISOString()); }, []);
+  useEffect(() => { setRecordedAt(new Date().toISOString()); }, []);
 
-  const payload = useMemo(() => ({ deviceId, cycleId, sensorType, value, unit, timestamp }), [
-    cycleId, deviceId, sensorType, timestamp, unit, value
+  const payload = useMemo(() => ({ deviceId, cycleId, sensorType, value, unit, recordedAt }), [
+    cycleId, deviceId, recordedAt, sensorType, unit, value
   ]);
 
   async function submitReading(retry = false) {
@@ -103,8 +103,8 @@ export default function IotSimulatorPage() {
             </div>
           </div>
           <div className="field">
-            <label htmlFor="timestamp">Thời điểm UTC</label>
-            <input className="input" id="timestamp" value={timestamp} onChange={(e) => setTimestamp(e.target.value)} />
+            <label htmlFor="recorded-at">Thời điểm ghi nhận UTC</label>
+            <input className="input" id="recorded-at" value={recordedAt} onChange={(e) => setRecordedAt(e.target.value)} />
             <p className="field-hint">Định dạng ISO 8601 (UTC)</p>
           </div>
           <div className="form-row">

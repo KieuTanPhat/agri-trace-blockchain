@@ -148,7 +148,7 @@ h3 {
 }
 
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.brand-logo { width: 56px; height: 56px; object-fit: contain; flex-shrink: 0; }
+.brand-logo { width: 156px; height: 44px; object-fit: contain; flex-shrink: 0; }
 .brand-text { display: grid; gap: 2px; }
 .brand-name { font-size: 26px; line-height: 1.2; font-weight: 800; color: var(--primary-strong); letter-spacing: -0.8px; }
 .brand-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.2px; }
@@ -1162,20 +1162,20 @@ a.list-row:hover { background: var(--primary-pale); }
 .design-page .form-grid { gap: 18px; }
 .design-page .form-grid .panel-title { margin-bottom: 0; }
 
-.batch-stats {
+.lot-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 22px;
 }
-.batch-stats .stat-card {
+.lot-stats .stat-card {
   text-align: left;
   padding: 22px;
   gap: 16px;
   cursor: pointer;
 }
-.batch-stats .stat-card > svg:last-child { margin-left: auto; color: var(--muted); }
-.batch-stats .stat-card[aria-pressed="true"] {
+.lot-stats .stat-card > svg:last-child { margin-left: auto; color: var(--muted); }
+.lot-stats .stat-card[aria-pressed="true"] {
   border-color: var(--primary-light);
   box-shadow: var(--shadow-glow), var(--shadow-md);
 }
@@ -1206,29 +1206,29 @@ a.list-row:hover { background: var(--primary-pale); }
 .table-toolbar .button { white-space: nowrap; font-size: 12px; min-height: 40px; padding: 8px 14px; }
 
 .table-scroll { overflow-x: auto; }
-.batch-table {
+.lot-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   font-size: 13px;
   white-space: nowrap;
 }
-.batch-table th {
+.lot-table th {
   padding: 14px 12px;
   font-weight: 600;
   color: #5a7068;
   background: var(--surface-soft);
   font-size: 12px;
 }
-.batch-table th:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
-.batch-table th:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.batch-table td {
+.lot-table th:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.lot-table th:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.lot-table td {
   padding: 16px 12px;
   border-bottom: 1px solid var(--line-light);
   vertical-align: middle;
 }
-.batch-table tbody tr { transition: background var(--duration-fast) var(--ease); }
-.batch-table tbody tr:hover { background: #f6fbf9; }
+.lot-table tbody tr { transition: background var(--duration-fast) var(--ease); }
+.lot-table tbody tr:hover { background: #f6fbf9; }
 
 .product-cell, .farm-cell { display: flex; gap: 12px; align-items: center; }
 .product-cell strong { font-size: 14px; font-weight: 600; color: var(--text-heading); }
@@ -1459,7 +1459,7 @@ a.list-row:hover { background: var(--primary-pale); }
   .header-search { margin-left: 0; }
   .dashboard-feature-row { grid-template-columns: 1fr; }
   .dashboard .timeline { grid-template-columns: 1fr; }
-  .batch-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lot-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .table-toolbar { flex-wrap: wrap; }
   .table-search { flex-basis: 100%; }
   .table-toolbar .select { flex: 1; }
@@ -1488,7 +1488,7 @@ a.list-row:hover { background: var(--primary-pale); }
    ───────────────────────────────────────────── */
 @media (max-width: 760px) {
   .topbar { height: 70px; padding: 0 16px; gap: 10px; }
-  .brand-logo { width: 44px; height: 44px; }
+  .brand-logo { width: 126px; height: 36px; }
   .brand-name { font-size: 20px; }
   .brand-sub { font-size: 10px; }
   .header-search { display: none; }
@@ -1554,7 +1554,7 @@ a.list-row:hover { background: var(--primary-pale); }
   .quick-links { grid-template-columns: 1fr; }
   .info-grid { grid-template-columns: 1fr; }
   .grid.three, .form-row { grid-template-columns: minmax(0, 1fr); }
-  .batch-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lot-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .list-row { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .list-row-actions { justify-content: space-between; }
@@ -1585,7 +1585,7 @@ a.list-row:hover { background: var(--primary-pale); }
   .info-grid, .quick-links { grid-template-columns: minmax(0, 1fr); }
   .stat-card { flex-direction: column; align-items: flex-start; }
   .panel.form-grid, aside.panel { padding: 16px; }
-  .batch-stats { grid-template-columns: 1fr; }
+  .lot-stats { grid-template-columns: 1fr; }
 }
 
 /* ─────────────────────────────────────────────

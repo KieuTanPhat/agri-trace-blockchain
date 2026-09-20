@@ -36,8 +36,8 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     <div className="app-shell" data-collapsed={collapsed} data-mobile-open={mobileOpen}>
       <header className="topbar">
         <Link className="brand" href="/" aria-label="AgriTrace - Tổng quan">
-          <Image className="brand-logo" src="/logo.png" alt="" width={64} height={64} priority />
-          <span className="brand-text"><span className="brand-name">AgriTrace</span><span className="brand-sub">Truy xuất nguồn gốc nông sản</span></span>
+          <Image className="brand-logo" src="/agritrace/brand/agritrace-logo.svg" alt="AgriTrace" width={260} height={72} priority />
+          <span className="brand-text"><span className="brand-sub">Truy xuất nguồn gốc nông sản</span></span>
         </Link>
         <div className="header-search">
           <Search size={20} />

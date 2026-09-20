@@ -1,76 +1,565 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-enum OrganizationType {
-  FARM
-  TRANSPORTER
-  RETAILER
-  AUDITOR
+model Role {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @map("role_id") @db.Uuid
+  code        String  @unique @db.VarChar(50)
+  name        String  @db.VarChar(120)
+  description String?
+  users       User[]
+
+  @@map("app_role")
 }
 
-enum OrganizationStatus {
-  ACTIVE
-  INACTIVE
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model User {
+  id               String                      @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
+  organizationId   String?                     @map("organization_id") @db.Uuid
+  roleId           String                      @map("role_id") @db.Uuid
+  email            String                      @db.VarChar(255)
+  passwordHash     String                      @map("password_hash")
+  fullName         String                      @map("full_name") @db.VarChar(255)
+  accountStatus    account_status              @default(ACTIVE) @map("account_status")
+  createdAt        DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                    @default(now()) @map("updated_at") @db.Timestamptz(6)
+  organization     organization?               @relation(fields: [organizationId], references: [organization_id], onDelete: Restrict, onUpdate: NoAction)
+  role             Role                        @relation(fields: [roleId], references: [id], onUpdate: NoAction)
+  trackingBindings shipment_tracking_binding[]
+  traceEvents      trace_event[]
+
+  @@map("app_user")
 }
 
-enum AccountStatus {
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model blockchain_proof {
+  proof_id           String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id           String                        @unique @db.Uuid
+  network            String                        @db.VarChar(100)
+  tx_id              String?                       @unique @db.VarChar(255)
+  data_hash          String                        @db.VarChar(64)
+  recorded_at        DateTime?                     @db.Timestamptz(6)
+  relayer_address    String?                       @db.VarChar(255)
+  transaction_status blockchain_transaction_status @default(PENDING)
+  created_at         DateTime                      @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime                      @default(now()) @db.Timestamptz(6)
+  trace_event        trace_event                   @relation(fields: [event_id], references: [event_id], onUpdate: NoAction)
+
+  @@index([data_hash], map: "ix_blockchain_proof_hash")
+  @@index([transaction_status], map: "ix_blockchain_proof_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model care_record {
+  care_id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cycle_id          String           @db.Uuid
+  care_type         String           @db.VarChar(100)
+  event_time        DateTime         @db.Timestamptz(6)
+  material_name     String?          @db.VarChar(255)
+  active_ingredient String?          @db.VarChar(255)
+  quantity          Decimal?         @db.Decimal(14, 4)
+  unit              String?          @db.VarChar(30)
+  method            String?          @db.VarChar(255)
+  application_area  String?          @db.VarChar(255)
+  withdrawal_period Int?
+  note              String?
+  evidence_ref      String?
+  created_at        DateTime         @default(now()) @db.Timestamptz(6)
+  production_cycle  production_cycle @relation(fields: [cycle_id], references: [cycle_id], onUpdate: NoAction)
+
+  @@index([cycle_id, event_time], map: "ix_care_record_cycle_time")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model certificate {
+  certificate_id   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lot_id           String?           @db.Uuid
+  cycle_id         String?           @db.Uuid
+  type             String            @db.VarChar(120)
+  issuer           String            @db.VarChar(255)
+  issue_date       DateTime          @db.Date
+  expiry_date      DateTime?         @db.Date
+  document_ref     String
+  document_hash    String            @db.VarChar(128)
+  is_public        Boolean           @default(false)
+  created_at       DateTime          @default(now()) @db.Timestamptz(6)
+  production_cycle production_cycle? @relation(fields: [cycle_id], references: [cycle_id], onDelete: Restrict, onUpdate: NoAction)
+  lot              lot?              @relation(fields: [lot_id], references: [lot_id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([cycle_id], map: "ix_certificate_cycle")
+  @@index([lot_id], map: "ix_certificate_lot")
+}
+
+model farm {
+  farm_id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String              @db.Uuid
+  name             String              @db.VarChar(255)
+  location         String?
+  status           organization_status @default(ACTIVE)
+  created_at       DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime            @default(now()) @db.Timestamptz(6)
+  organization     organization        @relation(fields: [organization_id], references: [organization_id], onUpdate: NoAction)
+  plot             plot[]
+  production_cycle production_cycle[]
+
+  @@index([organization_id], map: "ix_farm_organization")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model harvest_event {
+  harvest_id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cycle_id               String           @db.Uuid
+  final_sensor_digest_id String?          @unique @db.Uuid
+  harvest_time           DateTime         @db.Timestamptz(6)
+  quantity               Decimal          @db.Decimal(14, 3)
+  unit                   String           @db.VarChar(30)
+  quality_note           String?
+  grade                  String?          @db.VarChar(100)
+  harvest_area           String?          @db.VarChar(255)
+  created_at             DateTime         @default(now()) @db.Timestamptz(6)
+  production_cycle       production_cycle @relation(fields: [cycle_id], references: [cycle_id], onUpdate: NoAction)
+  sensor_digest          sensor_digest?   @relation(fields: [final_sensor_digest_id], references: [digest_id], onDelete: Restrict, onUpdate: NoAction)
+  lot                    lot?
+
+  @@index([cycle_id, harvest_time], map: "ix_harvest_cycle_time")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model idempotency_record {
+  idempotency_record_id String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  idempotency_key       String             @db.VarChar(255)
+  operation             String             @db.VarChar(100)
+  request_type          String             @db.VarChar(100)
+  request_hash          String             @db.VarChar(64)
+  status                idempotency_status @default(PROCESSING)
+  response_status       Int?
+  response_body         Json?
+  resource_id           String?            @db.VarChar(255)
+  requester_id          String             @db.VarChar(255)
+  created_at            DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime           @default(now()) @db.Timestamptz(6)
+  expires_at            DateTime?          @db.Timestamptz(6)
+
+  @@unique([requester_id, operation, idempotency_key], map: "uq_idempotency_request")
+  @@index([expires_at], map: "ix_idempotency_expires")
+  @@index([status], map: "ix_idempotency_status")
+}
+
+model inspection {
+  inspection_id    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lot_id           String            @db.Uuid
+  inspector_org_id String?           @db.Uuid
+  result           inspection_result
+  note             String?
+  inspected_at     DateTime          @db.Timestamptz(6)
+  evidence_ref     String?
+  created_at       DateTime          @default(now()) @db.Timestamptz(6)
+  organization     organization?     @relation(fields: [inspector_org_id], references: [organization_id], onDelete: Restrict, onUpdate: NoAction)
+  lot              lot               @relation(fields: [lot_id], references: [lot_id], onUpdate: NoAction)
+
+  @@index([lot_id, inspected_at], map: "ix_inspection_lot_time")
+}
+
+model iot_device {
+  device_id                 String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id           String                      @db.Uuid
+  cycle_id                  String?                     @db.Uuid
+  device_code               String                      @unique @db.VarChar(120)
+  name                      String                      @db.VarChar(255)
+  type                      String                      @db.VarChar(100)
+  status                    device_status               @default(ACTIVE)
+  last_seen_at              DateTime?                   @db.Timestamptz(6)
+  created_at                DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime                    @default(now()) @db.Timestamptz(6)
+  production_cycle          production_cycle?           @relation(fields: [cycle_id], references: [cycle_id], onDelete: Restrict, onUpdate: NoAction)
+  organization              organization                @relation(fields: [organization_id], references: [organization_id], onUpdate: NoAction)
+  sensor_reading            sensor_reading[]
+  shipment_telemetry        shipment_telemetry[]
+  shipment_telemetry_digest shipment_telemetry_digest[]
+  shipment_tracking_binding shipment_tracking_binding?
+
+  @@index([cycle_id], map: "ix_iot_device_cycle")
+  @@index([organization_id], map: "ix_iot_device_org")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lot {
+  lot_id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lot_code           String              @unique @db.VarChar(120)
+  harvest_id         String              @unique @db.Uuid
+  product_id         String              @db.Uuid
+  farm_org_id        String              @db.Uuid
+  initial_quantity   Decimal             @db.Decimal(14, 3)
+  available_quantity Decimal             @db.Decimal(14, 3)
+  unit               String              @db.VarChar(30)
+  grade              String?             @db.VarChar(100)
+  expiry_date        DateTime?           @db.Date
+  current_state      lot_state           @default(HARVESTED)
+  parent_lot_id      String?             @db.Uuid
+  lineage_type       String?             @db.VarChar(100)
+  version            Int                 @default(0)
+  created_at         DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime            @default(now()) @db.Timestamptz(6)
+  certificate        certificate[]
+  inspection         inspection[]
+  organization       organization        @relation(fields: [farm_org_id], references: [organization_id], onUpdate: NoAction)
+  harvest_event      harvest_event       @relation(fields: [harvest_id], references: [harvest_id], onUpdate: NoAction)
+  lot                lot?                @relation("lotTolot", fields: [parent_lot_id], references: [lot_id], onDelete: Restrict, onUpdate: NoAction)
+  other_lot          lot[]               @relation("lotTolot")
+  product            product             @relation(fields: [product_id], references: [product_id], onUpdate: NoAction)
+  quantity_movement  quantity_movement[]
+  shipment           shipment?
+  trace_event        trace_event[]
+  trace_qr           trace_qr?
+
+  @@index([farm_org_id], map: "ix_lot_farm_org")
+  @@index([product_id], map: "ix_lot_product")
+  @@index([current_state], map: "ix_lot_state")
+}
+
+model organization {
+  organization_id                                    String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                                               String                      @db.VarChar(255)
+  type                                               organization_type
+  status                                             organization_status         @default(ACTIVE)
+  created_at                                         DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at                                         DateTime                    @default(now()) @db.Timestamptz(6)
+  app_user                                           User[]
+  farm                                               farm[]
+  inspection                                         inspection[]
+  iot_device                                         iot_device[]
+  lot                                                lot[]
+  production_cycle                                   production_cycle[]
+  shipment_shipment_retailer_org_idToorganization    shipment[]                  @relation("shipment_retailer_org_idToorganization")
+  shipment_shipment_transporter_org_idToorganization shipment[]                  @relation("shipment_transporter_org_idToorganization")
+  shipment_tracking_binding                          shipment_tracking_binding[]
+  trace_event                                        trace_event[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model plot {
+  plot_id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  farm_id          String              @db.Uuid
+  name             String              @db.VarChar(255)
+  area             Decimal?            @db.Decimal(12, 2)
+  unit             String?             @db.VarChar(30)
+  location         String?
+  status           organization_status @default(ACTIVE)
+  created_at       DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime            @default(now()) @db.Timestamptz(6)
+  farm             farm                @relation(fields: [farm_id], references: [farm_id], onUpdate: NoAction)
+  production_cycle production_cycle[]
+
+  @@index([farm_id], map: "ix_plot_farm")
+}
+
+model product {
+  product_id       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_name     String              @db.VarChar(255)
+  variety          String?             @db.VarChar(255)
+  default_unit     String?             @db.VarChar(30)
+  description      String?
+  status           organization_status @default(ACTIVE)
+  created_at       DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime            @default(now()) @db.Timestamptz(6)
+  lot              lot[]
+  production_cycle production_cycle[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model production_cycle {
+  cycle_id        String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cycle_code      String                 @db.VarChar(100)
+  product_id      String                 @db.Uuid
+  farm_id         String                 @db.Uuid
+  farm_org_id     String                 @db.Uuid
+  plot_id         String?                @db.Uuid
+  start_date      DateTime?              @db.Date
+  planned_harvest DateTime?              @db.Date
+  current_state   production_cycle_state @default(CREATED)
+  note            String?
+  version         Int                    @default(0)
+  created_at      DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime               @default(now()) @db.Timestamptz(6)
+  care_record     care_record[]
+  certificate     certificate[]
+  harvest_event   harvest_event[]
+  iot_device      iot_device[]
+  farm            farm                   @relation(fields: [farm_id], references: [farm_id], onUpdate: NoAction)
+  organization    organization           @relation(fields: [farm_org_id], references: [organization_id], onUpdate: NoAction)
+  plot            plot?                  @relation(fields: [plot_id], references: [plot_id], onDelete: Restrict, onUpdate: NoAction)
+  product         product                @relation(fields: [product_id], references: [product_id], onUpdate: NoAction)
+  sensor_digest   sensor_digest[]
+  sensor_reading  sensor_reading[]
+  trace_event     trace_event[]
+
+  @@unique([farm_id, cycle_code], map: "uq_production_cycle_farm_code")
+  @@index([farm_org_id], map: "ix_production_cycle_farm_org")
+  @@index([product_id], map: "ix_production_cycle_product")
+  @@index([current_state], map: "ix_production_cycle_state")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model quantity_movement {
+  movement_id String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lot_id      String      @db.Uuid
+  event_id    String      @db.Uuid
+  type        String      @db.VarChar(50)
+  quantity    Decimal     @db.Decimal(14, 3)
+  unit        String      @db.VarChar(30)
+  before_qty  Decimal     @db.Decimal(14, 3)
+  delta       Decimal     @db.Decimal(14, 3)
+  after_qty   Decimal     @db.Decimal(14, 3)
+  created_at  DateTime    @default(now()) @db.Timestamptz(6)
+  trace_event trace_event @relation(fields: [event_id], references: [event_id], onUpdate: NoAction)
+  lot         lot         @relation(fields: [lot_id], references: [lot_id], onUpdate: NoAction)
+
+  @@index([event_id], map: "ix_quantity_movement_event")
+  @@index([lot_id, created_at], map: "ix_quantity_movement_lot_time")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sensor_digest {
+  digest_id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cycle_id                 String           @db.Uuid
+  period_start             DateTime         @db.Timestamptz(6)
+  period_end               DateTime         @db.Timestamptz(6)
+  reading_count            Int
+  digest_hash              String           @db.VarChar(64)
+  schema_version           String           @default("sensor-digest-1") @db.VarChar(50)
+  canonicalization_version String           @default("RFC8785-JCS-v1") @db.VarChar(50)
+  is_final                 Boolean          @default(false)
+  created_at               DateTime         @default(now()) @db.Timestamptz(6)
+  harvest_event            harvest_event?
+  production_cycle         production_cycle @relation(fields: [cycle_id], references: [cycle_id], onUpdate: NoAction)
+
+  @@index([cycle_id, period_start, period_end], map: "ix_sensor_digest_cycle_period")
+  @@index([digest_hash], map: "ix_sensor_digest_hash")
+}
+
+model sensor_reading {
+  reading_id       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  device_id        String           @db.Uuid
+  cycle_id         String           @db.Uuid
+  sensor_type      String           @db.VarChar(100)
+  value            Decimal          @db.Decimal(16, 6)
+  unit             String           @db.VarChar(30)
+  recorded_at      DateTime         @db.Timestamptz(6)
+  ingest_time      DateTime         @default(now()) @db.Timestamptz(6)
+  created_at       DateTime         @default(now()) @db.Timestamptz(6)
+  production_cycle production_cycle @relation(fields: [cycle_id], references: [cycle_id], onUpdate: NoAction)
+  iot_device       iot_device       @relation(fields: [device_id], references: [device_id], onUpdate: NoAction)
+
+  @@index([cycle_id, recorded_at], map: "ix_sensor_reading_cycle_time")
+  @@index([device_id, recorded_at], map: "ix_sensor_reading_device_time")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model shipment {
+  shipment_id                                            String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lot_id                                                 String                      @unique @db.Uuid
+  transporter_org_id                                     String                      @db.Uuid
+  retailer_org_id                                        String                      @db.Uuid
+  origin                                                 String
+  destination                                            String
+  shipped_quantity                                       Decimal                     @db.Decimal(14, 3)
+  unit                                                   String                      @db.VarChar(30)
+  planned_pickup_time                                    DateTime?                   @db.Timestamptz(6)
+  expected_arrival_time                                  DateTime?                   @db.Timestamptz(6)
+  pickup_time                                            DateTime?                   @db.Timestamptz(6)
+  arrival_time                                           DateTime?                   @db.Timestamptz(6)
+  received_time                                          DateTime?                   @db.Timestamptz(6)
+  received_quantity                                      Decimal?                    @db.Decimal(14, 3)
+  rejected_quantity                                      Decimal?                    @db.Decimal(14, 3)
+  reject_reason                                          String?
+  vehicle_ref                                            String?                     @db.VarChar(255)
+  conditions                                             Json?
+  status                                                 shipment_state              @default(CREATED)
+  version                                                Int                         @default(0)
+  created_at                                             DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at                                             DateTime                    @default(now()) @db.Timestamptz(6)
+  lot                                                    lot                         @relation(fields: [lot_id], references: [lot_id], onUpdate: NoAction)
+  organization_shipment_retailer_org_idToorganization    organization                @relation("shipment_retailer_org_idToorganization", fields: [retailer_org_id], references: [organization_id], onUpdate: NoAction)
+  organization_shipment_transporter_org_idToorganization organization                @relation("shipment_transporter_org_idToorganization", fields: [transporter_org_id], references: [organization_id], onUpdate: NoAction)
+  shipment_telemetry                                     shipment_telemetry[]
+  shipment_telemetry_digest                              shipment_telemetry_digest?
+  shipment_tracking_binding                              shipment_tracking_binding[]
+
+  @@index([retailer_org_id], map: "ix_shipment_retailer")
+  @@index([status], map: "ix_shipment_status")
+  @@index([transporter_org_id], map: "ix_shipment_transporter")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model shipment_telemetry {
+  telemetry_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shipment_id               String                    @db.Uuid
+  device_id                 String                    @db.Uuid
+  binding_id                String                    @db.Uuid
+  device_sequence           BigInt?
+  idempotency_key           String?                   @db.VarChar(150)
+  latitude                  Decimal                   @db.Decimal(9, 6)
+  longitude                 Decimal                   @db.Decimal(9, 6)
+  accuracy                  Decimal?                  @db.Decimal(10, 3)
+  speed                     Decimal?                  @db.Decimal(12, 3)
+  heading                   Decimal?                  @db.Decimal(7, 3)
+  temperature               Decimal?                  @db.Decimal(10, 3)
+  humidity                  Decimal?                  @db.Decimal(10, 3)
+  battery                   Decimal?                  @db.Decimal(6, 2)
+  recorded_at               DateTime                  @db.Timestamptz(6)
+  ingest_time               DateTime                  @default(now()) @db.Timestamptz(6)
+  validity_status           String?                   @db.VarChar(30)
+  anomaly_note              String?
+  created_at                DateTime                  @default(now()) @db.Timestamptz(6)
+  shipment_tracking_binding shipment_tracking_binding @relation(fields: [binding_id], references: [binding_id], onUpdate: NoAction)
+  iot_device                iot_device                @relation(fields: [device_id], references: [device_id], onUpdate: NoAction)
+  shipment                  shipment                  @relation(fields: [shipment_id], references: [shipment_id], onUpdate: NoAction)
+
+  @@unique([device_id, device_sequence], map: "ux_shipment_telemetry_device_sequence", where: raw("(device_sequence IS NOT NULL)"))
+  @@unique([device_id, idempotency_key], map: "ux_shipment_telemetry_idempotency", where: raw("(idempotency_key IS NOT NULL)"))
+  @@index([device_id, recorded_at], map: "ix_shipment_telemetry_device_time")
+  @@index([ingest_time], map: "ix_shipment_telemetry_ingest_time")
+  @@index([shipment_id, recorded_at], map: "ix_shipment_telemetry_shipment_time")
+  @@index([validity_status], map: "ix_shipment_telemetry_validity")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model shipment_telemetry_digest {
+  digest_id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shipment_id              String      @unique(map: "ux_tracking_digest_final_shipment", where: raw("(is_final = true)")) @db.Uuid
+  device_id                String?     @db.Uuid
+  period_start             DateTime    @db.Timestamptz(6)
+  period_end               DateTime    @db.Timestamptz(6)
+  reading_count            Int
+  first_latitude           Decimal?    @db.Decimal(9, 6)
+  first_longitude          Decimal?    @db.Decimal(9, 6)
+  last_latitude            Decimal?    @db.Decimal(9, 6)
+  last_longitude           Decimal?    @db.Decimal(9, 6)
+  condition_summary        Json?
+  anomaly_summary          Json?
+  digest_hash              String      @db.VarChar(64)
+  previous_digest_hash     String?     @db.VarChar(64)
+  schema_version           String      @default("shipment-telemetry-digest-1") @db.VarChar(50)
+  canonicalization_version String      @default("RFC8785-JCS-v1") @db.VarChar(50)
+  is_final                 Boolean     @default(false)
+  created_at               DateTime    @default(now()) @db.Timestamptz(6)
+  iot_device               iot_device? @relation(fields: [device_id], references: [device_id], onDelete: Restrict, onUpdate: NoAction)
+  shipment                 shipment    @relation(fields: [shipment_id], references: [shipment_id], onUpdate: NoAction)
+
+  @@unique([shipment_id, period_start, period_end], map: "uq_tracking_digest_window")
+  @@index([digest_hash], map: "ix_tracking_digest_hash")
+  @@index([shipment_id, period_start, period_end], map: "ix_tracking_digest_shipment_period")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model shipment_tracking_binding {
+  binding_id         String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shipment_id        String               @db.Uuid
+  device_id          String               @unique(map: "ux_tracking_binding_active_device", where: raw("((unbound_at IS NULL) AND ((status)::text = 'ACTIVE'::text))")) @db.Uuid
+  transporter_org_id String               @db.Uuid
+  bound_at           DateTime             @default(now()) @db.Timestamptz(6)
+  unbound_at         DateTime?            @db.Timestamptz(6)
+  status             String               @default("ACTIVE") @db.VarChar(30)
+  bound_by           String?              @db.Uuid
+  note               String?
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime             @default(now()) @db.Timestamptz(6)
+  shipment_telemetry shipment_telemetry[]
+  app_user           User?                @relation(fields: [bound_by], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  iot_device         iot_device           @relation(fields: [device_id], references: [device_id], onUpdate: NoAction)
+  shipment           shipment             @relation(fields: [shipment_id], references: [shipment_id], onUpdate: NoAction)
+  organization       organization         @relation(fields: [transporter_org_id], references: [organization_id], onUpdate: NoAction)
+
+  @@index([device_id], map: "ix_tracking_binding_device")
+  @@index([shipment_id], map: "ix_tracking_binding_shipment")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model trace_event {
+  event_id                                                       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entity_type                                                    String              @db.VarChar(50)
+  entity_id                                                      String              @db.Uuid
+  cycle_id                                                       String?             @db.Uuid
+  lot_id                                                         String?             @db.Uuid
+  event_type                                                     String              @db.VarChar(100)
+  actor_user_id                                                  String?             @db.Uuid
+  actor_organization_id                                          String?             @db.Uuid
+  actor_role                                                     String              @db.VarChar(50)
+  auth_proof_type                                                String?             @db.VarChar(100)
+  actor_auth_proof                                               String?
+  event_time                                                     DateTime            @db.Timestamptz(6)
+  server_recorded_at                                             DateTime            @default(now()) @db.Timestamptz(6)
+  business_data                                                  Json
+  schema_version                                                 String              @default("trace-event-1") @db.VarChar(50)
+  canonicalization_version                                       String              @default("RFC8785-JCS-v1") @db.VarChar(50)
+  data_hash                                                      String              @db.VarChar(64)
+  previous_event_hash                                            String?             @db.VarChar(64)
+  supersedes_event_id                                            String?             @db.Uuid
+  causation_event_id                                             String?             @db.Uuid
+  created_at                                                     DateTime            @default(now()) @db.Timestamptz(6)
+  blockchain_proof                                               blockchain_proof?
+  quantity_movement                                              quantity_movement[]
+  organization                                                   organization?       @relation(fields: [actor_organization_id], references: [organization_id], onDelete: Restrict, onUpdate: NoAction)
+  app_user                                                       User?               @relation(fields: [actor_user_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  trace_event_trace_event_causation_event_idTotrace_event        trace_event?        @relation("trace_event_causation_event_idTotrace_event", fields: [causation_event_id], references: [event_id], onDelete: Restrict, onUpdate: NoAction)
+  other_trace_event_trace_event_causation_event_idTotrace_event  trace_event[]       @relation("trace_event_causation_event_idTotrace_event")
+  production_cycle                                               production_cycle?   @relation(fields: [cycle_id], references: [cycle_id], onDelete: Restrict, onUpdate: NoAction)
+  lot                                                            lot?                @relation(fields: [lot_id], references: [lot_id], onDelete: Restrict, onUpdate: NoAction)
+  trace_event_trace_event_supersedes_event_idTotrace_event       trace_event?        @relation("trace_event_supersedes_event_idTotrace_event", fields: [supersedes_event_id], references: [event_id], onDelete: Restrict, onUpdate: NoAction)
+  other_trace_event_trace_event_supersedes_event_idTotrace_event trace_event[]       @relation("trace_event_supersedes_event_idTotrace_event")
+
+  @@index([cycle_id, event_time], map: "ix_trace_event_cycle_time")
+  @@index([entity_type, entity_id], map: "ix_trace_event_entity")
+  @@index([data_hash], map: "ix_trace_event_hash")
+  @@index([lot_id, event_time], map: "ix_trace_event_lot_time")
+  @@index([event_type], map: "ix_trace_event_type")
+}
+
+model trace_qr {
+  trace_qr_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lot_id      String   @unique @db.Uuid
+  trace_token String   @unique @db.VarChar(255)
+  trace_url   String
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  lot         lot      @relation(fields: [lot_id], references: [lot_id], onUpdate: NoAction)
+}
+
+enum account_status {
   ACTIVE
   INACTIVE
   LOCKED
 }
 
-enum ProductStatus {
+enum blockchain_transaction_status {
+  PENDING
+  COMMITTED
+  FAILED
+}
+
+enum device_status {
   ACTIVE
   INACTIVE
 }
 
-enum FarmStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum PlotStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum ProductionCycleState {
-  CREATED
-  PLANTED
-  GROWING
+enum idempotency_status {
+  PROCESSING
   COMPLETED
-  CANCELLED
+  FAILED
 }
 
-enum CareType {
-  WATERING
-  FERTILIZING
-  PEST_CONTROL
-  WEEDING
-  GROWTH_CHECK
-  OTHER
+enum inspection_result {
+  PASS
+  FAIL
+  CONDITIONAL
 }
 
-enum DeviceType {
-  TEMPERATURE
-  HUMIDITY
-  TEMPERATURE_HUMIDITY
-  SOIL_MOISTURE
-  OTHER
-}
-
-enum DeviceStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum LotState {
+enum lot_state {
   HARVESTED
   IN_TRANSPORT
   ARRIVED
@@ -83,505 +572,31 @@ enum LotState {
   REJECTED
 }
 
-enum LineageType {
-  ORIGINAL
-  SPLIT
-  MERGED
-  TRANSFORMED
+enum organization_status {
+  ACTIVE
+  INACTIVE
 }
 
-enum ShipmentState {
+enum organization_type {
+  FARM
+  TRANSPORTER
+  RETAILER
+  AUDITOR
+}
+
+enum production_cycle_state {
+  CREATED
+  PLANTED
+  GROWING
+  COMPLETED
+  CANCELLED
+}
+
+enum shipment_state {
   CREATED
   IN_TRANSIT
   ARRIVED
   DELIVERED
   REJECTED
   FAILED
-}
-
-enum InspectionResult {
-  PASS
-  FAIL
-  CONDITIONAL
-}
-
-enum TraceEntityType {
-  PRODUCTION_CYCLE
-  CARE
-  SENSOR
-  HARVEST
-  LOT
-  SHIPMENT
-  INSPECTION
-  CERTIFICATE
-}
-
-enum TraceEventType {
-  PRODUCTION_CYCLE_CREATED
-  PLANTING_RECORDED
-  CARE_RECORDED
-  SENSOR_RECORDED
-  HARVEST_RECORDED
-  PRODUCTION_CYCLE_COMPLETED
-  INSPECTION_RECORDED
-  CERTIFICATE_ATTACHED
-  SHIPMENT_CREATED
-  TRANSPORT_STARTED
-  TRANSPORT_ARRIVED
-  PARTIAL_DAMAGE_RECORDED
-  DAMAGE_RECORDED
-  RETAIL_RECEIVED
-  RETAIL_REJECTED
-  MARKED_FOR_SALE
-  LOT_SOLD
-  RECALL_RECORDED
-  LOT_EXPIRED
-  ENTITY_CANCELLED
-  CORRECTION_RECORDED
-}
-
-enum AuthProofType {
-  DIGITAL_SIGNATURE
-  SIGNED_ASSERTION
-  TOKEN_FINGERPRINT
-  DEVICE_SIGNATURE
-  SYSTEM_ASSERTION
-}
-
-enum BlockchainTransactionStatus {
-  PENDING
-  COMMITTED
-  FAILED
-}
-
-enum QuantityMovementType {
-  HARVEST
-  SHIPMENT
-  DAMAGE
-  RECEIPT
-  REJECTION
-  SALE
-  ADJUSTMENT
-}
-
-enum IdempotencyStatus {
-  PROCESSING
-  COMPLETED
-  FAILED
-}
-
-model Organization {
-  id                   String             @id @default(uuid()) @map("organization_id") @db.Uuid
-  name                 String             @db.VarChar(255)
-  type                 OrganizationType
-  status               OrganizationStatus @default(ACTIVE)
-  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
-  users                User[]
-  farms                Farm[]
-  devices              IoTDevice[]
-  farmLots             Lot[]              @relation("LotFarmOrganization")
-  transportedShipments Shipment[]         @relation("ShipmentTransporter")
-  retailerShipments    Shipment[]         @relation("ShipmentRetailer")
-  inspections          Inspection[]
-  actorTraceEvents     TraceEvent[]       @relation("TraceEventActorOrganization")
-
-  @@map("organizations")
-}
-
-model Role {
-  id          String  @id @default(uuid()) @map("role_id") @db.Uuid
-  code        String  @unique @db.VarChar(50)
-  name        String  @db.VarChar(100)
-  description String? @db.VarChar(500)
-  users       User[]
-
-  @@map("roles")
-}
-
-model User {
-  id             String        @id @default(uuid()) @map("user_id") @db.Uuid
-  organizationId String?       @map("organization_id") @db.Uuid
-  roleId         String        @map("role_id") @db.Uuid
-  email          String        @unique @db.VarChar(255)
-  passwordHash   String        @map("password_hash") @db.VarChar(255)
-  fullName       String?       @map("full_name") @db.VarChar(255)
-  accountStatus  AccountStatus @default(ACTIVE) @map("account_status")
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  role           Role          @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  traceEvents    TraceEvent[]  @relation("TraceEventActorUser")
-
-  @@map("users")
-}
-
-model Product {
-  id               String            @id @default(uuid()) @map("product_id") @db.Uuid
-  productName      String            @map("product_name") @db.VarChar(255)
-  variety          String?           @db.VarChar(255)
-  defaultUnit      String            @map("default_unit") @db.VarChar(50)
-  description      String?           @db.Text
-  status           ProductStatus     @default(ACTIVE)
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
-  productionCycles ProductionCycle[]
-  lots             Lot[]
-
-  @@index([productName])
-  @@map("products")
-}
-
-model Farm {
-  id               String            @id @default(uuid()) @map("farm_id") @db.Uuid
-  organizationId   String            @map("organization_id") @db.Uuid
-  name             String            @db.VarChar(255)
-  location         String?           @db.Text
-  status           FarmStatus        @default(ACTIVE)
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
-  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  plots            Plot[]
-  productionCycles ProductionCycle[]
-
-  @@index([organizationId])
-  @@map("farms")
-}
-
-model Plot {
-  id               String            @id @default(uuid()) @map("plot_id") @db.Uuid
-  farmId           String            @map("farm_id") @db.Uuid
-  name             String            @db.VarChar(255)
-  area             Decimal?          @db.Decimal(18, 3)
-  unit             String?           @db.VarChar(50)
-  location         String?           @db.Text
-  status           PlotStatus        @default(ACTIVE)
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
-  farm             Farm              @relation(fields: [farmId], references: [id], onDelete: Restrict)
-  productionCycles ProductionCycle[]
-
-  @@unique([farmId, name])
-  @@map("plots")
-}
-
-model ProductionCycle {
-  id             String               @id @default(uuid()) @map("cycle_id") @db.Uuid
-  cycleCode      String               @map("cycle_code") @db.VarChar(100)
-  productId      String               @map("product_id") @db.Uuid
-  farmId         String               @map("farm_id") @db.Uuid
-  plotId         String?              @map("plot_id") @db.Uuid
-  startDate      DateTime?            @map("start_date") @db.Timestamptz(3)
-  plannedHarvest DateTime?            @map("planned_harvest") @db.Timestamptz(3)
-  currentState   ProductionCycleState @default(CREATED) @map("current_state")
-  note           String?              @db.Text
-  version        Int                  @default(0)
-  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
-  product        Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
-  farm           Farm                 @relation(fields: [farmId], references: [id], onDelete: Restrict)
-  plot           Plot?                @relation(fields: [plotId], references: [id], onDelete: Restrict)
-  careRecords    CareRecord[]
-  devices        IoTDevice[]
-  sensorReadings SensorReading[]
-  sensorDigests  SensorDigest[]
-  harvestEvents  HarvestEvent[]
-  certificates   Certificate[]
-  traceEvents    TraceEvent[]
-
-  @@unique([farmId, cycleCode])
-  @@index([productId])
-  @@index([plotId])
-  @@map("production_cycles")
-}
-
-model CareRecord {
-  id               String          @id @default(uuid()) @map("care_id") @db.Uuid
-  cycleId          String          @map("cycle_id") @db.Uuid
-  careType         CareType        @map("care_type")
-  eventTime        DateTime        @map("event_time") @db.Timestamptz(3)
-  materialName     String?         @map("material_name") @db.VarChar(255)
-  activeIngredient String?         @map("active_ingredient") @db.VarChar(255)
-  quantity         Decimal?        @db.Decimal(18, 3)
-  unit             String?         @db.VarChar(50)
-  withdrawalPeriod Int?            @map("withdrawal_period")
-  note             String?         @db.Text
-  evidenceRef      String?         @map("evidence_ref") @db.Text
-  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  cycle            ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict)
-
-  @@index([cycleId, eventTime])
-  @@map("care_records")
-}
-
-model IoTDevice {
-  id             String           @id @default(uuid()) @map("device_id") @db.Uuid
-  organizationId String           @map("organization_id") @db.Uuid
-  cycleId        String?          @map("cycle_id") @db.Uuid
-  deviceCode     String           @unique @map("device_code") @db.VarChar(100)
-  name           String?          @db.VarChar(255)
-  type           DeviceType
-  status         DeviceStatus     @default(ACTIVE)
-  lastSeenAt     DateTime?        @map("last_seen_at") @db.Timestamptz(3)
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  cycle          ProductionCycle? @relation(fields: [cycleId], references: [id], onDelete: Restrict)
-  sensorReadings SensorReading[]
-
-  @@index([cycleId])
-  @@map("iot_devices")
-}
-
-model SensorReading {
-  id         String          @id @default(uuid()) @map("reading_id") @db.Uuid
-  deviceId   String          @map("device_id") @db.Uuid
-  cycleId    String          @map("cycle_id") @db.Uuid
-  sensorType String          @map("sensor_type") @db.VarChar(100)
-  value      Decimal         @db.Decimal(18, 6)
-  unit       String          @db.VarChar(50)
-  timestamp  DateTime        @db.Timestamptz(3)
-  ingestTime DateTime        @default(now()) @map("ingest_time") @db.Timestamptz(3)
-  device     IoTDevice       @relation(fields: [deviceId], references: [id], onDelete: Restrict)
-  cycle      ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict)
-
-  @@index([cycleId, timestamp])
-  @@index([deviceId, timestamp])
-  @@map("sensor_readings")
-}
-
-model SensorDigest {
-  id           String          @id @default(uuid()) @map("digest_id") @db.Uuid
-  cycleId      String          @map("cycle_id") @db.Uuid
-  periodStart  DateTime        @map("period_start") @db.Timestamptz(3)
-  periodEnd    DateTime        @map("period_end") @db.Timestamptz(3)
-  readingCount Int             @map("reading_count")
-  digestHash   String          @map("digest_hash") @db.Char(64)
-  isFinal      Boolean         @default(false) @map("is_final")
-  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  cycle        ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict)
-  harvestEvent HarvestEvent?
-
-  @@index([cycleId, periodStart, periodEnd])
-  @@map("sensor_digests")
-}
-
-model HarvestEvent {
-  id                  String          @id @default(uuid()) @map("harvest_id") @db.Uuid
-  cycleId             String          @map("cycle_id") @db.Uuid
-  finalSensorDigestId String?         @unique @map("final_sensor_digest_id") @db.Uuid
-  harvestTime         DateTime        @map("harvest_time") @db.Timestamptz(3)
-  quantity            Decimal         @db.Decimal(18, 3)
-  unit                String          @db.VarChar(50)
-  qualityNote         String?         @map("quality_note") @db.Text
-  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  cycle               ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict)
-  finalSensorDigest   SensorDigest?   @relation(fields: [finalSensorDigestId], references: [id], onDelete: Restrict)
-  lot                 Lot?
-
-  @@index([cycleId, harvestTime])
-  @@map("harvest_events")
-}
-
-model Lot {
-  id                String             @id @default(uuid()) @map("lot_id") @db.Uuid
-  lotCode           String             @unique @map("lot_code") @db.VarChar(100)
-  harvestId         String             @unique @map("harvest_id") @db.Uuid
-  productId         String             @map("product_id") @db.Uuid
-  farmOrgId         String             @map("farm_org_id") @db.Uuid
-  initialQuantity   Decimal            @map("initial_quantity") @db.Decimal(18, 3)
-  availableQuantity Decimal            @map("available_quantity") @db.Decimal(18, 3)
-  unit              String             @db.VarChar(50)
-  currentState      LotState           @default(HARVESTED) @map("current_state")
-  parentLotId       String?            @map("parent_lot_id") @db.Uuid
-  lineageType       LineageType        @default(ORIGINAL) @map("lineage_type")
-  version           Int                @default(0)
-  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
-  harvest           HarvestEvent       @relation(fields: [harvestId], references: [id], onDelete: Restrict)
-  product           Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
-  farmOrganization  Organization       @relation("LotFarmOrganization", fields: [farmOrgId], references: [id], onDelete: Restrict)
-  parentLot         Lot?               @relation("LotLineage", fields: [parentLotId], references: [id], onDelete: Restrict)
-  childLots         Lot[]              @relation("LotLineage")
-  shipment          Shipment?
-  quantityMovements QuantityMovement[]
-  inspections       Inspection[]
-  certificates      Certificate[]
-  traceQr           TraceQR?
-  traceEvents       TraceEvent[]
-
-  @@index([farmOrgId, currentState])
-  @@index([productId])
-  @@map("lots")
-}
-
-model Shipment {
-  id                  String        @id @default(uuid()) @map("shipment_id") @db.Uuid
-  lotId               String        @unique @map("lot_id") @db.Uuid
-  transporterOrgId    String        @map("transporter_org_id") @db.Uuid
-  retailerOrgId       String        @map("retailer_org_id") @db.Uuid
-  origin              String        @db.Text
-  destination         String        @db.Text
-  shippedQuantity     Decimal       @map("shipped_quantity") @db.Decimal(18, 3)
-  unit                String        @db.VarChar(50)
-  plannedPickupTime   DateTime?     @map("planned_pickup_time") @db.Timestamptz(3)
-  expectedArrivalTime DateTime?     @map("expected_arrival_time") @db.Timestamptz(3)
-  pickupTime          DateTime?     @map("pickup_time") @db.Timestamptz(3)
-  arrivalTime         DateTime?     @map("arrival_time") @db.Timestamptz(3)
-  receivedTime        DateTime?     @map("received_time") @db.Timestamptz(3)
-  receivedQuantity    Decimal?      @map("received_quantity") @db.Decimal(18, 3)
-  rejectedQuantity    Decimal?      @map("rejected_quantity") @db.Decimal(18, 3)
-  rejectReason        String?       @map("reject_reason") @db.Text
-  status              ShipmentState @default(CREATED)
-  version             Int           @default(0)
-  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
-  lot                 Lot           @relation(fields: [lotId], references: [id], onDelete: Restrict)
-  transporterOrg      Organization  @relation("ShipmentTransporter", fields: [transporterOrgId], references: [id], onDelete: Restrict)
-  retailerOrg         Organization  @relation("ShipmentRetailer", fields: [retailerOrgId], references: [id], onDelete: Restrict)
-
-  @@index([transporterOrgId, status])
-  @@index([retailerOrgId, status])
-  @@map("shipments")
-}
-
-model TraceEvent {
-  id                      String             @id @default(uuid()) @map("event_id") @db.Uuid
-  entityType              TraceEntityType    @map("entity_type")
-  entityId                String             @map("entity_id") @db.Uuid
-  cycleId                 String?            @map("cycle_id") @db.Uuid
-  lotId                   String?            @map("lot_id") @db.Uuid
-  eventType               TraceEventType     @map("event_type")
-  actorUserId             String?            @map("actor_user_id") @db.Uuid
-  actorOrganizationId     String?            @map("actor_organization_id") @db.Uuid
-  actorRole               String             @map("actor_role") @db.VarChar(50)
-  authProofType           AuthProofType      @map("auth_proof_type")
-  actorAuthProof          String             @map("actor_auth_proof") @db.Text
-  eventTime               DateTime           @map("event_time") @db.Timestamptz(3)
-  serverRecordedAt        DateTime           @default(now()) @map("server_recorded_at") @db.Timestamptz(3)
-  businessData            Json               @map("business_data") @db.JsonB
-  schemaVersion           String             @map("schema_version") @db.VarChar(50)
-  canonicalizationVersion String             @map("canonicalization_version") @db.VarChar(50)
-  dataHash                String             @map("data_hash") @db.Char(64)
-  previousEventHash       String?            @map("previous_event_hash") @db.Char(64)
-  supersedesEventId       String?            @map("supersedes_event_id") @db.Uuid
-  causationEventId        String?            @map("causation_event_id") @db.Uuid
-  createdAt               DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  cycle                   ProductionCycle?   @relation(fields: [cycleId], references: [id], onDelete: Restrict)
-  lot                     Lot?               @relation(fields: [lotId], references: [id], onDelete: Restrict)
-  actorUser               User?              @relation("TraceEventActorUser", fields: [actorUserId], references: [id], onDelete: Restrict)
-  actorOrganization       Organization?      @relation("TraceEventActorOrganization", fields: [actorOrganizationId], references: [id], onDelete: Restrict)
-  supersedesEvent         TraceEvent?        @relation("TraceEventSupersession", fields: [supersedesEventId], references: [id], onDelete: Restrict)
-  supersededByEvents      TraceEvent[]       @relation("TraceEventSupersession")
-  causationEvent          TraceEvent?        @relation("TraceEventCausation", fields: [causationEventId], references: [id], onDelete: Restrict)
-  causedEvents            TraceEvent[]       @relation("TraceEventCausation")
-  blockchainProof         BlockchainProof?
-  quantityMovements       QuantityMovement[]
-
-  @@index([entityType, entityId, eventTime])
-  @@index([cycleId, eventTime])
-  @@index([lotId, eventTime])
-  @@map("trace_events")
-}
-
-model BlockchainProof {
-  id                String                      @id @default(uuid()) @map("proof_id") @db.Uuid
-  eventId           String                      @unique @map("event_id") @db.Uuid
-  network           String                      @db.VarChar(100)
-  txId              String?                     @unique @map("tx_id") @db.VarChar(255)
-  dataHash          String                      @map("data_hash") @db.Char(64)
-  recordedAt        DateTime?                   @map("recorded_at") @db.Timestamptz(3)
-  relayerAddress    String?                     @map("relayer_address") @db.VarChar(255)
-  transactionStatus BlockchainTransactionStatus @default(PENDING) @map("transaction_status")
-  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(3)
-  traceEvent        TraceEvent                  @relation(fields: [eventId], references: [id], onDelete: Restrict)
-
-  @@map("blockchain_proofs")
-}
-
-model QuantityMovement {
-  id        String               @id @default(uuid()) @map("movement_id") @db.Uuid
-  lotId     String               @map("lot_id") @db.Uuid
-  eventId   String               @map("event_id") @db.Uuid
-  type      QuantityMovementType
-  quantity  Decimal              @db.Decimal(18, 3)
-  unit      String               @db.VarChar(50)
-  beforeQty Decimal              @map("before_qty") @db.Decimal(18, 3)
-  delta     Decimal              @db.Decimal(18, 3)
-  afterQty  Decimal              @map("after_qty") @db.Decimal(18, 3)
-  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  lot       Lot                  @relation(fields: [lotId], references: [id], onDelete: Restrict)
-  event     TraceEvent           @relation(fields: [eventId], references: [id], onDelete: Restrict)
-
-  @@index([lotId, createdAt])
-  @@index([eventId])
-  @@map("quantity_movements")
-}
-
-model Inspection {
-  id             String           @id @default(uuid()) @map("inspection_id") @db.Uuid
-  lotId          String           @map("lot_id") @db.Uuid
-  inspectorOrgId String?          @map("inspector_org_id") @db.Uuid
-  result         InspectionResult
-  note           String?          @db.Text
-  inspectedAt    DateTime         @map("inspected_at") @db.Timestamptz(3)
-  evidenceRef    String?          @map("evidence_ref") @db.Text
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  lot            Lot              @relation(fields: [lotId], references: [id], onDelete: Restrict)
-  inspectorOrg   Organization?    @relation(fields: [inspectorOrgId], references: [id], onDelete: Restrict)
-
-  @@index([lotId, inspectedAt])
-  @@map("inspections")
-}
-
-model Certificate {
-  id           String           @id @default(uuid()) @map("certificate_id") @db.Uuid
-  lotId        String?          @map("lot_id") @db.Uuid
-  cycleId      String?          @map("cycle_id") @db.Uuid
-  type         String           @db.VarChar(100)
-  issuer       String           @db.VarChar(255)
-  issueDate    DateTime         @map("issue_date") @db.Date
-  expiryDate   DateTime?        @map("expiry_date") @db.Date
-  documentRef  String           @map("document_ref") @db.Text
-  documentHash String           @map("document_hash") @db.Char(64)
-  isPublic     Boolean          @default(false) @map("is_public")
-  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  lot          Lot?             @relation(fields: [lotId], references: [id], onDelete: Restrict)
-  cycle        ProductionCycle? @relation(fields: [cycleId], references: [id], onDelete: Restrict)
-
-  @@index([lotId])
-  @@index([cycleId])
-  @@map("certificates")
-}
-
-model TraceQR {
-  id         String   @id @default(uuid()) @map("trace_qr_id") @db.Uuid
-  lotId      String   @unique @map("lot_id") @db.Uuid
-  traceToken String   @unique @map("trace_token") @db.VarChar(255)
-  traceUrl   String   @map("trace_url") @db.Text
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  lot        Lot      @relation(fields: [lotId], references: [id], onDelete: Restrict)
-
-  @@map("trace_qr_codes")
-}
-
-model IdempotencyRecord {
-  id             String            @id @default(uuid()) @map("idempotency_record_id") @db.Uuid
-  idempotencyKey String            @map("idempotency_key") @db.VarChar(255)
-  operation      String            @db.VarChar(100)
-  requestType    String            @map("request_type") @db.VarChar(50)
-  requestHash    String            @map("request_hash") @db.Char(64)
-  status         IdempotencyStatus @default(PROCESSING)
-  responseStatus Int?              @map("response_status")
-  responseBody   Json?             @map("response_body") @db.JsonB
-  resourceId     String?           @map("resource_id") @db.Uuid
-  requesterId    String            @map("requester_id") @db.VarChar(255)
-  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
-  expiresAt      DateTime          @map("expires_at") @db.Timestamptz(3)
-
-  @@unique([requesterId, operation, idempotencyKey])
-  @@index([expiresAt])
-  @@map("idempotency_records")
 }
