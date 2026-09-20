@@ -1,0 +1,195 @@
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { canonicalize } from 'json-canonicalize';
+import {
+  IdempotencyStatus,
+  type Prisma,
+} from '../../generated/prisma/client.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+
+export interface StartIdempotencyInput {
+  idempotencyKey: string;
+  requesterId: string;
+  operation: string;
+  requestType: string;
+  payload: unknown;
+  expiresInMinutes?: number;
+}
+
+export type IdempotencyStartResult =
+  | {
+      type: 'NEW';
+      recordId: string;
+    }
+  | {
+      type: 'REPLAY';
+      status: number;
+      body: Prisma.JsonValue | null;
+    };
+
+@Injectable()
+export class IdempotencyService {
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+  ) {}
+
+  async start(input: StartIdempotencyInput): Promise<IdempotencyStartResult> {
+    if (!input.idempotencyKey?.trim()) {
+      throw new ConflictException('Thiếu header Idempotency-Key');
+    }
+
+    const requestHash = this.createRequestHash(input.payload);
+    const expiresAt = new Date(
+      Date.now() + (input.expiresInMinutes ?? 24 * 60) * 60 * 1000,
+    );
+
+    try {
+      const record = await this.prisma.idempotencyRecord.create({
+        data: {
+          idempotencyKey: input.idempotencyKey.trim(),
+          requesterId: input.requesterId,
+          operation: input.operation,
+          requestType: input.requestType,
+          requestHash,
+          status: IdempotencyStatus.PROCESSING,
+          expiresAt,
+        },
+      });
+
+      return {
+        type: 'NEW',
+        recordId: record.id,
+      };
+    } catch (error: unknown) {
+      if (!this.isUniqueConstraintError(error)) {
+        throw error;
+      }
+
+      return this.resolveExistingRecord({
+        ...input,
+        requestHash,
+        expiresAt,
+      });
+    }
+  }
+
+  async complete(
+    recordId: string,
+    status: number,
+    body: Prisma.InputJsonValue,
+    resourceId?: string,
+  ): Promise<void> {
+    await this.prisma.idempotencyRecord.update({
+      where: { id: recordId },
+      data: {
+        status: IdempotencyStatus.COMPLETED,
+        responseStatus: status,
+        responseBody: body,
+        resourceId,
+      },
+    });
+  }
+
+  async fail(
+    recordId: string,
+    status: number,
+    body: Prisma.InputJsonValue,
+  ): Promise<void> {
+    await this.prisma.idempotencyRecord.update({
+      where: { id: recordId },
+      data: {
+        status: IdempotencyStatus.FAILED,
+        responseStatus: status,
+        responseBody: body,
+      },
+    });
+  }
+
+  private async resolveExistingRecord(
+    input: StartIdempotencyInput & {
+      requestHash: string;
+      expiresAt: Date;
+    },
+  ): Promise<IdempotencyStartResult> {
+    const record = await this.prisma.idempotencyRecord.findUnique({
+      where: {
+        requesterId_operation_idempotencyKey: {
+          requesterId: input.requesterId,
+          operation: input.operation,
+          idempotencyKey: input.idempotencyKey.trim(),
+        },
+      },
+    });
+
+    if (!record) {
+      throw new ConflictException('Không thể xử lý Idempotency-Key');
+    }
+
+    if (record.requestHash !== input.requestHash) {
+      throw new ConflictException(
+        'Idempotency-Key đã được dùng cho payload khác',
+      );
+    }
+
+    if (
+      (record.status === IdempotencyStatus.COMPLETED ||
+        record.status === IdempotencyStatus.FAILED) &&
+      record.responseStatus !== null
+    ) {
+      return {
+        type: 'REPLAY',
+        status: record.responseStatus,
+        body: record.responseBody,
+      };
+    }
+
+    if (record.expiresAt <= new Date()) {
+      const restarted = await this.prisma.idempotencyRecord.update({
+        where: { id: record.id },
+        data: {
+          requestHash: input.requestHash,
+          requestType: input.requestType,
+          status: IdempotencyStatus.PROCESSING,
+          responseStatus: null,
+          responseBody: undefined,
+          resourceId: null,
+          expiresAt: input.expiresAt,
+        },
+      });
+
+      return {
+        type: 'NEW',
+        recordId: restarted.id,
+      };
+    }
+
+    throw new ConflictException(
+      'Request với Idempotency-Key này đang được xử lý',
+    );
+  }
+
+  private createRequestHash(payload: unknown): string {
+    const serialized = canonicalize(payload);
+
+    if (serialized === undefined) {
+      throw new ConflictException('Payload không thể tạo request hash');
+    }
+
+    return createHash('sha256')
+      .update(serialized, 'utf8')
+      .digest('hex');
+  }
+
+  private isUniqueConstraintError(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'P2002'
+    );
+  }
+}
