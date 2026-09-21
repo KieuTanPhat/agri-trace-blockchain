@@ -33,5 +33,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: package-lock.json
-      - run: npm ci --workspace ${{ matrix.package }}
+      # Install from the repository root so npm links local workspace packages.
+      # The API imports @agri-trace/fabric-gateway from blockchain/gateway.
+      - run: npm ci
       - run: npm run check --workspace ${{ matrix.package }}

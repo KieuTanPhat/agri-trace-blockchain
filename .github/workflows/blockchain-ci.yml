@@ -35,7 +35,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: package-lock.json
-      - run: npm ci --workspace ${{ matrix.package }}
+      - run: npm ci
       - run: npm run check --workspace ${{ matrix.package }}
 
   fabric-smoke:
