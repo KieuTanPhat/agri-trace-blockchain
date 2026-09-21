@@ -3,6 +3,9 @@ import {
   Controller,
   Get,
   Headers,
+  Param,
+  ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -15,7 +18,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { ComplianceService } from './compliance.service.js';
-import { CreateCertificateDto, CreateInspectionDto } from './dto.js';
+import {
+  CreateCertificateDto,
+  CreateInspectionDto,
+  ReviewCertificateDto,
+} from './dto.js';
 
 @ApiTags('compliance')
 @ApiBearerAuth()
@@ -66,7 +73,7 @@ export class ComplianceController {
     return this.service.listCertificates(request.user, lotId, cycleId);
   }
 
-  @Roles('SYSTEM_ADMIN', 'AUDITOR')
+  @Roles('SYSTEM_ADMIN', 'AUDITOR', 'FARM_STAFF')
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('certificates')
   createCertificate(
@@ -83,6 +90,27 @@ export class ComplianceController {
         payload: input,
       },
       () => this.service.createCertificate(input, request.user),
+    );
+  }
+
+  @Roles('SYSTEM_ADMIN', 'AUDITOR')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @Patch('certificates/:id/review')
+  reviewCertificate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: ReviewCertificateDto,
+    @Headers('idempotency-key') key: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.idempotency.execute(
+      {
+        idempotencyKey: key,
+        requesterId: request.user.sub,
+        operation: 'REVIEW_CERTIFICATE',
+        requestType: 'COMMAND',
+        payload: { id, ...input },
+      },
+      () => this.service.reviewCertificate(id, input, request.user),
     );
   }
 }

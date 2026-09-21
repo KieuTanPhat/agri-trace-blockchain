@@ -245,13 +245,14 @@ export class LotsService {
               },
             },
             certificates: {
-              where: { isPublic: true },
+              where: { isPublic: true, status: 'APPROVED' },
               select: {
                 type: true,
                 issuer: true,
                 issueDate: true,
                 expiryDate: true,
                 documentHash: true,
+                status: true,
               },
             },
           },
@@ -457,6 +458,13 @@ export class LotsService {
       SHIPMENT_RECEIVED: 'Nhà bán lẻ đã nhận lô hàng.',
       SHIPMENT_REJECTED: 'Nhà bán lẻ từ chối lô hàng.',
       SHIPMENT_DAMAGE_RECORDED: 'Ghi nhận hàng hư hỏng.',
+      SENSOR_DIGEST_CREATED: 'Chốt bản tổng hợp dữ liệu cảm biến.',
+      SHIPMENT_TELEMETRY_DIGEST_CREATED:
+        'Chốt bản tổng hợp dữ liệu vận chuyển.',
+      INSPECTION_RECORDED: 'Ghi nhận kết quả thanh tra.',
+      CERTIFICATE_SUBMITTED: 'Gửi chứng chỉ để xét duyệt.',
+      CERTIFICATE_APPROVED: 'Chứng chỉ đã được phê duyệt.',
+      CERTIFICATE_REJECTED: 'Chứng chỉ bị từ chối.',
     };
     return summaries[eventType] ?? eventType.replaceAll('_', ' ').toLowerCase();
   }

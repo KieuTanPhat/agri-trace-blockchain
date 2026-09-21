@@ -28,3 +28,9 @@ export class CreateCertificateDto {
   @IsString() @MaxLength(128) documentHash!: string;
   @IsOptional() @IsBoolean() isPublic?: boolean;
 }
+
+export class ReviewCertificateDto {
+  @IsIn(['APPROVED', 'REJECTED'])
+  status!: 'APPROVED' | 'REJECTED';
+  @IsOptional() @IsString() @MaxLength(1000) reviewNote?: string;
+}
