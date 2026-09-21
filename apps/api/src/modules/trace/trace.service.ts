@@ -1,11 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import type { Prisma } from '../../generated/prisma/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { calculateTraceEventHash } from './trace-hash.js';
 
-export type Actor = AuthenticatedRequest['user'];
+export type Actor = {
+  sub: string | null;
+  organizationId: string | null;
+  role: string;
+};
 
 export interface CreateTraceEventInput {
   entityType: string;
@@ -26,6 +29,12 @@ export class TraceService {
     tx: Prisma.TransactionClient,
     input: CreateTraceEventInput,
   ) {
+    // Serialize hash-chain head creation per entity. Without this transaction
+    // lock, two concurrent commands can both read the same predecessor and
+    // produce sibling events that Fabric cannot append deterministically.
+    await tx.$executeRaw(
+      Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${input.entityType}:${input.entityId}`}, 0))`,
+    );
     const id = randomUUID();
     const eventTime = input.eventTime ?? new Date();
     const previous = await tx.traceEvent.findFirst({
@@ -36,6 +45,9 @@ export class TraceService {
     const actorAuthProof = createHash('sha256')
       .update(`${input.actor.sub}:${input.actor.role}`, 'utf8')
       .digest('hex');
+    const authProofType = input.actor.sub
+      ? 'TOKEN_FINGERPRINT'
+      : 'SYSTEM_ASSERTION';
     const dataHash = calculateTraceEventHash({
       id,
       entityType: input.entityType,
@@ -47,7 +59,7 @@ export class TraceService {
       actorUserId: input.actor.sub,
       actorOrganizationId: input.actor.organizationId,
       actorRole: input.actor.role,
-      authProofType: 'TOKEN_FINGERPRINT',
+      authProofType,
       actorAuthProof,
       businessData: input.businessData,
       previousEventHash: previous?.dataHash ?? null,
@@ -63,10 +75,10 @@ export class TraceService {
         cycleId: input.cycleId,
         lotId: input.lotId,
         eventType: input.eventType,
-        actorUserId: input.actor.sub,
+        actorUserId: input.actor.sub ?? undefined,
         actorOrganizationId: input.actor.organizationId,
         actorRole: input.actor.role,
-        authProofType: 'TOKEN_FINGERPRINT',
+        authProofType,
         actorAuthProof,
         eventTime,
         businessData: input.businessData,

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   Param,
   ParseUUIDPipe,
@@ -53,6 +54,22 @@ export class ProductionCyclesController {
       command,
     );
   }
+
+  @Get()
+  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  list(@Req() req: AuthenticatedRequest) {
+    return this.service.list(req.user);
+  }
+
+  @Get(':id')
+  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  get(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.get(id, req.user);
+  }
+
   @Post() create(
     @Body() dto: CreateProductionCycleDto,
     @Headers('idempotency-key') key: string,

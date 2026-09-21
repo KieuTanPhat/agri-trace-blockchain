@@ -10,8 +10,10 @@ import {
 import { AuthService } from './auth.service.js';
 import type { AuthenticatedRequest } from './auth.types.js';
 import { LoginDto } from './dto/login.dto.js';
+import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('auth')
 export class AuthController {
@@ -23,8 +25,20 @@ export class AuthController {
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   login(@Body() input: LoginDto) {
     return this.authService.login(input);
+  }
+
+  @Post('refresh')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  refresh(@Body() input: RefreshTokenDto) {
+    return this.authService.refresh(input);
+  }
+
+  @Post('logout')
+  logout(@Body() input: RefreshTokenDto) {
+    return this.authService.logout(input);
   }
 
   @UseGuards(JwtAuthGuard)

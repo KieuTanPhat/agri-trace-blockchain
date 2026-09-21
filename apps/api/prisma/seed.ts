@@ -54,6 +54,12 @@ async function main() {
     },
   });
 
+  const auditorRole = await prisma.role.upsert({
+    where: { code: 'AUDITOR' },
+    update: { name: 'Thanh tra viên' },
+    create: { code: 'AUDITOR', name: 'Thanh tra viên' },
+  });
+
   const farmOrganization =
     (await prisma.organization.findFirst({
       where: {
@@ -99,6 +105,18 @@ async function main() {
       },
     }));
 
+  const auditorOrganization =
+    (await prisma.organization.findFirst({
+      where: { name: 'Trung tâm Kiểm định Nông sản', type: 'AUDITOR' },
+    })) ??
+    (await prisma.organization.create({
+      data: {
+        name: 'Trung tâm Kiểm định Nông sản',
+        type: 'AUDITOR',
+        status: 'ACTIVE',
+      },
+    }));
+
   await upsertUser(
     'admin@agritrace.local',
     {
@@ -138,6 +156,17 @@ async function main() {
       fullName: 'Lê An Tâm',
       roleId: retailerRole.id,
       organizationId: retailerOrganization.id,
+      accountStatus: 'ACTIVE',
+    },
+    passwordHash,
+  );
+
+  await upsertUser(
+    'auditor@agritrace.local',
+    {
+      fullName: 'Phạm Minh Kiểm',
+      roleId: auditorRole.id,
+      organizationId: auditorOrganization.id,
       accountStatus: 'ACTIVE',
     },
     passwordHash,

@@ -36,8 +36,11 @@ export class AgriTraceContract extends Contract {
     const existingHead = existingHeadBytes.length > 0
       ? fromLedgerBytes<EntityLedgerHead>(existingHeadBytes, `entity ${input.entityType}/${input.entityId}`)
       : undefined;
-    if (input.previousEventHash && input.previousEventHash !== existingHead?.lastDataHash) {
+    if (existingHead && input.previousEventHash !== existingHead.lastDataHash) {
       throw contractError("HASH_CHAIN_CONFLICT", "previousEventHash does not match the current entity head");
+    }
+    if (!existingHead && input.previousEventHash) {
+      throw contractError("HASH_CHAIN_CONFLICT", "genesis event must not declare previousEventHash");
     }
 
     const txId = ctx.stub.getTxID();
@@ -92,7 +95,11 @@ export class AgriTraceContract extends Contract {
     await ctx.stub.putState(eventKey, toLedgerBytes(event));
     await ctx.stub.putState(proofKey, toLedgerBytes(proof));
     await ctx.stub.putState(headKey, toLedgerBytes(head));
-    await ctx.stub.putState(historyKey, Buffer.from(input.eventId, "utf8"));
+    // Store the event snapshot in the history index. New history queries can
+    // read the iterator value directly instead of issuing one getState call per
+    // event. The query code remains backward compatible with old eventId-only
+    // index values.
+    await ctx.stub.putState(historyKey, toLedgerBytes(event));
     await ctx.stub.setEvent("TraceEventRecorded", toLedgerBytes(proof));
 
     const receipt: SubmitReceipt = {
@@ -145,12 +152,10 @@ export class AgriTraceContract extends Contract {
     const iterator = await ctx.stub.getStateByPartialCompositeKey(KEY_TYPES.entityEvent, [safeType, safeId]);
     const events: StoredTraceEvent[] = [];
     try {
-      while (true) {
+      while (events.length < 100) {
         const item = await iterator.next();
         if (item.value?.value) {
-          const eventId = Buffer.from(item.value.value).toString("utf8");
-          const eventKey = ctx.stub.createCompositeKey(KEY_TYPES.event, [eventId]);
-          events.push(fromLedgerBytes<StoredTraceEvent>(await ctx.stub.getState(eventKey), `event ${eventId}`));
+          events.push(await this.readHistoryValue(ctx, item.value.value));
         }
         if (item.done) break;
       }
@@ -159,6 +164,44 @@ export class AgriTraceContract extends Contract {
     }
     if (events.length === 0) throw contractError("NOT_FOUND", `entity history ${safeType}/${safeId} does not exist`);
     return this.stringify(events);
+  }
+
+  @Transaction(false)
+  @Returns("string")
+  public async QueryEntityHistoryPage(
+    ctx: Context,
+    entityType: string,
+    entityId: string,
+    pageSize: string,
+    bookmark: string
+  ): Promise<string> {
+    const safeType = requireEntityType(entityType);
+    const safeId = requireEntityId(entityId);
+    const requestedSize = Number(pageSize);
+    if (!Number.isInteger(requestedSize) || requestedSize < 1 || requestedSize > 500) {
+      throw contractError("INVALID_INPUT", "pageSize must be an integer between 1 and 500");
+    }
+    const result = await ctx.stub.getStateByPartialCompositeKeyWithPagination(
+      KEY_TYPES.entityEvent,
+      [safeType, safeId],
+      requestedSize,
+      bookmark
+    );
+    const events: StoredTraceEvent[] = [];
+    try {
+      while (true) {
+        const item = await result.iterator.next();
+        if (item.value?.value) events.push(await this.readHistoryValue(ctx, item.value.value));
+        if (item.done) break;
+      }
+    } finally {
+      await result.iterator.close();
+    }
+    return this.stringify({
+      records: events,
+      bookmark: result.metadata.bookmark,
+      fetchedRecordsCount: result.metadata.fetchedRecordsCount
+    });
   }
 
   @Transaction(false)
@@ -172,6 +215,18 @@ export class AgriTraceContract extends Contract {
     if (!ctx.clientIdentity.assertAttributeValue("app.role", "relayer")) {
       throw contractError("UNAUTHORIZED_RELAYER", "Fabric identity must have app.role=relayer");
     }
+  }
+
+  private async readHistoryValue(ctx: Context, value: Uint8Array): Promise<StoredTraceEvent> {
+    const raw = Buffer.from(value).toString("utf8");
+    try {
+      const parsed = JSON.parse(raw) as StoredTraceEvent;
+      if (parsed.docType === "traceEvent") return parsed;
+    } catch {
+      // Legacy history entries stored only eventId and are resolved below.
+    }
+    const eventKey = ctx.stub.createCompositeKey(KEY_TYPES.event, [raw]);
+    return fromLedgerBytes<StoredTraceEvent>(await ctx.stub.getState(eventKey), `event ${raw}`);
   }
 
   private stringify(value: unknown): string {

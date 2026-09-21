@@ -5,6 +5,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
@@ -24,6 +25,68 @@ export class ProductionCyclesService {
     private readonly access: OrganizationAccessService,
     private readonly trace: TraceService,
   ) {}
+
+  list(actor: Actor) {
+    return this.prisma.productionCycle.findMany({
+      where: this.visibleWhere(actor),
+      include: {
+        product: { select: { id: true, productName: true, defaultUnit: true } },
+        farm: { select: { id: true, name: true } },
+        plot: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async get(id: string, actor: Actor) {
+    const cycle = await this.prisma.productionCycle.findFirst({
+      where: { id, ...this.visibleWhere(actor) },
+      include: {
+        product: true,
+        farm: true,
+        plot: true,
+        careRecords: { orderBy: { eventTime: 'asc' } },
+        sensorReadings: { orderBy: { recordedAt: 'desc' }, take: 100 },
+        sensorDigests: { orderBy: { periodEnd: 'desc' } },
+        certificates: true,
+        harvestEvents: {
+          include: { lot: { include: { shipment: true } } },
+          orderBy: { harvestTime: 'asc' },
+        },
+      },
+    });
+    if (!cycle) throw new NotFoundException('Không tìm thấy vụ sản xuất');
+    return cycle;
+  }
+
+  private visibleWhere(actor: Actor): Prisma.ProductionCycleWhereInput {
+    if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) return {};
+    if (actor.role === 'FARM_STAFF')
+      return { farmOrgId: actor.organizationId ?? undefined };
+    if (actor.role === 'TRANSPORTER')
+      return {
+        harvestEvents: {
+          some: {
+            lot: {
+              shipment: {
+                transporterOrgId: actor.organizationId ?? undefined,
+              },
+            },
+          },
+        },
+      };
+    if (actor.role === 'RETAILER')
+      return {
+        harvestEvents: {
+          some: {
+            lot: {
+              shipment: { retailerOrgId: actor.organizationId ?? undefined },
+            },
+          },
+        },
+      };
+    return { id: '__not_authorized__' };
+  }
 
   async create(input: CreateProductionCycleDto, actor: Actor) {
     const farm = await this.access.assertFarmAccess(actor, input.farmId);
@@ -152,32 +215,17 @@ export class ProductionCyclesService {
         'Thiết bị không thuộc chu kỳ hoặc không hoạt động',
       );
     }
-    return this.prisma.$transaction(async (tx) => {
-      const reading = await tx.sensorReading.create({
-        data: {
-          cycleId: id,
-          deviceId: input.deviceId,
-          sensorType: input.sensorType,
-          value: input.value,
-          unit: input.unit,
-          recordedAt: new Date(input.recordedAt),
-        },
-      });
-      await this.trace.createInTransaction(tx, {
-        entityType: 'SENSOR',
-        entityId: reading.id,
+    // Raw sensor readings are deliberately kept off-chain. SensorDigest is the
+    // auditable aggregate that produces TraceEvent/BlockchainProof records.
+    return this.prisma.sensorReading.create({
+      data: {
         cycleId: id,
-        eventType: 'SENSOR_READING_RECORDED',
-        actor,
-        eventTime: reading.recordedAt,
-        businessData: {
-          deviceId: reading.deviceId,
-          sensorType: reading.sensorType,
-          value: reading.value.toString(),
-          unit: reading.unit,
-        },
-      });
-      return reading;
+        deviceId: input.deviceId,
+        sensorType: input.sensorType,
+        value: input.value,
+        unit: input.unit,
+        recordedAt: new Date(input.recordedAt),
+      },
     });
   }
 

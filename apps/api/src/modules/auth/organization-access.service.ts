@@ -5,9 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import type { AuthenticatedRequest } from './auth.types.js';
-
-type Actor = AuthenticatedRequest['user'];
+type Actor = { role: string; organizationId: string | null };
 
 @Injectable()
 export class OrganizationAccessService {
@@ -71,7 +69,7 @@ export class OrganizationAccessService {
       throw new NotFoundException('Không tìm thấy lô hàng');
     }
 
-    if (actor.role !== 'SYSTEM_ADMIN') {
+    if (!['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) {
       const allowed = [
         lot.farmOrgId,
         lot.shipment?.transporterOrgId,
@@ -101,7 +99,7 @@ export class OrganizationAccessService {
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
     }
 
-    if (actor.role === 'SYSTEM_ADMIN') {
+    if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) {
       return shipment;
     }
 

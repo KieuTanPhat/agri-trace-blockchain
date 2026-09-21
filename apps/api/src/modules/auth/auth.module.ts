@@ -10,7 +10,7 @@ import { OrganizationAccessService } from './organization-access.service.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule,
     PrismaModule,
     JwtModule.registerAsync({
       inject: [ConfigService],

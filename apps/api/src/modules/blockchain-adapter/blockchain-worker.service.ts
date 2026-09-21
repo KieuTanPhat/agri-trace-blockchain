@@ -12,6 +12,7 @@ import {
   type GatewayConnection,
   type TraceEventInput,
 } from '@agri-trace/fabric-gateway';
+import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { calculateTraceEventHash } from '../trace/trace-hash.js';
 
@@ -21,6 +22,10 @@ type FabricReceipt = {
   channelId?: string;
   dataHash?: string;
 };
+
+type ClaimedProof = Prisma.BlockchainProofGetPayload<{
+  include: { traceEvent: true };
+}>;
 
 @Injectable()
 export class BlockchainWorkerService
@@ -52,16 +57,7 @@ export class BlockchainWorkerService
     this.running = true;
     let processed = 0;
     try {
-      const proofs = await this.prisma.blockchainProof.findMany({
-        where: {
-          transactionStatus: { in: ['PENDING', 'FAILED'] },
-          attemptCount: { lt: Number(process.env.FABRIC_MAX_RETRIES ?? 5) },
-          OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: new Date() } }],
-        },
-        include: { traceEvent: true },
-        orderBy: { createdAt: 'asc' },
-        take: limit,
-      });
+      const proofs = await this.claimPending(limit);
       for (const proof of proofs) {
         await this.submit(proof);
         processed += 1;
@@ -106,11 +102,56 @@ export class BlockchainWorkerService
     return result;
   }
 
-  private async submit(
-    proof: Awaited<
-      ReturnType<PrismaService['blockchainProof']['findFirstOrThrow']>
-    > & { traceEvent: Record<string, any> },
-  ) {
+  private async claimPending(limit: number): Promise<ClaimedProof[]> {
+    const maxRetries = Number(process.env.FABRIC_MAX_RETRIES ?? 5);
+    const leaseMs = Number(process.env.FABRIC_CLAIM_LEASE_MS ?? 120_000);
+    return this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT bp.proof_id AS id
+        FROM blockchain_proof bp
+        JOIN trace_event te ON te.event_id = bp.event_id
+        WHERE bp.transaction_status IN (
+          'PENDING'::blockchain_transaction_status,
+          'FAILED'::blockchain_transaction_status
+        )
+          AND bp.attempt_count < ${maxRetries}
+          AND (bp.next_attempt_at IS NULL OR bp.next_attempt_at <= now())
+          AND (
+            te.previous_event_hash IS NULL
+            OR EXISTS (
+              SELECT 1
+              FROM trace_event previous_event
+              JOIN blockchain_proof previous_proof
+                ON previous_proof.event_id = previous_event.event_id
+              WHERE previous_event.entity_type = te.entity_type
+                AND previous_event.entity_id = te.entity_id
+                AND previous_event.data_hash = te.previous_event_hash
+                AND previous_proof.transaction_status =
+                  'CONFIRMED'::blockchain_transaction_status
+            )
+          )
+        ORDER BY te.event_time, te.created_at
+        LIMIT ${limit}
+        FOR UPDATE SKIP LOCKED
+      `);
+      if (rows.length === 0) return [];
+      const ids = rows.map((row) => row.id);
+      await tx.blockchainProof.updateMany({
+        where: { id: { in: ids } },
+        data: {
+          attemptCount: { increment: 1 },
+          nextAttemptAt: new Date(Date.now() + leaseMs),
+        },
+      });
+      return tx.blockchainProof.findMany({
+        where: { id: { in: ids } },
+        include: { traceEvent: true },
+        orderBy: { createdAt: 'asc' },
+      });
+    });
+  }
+
+  private async submit(proof: ClaimedProof) {
     const event = proof.traceEvent;
     try {
       const adapter = await this.getAdapter();
@@ -159,19 +200,17 @@ export class BlockchainWorkerService
           recordedAt: receipt.recordedAt
             ? new Date(receipt.recordedAt)
             : new Date(),
-          attemptCount: { increment: 1 },
           nextAttemptAt: null,
           lastError: null,
         },
       });
     } catch (error) {
-      const attempt = proof.attemptCount + 1;
+      const attempt = proof.attemptCount;
       const retryMs = Math.min(300_000, 2 ** attempt * 1_000);
       await this.prisma.blockchainProof.update({
         where: { id: proof.id },
         data: {
           transactionStatus: 'FAILED',
-          attemptCount: attempt,
           nextAttemptAt: new Date(Date.now() + retryMs),
           lastError: (error instanceof Error
             ? error.message

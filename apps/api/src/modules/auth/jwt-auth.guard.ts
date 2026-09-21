@@ -38,12 +38,15 @@ export class JwtAuthGuard implements CanActivate {
       );
     }
 
+    // This lookup is deliberate: role, organization and account revocation must
+    // take effect immediately. A cache is only safe with cross-instance
+    // invalidation (for example Redis pub/sub), not an in-process TTL.
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
         id: true,
         email: true,
-        role: true,
+        role: { select: { code: true } },
         organizationId: true,
         accountStatus: true,
       },
