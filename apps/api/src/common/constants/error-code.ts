@@ -9,5 +9,4 @@ export const ErrorCode = {
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const;
 
-export type ErrorCodeValue =
-  (typeof ErrorCode)[keyof typeof ErrorCode];
+export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];

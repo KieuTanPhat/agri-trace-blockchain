@@ -6,10 +6,7 @@ import {
   type ExceptionFilter,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import {
-  ErrorCode,
-  type ErrorCodeValue,
-} from '../constants/error-code.js';
+import { ErrorCode, type ErrorCodeValue } from '../constants/error-code.js';
 import type { RequestWithId } from '../request/request-id.middleware.js';
 
 @Catch()
@@ -64,11 +61,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         return body;
       }
 
-      if (
-        typeof body === 'object' &&
-        body !== null &&
-        'message' in body
-      ) {
+      if (typeof body === 'object' && body !== null && 'message' in body) {
         const message = body.message;
 
         if (typeof message === 'string' || Array.isArray(message)) {
@@ -80,10 +73,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     return 'Đã xảy ra lỗi không xác định';
   }
 
-  private getErrorCode(
-    exception: unknown,
-    status: number,
-  ): ErrorCodeValue {
+  private getErrorCode(exception: unknown, status: number): ErrorCodeValue {
     if (
       typeof exception === 'object' &&
       exception !== null &&

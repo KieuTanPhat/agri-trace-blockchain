@@ -26,6 +26,24 @@ không còn bảng `Batch`. Prisma schema map trực tiếp database PostgreSQL
 Migration baseline cũng bao gồm telemetry vận chuyển, check constraint, trigger,
 view truy xuất và năm role mặc định của hệ thống.
 
+Chạy migration và seed:
+
+```bash
+npm run db:migrate --workspace apps/api
+npm run db:seed --workspace apps/api
+```
+
+Swagger chạy tại `http://localhost:8080/api/docs`. Mọi command thay đổi nghiệp
+vụ yêu cầu `Idempotency-Key`; frontend không có endpoint cập nhật trực tiếp
+trạng thái. Collection đầy đủ nằm tại
+`postman/Agri-Trace-v2.postman_collection.json`.
+
+Trace event được ghi cùng transaction với proof `PENDING`. Khi
+`FABRIC_ENABLED=true`, worker gửi hash RFC 8785 và metadata tối thiểu sang
+Fabric, retry theo exponential backoff rồi cập nhật `txId`, `channelId` và
+`CONFIRMED`/`FAILED`. Hướng dẫn chuyển dữ liệu cũ nằm trong
+`docs/database-migration-runbook.md`.
+
 Các endpoint hiện có:
 
 - `GET /api` và `GET /api/health`

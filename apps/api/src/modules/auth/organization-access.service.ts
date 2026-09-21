@@ -11,18 +11,20 @@ type Actor = AuthenticatedRequest['user'];
 
 @Injectable()
 export class OrganizationAccessService {
-  constructor(
-    @Inject(PrismaService) private readonly prisma: PrismaService,
-  ) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async assertFarmAccess(actor: Actor, farmId: string) {
     const farm = await this.prisma.farm.findUnique({
       where: { id: farmId },
-      select: { id: true, organizationId: true },
+      select: { id: true, organizationId: true, status: true },
     });
 
     if (!farm) {
       throw new NotFoundException('Không tìm thấy nông trại');
+    }
+
+    if (farm.status === 'INACTIVE') {
+      throw new ForbiddenException('Nông trại hiện không hoạt động');
     }
 
     this.assertOrganizationAccess(actor, farm.organizationId, 'nông trại này');
@@ -56,14 +58,29 @@ export class OrganizationAccessService {
   async assertLotAccess(actor: Actor, lotId: string) {
     const lot = await this.prisma.lot.findUnique({
       where: { id: lotId },
-      select: { id: true, farmOrgId: true },
+      select: {
+        id: true,
+        farmOrgId: true,
+        shipment: {
+          select: { transporterOrgId: true, retailerOrgId: true },
+        },
+      },
     });
 
     if (!lot) {
       throw new NotFoundException('Không tìm thấy lô hàng');
     }
 
-    this.assertOrganizationAccess(actor, lot.farmOrgId, 'lô hàng này');
+    if (actor.role !== 'SYSTEM_ADMIN') {
+      const allowed = [
+        lot.farmOrgId,
+        lot.shipment?.transporterOrgId,
+        lot.shipment?.retailerOrgId,
+      ];
+      if (!actor.organizationId || !allowed.includes(actor.organizationId)) {
+        throw new ForbiddenException('Bạn không có quyền truy cập lô hàng này');
+      }
+    }
     return lot;
   }
 

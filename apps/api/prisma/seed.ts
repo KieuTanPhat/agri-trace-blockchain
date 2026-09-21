@@ -99,77 +99,49 @@ async function main() {
       },
     }));
 
-  await prisma.user.upsert({
-    where: { email: 'admin@agritrace.local' },
-    update: {
+  await upsertUser(
+    'admin@agritrace.local',
+    {
       fullName: 'Quản trị viên hệ thống',
       roleId: systemAdminRole.id,
       organizationId: null,
       accountStatus: 'ACTIVE',
     },
-    create: {
-      email: 'admin@agritrace.local',
-      fullName: 'Quản trị viên hệ thống',
-      passwordHash,
-      roleId: systemAdminRole.id,
-      organizationId: null,
-      accountStatus: 'ACTIVE',
-    },
-  });
+    passwordHash,
+  );
 
-  await prisma.user.upsert({
-    where: { email: 'farm.staff@agritrace.local' },
-    update: {
+  await upsertUser(
+    'farm.staff@agritrace.local',
+    {
       fullName: 'Nguyễn Văn Nông',
       roleId: farmStaffRole.id,
       organizationId: farmOrganization.id,
       accountStatus: 'ACTIVE',
     },
-    create: {
-      email: 'farm.staff@agritrace.local',
-      fullName: 'Nguyễn Văn Nông',
-      passwordHash,
-      roleId: farmStaffRole.id,
-      organizationId: farmOrganization.id,
-      accountStatus: 'ACTIVE',
-    },
-  });
+    passwordHash,
+  );
 
-  await prisma.user.upsert({
-    where: { email: 'transporter@agritrace.local' },
-    update: {
+  await upsertUser(
+    'transporter@agritrace.local',
+    {
       fullName: 'Trần Minh Vận',
       roleId: transporterRole.id,
       organizationId: transporterOrganization.id,
       accountStatus: 'ACTIVE',
     },
-    create: {
-      email: 'transporter@agritrace.local',
-      fullName: 'Trần Minh Vận',
-      passwordHash,
-      roleId: transporterRole.id,
-      organizationId: transporterOrganization.id,
-      accountStatus: 'ACTIVE',
-    },
-  });
+    passwordHash,
+  );
 
-  await prisma.user.upsert({
-    where: { email: 'retailer@agritrace.local' },
-    update: {
+  await upsertUser(
+    'retailer@agritrace.local',
+    {
       fullName: 'Lê An Tâm',
       roleId: retailerRole.id,
       organizationId: retailerOrganization.id,
       accountStatus: 'ACTIVE',
     },
-    create: {
-      email: 'retailer@agritrace.local',
-      fullName: 'Lê An Tâm',
-      passwordHash,
-      roleId: retailerRole.id,
-      organizationId: retailerOrganization.id,
-      accountStatus: 'ACTIVE',
-    },
-  });
+    passwordHash,
+  );
 
   const product =
     (await prisma.product.findFirst({
@@ -247,6 +219,22 @@ async function main() {
 
   console.log(`Seed hoàn tất. Product mẫu: ${product.productName}`);
   console.log(`Tài khoản test dùng mật khẩu: ${DEFAULT_PASSWORD}`);
+}
+
+async function upsertUser(
+  email: string,
+  data: {
+    fullName: string;
+    roleId: string;
+    organizationId: string | null;
+    accountStatus: 'ACTIVE';
+  },
+  passwordHash: string,
+) {
+  const existing = await prisma.user.findFirst({ where: { email } });
+  return existing
+    ? prisma.user.update({ where: { id: existing.id }, data })
+    : prisma.user.create({ data: { email, passwordHash, ...data } });
 }
 
 main()

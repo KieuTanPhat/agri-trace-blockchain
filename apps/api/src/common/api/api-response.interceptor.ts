@@ -9,12 +9,8 @@ import type { RequestWithId } from '../request/request-id.middleware.js';
 
 @Injectable()
 export class ApiResponseInterceptor implements NestInterceptor {
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<unknown> {
-    const request =
-      context.switchToHttp().getRequest<RequestWithId>();
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const request = context.switchToHttp().getRequest<RequestWithId>();
 
     return next.handle().pipe(
       map((data: unknown) => ({

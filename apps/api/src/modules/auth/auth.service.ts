@@ -43,15 +43,11 @@ export class AuthService {
     });
 
     if (!user || !(await compare(input.password, user.passwordHash))) {
-      throw new UnauthorizedException(
-        'Email hoặc mật khẩu không chính xác',
-      );
+      throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     }
 
     if (user.accountStatus !== 'ACTIVE') {
-      throw new UnauthorizedException(
-        'Tài khoản hiện không hoạt động',
-      );
+      throw new UnauthorizedException('Tài khoản hiện không hoạt động');
     }
 
     const { passwordHash: _passwordHash, ...safeUser } = user;
@@ -66,9 +62,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException(
-        'Người dùng không còn tồn tại',
-      );
+      throw new UnauthorizedException('Người dùng không còn tồn tại');
     }
 
     return user;

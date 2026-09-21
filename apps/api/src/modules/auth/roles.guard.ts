@@ -30,7 +30,9 @@ export class RolesGuard implements CanActivate {
     }
 
     if (!requiredRoles.includes(request.user.role)) {
-      throw new ForbiddenException('Bạn không có quyền thực hiện chức năng này');
+      throw new ForbiddenException(
+        'Bạn không có quyền thực hiện chức năng này',
+      );
     }
 
     return true;

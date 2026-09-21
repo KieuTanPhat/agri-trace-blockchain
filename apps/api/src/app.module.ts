@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
+import { RequestIdMiddleware } from './common/request/request-id.middleware.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -13,8 +14,23 @@ import { BlockchainAdapterModule } from './modules/blockchain-adapter/blockchain
 import { HealthModule } from './health/health.module.js';
 
 @Module({
-  imports: [AuthModule, UsersModule, OrganizationsModule, ProductionCyclesModule, LotsModule, ShipmentsModule, TraceModule, IotModule, BlockchainAdapterModule, HealthModule],
+  imports: [
+    AuthModule,
+    UsersModule,
+    OrganizationsModule,
+    ProductionCyclesModule,
+    LotsModule,
+    ShipmentsModule,
+    TraceModule,
+    IotModule,
+    BlockchainAdapterModule,
+    HealthModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

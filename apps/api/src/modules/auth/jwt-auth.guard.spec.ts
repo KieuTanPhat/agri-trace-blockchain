@@ -25,10 +25,7 @@ describe('Current account authorization', () => {
     },
   };
 
-  const guard = new JwtAuthGuard(
-    jwt,
-    prisma as unknown as PrismaService,
-  );
+  const guard = new JwtAuthGuard(jwt, prisma as unknown as PrismaService);
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -62,8 +59,7 @@ describe('Current account authorization', () => {
       role: {
         code: 'FARM_STAFF',
       },
-      organizationId:
-        '631e9648-174d-48a0-9494-353bda8775da',
+      organizationId: '631e9648-174d-48a0-9494-353bda8775da',
       accountStatus: 'ACTIVE',
     };
 
@@ -83,9 +79,9 @@ describe('Current account authorization', () => {
 
     current.accountStatus = 'LOCKED';
 
-    await expect(
-      guard.canActivate(context().ctx),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(guard.canActivate(context().ctx)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it('does not authorize a request when the database fails', async () => {
@@ -100,10 +96,7 @@ describe('Current account authorization', () => {
   });
 
   it('temporarily disables public registration', () => {
-    const service = new AuthService(
-      prisma as unknown as PrismaService,
-      jwt,
-    );
+    const service = new AuthService(prisma as unknown as PrismaService, jwt);
 
     expect(() =>
       service.register({
