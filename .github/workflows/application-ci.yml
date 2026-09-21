@@ -36,4 +36,6 @@ jobs:
       # Install from the repository root so npm links local workspace packages.
       # The API imports @agri-trace/fabric-gateway from blockchain/gateway.
       - run: npm ci
+      # The gateway package exports its compiled declarations from dist/.
+      - run: npm run build --workspace blockchain/gateway
       - run: npm run check --workspace ${{ matrix.package }}
