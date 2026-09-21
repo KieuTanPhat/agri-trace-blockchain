@@ -28,6 +28,11 @@ describe('Auth security (e2e)', () => {
   const password = 'test-password-123';
   const prisma = {
     user: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn() },
+    refreshSession: {
+      create: vi.fn().mockResolvedValue({}),
+      findUnique: vi.fn(),
+      updateMany: vi.fn(),
+    },
   };
 
   beforeEach(async () => {

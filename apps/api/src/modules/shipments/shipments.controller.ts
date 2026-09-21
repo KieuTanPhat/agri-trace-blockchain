@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   Param,
   ParseUUIDPipe,
@@ -51,6 +52,21 @@ export class ShipmentsController {
       fn,
     );
   }
+  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @Get()
+  list(@Req() req: AuthenticatedRequest) {
+    return this.service.list(req.user);
+  }
+
+  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @Get(':id')
+  get(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.get(id, req.user);
+  }
+
   @Roles('SYSTEM_ADMIN', 'FARM_STAFF')
   @Post()
   create(

@@ -25,6 +25,63 @@ export class ShipmentsService {
     private readonly trace: TraceService,
   ) {}
 
+  list(actor: Actor) {
+    const unrestricted = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role);
+    return this.prisma.shipment.findMany({
+      where: unrestricted
+        ? undefined
+        : {
+            OR: [
+              { transporterOrgId: actor.organizationId ?? undefined },
+              { retailerOrgId: actor.organizationId ?? undefined },
+              { lot: { farmOrgId: actor.organizationId ?? undefined } },
+            ],
+          },
+      include: {
+        transporter: { select: { id: true, name: true, type: true } },
+        retailer: { select: { id: true, name: true, type: true } },
+        lot: {
+          include: {
+            product: { select: { id: true, productName: true } },
+            organization: { select: { id: true, name: true, type: true } },
+          },
+        },
+        telemetryDigest: true,
+        _count: { select: { telemetry: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async get(id: string, actor: Actor) {
+    const shipment = await this.prisma.shipment.findUnique({
+      where: { id },
+      include: {
+        transporter: true,
+        retailer: true,
+        lot: { include: { product: true, organization: true } },
+        telemetry: { orderBy: { recordedAt: 'desc' }, take: 100 },
+        telemetryDigest: true,
+        trackingBindings: { include: { device: true } },
+      },
+    });
+    if (!shipment)
+      throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
+    if (
+      !['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role) &&
+      (!actor.organizationId ||
+        ![
+          shipment.lot.farmOrgId,
+          shipment.transporterOrgId,
+          shipment.retailerOrgId,
+        ].includes(actor.organizationId))
+    )
+      throw new ForbiddenException(
+        'Tổ chức hiện tại không có quyền xem chuyến hàng',
+      );
+    return shipment;
+  }
+
   async create(input: CreateShipmentDto, actor: Actor) {
     const lot = await this.access.assertLotAccess(actor, input.lotId);
     const fullLot = await this.prisma.lot.findUnique({ where: { id: lot.id } });

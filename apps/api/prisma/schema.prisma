@@ -32,8 +32,23 @@ model User {
   role             Role                      @relation(fields: [roleId], references: [id], onUpdate: NoAction)
   trackingBindings ShipmentTrackingBinding[]
   traceEvents      TraceEvent[]
+  refreshSessions  RefreshSession[]
 
   @@map("app_user")
+}
+
+model RefreshSession {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @map("refresh_session_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId, revokedAt], map: "ix_refresh_session_user_active")
+  @@index([expiresAt], map: "ix_refresh_session_expiry")
+  @@map("refresh_session")
 }
 
 model Organization {
@@ -489,12 +504,17 @@ model Certificate {
   documentRef  String           @map("document_ref")
   documentHash String           @map("document_hash") @db.VarChar(128)
   isPublic     Boolean          @default(false) @map("is_public")
+  status       String           @default("PENDING") @db.VarChar(30)
+  reviewedBy   String?          @map("reviewed_by") @db.Uuid
+  reviewedAt   DateTime?        @map("reviewed_at") @db.Timestamptz(6)
+  reviewNote   String?          @map("review_note")
   createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   cycle        ProductionCycle? @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   lot          Lot?             @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([cycleId], map: "ix_certificate_cycle")
   @@index([lotId], map: "ix_certificate_lot")
+  @@index([status], map: "ix_certificate_status")
   @@map("certificate")
 }
 

@@ -26,6 +26,7 @@ describe("FabricBlockchainAdapter", () => {
     await expect(adapter.getProof("event-1")).resolves.toEqual({ ok: true });
     await expect(adapter.getExpectedHash("event-1")).resolves.toBe("a".repeat(64));
     await expect(adapter.queryEntityHistory("LOT", "lot-1")).resolves.toEqual({ ok: true });
+    await expect(adapter.queryEntityHistoryPage("LOT", "lot-1", 50, "next")).resolves.toEqual({ ok: true });
     await expect(adapter.getEntityHead("LOT", "lot-1")).resolves.toEqual({ ok: true });
     await expect(adapter.healthCheck()).resolves.toEqual({ ok: true });
 
@@ -37,8 +38,12 @@ describe("FabricBlockchainAdapter", () => {
       "GetProof",
       "GetExpectedHash",
       "QueryEntityHistory",
+      "QueryEntityHistoryPage",
       "GetEntityHead",
       "HealthCheck"
     ]);
+    expect(evaluateTransaction).toHaveBeenCalledWith(
+      "QueryEntityHistoryPage", "LOT", "lot-1", "50", "next"
+    );
   });
 });

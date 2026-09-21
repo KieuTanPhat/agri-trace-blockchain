@@ -47,6 +47,17 @@ export class LotsController {
       () => this.service.recordHarvest(cycleId, dto, req.user),
     );
   }
+
+  @Get('dashboard')
+  dashboard(@Req() req: AuthenticatedRequest) {
+    return this.service.getDashboard(req.user);
+  }
+
+  @Get('lots')
+  getLots(@Req() req: AuthenticatedRequest) {
+    return this.service.getList(req.user);
+  }
+
   @Get('lots/:lotId')
   getLot(
     @Param('lotId', ParseUUIDPipe) lotId: string,

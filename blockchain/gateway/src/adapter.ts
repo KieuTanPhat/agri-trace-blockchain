@@ -55,6 +55,21 @@ export class FabricBlockchainAdapter {
     return this.decode(await this.contract.evaluateTransaction("QueryEntityHistory", entityType, entityId));
   }
 
+  public async queryEntityHistoryPage(
+    entityType: TraceEventInput["entityType"],
+    entityId: string,
+    pageSize = 100,
+    bookmark = ""
+  ): Promise<unknown> {
+    return this.decode(await this.contract.evaluateTransaction(
+      "QueryEntityHistoryPage",
+      entityType,
+      entityId,
+      String(pageSize),
+      bookmark
+    ));
+  }
+
   public async getEntityHead(entityType: TraceEventInput["entityType"], entityId: string): Promise<unknown> {
     return this.decode(await this.contract.evaluateTransaction("GetEntityHead", entityType, entityId));
   }

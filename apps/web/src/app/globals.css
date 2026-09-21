@@ -1599,3 +1599,10 @@ a.list-row:hover { background: var(--primary-pale); }
     scroll-behavior: auto !important;
   }
 }
+
+.public-content { min-height: 100vh; padding: 32px; background: var(--surface, #f5f8f6); }
+.login-page { min-height: calc(100vh - 64px); display: grid; place-items: center; }
+.login-card { width: min(460px, 100%); display: grid; gap: 20px; }
+.login-card > img { width: 210px; height: auto; }
+.notice.error { color: #8f2828; background: #fff1f1; border-color: #efc5c5; }
+@media (max-width: 760px) { .public-content { padding: 16px; } }
