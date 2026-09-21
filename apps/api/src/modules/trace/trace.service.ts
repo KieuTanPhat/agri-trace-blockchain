@@ -87,13 +87,10 @@ export class TraceService {
       },
     });
 
-    await tx.blockchainProof.create({
+    await tx.blockchainOutbox.create({
       data: {
         eventId: event.id,
-        network: process.env.FABRIC_NETWORK_NAME ?? 'hyperledger-fabric',
-        channelId: process.env.FABRIC_CHANNEL_NAME ?? 'agritrace',
-        dataHash,
-        transactionStatus: 'PENDING',
+        status: 'PENDING',
         nextAttemptAt: new Date(),
       },
     });
@@ -106,21 +103,39 @@ export class TraceService {
     return this.prisma.traceEvent.findMany({
       where: { lotId },
       orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
-      include: { blockchainProof: true },
+      include: { blockchainProof: true, blockchainOutbox: true },
     });
   }
 
   async getProof(eventId: string) {
-    const proof = await this.prisma.blockchainProof.findUnique({
-      where: { eventId },
-      include: { traceEvent: true },
+    const event = await this.prisma.traceEvent.findUnique({
+      where: { id: eventId },
+      include: { blockchainProof: true, blockchainOutbox: true },
     });
-    if (!proof) throw new NotFoundException('Không tìm thấy blockchain proof');
+    if (!event) throw new NotFoundException('Không tìm thấy trace event');
+    const proof = event.blockchainProof;
     return {
-      ...proof,
+      eventId,
+      network:
+        proof?.network ??
+        process.env.FABRIC_NETWORK_NAME ??
+        'hyperledger-fabric',
+      channelId:
+        proof?.channelId ?? process.env.FABRIC_CHANNEL_NAME ?? 'agritrace',
+      txId: proof?.txId ?? null,
+      dataHash: proof?.dataHash ?? event.dataHash,
+      recordedAt: proof?.recordedAt ?? null,
+      transactionStatus: proof
+        ? proof.transactionStatus
+        : event.blockchainOutbox?.status === 'DEAD_LETTER'
+          ? 'FAILED'
+          : 'PENDING',
+      attemptCount: event.blockchainOutbox?.attemptCount ?? 0,
+      nextAttemptAt: event.blockchainOutbox?.nextAttemptAt ?? null,
+      lastError: event.blockchainOutbox?.lastError ?? null,
       localHashMatches:
-        proof.dataHash === proof.traceEvent.dataHash &&
-        proof.dataHash === calculateTraceEventHash(proof.traceEvent),
+        (!proof || proof.dataHash === event.dataHash) &&
+        event.dataHash === calculateTraceEventHash(event),
     };
   }
 }

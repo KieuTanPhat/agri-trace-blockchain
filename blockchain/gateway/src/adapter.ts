@@ -6,7 +6,7 @@ const decoder = new TextDecoder();
 
 export interface TraceEventInput {
   eventId: string;
-  entityType: "PRODUCTION_CYCLE" | "CARE" | "SENSOR" | "HARVEST" | "LOT" | "SHIPMENT" | "INSPECTION" | "CERTIFICATE";
+  entityType: "PRODUCTION_CYCLE" | "CARE" | "SENSOR" | "SENSOR_DIGEST" | "HARVEST" | "LOT" | "SHIPMENT" | "SHIPMENT_TELEMETRY" | "INSPECTION" | "CERTIFICATE";
   entityId: string;
   cycleId?: string;
   lotId?: string;

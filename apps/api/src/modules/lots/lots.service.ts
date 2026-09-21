@@ -22,6 +22,7 @@ const INTERNAL_LOT_INCLUDE = {
     orderBy: { eventTime: 'asc' as const },
     include: {
       blockchainProof: true,
+      blockchainOutbox: { select: { status: true } },
       actor: { select: { id: true } },
       organization: { select: { id: true, name: true } },
     },
@@ -168,6 +169,7 @@ export class LotsService {
       orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
       include: {
         blockchainProof: true,
+        blockchainOutbox: { select: { status: true } },
         actor: { select: { id: true } },
         organization: { select: { id: true, name: true } },
       },
@@ -282,6 +284,7 @@ export class LotsService {
             network: true,
           },
         },
+        blockchainOutbox: { select: { status: true } },
       },
     });
     const latest = traceEvents.at(-1);
@@ -434,8 +437,13 @@ export class LotsService {
       dataHash: string;
       transactionStatus: string;
     };
+    blockchainOutbox?: null | { status: string };
   }) {
-    if (!event?.blockchainProof) return 'PENDING';
+    if (!event?.blockchainProof) {
+      return event?.blockchainOutbox?.status === 'DEAD_LETTER'
+        ? 'BLOCKCHAIN_UNAVAILABLE'
+        : 'PENDING';
+    }
     if (event.blockchainProof.dataHash !== event.dataHash)
       return 'INTEGRITY_WARNING';
     if (event.blockchainProof.transactionStatus === 'CONFIRMED')

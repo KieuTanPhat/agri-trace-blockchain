@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -10,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -26,7 +26,6 @@ import { ShipmentsService } from './shipments.service.js';
 
 @ApiTags('shipments')
 @ApiBearerAuth()
-@ApiHeader({ name: 'Idempotency-Key', required: true })
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('shipments')
 export class ShipmentsController {
@@ -68,10 +67,11 @@ export class ShipmentsController {
   }
 
   @Roles('SYSTEM_ADMIN', 'FARM_STAFF')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post()
   create(
     @Body() dto: CreateShipmentDto,
-    @Headers('idempotency-key') key: string,
+    @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.run('CREATE_SHIPMENT', key, req, dto, () =>
@@ -79,11 +79,12 @@ export class ShipmentsController {
     );
   }
   @Roles('SYSTEM_ADMIN', 'TRANSPORTER')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/start')
   start(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ShipmentTransitionDto,
-    @Headers('idempotency-key') key: string,
+    @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.run('START_SHIPMENT', key, req, { id, ...dto }, () =>
@@ -91,11 +92,12 @@ export class ShipmentsController {
     );
   }
   @Roles('SYSTEM_ADMIN', 'TRANSPORTER')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/arrive')
   arrive(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ShipmentTransitionDto,
-    @Headers('idempotency-key') key: string,
+    @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.run('ARRIVE_SHIPMENT', key, req, { id, ...dto }, () =>
@@ -103,11 +105,12 @@ export class ShipmentsController {
     );
   }
   @Roles('SYSTEM_ADMIN', 'RETAILER')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/receive')
   receive(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReceiveShipmentDto,
-    @Headers('idempotency-key') key: string,
+    @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.run('RECEIVE_SHIPMENT', key, req, { id, ...dto }, () =>
@@ -115,11 +118,12 @@ export class ShipmentsController {
     );
   }
   @Roles('SYSTEM_ADMIN', 'RETAILER')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/reject')
   reject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: RejectShipmentDto,
-    @Headers('idempotency-key') key: string,
+    @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.run('REJECT_SHIPMENT', key, req, { id, ...dto }, () =>
@@ -127,11 +131,12 @@ export class ShipmentsController {
     );
   }
   @Roles('SYSTEM_ADMIN', 'TRANSPORTER', 'RETAILER')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/damage')
   damage(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: DamageShipmentDto,
-    @Headers('idempotency-key') key: string,
+    @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.run('DAMAGE_SHIPMENT', key, req, { id, ...dto }, () =>

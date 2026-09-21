@@ -5,9 +5,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { ApiResponseInterceptor } from './common/api/api-response.interceptor.js';
 import { GlobalExceptionFilter } from './common/exception/global-exception.filter.js';
+import { createApplicationLogger } from './common/logging/app-logger.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: createApplicationLogger(),
+  });
+  app.enableShutdownHooks();
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: process.env.CORS_ORIGIN?.split(',') ?? 'http://localhost:3000',

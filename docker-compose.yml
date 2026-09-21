@@ -1,0 +1,136 @@
+name: agri-trace
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agri_trace}
+      POSTGRES_USER: ${POSTGRES_USER:-agritrace}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agritrace_dev_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-agritrace} -d ${POSTGRES_DB:-agri_trace}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agritrace}:${POSTGRES_PASSWORD:-agritrace_dev_password}@postgres:5432/${POSTGRES_DB:-agri_trace}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-replace-with-a-long-random-production-secret}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      JWT_REFRESH_EXPIRES_DAYS: ${JWT_REFRESH_EXPIRES_DAYS:-30}
+      RATE_LIMIT_TTL_MS: ${RATE_LIMIT_TTL_MS:-60000}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-120}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      PUBLIC_TRACE_BASE_URL: ${PUBLIC_TRACE_BASE_URL:-http://localhost:3000/trace}
+      IOT_INGEST_API_KEY: ${IOT_INGEST_API_KEY:-replace-with-a-long-random-device-key}
+      FABRIC_ENABLED: "false"
+    command:
+      [
+        "sh",
+        "-c",
+        "npm run db:migrate --workspace apps/api && node apps/api/dist/main.js",
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8080}:8080"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  worker:
+    image: agri-trace-api
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      WORKER_HEALTH_PORT: 8081
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agritrace}:${POSTGRES_PASSWORD:-agritrace_dev_password}@postgres:5432/${POSTGRES_DB:-agri_trace}?schema=public
+      FABRIC_ENABLED: ${FABRIC_ENABLED:-false}
+      FABRIC_NETWORK_NAME: ${FABRIC_NETWORK_NAME:-hyperledger-fabric}
+      FABRIC_CHANNEL_NAME: ${FABRIC_CHANNEL_NAME:-agritrace}
+      FABRIC_CHAINCODE_NAME: ${FABRIC_CHAINCODE_NAME:-agritrace}
+      FABRIC_CONTRACT_NAME: ${FABRIC_CONTRACT_NAME:-AgriTraceContract}
+      FABRIC_MSP_ID: ${FABRIC_MSP_ID:-Org1MSP}
+      FABRIC_PEER_ENDPOINT: ${FABRIC_PEER_ENDPOINT:-host.docker.internal:7051}
+      FABRIC_PEER_HOST_ALIAS: ${FABRIC_PEER_HOST_ALIAS:-peer0.org1.example.com}
+      FABRIC_SAMPLES_DIR: /fabric-samples
+      RELAYER_MSP_DIR: /fabric-identity
+      FABRIC_WORKER_INTERVAL_MS: ${FABRIC_WORKER_INTERVAL_MS:-10000}
+      FABRIC_WORKER_BATCH_SIZE: ${FABRIC_WORKER_BATCH_SIZE:-20}
+      FABRIC_CLAIM_LEASE_MS: ${FABRIC_CLAIM_LEASE_MS:-120000}
+      FABRIC_MAX_RETRIES: ${FABRIC_MAX_RETRIES:-5}
+      FABRIC_MAX_RETRY_DELAY_MS: ${FABRIC_MAX_RETRY_DELAY_MS:-300000}
+    command: ["node", "apps/api/dist/worker-main.js"]
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ${FABRIC_SAMPLES_DIR_HOST:-./blockchain/.fabric/fabric-samples}:/fabric-samples:ro
+      - ${RELAYER_MSP_DIR_HOST:-./blockchain/network/identities/relayer}:/fabric-identity:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8081/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/api}
+        NEXT_PUBLIC_TRACE_BASE_URL: ${NEXT_PUBLIC_TRACE_BASE_URL:-http://localhost:3000/trace}
+        NEXT_PUBLIC_MOCK_API: "false"
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+volumes:
+  postgres-data:

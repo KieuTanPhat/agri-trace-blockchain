@@ -68,10 +68,10 @@ export function requireEntityId(value: string): string {
 }
 
 function requireEntityContext(input: Record<string, unknown>): void {
-  if (["PRODUCTION_CYCLE", "CARE", "SENSOR", "HARVEST"].includes(String(input.entityType)) && !input.cycleId) {
+  if (["PRODUCTION_CYCLE", "CARE", "SENSOR", "SENSOR_DIGEST", "HARVEST"].includes(String(input.entityType)) && !input.cycleId) {
     throw contractError("INVALID_INPUT", `${input.entityType} requires cycleId`);
   }
-  if (["LOT", "SHIPMENT", "INSPECTION"].includes(String(input.entityType)) && !input.lotId) {
+  if (["LOT", "SHIPMENT", "SHIPMENT_TELEMETRY", "INSPECTION"].includes(String(input.entityType)) && !input.lotId) {
     throw contractError("INVALID_INPUT", `${input.entityType} requires lotId`);
   }
   if (input.entityType === "CERTIFICATE" && !input.cycleId && !input.lotId) {

@@ -242,6 +242,17 @@ async function createCoreFixture(tx: Prisma.TransactionClient) {
       });
     });
 
+    it('rejects changing a farm owner to a non-FARM organization', async () => {
+      await expectDatabaseReject(async (tx) => {
+        const fixture = await createCoreFixture(tx);
+
+        await tx.farm.update({
+          where: { id: fixture.farm.id },
+          data: { organizationId: fixture.retailerOrganization.id },
+        });
+      });
+    });
+
     it('rejects harvest quantity equal to zero', async () => {
       await expectDatabaseReject(async (tx) => {
         const fixture = await createCoreFixture(tx);

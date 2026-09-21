@@ -51,9 +51,11 @@ export type TraceEvent = {
     | "PRODUCTION_CYCLE"
     | "CARE"
     | "SENSOR"
+    | "SENSOR_DIGEST"
     | "HARVEST"
     | "LOT"
     | "SHIPMENT"
+    | "SHIPMENT_TELEMETRY"
     | "INSPECTION"
     | "CERTIFICATE";
   eventType: string;
@@ -89,8 +91,8 @@ export type LotTrace = {
     network: string;
     txId?: string;
     dataHash: string;
-    transactionStatus: "PENDING" | "CONFIRMED" | "COMMITTED" | "FAILED";
-    recordedAt?: string;
+    transactionStatus: "PENDING" | "CONFIRMED" | "FAILED";
+    recordedAt?: string | null;
   };
   shipment?: {
     shipmentId: string;
@@ -138,8 +140,8 @@ export type ProductionCycleOption = {
   cycleCode: string;
   currentState: ProductionCycleState;
   version: number;
-  harvestUnit?: string;
-  product: { id: string; productName: string; defaultUnit?: string };
+  harvestUnit?: string | null;
+  product: { id: string; productName: string; defaultUnit?: string | null };
   farm: { id: string; name: string };
 };
 
