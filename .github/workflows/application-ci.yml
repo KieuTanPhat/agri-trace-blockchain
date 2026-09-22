@@ -6,12 +6,18 @@ on:
       - "apps/**"
       - "package.json"
       - "package-lock.json"
+      - "docker-compose.yml"
+      - ".dockerignore"
+      - "apps/*/Dockerfile"
       - ".github/workflows/application-ci.yml"
   pull_request:
     paths:
       - "apps/**"
       - "package.json"
       - "package-lock.json"
+      - "docker-compose.yml"
+      - ".dockerignore"
+      - "apps/*/Dockerfile"
       - ".github/workflows/application-ci.yml"
 
 permissions:
@@ -20,6 +26,26 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
+      TEST_DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
+      JWT_SECRET: ci-only-jwt-secret-that-is-long-enough-for-tests
+      IOT_INGEST_API_KEY: ci-only-device-ingest-key
+      FABRIC_ENABLED: "false"
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: agri_trace_ci
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d agri_trace_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     strategy:
       fail-fast: false
       matrix:
@@ -38,4 +64,16 @@ jobs:
       - run: npm ci
       # The gateway package exports its compiled declarations from dist/.
       - run: npm run build --workspace blockchain/gateway
+      - name: Apply API database migrations
+        if: matrix.package == 'apps/api'
+        run: npm run db:migrate --workspace apps/api
       - run: npm run check --workspace ${{ matrix.package }}
+
+  container-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate Compose model
+        run: docker compose config --quiet
+      - name: Build production images
+        run: docker compose build api web

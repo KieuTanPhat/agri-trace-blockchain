@@ -73,6 +73,8 @@ model Organization {
 }
 
 model Farm {
+  /// The owning organization must have type FARM; enforced by
+  /// trg_validate_farm_organization_type in the database migration history.
   id             String             @id @default(dbgenerated("gen_random_uuid()")) @map("farm_id") @db.Uuid
   organizationId String             @map("organization_id") @db.Uuid
   name           String             @db.VarChar(255)
@@ -434,6 +436,7 @@ model TraceEvent {
   causationEventId        String?            @map("causation_event_id") @db.Uuid
   createdAt               DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   blockchainProof         BlockchainProof?
+  blockchainOutbox        BlockchainOutbox?
   quantityMovements       QuantityMovement[]
   organization            Organization?      @relation(fields: [actorOrganizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   actor                   User?              @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -472,6 +475,27 @@ model BlockchainProof {
   @@index([dataHash], map: "ix_blockchain_proof_hash")
   @@index([transactionStatus, nextAttemptAt], map: "ix_blockchain_proof_status")
   @@map("blockchain_proof")
+}
+
+/// Transactional outbox entry consumed only by the dedicated blockchain worker.
+/// Business transactions create this row atomically with the immutable TraceEvent.
+model BlockchainOutbox {
+  id             String                  @id @default(dbgenerated("gen_random_uuid()")) @map("outbox_id") @db.Uuid
+  eventId        String                  @unique @map("event_id") @db.Uuid
+  status         BlockchainOutboxStatus @default(PENDING)
+  attemptCount   Int                     @default(0) @map("attempt_count")
+  nextAttemptAt  DateTime?               @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  leaseToken     String?                 @map("lease_token") @db.Uuid
+  leaseExpiresAt DateTime?               @map("lease_expires_at") @db.Timestamptz(6)
+  lastError      String?                 @map("last_error")
+  completedAt    DateTime?               @map("completed_at") @db.Timestamptz(6)
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                @default(now()) @map("updated_at") @db.Timestamptz(6)
+  traceEvent     TraceEvent              @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([status, nextAttemptAt], map: "ix_blockchain_outbox_due")
+  @@index([status, leaseExpiresAt], map: "ix_blockchain_outbox_lease")
+  @@map("blockchain_outbox")
 }
 
 model QuantityMovement {
@@ -580,6 +604,16 @@ enum BlockchainTransactionStatus {
   FAILED
 
   @@map("blockchain_transaction_status")
+}
+
+enum BlockchainOutboxStatus {
+  PENDING
+  PROCESSING
+  RETRY
+  COMPLETED
+  DEAD_LETTER
+
+  @@map("blockchain_outbox_status")
 }
 
 enum DeviceStatus {

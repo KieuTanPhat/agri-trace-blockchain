@@ -24,7 +24,7 @@ export const mockLots: LotTrace[] = [
       network: "Hyperledger Fabric test network",
       txId: "mock-fabric-tx-001",
       dataHash: "4efb2d9d4f7f6f2c9f7d3b3e5d6a9a104efb2d9d4f7f6f2c9f7d3b3e5d6a9a10",
-      transactionStatus: "COMMITTED",
+      transactionStatus: "CONFIRMED",
       recordedAt: "2026-09-15T02:00:02.000Z"
     },
     timeline: [
@@ -79,7 +79,7 @@ export const mockLots: LotTrace[] = [
       network: "Hyperledger Fabric test network",
       txId: "mock-fabric-tx-002",
       dataHash: "a923f75ce614c1f33d893abb2b412ac0a923f75ce614c1f33d893abb2b412ac0",
-      transactionStatus: "COMMITTED",
+      transactionStatus: "CONFIRMED",
       recordedAt: "2026-09-17T03:10:00.000Z"
     },
     timeline: [

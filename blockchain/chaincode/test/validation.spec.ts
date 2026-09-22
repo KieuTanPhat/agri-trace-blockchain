@@ -1,11 +1,35 @@
 import { describe, expect, it } from "vitest";
 
+import { EVENT_TYPES } from "../src/types";
 import { parseTraceEventInput } from "../src/validation";
 import { validInput } from "./fixtures";
 
 describe("TraceEvent validation", () => {
+  const apiEventTypes = [
+    "PRODUCTION_CYCLE_CREATED", "CYCLE_PLANTED", "CARE_RECORDED",
+    "CYCLE_COMPLETED", "CYCLE_CANCELLED", "HARVEST_RECORDED",
+    "SHIPMENT_CREATED", "SHIPMENT_STARTED", "SHIPMENT_ARRIVED",
+    "SHIPMENT_RECEIVED", "SHIPMENT_REJECTED", "SHIPMENT_DAMAGE_RECORDED",
+    "INSPECTION_RECORDED", "CERTIFICATE_SUBMITTED", "CERTIFICATE_APPROVED",
+    "CERTIFICATE_REJECTED", "SENSOR_DIGEST_CREATED", "SENSOR_DIGEST_FINALIZED",
+    "SHIPMENT_TELEMETRY_DIGEST_CREATED", "SHIPMENT_TELEMETRY_DIGEST_FINALIZED",
+    "TRACKING_DEVICE_BOUND", "TRACKING_DEVICE_UNBOUND"
+  ] as const;
+
   it("accepts the versioned entity-centric input contract", () => {
     expect(parseTraceEventInput(JSON.stringify(validInput()))).toEqual(validInput());
+  });
+
+  it("supports every event currently emitted by the API", () => {
+    expect(EVENT_TYPES).toEqual(expect.arrayContaining(apiEventTypes));
+  });
+
+  it.each([
+    ["SENSOR_DIGEST", { cycleId: "55555555-5555-4555-8555-555555555555", lotId: undefined }],
+    ["SHIPMENT_TELEMETRY", { cycleId: undefined, lotId: "77777777-7777-4777-8777-777777777777" }]
+  ] as const)("accepts the %s entity context emitted by the API", (entityType, context) => {
+    const input = validInput({ entityType, ...context });
+    expect(parseTraceEventInput(JSON.stringify(input))).toEqual(input);
   });
 
   it.each([

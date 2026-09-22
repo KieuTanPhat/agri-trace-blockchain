@@ -7,7 +7,7 @@ Hyperledger Fabric trong một cấu trúc thống nhất.
 
 ```text
 apps/
-  api/                 NestJS + Prisma + PostgreSQL
+  api/                 NestJS API + dedicated blockchain worker entrypoint
   web/                 Next.js PWA
 blockchain/
   chaincode/           Smart contract Hyperledger Fabric
@@ -15,6 +15,7 @@ blockchain/
   network/             Script dựng mạng Fabric local
 docs/
   business-specification-v1.2.md
+  adr-001-modular-monolith-dedicated-worker.md
 ```
 
 ## Cài đặt
@@ -33,11 +34,26 @@ Tạo file môi trường từ các mẫu trong `apps/api/.env.example`,
 ```bash
 npm run dev:web
 npm run dev:api
+npm run dev:worker
 ```
 
 Frontend chạy ở `http://localhost:3000`; API chạy ở
-`http://localhost:8080/api`. Frontend mặc định dùng mock API. Đặt
-`NEXT_PUBLIC_MOCK_API=false` để chuyển sang backend thật.
+`http://localhost:8080/api`. Frontend mặc định kết nối backend thật. Worker là
+process độc lập; chỉ worker được cấp Fabric signing identity.
+
+## Chạy bằng Docker Compose
+
+Sao chép `.env.docker.example` thành `.env.docker`, thay toàn bộ secret mẫu rồi
+chạy:
+
+```bash
+docker compose --env-file .env.docker up --build
+```
+
+Compose khởi động PostgreSQL, API, Dedicated Worker và Web. API vẫn hoạt động khi
+Fabric hoặc Worker tạm dừng; các sự kiện chờ được giữ trong
+`blockchain_outbox`. Worker health chỉ mở trong Docker network tại
+`http://worker:8081/health/ready`.
 
 ## Kiểm tra toàn bộ
 

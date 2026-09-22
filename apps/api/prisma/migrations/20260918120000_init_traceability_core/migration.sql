@@ -8,10 +8,14 @@
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
+-- transaction_timeout was introduced after PostgreSQL 16. Omitting this
+-- pg_dump session setting keeps the baseline portable to the supported image.
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
+-- Keep Prisma's migration bookkeeping table resolvable after this pg_dump-
+-- derived baseline runs. An empty search_path makes Prisma's subsequent
+-- update to _prisma_migrations fail with P1014 on the same connection.
+SELECT pg_catalog.set_config('search_path', 'public, pg_catalog', false);
 SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;

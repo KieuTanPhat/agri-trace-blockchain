@@ -5,6 +5,7 @@
     "dev": "npm run dev:web",
     "dev:web": "npm run dev --workspace apps/web",
     "dev:api": "npm run start:dev --workspace apps/api",
+    "dev:worker": "npm run start:worker --workspace apps/api",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
