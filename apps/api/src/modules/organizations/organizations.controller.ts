@@ -1,3 +1,7 @@
+import { Req } from '@nestjs/common';
+import type { AuthenticatedRequest } from '../auth/auth.types.js';
+import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
+import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
 import {
   Body,
   Controller,
@@ -20,7 +24,10 @@ import { OrganizationsService } from './organizations.service.js';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('organizations')
 export class OrganizationsController {
-  constructor(private readonly service: OrganizationsService) {}
+  constructor(
+    private readonly service: OrganizationsService,
+    private readonly idem: IdempotencyService,
+  ) {}
 
   @Get()
   list() {
@@ -29,8 +36,21 @@ export class OrganizationsController {
 
   @Roles('SYSTEM_ADMIN')
   @Post()
-  create(@Body() input: CreateOrganizationDto) {
-    return this.service.create(input);
+  create(
+    @Body() input: CreateOrganizationDto,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.idem.execute(
+      {
+        idempotencyKey: key,
+        requesterId: req.user.sub,
+        operation: 'CREATE_ORGANIZATIONS',
+        requestType: 'COMMAND',
+        payload: input,
+      },
+      () => this.service.create(input),
+    );
   }
 
   @Roles('SYSTEM_ADMIN')

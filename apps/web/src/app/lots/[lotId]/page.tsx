@@ -75,6 +75,84 @@ export default function LotDetailPage() {
       <section className="grid two">
         <div className="grid">
           <div className="panel">
+            <h2>Số lượng và giao nhận</h2>
+            <p>
+              Ban đầu: {lot.initialQuantity} {lot.unit} · Còn lại:{" "}
+              {lot.availableQuantity} {lot.unit}
+            </p>
+            <p>
+              Đã nhận: {lot.shipment?.receivedQuantity ?? "Chưa nhận"}{" "}
+              {lot.shipment?.receivedQuantity != null ? lot.unit : ""} · Đã
+              hỏng: {lot.damagedQuantity ?? 0} {lot.unit}
+            </p>
+            {lot.shipment ? (
+              <>
+                <h3>Chuyến {lot.shipment.shipmentId}</h3>
+                <p>
+                  {
+                    {
+                      CREATED: "Đã tạo",
+                      IN_TRANSIT: "Đang vận chuyển",
+                      ARRIVED: "Đã đến",
+                      DELIVERED: "Đã giao",
+                      REJECTED: "Bị từ chối",
+                      FAILED: "Thất bại",
+                    }[lot.shipment.status]
+                  }
+                </p>
+                <p>
+                  {lot.shipment.origin} → {lot.shipment.destination}
+                </p>
+                <p>
+                  Số lượng gửi: {lot.shipment.shippedQuantity} {lot.unit} · Từ
+                  chối: {lot.shipment.rejectedQuantity ?? 0} {lot.unit}
+                </p>
+              </>
+            ) : (
+              <p>Chưa tạo chuyến vận chuyển.</p>
+            )}
+            <h3>Lịch sử số lượng</h3>
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Thời gian</th>
+                    <th>Thao tác</th>
+                    <th>Trước</th>
+                    <th>Thay đổi</th>
+                    <th>Còn lại</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lot.quantityMovements?.map((m) => (
+                    <tr key={m.id}>
+                      <td>{new Date(m.createdAt).toLocaleString("vi-VN")}</td>
+                      <td>
+                        {(
+                          {
+                            HARVEST_IN: "Thu hoạch",
+                            DAMAGE_OUT: "Hư hỏng",
+                            REJECT_OUT: "Từ chối",
+                          } as Record<string, string>
+                        )[m.type] ?? m.type}
+                      </td>
+                      <td>
+                        {m.beforeQty} {m.unit}
+                      </td>
+                      <td>
+                        {m.delta > 0 ? "+" : ""}
+                        {m.delta} {m.unit}
+                      </td>
+                      <td>
+                        {m.afterQty} {m.unit}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="panel">
             <div className="panel-title">
               <div className="panel-title-left">
                 <span className="panel-icon info">

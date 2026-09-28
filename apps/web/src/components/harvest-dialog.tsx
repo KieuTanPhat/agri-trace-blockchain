@@ -1,11 +1,19 @@
 "use client";
 
+import Link from "next/link";
+import { QrCodeCard } from "./qr-code-card";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { LoaderCircle, Plus, X } from "lucide-react";
 import { getProductionCycles, recordHarvest } from "@/lib/api-client";
 import type { ProductionCycleOption } from "@/lib/types";
 
 export function HarvestDialog({ onCreated }: { onCreated(): void }) {
+  const attempt = useRef({ payload: "", key: "", time: "" });
+  const busy = useRef(false);
+  const [created, setCreated] = useState<{
+    lot: { id: string; lotCode: string };
+    traceQr: { traceToken: string };
+  } | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const [cycles, setCycles] = useState<ProductionCycleOption[]>([]);
   const [cycleId, setCycleId] = useState("");
@@ -35,15 +43,30 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (busy.current) return;
+    busy.current = true;
+    const payload = JSON.stringify({ cycleId, quantity, unit, lotCode });
+    if (attempt.current.payload !== payload)
+      attempt.current = {
+        payload,
+        key: crypto.randomUUID(),
+        time: new Date().toISOString(),
+      };
     setPending(true);
     setMessage("");
     try {
-      await recordHarvest(cycleId, {
-        harvestTime: new Date().toISOString(),
-        quantity: Number(quantity),
-        unit,
-        lotCode: lotCode.trim() || undefined,
-      });
+      const result = await recordHarvest(
+        cycleId,
+        {
+          harvestTime: attempt.current.time,
+          quantity: Number(quantity),
+          unit,
+          lotCode: lotCode.trim() || undefined,
+        },
+        attempt.current.key,
+      );
+      setCreated(result);
+      attempt.current = { payload: "", key: "", time: "" };
       dialog.current?.close();
       setQuantity("");
       setLotCode("");
@@ -55,6 +78,7 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
           : "Không ghi nhận được thu hoạch.",
       );
     } finally {
+      busy.current = false;
       setPending(false);
     }
   }
@@ -64,7 +88,27 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
       <button className="button" onClick={() => dialog.current?.showModal()}>
         <Plus size={18} /> Ghi nhận thu hoạch
       </button>
-      <dialog className="command-dialog" ref={dialog}>
+      {created && (
+        <section className="panel" role="status">
+          <h2>Đã tạo lô {created.lot.lotCode}</h2>
+          <Link href={"/lots/" + created.lot.id}>Xem lô vừa tạo</Link>
+          <QrCodeCard
+            value={
+              (process.env.NEXT_PUBLIC_TRACE_BASE_URL ??
+                window.location.origin + "/trace") +
+              "/" +
+              created.traceQr.traceToken
+            }
+          />
+        </section>
+      )}
+      <dialog
+        className="command-dialog"
+        ref={dialog}
+        onCancel={(e) => {
+          if (pending) e.preventDefault();
+        }}
+      >
         <form onSubmit={submit}>
           <div className="panel-title">
             <h2>Ghi nhận thu hoạch</h2>
@@ -72,6 +116,7 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
               className="icon-button"
               type="button"
               aria-label="Đóng"
+              disabled={pending}
               onClick={() => dialog.current?.close()}
             >
               <X size={18} />
@@ -135,6 +180,7 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
             <button
               className="button secondary"
               type="button"
+              disabled={pending}
               onClick={() => dialog.current?.close()}
             >
               Hủy

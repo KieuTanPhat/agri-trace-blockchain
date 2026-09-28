@@ -1,0 +1,139 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Module,
+  Post,
+  Req,
+  UseGuards,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+  IsNumber,
+  IsPositive,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { PrismaModule } from '../../prisma/prisma.module.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { AuthModule } from '../auth/auth.module.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { RolesGuard } from '../auth/roles.guard.js';
+import { Roles } from '../auth/roles.decorator.js';
+import type { AuthenticatedRequest } from '../auth/auth.types.js';
+import { IdempotencyModule } from '../../common/idempotency/idempotency.module.js';
+import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
+import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
+class ProductDto {
+  @IsString() @MinLength(1) @MaxLength(255) productName!: string;
+  @IsOptional() @IsString() @MaxLength(255) variety?: string;
+  @IsOptional() @IsString() @MaxLength(30) defaultUnit?: string;
+}
+class FarmDto {
+  @IsUUID() organizationId!: string;
+  @IsString() @MinLength(1) @MaxLength(255) name!: string;
+  @IsOptional() @IsString() location?: string;
+}
+class PlotDto {
+  @IsUUID() farmId!: string;
+  @IsString() @MinLength(1) @MaxLength(255) name!: string;
+  @IsOptional() @Type(() => Number) @IsNumber() @IsPositive() area?: number;
+  @IsOptional() @IsString() @MaxLength(30) unit?: string;
+  @IsOptional() @IsString() location?: string;
+}
+@Controller('catalog')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('SYSTEM_ADMIN', 'FARM_STAFF')
+class CatalogController {
+  constructor(
+    private readonly db: PrismaService,
+    private readonly idem: IdempotencyService,
+  ) {}
+  @Get() async list(@Req() req: AuthenticatedRequest) {
+    const where =
+      req.user.role === 'SYSTEM_ADMIN'
+        ? {}
+        : {
+            organizationId:
+              req.user.organizationId ?? '00000000-0000-0000-0000-000000000000',
+          };
+    const [products, farms, plots] = await Promise.all([
+      this.db.product.findMany({ orderBy: { productName: 'asc' } }),
+      this.db.farm.findMany({
+        where,
+        include: { organization: true },
+        orderBy: { name: 'asc' },
+      }),
+      this.db.plot.findMany({
+        where: { farm: where },
+        include: { farm: true },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+    return { products, farms, plots };
+  }
+  private run(
+    key: string,
+    req: AuthenticatedRequest,
+    operation: string,
+    payload: unknown,
+    command: () => Promise<unknown>,
+  ) {
+    return this.idem.execute(
+      {
+        idempotencyKey: key,
+        requesterId: req.user.sub,
+        operation,
+        payload,
+        requestType: 'COMMAND',
+      },
+      command,
+    );
+  }
+  @Post('products') @Roles('SYSTEM_ADMIN') product(
+    @Body() dto: ProductDto,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.run(key, req, 'CREATE_PRODUCT', dto, () =>
+      this.db.product.create({ data: dto }),
+    );
+  }
+  @Post('farms') @Roles('SYSTEM_ADMIN') farm(
+    @Body() dto: FarmDto,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.run(key, req, 'CREATE_FARM', dto, async () => {
+      const org = await this.db.organization.findUnique({
+        where: { id: dto.organizationId },
+      });
+      if (!org || org.type !== 'FARM' || org.status !== 'ACTIVE')
+        throw new UnprocessableEntityException(
+          'Chọn tổ chức nông trại đang hoạt động',
+        );
+      return this.db.farm.create({ data: dto });
+    });
+  }
+  @Post('plots') @Roles('SYSTEM_ADMIN') plot(
+    @Body() dto: PlotDto,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.run(key, req, 'CREATE_PLOT', dto, async () => {
+      const farm = await this.db.farm.findUnique({ where: { id: dto.farmId } });
+      if (!farm || farm.status !== 'ACTIVE')
+        throw new UnprocessableEntityException('Chọn nông trại đang hoạt động');
+      return this.db.plot.create({ data: dto });
+    });
+  }
+}
+@Module({
+  imports: [PrismaModule, AuthModule, IdempotencyModule],
+  controllers: [CatalogController],
+})
+export class CatalogModule {}

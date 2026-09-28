@@ -347,6 +347,19 @@ export class LotsService {
       unit: lot.unit,
       currentState: lot.currentState,
       version: lot.version,
+      quantityMovements: lot.quantityMovements.map((m) => ({
+        id: m.id,
+        type: m.type,
+        quantity: Number(m.quantity),
+        beforeQty: Number(m.beforeQty),
+        delta: Number(m.delta),
+        afterQty: Number(m.afterQty),
+        unit: m.unit,
+        createdAt: m.createdAt,
+      })),
+      damagedQuantity: lot.quantityMovements
+        .filter((m) => m.type === 'DAMAGE_OUT')
+        .reduce((sum, m) => sum + Number(m.quantity), 0),
       productionCycle: {
         cycleId: lot.harvest.cycle.id,
         cycleCode: lot.harvest.cycle.cycleCode,
@@ -400,6 +413,14 @@ export class LotsService {
             origin: lot.shipment.origin,
             destination: lot.shipment.destination,
             shippedQuantity: Number(lot.shipment.shippedQuantity),
+            receivedQuantity:
+              lot.shipment.receivedQuantity === null
+                ? null
+                : Number(lot.shipment.receivedQuantity),
+            rejectedQuantity:
+              lot.shipment.rejectedQuantity === null
+                ? null
+                : Number(lot.shipment.rejectedQuantity),
           }
         : undefined,
     };
@@ -409,23 +430,31 @@ export class LotsService {
     const admin = actor.role === 'SYSTEM_ADMIN';
     if (!lot.shipment) {
       return lot.currentState === 'HARVESTED' &&
-        (admin || actor.organizationId === lot.farmOrgId)
+        (admin ||
+          (actor.role === 'FARM_STAFF' &&
+            actor.organizationId === lot.farmOrgId))
         ? ['createShipment']
         : [];
     }
     if (
       lot.shipment.status === 'CREATED' &&
-      (admin || actor.organizationId === lot.shipment.transporterOrgId)
+      (admin ||
+        (actor.role === 'TRANSPORTER' &&
+          actor.organizationId === lot.shipment.transporterOrgId))
     )
       return ['startTransport'];
     if (
       lot.shipment.status === 'IN_TRANSIT' &&
-      (admin || actor.organizationId === lot.shipment.transporterOrgId)
+      (admin ||
+        (actor.role === 'TRANSPORTER' &&
+          actor.organizationId === lot.shipment.transporterOrgId))
     )
       return ['reportArrival', 'reportDamage'];
     if (
       lot.shipment.status === 'ARRIVED' &&
-      (admin || actor.organizationId === lot.shipment.retailerOrgId)
+      (admin ||
+        (actor.role === 'RETAILER' &&
+          actor.organizationId === lot.shipment.retailerOrgId))
     )
       return ['receiveRetail', 'rejectRetail', 'reportDamage'];
     return [];
