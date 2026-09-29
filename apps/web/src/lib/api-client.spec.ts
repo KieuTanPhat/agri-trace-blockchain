@@ -146,23 +146,80 @@ describe("session and retry safety", () => {
       code: "NETWORK_ERROR",
     });
   });
+  it.each([200, 401])(
+    "discards a late %i response after switching accounts without changing the new session",
+    async (status) => {
+      const oldAuth = {
+        accessToken: "old",
+        refreshToken: "old-refresh",
+        user: { id: "old-user" },
+      };
+      const newAuth = {
+        accessToken: "new",
+        refreshToken: "new-refresh",
+        user: { id: "new-user" },
+      };
+      localStorage.setItem("agritrace-auth", JSON.stringify(oldAuth));
+      const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () => {
+        localStorage.setItem("agritrace-auth", JSON.stringify(newAuth));
+        return json(
+          { success: true, data: { secret: "old-user-data" } },
+          status,
+        );
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const { request } = await import("./api-client");
+      await expect(request("/lots")).rejects.toMatchObject({
+        code: "SESSION_CHANGED",
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(localStorage.getItem("agritrace-auth")!)).toEqual(
+        newAuth,
+      );
+    },
+  );
+  it("uses the caller's stable key for a sensor retry", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () =>
+        json({
+          success: true,
+          data: { status: "accepted", readingId: "reading" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const { sendSensorReading } = await import("./api-client");
+    const payload = {
+      deviceId: "device",
+      cycleId: "cycle",
+      sensorType: "TEMPERATURE",
+      value: 25,
+      unit: "C",
+      recordedAt: "2026-09-29T00:00:00.000Z",
+    };
+    await sendSensorReading(payload, "sensor-key");
+    await sendSensorReading(payload, "sensor-key");
+    expect(
+      fetchMock.mock.calls.map((call) =>
+        new Headers(call[1]?.headers).get("idempotency-key"),
+      ),
+    ).toEqual(["sensor-key", "sensor-key"]);
+  });
 });
 
 it("reads the API's nested error envelope", async () => {
   vi.resetModules();
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            success: false,
-            error: { code: "UNAUTHORIZED", message: "Sai email hoặc mật khẩu" },
-          }),
-          { status: 401 },
-        ),
+    vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: false,
+          error: { code: "UNAUTHORIZED", message: "Sai email hoặc mật khẩu" },
+        }),
+        { status: 401 },
       ),
+    ),
   );
   const { login } = await import("./api-client");
   await expect(login("user@example.com", "wrong")).rejects.toMatchObject({

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "./auth-store";
 import { getProfile } from "./api-client";
@@ -69,5 +69,35 @@ describe("session restoration", () => {
       expect(screen.getByText("Người dùng")).toBeInTheDocument(),
     );
     expect(localStorage.getItem("agritrace-auth")).not.toBeNull();
+  });
+  it("does not replace a new user's profile with a late response from the old session", async () => {
+    let resolveProfile!: (profile: typeof user) => void;
+    vi.mocked(getProfile).mockReturnValue(
+      new Promise((resolve) => {
+        resolveProfile = resolve;
+      }),
+    );
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    const otherUser = { ...user, id: "other", fullName: "Other user" };
+    await act(async () => {
+      localStorage.setItem(
+        "agritrace-auth",
+        JSON.stringify({
+          accessToken: "other-token",
+          refreshToken: "other-refresh",
+          user: otherUser,
+        }),
+      );
+      window.dispatchEvent(new Event("auth-changed"));
+      resolveProfile(user);
+    });
+    await screen.findByText("Other user");
+    expect(JSON.parse(localStorage.getItem("agritrace-auth")!).user.id).toBe(
+      "other",
+    );
   });
 });

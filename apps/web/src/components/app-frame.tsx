@@ -41,14 +41,29 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [lots, setLots] = useState<LotTrace[]>([]);
+  const [searchData, setSearchData] = useState<{
+    userId?: string;
+    lots: LotTrace[];
+  }>({ lots: [] });
+  const lots = searchData.userId === auth.user?.id ? searchData.lots : [];
   const [searchFailed, setSearchFailed] = useState(false);
   useEffect(() => {
+    let active = true;
+    setSearchData({ lots: [] });
+    setQuery("");
+    setSearchFailed(false);
     if (!auth.isAuthenticated) return;
     getLots()
-      .then(setLots)
-      .catch(() => setSearchFailed(true));
-  }, [auth.isAuthenticated]);
+      .then((items) => {
+        if (active) setSearchData({ userId: auth.user?.id, lots: items });
+      })
+      .catch(() => {
+        if (active) setSearchFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [auth.isAuthenticated, auth.user?.id]);
   useEffect(() => {
     if (!auth.isLoading && !auth.isAuthenticated && !isPublic)
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
@@ -284,7 +299,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
         <main className="content">
-          <div className="page-content" key={pathname}>
+          <div className="page-content" key={`${auth.user.id}:${pathname}`}>
             {children}
           </div>
           <footer className="footer">

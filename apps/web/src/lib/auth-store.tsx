@@ -58,8 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const latest = JSON.parse(
             localStorage.getItem(AUTH_STORAGE_KEY) ?? "null",
           ) as StoredAuth | null;
-          if (!latest) {
-            setAuth(null);
+          if (!latest || latest.user.id !== stored.user.id) {
+            setAuth(latest);
             return;
           }
           const refreshed = { ...latest, user };

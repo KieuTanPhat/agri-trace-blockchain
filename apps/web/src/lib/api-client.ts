@@ -184,9 +184,11 @@ export async function submitCommand(
 
 export async function sendSensorReading(
   payload: SensorReadingRequest,
+  idempotencyKey = crypto.randomUUID(),
 ): Promise<SensorReadingResponse> {
   if (USE_MOCK_API) return mockSendSensorReading(payload);
   return request("/iot/readings", {
+    headers: { "idempotency-key": idempotencyKey },
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -286,6 +288,7 @@ export async function request<T>(
   canRefresh = true,
 ): Promise<T> {
   const method = init.method?.toUpperCase() ?? "GET";
+  const sessionUserId = authenticated ? readStoredAuth()?.user?.id : undefined;
   const token = authenticated ? readAccessToken() : null;
   const headers = new Headers(init.headers);
   if (init.body) headers.set("content-type", "application/json");
@@ -315,6 +318,12 @@ export async function request<T>(
         message?: string | string[];
       }
     | null;
+  if (authenticated && readStoredAuth()?.user?.id !== sessionUserId)
+    throw {
+      status: 401,
+      code: "SESSION_CHANGED",
+      message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
+    };
   if (response.status === 401 && authenticated && canRefresh) {
     if (readAccessToken() === token) await refreshAccessToken();
     return request<T>(path, { ...init, headers }, authenticated, false);
