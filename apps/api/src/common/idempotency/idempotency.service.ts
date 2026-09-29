@@ -1,4 +1,9 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 import { canonicalSha256 } from '../crypto/rfc8785.js';
 import {
   IdempotencyStatus,
@@ -35,16 +40,27 @@ export class IdempotencyService {
     command: () => Promise<T>,
   ): Promise<T | Prisma.JsonValue | null> {
     const started = await this.start(input);
-    if (started.type === 'REPLAY') return started.body;
+    if (started.type === 'REPLAY') {
+      if (started.status >= 400)
+        throw new HttpException(
+          (started.body as object) ?? { message: 'Thao tác thất bại' },
+          started.status,
+        );
+      return started.body;
+    }
     try {
       const result = await command();
       const body = JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue;
       await this.complete(started.recordId, 200, body);
       return result;
     } catch (error) {
-      await this.fail(started.recordId, 500, {
-        message: error instanceof Error ? error.message : 'Command failed',
-      });
+      await this.fail(
+        started.recordId,
+        error instanceof HttpException ? error.getStatus() : 500,
+        {
+          message: error instanceof Error ? error.message : 'Command failed',
+        },
+      );
       throw error;
     }
   }

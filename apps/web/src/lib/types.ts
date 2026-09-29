@@ -75,6 +75,17 @@ export type LotTrace = {
   lotCode: string;
   productName: string;
   harvestTime: string;
+  damagedQuantity?: number;
+  quantityMovements?: {
+    id: string;
+    type: string;
+    quantity: number;
+    beforeQty: number;
+    delta: number;
+    afterQty: number;
+    unit: string;
+    createdAt: string;
+  }[];
   initialQuantity: number;
   availableQuantity: number;
   unit: string;
@@ -109,6 +120,8 @@ export type LotTrace = {
     origin: string;
     destination: string;
     shippedQuantity: number;
+    receivedQuantity?: number | null;
+    rejectedQuantity?: number | null;
   };
 };
 

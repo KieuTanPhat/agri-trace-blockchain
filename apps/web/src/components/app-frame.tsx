@@ -23,6 +23,8 @@ import type { LotTrace } from "@/lib/types";
 
 const navigation = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
+  { href: "/admin", label: "Quản trị", icon: Blocks },
+  { href: "/production-cycles", label: "Vụ trồng", icon: LayoutDashboard },
   { href: "/lots", label: "Lô nông sản", icon: Package },
   { href: "/scan", label: "Quét mã QR", icon: ScanLine },
   { href: "/iot-simulator", label: "Cảm biến IoT", icon: Thermometer },
@@ -71,6 +73,28 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
       </main>
     );
 
+  const role = auth.user.role.code;
+  if (
+    (pathname.startsWith("/admin") && role !== "SYSTEM_ADMIN") ||
+    (pathname.startsWith("/iot-simulator") &&
+      !["SYSTEM_ADMIN", "FARM_STAFF", "IOT_DEVICE"].includes(role)) ||
+    (pathname.startsWith("/production-cycles") &&
+      ![
+        "SYSTEM_ADMIN",
+        "FARM_STAFF",
+        "TRANSPORTER",
+        "RETAILER",
+        "AUDITOR",
+      ].includes(role))
+  )
+    return (
+      <main className="public-content">
+        <div className="notice error" role="alert">
+          Bạn không có quyền sử dụng chức năng này.
+        </div>
+        <Link href="/">Về tổng quan</Link>
+      </main>
+    );
   const roleName = auth.user.role.name || auth.user.role.code;
   return (
     <div
@@ -197,25 +221,45 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
         <aside className="sidebar" id="main-navigation">
           <p className="sidebar-heading">Không gian quản lý</p>
           <nav className="nav-list" aria-label="Điều hướng chính">
-            {navigation.map(({ href, label, icon: Icon }) => {
-              const active =
-                href === "/"
-                  ? pathname === "/"
-                  : pathname.startsWith(href.split("/").slice(0, 2).join("/"));
-              return (
-                <Link
-                  className="nav-link"
-                  href={href}
-                  key={href}
-                  title={label}
-                  aria-current={active ? "page" : undefined}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <Icon size={21} />
-                  <span>{label}</span>
-                </Link>
-              );
-            })}
+            {navigation
+              .filter((item) =>
+                item.href === "/admin"
+                  ? auth.user?.role.code === "SYSTEM_ADMIN"
+                  : item.href === "/iot-simulator"
+                    ? ["SYSTEM_ADMIN", "FARM_STAFF", "IOT_DEVICE"].includes(
+                        auth.user?.role.code ?? "",
+                      )
+                    : item.href === "/production-cycles"
+                      ? [
+                          "SYSTEM_ADMIN",
+                          "FARM_STAFF",
+                          "TRANSPORTER",
+                          "RETAILER",
+                          "AUDITOR",
+                        ].includes(auth.user?.role.code ?? "")
+                      : true,
+              )
+              .map(({ href, label, icon: Icon }) => {
+                const active =
+                  href === "/"
+                    ? pathname === "/"
+                    : pathname.startsWith(
+                        href.split("/").slice(0, 2).join("/"),
+                      );
+                return (
+                  <Link
+                    className="nav-link"
+                    href={href}
+                    key={href}
+                    title={label}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <Icon size={21} />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
           </nav>
           <div className="sidebar-garden">
             <Image

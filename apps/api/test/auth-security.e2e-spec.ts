@@ -106,6 +106,22 @@ describe('Auth security (e2e)', () => {
     await app?.close();
   });
 
+  it.each([
+    '/api/catalog/products',
+    '/api/catalog/farms',
+    '/api/catalog/plots',
+    '/api/users',
+    '/api/organizations',
+  ])('blocks farm staff from administration at %s', async (path) => {
+    user!.role.code = 'FARM_STAFF';
+    const token = await jwt.signAsync({ sub: user!.id });
+    await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer ' + token)
+      .send({})
+      .expect(403);
+  });
+
   it('keeps public registration disabled', async () => {
     await request(app.getHttpServer())
       .post('/api/auth/register')

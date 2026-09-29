@@ -112,8 +112,13 @@ export function recordHarvest(
     qualityNote?: string;
     lotCode?: string;
   },
-): Promise<unknown> {
+  idempotencyKey = crypto.randomUUID(),
+): Promise<{
+  lot: { id: string; lotCode: string };
+  traceQr: { traceToken: string };
+}> {
   return request(`/production-cycles/${cycleId}/harvests`, {
+    headers: { "idempotency-key": idempotencyKey },
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -123,11 +128,13 @@ export async function submitCommand(
   lot: LotTrace,
   command: AllowedCommand,
   input: CommandInput = {},
+  idempotencyKey = crypto.randomUUID(),
 ): Promise<{ message: string }> {
   if (USE_MOCK_API) return mockSubmitCommand(lot.lotId, command);
 
   if (command === "createShipment") {
     await request("/shipments", {
+      headers: { "idempotency-key": idempotencyKey },
       method: "POST",
       body: JSON.stringify({
         lotId: lot.lotId,
@@ -168,6 +175,7 @@ export async function submitCommand(
           ? { ...base, quantity: input.quantity, reason: input.reason }
           : base;
   await request(`/shipments/${lot.shipment.shipmentId}/${endpoint[command]}`, {
+    headers: { "idempotency-key": idempotencyKey },
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -209,13 +217,33 @@ async function refreshAccessToken(): Promise<string> {
       cache: "no-store",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ refreshToken: stored.refreshToken }),
+    }).catch(() => {
+      throw {
+        status: 0,
+        code: "NETWORK_ERROR",
+        message: "Không thể làm mới phiên do mất kết nối. Vui lòng thử lại.",
+      };
     });
-    const envelope = (await response.json().catch(() => null)) as
-      | ApiEnvelope<LoginResponse>
-      | null;
+    const envelope = (await response
+      .json()
+      .catch(() => null)) as ApiEnvelope<LoginResponse> | null;
+    if (readStoredAuth()?.refreshToken !== stored.refreshToken)
+      throw {
+        status: 401,
+        message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
+      };
     if (!response.ok || !envelope?.success) {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      throw new Error("Phiên đăng nhập đã hết hạn");
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        window.dispatchEvent(new Event("auth-changed"));
+      }
+      throw {
+        status: response.status,
+        message:
+          response.status >= 500
+            ? "Máy chủ tạm thời không phản hồi. Vui lòng thử lại."
+            : "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      };
     }
     const next: StoredAuth = {
       accessToken: envelope.data.accessToken,
@@ -223,6 +251,11 @@ async function refreshAccessToken(): Promise<string> {
       refreshExpiresAt: envelope.data.refreshExpiresAt,
       user: envelope.data.user,
     };
+    if (readStoredAuth()?.refreshToken !== stored.refreshToken)
+      throw {
+        status: 401,
+        message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
+      };
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next));
     return next.accessToken;
   })().finally(() => {
@@ -246,7 +279,7 @@ function isApiError(error: unknown): error is { status: number } {
   return typeof error === "object" && error !== null && "status" in error;
 }
 
-async function request<T>(
+export async function request<T>(
   path: string,
   init: RequestInit = {},
   authenticated = true,
@@ -258,16 +291,24 @@ async function request<T>(
   if (init.body) headers.set("content-type", "application/json");
   if (token) headers.set("authorization", `Bearer ${token}`);
   if (!["GET", "HEAD", "OPTIONS"].includes(method))
-    headers.set("idempotency-key", crypto.randomUUID());
+    if (!headers.has("idempotency-key"))
+      headers.set("idempotency-key", crypto.randomUUID());
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     cache: "no-store",
     headers,
+  }).catch(() => {
+    throw {
+      status: 0,
+      code: "NETWORK_ERROR",
+      message: "Không kết nối được máy chủ. Hãy thử lại khi có mạng.",
+    };
   });
   const payload = (await response.json().catch(() => null)) as
     | ApiEnvelope<T>
     | {
+        error?: { code?: string; message?: string | string[] };
         statusCode?: number;
         status?: number;
         code?: string;
@@ -275,23 +316,39 @@ async function request<T>(
       }
     | null;
   if (response.status === 401 && authenticated && canRefresh) {
-    await refreshAccessToken();
-    return request<T>(path, init, authenticated, false);
+    if (readAccessToken() === token) await refreshAccessToken();
+    return request<T>(path, { ...init, headers }, authenticated, false);
   }
   if (!response.ok) {
-    const message =
-      payload && "message" in payload
-        ? Array.isArray(payload.message)
-          ? payload.message.join("; ")
-          : payload.message
-        : response.statusText;
+    if (response.status === 401 && authenticated) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      window.dispatchEvent(new Event("auth-changed"));
+    }
+    const detail =
+      payload && "error" in payload && payload.error ? payload.error : payload;
+    const rawMessage =
+      detail && "message" in detail ? detail.message : undefined;
+    const message = Array.isArray(rawMessage)
+      ? rawMessage.join("; ")
+      : rawMessage;
     throw {
       status: response.status,
       code:
-        payload && "code" in payload
-          ? (payload.code ?? "HTTP_ERROR")
+        detail && "code" in detail
+          ? (detail.code ?? "HTTP_ERROR")
           : "HTTP_ERROR",
-      message: message || "Yêu cầu thất bại",
+      message:
+        message ||
+        (
+          {
+            401: "Email hoặc mật khẩu không đúng.",
+            403: "Bạn không có quyền thực hiện thao tác này.",
+            409: "Dữ liệu đã thay đổi hoặc thao tác đang được xử lý. Hãy tải lại dữ liệu và kiểm tra trước khi thử lại.",
+            422: "Thông tin chưa hợp lệ. Vui lòng kiểm tra lại.",
+            503: "Dịch vụ tạm thời không khả dụng. Vui lòng thử lại.",
+          } as Record<number, string>
+        )[response.status] ||
+        "Yêu cầu thất bại. Vui lòng thử lại.",
     };
   }
   if (payload && "success" in payload) return payload.data;
