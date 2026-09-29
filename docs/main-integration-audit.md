@@ -72,6 +72,13 @@
     The peer's npm 10 builder can use reproducible production `npm ci` instead
     of crashing while resolving the unpinned development dependency graph.
     Audit that lockfile separately from the workspace lockfile in CI.
+15. Limit each lot's trace projection to its own events plus cycle-wide events
+    with no lot ID. A shipment participant cannot see sibling harvest events
+    through the lot detail page, and public QR timelines do not mix lots.
+16. Compute the overall proof status across every related event, including
+    production-cycle events in list views. Pending, failed, or invalid earlier
+    proofs cannot be hidden by a verified latest event. Recompute each local
+    event hash before displaying VERIFIED, without exposing its hash input.
 
 ## Verification and merge gates
 

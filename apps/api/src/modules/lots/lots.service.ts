@@ -10,22 +10,37 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
+import { calculateTraceEventHash } from '../trace/public.js';
 import type { RecordHarvestDto } from './dto.js';
+
+const LOT_TRACE_INCLUDE = {
+  blockchainProof: true,
+  blockchainOutbox: { select: { status: true } },
+  actor: { select: { id: true } },
+  organization: { select: { id: true, name: true } },
+} satisfies Prisma.TraceEventInclude;
 
 const INTERNAL_LOT_INCLUDE = {
   product: true,
   organization: true,
-  harvest: { include: { cycle: { include: { farm: true, plot: true } } } },
+  harvest: {
+    include: {
+      cycle: {
+        include: {
+          farm: true,
+          plot: true,
+          traceEvents: {
+            where: { lotId: null },
+            include: LOT_TRACE_INCLUDE,
+          },
+        },
+      },
+    },
+  },
   shipment: { include: { transporter: true, retailer: true } },
   quantityMovements: { orderBy: { createdAt: 'asc' as const } },
   traceEvents: {
-    orderBy: { eventTime: 'asc' as const },
-    include: {
-      blockchainProof: true,
-      blockchainOutbox: { select: { status: true } },
-      actor: { select: { id: true } },
-      organization: { select: { id: true, name: true } },
-    },
+    include: LOT_TRACE_INCLUDE,
   },
   certificates: true,
   inspections: true,
@@ -35,6 +50,12 @@ const INTERNAL_LOT_INCLUDE = {
 type InternalLot = Prisma.LotGetPayload<{
   include: typeof INTERNAL_LOT_INCLUDE;
 }>;
+
+type ProofEvent = Parameters<typeof calculateTraceEventHash>[0] & {
+  dataHash: string;
+  blockchainProof: null | { dataHash: string; transactionStatus: string };
+  blockchainOutbox?: null | { status: string };
+};
 
 @Injectable()
 export class LotsService {
@@ -162,19 +183,7 @@ export class LotsService {
       include: INTERNAL_LOT_INCLUDE,
     });
     if (!lot) throw new NotFoundException('Không tìm thấy lô hàng');
-    const traceEvents = await this.prisma.traceEvent.findMany({
-      where: {
-        OR: [{ lotId }, { cycleId: lot.harvest.cycle.id }],
-      },
-      orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
-      include: {
-        blockchainProof: true,
-        blockchainOutbox: { select: { status: true } },
-        actor: { select: { id: true } },
-        organization: { select: { id: true, name: true } },
-      },
-    });
-    return this.toInternalDto({ ...lot, traceEvents }, actor);
+    return this.toInternalDto(lot, actor);
   }
 
   async getList(actor: Actor) {
@@ -273,15 +282,10 @@ export class LotsService {
     const { lot } = qr;
     const traceEvents = await this.prisma.traceEvent.findMany({
       where: {
-        OR: [{ lotId: lot.id }, { cycleId: lot.harvest.cycle.id }],
+        OR: [{ lotId: lot.id }, { cycleId: lot.harvest.cycle.id, lotId: null }],
       },
       orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
-      select: {
-        id: true,
-        entityType: true,
-        eventType: true,
-        eventTime: true,
-        dataHash: true,
+      include: {
         blockchainProof: {
           select: {
             transactionStatus: true,
@@ -318,7 +322,7 @@ export class LotsService {
         type: 'FARM',
       },
       allowedCommands: [],
-      proofStatus: this.proofStatus(latest),
+      proofStatus: this.aggregateProofStatus(traceEvents),
       timeline: traceEvents.map((event) => ({
         eventId: event.id,
         entityType: event.entityType,
@@ -343,7 +347,15 @@ export class LotsService {
   }
 
   private toInternalDto(lot: InternalLot, actor: Actor) {
-    const latest = lot.traceEvents.at(-1);
+    const traceEvents = [
+      ...lot.traceEvents,
+      ...lot.harvest.cycle.traceEvents,
+    ].sort(
+      (a, b) =>
+        a.eventTime.getTime() - b.eventTime.getTime() ||
+        a.createdAt.getTime() - b.createdAt.getTime(),
+    );
+    const latest = traceEvents.at(-1);
     return {
       lotId: lot.id,
       traceToken: lot.traceQr?.traceToken,
@@ -388,8 +400,8 @@ export class LotsService {
           }
         : undefined,
       allowedCommands: this.allowedCommands(lot, actor),
-      proofStatus: this.proofStatus(latest),
-      timeline: lot.traceEvents.map((event) => ({
+      proofStatus: this.aggregateProofStatus(traceEvents),
+      timeline: traceEvents.map((event) => ({
         eventId: event.id,
         entityType: event.entityType,
         eventType: event.eventType,
@@ -469,14 +481,27 @@ export class LotsService {
     return [];
   }
 
-  private proofStatus(event?: {
-    dataHash: string;
-    blockchainProof: null | {
-      dataHash: string;
-      transactionStatus: string;
-    };
-    blockchainOutbox?: null | { status: string };
-  }) {
+  private aggregateProofStatus(events: ProofEvent[]) {
+    const statuses = events.map((event) => this.proofStatus(event));
+    for (const status of [
+      'INTEGRITY_WARNING',
+      'BLOCKCHAIN_UNAVAILABLE',
+      'PENDING',
+    ] as const) {
+      if (statuses.includes(status)) return status;
+    }
+    return statuses.length ? 'VERIFIED' : 'PENDING';
+  }
+
+  private proofStatus(event?: ProofEvent) {
+    if (event) {
+      try {
+        if (event.dataHash !== calculateTraceEventHash(event))
+          return 'INTEGRITY_WARNING';
+      } catch {
+        return 'INTEGRITY_WARNING';
+      }
+    }
     if (!event?.blockchainProof) {
       return event?.blockchainOutbox?.status === 'DEAD_LETTER'
         ? 'BLOCKCHAIN_UNAVAILABLE'

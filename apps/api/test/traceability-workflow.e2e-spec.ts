@@ -369,6 +369,104 @@ const prisma = new PrismaClient({
       await get(`/trace/events/${event.id}/proof`, 'foreign').expect(403);
     });
 
+    it('keeps sibling harvest events out of a lot timeline while retaining cycle history', async () => {
+      const cycle = await plantedCycle(2);
+      const harvest = async () =>
+        (
+          await post(`/production-cycles/${cycle.id}/harvests`, {
+            quantity: 0.5,
+            unit: 'kg',
+            harvestTime: '2026-09-26T00:00:00.000Z',
+          }).expect(201)
+        ).body.data;
+      const first = await harvest();
+      const sibling = await harvest();
+      await post('/shipments', {
+        lotId: first.lot.id,
+        transporterOrgId,
+        retailerOrgId,
+        origin: 'Farm',
+        destination: 'Retailer',
+      }).expect(201);
+      const siblingEvent = await prisma.traceEvent.findFirstOrThrow({
+        where: { lotId: sibling.lot.id },
+      });
+      const detail = (
+        await get(`/lots/${first.lot.id}`, 'transporter').expect(200)
+      ).body.data;
+      const publicTrace = (
+        await request(app.getHttpServer())
+          .get('/api/public/trace/' + first.traceQr.traceToken)
+          .expect(200)
+      ).body.data;
+      for (const projection of [detail, publicTrace]) {
+        expect(
+          projection.timeline.map(
+            (event: { eventId: string }) => event.eventId,
+          ),
+        ).not.toContain(siblingEvent.id);
+        expect(
+          projection.timeline.filter(
+            (event: { eventType: string }) =>
+              event.eventType === 'HARVEST_RECORDED',
+          ),
+        ).toHaveLength(1);
+        expect(
+          projection.timeline.some(
+            (event: { eventType: string }) =>
+              event.eventType === 'CYCLE_PLANTED',
+          ),
+        ).toBe(true);
+      }
+      await get(`/trace/events/${siblingEvent.id}/proof`, 'transporter').expect(
+        403,
+      );
+    });
+
+    it('does not label the lot verified when an earlier cycle event is pending or failed', async () => {
+      const { lot, cycle, traceQr } = await harvestedLot();
+      const events = await prisma.traceEvent.findMany({
+        where: { OR: [{ lotId: lot.id }, { cycleId: cycle.id, lotId: null }] },
+        orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
+      });
+      const confirm = (event: (typeof events)[number]) =>
+        prisma.blockchainProof.create({
+          data: {
+            eventId: event.id,
+            dataHash: event.dataHash,
+            network: 'audit-fixture',
+            txId: randomUUID(),
+            recordedAt: new Date(),
+            transactionStatus: 'CONFIRMED',
+          },
+        });
+      await confirm(events.at(-1)!);
+      const checkStatus = async (status: string) => {
+        const detail = (await get(`/lots/${lot.id}`).expect(200)).body.data;
+        const publicTrace = (
+          await request(app.getHttpServer())
+            .get('/api/public/trace/' + traceQr.traceToken)
+            .expect(200)
+        ).body.data;
+        expect(detail.proofStatus).toBe(status);
+        expect(publicTrace.proofStatus).toBe(status);
+      };
+      await checkStatus('PENDING');
+      for (const event of events.slice(1, -1)) await confirm(event);
+      await prisma.blockchainOutbox.update({
+        where: { eventId: events[0].id },
+        data: { status: 'DEAD_LETTER' },
+      });
+      await checkStatus('BLOCKCHAIN_UNAVAILABLE');
+      const list = (await get('/lots').expect(200)).body.data;
+      expect(
+        list.find((item: { lotId: string }) => item.lotId === lot.id)
+          .proofStatus,
+      ).toBe('BLOCKCHAIN_UNAVAILABLE');
+      await confirm(events[0]);
+      await checkStatus('VERIFIED');
+    });
+
     it('does not count previously damaged stock again when the retailer rejects a shipment', async () => {
       const { lot, shipment } = await startedShipment(1);
       await post(
