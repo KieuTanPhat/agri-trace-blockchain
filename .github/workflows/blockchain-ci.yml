@@ -48,6 +48,9 @@ jobs:
         with:
           node-version: 22
       - run: npm install --global npm@12.1.0
+      - name: Audit standalone chaincode lockfile
+        working-directory: blockchain/chaincode
+        run: npm audit --workspaces=false --audit-level=high
       - name: Bootstrap pinned Fabric runtime
         working-directory: blockchain/network
         run: ./network.sh bootstrap

@@ -65,6 +65,13 @@
 12. Database tests use TEST_DATABASE_URL only and verify connectivity before
     negative constraint tests, preventing false passes against an unavailable
     database.
+13. Replace the fixed-version, 100-byte QR encoder with the established qrcode
+    library. Long trace URLs round-trip through an independent jsQR decoder,
+    without changing the SVG display component.
+14. Include a standalone chaincode lockfile in Fabric's deployment package.
+    The peer's npm 10 builder can use reproducible production `npm ci` instead
+    of crashing while resolving the unpinned development dependency graph.
+    Audit that lockfile separately from the workspace lockfile in CI.
 
 ## Verification and merge gates
 
@@ -85,6 +92,12 @@
 Local database verification uses an isolated temporary PostgreSQL 18 instance;
 CI uses PostgreSQL 16. Local Docker availability is not assumed, so container
 and Fabric gates run on GitHub's disposable Linux runners.
+
+Browser verification uses Chromium on desktop (1440x900) and mobile (390x844):
+invalid and successful login, cycle creation, planting, harvest, lot detail,
+and public QR trace. The lots, admin, cycles, IoT, and public trace routes
+render without browser runtime errors or document-level horizontal overflow.
+This smoke run uses only the disposable audit database and demo identities.
 
 ## Operational constraints
 
