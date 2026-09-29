@@ -20,9 +20,11 @@ docs/
 
 ## Cài đặt
 
-Yêu cầu Node.js 22 và npm. Từ thư mục gốc:
+Yêu cầu Node.js 22.22.3+ (hoặc 24.15+) và npm 12.1.0. npm cũ có thể bỏ qua
+`overrides` của dependency trong workspace. Từ thư mục gốc:
 
 ```bash
+npm install --global npm@12.1.0
 npm ci
 ```
 
@@ -62,6 +64,9 @@ npm run check
 ```
 
 Lệnh trên chạy lint, typecheck, unit/e2e test và build tương ứng cho các workspace.
+Test ràng buộc và nghiệp vụ PostgreSQL cần `TEST_DATABASE_URL` trỏ đến database
+test riêng đã chạy migration; thiếu biến này thì các test database bị bỏ qua.
+Không đặt `TEST_DATABASE_URL` thành database production.
 Để chạy riêng một phần:
 
 ```bash

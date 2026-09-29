@@ -61,7 +61,9 @@ jobs:
           cache-dependency-path: package-lock.json
       # Install from the repository root so npm links local workspace packages.
       # The API imports @agri-trace/fabric-gateway from blockchain/gateway.
+      - run: npm install --global npm@12.1.0
       - run: npm ci
+      - run: npm audit --audit-level=high
       # The gateway package exports its compiled declarations from dist/.
       - run: npm run build --workspace blockchain/gateway
       - name: Apply API database migrations
@@ -71,9 +73,22 @@ jobs:
 
   container-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - name: Validate Compose model
         run: docker compose config --quiet
       - name: Build production images
         run: docker compose build api web
+      - name: Start production containers against a disposable database
+        run: docker compose up -d --wait --wait-timeout 180 postgres api web
+      - name: Verify production HTTP entrypoints
+        run: |
+          curl --fail --retry 3 http://localhost:8080/api/health
+          curl --fail --retry 3 --output /dev/null http://localhost:3000/login
+      - name: Collect application diagnostics
+        if: failure()
+        run: docker compose logs --no-color --tail 200
+      - name: Stop disposable application stack
+        if: always()
+        run: docker compose down --volumes
