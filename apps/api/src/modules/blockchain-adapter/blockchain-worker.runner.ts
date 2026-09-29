@@ -80,16 +80,15 @@ export class BlockchainWorkerRunner
   private wait(milliseconds: number): Promise<void> {
     return new Promise((resolve) => {
       if (this.abortController.signal.aborted) return resolve();
-      const timer = setTimeout(resolve, milliseconds);
+      const signal = this.abortController.signal;
+      const finish = () => {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', finish);
+        resolve();
+      };
+      const timer = setTimeout(finish, milliseconds);
       timer.unref();
-      this.abortController.signal.addEventListener(
-        'abort',
-        () => {
-          clearTimeout(timer);
-          resolve();
-        },
-        { once: true },
-      );
+      signal.addEventListener('abort', finish, { once: true });
     });
   }
 }

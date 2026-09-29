@@ -18,7 +18,10 @@ export class CreateProductionCycleDto {
   @IsString() @MaxLength(100) cycleCode!: string;
   @IsOptional() @IsDateString() startDate?: string;
   @IsOptional() @IsDateString() plannedHarvest?: string;
-  @Type(() => Number) @IsNumber() @IsPositive() maxHarvestQuantity!: number;
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @IsPositive()
+  maxHarvestQuantity!: number;
   @IsString() @MaxLength(30) harvestUnit!: string;
   @IsOptional() @IsString() note?: string;
 }
@@ -35,7 +38,11 @@ export class CareRecordDto extends VersionedCommandDto {
   @IsString() @MaxLength(100) careType!: string;
   @IsDateString() eventTime!: string;
   @IsOptional() @IsString() materialName?: string;
-  @IsOptional() @Type(() => Number) @IsNumber() @IsPositive() quantity?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @IsPositive()
+  quantity?: number;
   @IsOptional() @IsString() unit?: string;
   @IsOptional() @IsString() method?: string;
   @IsOptional() @IsString() note?: string;

@@ -7,7 +7,7 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY blockchain/chaincode/package.json blockchain/chaincode/package.json
 COPY blockchain/gateway/package.json blockchain/gateway/package.json
-RUN npm ci
+RUN npm install --global npm@12.1.0 && npm ci
 
 FROM dependencies AS build
 WORKDIR /app

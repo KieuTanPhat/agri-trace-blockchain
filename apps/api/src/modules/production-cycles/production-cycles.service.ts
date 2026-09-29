@@ -62,14 +62,19 @@ export class ProductionCyclesService {
   private visibleWhere(actor: Actor): Prisma.ProductionCycleWhereInput {
     if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) return {};
     if (actor.role === 'FARM_STAFF')
-      return { farmOrgId: actor.organizationId ?? undefined };
+      return {
+        farmOrgId:
+          actor.organizationId ?? '00000000-0000-0000-0000-000000000000',
+      };
     if (actor.role === 'TRANSPORTER')
       return {
         harvestEvents: {
           some: {
             lot: {
               shipment: {
-                transporterOrgId: actor.organizationId ?? undefined,
+                transporterOrgId:
+                  actor.organizationId ??
+                  '00000000-0000-0000-0000-000000000000',
               },
             },
           },
@@ -80,12 +85,16 @@ export class ProductionCyclesService {
         harvestEvents: {
           some: {
             lot: {
-              shipment: { retailerOrgId: actor.organizationId ?? undefined },
+              shipment: {
+                retailerOrgId:
+                  actor.organizationId ??
+                  '00000000-0000-0000-0000-000000000000',
+              },
             },
           },
         },
       };
-    return { id: '__not_authorized__' };
+    return { id: '00000000-0000-0000-0000-000000000000' };
   }
 
   async create(input: CreateProductionCycleDto, actor: Actor) {
@@ -100,7 +109,10 @@ export class ProductionCyclesService {
       throw new NotFoundException(
         'Sản phẩm không tồn tại hoặc không hoạt động',
       );
-    if (plot && (plot.farmId !== farm.id || plot.status !== 'ACTIVE'))
+    if (
+      (input.plotId && !plot) ||
+      (plot && (plot.farmId !== farm.id || plot.status !== 'ACTIVE'))
+    )
       throw new UnprocessableEntityException(
         'Thửa đất không thuộc nông trại hoặc không hoạt động',
       );
@@ -202,6 +214,11 @@ export class ProductionCyclesService {
 
   async addSensorReading(id: string, input: SensorReadingDto, actor: Actor) {
     const cycle = await this.access.assertProductionCycleAccess(actor, id);
+    if (!['PLANTED', 'GROWING'].includes(cycle.currentState)) {
+      throw new UnprocessableEntityException(
+        'Cycle is not accepting sensor readings',
+      );
+    }
     const device = await this.prisma.iotDevice.findUnique({
       where: { id: input.deviceId },
     });

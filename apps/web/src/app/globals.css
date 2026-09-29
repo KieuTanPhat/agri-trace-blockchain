@@ -1606,3 +1606,8 @@ a.list-row:hover { background: var(--primary-pale); }
 .login-card > img { width: 210px; height: auto; }
 .notice.error { color: #8f2828; background: #fff1f1; border-color: #efc5c5; }
 @media (max-width: 760px) { .public-content { padding: 16px; } }
+
+.management-fields { border: 0; padding: 0; margin: 16px 0; min-width: 0; }
+.table-scroll { overflow-x: auto; }
+.table-scroll table { width: 100%; border-collapse: collapse; }
+.table-scroll th, .table-scroll td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8e5; }

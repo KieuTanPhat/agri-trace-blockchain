@@ -1,12 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { calculateTraceEventHash } from '../trace/public.js';
+import { OrganizationAccessService } from '../auth/organization-access.service.js';
+import type { Actor } from '../trace/trace.service.js';
 
 @Injectable()
 export class BlockchainProofQueryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: OrganizationAccessService,
+  ) {}
 
-  async verify(eventId: string) {
+  async verify(eventId: string, actor: Actor) {
+    await this.access.assertTraceEventAccess(actor, eventId);
     const event = await this.prisma.traceEvent.findUnique({
       where: { id: eventId },
       include: { blockchainProof: true, blockchainOutbox: true },

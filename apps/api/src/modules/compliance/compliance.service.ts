@@ -29,18 +29,28 @@ export class ComplianceService {
         OR: unrestricted
           ? undefined
           : [
-              { lot: { farmOrgId: actor.organizationId ?? undefined } },
+              {
+                lot: {
+                  farmOrgId:
+                    actor.organizationId ??
+                    '00000000-0000-0000-0000-000000000000',
+                },
+              },
               {
                 lot: {
                   shipment: {
-                    transporterOrgId: actor.organizationId ?? undefined,
+                    transporterOrgId:
+                      actor.organizationId ??
+                      '00000000-0000-0000-0000-000000000000',
                   },
                 },
               },
               {
                 lot: {
                   shipment: {
-                    retailerOrgId: actor.organizationId ?? undefined,
+                    retailerOrgId:
+                      actor.organizationId ??
+                      '00000000-0000-0000-0000-000000000000',
                   },
                 },
               },
@@ -94,19 +104,35 @@ export class ComplianceService {
         OR: unrestricted
           ? undefined
           : [
-              { lot: { farmOrgId: actor.organizationId ?? undefined } },
-              { cycle: { farmOrgId: actor.organizationId ?? undefined } },
+              {
+                lot: {
+                  farmOrgId:
+                    actor.organizationId ??
+                    '00000000-0000-0000-0000-000000000000',
+                },
+              },
+              {
+                cycle: {
+                  farmOrgId:
+                    actor.organizationId ??
+                    '00000000-0000-0000-0000-000000000000',
+                },
+              },
               {
                 lot: {
                   shipment: {
-                    transporterOrgId: actor.organizationId ?? undefined,
+                    transporterOrgId:
+                      actor.organizationId ??
+                      '00000000-0000-0000-0000-000000000000',
                   },
                 },
               },
               {
                 lot: {
                   shipment: {
-                    retailerOrgId: actor.organizationId ?? undefined,
+                    retailerOrgId:
+                      actor.organizationId ??
+                      '00000000-0000-0000-0000-000000000000',
                   },
                 },
               },
@@ -228,8 +254,7 @@ export class ComplianceService {
       where: { id: input.cycleId },
       select: { farmOrgId: true },
     });
-    if (!cycle)
-      throw new NotFoundException('Không tìm thấy chu kỳ sản xuất');
+    if (!cycle) throw new NotFoundException('Không tìm thấy chu kỳ sản xuất');
     if (!unrestricted && cycle.farmOrgId !== actor.organizationId)
       throw new ForbiddenException('Chu kỳ không thuộc tổ chức của người dùng');
   }

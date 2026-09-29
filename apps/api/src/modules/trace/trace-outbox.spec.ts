@@ -1,6 +1,7 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { TraceService } from './trace.service.js';
+import { OrganizationAccessService } from '../auth/organization-access.service.js';
 
 describe('TraceService transactional outbox', () => {
   it('creates the trace event and outbox row without creating a pending proof', async () => {
@@ -10,6 +11,7 @@ describe('TraceService transactional outbox', () => {
     };
     const tx = {
       $executeRaw: vi.fn().mockResolvedValue(1),
+      $queryRaw: vi.fn().mockResolvedValue([]),
       traceEvent: {
         findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue(event),
@@ -17,16 +19,19 @@ describe('TraceService transactional outbox', () => {
       blockchainOutbox: { create: vi.fn().mockResolvedValue({}) },
       blockchainProof: { create: vi.fn() },
     };
-    const service = new TraceService({} as PrismaService);
+    const service = new TraceService(
+      {} as PrismaService,
+      {} as OrganizationAccessService,
+    );
 
     await service.createInTransaction(
       tx as unknown as Prisma.TransactionClient,
       {
-      entityType: 'LOT',
-      entityId: '631e9648-174d-48a0-9494-353bda8775da',
-      lotId: '631e9648-174d-48a0-9494-353bda8775da',
-      eventType: 'HARVEST_RECORDED',
-      actor: { sub: null, organizationId: null, role: 'SYSTEM' },
+        entityType: 'LOT',
+        entityId: '631e9648-174d-48a0-9494-353bda8775da',
+        lotId: '631e9648-174d-48a0-9494-353bda8775da',
+        eventType: 'HARVEST_RECORDED',
+        actor: { sub: null, organizationId: null, role: 'SYSTEM' },
         businessData: { quantity: '100' },
       },
     );

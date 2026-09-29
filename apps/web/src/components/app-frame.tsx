@@ -23,6 +23,8 @@ import type { LotTrace } from "@/lib/types";
 
 const navigation = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
+  { href: "/admin", label: "Quản trị", icon: Blocks },
+  { href: "/production-cycles", label: "Vụ trồng", icon: LayoutDashboard },
   { href: "/lots", label: "Lô nông sản", icon: Package },
   { href: "/scan", label: "Quét mã QR", icon: ScanLine },
   { href: "/iot-simulator", label: "Cảm biến IoT", icon: Thermometer },
@@ -39,14 +41,29 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [lots, setLots] = useState<LotTrace[]>([]);
+  const [searchData, setSearchData] = useState<{
+    userId?: string;
+    lots: LotTrace[];
+  }>({ lots: [] });
+  const lots = searchData.userId === auth.user?.id ? searchData.lots : [];
   const [searchFailed, setSearchFailed] = useState(false);
   useEffect(() => {
+    let active = true;
+    setSearchData({ lots: [] });
+    setQuery("");
+    setSearchFailed(false);
     if (!auth.isAuthenticated) return;
     getLots()
-      .then(setLots)
-      .catch(() => setSearchFailed(true));
-  }, [auth.isAuthenticated]);
+      .then((items) => {
+        if (active) setSearchData({ userId: auth.user?.id, lots: items });
+      })
+      .catch(() => {
+        if (active) setSearchFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [auth.isAuthenticated, auth.user?.id]);
   useEffect(() => {
     if (!auth.isLoading && !auth.isAuthenticated && !isPublic)
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
@@ -71,6 +88,28 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
       </main>
     );
 
+  const role = auth.user.role.code;
+  if (
+    (pathname.startsWith("/admin") && role !== "SYSTEM_ADMIN") ||
+    (pathname.startsWith("/iot-simulator") &&
+      !["SYSTEM_ADMIN", "FARM_STAFF", "IOT_DEVICE"].includes(role)) ||
+    (pathname.startsWith("/production-cycles") &&
+      ![
+        "SYSTEM_ADMIN",
+        "FARM_STAFF",
+        "TRANSPORTER",
+        "RETAILER",
+        "AUDITOR",
+      ].includes(role))
+  )
+    return (
+      <main className="public-content">
+        <div className="notice error" role="alert">
+          Bạn không có quyền sử dụng chức năng này.
+        </div>
+        <Link href="/">Về tổng quan</Link>
+      </main>
+    );
   const roleName = auth.user.role.name || auth.user.role.code;
   return (
     <div
@@ -197,25 +236,45 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
         <aside className="sidebar" id="main-navigation">
           <p className="sidebar-heading">Không gian quản lý</p>
           <nav className="nav-list" aria-label="Điều hướng chính">
-            {navigation.map(({ href, label, icon: Icon }) => {
-              const active =
-                href === "/"
-                  ? pathname === "/"
-                  : pathname.startsWith(href.split("/").slice(0, 2).join("/"));
-              return (
-                <Link
-                  className="nav-link"
-                  href={href}
-                  key={href}
-                  title={label}
-                  aria-current={active ? "page" : undefined}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <Icon size={21} />
-                  <span>{label}</span>
-                </Link>
-              );
-            })}
+            {navigation
+              .filter((item) =>
+                item.href === "/admin"
+                  ? auth.user?.role.code === "SYSTEM_ADMIN"
+                  : item.href === "/iot-simulator"
+                    ? ["SYSTEM_ADMIN", "FARM_STAFF", "IOT_DEVICE"].includes(
+                        auth.user?.role.code ?? "",
+                      )
+                    : item.href === "/production-cycles"
+                      ? [
+                          "SYSTEM_ADMIN",
+                          "FARM_STAFF",
+                          "TRANSPORTER",
+                          "RETAILER",
+                          "AUDITOR",
+                        ].includes(auth.user?.role.code ?? "")
+                      : true,
+              )
+              .map(({ href, label, icon: Icon }) => {
+                const active =
+                  href === "/"
+                    ? pathname === "/"
+                    : pathname.startsWith(
+                        href.split("/").slice(0, 2).join("/"),
+                      );
+                return (
+                  <Link
+                    className="nav-link"
+                    href={href}
+                    key={href}
+                    title={label}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <Icon size={21} />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
           </nav>
           <div className="sidebar-garden">
             <Image
@@ -240,7 +299,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
         <main className="content">
-          <div className="page-content" key={pathname}>
+          <div className="page-content" key={`${auth.user.id}:${pathname}`}>
             {children}
           </div>
           <footer className="footer">

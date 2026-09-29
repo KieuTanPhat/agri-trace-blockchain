@@ -45,20 +45,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       const stored = JSON.parse(raw) as StoredAuth;
-      if (!stored.accessToken || !stored.refreshToken)
+      if (
+        !stored?.accessToken ||
+        !stored.refreshToken ||
+        !stored.user?.role?.code
+      )
         throw new Error("missing token");
       setAuth(stored);
       getProfile()
         .then((user) => {
           if (!active) return;
-          const refreshed = { ...stored, user };
+          const latest = JSON.parse(
+            localStorage.getItem(AUTH_STORAGE_KEY) ?? "null",
+          ) as StoredAuth | null;
+          if (!latest || latest.user.id !== stored.user.id) {
+            setAuth(latest);
+            return;
+          }
+          const refreshed = { ...latest, user };
           localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(refreshed));
           setAuth(refreshed);
         })
         .catch(() => {
           if (!active) return;
-          localStorage.removeItem(AUTH_STORAGE_KEY);
-          setAuth(null);
+          if (!localStorage.getItem(AUTH_STORAGE_KEY)) setAuth(null);
         })
         .finally(() => {
           if (active) setIsLoading(false);
@@ -69,6 +79,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     return () => {
       active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const sync = () => {
+      try {
+        setAuth(JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) ?? "null"));
+      } catch {
+        setAuth(null);
+      }
+    };
+    window.addEventListener("storage", sync);
+    window.addEventListener("auth-changed", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("auth-changed", sync);
     };
   }, []);
 

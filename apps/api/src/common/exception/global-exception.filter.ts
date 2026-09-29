@@ -40,10 +40,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (
       typeof exception === 'object' &&
       exception !== null &&
+      'cause' in exception &&
+      typeof exception.cause === 'object' &&
+      exception.cause !== null &&
+      'kind' in exception.cause &&
+      exception.cause.kind === 'TransactionWriteConflict'
+    ) {
+      return HttpStatus.CONFLICT;
+    }
+
+    if (
+      typeof exception === 'object' &&
+      exception !== null &&
       'code' in exception
     ) {
       if (exception.code === 'P2002') return HttpStatus.CONFLICT;
       if (exception.code === 'P2003') return HttpStatus.CONFLICT;
+      if (exception.code === 'P2034') return HttpStatus.CONFLICT;
       if (exception.code === 'P2025') return HttpStatus.NOT_FOUND;
       if (exception.code === 'P2004') {
         return HttpStatus.UNPROCESSABLE_ENTITY;
@@ -79,7 +92,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       exception !== null &&
       'code' in exception
     ) {
-      if (exception.code === 'P2002' || exception.code === 'P2003') {
+      if (
+        exception.code === 'P2002' ||
+        exception.code === 'P2003' ||
+        exception.code === 'P2034'
+      ) {
         return ErrorCode.CONFLICT;
       }
 

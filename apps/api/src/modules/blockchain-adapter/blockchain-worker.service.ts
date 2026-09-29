@@ -1,8 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  type TraceEventInput,
-} from '@agri-trace/fabric-gateway';
+import { type TraceEventInput } from '@agri-trace/fabric-gateway';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -30,7 +28,9 @@ export class BlockchainWorkerService {
     private readonly fabric: FabricAdapterProvider,
   ) {}
 
-  async processPending(limit = this.numberConfig('FABRIC_WORKER_BATCH_SIZE', 20)) {
+  async processPending(
+    limit = this.numberConfig('FABRIC_WORKER_BATCH_SIZE', 20),
+  ) {
     if (this.running) return { processed: 0, skipped: true };
     this.running = true;
     let processed = 0;
@@ -160,20 +160,28 @@ export class BlockchainWorkerService {
           throw error;
         }
         receipt = (await adapter.getProof(event.id)) as FabricReceipt;
-        if (receipt.dataHash !== event.dataHash) {
-          throw new PermanentBlockchainError(
-            'Duplicate event exists with a different hash',
-          );
-        }
       }
 
       if (!receipt.txId) {
         throw new Error('Fabric receipt is missing transaction id');
       }
+      if (!receipt.dataHash) {
+        throw new Error('Fabric receipt is missing data hash');
+      }
+      if (receipt.dataHash !== event.dataHash) {
+        throw new PermanentBlockchainError(
+          'Fabric receipt hash does not match the trace event',
+        );
+      }
 
       const recordedAt = receipt.recordedAt
         ? new Date(receipt.recordedAt)
         : new Date();
+      if (!Number.isFinite(recordedAt.getTime())) {
+        throw new PermanentBlockchainError(
+          'Fabric receipt has an invalid recording time',
+        );
+      }
       const channelId =
         receipt.channelId ??
         this.config.get<string>('FABRIC_CHANNEL_NAME', 'agritrace');
@@ -247,12 +255,15 @@ export class BlockchainWorkerService {
     error: unknown,
   ): Promise<void> {
     const maxRetries = this.numberConfig('FABRIC_MAX_RETRIES', 5);
-    const message = (error instanceof Error
-      ? error.message
-      : 'Unknown Fabric error'
+    const message = (
+      error instanceof Error ? error.message : 'Unknown Fabric error'
     ).slice(0, 2000);
     const terminal =
-      error instanceof PermanentBlockchainError || job.attemptCount >= maxRetries;
+      error instanceof PermanentBlockchainError ||
+      /\b(HASH_CHAIN_CONFLICT|INVALID_INPUT|UNAUTHORIZED_RELAYER):/.test(
+        message,
+      ) ||
+      job.attemptCount >= maxRetries;
     const retryMs = this.retryDelay(job.attemptCount);
 
     const update = await this.prisma.blockchainOutbox.updateMany({
@@ -292,7 +303,6 @@ export class BlockchainWorkerService {
     if (!Number.isFinite(value) || value <= 0) return fallback;
     return Math.floor(value);
   }
-
 }
 
 class PermanentBlockchainError extends Error {}

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { ArrowRight, ClipboardCheck, LoaderCircle, X } from "lucide-react";
 import { getOrganizations, submitCommand } from "@/lib/api-client";
 import type {
@@ -33,17 +33,18 @@ export function ActionPanel({
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [input, setInput] = useState<CommandInput>({});
   const [result, setResult] = useState("");
+  const attempt = useRef({ payload: "", key: "" });
+  const busy = useRef(false);
+  const [error, setError] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
 
-  useEffect(() => {
-    if (selected === "createShipment")
+  function open(command: AllowedCommand) {
+    setError("");
+    setSelected(command);
+    if (command === "createShipment")
       getOrganizations()
         .then(setOrganizations)
-        .catch(() => setOrganizations([]));
-  }, [selected]);
-
-  function open(command: AllowedCommand) {
-    setSelected(command);
+        .catch(() => setError("Không tải được tổ chức. Vui lòng thử lại."));
     setInput(
       command === "receiveRetail"
         ? { receivedQuantity: lot.availableQuantity, damagedQuantity: 0 }
@@ -54,21 +55,36 @@ export function ActionPanel({
 
   async function runCommand(event: FormEvent) {
     event.preventDefault();
-    if (!selected) return;
+    if (!selected || busy.current) return;
+    busy.current = true;
+    setError("");
+    const payload = JSON.stringify({
+      lotId: lot.lotId,
+      selected,
+      input,
+      version: lot.version,
+    });
+    if (attempt.current.payload !== payload)
+      attempt.current = { payload, key: crypto.randomUUID() };
     setPending(true);
     try {
-      const response = await submitCommand(lot, selected, input);
+      const response = await submitCommand(
+        lot,
+        selected,
+        input,
+        attempt.current.key,
+      );
       setResult(response.message);
       dialog.current?.close();
       onCompleted?.();
     } catch (cause) {
-      setResult(
+      setError(
         typeof cause === "object" && cause && "message" in cause
           ? String(cause.message)
           : "Chưa gửi được thao tác. Vui lòng thử lại.",
       );
-      dialog.current?.close();
     } finally {
+      busy.current = false;
       setPending(false);
     }
   }
@@ -292,6 +308,11 @@ export function ActionPanel({
               value={input.reason}
               onChange={(reason) => setInput({ ...input, reason })}
             />
+          )}
+          {error && (
+            <div className="notice error" role="alert">
+              {error}
+            </div>
           )}
           <div className="dialog-actions">
             <button

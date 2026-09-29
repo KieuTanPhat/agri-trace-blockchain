@@ -28,10 +28,13 @@ export class ShipmentTransitionDto {
 }
 
 export class ReceiveShipmentDto extends ShipmentTransitionDto {
-  @Type(() => Number) @IsNumber() @IsPositive() receivedQuantity!: number;
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @IsPositive()
+  receivedQuantity!: number;
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
   damagedQuantity?: number;
   @IsOptional() @IsString() note?: string;
@@ -42,6 +45,9 @@ export class RejectShipmentDto extends ShipmentTransitionDto {
 }
 
 export class DamageShipmentDto extends ShipmentTransitionDto {
-  @Type(() => Number) @IsNumber() @IsPositive() quantity!: number;
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @IsPositive()
+  quantity!: number;
   @IsString() reason!: string;
 }

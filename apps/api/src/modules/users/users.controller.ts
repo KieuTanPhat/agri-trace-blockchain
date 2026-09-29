@@ -1,3 +1,7 @@
+import { Req } from '@nestjs/common';
+import type { AuthenticatedRequest } from '../auth/auth.types.js';
+import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
+import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
 import {
   Body,
   Controller,
@@ -21,15 +25,31 @@ import { UsersService } from './users.service.js';
 @Roles('SYSTEM_ADMIN')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly service: UsersService) {}
+  constructor(
+    private readonly service: UsersService,
+    private readonly idem: IdempotencyService,
+  ) {}
   @Get() list() {
     return this.service.list();
   }
   @Get('roles') roles() {
     return this.service.roles();
   }
-  @Post() create(@Body() input: CreateUserDto) {
-    return this.service.create(input);
+  @Post() create(
+    @Body() input: CreateUserDto,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.idem.execute(
+      {
+        idempotencyKey: key,
+        requesterId: req.user.sub,
+        operation: 'CREATE_USERS',
+        requestType: 'COMMAND',
+        payload: input,
+      },
+      () => this.service.create(input),
+    );
   }
   @Patch(':id/status')
   updateStatus(

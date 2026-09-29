@@ -1,6 +1,30 @@
 {
   "name": "agri-trace-blockchain",
   "private": true,
+  "packageManager": "npm@12.1.0",
+  "engines": {
+    "node": "^22.22.3 || ^24.15.0 || >=26.0.0",
+    "npm": ">=12.1.0"
+  },
+  "overrides": {
+    "postcss": "8.5.28",
+    "deepmerge-ts": "8.0.2",
+    "mysql2": "3.24.4",
+    "undici": "6.29.0",
+    "tmp": "0.2.7"
+  },
+  "allowScripts": {
+    "@swc/core@1.16.2": true,
+    "@prisma/engines@7.10.0": true,
+    "bcrypt@6.0.0": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "prisma@7.10.0": true,
+    "protobufjs@7.6.6": true,
+    "unrs-resolver@1.12.2": true,
+    "@scarf/scarf": false,
+    "pkcs11js": false
+  },
   "scripts": {
     "dev": "npm run dev:web",
     "dev:web": "npm run dev --workspace apps/web",
@@ -11,7 +35,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "npm run test:e2e --workspace apps/api",
-    "check": "npm run check --workspaces --if-present"
+    "check": "npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
   },
   "workspaces": [
     "apps/*",

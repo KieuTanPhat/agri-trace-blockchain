@@ -35,6 +35,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: package-lock.json
+      - run: npm install --global npm@12.1.0
       - run: npm ci
       - run: npm run check --workspace ${{ matrix.package }}
 
@@ -46,6 +47,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      - run: npm install --global npm@12.1.0
+      - name: Audit standalone chaincode lockfile
+        working-directory: blockchain/chaincode
+        run: npm audit --workspaces=false --audit-level=high
       - name: Bootstrap pinned Fabric runtime
         working-directory: blockchain/network
         run: ./network.sh bootstrap

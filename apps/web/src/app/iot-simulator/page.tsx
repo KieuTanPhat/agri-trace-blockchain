@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   IconThermometer,
   IconDroplet,
@@ -32,6 +32,8 @@ export default function IotSimulatorPage() {
   const [response, setResponse] = useState<SensorReadingResponse | null>(null);
   const [status, setStatus] = useState("idle");
   const [copied, setCopied] = useState(false);
+  const attempt = useRef<{ payload: string; key: string } | null>(null);
+  const busy = useRef(false);
 
   useEffect(() => {
     setRecordedAt(new Date().toISOString());
@@ -52,9 +54,14 @@ export default function IotSimulatorPage() {
   );
 
   async function submitReading(retry = false) {
+    if (busy.current) return;
+    busy.current = true;
+    const serialized = JSON.stringify(payload);
+    if (!attempt.current || attempt.current.payload !== serialized)
+      attempt.current = { payload: serialized, key: crypto.randomUUID() };
     setStatus(retry ? "retrying" : "sending");
     try {
-      const result = await sendSensorReading(payload);
+      const result = await sendSensorReading(payload, attempt.current.key);
       setResponse(result);
       setStatus(result.status);
       if (result.status === "accepted" && result.readingId) {
@@ -80,6 +87,8 @@ export default function IotSimulatorPage() {
         },
       });
       setStatus("rejected");
+    } finally {
+      busy.current = false;
     }
   }
 
@@ -164,7 +173,11 @@ export default function IotSimulatorPage() {
                 value={sensorType}
                 onChange={(e) => {
                   setSensorType(e.target.value);
-                  setUnit(e.target.value === "HUMIDITY" ? "%" : "°C");
+                  setUnit(
+                    ["HUMIDITY", "SOIL_MOISTURE"].includes(e.target.value)
+                      ? "%"
+                      : "°C",
+                  );
                 }}
               >
                 <option value="TEMPERATURE">Nhiệt độ</option>

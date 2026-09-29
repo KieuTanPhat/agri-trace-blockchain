@@ -6,6 +6,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
@@ -32,9 +33,23 @@ export class ShipmentsService {
         ? undefined
         : {
             OR: [
-              { transporterOrgId: actor.organizationId ?? undefined },
-              { retailerOrgId: actor.organizationId ?? undefined },
-              { lot: { farmOrgId: actor.organizationId ?? undefined } },
+              {
+                transporterOrgId:
+                  actor.organizationId ??
+                  '00000000-0000-0000-0000-000000000000',
+              },
+              {
+                retailerOrgId:
+                  actor.organizationId ??
+                  '00000000-0000-0000-0000-000000000000',
+              },
+              {
+                lot: {
+                  farmOrgId:
+                    actor.organizationId ??
+                    '00000000-0000-0000-0000-000000000000',
+                },
+              },
             ],
           },
       include: {
@@ -185,9 +200,9 @@ export class ShipmentsService {
       });
       const damaged = input.damagedQuantity ?? 0;
       if (
-        Math.abs(
-          input.receivedQuantity + damaged - Number(lot.availableQuantity),
-        ) > 0.0001
+        !new Prisma.Decimal(input.receivedQuantity)
+          .add(damaged)
+          .equals(lot.availableQuantity)
       ) {
         throw new UnprocessableEntityException(
           'Số lượng nhận + hư hỏng phải bằng số lượng lô còn lại',
@@ -200,8 +215,7 @@ export class ShipmentsService {
           version: { increment: 1 },
           receivedTime: this.time(input),
           receivedQuantity: input.receivedQuantity,
-          rejectedQuantity:
-            Number(shipment.shippedQuantity) - input.receivedQuantity,
+          rejectedQuantity: 0,
         },
       });
       const l = await tx.lot.updateMany({
@@ -250,13 +264,16 @@ export class ShipmentsService {
   async reject(id: string, input: RejectShipmentDto, actor: Actor) {
     const shipment = await this.getAndAssertOrg(id, actor, 'retailer');
     return this.prisma.$transaction(async (tx) => {
+      const lot = await tx.lot.findUniqueOrThrow({
+        where: { id: shipment.lotId },
+      });
       const s = await tx.shipment.updateMany({
         where: { id, version: input.version, status: 'ARRIVED' },
         data: {
           status: 'REJECTED',
           version: { increment: 1 },
           receivedTime: this.time(input),
-          rejectedQuantity: shipment.shippedQuantity,
+          rejectedQuantity: lot.availableQuantity,
           rejectReason: input.reason,
         },
       });
@@ -288,13 +305,13 @@ export class ShipmentsService {
       const lot = await tx.lot.findUniqueOrThrow({
         where: { id: shipment.lotId },
       });
-      if (input.quantity > Number(lot.availableQuantity))
+      if (new Prisma.Decimal(input.quantity).greaterThan(lot.availableQuantity))
         throw new UnprocessableEntityException(
           'Số lượng hư hỏng vượt số lượng còn lại',
         );
-      const after = Number(lot.availableQuantity) - input.quantity;
-      const lotState = after === 0 ? 'DAMAGED' : lot.currentState;
-      const shipmentState = after === 0 ? 'FAILED' : shipment.status;
+      const after = lot.availableQuantity.sub(input.quantity);
+      const lotState = after.isZero() ? 'DAMAGED' : lot.currentState;
+      const shipmentState = after.isZero() ? 'FAILED' : shipment.status;
       const s = await tx.shipment.updateMany({
         where: { id, version: input.version, status: shipment.status },
         data: {
@@ -327,7 +344,7 @@ export class ShipmentsService {
           quantity: String(input.quantity),
           unit: lot.unit,
           reason: input.reason,
-          fullDamage: after === 0,
+          fullDamage: after.isZero(),
         },
       });
       await tx.quantityMovement.create({
@@ -345,7 +362,7 @@ export class ShipmentsService {
       return {
         shipmentStatus: shipmentState,
         lotState,
-        availableQuantity: after,
+        availableQuantity: after.toNumber(),
       };
     });
   }

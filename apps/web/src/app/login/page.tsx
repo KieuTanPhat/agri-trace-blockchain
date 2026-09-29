@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { LoaderCircle, LogIn, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 
 export default function LoginPage() {
+  const busy = useRef(false);
   const auth = useAuth();
   const router = useRouter();
   const [nextPath, setNextPath] = useState("/");
@@ -19,7 +20,9 @@ export default function LoginPage() {
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("next");
     setNextPath(
-      requested?.startsWith("/") && !requested.startsWith("//")
+      requested?.startsWith("/") &&
+        !requested.startsWith("//") &&
+        !requested.includes("\\")
         ? requested
         : "/",
     );
@@ -32,6 +35,8 @@ export default function LoginPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (busy.current) return;
+    busy.current = true;
     setPending(true);
     setError("");
     try {
@@ -44,6 +49,7 @@ export default function LoginPage() {
           : "Không thể đăng nhập.",
       );
     } finally {
+      busy.current = false;
       setPending(false);
     }
   }
