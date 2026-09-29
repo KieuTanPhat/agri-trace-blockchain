@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  IsByteLength,
   IsIn,
   IsOptional,
   IsString,
@@ -7,11 +8,16 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateUserDto {
   @IsEmail() email!: string;
-  @IsString() @MaxLength(255) fullName!: string;
-  @IsString() @MinLength(12) password!: string;
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(255)
+  fullName!: string;
+  @IsString() @MinLength(12) @IsByteLength(12, 72) password!: string;
   @IsString() roleCode!: string;
   @IsOptional() @IsUUID() organizationId?: string;
 }

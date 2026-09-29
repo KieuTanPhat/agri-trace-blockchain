@@ -38,7 +38,7 @@ export class ComplianceController {
   @Get('inspections')
   inspections(
     @Req() request: AuthenticatedRequest,
-    @Query('lotId') lotId?: string,
+    @Query('lotId', new ParseUUIDPipe({ optional: true })) lotId?: string,
   ) {
     return this.service.listInspections(request.user, lotId);
   }
@@ -67,8 +67,8 @@ export class ComplianceController {
   @Get('certificates')
   certificates(
     @Req() request: AuthenticatedRequest,
-    @Query('lotId') lotId?: string,
-    @Query('cycleId') cycleId?: string,
+    @Query('lotId', new ParseUUIDPipe({ optional: true })) lotId?: string,
+    @Query('cycleId', new ParseUUIDPipe({ optional: true })) cycleId?: string,
   ) {
     return this.service.listCertificates(request.user, lotId, cycleId);
   }

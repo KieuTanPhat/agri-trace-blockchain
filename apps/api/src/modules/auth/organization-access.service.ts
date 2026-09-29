@@ -34,6 +34,7 @@ export class OrganizationAccessService {
       where: { id: cycleId },
       select: {
         id: true,
+        currentState: true,
         farm: {
           select: { organizationId: true },
         },
@@ -119,6 +120,48 @@ export class OrganizationAccessService {
     }
 
     return shipment;
+  }
+
+  async assertTraceEventAccess(actor: Actor, eventId: string) {
+    const event = await this.prisma.traceEvent.findUnique({
+      where: { id: eventId },
+      select: { id: true, lotId: true, cycleId: true },
+    });
+    if (!event) throw new NotFoundException('Trace event not found');
+    if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) return;
+    if (!actor.organizationId)
+      throw new ForbiddenException('Organization required');
+    if (event.lotId) {
+      await this.assertLotAccess(actor, event.lotId);
+      return;
+    }
+    if (event.cycleId) {
+      const cycle = await this.prisma.productionCycle.findFirst({
+        where: {
+          id: event.cycleId,
+          OR: [
+            { farmOrgId: actor.organizationId },
+            {
+              harvestEvents: {
+                some: {
+                  lot: { shipment: { transporterOrgId: actor.organizationId } },
+                },
+              },
+            },
+            {
+              harvestEvents: {
+                some: {
+                  lot: { shipment: { retailerOrgId: actor.organizationId } },
+                },
+              },
+            },
+          ],
+        },
+        select: { id: true },
+      });
+      if (cycle) return;
+    }
+    throw new ForbiddenException('No access to this trace event');
   }
 
   assertOrganizationAccess(

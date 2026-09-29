@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { isUUID } from 'class-validator';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
@@ -30,7 +31,10 @@ export class IotService {
     return this.prisma.iotDevice.findMany({
       where: ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)
         ? undefined
-        : { organizationId: actor.organizationId ?? undefined },
+        : {
+            organizationId:
+              actor.organizationId ?? '00000000-0000-0000-0000-000000000000',
+          },
       include: {
         organization: { select: { id: true, name: true, type: true } },
         cycle: { select: { id: true, cycleCode: true, currentState: true } },
@@ -47,6 +51,13 @@ export class IotService {
       throw new ForbiddenException(
         'Không có quyền đăng ký thiết bị cho tổ chức',
       );
+    if (
+      !(await this.prisma.organization.findUnique({
+        where: { id: input.organizationId },
+      }))
+    ) {
+      throw new UnprocessableEntityException('Organization does not exist');
+    }
     if (input.cycleId) {
       const cycle = await this.prisma.productionCycle.findUnique({
         where: { id: input.cycleId },
@@ -206,10 +217,15 @@ export class IotService {
       throw new UnprocessableEntityException(
         'Thiết bị chưa được gắn với chuyến vận chuyển',
       );
-    if (!['CREATED', 'IN_TRANSIT', 'ARRIVED'].includes(binding.shipment.status))
+    if (binding.shipment.status !== 'IN_TRANSIT')
       throw new ConflictException(
         'Chuyến hàng không còn nhận dữ liệu giám sát',
       );
+    if (new Date(input.recordedAt) < binding.boundAt) {
+      throw new UnprocessableEntityException(
+        'Telemetry time precedes device binding',
+      );
+    }
     if (
       authenticatedActor &&
       authenticatedActor.role !== 'SYSTEM_ADMIN' &&
@@ -371,10 +387,25 @@ export class IotService {
         throw new ConflictException(
           'Digest cho khoảng thời gian này đã tồn tại',
         );
-      const previous = await tx.shipmentTelemetryDigest.findFirst({
-        where: { shipmentId },
-        orderBy: { periodEnd: 'desc' },
-      });
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`telemetry-digest:${shipmentId}`}, 0))`;
+      const heads = await tx.$queryRaw<
+        Array<{ digestHash: string }>
+      >(Prisma.sql`
+        SELECT digest.digest_hash AS "digestHash"
+        FROM shipment_telemetry_digest digest
+        WHERE digest.shipment_id = ${shipmentId}::uuid
+          AND NOT EXISTS (
+            SELECT 1 FROM shipment_telemetry_digest successor
+            WHERE successor.shipment_id = digest.shipment_id
+              AND successor.previous_digest_hash = digest.digest_hash
+          )
+        LIMIT 2
+      `);
+      if (heads.length > 1)
+        throw new ConflictException(
+          'Telemetry digest chain has multiple heads',
+        );
+      const previous = heads[0];
       if (
         input.isFinal &&
         (await tx.shipmentTelemetryDigest.findFirst({

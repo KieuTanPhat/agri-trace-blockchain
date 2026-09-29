@@ -183,15 +183,23 @@ export class LotsService {
         ? undefined
         : {
             OR: [
-              { farmOrgId: actor.organizationId ?? undefined },
+              {
+                farmOrgId:
+                  actor.organizationId ??
+                  '00000000-0000-0000-0000-000000000000',
+              },
               {
                 shipment: {
-                  transporterOrgId: actor.organizationId ?? undefined,
+                  transporterOrgId:
+                    actor.organizationId ??
+                    '00000000-0000-0000-0000-000000000000',
                 },
               },
               {
                 shipment: {
-                  retailerOrgId: actor.organizationId ?? undefined,
+                  retailerOrgId:
+                    actor.organizationId ??
+                    '00000000-0000-0000-0000-000000000000',
                 },
               },
             ],
@@ -359,7 +367,8 @@ export class LotsService {
       })),
       damagedQuantity: lot.quantityMovements
         .filter((m) => m.type === 'DAMAGE_OUT')
-        .reduce((sum, m) => sum + Number(m.quantity), 0),
+        .reduce((sum, m) => sum.add(m.quantity), new Prisma.Decimal(0))
+        .toNumber(),
       productionCycle: {
         cycleId: lot.harvest.cycle.id,
         cycleCode: lot.harvest.cycle.cycleCode,

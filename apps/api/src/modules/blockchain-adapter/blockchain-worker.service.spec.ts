@@ -10,11 +10,15 @@ describe('BlockchainWorkerService distributed claim', () => {
     const transaction = vi.fn(async (callback: (tx: unknown) => unknown) =>
       callback({ $queryRaw: queryRaw }),
     );
-    const service = new BlockchainWorkerService({
-      $transaction: transaction,
-    } as unknown as PrismaService, {
-      get: vi.fn((_name: string, fallback: unknown) => fallback),
-    } as unknown as ConfigService, {} as FabricAdapterProvider);
+    const service = new BlockchainWorkerService(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      {
+        get: vi.fn((_name: string, fallback: unknown) => fallback),
+      } as unknown as ConfigService,
+      {} as FabricAdapterProvider,
+    );
 
     await expect(service.processPending(7)).resolves.toEqual({
       processed: 0,
@@ -27,9 +31,7 @@ describe('BlockchainWorkerService distributed claim', () => {
     expect(sql.strings.join(' ')).toContain('blockchain_outbox');
     expect(sql.strings.join(' ')).toContain('lease_expires_at');
     expect(sql.strings.join(' ')).toContain('previous_event_hash');
-    expect(sql.strings.join(' ')).toContain(
-      'previous_outbox.status',
-    );
+    expect(sql.strings.join(' ')).toContain('previous_outbox.status');
   });
 
   it('completes the leased outbox row and creates a confirmed proof atomically', async () => {
@@ -58,6 +60,7 @@ describe('BlockchainWorkerService distributed claim', () => {
         txId: 'fabric-tx-1',
         recordedAt: '2026-09-21T00:00:00.000Z',
         channelId: 'agritrace',
+        dataHash: job.traceEvent.dataHash,
       }),
     };
     const service = new BlockchainWorkerService(
@@ -120,7 +123,9 @@ describe('BlockchainWorkerService distributed claim', () => {
       configService(),
       {
         getAdapter: vi.fn().mockResolvedValue({
-          submitTraceEvent: vi.fn().mockRejectedValue(new Error('peer offline')),
+          submitTraceEvent: vi
+            .fn()
+            .mockRejectedValue(new Error('peer offline')),
         }),
       } as unknown as FabricAdapterProvider,
     );
@@ -137,7 +142,101 @@ describe('BlockchainWorkerService distributed claim', () => {
       }),
     );
   });
+
+  it.each([
+    { txId: 'tx', dataHash: 'b'.repeat(64) },
+    { txId: 'tx', dataHash: 'a'.repeat(64), recordedAt: 'invalid' },
+  ])('never confirms an invalid receipt: %j', async (receipt) => {
+    const { service, updateMany, upsert } = workerWithReceipt(receipt);
+    await service.processPending();
+    expect(upsert).not.toHaveBeenCalled();
+    expect(updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'DEAD_LETTER' }),
+      }),
+    );
+  });
+
+  it('recovers a committed duplicate by querying the existing proof', async () => {
+    const { service, upsert, adapter } = workerWithReceipt({
+      txId: 'original-tx',
+      dataHash: 'a'.repeat(64),
+    });
+    adapter.submitTraceEvent.mockRejectedValue(
+      new Error('DUPLICATE_EVENT: already exists'),
+    );
+    await service.processPending();
+    expect(adapter.getProof).toHaveBeenCalledWith(claimedJob(1).eventId);
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          txId: 'original-tx',
+          transactionStatus: 'CONFIRMED',
+        }),
+      }),
+    );
+  });
+
+  it('dead-letters contract failures without retrying', async () => {
+    const { service, updateMany, adapter } = workerWithReceipt({});
+    adapter.submitTraceEvent.mockRejectedValue(
+      new Error('INVALID_INPUT: invalid payload'),
+    );
+    await service.processPending();
+    expect(updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'DEAD_LETTER',
+          nextAttemptAt: null,
+        }),
+      }),
+    );
+  });
+
+  it('ignores completion from a worker whose lease was reclaimed', async () => {
+    const { service, updateMany, upsert } = workerWithReceipt({
+      txId: 'tx',
+      dataHash: 'a'.repeat(64),
+    });
+    updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+    await service.processPending();
+    expect(upsert).not.toHaveBeenCalled();
+  });
 });
+
+function workerWithReceipt(receipt: object) {
+  const job = claimedJob(1);
+  const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+  const upsert = vi.fn();
+  const tx = {
+    $queryRaw: vi.fn().mockResolvedValue([{ id: job.id }]),
+    blockchainOutbox: {
+      updateMany,
+      findMany: vi.fn().mockResolvedValue([job]),
+    },
+    blockchainProof: { upsert },
+  };
+  const prisma = {
+    $transaction: vi.fn(
+      async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
+    ),
+    blockchainOutbox: { updateMany },
+  };
+  const adapter = {
+    submitTraceEvent: vi.fn().mockResolvedValue(receipt),
+    getProof: vi.fn().mockResolvedValue(receipt),
+  };
+  const service = new BlockchainWorkerService(
+    prisma as unknown as PrismaService,
+    configService(),
+    {
+      getAdapter: vi.fn().mockResolvedValue(adapter),
+    } as unknown as FabricAdapterProvider,
+  );
+  return { service, updateMany, upsert, adapter };
+}
 
 function configService(): ConfigService {
   return {

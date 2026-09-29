@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { calculateTraceEventHash } from './trace-hash.js';
+import { OrganizationAccessService } from '../auth/organization-access.service.js';
 
 export type Actor = {
   sub: string | null;
@@ -23,7 +28,10 @@ export interface CreateTraceEventInput {
 
 @Injectable()
 export class TraceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: OrganizationAccessService,
+  ) {}
 
   async createInTransaction(
     tx: Prisma.TransactionClient,
@@ -37,11 +45,24 @@ export class TraceService {
     );
     const id = randomUUID();
     const eventTime = input.eventTime ?? new Date();
-    const previous = await tx.traceEvent.findFirst({
-      where: { entityType: input.entityType, entityId: input.entityId },
-      orderBy: [{ eventTime: 'desc' }, { createdAt: 'desc' }],
-      select: { dataHash: true },
-    });
+    // Business timestamps may be backdated, and transaction timestamps may tie.
+    // The predecessor is the chain's leaf, not the newest business timestamp.
+    const heads = await tx.$queryRaw<Array<{ dataHash: string }>>(Prisma.sql`
+      SELECT current_event.data_hash AS "dataHash"
+      FROM trace_event current_event
+      WHERE current_event.entity_type = ${input.entityType}
+        AND current_event.entity_id = ${input.entityId}::uuid
+        AND NOT EXISTS (
+          SELECT 1 FROM trace_event successor
+          WHERE successor.entity_type = current_event.entity_type
+            AND successor.entity_id = current_event.entity_id
+            AND successor.previous_event_hash = current_event.data_hash
+        )
+      LIMIT 2
+    `);
+    if (heads.length > 1)
+      throw new ConflictException('Trace event chain has multiple heads');
+    const previous = heads[0];
     const actorAuthProof = createHash('sha256')
       .update(`${input.actor.sub}:${input.actor.role}`, 'utf8')
       .digest('hex');
@@ -97,9 +118,8 @@ export class TraceService {
     return event;
   }
 
-  async getLotHistory(lotId: string) {
-    const lot = await this.prisma.lot.findUnique({ where: { id: lotId } });
-    if (!lot) throw new NotFoundException('Không tìm thấy lô hàng');
+  async getLotHistory(lotId: string, actor: Actor) {
+    await this.access.assertLotAccess(actor, lotId);
     return this.prisma.traceEvent.findMany({
       where: { lotId },
       orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
@@ -107,7 +127,8 @@ export class TraceService {
     });
   }
 
-  async getProof(eventId: string) {
+  async getProof(eventId: string, actor: Actor) {
+    await this.access.assertTraceEventAccess(actor, eventId);
     const event = await this.prisma.traceEvent.findUnique({
       where: { id: eventId },
       include: { blockchainProof: true, blockchainOutbox: true },

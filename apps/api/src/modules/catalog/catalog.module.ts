@@ -17,7 +17,7 @@ import {
   IsNumber,
   IsPositive,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AuthModule } from '../auth/auth.module.js';
@@ -29,18 +29,30 @@ import { IdempotencyModule } from '../../common/idempotency/idempotency.module.j
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
 class ProductDto {
-  @IsString() @MinLength(1) @MaxLength(255) productName!: string;
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(255)
+  productName!: string;
   @IsOptional() @IsString() @MaxLength(255) variety?: string;
   @IsOptional() @IsString() @MaxLength(30) defaultUnit?: string;
 }
 class FarmDto {
   @IsUUID() organizationId!: string;
-  @IsString() @MinLength(1) @MaxLength(255) name!: string;
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(255)
+  name!: string;
   @IsOptional() @IsString() location?: string;
 }
 class PlotDto {
   @IsUUID() farmId!: string;
-  @IsString() @MinLength(1) @MaxLength(255) name!: string;
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(255)
+  name!: string;
   @IsOptional() @Type(() => Number) @IsNumber() @IsPositive() area?: number;
   @IsOptional() @IsString() @MaxLength(30) unit?: string;
   @IsOptional() @IsString() location?: string;

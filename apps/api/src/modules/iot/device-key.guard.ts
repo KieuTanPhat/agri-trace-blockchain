@@ -16,10 +16,12 @@ export class DeviceKeyGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const supplied = request.header('x-device-key') ?? '';
     const expected = this.config.get<string>('IOT_INGEST_API_KEY') ?? '';
-    if (!expected || supplied.length !== expected.length) {
+    const suppliedBytes = Buffer.from(supplied);
+    const expectedBytes = Buffer.from(expected);
+    if (!expected || suppliedBytes.length !== expectedBytes.length) {
       throw new UnauthorizedException('Device key không hợp lệ');
     }
-    if (!timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))) {
+    if (!timingSafeEqual(suppliedBytes, expectedBytes)) {
       throw new UnauthorizedException('Device key không hợp lệ');
     }
     return true;

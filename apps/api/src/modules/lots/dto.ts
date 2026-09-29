@@ -1,5 +1,6 @@
 import {
   IsDateString,
+  IsNumber,
   IsOptional,
   IsPositive,
   IsString,
@@ -10,7 +11,10 @@ import { Type } from 'class-transformer';
 
 export class RecordHarvestDto {
   @IsDateString() harvestTime!: string;
-  @Type(() => Number) @IsPositive() quantity!: number;
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @IsPositive()
+  quantity!: number;
   @IsString() @MaxLength(30) unit!: string;
   @IsOptional() @IsString() grade?: string;
   @IsOptional() @IsString() qualityNote?: string;
