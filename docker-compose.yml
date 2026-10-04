@@ -42,6 +42,7 @@ services:
       PUBLIC_TRACE_BASE_URL: ${PUBLIC_TRACE_BASE_URL:-http://localhost:3000/trace}
       IOT_INGEST_API_KEY: ${IOT_INGEST_API_KEY:-replace-with-a-long-random-device-key}
       FABRIC_ENABLED: "false"
+      SENSOR_THRESHOLDS_JSON: ${SENSOR_THRESHOLDS_JSON:-[]}
     command:
       [
         "sh",

@@ -1,4 +1,5 @@
 import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { WorkspaceModule } from './modules/workspace/workspace.module.js';
 import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -30,6 +31,7 @@ import { ComplianceModule } from './modules/compliance/compliance.module.js';
     AuthModule,
     UsersModule,
     CatalogModule,
+    WorkspaceModule,
     OrganizationsModule,
     ProductionCyclesModule,
     LotsModule,

@@ -1611,3 +1611,23 @@ a.list-row:hover { background: var(--primary-pale); }
 .table-scroll { overflow-x: auto; }
 .table-scroll table { width: 100%; border-collapse: collapse; }
 .table-scroll th, .table-scroll td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8e5; }
+/* Operational reports, notifications and server-backed media. */
+.workspace-page { display: grid; gap: 20px; min-width: 0; }
+.workspace-toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+.workspace-toolbar label { display:grid; gap:6px; min-width:160px; flex:1; }
+.workspace-toolbar input,.workspace-toolbar select { width:100%; min-width:0; padding:10px; border:1px solid #cbd5e1; border-radius:8px; background:white; color:#173d2b; }
+.metric-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+.metric-card { display:grid; gap:12px; text-align:left; padding:18px; border:1px solid #c7ddcf; background:#f1f8f3; border-radius:12px; cursor:pointer; }
+.metric-card strong { font-size:1.3rem; }.metric-card meter { width:100%; }
+.notification-item { display:flex; justify-content:space-between; flex-wrap:wrap; gap:16px; padding:18px; border-bottom:1px solid #dae5de; }
+.notification-item.unread { background:#eef7f0; border-left:4px solid #15803d; }
+.notification-count { font-size:11px; background:#166534; color:white; border-radius:12px; padding:2px 5px; }
+.sensor-chart { width:100%; height:auto; color:#63796b; }
+.media-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin-top:16px; }
+.media-card { padding:16px; border:1px solid #d2dfd6; border-radius:10px; min-width:0; overflow-wrap:anywhere; }
+.media-preview { width:100%; height:200px; object-fit:contain; border-radius:8px; background:#f1f5f2; }
+@media(max-width:640px) { .workspace-toolbar { align-items:stretch; }.workspace-toolbar label { min-width:100%; }.workspace-toolbar .button { white-space:normal; }.notification-item { padding:12px; }.media-grid { grid-template-columns:1fr; } }
+
+.sensor-alert { color: #b42318; }
+
+@media(max-width:640px) { .topbar .brand-text { display:none; } .notification-btn { flex-shrink:0; } }

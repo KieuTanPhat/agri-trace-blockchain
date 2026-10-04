@@ -19,8 +19,11 @@ import { labelForProof } from "@/lib/display-labels";
 import type { LotTrace } from "@/lib/types";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
+import { MediaManager } from '@/components/media-manager';
+import { useAuth } from '@/lib/auth-store';
 
 export default function LotDetailPage() {
+  const {user}=useAuth();
   const { lotId } = useParams<{ lotId: string }>();
   const [lots, setLots] = useState<LotTrace[]>([]);
   const [lot, setLot] = useState<LotTrace | null>(null);
@@ -72,6 +75,8 @@ export default function LotDetailPage() {
         </div>
       </section>
 
+      <MediaManager key={lot.lotId} targetType="LOT" targetId={lot.lotId} canWrite={user?.role.code==='SYSTEM_ADMIN'||(user?.role.code==='FARM_STAFF'&&user.organizationId===lot.farmOrg.organizationId)}/>
+      {lot.productId&&<MediaManager key={lot.productId} targetType="PRODUCT" targetId={lot.productId} canWrite={user?.role.code==='SYSTEM_ADMIN'}/>}
       <section className="grid two">
         <div className="grid">
           <div className="panel">
@@ -87,7 +92,7 @@ export default function LotDetailPage() {
             </p>
             {lot.shipment ? (
               <>
-                <h3>Chuyến {lot.shipment.shipmentId}</h3>
+                <h3 id="shipment">Chuyến {lot.shipment.shipmentId}</h3>
                 <p>
                   {
                     {

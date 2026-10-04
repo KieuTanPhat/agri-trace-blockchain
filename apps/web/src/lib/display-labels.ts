@@ -23,6 +23,9 @@ const stateLabels: Record<string, string> = {
 };
 
 const eventLabels: Record<string, string> = {
+  SHIPMENT_RECEIVED: "Đã nhận chuyến giao",
+  SHIPMENT_REJECTED: "Đã từ chối chuyến giao",
+  SHIPMENT_DAMAGE_RECORDED: "Ghi nhận hư hỏng",
   PRODUCTION_CYCLE_CREATED: "Khởi tạo vụ trồng",
   PLANTING_RECORDED: "Ghi nhận gieo trồng",
   CARE_RECORDED: "Ghi nhận chăm sóc",

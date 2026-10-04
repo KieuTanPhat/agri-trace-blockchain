@@ -24,7 +24,7 @@ const { auth } = vi.hoisted(() => ({
   },
 }));
 vi.mock("@/lib/auth-store", () => ({ useAuth: () => auth }));
-vi.mock("@/lib/api-client", () => ({ getLots: vi.fn() }));
+vi.mock("@/lib/api-client", () => ({ getLots: vi.fn(), request: vi.fn().mockResolvedValue({unread:0}) }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/lots",
   useRouter: () => ({ replace: vi.fn() }),

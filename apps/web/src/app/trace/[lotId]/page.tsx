@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { MediaManager } from '@/components/media-manager';
 import { ErrorState } from "@/components/error-state";
 import { IconClock, IconShield, IconDatabase } from "@/components/icons";
 import { QrCodeCard } from "@/components/qr-code-card";
@@ -29,13 +29,6 @@ export default async function PublicTracePage({
   return (
     <div className="design-page trace-page">
       <section className="page-header">
-        <Image
-          className="trace-product-photo"
-          src="/farm-greens.png"
-          alt="Ảnh minh họa nông sản tại trang trại"
-          width={500}
-          height={500}
-        />
         <div>
           <p className="eyebrow">Tra cứu công khai</p>
           <h1>{trace.productName}</h1>
@@ -53,6 +46,7 @@ export default async function PublicTracePage({
         </div>
       </section>
 
+      <MediaManager publicToken={trace.traceToken ?? lotId}/>
       <section className="grid two">
         <div className="panel">
           <div className="panel-title">

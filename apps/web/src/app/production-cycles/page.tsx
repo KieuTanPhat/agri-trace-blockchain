@@ -38,6 +38,7 @@ export default function CyclesPage() {
   const [cycles, setCycles] = useState<ProductionCycleOption[]>([]);
   const [catalog, setCatalog] = useState<Catalog>(emptyCatalog);
   const [selected, setSelected] = useState("");
+  useEffect(() => { const id = new URLSearchParams(window.location.search).get('cycleId'); if(id) setSelected(id); }, []);
   const [detail, setDetail] = useState<Cycle | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");

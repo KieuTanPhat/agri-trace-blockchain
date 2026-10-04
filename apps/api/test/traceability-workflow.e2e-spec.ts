@@ -173,6 +173,172 @@ const prisma = new PrismaClient({
       return { ...fixture, shipment };
     }
 
+    it('reports actual harvests with organization scope and validates filters', async () => {
+      const { lot } = await harvestedLot(12);
+      const result = await get('/reports?productId=' + productId).expect(200);
+      expect(
+        result.body.data.rows.find(
+          (r: { lotId: string }) => r.lotId === lot.id,
+        ),
+      ).toMatchObject({
+        harvested: 12,
+        shipped: 0,
+        received: 0,
+        damaged: 0,
+        rejected: 0,
+      });
+      expect(
+        (
+          await get('/reports?organizationId=' + farmOrgId, 'foreign').expect(
+            200,
+          )
+        ).body.data.rows,
+      ).toEqual([]);
+      await get('/reports?from=2026-10-05&to=2026-10-04').expect(400);
+      await get('/reports?productId=bad').expect(400);
+      expect(
+        (await get('/reports?from=2027-01-01').expect(200)).body.data.rows,
+      ).toEqual([]);
+    });
+
+    it('persists notification read state and rejects inaccessible targets', async () => {
+      const { lot } = await harvestedLot(2);
+      const event = await prisma.traceEvent.findFirstOrThrow({
+        where: { lotId: lot.id },
+      });
+      const target = await get('/notifications/' + event.id + '/target').expect(
+        200,
+      );
+      expect(target.body.data.href).toBe('/lots/' + lot.id);
+      await post('/notifications/' + event.id + '/read', {}).expect(201);
+      await post('/notifications/' + event.id + '/read', {}).expect(201);
+      expect(
+        await prisma.notificationRead.count({
+          where: { userId: users.farm, eventId: event.id },
+        }),
+      ).toBe(1);
+      await get('/notifications/' + event.id + '/target', 'foreign').expect(
+        404,
+      );
+      await post('/notifications/' + event.id + '/read', {}, 'foreign').expect(
+        404,
+      );
+      await get('/notifications?page=0').expect(400);
+      const page = await get('/notifications?page=1').expect(200);
+      expect(page.body.data.items.length).toBeLessThanOrEqual(20);
+    });
+
+    it('reads persisted sensor history and evaluates configured thresholds without leaking organizations', async () => {
+      const cycle = await plantedCycle(5);
+      const device = await prisma.iotDevice.create({
+        data: {
+          organizationId: farmOrgId,
+          cycleId: cycle.id,
+          deviceCode: randomUUID(),
+          name: 'History device',
+          type: 'temperature',
+        },
+      });
+      await post('/iot/readings', {
+        deviceId: device.id,
+        cycleId: cycle.id,
+        sensorType: 'temperature',
+        unit: 'C',
+        value: 35,
+        recordedAt: '2026-09-25T01:00:00Z',
+      }).expect(201);
+      vi.stubEnv(
+        'SENSOR_THRESHOLDS_JSON',
+        JSON.stringify([
+          { sensorType: 'temperature', unit: 'C', min: 10, max: 30 },
+        ]),
+      );
+      try {
+        const result = await get('/iot/history?deviceId=' + device.id).expect(
+          200,
+        );
+        expect(result.body.data.items).toHaveLength(1);
+        expect(result.body.data.items[0]).toMatchObject({
+          alert: 'HIGH',
+          threshold: { min: 10, max: 30 },
+        });
+        expect(
+          (
+            await get('/iot/history?deviceId=' + device.id, 'foreign').expect(
+              200,
+            )
+          ).body.data.total,
+        ).toBe(0);
+        expect(
+          (
+            await get(
+              '/iot/history?deviceId=' + device.id + '&from=2026-09-26',
+            ).expect(200)
+          ).body.data.total,
+        ).toBe(0);
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it('uploads private media, safely replays retries, enforces access and withdraws public access', async () => {
+      const { lot, traceQr } = await harvestedLot(3);
+      const image = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aBZkAAAAASUVORK5CYII=',
+        'base64',
+      );
+      const key = randomUUID();
+      const upload = () =>
+        request(app.getHttpServer())
+          .post('/api/media')
+          .set('Authorization', 'Bearer ' + jwt.sign({ sub: users.farm }))
+          .set('Idempotency-Key', key)
+          .field('targetType', 'LOT')
+          .field('targetId', lot.id)
+          .attach('file', image, {
+            filename: 'proof.png',
+            contentType: 'image/png',
+          });
+      const uploaded = await upload().expect(201);
+      const id = uploaded.body.data.id;
+      expect((await upload().expect(201)).body.data.id).toBe(id);
+      await get('/media/' + id + '/content')
+        .expect(200)
+        .expect('Content-Type', /image\/png/);
+      await get('/media/' + id + '/content', 'foreign').expect(403);
+      const publicPath = '/api/public/trace/' + traceQr.traceToken + '/media';
+      expect(
+        (await request(app.getHttpServer()).get(publicPath).expect(200)).body
+          .data,
+      ).toEqual([]);
+      await request(app.getHttpServer())
+        .get(publicPath + '/' + id + '/content')
+        .expect(404);
+      const visibility = (isPublic: boolean) =>
+        request(app.getHttpServer())
+          .patch('/api/media/' + id)
+          .set('Authorization', 'Bearer ' + jwt.sign({ sub: users.farm }))
+          .send({ isPublic });
+      await visibility(true).expect(200);
+      expect(
+        (await request(app.getHttpServer()).get(publicPath).expect(200)).body
+          .data[0].id,
+      ).toBe(id);
+      await request(app.getHttpServer())
+        .get(publicPath + '/' + id + '/content')
+        .expect(200)
+        .expect('X-Content-Type-Options', 'nosniff');
+      await visibility(false).expect(200);
+      await request(app.getHttpServer())
+        .get(publicPath + '/' + id + '/content')
+        .expect(404);
+      await request(app.getHttpServer())
+        .delete('/api/media/' + id)
+        .set('Authorization', 'Bearer ' + jwt.sign({ sub: users.farm }))
+        .expect(200);
+      await get('/media/' + id + '/content').expect(404);
+    });
+
     it('keeps a linear hash chain when business timestamps are backdated or tied', async () => {
       const db = prisma as unknown as PrismaService;
       const trace = new TraceService(db, new OrganizationAccessService(db));

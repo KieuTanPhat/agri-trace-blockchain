@@ -8,6 +8,29 @@ datasource db {
   provider = "postgresql"
 }
 
+model NotificationRead {
+  userId String @db.Uuid
+  eventId String @db.Uuid
+  readAt DateTime @default(now()) @db.Timestamptz(6)
+  @@id([userId, eventId])
+  @@map("notification_read")
+}
+
+model MediaAttachment {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  targetType String @db.VarChar(20)
+  targetId String @db.Uuid
+  name String @db.VarChar(255)
+  mime String @db.VarChar(100)
+  size Int
+  content Bytes
+  isPublic Boolean @default(false)
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  @@index([targetType, targetId])
+  @@map("media_attachment")
+}
+
 model Role {
   id          String  @id @default(dbgenerated("gen_random_uuid()")) @map("role_id") @db.Uuid
   code        String  @unique @db.VarChar(50)

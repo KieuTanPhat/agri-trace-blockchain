@@ -14,18 +14,21 @@ import {
   Thermometer,
   Blocks,
   Search,
-  Bell,
   LogOut,
 } from "lucide-react";
 import { getLots } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
 import type { LotTrace } from "@/lib/types";
+import { NotificationBell } from './notification-bell';
 
 const navigation = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
   { href: "/admin", label: "Quản trị", icon: Blocks },
   { href: "/production-cycles", label: "Vụ trồng", icon: LayoutDashboard },
   { href: "/lots", label: "Lô nông sản", icon: Package },
+  { href: "/reports", label: "Báo cáo", icon: LayoutDashboard },
+  { href: "/sensor-history", label: "Lịch sử cảm biến", icon: Thermometer },
+  { href: "/documents", label: "Ảnh và tài liệu", icon: Package },
   { href: "/scan", label: "Quét mã QR", icon: ScanLine },
   { href: "/iot-simulator", label: "Cảm biến IoT", icon: Thermometer },
 ];
@@ -172,14 +175,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </div>
-        <button
-          className="icon-button notification-btn"
-          title="Thông báo"
-          aria-label="Thông báo"
-        >
-          <Bell size={20} />
-          <span className="notification-dot" aria-hidden="true" />
-        </button>
+        <NotificationBell key={auth.user.id}/>
         <div className="topbar-meta">
           <span className="workspace-avatar">
             {auth.user.fullName.slice(0, 2).toUpperCase()}

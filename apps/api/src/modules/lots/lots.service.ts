@@ -360,6 +360,7 @@ export class LotsService {
       lotId: lot.id,
       traceToken: lot.traceQr?.traceToken,
       lotCode: lot.lotCode,
+      productId: lot.productId,
       productName: lot.product.productName,
       harvestTime: lot.harvest.harvestTime,
       initialQuantity: Number(lot.initialQuantity),

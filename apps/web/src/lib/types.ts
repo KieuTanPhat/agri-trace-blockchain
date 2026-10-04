@@ -71,6 +71,7 @@ export type TraceEvent = {
 };
 
 export type LotTrace = {
+  productId?: string;
   lotId: string;
   lotCode: string;
   productName: string;
