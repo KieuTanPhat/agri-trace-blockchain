@@ -16,6 +16,11 @@ import { IotModule } from './modules/iot/iot.module.js';
 import { BlockchainAdapterModule } from './modules/blockchain-adapter/blockchain-adapter.module.js';
 import { HealthModule } from './health/health.module.js';
 import { ComplianceModule } from './modules/compliance/compliance.module.js';
+import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { SensorHistoryModule } from './modules/sensor-history/sensor-history.module.js';
+import { ReportsModule } from './modules/reports/reports.module.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { MediaModule } from './modules/media/media.module.js';
 
 @Module({
   imports: [
@@ -37,6 +42,11 @@ import { ComplianceModule } from './modules/compliance/compliance.module.js';
     ComplianceModule,
     BlockchainAdapterModule,
     HealthModule,
+    CatalogModule,
+    SensorHistoryModule,
+    ReportsModule,
+    NotificationsModule,
+    MediaModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

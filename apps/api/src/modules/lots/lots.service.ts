@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
@@ -10,7 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
-import type { RecordHarvestDto } from './dto.js';
+import type { RecordFarmDamageDto, RecordHarvestDto } from './dto.js';
 
 const INTERNAL_LOT_INCLUDE = {
   product: true,
@@ -52,14 +53,47 @@ export class LotsService {
         });
         if (!cycle)
           throw new NotFoundException('Không tìm thấy chu kỳ sản xuất');
-        if (!['PLANTED', 'GROWING'].includes(cycle.currentState))
+        if (!['PLANTED', 'GROWING'].includes(cycle.currentState)) {
           throw new ConflictException(
             'Chu kỳ không ở trạng thái có thể thu hoạch',
           );
-        if (cycle.harvestUnit && cycle.harvestUnit !== input.unit)
+        }
+
+        const harvestTime = new Date(input.harvestTime);
+
+        if (
+          cycle.startDate &&
+          this.datePart(harvestTime) < this.datePart(cycle.startDate)
+        ) {
+          throw new UnprocessableEntityException(
+            'Thời gian thu hoạch không được trước ngày bắt đầu vụ',
+          );
+        }
+
+        if (harvestTime > new Date()) {
+          throw new UnprocessableEntityException(
+            'Thời gian thu hoạch không được nằm trong tương lai',
+          );
+        }
+
+        if (
+          input.expiryDate &&
+          this.datePart(new Date(input.expiryDate)) <
+            this.datePart(harvestTime)
+        ) {
+          throw new UnprocessableEntityException(
+            'Ngày hết hạn không được trước ngày thu hoạch',
+          );
+        }
+
+        if (
+          cycle.harvestUnit &&
+          !this.sameUnit(cycle.harvestUnit, input.unit)
+        ) {
           throw new UnprocessableEntityException(
             'Đơn vị thu hoạch không khớp kế hoạch',
           );
+        }
         if (input.finalSensorDigestId) {
           const digest = await tx.sensorDigest.findUnique({
             where: { id: input.finalSensorDigestId },
@@ -87,7 +121,7 @@ export class LotsService {
           data: {
             cycleId,
             finalSensorDigestId: input.finalSensorDigestId,
-            harvestTime: new Date(input.harvestTime),
+            harvestTime: harvestTime,
             quantity: input.quantity,
             unit: input.unit,
             grade: input.grade,
@@ -467,5 +501,150 @@ export class LotsService {
       CERTIFICATE_REJECTED: 'Chứng chỉ bị từ chối.',
     };
     return summaries[eventType] ?? eventType.replaceAll('_', ' ').toLowerCase();
+  }
+
+  async recordFarmDamage(
+    lotId: string,
+    input: RecordFarmDamageDto,
+    actor: Actor,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      // Lock the lot row to prevent concurrent modifications
+      await tx.$queryRaw(
+        Prisma.sql`
+          SELECT lot_id
+          FROM public.lot
+          WHERE lot_id = ${lotId}::uuid
+          FOR UPDATE
+        `,
+      );
+
+      const lot = await tx.lot.findUnique({
+        where: { id: lotId },
+        include: {
+          harvest: { select: { cycleId: true } },
+          shipment: true,
+        },
+      });
+      if (!lot) {
+        throw new NotFoundException('Không tìm thấy lô hàng');
+      }
+      if (
+        actor.role !== 'SYSTEM_ADMIN' &&
+        (actor.role !== 'FARM_STAFF' ||
+          actor.organizationId !== lot.farmOrgId)
+      ) {
+        throw new ForbiddenException(
+          'Chỉ trang trại sở hữu lô mới được báo hỏng trước bàn giao',
+        );
+      }
+      if (lot.currentState !== 'HARVESTED') {
+        throw new ConflictException('Lô đã được bàn giao hoặc không còn hợp lệ');
+      }
+      if (lot.shipment && lot.shipment.status !== 'CREATED') {
+        throw new ConflictException('Chuyến hàng đã bắt đầu vận chuyển');
+      }
+      if (
+        lot.shipment &&
+        lot.shipment.damagedQuantity.greaterThan(0)
+      ) {
+        throw new ConflictException(
+          'Shipment này đã ghi hỏng theo luồng cũ; không dùng để thử luồng mới',
+        );
+      }
+
+      const damaged = new Prisma.Decimal(input.quantity);
+      if (damaged.greaterThan(lot.availableQuantity)) {
+        throw new UnprocessableEntityException(
+          'Số lượng hỏng vượt số lượng lô còn lại',
+        );
+      }
+
+      const remaining = lot.availableQuantity.minus(damaged);
+      const nextLotState = remaining.equals(0) ? 'DAMAGED' : 'HARVESTED';
+
+      if (lot.shipment) {
+        const updatedShipment = await tx.shipment.updateMany({
+          where: {
+            id: lot.shipment.id,
+            version: lot.shipment.version,
+            status: 'CREATED',
+          },
+          data: {
+            shippedQuantity: remaining,
+            status: remaining.equals(0) ? 'FAILED' : 'CREATED',
+            version: { increment: 1 },
+          },
+        });
+        if (updatedShipment.count !== 1) {
+          throw new ConflictException(
+            'Chuyến hàng vừa thay đổi; hãy tải lại dữ liệu',
+          );
+        }
+      }
+
+      const updatedLot = await tx.lot.updateMany({
+        where: {
+          id: lotId,
+          version: input.lotVersion,
+          currentState: 'HARVESTED',
+        },
+        data: {
+          availableQuantity: remaining,
+          currentState: nextLotState,
+          version: { increment: 1 },
+        },
+      });
+      if (updatedLot.count !== 1) {
+        throw new ConflictException('Version của lô đã thay đổi');
+      }
+
+      const event = await this.trace.createInTransaction(tx, {
+        entityType: 'LOT',
+        entityId: lotId,
+        cycleId: lot.harvest.cycleId,
+        lotId,
+        eventType: 'DAMAGE_RECORDED',
+        actor,
+        businessData: {
+          stage: 'FARM_BEFORE_HANDOVER',
+          quantity: damaged.toString(),
+          unit: lot.unit,
+          reason: input.reason,
+          beforeQuantity: lot.availableQuantity.toString(),
+          afterQuantity: remaining.toString(),
+        },
+      });
+
+      await tx.quantityMovement.create({
+        data: {
+          lotId,
+          eventId: event.id,
+          type: 'DAMAGE_OUT',
+          quantity: damaged,
+          unit: lot.unit,
+          beforeQty: lot.availableQuantity,
+          delta: damaged.negated(),
+          afterQty: remaining,
+        },
+      });
+
+      return {
+        lotId,
+        lotState: nextLotState,
+        damagedQuantity: damaged,
+        availableQuantity: remaining,
+        shipmentId: lot.shipment?.id ?? null,
+        shippedQuantity: lot.shipment ? remaining : null,
+      };
+    });
+  }
+
+  private datePart(value: Date): string {
+    return value.toISOString().slice(0, 10);
+  }
+
+  private sameUnit(left: string, right: string): boolean {
+    return left.trim().toLowerCase() === right.trim().toLowerCase();
   }
 }

@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsIn,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -9,11 +10,39 @@ import {
 } from 'class-validator';
 
 export class CreateUserDto {
-  @IsEmail() email!: string;
-  @IsString() @MaxLength(255) fullName!: string;
-  @IsString() @MinLength(12) password!: string;
-  @IsString() roleCode!: string;
-  @IsOptional() @IsUUID() organizationId?: string;
+  @IsEmail()
+  @MaxLength(255)
+  email!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  fullName!: string;
+
+  @IsString()
+  @MinLength(12)
+  @MaxLength(72)
+  password!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  roleCode!: string;
+
+  @IsOptional()
+  @IsUUID()
+  organizationId?: string;
+}
+
+export class UpdateUserAssignmentDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  roleCode!: string;
+
+  @IsOptional()
+  @IsUUID()
+  organizationId?: string | null;
 }
 
 export class UpdateUserStatusDto {

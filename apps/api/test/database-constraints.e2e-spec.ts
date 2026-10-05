@@ -257,8 +257,8 @@ async function createCoreFixture(tx: Prisma.TransactionClient) {
       });
     });
 
-    it('rejects Lot available quantity greater than initial quantity', async () => {
-      await expectDatabaseReject(async (tx) => {
+    it('derives Lot quantities from its HarvestEvent instead of trusting submitted values', async () => {
+      await expect(prisma.$transaction(async (tx) => {
         const fixture = await createCoreFixture(tx);
         const tag = createTag();
 
@@ -271,7 +271,7 @@ async function createCoreFixture(tx: Prisma.TransactionClient) {
           },
         });
 
-        await tx.lot.create({
+        const lot = await tx.lot.create({
           data: {
             lotCode: `INVALID-LOT-${tag}`,
             harvestId: secondHarvest.id,
@@ -283,7 +283,10 @@ async function createCoreFixture(tx: Prisma.TransactionClient) {
             currentState: 'HARVESTED',
           },
         });
-      });
+        expect(lot.initialQuantity.toString()).toBe('100');
+        expect(lot.availableQuantity.toString()).toBe('100');
+        throw new Error('rollback test fixture');
+      })).rejects.toThrow('rollback test fixture');
     });
 
     it('rejects SensorReading from a device bound to another cycle', async () => {

@@ -15,7 +15,7 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
-import { RecordHarvestDto } from './dto.js';
+import { RecordFarmDamageDto, RecordHarvestDto } from './dto.js';
 import { LotsService } from './lots.service.js';
 
 @ApiTags('lots')
@@ -45,6 +45,27 @@ export class LotsController {
         payload: { cycleId, ...dto },
       },
       () => this.service.recordHarvest(cycleId, dto, req.user),
+    );
+  }
+
+  @Roles('SYSTEM_ADMIN', 'FARM_STAFF')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @Post('lots/:lotId/farm-damage')
+  recordFarmDamage(
+    @Param('lotId', ParseUUIDPipe) lotId: string,
+    @Body() dto: RecordFarmDamageDto,
+    @Headers('idempotency-key') key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.idempotency.execute(
+      {
+        idempotencyKey: key,
+        requesterId: req.user.sub,
+        operation: 'RECORD_FARM_DAMAGE',
+        requestType: 'COMMAND',
+        payload: { lotId, ...dto },
+      },
+      () => this.service.recordFarmDamage(lotId, dto, req.user),
     );
   }
 

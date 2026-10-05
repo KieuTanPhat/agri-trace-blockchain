@@ -51,6 +51,26 @@ Các endpoint hiện có:
 - `GET /api/auth/me` với header `Authorization: Bearer <token>`
 - `POST /api/auth/register` đang chủ động trả `501`; tài khoản phải do quản trị viên cấp
 
+## Ảnh và tài liệu
+
+`POST /api/media` nhận `multipart/form-data` với trường `file`, `kind`
+(`PRODUCT_IMAGE`, `LOT_IMAGE`, `EVIDENCE_DOCUMENT`), một trong `productId` hoặc
+`lotId`, và `visibility` (`PRIVATE` mặc định hoặc `PUBLIC`). Ảnh nhận JPEG, PNG,
+WebP; tài liệu minh chứng nhận thêm PDF. Giới hạn 8 MiB/file. API kiểm tra cả
+MIME khai báo lẫn định dạng từ nội dung file và lưu SHA-256 để kiểm tra toàn vẹn.
+
+Ảnh sản phẩm chỉ quản trị hệ thống được tải lên. Ảnh lô do quản trị hoặc nhân
+viên của tổ chức sở hữu lô tải lên. Tài liệu minh chứng riêng tư cho phép các
+đơn vị có quyền xem lô tải lên; chỉ chủ lô/quản trị được công khai tài liệu.
+Đường dẫn nội bộ `GET /api/media?productId=...` hoặc `?lotId=...`,
+`GET /api/media/:id` và `GET /api/media/:id/content` yêu cầu Bearer token và
+kiểm tra quyền. Tương ứng, `/api/public/media` chỉ trả nội dung `PUBLIC`.
+
+File lưu trong thư mục `apps/api/uploads` khi chạy từ thư mục API; có thể đổi
+bằng `MEDIA_STORAGE_DIR` (đường dẫn tuyệt đối). Thư mục này không đưa vào Git.
+Khi triển khai nhiều máy hoặc container, cần gắn persistent volume dùng chung
+hoặc thay lớp lưu trữ bằng object storage để file không mất sau khi triển khai.
+
 ## Kiểm tra
 
 ```bash

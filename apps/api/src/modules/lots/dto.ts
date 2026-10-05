@@ -1,12 +1,16 @@
+import { Type } from 'class-transformer';
 import {
   IsDateString,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   IsUUID,
   MaxLength,
+  Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 
 export class RecordHarvestDto {
   @IsDateString() harvestTime!: string;
@@ -18,4 +22,21 @@ export class RecordHarvestDto {
   @IsOptional() @IsUUID() finalSensorDigestId?: string;
   @IsOptional() @IsString() @MaxLength(120) lotCode?: string;
   @IsOptional() @IsDateString() expiryDate?: string;
+}
+
+export class RecordFarmDamageDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  lotVersion!: number;
+
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @IsPositive()
+  quantity!: number;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
 }

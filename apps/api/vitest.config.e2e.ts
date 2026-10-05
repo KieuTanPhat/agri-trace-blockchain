@@ -7,5 +7,6 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    env: { ALERT_SCAN_ENABLED: 'false' },
   },
 });

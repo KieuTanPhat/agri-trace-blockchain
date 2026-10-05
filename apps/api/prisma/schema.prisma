@@ -19,20 +19,23 @@ model Role {
 }
 
 model User {
-  id               String                    @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
-  organizationId   String?                   @map("organization_id") @db.Uuid
-  roleId           String                    @map("role_id") @db.Uuid
-  email            String                    @db.VarChar(255)
-  passwordHash     String                    @map("password_hash")
-  fullName         String                    @map("full_name") @db.VarChar(255)
-  accountStatus    AccountStatus             @default(ACTIVE) @map("account_status")
-  createdAt        DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime                  @default(now()) @map("updated_at") @db.Timestamptz(6)
-  organization     Organization?             @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  role             Role                      @relation(fields: [roleId], references: [id], onUpdate: NoAction)
-  trackingBindings ShipmentTrackingBinding[]
-  traceEvents      TraceEvent[]
-  refreshSessions  RefreshSession[]
+  id                String                    @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
+  organizationId    String?                   @map("organization_id") @db.Uuid
+  roleId            String                    @map("role_id") @db.Uuid
+  email             String                    @db.VarChar(255)
+  passwordHash      String                    @map("password_hash")
+  fullName          String                    @map("full_name") @db.VarChar(255)
+  accountStatus     AccountStatus             @default(ACTIVE) @map("account_status")
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  organization      Organization?             @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  role              Role                      @relation(fields: [roleId], references: [id], onUpdate: NoAction)
+  trackingBindings  ShipmentTrackingBinding[]
+  traceEvents       TraceEvent[]
+  refreshSessions   RefreshSession[]
+  notifications     Notification[]            @relation("NotificationRecipient")
+  alertRulesCreated SensorAlertRule[]         @relation("AlertRuleCreator")
+  uploadedMedia     MediaAsset[]              @relation("MediaUploader")
 
   @@map("app_user")
 }
@@ -68,6 +71,8 @@ model Organization {
   shipmentsAsTransporter Shipment[]                @relation("ShipmentTransporter")
   trackingBindings       ShipmentTrackingBinding[]
   traceEvents            TraceEvent[]
+  notifications          Notification[]
+  sensorAlertRules       SensorAlertRule[]
 
   @@map("organization")
 }
@@ -117,6 +122,7 @@ model Product {
   updatedAt   DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
   lots        Lot[]
   cycles      ProductionCycle[]
+  mediaAssets MediaAsset[]
 
   @@map("product")
 }
@@ -194,6 +200,7 @@ model IotDevice {
   shipmentTelemetry        ShipmentTelemetry[]
   shipmentTelemetryDigests ShipmentTelemetryDigest[]
   trackingBinding          ShipmentTrackingBinding?
+  alertRules               SensorAlertRule[]
 
   @@index([cycleId], map: "ix_iot_device_cycle")
   @@index([organizationId], map: "ix_iot_device_org")
@@ -284,6 +291,7 @@ model Lot {
   shipment          Shipment?
   traceEvents       TraceEvent[]
   traceQr           TraceQr?
+  mediaAssets       MediaAsset[]
 
   @@index([farmOrgId], map: "ix_lot_farm_org")
   @@index([productId], map: "ix_lot_product")
@@ -306,6 +314,7 @@ model Shipment {
   arrivalTime       DateTime?                 @map("arrival_time") @db.Timestamptz(6)
   receivedTime      DateTime?                 @map("received_time") @db.Timestamptz(6)
   receivedQuantity  Decimal?                  @map("received_quantity") @db.Decimal(14, 3)
+  damagedQuantity   Decimal                   @default(0) @map("damaged_quantity") @db.Decimal(14, 3)
   rejectedQuantity  Decimal?                  @map("rejected_quantity") @db.Decimal(14, 3)
   rejectReason      String?                   @map("reject_reason")
   vehicleRef        String?                   @map("vehicle_ref") @db.VarChar(255)
@@ -566,6 +575,76 @@ model IdempotencyRecord {
   @@map("idempotency_record")
 }
 
+model SensorAlertRule {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @map("alert_rule_id") @db.Uuid
+  organizationId String               @map("organization_id") @db.Uuid
+  deviceId       String?              @map("device_id") @db.Uuid
+  sensorType     String               @map("sensor_type") @db.VarChar(100)
+  minimumValue   Decimal?             @map("minimum_value") @db.Decimal(16, 6)
+  maximumValue   Decimal?             @map("maximum_value") @db.Decimal(16, 6)
+  severity       NotificationSeverity @default(WARNING)
+  enabled        Boolean              @default(true)
+  createdById    String               @map("created_by_id") @db.Uuid
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @default(now()) @map("updated_at") @db.Timestamptz(6)
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  device         IotDevice?           @relation(fields: [deviceId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  createdBy      User                 @relation("AlertRuleCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([organizationId, enabled], map: "ix_sensor_alert_rule_org_enabled")
+  @@index([deviceId, sensorType], map: "ix_sensor_alert_rule_device_type")
+  @@map("sensor_alert_rule")
+}
+
+model Notification {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @map("notification_id") @db.Uuid
+  organizationId  String?              @map("organization_id") @db.Uuid
+  recipientUserId String               @map("recipient_user_id") @db.Uuid
+  type            NotificationType
+  severity        NotificationSeverity @default(WARNING)
+  title           String               @db.VarChar(255)
+  message         String
+  entityType      String               @map("entity_type") @db.VarChar(50)
+  entityId        String               @map("entity_id") @db.Uuid
+  dedupKey        String               @map("dedup_key") @db.VarChar(255)
+  metadata        Json?
+  status          NotificationStatus   @default(UNREAD)
+  readAt          DateTime?            @map("read_at") @db.Timestamptz(6)
+  resolvedAt      DateTime?            @map("resolved_at") @db.Timestamptz(6)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime             @default(now()) @map("updated_at") @db.Timestamptz(6)
+  organization    Organization?        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  recipient       User                 @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([recipientUserId, dedupKey], map: "uq_notification_recipient_dedup")
+  @@index([organizationId, status], map: "ix_notification_org_status")
+  @@index([recipientUserId, status, createdAt], map: "ix_notification_recipient_status")
+  @@index([type, createdAt], map: "ix_notification_type_created")
+  @@map("notification")
+}
+
+model MediaAsset {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @map("media_id") @db.Uuid
+  productId    String?         @map("product_id") @db.Uuid
+  lotId        String?         @map("lot_id") @db.Uuid
+  uploadedById String          @map("uploaded_by_id") @db.Uuid
+  kind         MediaKind
+  visibility   MediaVisibility @default(PRIVATE)
+  originalName String          @map("original_name") @db.VarChar(255)
+  mimeType     String          @map("mime_type") @db.VarChar(100)
+  sizeBytes    Int             @map("size_bytes")
+  sha256       String          @db.VarChar(64)
+  storageKey   String          @unique @map("storage_key") @db.VarChar(100)
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  product      Product?        @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  lot          Lot?            @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  uploadedBy   User            @relation("MediaUploader", fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([productId, visibility, createdAt], map: "ix_media_product_visibility")
+  @@index([lotId, visibility, createdAt], map: "ix_media_lot_visibility")
+  @@map("media_asset")
+}
+
 enum AccountStatus {
   ACTIVE
   INACTIVE
@@ -618,6 +697,46 @@ enum LotState {
   REJECTED
 
   @@map("lot_state")
+}
+
+enum NotificationType {
+  LOT_EXPIRING
+  CERTIFICATE_EXPIRING
+  SENSOR_THRESHOLD_EXCEEDED
+  BLOCKCHAIN_PROCESSING_FAILED
+
+  @@map("notification_type")
+}
+
+enum NotificationSeverity {
+  INFO
+  WARNING
+  CRITICAL
+
+  @@map("notification_severity")
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  RESOLVED
+
+  @@map("notification_status")
+}
+
+enum MediaKind {
+  PRODUCT_IMAGE
+  LOT_IMAGE
+  EVIDENCE_DOCUMENT
+
+  @@map("media_kind")
+}
+
+enum MediaVisibility {
+  PRIVATE
+  PUBLIC
+
+  @@map("media_visibility")
 }
 
 enum OrganizationStatus {

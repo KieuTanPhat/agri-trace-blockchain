@@ -126,6 +126,7 @@ export class ShipmentsController {
       this.service.reject(id, dto, req.user),
     );
   }
+
   @Roles('SYSTEM_ADMIN', 'TRANSPORTER', 'RETAILER')
   @Post(':id/damage')
   damage(

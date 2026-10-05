@@ -12,8 +12,9 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
-import { CreateUserDto, UpdateUserStatusDto } from './dto.js';
+import { CreateUserDto, UpdateUserStatusDto, UpdateUserAssignmentDto } from './dto.js';
 import { UsersService } from './users.service.js';
+
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -30,6 +31,13 @@ export class UsersController {
   }
   @Post() create(@Body() input: CreateUserDto) {
     return this.service.create(input);
+  }
+  @Patch(':id/assignment')
+  updateAssignment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: UpdateUserAssignmentDto,
+  ) {
+    return this.service.updateAssignment(id, input);
   }
   @Patch(':id/status')
   updateStatus(

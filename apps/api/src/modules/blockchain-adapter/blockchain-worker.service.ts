@@ -4,6 +4,7 @@ import {
   NotFoundException,
   OnApplicationBootstrap,
   OnModuleDestroy,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   FabricBlockchainAdapter,
@@ -15,6 +16,8 @@ import {
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { calculateTraceEventHash } from '../trace/trace-hash.js';
+import { OrganizationAccessService } from '../auth/organization-access.service.js';
+import type { Actor } from '../trace/trace.service.js';
 
 type FabricReceipt = {
   txId?: string;
@@ -37,7 +40,10 @@ export class BlockchainWorkerService
   private adapter?: FabricBlockchainAdapter;
   private running = false;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: OrganizationAccessService,
+  ) {}
 
   onApplicationBootstrap() {
     if (process.env.FABRIC_ENABLED !== 'true') return;
@@ -68,12 +74,24 @@ export class BlockchainWorkerService
     }
   }
 
-  async verify(eventId: string) {
+  async verify(eventId: string, actor: Actor) {
     const proof = await this.prisma.blockchainProof.findUnique({
       where: { eventId },
       include: { traceEvent: true },
     });
     if (!proof) throw new NotFoundException('Không tìm thấy blockchain proof');
+
+    if (proof.traceEvent.lotId) {
+      await this.access.assertLotAccess(actor, proof.traceEvent.lotId);
+    } else if (proof.traceEvent.cycleId) {
+      await this.access.assertProductionCycleAccess(
+        actor,
+        proof.traceEvent.cycleId
+      );
+    } else {
+      throw new ForbiddenException('Không xác định được quyền xem sự kiện');
+    }
+
     const result: Record<string, unknown> = {
       eventId,
       status: proof.transactionStatus,
@@ -175,7 +193,7 @@ export class BlockchainWorkerService
             'SYSTEM_ASSERTION') as TraceEventInput['actorContext']['authProofType'],
           actorAuthProof: event.actorAuthProof ?? event.dataHash,
         },
-        payloadMetadata: { hasBusinessPayload: true },
+        payloadMetadata: { eventClass: "BUSINESS_EVENT" },
       };
       let receipt: FabricReceipt;
       try {

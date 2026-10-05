@@ -90,20 +90,49 @@ export class ProductionCyclesService {
 
   async create(input: CreateProductionCycleDto, actor: Actor) {
     const farm = await this.access.assertFarmAccess(actor, input.farmId);
+
     const [product, plot] = await Promise.all([
-      this.prisma.product.findUnique({ where: { id: input.productId } }),
+      this.prisma.product.findUnique({
+        where: { id: input.productId },
+      }),
       input.plotId
-        ? this.prisma.plot.findUnique({ where: { id: input.plotId } })
+        ? this.prisma.plot.findUnique({
+            where: { id: input.plotId },
+          })
         : null,
     ]);
-    if (!product || product.status !== 'ACTIVE')
+
+    if (!product || product.status !== 'ACTIVE') {
       throw new NotFoundException(
         'Sản phẩm không tồn tại hoặc không hoạt động',
       );
-    if (plot && (plot.farmId !== farm.id || plot.status !== 'ACTIVE'))
+    }
+
+    if (plot && (plot.farmId !== farm.id || plot.status !== 'ACTIVE')) {
       throw new UnprocessableEntityException(
         'Thửa đất không thuộc nông trại hoặc không hoạt động',
       );
+    }
+
+    const startDate = input.startDate ? new Date(input.startDate) : null;
+    const plannedHarvest = input.plannedHarvest
+      ? new Date(input.plannedHarvest)
+      : null;
+
+    if (startDate && plannedHarvest && plannedHarvest < startDate) {
+      throw new UnprocessableEntityException(
+        'Ngày thu hoạch dự kiến không được trước ngày bắt đầu vụ',
+      );
+    }
+
+    if (
+      product.defaultUnit &&
+      !this.sameUnit(product.defaultUnit, input.harvestUnit)
+    ) {
+      throw new UnprocessableEntityException(
+        `Đơn vị thu hoạch phải là ${product.defaultUnit}`,
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const cycle = await tx.productionCycle.create({
@@ -113,15 +142,14 @@ export class ProductionCyclesService {
           farmOrgId: farm.organizationId,
           plotId: input.plotId,
           productId: input.productId,
-          startDate: input.startDate ? new Date(input.startDate) : undefined,
-          plannedHarvest: input.plannedHarvest
-            ? new Date(input.plannedHarvest)
-            : undefined,
+          startDate: startDate ?? undefined,
+          plannedHarvest: plannedHarvest ?? undefined,
           maxHarvestQuantity: input.maxHarvestQuantity,
-          harvestUnit: input.harvestUnit,
+          harvestUnit: input.harvestUnit.trim(),
           note: input.note,
         },
       });
+
       await this.trace.createInTransaction(tx, {
         entityType: 'PRODUCTION_CYCLE',
         entityId: cycle.id,
@@ -133,16 +161,38 @@ export class ProductionCyclesService {
           farmId: cycle.farmId,
           plotId: cycle.plotId,
           productId: cycle.productId,
-          maxHarvestQuantity: String(cycle.maxHarvestQuantity),
+          maxHarvestQuantity:
+            cycle.maxHarvestQuantity?.toString() ?? null,
           harvestUnit: cycle.harvestUnit,
         },
       });
+
       return cycle;
     });
   }
 
   async plant(id: string, input: PlantCycleDto, actor: Actor) {
     await this.access.assertProductionCycleAccess(actor, id);
+
+    const cycle = await this.prisma.productionCycle.findUnique({
+      where: { id },
+    });
+
+    if (!cycle) {
+      throw new NotFoundException('Không tìm thấy vụ sản xuất');
+    }
+
+    const plantedAt = new Date(input.plantedAt);
+
+    if (
+      cycle.plannedHarvest &&
+      this.datePart(plantedAt) > this.datePart(cycle.plannedHarvest)
+    ) {
+      throw new UnprocessableEntityException(
+        'Ngày gieo trồng không được sau ngày thu hoạch dự kiến',
+      );
+    }
+
     return this.transition(
       id,
       input.version,
@@ -150,31 +200,69 @@ export class ProductionCyclesService {
       'PLANTED',
       actor,
       'CYCLE_PLANTED',
-      { plantedAt: input.plantedAt },
-      { startDate: new Date(input.plantedAt) },
+      {
+        plantedAt: input.plantedAt,
+      },
+      {
+        startDate: plantedAt,
+      },
     );
   }
 
   async addCare(id: string, input: CareRecordDto, actor: Actor) {
     await this.access.assertProductionCycleAccess(actor, id);
+
+    const cycle = await this.prisma.productionCycle.findUnique({
+      where: { id },
+    });
+
+    if (!cycle) {
+      throw new NotFoundException('Không tìm thấy vụ sản xuất');
+    }
+
+    const eventTime = new Date(input.eventTime);
+
+    this.assertEventTimeInCycle(
+      eventTime,
+      cycle.startDate,
+      cycle.plannedHarvest,
+      'Thời gian chăm sóc',
+    );
+
+    if ((input.quantity == null) !== (input.unit == null)) {
+      throw new UnprocessableEntityException(
+        'Số lượng và đơn vị chăm sóc phải được nhập cùng nhau',
+      );
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.productionCycle.updateMany({
         where: {
           id,
           version: input.version,
-          currentState: { in: ['PLANTED', 'GROWING'] },
+          currentState: {
+            in: ['PLANTED', 'GROWING'],
+          },
         },
-        data: { currentState: 'GROWING', version: { increment: 1 } },
+        data: {
+          currentState: 'GROWING',
+          version: {
+            increment: 1,
+          },
+        },
       });
-      if (updated.count !== 1)
+
+      if (updated.count !== 1) {
         throw new ConflictException(
           'Version hoặc trạng thái chu kỳ không hợp lệ',
         );
+      }
+
       const care = await tx.careRecord.create({
         data: {
           cycleId: id,
           careType: input.careType,
-          eventTime: new Date(input.eventTime),
+          eventTime,
           materialName: input.materialName,
           quantity: input.quantity,
           unit: input.unit,
@@ -182,6 +270,7 @@ export class ProductionCyclesService {
           note: input.note,
         },
       });
+
       await this.trace.createInTransaction(tx, {
         entityType: 'CARE',
         entityId: care.id,
@@ -196,15 +285,51 @@ export class ProductionCyclesService {
           unit: care.unit,
         },
       });
-      return { care, version: input.version + 1 };
+
+      return {
+        care,
+        version: input.version + 1,
+      };
     });
   }
 
-  async addSensorReading(id: string, input: SensorReadingDto, actor: Actor) {
-    const cycle = await this.access.assertProductionCycleAccess(actor, id);
-    const device = await this.prisma.iotDevice.findUnique({
-      where: { id: input.deviceId },
+  async addSensorReading(
+    id: string,
+    input: SensorReadingDto,
+    actor: Actor,
+  ) {
+    await this.access.assertProductionCycleAccess(actor, id);
+
+    const cycle = await this.prisma.productionCycle.findUnique({
+      where: { id },
+      include: {
+        farm: {
+          select: {
+            organizationId: true,
+          },
+        },
+      },
     });
+
+    if (!cycle) {
+      throw new NotFoundException('Không tìm thấy vụ sản xuất');
+    }
+
+    const recordedAt = new Date(input.recordedAt);
+
+    this.assertEventTimeInCycle(
+      recordedAt,
+      cycle.startDate,
+      cycle.plannedHarvest,
+      'Thời gian cảm biến',
+    );
+
+    const device = await this.prisma.iotDevice.findUnique({
+      where: {
+        id: input.deviceId,
+      },
+    });
+
     if (
       !device ||
       device.cycleId !== id ||
@@ -215,8 +340,7 @@ export class ProductionCyclesService {
         'Thiết bị không thuộc chu kỳ hoặc không hoạt động',
       );
     }
-    // Raw sensor readings are deliberately kept off-chain. SensorDigest is the
-    // auditable aggregate that produces TraceEvent/BlockchainProof records.
+
     return this.prisma.sensorReading.create({
       data: {
         cycleId: id,
@@ -224,7 +348,7 @@ export class ProductionCyclesService {
         sensorType: input.sensorType,
         value: input.value,
         unit: input.unit,
-        recordedAt: new Date(input.recordedAt),
+        recordedAt,
       },
     });
   }
@@ -287,5 +411,37 @@ export class ProductionCyclesService {
       });
       return cycle;
     });
+  }
+
+  private assertEventTimeInCycle(
+    eventTime: Date,
+    startDate: Date | null,
+    plannedHarvest: Date | null,
+    fieldName: string,
+  ): void {
+    const eventDate = this.datePart(eventTime);
+
+    if (startDate && eventDate < this.datePart(startDate)) {
+      throw new UnprocessableEntityException(
+        `${fieldName} không được trước ngày bắt đầu vụ`,
+      );
+    }
+
+    if (
+      plannedHarvest &&
+      eventDate > this.datePart(plannedHarvest)
+    ) {
+      throw new UnprocessableEntityException(
+        `${fieldName} không được sau ngày thu hoạch dự kiến`,
+      );
+    }
+  }
+
+  private sameUnit(left: string, right: string): boolean {
+    return left.trim().toLowerCase() === right.trim().toLowerCase();
+  }
+
+  private datePart(value: Date): string {
+    return value.toISOString().slice(0, 10);
   }
 }

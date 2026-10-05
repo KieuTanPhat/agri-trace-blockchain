@@ -60,6 +60,9 @@ describe('Current account authorization', () => {
         code: 'FARM_STAFF',
       },
       organizationId: '631e9648-174d-48a0-9494-353bda8775da',
+      organization: {
+        status: 'ACTIVE',
+      },
       accountStatus: 'ACTIVE',
     };
 
@@ -82,6 +85,11 @@ describe('Current account authorization', () => {
     await expect(guard.canActivate(context().ctx)).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
+
+    current.accountStatus = 'ACTIVE';
+    current.organization.status = 'INACTIVE';
+
+    await expect(guard.canActivate(context().ctx)).rejects.toBeInstanceOf(UnauthorizedException,);
   });
 
   it('does not authorize a request when the database fails', async () => {

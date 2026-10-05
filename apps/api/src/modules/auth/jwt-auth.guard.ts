@@ -48,6 +48,11 @@ export class JwtAuthGuard implements CanActivate {
         email: true,
         role: { select: { code: true } },
         organizationId: true,
+        organization: {
+          select: {
+            status: true,
+          },
+        },
         accountStatus: true,
       },
     });
@@ -55,6 +60,15 @@ export class JwtAuthGuard implements CanActivate {
     if (!user || user.accountStatus !== 'ACTIVE') {
       throw new UnauthorizedException(
         'Tài khoản không tồn tại hoặc không hoạt động',
+      );
+    }
+
+    if (
+      user.organizationId &&
+      (!user.organization || user.organization.status !== 'ACTIVE')
+    ) {
+      throw new UnauthorizedException(
+        'Tổ chức của tài khoản hiện không hoạt động',
       );
     }
 
