@@ -1,0 +1,78 @@
+name: Dependency Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 2 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  audit:
+    name: Audit / ${{ matrix.lockfile }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lockfile: workspaces
+            directory: .
+            flags: ''
+          - lockfile: standalone-chaincode
+            directory: blockchain/chaincode
+            flags: --workspaces=false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.22.3'
+          package-manager-cache: false
+      - run: npm install --global npm@12.1.0
+      - name: Audit the committed lockfile, including development dependencies
+        working-directory: ${{ matrix.directory }}
+        run: |
+          set +e
+          npm audit --package-lock-only --audit-level=high --json ${{ matrix.flags }} > "${RUNNER_TEMP}/audit-${{ matrix.lockfile }}.json"
+          result=$?
+          cat "${RUNNER_TEMP}/audit-${{ matrix.lockfile }}.json"
+          exit "$result"
+      - name: Upload dependency audit evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-audit-${{ matrix.lockfile }}-${{ github.sha }}
+          path: ${{ runner.temp }}/audit-${{ matrix.lockfile }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  gate:
+    name: Dependency gate
+    needs: audit
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require both lockfile audits to succeed
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/ci/gate.mjs dependency

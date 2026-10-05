@@ -2,56 +2,88 @@ name: Blockchain CI
 
 on:
   push:
-    paths:
-      - "blockchain/**"
-      - "docs/architecture/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/blockchain-ci.yml"
+    branches: [main]
   pull_request:
-    paths:
-      - "blockchain/**"
-      - "docs/architecture/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/blockchain-ci.yml"
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      blockchain: ${{ steps.changes.outputs.blockchain }}
+      fabric: ${{ steps.changes.outputs.fabric }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: changes
+        run: node scripts/ci/changes.mjs
+
   verify:
-    runs-on: ubuntu-latest
+    name: ${{ matrix.package }} / Node ${{ matrix.node }}
+    needs: changes
+    if: needs.changes.outputs.blockchain == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        package:
-          - blockchain/chaincode
-          - blockchain/gateway
+        node: ['22.22.3', '24.15.0', '26.0.0']
+        package: [blockchain/chaincode, blockchain/gateway]
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 22
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm install --global npm@12.1.0
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - run: npm run check --workspace ${{ matrix.package }}
 
   fabric-smoke:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: API Worker Fabric integration
+    needs: changes
+    if: needs.changes.outputs.fabric == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      COMPOSE_PROJECT_NAME: agri-trace-fabric-ci
+      FABRIC_ENABLED: 'true'
+      FABRIC_PEER_ENDPOINT: peer0.org1.example.com:7051
+      FABRIC_WORKER_INTERVAL_MS: '1000'
+      RELAYER_MSP_DIR_HOST: ./blockchain/network/identities/relayer/msp
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 22
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.22.3'
+          cache: npm
+          cache-dependency-path: package-lock.json
       - run: npm install --global npm@12.1.0
-      - name: Audit standalone chaincode lockfile
-        working-directory: blockchain/chaincode
-        run: npm audit --workspaces=false --audit-level=high
-      - name: Bootstrap pinned Fabric runtime
+      - run: npm ci --no-audit --no-fund
+      - name: Check compiled Worker output against the chaincode validator
+        run: npm run test:worker-contract
+      - name: Bootstrap pinned Fabric network
         working-directory: blockchain/network
         run: ./network.sh bootstrap
       - name: Start network and create channel
@@ -60,15 +92,54 @@ jobs:
       - name: Enroll technical relayer
         working-directory: blockchain/network
         run: ./network.sh enroll-relayer
-      - name: Deploy and run end-to-end smoke test
+      - name: Deploy chaincode and verify Gateway submit/query
         working-directory: blockchain/network
         run: ./network.sh smoke
-      - name: Collect Fabric diagnostics
+      - name: Build Gateway exports and match Worker to the identity owner
+        run: |
+          npm run build --workspace blockchain/gateway
+          echo "CI_WORKER_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "CI_WORKER_GID=$(id -g)" >> "$GITHUB_ENV"
+      - name: Build API and Worker production images
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml build api worker
+      - name: Start production API while Worker is stopped
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --wait --wait-timeout 240 postgres api
+      - name: Verify API to outbox to Worker to Fabric to confirmed proof
+        run: node scripts/ci/fabric-integration.mjs
+      - name: Collect application and Fabric diagnostics
         if: failure()
         run: |
-          docker logs peer0.org1.example.com 2>&1 | tail -n 500 || true
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml ps --all
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml logs --no-color --tail 200
+          docker logs peer0.org1.example.com 2>&1 | tail -n 300 || true
           docker logs peer0.org2.example.com 2>&1 | tail -n 200 || true
+      - name: Upload integration evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fabric-integration-${{ github.sha }}
+          path: artifacts/fabric-integration.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Stop disposable application stack
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down --volumes --remove-orphans
       - name: Stop network
         if: always()
         working-directory: blockchain/network
         run: ./network.sh down
+
+  gate:
+    name: Blockchain gate
+    needs: [changes, verify, fabric-smoke]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require all selected blockchain checks to succeed
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/ci/gate.mjs blockchain

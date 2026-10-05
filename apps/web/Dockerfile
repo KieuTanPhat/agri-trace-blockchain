@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:22-alpine AS dependencies
+FROM node:22.22.3-alpine AS dependencies
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -20,7 +20,7 @@ ENV NEXT_PUBLIC_MOCK_API=$NEXT_PUBLIC_MOCK_API
 COPY apps/web apps/web
 RUN npm run build --workspace apps/web
 
-FROM node:22-alpine AS runtime
+FROM node:22.22.3-alpine AS runtime
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
