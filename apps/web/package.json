@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/run-next.mjs dev",
-    "build": "node scripts/run-next.mjs build",
-    "lint": "next lint",
+    "build": "npm run lint && node scripts/run-next.mjs build",
+    "lint": "eslint src/ && oxlint --config .oxlintrc.json src/",
+    "lint:contract": "node --test scripts/lint-contract.test.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build"
+    "check": "npm run typecheck && npm test && npm run lint:contract && npm run build"
   },
   "dependencies": {
     "@next/swc-wasm-nodejs": "^15.5.25",
@@ -27,7 +28,14 @@
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "eslint": "^9.18.0",
-    "eslint-config-next": "^15.5.0",
+    "@typescript-eslint/eslint-plugin": "^8.69.0",
+    "@typescript-eslint/parser": "^8.69.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^14.0.0",
+    "oxlint": "^1.82.0",
     "jsdom": "^26.1.0",
     "jsqr": "^1.4.0",
     "typescript": "^5.7.0",

@@ -104,18 +104,46 @@ Các bản vá ngày 05/10/2026:
 - `fast-uri` nhánh 3.x: 3.1.8. Giữ major Next.js/NestJS và lockfile chaincode
   độc lập đang sạch; không dùng `npm audit fix --force`.
 
-**Còn chặn merge:** [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
-của `braces <=3.0.3` chưa có bản vá. Dependency đi qua
-`eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces`
-và chỉ thuộc bộ lint phát triển. npm báo 5 package high từ một advisory gốc.
-Audit runtime (`--omit=dev`) và audit chaincode độc lập hiện không có advisory.
-Theo quyết định của chủ dự án ngày 05/10, giữ gate đỏ cho advisory này;
-không có allowlist, ngoại lệ hoặc hạ ngưỡng audit.
+Advisory [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+của `braces <=3.0.3` được xử lý bằng cách loại chuỗi
+`eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces`.
+Giữ Next.js 15.5.25 và các plugin ESLint đã dùng; thay `next lint` bằng
+ESLint flat config cùng plugin Next.js native của Oxlint. Oxlint đã có trong
+workspace API. Lockfile không còn các package trong chuỗi trên. Audit toàn
+bộ workspace, runtime và chaincode độc lập đều trả về 0 advisory tại thời
+điểm kiểm tra ngày 05/10/2026. Ngưỡng high/critical tiếp tục chặn merge theo
+quyết định của chủ dự án; không có allowlist hoặc ngoại lệ.
 
-Theo dõi bản vá upstream hoặc đánh giá một thay đổi tooling riêng có kiểm
-chứng tương đương; không hạ major framework hay bỏ rule lint chỉ để audit
-chuyển xanh. Dependabot kiểm dependency và action hàng tuần, không tự merge
-và không đề xuất nâng major npm trong cấu hình này.
+Một lỗi peer dependency có sẵn cũng được sửa: SWC của API yêu cầu
+`@swc/helpers >=0.5.17`, trong khi Next.js cần đúng 0.5.15. API khai báo
+helper 0.5.17 riêng ở devDependencies để đáp ứng cả hai consumer, giữ nguyên
+helper của Next.js. `npm ls --all` phải thành công sau khi cài sạch.
+
+Dependabot kiểm dependency và action hàng tuần, không tự merge và không
+đề xuất nâng major npm trong cấu hình này.
+
+## Hợp đồng lint Web
+
+`apps/web/scripts/lint-policy.json` ghi lại 71 rule đang bật của cấu hình
+`next/core-web-vitals` và `next/typescript` tại `d773afe`, gồm mức warning/error
+và tùy chọn. Tùy chọn mặc định của hai rule ESLint được ghi rõ để giữ hành vi:
+
+- ESLint chạy 50 rule React, TypeScript, hooks, accessibility và import bằng
+  cùng các plugin; giữ việc đánh dấu import/component được dùng trong JSX.
+- Oxlint chạy 21 rule Next.js bằng plugin native; tắt nhóm correctness mặc
+  định vì các rule ESLint đã kiểm riêng. Không bỏ rule Next.js hoặc hạ mức lỗi.
+- `npm run lint --workspace apps/web` bắt buộc cả hai engine thành công.
+  `npm run build --workspace apps/web` chạy lint trước Next.js. Cấu hình
+  `ignoreDuringBuilds` chỉ tránh lần lint nội bộ lặp của Next.js; dùng lệnh
+  build trong package.json để đảm bảo điều kiện này.
+- `npm run lint:contract --workspace apps/web` kiểm cấu hình đủ 71 rule,
+  kiểm `npm ls --all`, cố tình vi phạm từng rule có diagnostic, kiểm mẫu hợp lệ
+  và thực sự gọi build với một lỗi Next.js để xác nhận compiler chưa được chạy. File canary
+  có tên ngẫu nhiên và được xóa sau test; fixture nằm trong thư mục tạm riêng.
+  Hợp đồng chạy trong `npm run check`, trên cả ba phiên bản Node trong CI.
+
+Liên kết tra cứu `/scan` trên trang đăng nhập đã chuyển sang `next/link` sau
+khi rule `no-html-link-for-pages` phát hiện điều hướng nội bộ bằng thẻ `a`.
 
 ## Chạy lại tại máy phát triển
 
@@ -123,6 +151,7 @@ và không đề xuất nâng major npm trong cấu hình này.
 npm ci --no-audit --no-fund
 npm run test:ci
 npm run test:worker-contract
+npm run lint:contract --workspace apps/web
 npm audit --package-lock-only --audit-level=high
 npm audit --package-lock-only --omit=dev --audit-level=high
 ```
@@ -146,4 +175,4 @@ Compose project và mạng thử nghiệm sau khi hoàn tất.
 Mỗi kết quả phải gắn đúng SHA và môi trường. Kiểm tra local trên Node 22
 không thay bằng chứng matrix 24/26, PostgreSQL 16 trong CI, production
 containers hoặc Fabric thật. Không suy ra nghiệm thu toàn bộ các issue
-từ việc thêm workflow; advisory chưa vá vẫn là điều kiện chặn merge.
+từ việc thêm workflow; advisory high/critical mới vẫn là điều kiện chặn merge.

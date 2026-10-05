@@ -25,7 +25,6 @@
     "esbuild@0.28.2": true,
     "prisma@7.10.0": true,
     "protobufjs@7.6.6": true,
-    "unrs-resolver@1.12.2": true,
     "@scarf/scarf": false,
     "pkcs11js": false
   },
