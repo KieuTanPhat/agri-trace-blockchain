@@ -1,4 +1,9 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { classifyChanges, changedFiles } from './changes.mjs';
 import { gateErrors } from './gate.mjs';
@@ -51,6 +56,55 @@ test('documentation-only PRs skip expensive jobs without leaving gates pending',
     api: { result: 'skipped' }, web: { result: 'skipped' }, 'container-build': { result: 'skipped' },
   }), []);
 });
+
+for (const [source, destination, checks] of [
+  ['apps/api/src/worker.ts', 'docs/worker.md', ['api', 'containers', 'fabric']],
+  ['apps/web/src/view.tsx', 'apps/api/src/view.tsx', ['web', 'api', 'containers', 'fabric']],
+  ['blockchain/gateway/src/adapter.ts', 'docs/adapter.md', ['api', 'blockchain', 'containers', 'fabric']],
+  ['blockchain/chaincode/src/contract.ts', 'docs/contract.md', ['blockchain', 'fabric']],
+]) {
+  test(`moving ${source} to ${destination} checks both paths in the actual Git diff`, t => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'agri-trace-ci-diff-'));
+    t.after(() => {
+      const resolved = path.resolve(directory);
+      assert.ok(resolved.startsWith(path.resolve(tmpdir()) + path.sep));
+      assert.ok(path.basename(resolved).startsWith('agri-trace-ci-diff-'));
+      rmSync(resolved, { recursive: true, force: true });
+    });
+    const git = (...args) => execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim();
+    git('init', '-q');
+    git('config', 'core.autocrlf', 'false');
+    git('config', 'core.hooksPath', path.join(directory, 'no-hooks'));
+    git('config', 'user.name', 'CI regression');
+    git('config', 'user.email', 'ci@example.invalid');
+    const commit = message => {
+      git('add', '-A');
+      git('-c', 'commit.gpgSign=false', 'commit', '-q', '-m', message);
+      return git('rev-parse', 'HEAD');
+    };
+    mkdirSync(path.dirname(path.join(directory, source)), { recursive: true });
+    writeFileSync(path.join(directory, source), 'export const regression = true;\n');
+    const before = commit('Before move');
+    mkdirSync(path.dirname(path.join(directory, destination)), { recursive: true });
+    renameSync(path.join(directory, source), path.join(directory, destination));
+    const after = commit('After move');
+    const eventFile = path.join(directory, 'event.json');
+    writeFileSync(eventFile, JSON.stringify({ pull_request: { base: { sha: before } } }));
+    const output = execFileSync(process.execPath, [fileURLToPath(new URL('./changes.mjs', import.meta.url))], {
+      cwd: directory,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        GITHUB_EVENT_NAME: 'pull_request', GITHUB_EVENT_PATH: eventFile,
+        GITHUB_SHA: after, GITHUB_OUTPUT: path.join(directory, 'output.txt'),
+      },
+    });
+    const { changedFiles: files, selected } = JSON.parse(output);
+    assert.ok(files.includes(source), 'The removed source must select its dependent checks');
+    assert.ok(files.includes(destination), 'The new destination must select its dependent checks');
+    for (const check of checks) assert.equal(selected[check], true, check);
+  });
+}
 
 test('dispatch, merge queue and missing push baselines run everything', () => {
   for (const [event, payload] of [['workflow_dispatch', {}], ['merge_group', {}], ['push', { before: '0'.repeat(40) }]]) {

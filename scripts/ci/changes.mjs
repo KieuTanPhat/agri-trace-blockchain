@@ -40,7 +40,9 @@ export function changedFiles(eventName, event, sha) {
   if (!/^[a-f0-9]{40,64}$/.test(base) || !/^[a-f0-9]{40,64}$/.test(sha ?? '')) {
     throw new Error('Invalid CI comparison SHA');
   }
-  const diff = execFileSync('git', ['diff', '--name-only', '-z', base, sha], {
+  // Treat a rename as deletion + addition so both source and destination
+  // select their dependent checks, including moves across workspace boundaries.
+  const diff = execFileSync('git', ['diff', '--no-renames', '--name-only', '-z', base, sha], {
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
   });

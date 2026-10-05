@@ -38,7 +38,10 @@ tắc PR, chống xóa nhánh và chống force push đang có khi cập nhật 
 | Chỉ tài liệu | Gate vẫn chạy; job nặng được skip có kiểm tra. Audit vẫn chạy. |
 
 Dispatch, merge queue và push thiếu SHA nền chạy toàn bộ pipeline. Git diff
-không giới hạn 300 file và xử lý cả xóa/đổi tên. Không lấy source từ PR qua
+không giới hạn 300 file. Đổi tên được xét như xóa và thêm để kiểm tra cả
+đường dẫn nguồn và đích, kể cả khi chuyển giữa workspace hoặc sang tài liệu.
+Test hồi quy dùng Git repository thật để xác nhận các trường hợp này.
+Không lấy source từ PR qua
 `pull_request_target`; token workflow chỉ có `contents: read`, checkout
 không giữ credentials.
 
@@ -51,7 +54,11 @@ nhận Worker cũng ở trạng thái disabled, không coi đó là bằng chứ
 giao dịch lên ledger.
 
 Blockchain CI dùng Fabric 2.5.16, CA 1.5.22 và technical relayer của mạng
-thử nghiệm. `docker-compose.ci.yml` nối riêng Worker vào `fabric_test`,
+thử nghiệm. Installer cố định tại commit
+`f871cf92a026aba7b12e6f06d71ded3e6e659d71` của Fabric v2.5.16; samples tại
+`5789681b4f4d24e58fa40f19a69f5496892374b6`. Bootstrap không fallback sang
+nhánh upstream đang thay đổi; chỉ nhận override bằng SHA đầy đủ.
+`docker-compose.ci.yml` nối riêng Worker vào `fabric_test`,
 mount đúng thư mục `relayer/msp` ở chế độ đọc và chạy bằng UID/GID chủ khóa.
 API không nhận signing identity. Script `fabric-integration.mjs` thực hiện:
 
