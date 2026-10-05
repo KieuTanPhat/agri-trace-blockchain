@@ -26,6 +26,8 @@
     "pkcs11js": false
   },
   "scripts": {
+    "audit:ci": "npm audit --omit=dev --audit-level=high && node scripts/audit-ci.mjs",
+    "test:audit": "node --test scripts/audit-ci.test.mjs",
     "dev": "npm run dev:web",
     "dev:web": "npm run dev --workspace apps/web",
     "dev:api": "npm run start:dev --workspace apps/api",
