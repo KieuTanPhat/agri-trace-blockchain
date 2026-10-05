@@ -65,6 +65,10 @@ API không nhận signing identity. Script `fabric-integration.mjs` thực hiệ
    và API; kiểm predecessor, entity head/history, toàn bộ QR là `VERIFIED`.
 6. Kiểm health loop hoạt động, không có lỗi và backlog rỗng.
 
+Gateway chạy trên host runner dùng `localhost:7051`; Worker trong container
+dùng `peer0.org1.example.com:7051` trên mạng Docker. Test Web dùng Web Storage
+của cửa sổ JSDOM, kể cả trên Node 26 có global storage riêng.
+
 Bài kiểm tra hợp đồng nhanh dùng Worker đã compile và validator thực của
 chaincode, trước khi dựng Docker/Fabric. Nó đã phát hiện Worker gửi field
 `hasBusinessPayload` bị chính sách metadata của chaincode từ chối. Worker

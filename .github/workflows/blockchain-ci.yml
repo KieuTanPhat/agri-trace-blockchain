@@ -94,6 +94,8 @@ jobs:
         run: ./network.sh enroll-relayer
       - name: Deploy chaincode and verify Gateway submit/query
         working-directory: blockchain/network
+        env:
+          FABRIC_PEER_ENDPOINT: localhost:7051
         run: ./network.sh smoke
       - name: Build Gateway exports and match Worker to the identity owner
         run: |
