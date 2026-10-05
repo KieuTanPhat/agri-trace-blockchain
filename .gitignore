@@ -42,3 +42,7 @@ blockchain/network/identities/
 .ai/
 .DS_Store
 Thumbs.db
+
+# Graphify local environment, graph and acceptance evidence
+.tools/graphify/
+graphify-out/

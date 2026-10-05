@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { FabricAdapterProvider } from './fabric-adapter.provider.js';
+import type { BlockchainAdapterFactory } from '../../common/ports/blockchain.port.js';
 import { BlockchainWorkerService } from './blockchain-worker.service.js';
 
 describe('BlockchainWorkerService distributed claim', () => {
@@ -17,7 +17,7 @@ describe('BlockchainWorkerService distributed claim', () => {
       {
         get: vi.fn((_name: string, fallback: unknown) => fallback),
       } as unknown as ConfigService,
-      {} as FabricAdapterProvider,
+      {} as BlockchainAdapterFactory,
     );
 
     await expect(service.processPending(7)).resolves.toEqual({
@@ -68,7 +68,7 @@ describe('BlockchainWorkerService distributed claim', () => {
       configService(),
       {
         getAdapter: vi.fn().mockResolvedValue(adapter),
-      } as unknown as FabricAdapterProvider,
+      } as unknown as BlockchainAdapterFactory,
     );
 
     await expect(service.processPending()).resolves.toEqual({
@@ -127,7 +127,7 @@ describe('BlockchainWorkerService distributed claim', () => {
             .fn()
             .mockRejectedValue(new Error('peer offline')),
         }),
-      } as unknown as FabricAdapterProvider,
+      } as unknown as BlockchainAdapterFactory,
     );
 
     await service.processPending();
@@ -233,7 +233,7 @@ function workerWithReceipt(receipt: object) {
     configService(),
     {
       getAdapter: vi.fn().mockResolvedValue(adapter),
-    } as unknown as FabricAdapterProvider,
+    } as unknown as BlockchainAdapterFactory,
   );
   return { service, updateMany, upsert, adapter };
 }

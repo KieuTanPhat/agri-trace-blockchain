@@ -16,7 +16,12 @@ blockchain/
 docs/
   business-specification-v1.2.md
   adr-001-modular-monolith-dedicated-worker.md
+  refactoring-implementation.md
 ```
+
+Cấu trúc frontend được mô tả tại [apps/web/ARCHITECTURE.md](apps/web/ARCHITECTURE.md).
+Danh mục ảnh nằm tại [apps/web/public/assets/README.md](apps/web/public/assets/README.md).
+Chi tiết refactor bốn chặng: [docs/refactoring-implementation.md](docs/refactoring-implementation.md).
 
 ## Cài đặt
 

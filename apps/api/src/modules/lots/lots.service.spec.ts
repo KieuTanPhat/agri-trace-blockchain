@@ -5,6 +5,8 @@ import type { OrganizationAccessService } from '../auth/organization-access.serv
 import type { TraceService } from '../trace/trace.service.js';
 import { calculateTraceEventHash } from '../trace/public.js';
 import { LotsService } from './lots.service.js';
+import { LotQueryService } from './lot-query.service.js';
+import { RecordHarvestService } from './record-harvest.service.js';
 
 function publicFixture() {
   const lotId = randomUUID();
@@ -74,9 +76,15 @@ function publicFixture() {
     traceEvent: { findMany: vi.fn().mockResolvedValue(events) },
   };
   const service = new LotsService(
-    database as unknown as PrismaService,
-    {} as OrganizationAccessService,
-    {} as TraceService,
+    new RecordHarvestService(
+      database as unknown as PrismaService,
+      {} as OrganizationAccessService,
+      {} as TraceService,
+    ),
+    new LotQueryService(
+      database as unknown as PrismaService,
+      {} as OrganizationAccessService,
+    ),
   );
   return { service, events, actorUserId };
 }

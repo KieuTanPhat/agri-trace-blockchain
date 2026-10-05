@@ -1,0 +1,86 @@
+/* Styles owned by trace; shared descendants keep their global classes. */
+
+.scan-page :global(.grid):global(.two) {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+}
+.scan-display {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 22px;
+  align-items: start;
+}
+.qr-display :global(.real-qr) {
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto 16px;
+}
+.qr-url {
+  display: flex;
+  gap: 10px;
+  padding: 14px;
+  background: var(--primary-pale);
+  color: var(--primary-strong);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  align-items: center;
+}
+
+.scan-guide {
+  border: 1px solid var(--line-light);
+  background: linear-gradient(135deg, #f3faf7, #f8fcfa);
+  padding: 24px;
+  border-radius: var(--radius-md);
+}
+.scan-guide :global(.muted) {
+  font-size: 12px;
+}
+
+.phone-illustration {
+  position: relative;
+  width: 130px;
+  height: 132px;
+  color: var(--primary-strong);
+  margin-bottom: 16px;
+  transform: rotate(8deg);
+}
+.phone-illustration > svg:nth-child(2) {
+  position: absolute;
+  left: 40px;
+  top: 39px;
+}
+.phone-illustration > svg:nth-child(3) {
+  position: absolute;
+  right: -8px;
+  bottom: 0;
+  color: #60a836;
+}
+
+.guide-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: #4a6a5c;
+  font-size: 12px;
+  margin-top: 16px;
+}
+.guide-item svg {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+@media (max-width: 1300px) {
+  .scan-display {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 1300px) {
+  .scan-guide {
+    display: block;
+  }
+}
+@media (max-width: 1300px) {
+  .phone-illustration {
+    float: left;
+    margin-right: 18px;
+  }
+}

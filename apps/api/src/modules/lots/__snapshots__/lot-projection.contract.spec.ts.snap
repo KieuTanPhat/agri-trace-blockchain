@@ -1,0 +1,239 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Lot API response contracts captured before refactoring > preserves dashboard labels, string counts and the featured lot 1`] = `
+{
+  "featuredLot": {
+    "allowedCommands": [
+      "createShipment",
+    ],
+    "availableQuantity": 20.5,
+    "blockchainProof": {
+      "dataHash": "d5cdae17660b4e3b007fc96229ccc61197cd3f17be46adae0559ec6c73dd41db",
+      "network": "fixture-network",
+      "recordedAt": "2026-09-25T00:00:00.000Z",
+      "transactionStatus": "CONFIRMED",
+      "txId": "tx-event-cycle",
+    },
+    "currentState": "HARVESTED",
+    "damagedQuantity": 0.25,
+    "farmOrg": {
+      "name": "Farm organization",
+      "organizationId": "org-farm",
+      "type": "FARM",
+    },
+    "harvestTime": "2026-09-25T00:00:00.000Z",
+    "initialQuantity": 20.75,
+    "lotCode": "LOT-FIXTURE",
+    "lotId": "lot-1",
+    "productName": "Vegetables",
+    "productionCycle": {
+      "currentState": "GROWING",
+      "cycleCode": "CYCLE-FIXTURE",
+      "cycleId": "cycle-1",
+      "startDate": "2026-09-25T00:00:00.000Z",
+    },
+    "proofStatus": "VERIFIED",
+    "quantityMovements": [
+      {
+        "afterQty": 20.5,
+        "beforeQty": 20.75,
+        "createdAt": "2026-09-25T00:00:00.000Z",
+        "delta": -0.25,
+        "id": "movement-1",
+        "quantity": 0.25,
+        "type": "DAMAGE_OUT",
+        "unit": "kg",
+      },
+    ],
+    "timeline": [
+      {
+        "actor": {
+          "organizationId": "org-farm",
+          "organizationName": "Farm organization",
+          "role": "FARM_STAFF",
+          "userId": "user-farm",
+        },
+        "entityType": "LOT",
+        "eventId": "event-harvest",
+        "eventTime": "2026-09-25T00:00:00.000Z",
+        "eventType": "HARVEST_RECORDED",
+        "proofStatus": "VERIFIED",
+        "summary": "Ghi nhận thu hoạch và tạo lô.",
+      },
+      {
+        "actor": {
+          "organizationId": "org-farm",
+          "organizationName": "Farm organization",
+          "role": "FARM_STAFF",
+          "userId": "user-farm",
+        },
+        "entityType": "PRODUCTION_CYCLE",
+        "eventId": "event-cycle",
+        "eventTime": "2026-09-25T00:00:00.000Z",
+        "eventType": "CYCLE_PLANTED",
+        "proofStatus": "VERIFIED",
+        "summary": "Ghi nhận gieo trồng.",
+      },
+    ],
+    "traceToken": "fixture-token",
+    "unit": "kg",
+    "version": 0,
+  },
+  "stats": [
+    {
+      "label": "Lô đang theo dõi",
+      "value": "1",
+    },
+    {
+      "label": "Bằng chứng đang chờ",
+      "value": "0",
+    },
+    {
+      "label": "Chuyến vận chuyển mở",
+      "value": "0",
+    },
+  ],
+}
+`;
+
+exports[`Lot API response contracts captured before refactoring > preserves the public projection and excludes private hash input 1`] = `
+{
+  "allowedCommands": [],
+  "availableQuantity": 20.5,
+  "blockchainProof": {
+    "dataHash": "ff017fed72782d5ec3e47b1e8e49b0e9c934a624331d82398ba76fc0f73b0623",
+    "network": "fixture-network",
+    "recordedAt": "2026-09-25T00:00:00.000Z",
+    "transactionStatus": "CONFIRMED",
+    "txId": "tx-event-harvest",
+  },
+  "certificates": [],
+  "currentState": "HARVESTED",
+  "farmOrg": {
+    "name": "Farm",
+    "organizationId": "org-farm",
+    "type": "FARM",
+  },
+  "harvestTime": "2026-09-25T00:00:00.000Z",
+  "initialQuantity": 20.75,
+  "lotCode": "LOT-FIXTURE",
+  "lotId": "lot-1",
+  "productName": "Vegetables",
+  "productionCycle": {
+    "currentState": "GROWING",
+    "cycleCode": "CYCLE-FIXTURE",
+    "cycleId": "cycle-1",
+    "startDate": "2026-09-25T00:00:00.000Z",
+  },
+  "proofStatus": "VERIFIED",
+  "shipment": null,
+  "timeline": [
+    {
+      "actor": {
+        "organizationName": "AgriTrace",
+        "role": "SYSTEM_ACTOR",
+      },
+      "entityType": "PRODUCTION_CYCLE",
+      "eventId": "event-cycle",
+      "eventTime": "2026-09-25T00:00:00.000Z",
+      "eventType": "CYCLE_PLANTED",
+      "proofStatus": "VERIFIED",
+      "summary": "Ghi nhận gieo trồng.",
+    },
+    {
+      "actor": {
+        "organizationName": "AgriTrace",
+        "role": "SYSTEM_ACTOR",
+      },
+      "entityType": "LOT",
+      "eventId": "event-harvest",
+      "eventTime": "2026-09-25T00:00:00.000Z",
+      "eventType": "HARVEST_RECORDED",
+      "proofStatus": "VERIFIED",
+      "summary": "Ghi nhận thu hoạch và tạo lô.",
+    },
+  ],
+  "traceToken": "fixture-token",
+  "unit": "kg",
+}
+`;
+
+exports[`Lot API response contracts captured before refactoring > preserves the serialized internal response, decimals and tied event order 1`] = `
+{
+  "allowedCommands": [
+    "createShipment",
+  ],
+  "availableQuantity": 20.5,
+  "blockchainProof": {
+    "dataHash": "d5cdae17660b4e3b007fc96229ccc61197cd3f17be46adae0559ec6c73dd41db",
+    "network": "fixture-network",
+    "recordedAt": "2026-09-25T00:00:00.000Z",
+    "transactionStatus": "CONFIRMED",
+    "txId": "tx-event-cycle",
+  },
+  "currentState": "HARVESTED",
+  "damagedQuantity": 0.25,
+  "farmOrg": {
+    "name": "Farm organization",
+    "organizationId": "org-farm",
+    "type": "FARM",
+  },
+  "harvestTime": "2026-09-25T00:00:00.000Z",
+  "initialQuantity": 20.75,
+  "lotCode": "LOT-FIXTURE",
+  "lotId": "lot-1",
+  "productName": "Vegetables",
+  "productionCycle": {
+    "currentState": "GROWING",
+    "cycleCode": "CYCLE-FIXTURE",
+    "cycleId": "cycle-1",
+    "startDate": "2026-09-25T00:00:00.000Z",
+  },
+  "proofStatus": "VERIFIED",
+  "quantityMovements": [
+    {
+      "afterQty": 20.5,
+      "beforeQty": 20.75,
+      "createdAt": "2026-09-25T00:00:00.000Z",
+      "delta": -0.25,
+      "id": "movement-1",
+      "quantity": 0.25,
+      "type": "DAMAGE_OUT",
+      "unit": "kg",
+    },
+  ],
+  "timeline": [
+    {
+      "actor": {
+        "organizationId": "org-farm",
+        "organizationName": "Farm organization",
+        "role": "FARM_STAFF",
+        "userId": "user-farm",
+      },
+      "entityType": "LOT",
+      "eventId": "event-harvest",
+      "eventTime": "2026-09-25T00:00:00.000Z",
+      "eventType": "HARVEST_RECORDED",
+      "proofStatus": "VERIFIED",
+      "summary": "Ghi nhận thu hoạch và tạo lô.",
+    },
+    {
+      "actor": {
+        "organizationId": "org-farm",
+        "organizationName": "Farm organization",
+        "role": "FARM_STAFF",
+        "userId": "user-farm",
+      },
+      "entityType": "PRODUCTION_CYCLE",
+      "eventId": "event-cycle",
+      "eventTime": "2026-09-25T00:00:00.000Z",
+      "eventType": "CYCLE_PLANTED",
+      "proofStatus": "VERIFIED",
+      "summary": "Ghi nhận gieo trồng.",
+    },
+  ],
+  "traceToken": "fixture-token",
+  "unit": "kg",
+  "version": 0,
+}
+`;

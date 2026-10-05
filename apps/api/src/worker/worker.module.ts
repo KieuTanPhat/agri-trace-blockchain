@@ -5,12 +5,14 @@ import { BlockchainWorkerService } from '../modules/blockchain-adapter/blockchai
 import { FabricAdapterProvider } from '../modules/blockchain-adapter/fabric-adapter.provider.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { WorkerHealthController } from './worker-health.controller.js';
+import { BLOCKCHAIN_ADAPTER_FACTORY } from '../common/ports/blockchain.port.js';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule],
   controllers: [WorkerHealthController],
   providers: [
     FabricAdapterProvider,
+    { provide: BLOCKCHAIN_ADAPTER_FACTORY, useExisting: FabricAdapterProvider },
     BlockchainWorkerService,
     BlockchainWorkerRunner,
   ],

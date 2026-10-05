@@ -1,0 +1,116 @@
+/* Styles owned by trace; shared descendants keep their global classes. */
+
+.trace-product-photo {
+  width: 125px;
+  height: 132px;
+  object-fit: cover;
+  object-position: 70% bottom;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.trace-page :global(.page-header) {
+  min-height: 190px;
+}
+.trace-page :global(.header-actions) {
+  background: rgba(255, 255, 255, 0.85);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  width: 280px;
+  backdrop-filter: blur(8px);
+}
+.trace-page :global(.timeline-item) {
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 18px;
+}
+.trace-page :global(.timeline-dot) {
+  width: 20px;
+  height: 20px;
+  background: var(--primary);
+  border: 4px solid #dff4e7;
+  box-shadow: 0 0 0 1px #c0e5d0;
+}
+.trace-page :global(.timeline-item):not(:last-child)::before {
+  left: 9px;
+  top: 28px;
+  background: #7bc8a7;
+}
+.trace-page :global(.timeline-body) {
+  padding: 0 0 22px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--line-light);
+}
+.trace-page :global(.timeline-item):last-child :global(.timeline-body) {
+  margin-bottom: 0;
+  border: 0;
+}
+
+.proof-overview {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+.proof-overview :global(.real-qr) {
+  width: 100%;
+  margin: 0;
+  align-self: start;
+}
+.proof-summary {
+  padding: 22px;
+  background: linear-gradient(135deg, #edf8f2, #dff0e7);
+  border-radius: var(--radius-md);
+  color: var(--primary-strong);
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.proof-summary h3 {
+  color: inherit;
+  font-size: 16px;
+  margin: 6px 0 4px;
+}
+.proof-summary :global(.muted) {
+  font-size: 12px;
+}
+.proof-pending,
+.proof-unavailable {
+  background: linear-gradient(135deg, #fef8ea, #fdf0d0);
+  color: #8a5a06;
+}
+.proof-mismatch {
+  background: linear-gradient(135deg, #fff0ee, #fce0dc);
+  color: #a03030;
+}
+
+.trace-page :global(.info-grid) {
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.trace-page :global(.info-item) {
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 10px;
+}
+.trace-page :global(.info-value) {
+  font-size: 12px;
+  font-weight: 500;
+}
+@media (max-width: 1300px) {
+  .proof-overview {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 1300px) {
+  .proof-overview :global(.real-qr) {
+    max-width: 190px;
+  }
+}
+@media (max-width: 1300px) {
+  .trace-page :global(.info-item) {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .trace-page :global(.header-actions) {
+    width: 100%;
+  }
+}

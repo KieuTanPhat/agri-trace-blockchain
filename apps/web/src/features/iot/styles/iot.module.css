@@ -1,0 +1,24 @@
+/* Styles owned by iot; shared descendants keep their global classes. */
+
+.simulator-page :global(.grid):global(.two) {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+.simulator-page :global(.state-box) {
+  border-left: 0;
+  border-radius: var(--radius-md);
+}
+.simulator-page :global(.state-box):global(.success) {
+  background: linear-gradient(110deg, #fff, #eef8f3);
+}
+.simulator-page :global(.state-box) :global(.eyebrow) {
+  font-size: 22px;
+  font-weight: 700;
+}
+.simulator-page :global(.state-box) h2 {
+  font-size: 15px;
+  color: var(--primary-strong);
+  margin-bottom: 6px;
+}
+.simulator-page :global(.state-box) :global(.muted) {
+  font-size: 13px;
+}

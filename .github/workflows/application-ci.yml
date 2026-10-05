@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "apps/**"
+      - "blockchain/gateway/**"
       - "package.json"
       - "package-lock.json"
       - "docker-compose.yml"
@@ -13,6 +14,7 @@ on:
   pull_request:
     paths:
       - "apps/**"
+      - "blockchain/gateway/**"
       - "package.json"
       - "package-lock.json"
       - "docker-compose.yml"

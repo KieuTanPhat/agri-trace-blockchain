@@ -1,17 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { type TraceEventInput } from '@agri-trace/fabric-gateway';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { FabricAdapterProvider } from './fabric-adapter.provider.js';
-
-type FabricReceipt = {
-  txId?: string;
-  recordedAt?: string;
-  channelId?: string;
-  dataHash?: string;
-};
+import {
+  BLOCKCHAIN_ADAPTER_FACTORY,
+  type BlockchainAdapterFactory,
+  type BlockchainReceipt,
+  type BlockchainTraceEventInput,
+} from '../../common/ports/blockchain.port.js';
 
 type ClaimedOutbox = Prisma.BlockchainOutboxGetPayload<{
   include: { traceEvent: true };
@@ -25,7 +22,8 @@ export class BlockchainWorkerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-    private readonly fabric: FabricAdapterProvider,
+    @Inject(BLOCKCHAIN_ADAPTER_FACTORY)
+    private readonly blockchain: BlockchainAdapterFactory,
   ) {}
 
   async processPending(
@@ -125,10 +123,10 @@ export class BlockchainWorkerService {
           `Unsupported trace contract version ${event.schemaVersion}/${event.canonicalizationVersion}`,
         );
       }
-      const adapter = await this.fabric.getAdapter();
-      const input: TraceEventInput = {
+      const adapter = await this.blockchain.getAdapter();
+      const input: BlockchainTraceEventInput = {
         eventId: event.id,
-        entityType: event.entityType as TraceEventInput['entityType'],
+        entityType: event.entityType as BlockchainTraceEventInput['entityType'],
         entityId: event.entityId,
         cycleId: event.cycleId ?? undefined,
         lotId: event.lotId ?? undefined,
@@ -143,15 +141,15 @@ export class BlockchainWorkerService {
           organizationId: event.actorOrganizationId ?? undefined,
           role: event.actorRole,
           authProofType: (event.authProofType ??
-            'SYSTEM_ASSERTION') as TraceEventInput['actorContext']['authProofType'],
+            'SYSTEM_ASSERTION') as BlockchainTraceEventInput['actorContext']['authProofType'],
           actorAuthProof: event.actorAuthProof ?? event.dataHash,
         },
         payloadMetadata: { hasBusinessPayload: true },
       };
 
-      let receipt: FabricReceipt;
+      let receipt: BlockchainReceipt;
       try {
-        receipt = (await adapter.submitTraceEvent(input)) as FabricReceipt;
+        receipt = await adapter.submitTraceEvent(input);
       } catch (error) {
         if (
           !(error instanceof Error) ||
@@ -159,7 +157,7 @@ export class BlockchainWorkerService {
         ) {
           throw error;
         }
-        receipt = (await adapter.getProof(event.id)) as FabricReceipt;
+        receipt = await adapter.getProof(event.id);
       }
 
       if (!receipt.txId) {

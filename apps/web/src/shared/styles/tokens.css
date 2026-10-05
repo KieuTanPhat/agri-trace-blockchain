@@ -1,0 +1,72 @@
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap");
+
+/* ─────────────────────────────────────────────
+   1. DESIGN TOKENS
+   ───────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg: #f0f6f3;
+  --surface: #ffffff;
+  --surface-glass: rgba(255, 255, 255, 0.78);
+  --surface-soft: #f6faf8;
+  --surface-muted: #edf3f0;
+
+  /* Text */
+  --text: #1b3a2d;
+  --text-heading: #0c2b1e;
+  --muted: #5f7d70;
+
+  /* Borders */
+  --line: #d2e2da;
+  --line-light: #e4efe8;
+
+  /* Primary green */
+  --primary: #00875a;
+  --primary-strong: #006142;
+  --primary-light: #3fa87a;
+  --primary-pale: #e2f5eb;
+  --primary-glow: rgba(0, 135, 90, 0.18);
+
+  /* Accent warm */
+  --accent: #d48e0f;
+  --accent-pale: #fef7ea;
+
+  /* Status */
+  --success: #00875a;
+  --success-pale: #e2f5eb;
+  --warning: #c48a0a;
+  --warning-pale: #fef5dd;
+  --danger: #d04040;
+  --danger-pale: #fce8e8;
+  --info: #0089aa;
+  --info-pale: #e0f3fa;
+
+  /* Radii */
+  --radius: 18px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+  --radius-xs: 6px;
+  --radius-full: 999px;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 40, 25, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 40, 25, 0.05), 0 2px 8px rgba(0, 40, 25, 0.03);
+  --shadow-md:
+    0 4px 14px rgba(0, 40, 25, 0.06), 0 1px 4px rgba(0, 40, 25, 0.04);
+  --shadow-lg:
+    0 8px 32px rgba(0, 40, 25, 0.08), 0 2px 8px rgba(0, 40, 25, 0.04);
+  --shadow-xl:
+    0 20px 50px rgba(0, 40, 25, 0.1), 0 4px 14px rgba(0, 40, 25, 0.05);
+  --shadow-glow: 0 0 0 4px var(--primary-glow);
+  --shadow-btn: 0 4px 14px rgba(0, 100, 60, 0.2);
+  --shadow-btn-hover: 0 8px 28px rgba(0, 100, 60, 0.28);
+
+  /* Font */
+  --font: "Be Vietnam Pro", system-ui, -apple-system, sans-serif;
+
+  /* Transitions */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration: 250ms;
+  --duration-fast: 150ms;
+}

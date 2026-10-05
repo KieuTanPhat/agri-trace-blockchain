@@ -1,0 +1,15 @@
+{
+  "graphify_version": "0.9.75",
+  "wheel_sha256": "7067b7e19aa9b0758ba1103734e72349d9b4a00a9db1f6174f6b9f16f498a72c",
+  "references": {
+    "extraction-spec.md": "32d7decad42d58129c6694ea4e4ce1f72a531bc5161827d2095787e9448735e9",
+    "LICENSE-MIT": "36ecff6bbb97aca1be64e95f42538cf796adde5864edac583e620643c096931a",
+    "LICENSE.graphify": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "NOTICE": "3448ea175bba09f6fed8a743000139fb4c7112de83f164355b5540b158576621",
+    "query.md": "e563ddcb1e155aa230f107e5ef9380bc1249c5cd8241128de7ed8a7bd9c20cf5"
+  },
+  "codex_skill_docs": "https://learn.chatgpt.com/docs/build-skills",
+  "install_scope": ".agents/skills/graphify",
+  "hook_installed": false,
+  "lock_platform": "Windows x64 CPython 3.13"
+}

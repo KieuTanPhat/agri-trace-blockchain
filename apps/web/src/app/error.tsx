@@ -1,8 +1,14 @@
 "use client";
 
-import { ErrorState } from "@/components/error-state";
+import { ErrorState } from "@/shared/ui/error-state";
 
-export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
+export default function GlobalError({
+  error,
+  reset,
+}: {
+  error: Error;
+  reset: () => void;
+}) {
   return (
     <html lang="vi">
       <body>

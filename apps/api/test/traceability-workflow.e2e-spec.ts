@@ -551,6 +551,161 @@ const prisma = new PrismaClient({
       failures.mockRestore();
     });
 
+    it('rolls back harvest, lot, trace and outbox when the transaction fails after trace creation', async () => {
+      const cycle = await plantedCycle(1);
+      const before = await prisma.traceEvent.count({
+        where: { cycleId: cycle.id },
+      });
+      const outboxBefore = await prisma.blockchainOutbox.count({
+        where: { traceEvent: { cycleId: cycle.id } },
+      });
+      const trace = app.get(TraceService);
+      const original = trace.createInTransaction.bind(trace);
+      vi.spyOn(trace, 'createInTransaction').mockImplementationOnce(
+        async (...args) => {
+          await original(...args);
+          throw new Error(
+            'Intentional rollback probe after trace and outbox creation',
+          );
+        },
+      );
+      await post(`/production-cycles/${cycle.id}/harvests`, {
+        quantity: 0.5,
+        unit: 'kg',
+        harvestTime: '2026-09-26T00:00:00.000Z',
+      }).expect(500);
+      expect(
+        await prisma.harvestEvent.count({ where: { cycleId: cycle.id } }),
+      ).toBe(0);
+      expect(
+        await prisma.lot.count({ where: { harvest: { cycleId: cycle.id } } }),
+      ).toBe(0);
+      expect(
+        await prisma.quantityMovement.count({
+          where: { lot: { harvest: { cycleId: cycle.id } } },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.traceQr.count({
+          where: { lot: { harvest: { cycleId: cycle.id } } },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.traceEvent.count({ where: { cycleId: cycle.id } }),
+      ).toBe(before);
+      expect(
+        await prisma.blockchainOutbox.count({
+          where: { traceEvent: { cycleId: cycle.id } },
+        }),
+      ).toBe(outboxBefore);
+    });
+
+    it('matches dashboard projections to the original full list for each organization scope', async () => {
+      await harvestedLot();
+      await startedShipment();
+      for (const user of [
+        'farm',
+        'transporter',
+        'retailer',
+        'foreign',
+        'unscoped',
+        'admin',
+      ]) {
+        const lots = (await get('/lots', user).expect(200)).body.data;
+        const dashboard = (await get('/dashboard', user).expect(200)).body.data;
+        expect(dashboard).toEqual({
+          featuredLot: lots[0] ?? null,
+          stats: [
+            { label: 'Lô đang theo dõi', value: String(lots.length) },
+            {
+              label: 'Bằng chứng đang chờ',
+              value: String(
+                lots.filter(
+                  (lot: { proofStatus: string }) =>
+                    lot.proofStatus === 'PENDING',
+                ).length,
+              ),
+            },
+            {
+              label: 'Chuyến vận chuyển mở',
+              value: String(
+                lots.filter((lot: { shipment: null | { status: string } }) =>
+                  ['CREATED', 'IN_TRANSIT', 'ARRIVED'].includes(
+                    lot.shipment?.status ?? '',
+                  ),
+                ).length,
+              ),
+            },
+          ],
+        });
+      }
+    });
+
+    it.each(['close', 'cancel'] as const)(
+      'keeps a %s cycle terminal in the actual transactional command flow',
+      async (command) => {
+        const cycle = await plantedCycle(1);
+        await post(`/production-cycles/${cycle.id}/${command}`, {
+          version: 1,
+          ...(command === 'cancel'
+            ? { reason: 'Terminal state verification' }
+            : {}),
+        }).expect(201);
+        const before = await prisma.traceEvent.count({
+          where: { cycleId: cycle.id },
+        });
+        await post(`/production-cycles/${cycle.id}/plant`, {
+          version: 2,
+          plantedAt: '2026-09-27T00:00:00.000Z',
+        }).expect(409);
+        const stored = await prisma.productionCycle.findUniqueOrThrow({
+          where: { id: cycle.id },
+        });
+        expect(stored.currentState).toBe(
+          command === 'close' ? 'COMPLETED' : 'CANCELLED',
+        );
+        expect(stored.version).toBe(2);
+        expect(
+          await prisma.traceEvent.count({ where: { cycleId: cycle.id } }),
+        ).toBe(before);
+      },
+    );
+
+    it('rejects an out-of-order shipment transition without partially updating either entity', async () => {
+      const { lot } = await harvestedLot();
+      const shipment = (
+        await post('/shipments', {
+          lotId: lot.id,
+          transporterOrgId,
+          retailerOrgId,
+          origin: 'Farm',
+          destination: 'Retailer',
+        }).expect(201)
+      ).body.data;
+      const before = await prisma.traceEvent.count({
+        where: { lotId: lot.id },
+      });
+      await post(
+        `/shipments/${shipment.id}/arrive`,
+        { version: 0, lotVersion: 0 },
+        'transporter',
+      ).expect(409);
+      expect(
+        (
+          await prisma.shipment.findUniqueOrThrow({
+            where: { id: shipment.id },
+          })
+        ).status,
+      ).toBe('CREATED');
+      expect(
+        (await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } }))
+          .currentState,
+      ).toBe('HARVESTED');
+      expect(await prisma.traceEvent.count({ where: { lotId: lot.id } })).toBe(
+        before,
+      );
+    });
+
     it('keeps concurrent trace appends on a single chain', async () => {
       const trace = app.get(TraceService);
       const entityId = randomUUID();
@@ -755,6 +910,61 @@ const prisma = new PrismaClient({
         },
         'admin',
       ).expect(400);
+    });
+
+    it('preserves every catalog response field and organization filter at the HTTP boundary', async () => {
+      for (const user of ['admin', 'farm', 'foreign', 'unscoped']) {
+        const actor = await prisma.user.findUniqueOrThrow({
+          where: { id: users[user] },
+        });
+        const where =
+          user === 'admin'
+            ? {}
+            : {
+                organizationId:
+                  actor.organizationId ??
+                  '00000000-0000-0000-0000-000000000000',
+              };
+        const [products, farms, plots] = await Promise.all([
+          prisma.product.findMany({ orderBy: { productName: 'asc' } }),
+          prisma.farm.findMany({
+            where,
+            include: { organization: true },
+            orderBy: { name: 'asc' },
+          }),
+          prisma.plot.findMany({
+            where: { farm: where },
+            include: { farm: true },
+            orderBy: { name: 'asc' },
+          }),
+        ]);
+        const response = (await get('/catalog', user).expect(200)).body.data;
+        expect(response).toEqual(
+          JSON.parse(JSON.stringify({ products, farms, plots })),
+        );
+      }
+      await get('/catalog', 'transporter').expect(403);
+      await get('/catalog', 'retailer').expect(403);
+    });
+
+    it('preserves catalog creation, DTO transformation and command replay', async () => {
+      const productBody = { productName: `  Catalog product ${randomUUID()}  `, defaultUnit: 'kg' };
+      const key = randomUUID();
+      const product = (await post('/catalog/products', productBody, 'admin', key).expect(201)).body.data;
+      expect(product.productName).toBe(productBody.productName.trim());
+      expect((await post('/catalog/products', productBody, 'admin', key).expect(201)).body.data).toEqual(product);
+      await post('/catalog/products', productBody, 'farm').expect(403);
+      const farm = (await post('/catalog/farms', {
+        organizationId: farmOrgId, name: `  Catalog farm ${randomUUID()}  `,
+      }, 'admin').expect(201)).body.data;
+      expect(farm.name).toBe(farm.name.trim());
+      const plot = (await post('/catalog/plots', {
+        farmId: farm.id, name: '  New plot  ', area: '10.25', unit: 'm2',
+      }, 'admin').expect(201)).body.data;
+      expect(plot.name).toBe('New plot');
+      expect(plot.area).toBe('10.25');
+      await post('/catalog/farms', { organizationId: retailerOrgId, name: 'Invalid parent' }, 'admin').expect(422);
+      await post('/catalog/plots', { farmId: randomUUID(), name: 'Missing parent' }, 'admin').expect(422);
     });
   },
 );

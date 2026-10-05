@@ -1,0 +1,16 @@
+/* Styles owned by auth; shared descendants keep their global classes. */
+
+.login-page {
+  min-height: calc(100vh - 64px);
+  display: grid;
+  place-items: center;
+}
+.login-card {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 20px;
+}
+.login-card > img {
+  width: 210px;
+  height: auto;
+}

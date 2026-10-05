@@ -1,0 +1,293 @@
+/* Styles owned by dashboard; shared descendants keep their global classes. */
+
+.dashboard {
+  display: grid;
+  gap: 22px;
+}
+.dashboard > :global(.stats-row),
+.dashboard > :global(.hero-banner),
+.dashboard :global(.quick-links) {
+  margin: 0;
+}
+.dashboard-heading {
+  display: none;
+}
+
+.dashboard :global(.hero-banner) {
+  min-height: 200px;
+  background:
+    linear-gradient(
+      95deg,
+      #f8fcfaf9 0%,
+      #f8fcfaf0 36%,
+      #f8fcfa50 70%,
+      #f8fcfa00 100%
+    ),
+    url("/assets/shared/farm-greens.png") center 22% / cover;
+  border: 1px solid var(--line-light);
+  position: relative;
+  padding: 28px;
+  overflow: hidden;
+}
+.dashboard :global(.hero-content) {
+  max-width: 650px;
+}
+.dashboard :global(.hero-banner) h2 {
+  font-size: 32px;
+  line-height: 1.3;
+  letter-spacing: -0.5px;
+}
+.dashboard :global(.hero-banner) h2 br {
+  display: none;
+}
+.dashboard :global(.hero-desc) {
+  color: #4a6a5c;
+  font-size: 14px;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 16px;
+}
+.hero-actions :global(.button) {
+  font-size: 12px;
+  min-height: 40px;
+  padding: 8px 16px;
+}
+.hero-text-link {
+  font-size: 13px;
+  color: var(--primary-strong);
+  font-weight: 500;
+  transition: color var(--duration-fast);
+}
+.hero-text-link:hover {
+  color: var(--primary);
+}
+.hero-journey {
+  display: none;
+}
+
+.dashboard :global(.hero-badge) {
+  font-size: 12px;
+  color: var(--primary-strong);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line-light);
+  box-shadow: var(--shadow-xs);
+}
+
+.dashboard :global(.panel),
+.dashboard :global(.stat-card) {
+  border-color: var(--line-light);
+  box-shadow: var(--shadow-md);
+}
+.dashboard :global(.stat-card) {
+  min-height: 112px;
+}
+.dashboard :global(.stat-icon) {
+  width: 58px;
+  height: 58px;
+  background: linear-gradient(135deg, #d8f3e4, #b0e4c8);
+  border-radius: 16px;
+}
+.dashboard :global(.stat-icon) svg {
+  width: 28px;
+  height: 28px;
+}
+.dashboard :global(.stat-value) {
+  font-size: 32px;
+}
+
+.dashboard-feature-row {
+  align-items: stretch;
+  grid-template-columns: minmax(0, 1.85fr) minmax(330px, 1fr);
+}
+.dashboard-feature-row > :global(.grid) {
+  height: 100%;
+}
+
+.dashboard :global(.featured-panel) {
+  display: grid;
+  grid-template-columns: 145px minmax(0, 1fr);
+  gap: 24px;
+  min-height: 260px;
+  padding: 24px;
+}
+.produce-visual {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+}
+.produce-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  max-height: 310px;
+  object-fit: cover;
+  object-position: 68% 70%;
+  border-radius: 12px;
+}
+.produce-label {
+  display: none;
+}
+.featured-caption {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #6a8a7c;
+  margin-bottom: 12px;
+}
+.featured-details {
+  min-width: 0;
+}
+.featured-details :global(.panel-title) {
+  gap: 10px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+.featured-details :global(.info-value) {
+  font-size: 13px;
+}
+.featured-details :global(.info-label) {
+  font-size: 12px;
+}
+.featured-details :global(.info-grid) {
+  gap: 16px;
+}
+.featured-details :global(.button) {
+  min-height: 36px;
+  font-size: 12px;
+  padding: 8px 14px;
+}
+
+.dashboard :global(.actions) :global(.button) {
+  background: linear-gradient(120deg, #00845a, #30a06a);
+  min-height: 52px;
+}
+.dashboard :global(.actions) :global(.button):global(.danger) {
+  background: linear-gradient(135deg, #e04545, #c03030);
+}
+.dashboard :global(.actions) :global(.button):hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.dashboard :global(.iot-panel) :global(.stats-row) {
+  border: 0;
+  gap: 16px;
+  margin-bottom: 0 !important;
+}
+.dashboard :global(.iot-panel) :global(.stat-card) {
+  flex-direction: row;
+  align-items: center;
+  min-height: 84px;
+  padding: 16px;
+  border: 1px solid var(--line-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+.dashboard :global(.iot-panel) :global(.stat-icon) {
+  width: 44px;
+  height: 44px;
+}
+.dashboard :global(.iot-panel) :global(.notice) {
+  margin-top: 14px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.dashboard :global(.timeline) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+.dashboard :global(.timeline-item)::before {
+  display: none;
+}
+.dashboard :global(.timeline-body) {
+  padding-bottom: 0;
+}
+
+.dashboard :global(.quick-links) {
+  padding-top: 0;
+  border: 0;
+}
+@media (max-width: 1300px) {
+  .dashboard-feature-row {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 1300px) {
+  .dashboard :global(.timeline) {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 1300px) {
+  .dashboard :global(.hero-badge) {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .dashboard :global(.hero-banner) {
+    min-height: 200px;
+    padding: 20px;
+    background-image:
+      linear-gradient(90deg, #f8fcfaf0, #f8fcfab0),
+      url("/assets/shared/farm-greens.png");
+  }
+}
+@media (max-width: 760px) {
+  .dashboard :global(.hero-badge) {
+    margin-left: 0;
+  }
+}
+@media (max-width: 760px) {
+  .dashboard :global(.featured-panel) {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 18px;
+  }
+}
+@media (max-width: 760px) {
+  .produce-photo {
+    height: 160px;
+    min-height: 0;
+    object-position: center 65%;
+  }
+}
+@media (max-width: 760px) {
+  .dashboard :global(.stat-card) {
+    padding: 16px;
+    gap: 10px;
+  }
+}
+@media (max-width: 760px) {
+  .dashboard :global(.stat-icon) {
+    width: 42px;
+    height: 42px;
+  }
+}
+@media (max-width: 760px) {
+  .dashboard :global(.stat-icon) svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+@media (max-width: 760px) {
+  .dashboard :global(.iot-panel) :global(.stats-row) {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .dashboard :global(.timeline) {
+    grid-template-columns: 1fr;
+  }
+}
