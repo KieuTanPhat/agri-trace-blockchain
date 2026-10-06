@@ -2,25 +2,7 @@ name: Blockchain CI
 
 on:
   push:
-    paths:
-      - "blockchain/**"
-      - "docs/architecture/**"
-      - "package.json"
-      - "package-lock.json"
-      - "scripts/audit-dependencies.mjs"
-      - "scripts/check-standalone-chaincode.mjs"
-      - "docs/dependency-audit-*.md"
-      - ".github/workflows/blockchain-ci.yml"
   pull_request:
-    paths:
-      - "blockchain/**"
-      - "docs/architecture/**"
-      - "package.json"
-      - "package-lock.json"
-      - "scripts/audit-dependencies.mjs"
-      - "scripts/check-standalone-chaincode.mjs"
-      - "docs/dependency-audit-*.md"
-      - ".github/workflows/blockchain-ci.yml"
 
 permissions:
   contents: read
@@ -100,3 +82,19 @@ jobs:
         if: always()
         working-directory: blockchain/network
         run: ./network.sh down
+
+  blockchain-gate:
+    name: Blockchain gate
+    needs: [verify, standalone-chaincode, fabric-smoke]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all blockchain checks to pass
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          STANDALONE_RESULT: ${{ needs.standalone-chaincode.result }}
+          FABRIC_RESULT: ${{ needs.fabric-smoke.result }}
+        run: |
+          test "$VERIFY_RESULT" = success
+          test "$STANDALONE_RESULT" = success
+          test "$FABRIC_RESULT" = success

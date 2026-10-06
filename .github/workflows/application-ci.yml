@@ -2,27 +2,7 @@ name: Application CI
 
 on:
   push:
-    paths:
-      - "apps/**"
-      - "package.json"
-      - "package-lock.json"
-      - "scripts/audit-dependencies.mjs"
-      - "docs/dependency-audit-*.md"
-      - "docker-compose.yml"
-      - ".dockerignore"
-      - "apps/*/Dockerfile"
-      - ".github/workflows/application-ci.yml"
   pull_request:
-    paths:
-      - "apps/**"
-      - "package.json"
-      - "package-lock.json"
-      - "scripts/audit-dependencies.mjs"
-      - "docs/dependency-audit-*.md"
-      - "docker-compose.yml"
-      - ".dockerignore"
-      - "apps/*/Dockerfile"
-      - ".github/workflows/application-ci.yml"
 
 permissions:
   contents: read
@@ -107,3 +87,28 @@ jobs:
       - name: Stop disposable application stack
         if: always()
         run: docker compose down --volumes
+
+  application-gate:
+    name: Application gate
+    needs: [verify, container-build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all application checks to pass
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          CONTAINER_RESULT: ${{ needs.container-build.result }}
+        run: |
+          test "$VERIFY_RESULT" = success
+          test "$CONTAINER_RESULT" = success
+
+  dependency-gate:
+    name: Dependency gate
+    needs: [verify]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require workspace dependency audit and checks to pass
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+        run: test "$VERIFY_RESULT" = success
