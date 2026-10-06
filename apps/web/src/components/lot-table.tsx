@@ -30,8 +30,8 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
     const a = document.createElement("a"); a.href = url; a.download = "agritrace-lo-nong-san.csv"; a.click(); URL.revokeObjectURL(url);
   }
   return <>
-    <section className="batch-stats">{stats.map(({ icon: Icon, ...s }) => <button className="stat-card" key={s.label} onClick={() => setState(s.state)} aria-pressed={state === s.state}><span className="stat-icon"><Icon /></span><span className="stat-body"><strong className="stat-value">{s.value}</strong><span className="stat-label">{s.label}</span></span><ChevronRight size={18} /></button>)}</section>
-    <section className="panel batch-table-panel">
+    <section className="lot-stats">{stats.map(({ icon: Icon, ...s }) => <button className="stat-card" key={s.label} onClick={() => setState(s.state)} aria-pressed={state === s.state}><span className="stat-icon"><Icon /></span><span className="stat-body"><strong className="stat-value">{s.value}</strong><span className="stat-label">{s.label}</span></span><ChevronRight size={18} /></button>)}</section>
+    <section className="panel lot-table-panel">
       <div className="table-toolbar">
         <label className="table-search"><Search size={20} /><input placeholder="Tìm theo tên nông sản, mã lô, trang trại..." aria-label="Tìm lô" value={query} onChange={e => setQuery(e.target.value)} /></label>
         <select className="select" aria-label="Lọc trạng thái" value={state} onChange={e => setState(e.target.value)}><option value="">Tất cả trạng thái</option>{[...new Set(lots.map(lot => lot.currentState))].map(s => <option key={s} value={s}>{labelForState(s)}</option>)}</select>
@@ -39,7 +39,7 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
         <select className="select" aria-label="Thời gian" defaultValue=""><option value="">Mọi thời gian</option></select>
         <button className="button secondary" onClick={exportCsv}><Download size={18} />Xuất dữ liệu</button>
       </div>
-      <div className="table-scroll"><table className="batch-table"><thead><tr><th>#</th><th>Nông sản</th><th>Mã lô</th><th>Trang trại</th><th>Cập nhật gần nhất</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{filtered.slice((page-1)*perPage, page*perPage).map((b, i) => {
+      <div className="table-scroll"><table className="lot-table"><thead><tr><th>#</th><th>Nông sản</th><th>Mã lô</th><th>Trang trại</th><th>Cập nhật gần nhất</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{filtered.slice((page-1)*perPage, page*perPage).map((b, i) => {
         const latest = [...b.timeline].sort((a, c) => c.eventTime.localeCompare(a.eventTime))[0];
         return <tr key={b.lotId}><td>{(page-1)*perPage + i + 1}</td><td><Link href={`/lots/${b.lotId}`} className="product-cell"><span className={`product-thumb ${b.productName.toLowerCase().includes("xoài") ? "mango-thumb" : ""}`}>{b.productName.toLowerCase().includes("xoài") ? "🥭" : <Image src="/farm-greens.png" alt="" width={104} height={112} />}</span><strong>{b.productName}</strong></Link></td><td>{b.lotCode}</td><td><span className="farm-cell"><House size={20} /><div><strong>{b.farmOrg.name}</strong><span className="farm-location"><MapPin size={12} />{b.farmOrg.type === 'FARM' ? 'Cù Chi, TP. Hồ Chí Minh' : 'Nhà Bè, TP. Hồ Chí Minh'}</span></div></span></td><td><div className="update-cell"><span className="update-time"><Clock size={14} />{latest ? formatTraceDate(latest.eventTime) : "Chưa ghi nhận"}</span><span className="update-by">Bởi {b.farmOrg.name}</span></div></td><td><StateBadge state={b.currentState} /></td><td><button className="icon-button" aria-label={`Thao tác ${b.productName}`}><MoreHorizontal size={18} /></button></td></tr>;
       })}</tbody></table></div>

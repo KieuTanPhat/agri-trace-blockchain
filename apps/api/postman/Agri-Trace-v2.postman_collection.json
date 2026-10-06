@@ -1,0 +1,163 @@
+{
+  "info": {
+    "name": "Agri Trace API v2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api" },
+    { "key": "token", "value": "" },
+    { "key": "cycleId", "value": "" },
+    { "key": "lotId", "value": "" },
+    { "key": "shipmentId", "value": "" },
+    { "key": "eventId", "value": "" },
+    { "key": "traceToken", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"farm.staff@agritrace.local\",\"password\":\"Password123!\"}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Production",
+      "item": [
+        {
+          "name": "Create cycle",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"farmId\":\"00000000-0000-0000-0000-000000000000\",\"productId\":\"00000000-0000-0000-0000-000000000000\",\"cycleCode\":\"CYCLE-001\",\"maxHarvestQuantity\":1000,\"harvestUnit\":\"kg\"}"
+            },
+            "url": "{{baseUrl}}/production-cycles"
+          }
+        },
+        {
+          "name": "Plant cycle",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\":0,\"plantedAt\":\"2026-09-21T00:00:00.000Z\"}"
+            },
+            "url": "{{baseUrl}}/production-cycles/{{cycleId}}/plant"
+          }
+        },
+        {
+          "name": "Record harvest",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"harvestTime\":\"2026-12-01T00:00:00.000Z\",\"quantity\":500,\"unit\":\"kg\"}"
+            },
+            "url": "{{baseUrl}}/production-cycles/{{cycleId}}/harvests"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shipments",
+      "item": [
+        {
+          "name": "Create shipment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"lotId\":\"{{lotId}}\",\"transporterOrgId\":\"00000000-0000-0000-0000-000000000000\",\"retailerOrgId\":\"00000000-0000-0000-0000-000000000000\",\"origin\":\"Farm\",\"destination\":\"Store\"}"
+            },
+            "url": "{{baseUrl}}/shipments"
+          }
+        },
+        {
+          "name": "Start shipment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\":0,\"lotVersion\":0}"
+            },
+            "url": "{{baseUrl}}/shipments/{{shipmentId}}/start"
+          }
+        },
+        {
+          "name": "Receive shipment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\":2,\"lotVersion\":2,\"receivedQuantity\":490,\"damagedQuantity\":10}"
+            },
+            "url": "{{baseUrl}}/shipments/{{shipmentId}}/receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trace",
+      "item": [
+        {
+          "name": "Internal lot detail",
+          "request": { "method": "GET", "url": "{{baseUrl}}/lots/{{lotId}}" }
+        },
+        {
+          "name": "Public QR trace",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/public/trace/{{traceToken}}"
+          }
+        },
+        {
+          "name": "Verify blockchain hash",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/blockchain/events/{{eventId}}/verify"
+          }
+        }
+      ]
+    }
+  ]
+}

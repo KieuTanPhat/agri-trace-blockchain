@@ -1,6 +1,6 @@
 TÀI LIỆU PHÂN TÍCH NGHIỆP VỤ
 
-> **Tài liệu lịch sử:** phiên bản 1.2 dùng mô hình `Batch` cũ và không còn là source of truth cho code. Schema hiện hành tách `ProductionCycle -> HarvestEvent -> Lot -> Shipment`; xem `docs/database/traceability-core.md` và `apps/api/prisma/schema.prisma`.
+> **Tài liệu lịch sử:** phiên bản 1.2 dùng mô hình `Batch` cũ và không còn là source of truth cho code. Schema hiện hành tách `ProductionCycle -> HarvestEvent -> Lot -> Shipment`; xem `apps/api/prisma/schema.prisma`.
 
 HỆ THỐNG TRUY XUẤT NGUỒN GỐC NÔNG SẢN
 ỨNG DỤNG BLOCKCHAIN

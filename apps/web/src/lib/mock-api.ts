@@ -129,7 +129,7 @@ export async function mockSendSensorReading(request: SensorReadingRequest): Prom
   return {
     status: "accepted",
     readingId: `reading-${Date.now()}`,
-    digestPreview: { periodStart: request.timestamp, periodEnd: request.timestamp, readingCount: 1 }
+    digestPreview: { periodStart: request.recordedAt, periodEnd: request.recordedAt, readingCount: 1 }
   };
 }
 

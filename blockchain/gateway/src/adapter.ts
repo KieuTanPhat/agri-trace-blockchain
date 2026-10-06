@@ -6,7 +6,7 @@ const decoder = new TextDecoder();
 
 export interface TraceEventInput {
   eventId: string;
-  entityType: "PRODUCTION_CYCLE" | "CARE" | "SENSOR" | "HARVEST" | "LOT" | "SHIPMENT" | "INSPECTION" | "CERTIFICATE";
+  entityType: "PRODUCTION_CYCLE" | "CARE" | "SENSOR" | "HARVEST" | "SENSOR_DIGEST" | "LOT" | "SHIPMENT" | "SHIPMENT_TELEMETRY" | "INSPECTION" | "CERTIFICATE";
   entityId: string;
   cycleId?: string;
   lotId?: string;
@@ -53,6 +53,21 @@ export class FabricBlockchainAdapter {
 
   public async queryEntityHistory(entityType: TraceEventInput["entityType"], entityId: string): Promise<unknown> {
     return this.decode(await this.contract.evaluateTransaction("QueryEntityHistory", entityType, entityId));
+  }
+
+  public async queryEntityHistoryPage(
+    entityType: TraceEventInput["entityType"],
+    entityId: string,
+    pageSize = 100,
+    bookmark = ""
+  ): Promise<unknown> {
+    return this.decode(await this.contract.evaluateTransaction(
+      "QueryEntityHistoryPage",
+      entityType,
+      entityId,
+      String(pageSize),
+      bookmark
+    ));
   }
 
   public async getEntityHead(entityType: TraceEventInput["entityType"], entityId: string): Promise<unknown> {

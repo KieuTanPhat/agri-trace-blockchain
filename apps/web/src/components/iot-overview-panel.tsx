@@ -71,7 +71,7 @@ export function IotOverviewPanel() {
               <div>
                 <h3>{reading.cycleId}</h3>
                 <p className="muted">
-                  {reading.sensorType}: {reading.value} {reading.unit} — {reading.timestamp}
+                  {reading.sensorType}: {reading.value} {reading.unit} — {reading.recordedAt}
                 </p>
               </div>
               <span className="badge success">Đã tiếp nhận</span>

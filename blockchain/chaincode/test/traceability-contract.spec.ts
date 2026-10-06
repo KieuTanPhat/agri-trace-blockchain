@@ -51,6 +51,42 @@ describe("AgriTraceContract", () => {
     })))).rejects.toThrow("HASH_CHAIN_CONFLICT");
   });
 
+  it("requires the exact previous hash after the genesis event", async () => {
+    const contract = new AgriTraceContract();
+    const { ctx, stub } = createFakeContext();
+    const first = validInput();
+    await contract.RecordTraceEvent(ctx, JSON.stringify(first));
+    stub.txId = "tx-0002";
+    await expect(contract.RecordTraceEvent(ctx, JSON.stringify(validInput({
+      eventId: "77777777-7777-4777-8777-777777777777",
+      dataHash: "f".repeat(64),
+      previousEventHash: undefined
+    })))).rejects.toThrow("HASH_CHAIN_CONFLICT");
+  });
+
+  it("returns entity history in bounded pages without per-event state reads", async () => {
+    const contract = new AgriTraceContract();
+    const { ctx, stub } = createFakeContext();
+    const first = validInput();
+    await contract.RecordTraceEvent(ctx, JSON.stringify(first));
+    stub.txId = "tx-0002";
+    await contract.RecordTraceEvent(ctx, JSON.stringify(validInput({
+      eventId: "88888888-8888-4888-8888-888888888888",
+      dataHash: "9".repeat(64),
+      previousEventHash: first.dataHash
+    })));
+    const firstPage = JSON.parse(
+      await contract.QueryEntityHistoryPage(ctx, first.entityType, first.entityId, "1", "")
+    ) as { records: StoredTraceEvent[]; bookmark: string };
+    expect(firstPage.records).toHaveLength(1);
+    expect(firstPage.bookmark).not.toBe("");
+    const secondPage = JSON.parse(
+      await contract.QueryEntityHistoryPage(ctx, first.entityType, first.entityId, "1", firstPage.bookmark)
+    ) as { records: StoredTraceEvent[]; bookmark: string };
+    expect(secondPage.records).toHaveLength(1);
+    expect(secondPage.bookmark).toBe("");
+  });
+
   it("rejects unauthorized relayers and duplicate event IDs", async () => {
     const contract = new AgriTraceContract();
     const blocked = createFakeContext();

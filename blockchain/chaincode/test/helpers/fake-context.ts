@@ -65,6 +65,26 @@ export class FakeStub {
       .map(([key, value]) => ({ key, value }));
     return new FakeIterator(values);
   }
+
+  public async getStateByPartialCompositeKeyWithPagination(
+    objectType: string,
+    attributes: string[],
+    pageSize: number,
+    bookmark: string
+  ): Promise<{ iterator: FakeIterator; metadata: { bookmark: string; fetchedRecordsCount: number } }> {
+    const prefix = `\u0000${objectType}\u0000${attributes.join("\u0000")}\u0000`;
+    const matching = [...this.state.entries()]
+      .filter(([key]) => key.startsWith(prefix) && (!bookmark || key > bookmark))
+      .sort(([left], [right]) => left.localeCompare(right));
+    const page = matching.slice(0, pageSize).map(([key, value]) => ({ key, value }));
+    return {
+      iterator: new FakeIterator(page),
+      metadata: {
+        bookmark: matching.length > pageSize ? (page.at(-1)?.key ?? "") : "",
+        fetchedRecordsCount: page.length
+      }
+    };
+  }
 }
 
 export class FakeClientIdentity {

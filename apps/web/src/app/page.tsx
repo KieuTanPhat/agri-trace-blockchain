@@ -1,11 +1,27 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { useCallback, useEffect, useState } from "react";
 import { ActionPanel } from "@/components/action-panel";
-import { IconBarChart, IconClock, IconLeaf, IconPackage, IconShield, IconSprout, IconStore, IconTruck, IconZap } from "@/components/icons";
+import {
+  IconBarChart,
+  IconClock,
+  IconLeaf,
+  IconPackage,
+  IconShield,
+  IconSprout,
+  IconStore,
+  IconTruck,
+  IconZap,
+} from "@/components/icons";
 import { IotOverviewPanel } from "@/components/iot-overview-panel";
 import { StateBadge } from "@/components/state-badge";
 import { TimelineItem } from "@/components/timeline-item";
 import { getDashboard } from "@/lib/api-client";
+import type { Dashboard } from "@/lib/types";
+import { ErrorState } from "@/components/error-state";
+import { LoadingState } from "@/components/loading-state";
 
 const statIcons: Record<string, React.ReactNode> = {
   "Lô đang theo dõi": <IconPackage size={20} />,
@@ -20,15 +36,38 @@ function getStatIcon(label: string) {
   return statIcons[label] ?? <IconBarChart size={18} />;
 }
 
-export default async function DashboardPage() {
-  const dashboard = await getDashboard();
+export default function DashboardPage() {
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [error, setError] = useState("");
+  const load = useCallback(() => {
+    getDashboard()
+      .then(setDashboard)
+      .catch((cause) =>
+        setError(cause?.message ?? "Không tải được tổng quan."),
+      );
+  }, []);
+  useEffect(load, [load]);
+  if (error)
+    return (
+      <ErrorState
+        status={503}
+        title="Không tải được tổng quan"
+        message={error}
+      />
+    );
+  if (!dashboard) return <LoadingState />;
   const lot = dashboard.featuredLot;
 
   return (
     <div className="dashboard">
       <div className="dashboard-heading">
-        <div><p className="workspace-kicker">KHÔNG GIAN QUẢN LÝ</p><h1>Tổng quan</h1></div>
-        <Link href="/lots" className="overview-link">Danh sách lô <span aria-hidden="true">↗</span></Link>
+        <div>
+          <p className="workspace-kicker">KHÔNG GIAN QUẢN LÝ</p>
+          <h1>Tổng quan</h1>
+        </div>
+        <Link href="/lots" className="overview-link">
+          Danh sách lô <span aria-hidden="true">↗</span>
+        </Link>
       </div>
       <section className="hero-banner">
         <div className="hero-deco" aria-hidden="true">
@@ -36,16 +75,41 @@ export default async function DashboardPage() {
         </div>
         <div className="hero-content">
           <p className="eyebrow">Hệ thống truy xuất nông sản</p>
-          <h2>Mỗi nông sản,<br />một hành trình <span>minh bạch.</span></h2>
+          <h2>
+            Mỗi nông sản,
+            <br />
+            một hành trình <span>minh bạch.</span>
+          </h2>
           <p className="hero-desc">
             Từ trang trại đến điểm bán, minh bạch từng hành trình.
           </p>
           <div className="hero-actions">
-            <Link className="button" href="/lots"><IconPackage size={18} /> Quản lý lô nông sản <span aria-hidden="true">↗</span></Link>
-            <Link className="hero-text-link" href="/scan">Quét mã truy xuất <span aria-hidden="true">→</span></Link>
+            <Link className="button" href="/lots">
+              <IconPackage size={18} /> Quản lý lô nông sản{" "}
+              <span aria-hidden="true">↗</span>
+            </Link>
+            <Link className="hero-text-link" href="/scan">
+              Quét mã truy xuất <span aria-hidden="true">→</span>
+            </Link>
           </div>
-          <div className="hero-journey" aria-label="Các chặng trong chuỗi cung ứng">
-            <span><IconSprout size={16} />Trang trại</span><i aria-hidden="true" /><span><IconTruck size={16} />Vận chuyển</span><i aria-hidden="true" /><span><IconStore size={16} />Điểm bán</span>
+          <div
+            className="hero-journey"
+            aria-label="Các chặng trong chuỗi cung ứng"
+          >
+            <span>
+              <IconSprout size={16} />
+              Trang trại
+            </span>
+            <i aria-hidden="true" />
+            <span>
+              <IconTruck size={16} />
+              Vận chuyển
+            </span>
+            <i aria-hidden="true" />
+            <span>
+              <IconStore size={16} />
+              Điểm bán
+            </span>
           </div>
         </div>
         <div className="hero-badge">
@@ -56,9 +120,7 @@ export default async function DashboardPage() {
       <section className="stats-row">
         {dashboard.stats.map((stat) => (
           <div className="stat-card" key={stat.label}>
-            <div className="stat-icon">
-              {getStatIcon(stat.label)}
-            </div>
+            <div className="stat-icon">{getStatIcon(stat.label)}</div>
             <div className="stat-body">
               <span className="stat-value">{stat.value}</span>
               <span className="stat-label">{stat.label}</span>
@@ -67,84 +129,131 @@ export default async function DashboardPage() {
         ))}
       </section>
 
-      <section className="grid two dashboard-feature-row">
-        <div className="grid">
-          <div className="panel featured-panel">
-            <div className="produce-visual"><Image className="produce-photo" src="/farm-greens.png" alt="Ảnh minh họa rau xanh tại vườn" width={1200} height={800} priority /><span className="produce-label"><IconLeaf size={14} /> Nông sản từ trang trại</span></div>
-            <div className="featured-details">
-            <div className="featured-caption"><span>Lô nông sản nổi bật</span><StateBadge state={lot.currentState} /></div>
-            <div className="panel-title">
-              <div className="panel-title-left">
-                <span className="panel-icon accent"><IconLeaf size={16} /></span>
-                <h2>{lot.productName}</h2>
+      {lot ? (
+        <section className="grid two dashboard-feature-row">
+          <div className="grid">
+            <div className="panel featured-panel">
+              <div className="produce-visual">
+                <Image
+                  className="produce-photo"
+                  src="/farm-greens.png"
+                  alt="Ảnh minh họa rau xanh tại vườn"
+                  width={1200}
+                  height={800}
+                  priority
+                />
+                <span className="produce-label">
+                  <IconLeaf size={14} /> Nông sản từ trang trại
+                </span>
               </div>
-              <Link className="button secondary" href={`/lots/${lot.lotId}`}>
-                Chi tiết →
-              </Link>
-            </div>
-            <div className="info-grid">
-              <div className="info-item">
-                <span className="info-label">Mã lô</span>
-                <span className="info-value">{lot.lotCode}</span>
-              </div>
-              <div className="info-item">
-                <span className="info-label">Trang trại</span>
-                <span className="info-value">{lot.farmOrg.name}</span>
-              </div>
-              <div className="info-item">
-                <span className="info-label">Điểm bán đích</span>
-                <span className="info-value">{lot.retailerOrg?.name ?? "Chưa gán"}</span>
-              </div>
-            </div>
-            </div>
-          </div>
-        </div>
-        <ActionPanel allowedCommands={lot.allowedCommands} lotId={lot.lotId} />
-      </section>
-      <IotOverviewPanel />
-
-          <div className="panel">
-            <div className="panel-title">
-              <div className="panel-title-left">
-                <span className="panel-icon warning"><IconClock size={16} /></span>
-                <div>
-                  <h2>Dòng thời gian gần nhất</h2>
-                  <p className="muted" style={{marginTop: 2, fontSize: 13}}>Các hoạt động mới nhất của lô nông sản này trên hệ thống.</p>
+              <div className="featured-details">
+                <div className="featured-caption">
+                  <span>Lô nông sản nổi bật</span>
+                  <StateBadge state={lot.currentState} />
+                </div>
+                <div className="panel-title">
+                  <div className="panel-title-left">
+                    <span className="panel-icon accent">
+                      <IconLeaf size={16} />
+                    </span>
+                    <h2>{lot.productName}</h2>
+                  </div>
+                  <Link
+                    className="button secondary"
+                    href={`/lots/${lot.lotId}`}
+                  >
+                    Chi tiết →
+                  </Link>
+                </div>
+                <div className="info-grid">
+                  <div className="info-item">
+                    <span className="info-label">Mã lô</span>
+                    <span className="info-value">{lot.lotCode}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">Trang trại</span>
+                    <span className="info-value">{lot.farmOrg.name}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">Điểm bán đích</span>
+                    <span className="info-value">
+                      {lot.retailerOrg?.name ?? "Chưa gán"}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <Link href="/lots" className="button secondary">Xem tất cả →</Link>
-            </div>
-            <div className="timeline">
-              {lot.timeline.slice(0, 4).map((event) => (
-                <TimelineItem event={event} key={event.eventId} />
-              ))}
             </div>
           </div>
+          <ActionPanel lot={lot} onCompleted={load} />
+        </section>
+      ) : (
+        <ErrorState
+          status={404}
+          title="Chưa có lô nông sản"
+          message="Hãy ghi nhận một lần thu hoạch để tạo lô đầu tiên."
+        />
+      )}
+      <IotOverviewPanel />
+
+      <div className="panel">
+        <div className="panel-title">
+          <div className="panel-title-left">
+            <span className="panel-icon warning">
+              <IconClock size={16} />
+            </span>
+            <div>
+              <h2>Dòng thời gian gần nhất</h2>
+              <p className="muted" style={{ marginTop: 2, fontSize: 13 }}>
+                Các hoạt động mới nhất của lô nông sản này trên hệ thống.
+              </p>
+            </div>
+          </div>
+          <Link href="/lots" className="button secondary">
+            Xem tất cả →
+          </Link>
+        </div>
+        <div className="timeline">
+          {lot?.timeline.slice(0, 4).map((event) => (
+            <TimelineItem event={event} key={event.eventId} />
+          ))}
+        </div>
+      </div>
 
       <section className="quick-links">
         <Link className="quick-link-card" href="/lots">
-          <span className="quick-link-icon"><IconPackage size={18} /></span>
+          <span className="quick-link-icon">
+            <IconPackage size={18} />
+          </span>
           <span className="quick-link-text">
             <strong>Lô nông sản</strong>
             <span>Quản lý tất cả các lô</span>
           </span>
         </Link>
         <Link className="quick-link-card" href="/scan">
-          <span className="quick-link-icon accent"><IconStore size={18} /></span>
+          <span className="quick-link-icon accent">
+            <IconStore size={18} />
+          </span>
           <span className="quick-link-text">
             <strong>Quét QR</strong>
             <span>Tra cứu nhanh nông sản</span>
           </span>
         </Link>
         <Link className="quick-link-card" href="/iot-simulator">
-          <span className="quick-link-icon success"><IconZap size={18} /></span>
+          <span className="quick-link-icon success">
+            <IconZap size={18} />
+          </span>
           <span className="quick-link-text">
             <strong>IoT giả lập</strong>
             <span>Mô phỏng cảm biến</span>
           </span>
         </Link>
-        <Link className="quick-link-card" href="/trace/11111111-1111-4111-8111-111111111111">
-          <span className="quick-link-icon info"><IconTruck size={18} /></span>
+        <Link
+          className="quick-link-card"
+          href={lot?.traceToken ? `/trace/${lot.traceToken}` : "/scan"}
+        >
+          <span className="quick-link-icon info">
+            <IconTruck size={18} />
+          </span>
           <span className="quick-link-text">
             <strong>Tra cứu công khai</strong>
             <span>Xem lịch sử truy xuất</span>

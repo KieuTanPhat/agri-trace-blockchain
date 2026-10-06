@@ -1,4 +1,8 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { RequestIdMiddleware } from './common/request/request-id.middleware.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -11,10 +15,44 @@ import { TraceModule } from './modules/trace/trace.module.js';
 import { IotModule } from './modules/iot/iot.module.js';
 import { BlockchainAdapterModule } from './modules/blockchain-adapter/blockchain-adapter.module.js';
 import { HealthModule } from './health/health.module.js';
+import { ComplianceModule } from './modules/compliance/compliance.module.js';
+import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { SensorHistoryModule } from './modules/sensor-history/sensor-history.module.js';
+import { ReportsModule } from './modules/reports/reports.module.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { MediaModule } from './modules/media/media.module.js';
 
 @Module({
-  imports: [AuthModule, UsersModule, OrganizationsModule, ProductionCyclesModule, LotsModule, ShipmentsModule, TraceModule, IotModule, BlockchainAdapterModule, HealthModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: Number(process.env.RATE_LIMIT_TTL_MS ?? 60_000),
+        limit: Number(process.env.RATE_LIMIT_REQUESTS ?? 120),
+      },
+    ]),
+    AuthModule,
+    UsersModule,
+    OrganizationsModule,
+    ProductionCyclesModule,
+    LotsModule,
+    ShipmentsModule,
+    TraceModule,
+    IotModule,
+    ComplianceModule,
+    BlockchainAdapterModule,
+    HealthModule,
+    CatalogModule,
+    SensorHistoryModule,
+    ReportsModule,
+    NotificationsModule,
+    MediaModule,
+  ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}
