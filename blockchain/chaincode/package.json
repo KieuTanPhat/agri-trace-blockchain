@@ -20,7 +20,7 @@
   "dependencies": {
     "fabric-contract-api": "2.5.8",
     "fabric-shim": "2.5.8",
-    "json-canonicalize": "3.0.0",
+    "json-canonicalize": "3.0.1",
     "reflect-metadata": "0.2.2"
   },
   "devDependencies": {
