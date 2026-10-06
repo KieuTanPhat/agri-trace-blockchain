@@ -29,12 +29,21 @@ export default [
       "react-hooks": hooksPlugin,
     },
     settings: { react: { version: "detect" } },
-    // Keep the effective React/TypeScript/accessibility policy. The mandatory
-    // Oxlint invocation implements the Next.js rules from the same snapshot.
+    // Next/typescript also applied these rules to JS. Preserve that baseline;
+    // the four TypeScript-only core rules are enabled by the override below.
+    // The mandatory Oxlint invocation implements the Next.js rules.
     rules: Object.fromEntries(
       Object.entries(policy.rules).filter(
-        ([name]) => !name.startsWith("@next/next/"),
+        ([name]) =>
+          !name.startsWith("@next/next/") &&
+          !policy.typescriptOnlyRules.includes(name),
       ),
+    ),
+  },
+  {
+    files: ["src/**/*.{ts,tsx,mts,cts}"],
+    rules: Object.fromEntries(
+      policy.typescriptOnlyRules.map((name) => [name, policy.rules[name]]),
     ),
   },
 ];

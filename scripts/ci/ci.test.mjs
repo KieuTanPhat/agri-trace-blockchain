@@ -31,7 +31,7 @@ test('network and chaincode changes select blockchain integration', () => {
 });
 
 test('manifests and CI changes select all checks', () => {
-  for (const file of ['package-lock.json', 'blockchain/chaincode/package.json', '.github/workflows/dependency-audit.yml', 'scripts/ci/gate.mjs']) {
+  for (const file of ['package-lock.json', 'blockchain/chaincode/package.json', '.github/workflows/dependency-audit.yml', 'scripts/ci/gate.mjs', 'scripts/audit-dependencies.mjs', 'scripts/check-standalone-chaincode.mjs']) {
     assert.ok(Object.values(classifyChanges([file])).every(Boolean), file);
   }
 });
@@ -117,7 +117,7 @@ test('gate rejects failures, cancellation and unexpected skips for selected jobs
   for (const result of ['failure', 'cancelled', 'skipped']) {
     assert.ok(gateErrors('blockchain', {
       changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true' } },
-      verify: { result: 'success' }, 'fabric-smoke': { result },
+      verify: { result: 'success' }, 'standalone-chaincode': { result: 'success' }, 'fabric-smoke': { result },
     }).length > 0);
   }
 });
@@ -128,9 +128,29 @@ test('gate fails closed on failed detection, absent outputs and missing jobs', (
   assert.ok(gateErrors('blockchain', { changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true' } } }).length > 0);
 });
 
-test('dependency gate requires success from both audits in the matrix', () => {
-  assert.deepEqual(gateErrors('dependency', { audit: { result: 'success' } }), []);
+test('blockchain gate requires the selected standalone check and permits documentation skips', () => {
+  const needs = {
+    changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true' } },
+    verify: { result: 'success' }, 'fabric-smoke': { result: 'success' },
+    'standalone-chaincode': { result: 'success' },
+  };
+  assert.deepEqual(gateErrors('blockchain', needs), []);
   for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
-    assert.ok(gateErrors('dependency', { audit: { result } }).length > 0);
+    assert.ok(gateErrors('blockchain', { ...needs, 'standalone-chaincode': { result } }).length > 0);
+  }
+  assert.deepEqual(gateErrors('blockchain', {
+    changes: { result: 'success', outputs: { blockchain: 'false', fabric: 'false' } },
+    verify: { result: 'skipped' }, 'fabric-smoke': { result: 'skipped' },
+    'standalone-chaincode': { result: 'skipped' },
+  }), []);
+});
+
+test('dependency gate requires both lockfile audits and the installed graph', () => {
+  const needs = { audit: { result: 'success' }, 'workspace-peers': { result: 'success' } };
+  assert.deepEqual(gateErrors('dependency', needs), []);
+  for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+    for (const job of ['audit', 'workspace-peers']) {
+      assert.ok(gateErrors('dependency', { ...needs, [job]: { result } }).length > 0);
+    }
   }
 });

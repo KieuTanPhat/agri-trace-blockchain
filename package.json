@@ -29,6 +29,8 @@
     "pkcs11js": false
   },
   "scripts": {
+    "audit:dependencies": "node scripts/audit-dependencies.mjs",
+    "check:chaincode:standalone": "node scripts/check-standalone-chaincode.mjs",
     "dev": "npm run dev:web",
     "dev:web": "npm run dev --workspace apps/web",
     "dev:api": "npm run start:dev --workspace apps/api",

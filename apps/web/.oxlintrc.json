@@ -1,8 +1,6 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "nextjs"
-  ],
+  "plugins": ["nextjs"],
   "categories": {
     "correctness": "off"
   },

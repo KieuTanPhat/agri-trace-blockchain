@@ -45,3 +45,5 @@ artifacts/
 .ai/
 .DS_Store
 Thumbs.db
+# Generated CI audit artifacts; local reports default to the ignored .codex/.
+/dependency-evidence/

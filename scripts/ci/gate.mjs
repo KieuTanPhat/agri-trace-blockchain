@@ -2,12 +2,13 @@ import { pathToFileURL } from 'node:url';
 
 const selectedJobs = {
   application: { api: 'api', web: 'web', 'container-build': 'containers' },
-  blockchain: { verify: 'blockchain', 'fabric-smoke': 'fabric' },
+  blockchain: { verify: 'blockchain', 'standalone-chaincode': 'blockchain', 'fabric-smoke': 'fabric' },
 };
 
 export function gateErrors(kind, needs) {
   if (kind === 'dependency') {
-    return needs.audit?.result === 'success' ? [] : ['Both dependency audits must succeed'];
+    return needs.audit?.result === 'success' && needs['workspace-peers']?.result === 'success'
+      ? [] : ['Both lockfile audits and the installed workspace graph must succeed'];
   }
   const jobs = selectedJobs[kind];
   if (!jobs) throw new Error(`Unknown CI gate: ${kind}`);

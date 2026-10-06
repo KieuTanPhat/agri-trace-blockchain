@@ -58,6 +58,35 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run check --workspace ${{ matrix.package }}
 
+  standalone-chaincode:
+    name: Standalone chaincode
+    needs: changes
+    if: needs.changes.outputs.blockchain == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.22.3'
+          package-manager-cache: false
+      - run: npm install --global npm@12.1.0
+      - name: Install, audit and check standalone chaincode in isolation
+        id: dependency-audit
+        run: npm run check:chaincode:standalone -- dependency-evidence
+      - name: Upload standalone dependency evidence
+        if: always() && steps.dependency-audit.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: standalone-chaincode-dependencies-${{ github.sha }}
+          path: dependency-evidence/chaincode/
+          if-no-files-found: error
+          retention-days: 90
+
   fabric-smoke:
     name: API Worker Fabric integration
     needs: changes
@@ -133,7 +162,7 @@ jobs:
 
   gate:
     name: Blockchain gate
-    needs: [changes, verify, fabric-smoke]
+    needs: [changes, verify, standalone-chaincode, fabric-smoke]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

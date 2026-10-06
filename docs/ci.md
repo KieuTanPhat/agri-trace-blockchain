@@ -10,8 +10,8 @@ actions được cố định bằng SHA và cập nhật qua Dependabot.
 | Check bắt buộc | Kiểm tra |
 | --- | --- |
 | `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; migration và API E2E PostgreSQL; production API, Web và Worker. |
-| `Blockchain gate` | Gateway/chaincode trên ba phiên bản Node; coverage chaincode; Worker contract; API → outbox → Worker → Fabric → proof. |
-| `Dependency gate` | Audit lockfile workspace và lockfile chaincode triển khai độc lập; chặn high/critical, gồm dependency phát triển. |
+| `Blockchain gate` | Gateway/chaincode trên ba phiên bản Node; coverage chaincode; cài/audit/check chaincode độc lập; Worker contract; API → outbox → Worker → Fabric → proof. |
+| `Dependency gate` | Audit hai lockfile và dependency đã cài; kiểm peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. |
 
 Mỗi workflow tạo gate cho mọi PR, kể cả PR chỉ sửa tài liệu. Việc chọn job
 diễn ra trong `scripts/ci/changes.mjs`, thay vì bỏ cả workflow bằng `paths`:
@@ -90,7 +90,12 @@ riêng và được dọn trong `always()`, kể cả khi kiểm tra lỗi.
 ## Audit và dependency
 
 Audit độc lập chạy trên mọi PR, merge queue, `main`, dispatch và mỗi thứ Hai
-02:23 UTC (09:23 Việt Nam). Hai artifact audit có tên gắn SHA, lưu 14 ngày.
+02:23 UTC (09:23 Việt Nam). Hai artifact lockfile có tên gắn SHA, lưu 14 ngày.
+Job `Workspace dependency graph` cài sạch, audit đầy đủ/production và kiểm
+`npm ls --all`; artifact kèm head/checkout SHA, Node/npm và checksum được
+lưu 90 ngày. Job `Standalone chaincode` giữ quy trình cài/audit/check độc
+lập và evidence 90 ngày đã có trên `main`, được yêu cầu bởi `Blockchain gate`.
+Ngưỡng moderate của AGT-002 được giữ khi tích hợp ngày 06/10/2026.
 Audit bao gồm dependency phát triển. `--no-audit` trong bước cài đặt các job
 code chỉ bỏ audit lặp; không thay đổi ngưỡng của `Dependency gate`.
 
@@ -111,8 +116,8 @@ Giữ Next.js 15.5.25 và các plugin ESLint đã dùng; thay `next lint` bằng
 ESLint flat config cùng plugin Next.js native của Oxlint. Oxlint đã có trong
 workspace API. Lockfile không còn các package trong chuỗi trên. Audit toàn
 bộ workspace, runtime và chaincode độc lập đều trả về 0 advisory tại thời
-điểm kiểm tra ngày 05/10/2026. Ngưỡng high/critical tiếp tục chặn merge theo
-quyết định của chủ dự án; không có allowlist hoặc ngoại lệ.
+điểm kiểm tra ngày 05/10/2026. Bản tích hợp giữ ngưỡng moderate/high/critical
+đã có trên `main`; không có allowlist hoặc ngoại lệ.
 
 Một lỗi peer dependency có sẵn cũng được sửa: SWC của API yêu cầu
 `@swc/helpers >=0.5.17`, trong khi Next.js cần đúng 0.5.15. API khai báo
@@ -124,11 +129,13 @@ Dependabot kiểm dependency và action hàng tuần, không tự merge và khô
 
 ## Hợp đồng lint Web
 
-`apps/web/scripts/lint-policy.json` ghi lại 71 rule đang bật của cấu hình
-`next/core-web-vitals` và `next/typescript` tại `d773afe`, gồm mức warning/error
+`apps/web/scripts/lint-policy.json` ghi lại 71 rule TypeScript và 67 rule
+JavaScript của cấu hình `next/core-web-vitals` và `next/typescript` theo baseline
+`1156c04`, gồm mức warning/error
 và tùy chọn. Tùy chọn mặc định của hai rule ESLint được ghi rõ để giữ hành vi:
 
-- ESLint chạy 50 rule React, TypeScript, hooks, accessibility và import bằng
+- ESLint chạy 50 rule cho TypeScript, 46 cho JavaScript, gồm React, TypeScript,
+  hooks, accessibility và import bằng
   cùng các plugin; giữ việc đánh dấu import/component được dùng trong JSX.
 - Oxlint chạy 21 rule Next.js bằng plugin native; tắt nhóm correctness mặc
   định vì các rule ESLint đã kiểm riêng. Không bỏ rule Next.js hoặc hạ mức lỗi.
@@ -138,7 +145,7 @@ và tùy chọn. Tùy chọn mặc định của hai rule ESLint được ghi r�
   build trong package.json để đảm bảo điều kiện này.
 - `npm run lint:contract --workspace apps/web` kiểm cấu hình đủ 71 rule,
   kiểm `npm ls --all`, cố tình vi phạm từng rule có diagnostic, kiểm mẫu hợp lệ
-  và thực sự gọi build với một lỗi Next.js để xác nhận compiler chưa được chạy. File canary
+  và thực sự gọi build với lỗi từ từng engine để xác nhận compiler chưa được chạy. File canary
   có tên ngẫu nhiên và được xóa sau test; fixture nằm trong thư mục tạm riêng.
   Hợp đồng chạy trong `npm run check`, trên cả ba phiên bản Node trong CI.
 
@@ -152,12 +159,14 @@ npm ci --no-audit --no-fund
 npm run test:ci
 npm run test:worker-contract
 npm run lint:contract --workspace apps/web
-npm audit --package-lock-only --audit-level=high
-npm audit --package-lock-only --omit=dev --audit-level=high
+npm audit --package-lock-only --audit-level=moderate
+npm audit --package-lock-only --omit=dev --audit-level=moderate
+npm run audit:dependencies -- workspace dependency-evidence
+npm run check:chaincode:standalone -- dependency-evidence
 ```
 
 Audit standalone dùng `npm audit --workspaces=false --package-lock-only
---audit-level=high` trong `blockchain/chaincode`.
+--audit-level=moderate` trong `blockchain/chaincode`.
 
 `npm run check` cần `DATABASE_URL` và `TEST_DATABASE_URL` trỏ tới database
 test riêng đã chạy migration. Không dùng database nghiệp vụ để chạy E2E.

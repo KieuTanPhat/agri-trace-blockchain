@@ -43,15 +43,33 @@ const nextRules = Object.fromEntries(
     .map(([name, config]) => [name.replace("@next/next/", "nextjs/"), config]),
 );
 
-test("all 71 original rules retain their severity and options", async () => {
+test("original TypeScript (71) and JavaScript (67) policies retain severity and options", async () => {
   assert.equal(Object.keys(policy.rules).length, 71);
   assert.equal(Object.keys(eslintRules).length, 50);
   assert.equal(Object.keys(nextRules).length, 21);
+  assert.deepEqual(policy.typescriptOnlyRules, [
+    "no-var",
+    "prefer-const",
+    "prefer-rest-params",
+    "prefer-spread",
+  ]);
   for (const file of [
     "src/app/page.tsx",
     "src/lib/api-client.ts",
     "src/lib/auth-store.spec.tsx",
+    "src/__lint_contract__.mts",
+    "src/__lint_contract__.cts",
+    "src/__lint_contract__.js",
+    "src/__lint_contract__.jsx",
+    "src/__lint_contract__.mjs",
+    "src/__lint_contract__.cjs",
   ]) {
+    const isTypescript = /\.(?:ts|tsx|mts|cts)$/.test(file);
+    const expected = Object.fromEntries(
+      Object.entries(eslintRules).filter(
+        ([name]) => isTypescript || !policy.typescriptOnlyRules.includes(name),
+      ),
+    );
     const config = await eslint.calculateConfigForFile(
       path.join(webRoot, file),
     );
@@ -63,19 +81,34 @@ test("all 71 original rules retain their severity and options", async () => {
         ]),
       ),
       Object.fromEntries(
-        Object.entries(eslintRules).map(([name, rule]) => [
-          name,
-          normalize(rule),
-        ]),
+        Object.entries(expected).map(([name, rule]) => [name, normalize(rule)]),
       ),
       file,
     );
+    assert.equal(Object.keys(config.rules).length, isTypescript ? 50 : 46);
     assert.equal(config.settings.react.version, "detect");
   }
   const config = readJson(oxlintConfig);
   assert.deepEqual(config.plugins, ["nextjs"]);
   assert.deepEqual(config.categories, { correctness: "off" });
   assert.deepEqual(config.rules, nextRules);
+});
+
+test("TypeScript-only core rules do not silently change the JavaScript policy", async () => {
+  for (const extension of ["js", "jsx", "mjs", "cjs"]) {
+    const [result] = await eslint.lintText("export var value = 1;", {
+      filePath: path.join(webRoot, `src/__lint_contract__.${extension}`),
+    });
+    assert.deepEqual(result.messages, []);
+  }
+  const [result] = await eslint.lintText("export var value = 1;", {
+    filePath: path.join(webRoot, "src/__lint_contract__.ts"),
+  });
+  assert.ok(
+    result.messages.some(
+      ({ ruleId, severity }) => ruleId === "no-var" && severity === 2,
+    ),
+  );
 });
 
 test("lint and build enforce both engines; check includes this contract", () => {
@@ -567,46 +600,51 @@ test("beforeInteractive is allowed in the App Router root layout", () => {
   );
 });
 
-test(
-  "a real build stops on Next lint errors before invoking the compiler",
-  { timeout: 90_000 },
-  () => {
-    assert.ok(
-      process.env.npm_execpath,
-      "Run this contract through npm run lint:contract",
-    );
-    const sourceRoot = realpathSync(path.join(webRoot, "src"));
-    const canary = path.join(
-      sourceRoot,
-      `__lint_build_canary_${randomUUID()}.tsx`,
-    );
-    writeFileSync(
-      canary,
-      "export function LintBuildCanary() { return <script src='/blocked.js' />; }",
-      { flag: "wx" },
-    );
-    try {
-      const result = spawnSync(
-        process.execPath,
-        [process.env.npm_execpath, "run", "build"],
-        {
-          cwd: webRoot,
-          encoding: "utf8",
-          timeout: 80_000,
-        },
+for (const [engine, source, diagnostic] of [
+  ["ESLint", "export const value: any = 1;", /no-explicit-any/],
+  [
+    "Oxlint Next",
+    "export function LintBuildCanary() { return <script src='/blocked.js' />; }",
+    /no-sync-scripts/,
+  ],
+]) {
+  test(
+    `a real build stops on ${engine} errors before invoking the compiler`,
+    { timeout: 90_000 },
+    () => {
+      assert.ok(
+        process.env.npm_execpath,
+        "Run this contract through npm run lint:contract",
       );
-      assert.ifError(result.error);
-      const output = `${result.stdout}\n${result.stderr}`;
-      assert.equal(result.status, 1, output);
-      assert.match(output, /no-sync-scripts/);
-      assert.doesNotMatch(
-        output,
-        /Creating an optimized production build|▲ Next\.js/,
+      const sourceRoot = realpathSync(path.join(webRoot, "src"));
+      const canary = path.join(
+        sourceRoot,
+        `__lint_build_canary_${randomUUID()}.tsx`,
       );
-    } finally {
-      assert.equal(path.dirname(canary), sourceRoot);
-      assert.ok(path.basename(canary).startsWith("__lint_build_canary_"));
-      unlinkSync(canary);
-    }
-  },
-);
+      writeFileSync(canary, source, { flag: "wx" });
+      try {
+        const result = spawnSync(
+          process.execPath,
+          [process.env.npm_execpath, "run", "build"],
+          {
+            cwd: webRoot,
+            encoding: "utf8",
+            timeout: 80_000,
+          },
+        );
+        assert.ifError(result.error);
+        const output = `${result.stdout}\n${result.stderr}`;
+        assert.equal(result.status, 1, output);
+        assert.match(output, diagnostic);
+        assert.doesNotMatch(
+          output,
+          /Creating an optimized production build|▲ Next\.js/,
+        );
+      } finally {
+        assert.equal(path.dirname(canary), sourceRoot);
+        assert.ok(path.basename(canary).startsWith("__lint_build_canary_"));
+        unlinkSync(canary);
+      }
+    },
+  );
+}

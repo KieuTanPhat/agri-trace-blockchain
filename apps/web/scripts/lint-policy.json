@@ -1,5 +1,11 @@
 {
-  "source": "Effective next/core-web-vitals + next/typescript from eslint-config-next@15.5.25 at d773afe",
+  "source": "Effective next/core-web-vitals + next/typescript from eslint-config-next@15.5.27 at 1156c0421800fec2d750d0f9339e122e26e02ab2; explicit options match original rule defaults",
+  "typescriptOnlyRules": [
+    "no-var",
+    "prefer-const",
+    "prefer-rest-params",
+    "prefer-spread"
+  ],
   "rules": {
     "@typescript-eslint/no-unused-vars": "warn",
     "@typescript-eslint/no-unused-expressions": [
@@ -63,12 +69,8 @@
     "jsx-a11y/alt-text": [
       "warn",
       {
-        "elements": [
-          "img"
-        ],
-        "img": [
-          "Image"
-        ]
+        "elements": ["img"],
+        "img": ["Image"]
       }
     ],
     "jsx-a11y/aria-props": "warn",

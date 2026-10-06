@@ -12,6 +12,8 @@ const sharedFiles = new Set([
   '.dockerignore',
   '.env.docker.example',
   'blockchain/chaincode/package.json',
+  'scripts/audit-dependencies.mjs',
+  'scripts/check-standalone-chaincode.mjs',
 ]);
 
 export function classifyChanges(files, force = false) {
