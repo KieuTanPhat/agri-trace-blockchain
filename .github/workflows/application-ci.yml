@@ -26,6 +26,23 @@ jobs:
         package:
           - apps/api
           - apps/web
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: agri_trace_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d agri_trace_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/agri_trace_test?schema=public
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/agri_trace_test?schema=public
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -38,4 +55,7 @@ jobs:
       - run: npm ci
       # The gateway package exports its compiled declarations from dist/.
       - run: npm run build --workspace blockchain/gateway
+      - name: Apply migrations to the API test database
+        if: matrix.package == 'apps/api'
+        run: npm run db:migrate --workspace apps/api
       - run: npm run check --workspace ${{ matrix.package }}

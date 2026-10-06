@@ -77,5 +77,22 @@ hoặc thay lớp lưu trữ bằng object storage để file không mất sau k
 npm run check --workspace apps/api
 ```
 
-Bộ e2e dùng JWT, bcrypt và ValidationPipe thật nhưng mock Prisma, vì vậy không ghi
-vào database local.
+Các E2E auth dùng JWT, bcrypt và ValidationPipe thật với Prisma mock. Các E2E
+media và database constraints dùng PostgreSQL thật, chỉ chạy khi có
+`TEST_DATABASE_URL`; không lấy `DATABASE_URL` của ứng dụng làm fallback.
+
+Tạo một database test riêng và chạy migration trước khi kiểm tra (PowerShell):
+
+```powershell
+$env:TEST_DATABASE_URL = 'postgresql://postgres:YOUR_TEST_PASSWORD@localhost:5432/agri_trace_test?schema=public'
+$env:DATABASE_URL = $env:TEST_DATABASE_URL
+npm run db:migrate --workspace apps/api
+npm run build --workspace blockchain/gateway
+npm run check --workspace apps/api
+```
+
+Media E2E tự tạo và dọn fixture, lưu file trong thư mục tạm; không cần seed dữ
+liệu demo. Vitest cấu hình JWT secret chỉ dành cho E2E và tắt Fabric/alert scanner.
+Khi không đặt `TEST_DATABASE_URL`, các suite PostgreSQL được bỏ qua ở local;
+CI bắt buộc có biến này, khởi động PostgreSQL 18 và áp dụng migration trước
+API checks để các suite đó thực sự chạy.

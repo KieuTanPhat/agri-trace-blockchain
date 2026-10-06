@@ -2217,6 +2217,10 @@ VALUES
     ('AUDITOR', 'Người kiểm tra', 'Kiểm tra dữ liệu truy xuất và tính toàn vẹn')
 ON CONFLICT (code) DO NOTHING;
 
+-- pg_dump clears search_path above. Restore it before Prisma records this
+-- migration and executes the following migrations with unqualified table names.
+SELECT pg_catalog.set_config('search_path', 'public', false);
+
 
 --
 -- PostgreSQL database dump complete
