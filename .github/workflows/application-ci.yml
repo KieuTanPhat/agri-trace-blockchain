@@ -2,21 +2,55 @@ name: Application CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  verify:
-    runs-on: ubuntu-latest
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      api: ${{ steps.changes.outputs.api }}
+      web: ${{ steps.changes.outputs.web }}
+      containers: ${{ steps.changes.outputs.containers }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: changes
+        run: node scripts/ci/changes.mjs
+
+  api:
+    name: API / Node ${{ matrix.node }}
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.22.3', '24.15.0', '26.0.0']
     env:
       DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
       TEST_DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
       JWT_SECRET: ci-only-jwt-secret-that-is-long-enough-for-tests
       IOT_INGEST_API_KEY: ci-only-device-ingest-key
-      FABRIC_ENABLED: "false"
-      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      FABRIC_ENABLED: 'false'
     services:
       postgres:
         image: postgres:16-alpine
@@ -28,87 +62,113 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U test -d agri_trace_ci"
-          --health-interval 10s
+          --health-interval 5s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm install --global npm@12.1.0
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:ci
+      # The API consumes Gateway's compiled workspace exports.
+      - run: npm run build --workspace blockchain/gateway
+      - run: npm run db:migrate --workspace apps/api
+      - run: npm run check --workspace apps/api
+
+  web:
+    name: Web / Node ${{ matrix.node }}
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        package:
-          - apps/api
-          - apps/web
+        node: ['22.22.3', '24.15.0', '26.0.0']
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 22.22.3
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
           cache: npm
           cache-dependency-path: package-lock.json
-      # Install from the repository root so npm links local workspace packages.
-      # The API imports @agri-trace/fabric-gateway from blockchain/gateway.
       - run: npm install --global npm@12.1.0
-      - run: npm ci
-      - name: Audit all workspace dependencies and installed peers
-        id: dependency-audit
-        run: npm run audit:dependencies -- workspace dependency-evidence
-      # The gateway package exports its compiled declarations from dist/.
-      - run: npm run build --workspace blockchain/gateway
-      - name: Apply API database migrations
-        if: matrix.package == 'apps/api'
-        run: npm run db:migrate --workspace apps/api
-      - run: npm run check --workspace ${{ matrix.package }}
-      - name: Upload dependency audit evidence
-        if: always() && steps.dependency-audit.outcome != 'skipped'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: application-${{ matrix.package == 'apps/api' && 'api' || 'web' }}-dependencies-${{ github.run_attempt }}
-          path: dependency-evidence/workspace/
-          if-no-files-found: error
-          retention-days: 90
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check --workspace apps/web
 
   container-build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    name: Production containers
+    needs: changes
+    if: needs.changes.outputs.containers == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: agri-trace-ci
+      FABRIC_ENABLED: 'false'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Validate Compose model
         run: docker compose config --quiet
-      - name: Build production images
-        run: docker compose build api web
-      - name: Start production containers against a disposable database
-        run: docker compose up -d --wait --wait-timeout 180 postgres api web
-      - name: Verify production HTTP entrypoints
+      - name: Build production images including Worker
+        run: docker compose build api worker web
+      - name: Start the complete production stack against a disposable database
+        run: docker compose up -d --wait --wait-timeout 240 postgres api worker web
+      - name: Verify API, Web and internal Worker health
         run: |
           curl --fail --retry 3 http://localhost:8080/api/health
           curl --fail --retry 3 --output /dev/null http://localhost:3000/login
+          docker compose exec -T web node --input-type=module -e "
+            import assert from 'node:assert/strict';
+            const r = await fetch('http://127.0.0.1:3000/_next/image?url=%2Flogo.png&w=64&q=75', {
+              headers: { Accept: 'image/webp' }
+            });
+            assert.equal(r.status, 200);
+            assert.equal(r.headers.get('content-type'), 'image/webp');
+            const b = Buffer.from(await r.arrayBuffer());
+            assert.equal(b.toString('ascii', 0, 4), 'RIFF');
+            assert.equal(b.toString('ascii', 8, 12), 'WEBP');
+          "
+          docker compose exec -T worker node --input-type=module -e "
+            import assert from 'node:assert/strict';
+            const r = await fetch('http://127.0.0.1:8081/health/ready');
+            assert.equal(r.status, 200);
+            const h = await r.json();
+            assert.equal(h.service, 'agri-trace-blockchain-worker');
+            assert.equal(h.runtime.enabled, false);
+            assert.equal(h.runtime.running, false);
+            assert.equal(h.backlog.deadLetter, 0);
+          "
       - name: Collect application diagnostics
         if: failure()
-        run: docker compose logs --no-color --tail 200
+        run: |
+          docker compose ps --all
+          docker compose logs --no-color --tail 200
       - name: Stop disposable application stack
         if: always()
-        run: docker compose down --volumes
+        run: docker compose down --volumes --remove-orphans
 
-  application-gate:
+  gate:
     name: Application gate
-    needs: [verify, container-build]
+    needs: [changes, api, web, container-build]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - name: Require all application checks to pass
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require all selected application checks to succeed
         env:
-          VERIFY_RESULT: ${{ needs.verify.result }}
-          CONTAINER_RESULT: ${{ needs.container-build.result }}
-        run: |
-          test "$VERIFY_RESULT" = success
-          test "$CONTAINER_RESULT" = success
-
-  dependency-gate:
-    name: Dependency gate
-    needs: [verify]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require workspace dependency audit and checks to pass
-        env:
-          VERIFY_RESULT: ${{ needs.verify.result }}
-        run: test "$VERIFY_RESULT" = success
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/ci/gate.mjs application

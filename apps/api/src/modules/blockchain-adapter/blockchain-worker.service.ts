@@ -146,7 +146,6 @@ export class BlockchainWorkerService {
             'SYSTEM_ASSERTION') as TraceEventInput['actorContext']['authProofType'],
           actorAuthProof: event.actorAuthProof ?? event.dataHash,
         },
-        payloadMetadata: { hasBusinessPayload: true },
       };
 
       let receipt: FabricReceipt;

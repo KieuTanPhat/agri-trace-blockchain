@@ -33,6 +33,9 @@ blockchain/network/identities/
 # TypeScript incremental build cache
 *.tsbuildinfo
 
+# Disposable CI evidence
+artifacts/
+
 # Editor, AI workspace, and operating-system files
 .idea/
 .vscode/

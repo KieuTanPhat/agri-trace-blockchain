@@ -123,7 +123,7 @@ test("lint and build enforce both engines; check includes this contract", () => 
   );
   assert.equal(
     scripts.check,
-    "npm run typecheck && npm test && npm run lint:contract && npm run build",
+    "npm run typecheck && npm test && npm run lint:contract && npm run test:image-optimizer && npm run build",
   );
 });
 

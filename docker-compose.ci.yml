@@ -1,0 +1,21 @@
+# Disposable Fabric integration stack; use together with docker-compose.yml.
+# The test network creates fabric_test. Only Worker needs ledger access.
+services:
+  worker:
+    # Match the runner's UID/GID so a generated key can stay private (0600).
+    user: ${CI_WORKER_UID:-1000}:${CI_WORKER_GID:-1000}
+    environment:
+      FABRIC_ENABLED: 'true'
+      FABRIC_PEER_ENDPOINT: peer0.org1.example.com:7051
+      RELAYER_MSP_DIR: /fabric-identity
+      FABRIC_WORKER_INTERVAL_MS: '1000'
+    volumes:
+      - ./blockchain/network/identities/relayer/msp:/fabric-identity:ro
+    networks:
+      - default
+      - fabric
+
+networks:
+  fabric:
+    external: true
+    name: fabric_test

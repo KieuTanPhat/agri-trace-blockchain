@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:22-alpine AS dependencies
+FROM node:22.22.3-alpine AS dependencies
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -16,7 +16,7 @@ RUN npm run build --workspace blockchain/gateway \
     && npm run prisma:generate --workspace apps/api \
     && npm run build --workspace apps/api
 
-FROM node:22-alpine AS runtime
+FROM node:22.22.3-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
