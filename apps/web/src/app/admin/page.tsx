@@ -51,7 +51,16 @@ export default function AdminPage() {
     .filter((o) => o.status === "ACTIVE")
     .map((o) => ({ value: o.id, label: o.name }));
   const farmOptions = catalog.farms
-    .filter((f) => f.status === "ACTIVE")
+    .filter(
+      (f) =>
+        f.status === "ACTIVE" &&
+        orgs.some(
+          (o) =>
+            o.id === f.organizationId &&
+            o.type === "FARM" &&
+            o.status === "ACTIVE",
+        ),
+    )
     .map((f) => ({ value: f.id, label: f.name }));
   const fields: Field[][] = [
     [
@@ -92,7 +101,7 @@ export default function AdminPage() {
     [
       { name: "productName", label: "Tên sản phẩm", required: true },
       { name: "variety", label: "Giống" },
-      { name: "defaultUnit", label: "Đơn vị mặc định", required: true },
+      { name: "defaultUnit", label: "Đơn vị mặc định" },
     ],
     [
       { name: "name", label: "Tên nông trại", required: true },

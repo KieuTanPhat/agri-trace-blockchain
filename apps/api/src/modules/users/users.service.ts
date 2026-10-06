@@ -48,22 +48,35 @@ export class UsersService {
     }
     if (
       input.organizationId &&
-      !(await this.prisma.organization.findUnique({
-        where: { id: input.organizationId },
+      !(await this.prisma.organization.findFirst({
+        where: { id: input.organizationId, status: 'ACTIVE' },
       }))
     ) {
-      throw new UnprocessableEntityException('Organization does not exist');
+      throw new UnprocessableEntityException(
+        'Organization does not exist or is inactive',
+      );
     }
-    return this.prisma.user.create({
-      data: {
-        email,
-        fullName: input.fullName.trim(),
-        passwordHash: await hash(input.password, 12),
-        roleId: role.id,
-        organizationId: input.organizationId,
-      },
-      select: { id: true, email: true, fullName: true, accountStatus: true },
-    });
+    try {
+      return await this.prisma.user.create({
+        data: {
+          email,
+          fullName: input.fullName.trim(),
+          passwordHash: await hash(input.password, 12),
+          roleId: role.id,
+          organizationId: input.organizationId,
+        },
+        select: { id: true, email: true, fullName: true, accountStatus: true },
+      });
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error &&
+        'code' in error &&
+        error.code === 'P2002'
+      )
+        throw new ConflictException('Email đã tồn tại');
+      throw error;
+    }
   }
 
   async updateStatus(id: string, input: UpdateUserStatusDto) {

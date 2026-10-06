@@ -733,6 +733,115 @@ const prisma = new PrismaClient({
       expect(JSON.stringify(approved.body.data)).not.toContain(users.farm);
     });
 
+    it('enforces catalog references, ownership, duplicate protection and replay', async () => {
+      const name = 'Catalog-' + randomUUID();
+      await post(
+        '/catalog/farms',
+        { name, organizationId: transporterOrgId },
+        'admin',
+      ).expect(422);
+      await post(
+        '/catalog/farms',
+        { name, organizationId: randomUUID() },
+        'admin',
+      ).expect(422);
+      const key = randomUUID();
+      const input = { name, organizationId: farmOrgId };
+      const first = await post('/catalog/farms', input, 'admin', key).expect(
+        201,
+      );
+      const replay = await post('/catalog/farms', input, 'admin', key).expect(
+        201,
+      );
+      expect(replay.body.data.id).toBe(first.body.data.id);
+      await post('/catalog/farms', input, 'admin').expect(409);
+      expect(await prisma.farm.count({ where: input })).toBe(1);
+      const plot = await post(
+        '/catalog/plots',
+        { name, farmId: first.body.data.id, area: 1.25 },
+        'admin',
+      ).expect(201);
+      expect(plot.body.data.area).toBe('1.25');
+      await post(
+        '/catalog/plots',
+        { name, farmId: first.body.data.id },
+        'admin',
+      ).expect(409);
+      await post(
+        '/catalog/plots',
+        { name: name + '-bad', farmId: first.body.data.id, area: 1.001 },
+        'admin',
+      ).expect(400);
+      await post('/catalog/plots', {
+        name: name + '-staff',
+        farmId: first.body.data.id,
+      }).expect(403);
+      const inactiveOrg = await prisma.organization.create({
+        data: { name, type: 'FARM', status: 'INACTIVE' },
+      });
+      await post(
+        '/catalog/farms',
+        { name, organizationId: inactiveOrg.id },
+        'admin',
+      ).expect(422);
+      await prisma.farm.update({
+        where: { id: first.body.data.id },
+        data: { status: 'INACTIVE' },
+      });
+      await post(
+        '/catalog/plots',
+        { name: name + '-inactive', farmId: first.body.data.id },
+        'admin',
+      ).expect(422);
+      const scoped = await get('/catalog').expect(200);
+      expect(
+        scoped.body.data.farms.every(
+          (farm: { organizationId: string; status: string }) =>
+            farm.organizationId === farmOrgId && farm.status === 'ACTIVE',
+        ),
+      ).toBe(true);
+      expect(
+        scoped.body.data.plots.some(
+          (p: { id: string }) => p.id === plot.body.data.id,
+        ),
+      ).toBe(false);
+    });
+
+    it('rejects inactive owner references and concurrent duplicate products', async () => {
+      const name = 'Catalog-owner-' + randomUUID();
+      const org = await prisma.organization.create({
+        data: { name, type: 'FARM' },
+      });
+      const farm = await prisma.farm.create({
+        data: { name, organizationId: org.id },
+      });
+      await prisma.organization.update({
+        where: { id: org.id },
+        data: { status: 'INACTIVE' },
+      });
+      await post('/catalog/plots', { name, farmId: farm.id }, 'admin').expect(
+        422,
+      );
+      await post(
+        '/users',
+        {
+          email: randomUUID() + '@example.test',
+          fullName: name,
+          password: 'test-password-123',
+          roleCode: 'FARM_STAFF',
+          organizationId: org.id,
+        },
+        'admin',
+      ).expect(422);
+      const productName = 'Concurrent-' + randomUUID();
+      const results = await Promise.all([
+        post('/catalog/products', { productName }, 'admin'),
+        post('/catalog/products', { productName }, 'admin'),
+      ]);
+      expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+      expect(await prisma.product.count({ where: { productName } })).toBe(1);
+    });
+
     it('validates malformed identifiers and blank master-data names at the HTTP boundary', async () => {
       await get('/inspections?lotId=not-a-uuid').expect(400);
       await get('/certificates?cycleId=not-a-uuid').expect(400);
