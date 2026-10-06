@@ -6,6 +6,8 @@ on:
       - "apps/**"
       - "package.json"
       - "package-lock.json"
+      - "scripts/audit-dependencies.mjs"
+      - "docs/dependency-audit-*.md"
       - "docker-compose.yml"
       - ".dockerignore"
       - "apps/*/Dockerfile"
@@ -15,6 +17,8 @@ on:
       - "apps/**"
       - "package.json"
       - "package-lock.json"
+      - "scripts/audit-dependencies.mjs"
+      - "docs/dependency-audit-*.md"
       - "docker-compose.yml"
       - ".dockerignore"
       - "apps/*/Dockerfile"
@@ -32,6 +36,7 @@ jobs:
       JWT_SECRET: ci-only-jwt-secret-that-is-long-enough-for-tests
       IOT_INGEST_API_KEY: ci-only-device-ingest-key
       FABRIC_ENABLED: "false"
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     services:
       postgres:
         image: postgres:16-alpine
@@ -56,20 +61,30 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 22.22.3
           cache: npm
           cache-dependency-path: package-lock.json
       # Install from the repository root so npm links local workspace packages.
       # The API imports @agri-trace/fabric-gateway from blockchain/gateway.
       - run: npm install --global npm@12.1.0
       - run: npm ci
-      - run: npm audit --audit-level=high
+      - name: Audit all workspace dependencies and installed peers
+        id: dependency-audit
+        run: npm run audit:dependencies -- workspace dependency-evidence
       # The gateway package exports its compiled declarations from dist/.
       - run: npm run build --workspace blockchain/gateway
       - name: Apply API database migrations
         if: matrix.package == 'apps/api'
         run: npm run db:migrate --workspace apps/api
       - run: npm run check --workspace ${{ matrix.package }}
+      - name: Upload dependency audit evidence
+        if: always() && steps.dependency-audit.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: application-${{ matrix.package == 'apps/api' && 'api' || 'web' }}-dependencies-${{ github.run_attempt }}
+          path: dependency-evidence/workspace/
+          if-no-files-found: error
+          retention-days: 90
 
   container-build:
     runs-on: ubuntu-latest

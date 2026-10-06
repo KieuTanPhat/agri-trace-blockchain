@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { LoaderCircle, LogIn, ShieldCheck } from "lucide-react";
@@ -109,9 +110,9 @@ export default function LoginPage() {
           )}
           {pending ? "Đang đăng nhập..." : "Đăng nhập"}
         </button>
-        <a className="button secondary" href="/scan">
+        <Link className="button secondary" href="/scan">
           <ShieldCheck size={18} /> Tra cứu công khai
-        </a>
+        </Link>
       </form>
     </div>
   );

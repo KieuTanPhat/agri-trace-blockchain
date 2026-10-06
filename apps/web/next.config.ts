@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
+  // npm run build enforces both ESLint and Oxlint before invoking Next.
+  // Next 15's embedded ESLint runner cannot run the Oxlint Next.js rules.
+  eslint: { ignoreDuringBuilds: true },
 };
 
 export default nextConfig;
