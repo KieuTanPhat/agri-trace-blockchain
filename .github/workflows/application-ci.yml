@@ -128,6 +128,17 @@ jobs:
         run: |
           curl --fail --retry 3 http://localhost:8080/api/health
           curl --fail --retry 3 --output /dev/null http://localhost:3000/login
+          docker compose exec -T web node --input-type=module -e "
+            import assert from 'node:assert/strict';
+            const r = await fetch('http://127.0.0.1:3000/_next/image?url=%2Flogo.png&w=64&q=75', {
+              headers: { Accept: 'image/webp' }
+            });
+            assert.equal(r.status, 200);
+            assert.equal(r.headers.get('content-type'), 'image/webp');
+            const b = Buffer.from(await r.arrayBuffer());
+            assert.equal(b.toString('ascii', 0, 4), 'RIFF');
+            assert.equal(b.toString('ascii', 8, 12), 'WEBP');
+          "
           docker compose exec -T worker node --input-type=module -e "
             import assert from 'node:assert/strict';
             const r = await fetch('http://127.0.0.1:8081/health/ready');

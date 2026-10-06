@@ -7,10 +7,11 @@
     "build": "npm run lint && node scripts/run-next.mjs build",
     "lint": "eslint src/ && oxlint --config .oxlintrc.json src/",
     "lint:contract": "node --test scripts/lint-contract.test.mjs",
+    "test:image-optimizer": "node --test scripts/image-optimizer.test.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm test && npm run lint:contract && npm run build"
+    "check": "npm run typecheck && npm test && npm run lint:contract && npm run test:image-optimizer && npm run build"
   },
   "dependencies": {
     "@next/swc-wasm-nodejs": "^15.5.25",

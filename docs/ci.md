@@ -53,6 +53,10 @@ mở cổng health Worker ra ngoài. Ở bài kiểm tra này Fabric bị tắt;
 nhận Worker cũng ở trạng thái disabled, không coi đó là bằng chứng gửi
 giao dịch lên ledger.
 
+Web check gọi optimizer thực của Next.js để chuyển PNG sang PNG/JPEG/WebP/AVIF
+với `sharp` đã vá. Production smoke còn gọi `/_next/image` và kiểm WebP trả
+về để xác nhận native binary có thể dùng trong image Alpine và standalone.
+
 Blockchain CI dùng Fabric 2.5.16, CA 1.5.22 và technical relayer của mạng
 thử nghiệm. Installer cố định tại commit
 `f871cf92a026aba7b12e6f06d71ded3e6e659d71` của Fabric v2.5.16; samples tại
@@ -108,6 +112,12 @@ Các bản vá ngày 05/10/2026:
   xác nhận các consumer hiện có vẫn hoạt động.
 - `fast-uri` nhánh 3.x: 3.1.8. Giữ major Next.js/NestJS và lockfile chaincode
   độc lập đang sạch; không dùng `npm audit fix --force`.
+
+Audit mới ngày 06/10/2026 phát hiện
+[GHSA-wq5f-xc86-pv6w](https://github.com/advisories/GHSA-wq5f-xc86-pv6w)
+ở `sharp` 0.35.4. Override cố định 0.35.5 cùng các native package/libvips
+trong lockfile; giữ Next.js/NestJS hiện có. Kiểm optimizer và production HTTP
+ở trên xác nhận khả năng tương thích của bản vá.
 
 Advisory [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
 của `braces <=3.0.3` được xử lý bằng cách loại chuỗi
