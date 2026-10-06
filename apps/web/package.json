@@ -16,7 +16,7 @@
   "dependencies": {
     "@next/swc-wasm-nodejs": "^15.5.27",
     "lucide-react": "^1.41.0",
-    "next": "^15.5.25",
+    "next": "^15.5.27",
     "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
