@@ -21,11 +21,12 @@
     "esbuild@0.28.2": true,
     "prisma@7.10.0": true,
     "protobufjs@7.6.6": true,
-    "unrs-resolver@1.12.2": true,
     "@scarf/scarf": false,
     "pkcs11js": false
   },
   "scripts": {
+    "audit:dependencies": "node scripts/audit-dependencies.mjs",
+    "check:chaincode:standalone": "node scripts/check-standalone-chaincode.mjs",
     "dev": "npm run dev:web",
     "dev:web": "npm run dev --workspace apps/web",
     "dev:api": "npm run start:dev --workspace apps/api",

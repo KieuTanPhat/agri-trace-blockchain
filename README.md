@@ -76,9 +76,32 @@ npm run check --workspace blockchain/chaincode
 npm run check --workspace blockchain/gateway
 ```
 
+Web chạy ESLint cho React/TypeScript/accessibility và Oxlint cho các rule Next.js.
+`npm run build --workspace apps/web` chạy cả hai trước khi biên dịch; `check`
+còn kiểm tra hợp đồng lint và xác nhận build bị chặn khi có lỗi.
+
 Mạng Fabric local cần thêm Docker; xem script trong `blockchain/network`.
 
 Mô hình dữ liệu core hiện tại tách rõ `ProductionCycle`, `HarvestEvent`, `Lot`
 và `Shipment`. Tài liệu `docs/business-specification-v1.2.md` chỉ còn là baseline
 lịch sử; Prisma schema được đồng bộ với database PostgreSQL `agri_traceDB` tại
 `apps/api/prisma/schema.prisma`.
+
+## Audit dependency
+
+Kiểm tra root và package chaincode độc lập trong các môi trường cài tách riêng:
+
+```bash
+npm ci
+npm run audit:dependencies
+npm run check:chaincode:standalone
+```
+
+Các lệnh ghi audit đầy đủ, audit production, kiểm tra peer dependency và metadata
+(ngày, SHA checkout, Node/npm, SHA-256 lockfile) vào `.codex/evidence/dependencies`.
+Kiểm tra standalone sao chép nguồn/config và hai file package của chaincode vào
+thư mục tạm, cài theo lockfile riêng, audit và chạy `check`, rồi dọn thư mục tạm.
+Manifest/lockfile trong thư mục cài phải khớp byte với checkout nguồn. Cách này
+giữ graph root ổn định khi chaincode cũng là workspace của monorepo.
+High/moderate làm lệnh thất bại. CI lưu cùng bằng chứng dưới dạng artifact cho
+workspace và chaincode độc lập. Xem [báo cáo AGT-002](docs/dependency-audit-2026-10-06.md).

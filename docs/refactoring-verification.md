@@ -82,3 +82,11 @@ nhãn nghiệp vụ để làm các kiểm tra đạt.
 
 Kết quả này xác nhận những luồng đã kiểm tra; không phải bảo đảm toán học rằng
 toàn bộ hệ thống không còn lỗi, hoặc xác nhận tuân thủ SOLID hoàn toàn.
+
+## Đối chiếu AGT-002 ngày 2026-10-06
+
+Kết quả dependency và test trong báo cáo phía trên thuộc SHA refactoring tại
+thời điểm đó. Remediation từ nhánh `tuan-AGT002-dependency-advisories`, quyết định
+lint, audit hai lockfile và bằng chứng của PR cho issue #14 được ghi riêng trong
+[dependency-audit-2026-10-06.md](dependency-audit-2026-10-06.md). Dùng SHA và các
+artifact CI trong issue để nghiệm thu AGT-002.
