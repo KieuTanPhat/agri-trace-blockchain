@@ -42,6 +42,27 @@ def bundle(directory, extra=None, mutate=None):
 
 
 class Policies(unittest.TestCase):
+    def test_historical_platform_line_endings_match_without_accepting_sql_changes(self):
+        name = "20260101_init"
+        lf = b'CREATE TABLE "example" ("id" INTEGER);\n-- original history\n'
+        crlf = lf.replace(b"\n", b"\r\n")
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "apps/api/prisma/migrations" / name / "migration.sql"
+            target.parent.mkdir(parents=True)
+            for source, recorded in ((lf, crlf), (crlf, lf)):
+                target.write_bytes(source)
+                applied = {name: sha256(recorded)}
+                self.assertEqual(migrations(applied, {name: sha256(source)}, directory), [])
+                self.assertEqual(applied, {name: sha256(recorded)})
+                self.assertEqual(target.read_bytes(), source)
+            for changed in (lf.replace(b"INTEGER", b"BIGINT"), lf.rstrip(b"\n"), lf + b"-- edited\n"):
+                target.write_bytes(changed)
+                with self.assertRaisesRegex(PolicyError, "Applied migration checksum was modified"):
+                    migrations({name: sha256(crlf)}, {name: sha256(changed)}, directory)
+            target.write_bytes(lf.replace(b"INTEGER", b"BIGINT"))
+            with self.assertRaisesRegex(PolicyError, "Migration source checksum mismatch"):
+                migrations({name: sha256(crlf)}, {name: sha256(lf)}, directory)
+
     def test_opaque_job_credentials_support_long_tokens_without_logging_them(self):
         for username in ("KieuTanPhat", "github-actions[bot]"):
             registry_auth({"username": username, "token": "ghs_" + "A" * 1500})

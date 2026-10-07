@@ -43,15 +43,32 @@ CD và push GitHub sau kiểm chứng. Tham chiếu: AGT-031 (#43), AGT-005 (#17
 
 ## Trình tự release
 
+```mermaid
+flowchart TD
+    Main[Push main] --> CI[Ba CI thành công của đúng SHA]
+    CI --> Build[Build và publish GHCR theo digest]
+    Build --> Guard[SSH controller: manifest, cấu hình và migration guards]
+    Guard --> Backup[Dừng writers, snapshot PG và Fabric, mã hóa CMS]
+    Backup --> App[Migration rồi API, Worker, Web]
+    App --> Verify[5 vai trò, toàn bộ ledger, QR và canary]
+    Verify -->|Đạt| Promote[Promote current và lưu previous]
+    Verify -->|Lỗi| Rollback[Phục hồi app và definition đã verified]
+    Rollback -->|Cần xử lý tiếp| Recover[Journal và lệnh recover]
+    Backup --> Artifact[Artifact mã hóa ngoài VPS]
+```
+
 1. Nhận bundle có giới hạn kích thước; kiểm SHA-256, đường dẫn tar, chỉ regular
    files/directories, danh sách file/hash, SHA 40 ký tự, digest GHCR và origin.
 2. Resolve Compose model trong memory; kiểm port/mount/UID/secret boundary,
    project name, DB/Caddy image không thay so với baseline. Pull image trước
    khi dừng app; kiểm image revision/source/origin label và immutable digest.
 3. Kiểm migration catalog và checksum của DB. Không sửa/xóa migration đã áp
-   dụng. Auto-CD chỉ cho SQL mở rộng có kiểm tra: bảng mới, index thường và
+   dụng. Chỉ chấp nhận khác biệt LF/CRLF theo Prisma, giữ checksum DB nguyên
+   trạng và chặn mọi thay đổi nội dung SQL. Auto-CD chỉ cho SQL mở rộng có kiểm
+   tra: bảng mới, index thường và
    column nullable. Migration khác bị chặn trước stop/backup để review riêng.
-4. Kiểm worker/outbox/direct ledger trước release; dừng API và drain/stop worker.
+4. Kiểm worker/outbox/direct ledger và mọi sự kiện đã completed trước release;
+   dừng API và Worker.
    Chụp PG custom dump khi writers dừng, dừng 6 dịch vụ Fabric persistent để
    chụp ledger volumes và identities/config. Không restart chaincode container
    bằng tên cũ: peer quản lý và tạo lại khi cần. Resume Fabric trong finally.
@@ -103,7 +120,7 @@ GHCR publish/pull dùng token job và package liên kết repo theo
 | Migration phá code cũ | Guard fail-closed cho SQL mới, checksum lịch sử, verify rollback |
 | Chaincode mismatch/commit chưa rõ | Expected sequence, cả 2 org/peer, reconcile query committed |
 | Image đổi dù tag giống | Digest + revision/source/origin labels |
-| Web gọi sai API | Origin build-time phải khớp stable VPS config |
+| Web gọi sai API | Browser dùng origin build-time; SSR dùng API nội bộ Docker |
 | Mất private signer sau đổi release | Giữ absolute runtime paths/owner và mounts readonly |
 | Mất SSH do key setup | Dedicated key; kiểm session mới; giữ user SSH hiện có |
 | Tar traversal/symlink/bomb | Giới hạn bytes, path allowlist, hash, không symlink/hardlink |
