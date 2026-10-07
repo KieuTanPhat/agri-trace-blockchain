@@ -2,13 +2,17 @@
 
 Đã triển khai Web/API/PostgreSQL/Worker/Fabric trên VPS và hoàn thành các kiểm tra bàn giao.
 
+Báo cáo này lưu lượt deploy thủ công ngày 07/10. CD đã hoàn thành ngày 08/10;
+release/digests, 41 ledger events, chaincode sequence 2 và các lượt kiểm chứng
+hiện hành nằm trong [contabo-cd-status.md](contabo-cd-status.md).
+
 - Web: <http://13.140.170.166/login>
 - API health: <http://13.140.170.166/api/health>
 - QR mẫu: <http://13.140.170.166/trace/ndfD7br-dL_jbYkEYpMzdWh7-i-8Wk9K>
 - SSH: `ssh deploy@13.140.170.166`, dùng khóa id_ed25519 hiện có trên máy Phát.
-- Release đang chạy: /opt/agri-trace/current.
+- Thư mục release hiện hành: /opt/agri-trace/current.
 
-## Source và runtime
+## Source và runtime của lượt deploy thủ công
 
 Release: `uat-20261007-c1a69ed-893ca0d7e1d1`.
 Base main SHA: `c1a69edbf95daf28ed441e05337d6b50ec0e9553`.
@@ -78,4 +82,6 @@ Helper triển khai/backup/verify nằm trong `/opt/agri-trace/shared/` và `.gi
 HTTP/IPv4 theo yêu cầu chưa mua domain. DNS/HTTPS và camera/PWA trên secure context thực hiện khi có domain. Đây là demo/UAT; khoảng cách nghiệp vụ ghi trong PROJECT_CONTEXT/contabo-uat-review giữ nguyên phạm vi.
 Đã thử restore PostgreSQL; Fabric archives đã lưu/checksum và qua reboot/persistence checks, chưa restore vật lý sang mạng Fabric thứ hai.
 
-Repo vẫn ở main; thay đổi riêng của Phát, backup Git và stash được giữ. Bộ thay đổi deploy/documentation chưa commit/push; release là snapshot có manifest, không coi CI của base SHA là CI của overlay. Docs cập nhật sau thực thi; code/images đang chạy giữ nguyên candidate đã build/test.
+Tại thời điểm lượt manual, bộ deploy/documentation là overlay chưa commit.
+Sau đó đã scoped commit/push và hoàn thành CI/CD của đúng SHA main; xem báo
+cáo CD bên trên. Thay đổi riêng của Phát, backup Git và stash được giữ.
