@@ -1,0 +1,45 @@
+# Apply only after the test network, chaincode and signer have been checked.
+services:
+  worker:
+    user: ${WORKER_UID:?Set signer file owner UID}:${WORKER_GID:?Set signer file owner GID}
+    environment:
+      FABRIC_ENABLED: "true"
+      FABRIC_NETWORK_NAME: hyperledger-fabric
+      FABRIC_CHANNEL_NAME: agritrace
+      FABRIC_CHAINCODE_NAME: agritrace
+      FABRIC_CONTRACT_NAME: AgriTraceContract
+      FABRIC_MSP_ID: Org1MSP
+      FABRIC_PEER_ENDPOINT: peer0.org1.example.com:7051
+      FABRIC_PEER_HOST_ALIAS: peer0.org1.example.com
+      # loadConfig currently requires this path even with an explicit cert.
+      FABRIC_SAMPLES_DIR: /fabric-public
+      FABRIC_TLS_CERT_PATH: /fabric-tls/ca.crt
+      RELAYER_MSP_DIR: /fabric-identity
+      FABRIC_IDENTITY_CERT_PATH: /fabric-identity/signcerts/cert.pem
+      FABRIC_IDENTITY_KEY_DIR: /fabric-identity/keystore
+      FABRIC_WORKER_INTERVAL_MS: "10000"
+      FABRIC_WORKER_BATCH_SIZE: "10"
+      FABRIC_CLAIM_LEASE_MS: "120000"
+      FABRIC_MAX_RETRIES: "5"
+      FABRIC_MAX_RETRY_DELAY_MS: "300000"
+    volumes:
+      - type: bind
+        source: ${RELAYER_MSP_DIR_HOST:?Set path ending in relayer/msp}
+        target: /fabric-identity
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${FABRIC_TLS_CERT_HOST:?Set peer TLS CA certificate file}
+        target: /fabric-tls/ca.crt
+        read_only: true
+        bind:
+          create_host_path: false
+    networks: [default, fabric]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8081/health/ready').then(async r=>{const h=await r.json();if(!r.ok||!h.runtime.enabled||!h.runtime.running||h.runtime.lastError||h.backlog.deadLetter)process.exit(1)}).catch(()=>process.exit(1))"]
+
+networks:
+  fabric:
+    external: true
+    name: fabric_test

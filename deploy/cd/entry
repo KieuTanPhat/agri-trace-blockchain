@@ -1,0 +1,3 @@
+#!/bin/sh
+# Root-owned; no eval, user-controlled script path or inherited Python search path.
+exec /usr/bin/python3 -I /usr/local/lib/agri-trace-cd/controller.py --command "${1-}"

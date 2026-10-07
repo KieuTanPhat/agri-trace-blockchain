@@ -42,6 +42,12 @@ test('Web changes select its checks and the production stack', () => {
   });
 });
 
+test('UAT proxy, credentials template and deployment scripts require all integration checks', () => {
+  for (const file of ['deploy/Caddyfile.uat', 'deploy/fixtures.mjs', 'deploy/preflight.mjs', '.env.uat.example']) {
+    assert.ok(Object.values(classifyChanges([file])).every(Boolean), file);
+  }
+});
+
 test('Compose overrides select production and Fabric integration', () => {
   for (const file of ['docker-compose.yml', 'docker-compose.ci.yml']) {
     assert.equal(classifyChanges([file]).containers, true);

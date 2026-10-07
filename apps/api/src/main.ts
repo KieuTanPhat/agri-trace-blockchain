@@ -12,6 +12,13 @@ async function bootstrap() {
     logger: createApplicationLogger(),
   });
   app.enableShutdownHooks();
+  const trustProxyHops = process.env.TRUST_PROXY_HOPS;
+  if (trustProxyHops !== undefined) {
+    if (!/^[01]$/.test(trustProxyHops)) {
+      throw new Error('TRUST_PROXY_HOPS must be 0 or 1');
+    }
+    app.getHttpAdapter().getInstance().set('trust proxy', Number(trustProxyHops));
+  }
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: process.env.CORS_ORIGIN?.split(',') ?? 'http://localhost:3000',

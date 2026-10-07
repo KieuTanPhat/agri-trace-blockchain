@@ -32,7 +32,9 @@ RUN npm install --global npm@12.1.0 \
 COPY --from=build /app/apps/api/dist apps/api/dist
 COPY --from=build /app/apps/api/prisma apps/api/prisma
 COPY --from=build /app/apps/api/prisma.config.ts apps/api/prisma.config.ts
+COPY --from=build /app/apps/api/scripts apps/api/scripts
 COPY --from=build /app/blockchain/gateway/dist blockchain/gateway/dist
+COPY deploy/fixtures.mjs deploy/fixtures.mjs
 
 USER node
 EXPOSE 8080

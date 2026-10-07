@@ -11,6 +11,7 @@ const sharedFiles = new Set([
   '.gitattributes',
   '.dockerignore',
   '.env.docker.example',
+  '.env.uat.example',
   'blockchain/chaincode/package.json',
   'scripts/audit-dependencies.mjs',
   'scripts/check-standalone-chaincode.mjs',
@@ -19,7 +20,7 @@ const sharedFiles = new Set([
 export function classifyChanges(files, force = false) {
   const result = { api: force, web: force, containers: force, blockchain: force, fabric: force };
   for (const file of files) {
-    if (sharedFiles.has(file) || file.startsWith('.github/') || file.startsWith('scripts/ci/')) {
+    if (sharedFiles.has(file) || file.startsWith('.github/') || file.startsWith('scripts/ci/') || file.startsWith('deploy/')) {
       for (const key of Object.keys(result)) result[key] = true;
     }
     if (file.startsWith('apps/api/') || file.startsWith('blockchain/gateway/')) {

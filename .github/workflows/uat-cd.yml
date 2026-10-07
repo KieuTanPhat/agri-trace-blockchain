@@ -1,0 +1,216 @@
+name: UAT CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'blockchain/**'
+      - 'deploy/**'
+      - '.github/**'
+      - 'scripts/ci/**'
+      - 'docker-compose*.yml'
+      - 'package*.json'
+      - '.dockerignore'
+      - '.env.uat.example'
+      - '.npmrc'
+      - '.node-version'
+      - '.nvmrc'
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: UAT operation (chaincode upgrade requires current sequence)
+        type: choice
+        options: [deploy, upgrade, rollback, recover]
+        default: deploy
+      rollback_sha:
+        description: Full SHA of a previously verified release, only for rollback
+        type: string
+        required: false
+      expected_sequence:
+        description: Current committed Fabric sequence, only for upgrade
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contabo-uat-delivery
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  gate:
+    name: Exact commit CI gate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      current: ${{ steps.gate.outputs.current }}
+      operation: ${{ steps.input.outputs.operation }}
+      target: ${{ steps.input.outputs.target }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.22.3'
+      - id: input
+        name: Validate dispatch parameters
+        env:
+          OPERATION: ${{ inputs.operation || 'deploy' }}
+          TARGET_SHA: ${{ inputs.rollback_sha }}
+          EXPECTED_SEQUENCE: ${{ inputs.expected_sequence }}
+        run: |
+          case "$OPERATION" in deploy|upgrade|rollback|recover) ;; *) exit 1 ;; esac
+          target="$GITHUB_SHA"
+          if [[ "$OPERATION" == rollback ]]; then
+            [[ "$TARGET_SHA" =~ ^[a-f0-9]{40}$ ]]
+            target="$TARGET_SHA"
+          fi
+          if [[ "$OPERATION" == upgrade ]]; then [[ "$EXPECTED_SEQUENCE" =~ ^[1-9][0-9]{0,8}$ ]]; fi
+          echo "operation=$OPERATION" >> "$GITHUB_OUTPUT"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+      - id: gate
+        name: Require the three successful push CI runs for this SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPERATION: ${{ steps.input.outputs.operation }}
+        run: |
+          if [[ "$OPERATION" == rollback || "$OPERATION" == recover ]]; then
+            echo 'current=true' >> "$GITHUB_OUTPUT"
+          else
+            node deploy/cd/gate.mjs
+          fi
+
+  publish:
+    name: Publish immutable release
+    needs: gate
+    if: needs.gate.outputs.current == 'true' && (needs.gate.outputs.operation == 'deploy' || needs.gate.outputs.operation == 'upgrade')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PUBLIC_ORIGIN: ${{ vars.UAT_PUBLIC_ORIGIN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Recheck latest main before publication
+        run: test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$GITHUB_SHA"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.22.3'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm install --global npm@12.1.0
+      - run: npm ci --no-audit --no-fund
+      - name: Build compiled chaincode artifact
+        run: npm run build --workspace blockchain/chaincode
+      - name: Build and publish API/Worker and Web for the UAT origin
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/ghcr-config
+        run: |
+          [[ "$PUBLIC_ORIGIN" =~ ^http://[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          registry="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          labels=(--label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" --label "org.opencontainers.image.revision=$GITHUB_SHA" --label "agritrace.public-origin=$PUBLIC_ORIGIN")
+          # Reuse already published full-SHA images when rerunning a partial job.
+          # An existing release must never silently get a different digest.
+          if docker manifest inspect "$registry/api:$GITHUB_SHA" >/dev/null 2>&1; then
+            docker pull "$registry/api:$GITHUB_SHA"
+          else
+            docker build "${labels[@]}" -t "$registry/api:$GITHUB_SHA" -f apps/api/Dockerfile .
+            docker push "$registry/api:$GITHUB_SHA"
+          fi
+          if docker manifest inspect "$registry/web:$GITHUB_SHA" >/dev/null 2>&1; then
+            docker pull "$registry/web:$GITHUB_SHA"
+          else
+            docker build "${labels[@]}" -t "$registry/web:$GITHUB_SHA" -f apps/web/Dockerfile --build-arg "NEXT_PUBLIC_API_BASE_URL=$PUBLIC_ORIGIN/api" --build-arg "NEXT_PUBLIC_TRACE_BASE_URL=$PUBLIC_ORIGIN/trace" --build-arg NEXT_PUBLIC_MOCK_API=false .
+            docker push "$registry/web:$GITHUB_SHA"
+          fi
+          api="$(docker inspect --format '{{index .RepoDigests 0}}' "$registry/api:$GITHUB_SHA")"
+          web="$(docker inspect --format '{{index .RepoDigests 0}}' "$registry/web:$GITHUB_SHA")"
+          python3 deploy/cd/package.py --sha "$GITHUB_SHA" --api "$api" --web "$web" --repository "$GITHUB_REPOSITORY" --origin "$PUBLIC_ORIGIN" --dist blockchain/chaincode/dist --output "$RUNNER_TEMP/uat-release.tar.gz"
+      - name: Upload the public immutable release bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: uat-bundle-${{ github.sha }}
+          path: ${{ runner.temp }}/uat-release.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove temporary registry authentication
+        if: always()
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/ghcr-config
+        run: rm -rf -- "$DOCKER_CONFIG"
+
+  deliver:
+    name: Deliver and verify Contabo UAT
+    needs: [gate, publish]
+    if: always() && needs.gate.result == 'success' && needs.gate.outputs.current == 'true' && (needs.publish.result == 'success' || needs.gate.outputs.operation == 'rollback' || needs.gate.outputs.operation == 'recover')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment:
+      name: uat
+      url: ${{ vars.UAT_PUBLIC_ORIGIN }}
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UAT_HOST: ${{ vars.UAT_HOST }}
+      UAT_USER: ${{ vars.UAT_USER }}
+      UAT_KNOWN_HOSTS: ${{ vars.UAT_KNOWN_HOSTS }}
+      UAT_SSH_PRIVATE_KEY: ${{ secrets.UAT_SSH_PRIVATE_KEY }}
+      EXPECTED_SEQUENCE: ${{ inputs.expected_sequence }}
+      OPERATION: ${{ needs.gate.outputs.operation }}
+      TARGET_SHA: ${{ needs.gate.outputs.target }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.22.3'
+      - name: Download this run's release artifact
+        if: env.OPERATION == 'deploy' || env.OPERATION == 'upgrade'
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "uat-bundle-$GITHUB_SHA" --dir "$RUNNER_TEMP/bundle"
+      - name: Recheck latest main immediately before deploy
+        if: env.OPERATION == 'deploy' || env.OPERATION == 'upgrade'
+        run: test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$GITHUB_SHA"
+      - name: Deliver with a restricted SSH key and verify release
+        run: node deploy/cd/send.mjs "$OPERATION" "$TARGET_SHA" "$RUNNER_TEMP/bundle/uat-release.tar.gz"
+      - name: Save deployment status
+        if: always()
+        run: node deploy/cd/send.mjs status
+      - name: Retrieve only the encrypted backup
+        if: always() && env.OPERATION != 'recover'
+        continue-on-error: true
+        run: node deploy/cd/send.mjs backup "$TARGET_SHA"
+      - name: Upload encrypted off-VPS recovery snapshot
+        if: always() && env.OPERATION != 'recover'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: uat-encrypted-backup-${{ needs.gate.outputs.target }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/uat-backup-${{ needs.gate.outputs.target }}.cms
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Summarize this delivery
+        if: always()
+        run: |
+          echo "UAT operation: $OPERATION" >> "$GITHUB_STEP_SUMMARY"
+          echo "Release commit: $TARGET_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Encrypted snapshot needs the separately handed-off private recovery key." >> "$GITHUB_STEP_SUMMARY"

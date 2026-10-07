@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {evaluate,requiredWorkflows} from './gate.mjs';
+const sha='a'.repeat(40);
+const runs=requiredWorkflows.map((file,index)=>({id:index+1,head_sha:sha,head_branch:'main',event:'push',path:`.github/workflows/${file}`,status:'completed',conclusion:'success',html_url:`https://github.com/example/actions/runs/${index+1}`,run_attempt:1}));
+test('all three exact main push CI runs must succeed',()=>assert.equal(evaluate(runs,sha,sha).status,'success'));
+test('missing CI stays pending',()=>assert.equal(evaluate(runs.slice(1),sha,sha).status,'pending'));
+test('failed, cancelled and timed-out runs block',()=>{for(const conclusion of ['failure','cancelled','timed_out'])assert.equal(evaluate([...runs.slice(1),{...runs[0],conclusion}],sha,sha).status,'failed');});
+test('queued rerun of a successful commit must finish again',()=>assert.equal(evaluate([{...runs[0],status:'queued',conclusion:null},...runs.slice(1)],sha,sha).status,'pending'));
+test('latest failed run cannot be hidden by older success',()=>assert.equal(evaluate([...runs,{...runs[0],id:100,conclusion:'failure'}],sha,sha).status,'failed'));
+test('PR, wrong branch, wrong SHA and wrong workflow path are ineligible',()=>{for(const change of [{event:'pull_request'},{head_branch:'feature'},{head_sha:'b'.repeat(40)},{path:'.github/workflows/fake.yml'}])assert.equal(evaluate([{...runs[0],...change},...runs.slice(1)],sha,sha).status,'pending');});
+test('a newer main commit supersedes a candidate even if its CI passes',()=>assert.equal(evaluate(runs,sha,'b'.repeat(40)).status,'stale'));

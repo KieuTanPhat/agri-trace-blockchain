@@ -4,3 +4,6 @@
 *.json text eol=lf
 *.ts text eol=lf
 *.md text eol=lf
+deploy/cd/*.py text eol=lf
+deploy/cd/*.mjs text eol=lf
+deploy/cd/entry text eol=lf

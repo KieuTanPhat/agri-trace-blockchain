@@ -1,0 +1,25 @@
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	encode gzip
+
+	@docs path /api/docs /api/docs/* /api/docs-json /api/docs-yaml
+	handle @docs {
+		respond "Not found" 404
+	}
+
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy api:8080 {
+			# Only this directly observed client IP is trusted by the API.
+			header_up X-Forwarded-For {http.request.remote.host}
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}
