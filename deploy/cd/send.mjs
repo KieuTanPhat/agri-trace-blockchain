@@ -21,13 +21,19 @@ try {
     command += ` ${createHash('sha256').update(readFileSync(archive)).digest('hex')}`;
     if(operation==='upgrade'){assert.match(process.env.EXPECTED_SEQUENCE,/^[1-9][0-9]{0,8}$/);command+=` ${process.env.EXPECTED_SEQUENCE}`;}
   }
+  let auth;
+  if(['deploy','upgrade'].includes(operation)){
+    auth={username:process.env.REGISTRY_USERNAME ?? process.env.GITHUB_ACTOR,token:process.env.GH_TOKEN};
+    assert.ok(typeof auth.username==='string'&&auth.username.length>0,'Registry username is unavailable');
+    assert.ok(typeof auth.token==='string'&&auth.token.length>=16,'Registry credential is unavailable');
+  }
   const child = spawn('ssh',['-T','-i',key,'-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes',
     '-o',`UserKnownHostsFile=${path.join(temp,'known_hosts')}`,'-o','ConnectTimeout=15','-o','ServerAliveInterval=15',
     '-o','ServerAliveCountMax=4',`${process.env.UAT_USER}@${process.env.UAT_HOST}`,command],{stdio:['pipe','pipe','inherit']});
   const completion = new Promise((resolve,reject)=>{child.on('error',()=>reject(new Error('SSH could not start')));child.on('close',code=>code===0?resolve():reject(new Error(`CD ${operation} failed (SSH exit ${code}); see server evidence`)));});
   completion.catch(()=>{});
   if(['deploy','upgrade'].includes(operation)){
-    child.stdin.write(JSON.stringify({username:process.env.GITHUB_ACTOR,token:process.env.GH_TOKEN})+'\n');
+    child.stdin.write(JSON.stringify(auth)+'\n');
     await pipeline(createReadStream(archive),child.stdin);
   } else child.stdin.end();
   if(operation==='backup'){

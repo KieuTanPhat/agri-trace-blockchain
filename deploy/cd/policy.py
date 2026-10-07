@@ -9,6 +9,7 @@ SHA = re.compile(r"^[a-f0-9]{40}$")
 DIGEST = re.compile(r"^[a-f0-9]{64}$")
 OPERATIONS = {"deploy", "upgrade", "rollback", "recover", "status", "backup"}
 FIXED_FILES = {"docker-compose.uat.yml", "docker-compose.uat-fabric.yml", "deploy/Caddyfile.uat"}
+MAX_AUTH_HEADER = 16 * 1024
 
 
 class PolicyError(Exception):
@@ -22,6 +23,17 @@ def require(condition, message):
 
 def sha256(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def registry_auth(auth):
+    require(isinstance(auth, dict), "Invalid registry authentication object")
+    username, token = auth.get("username"), auth.get("token")
+    require(isinstance(username, str) and bool(re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.\[\]-]{0,79}", username)),
+            "Registry username is missing or invalid")
+    # GitHub job credentials are opaque; bounded transport must not assume a
+    # historical short token format. Neither errors nor logs include its value.
+    require(isinstance(token, str) and 16 <= len(token) <= 8192 and all(33 <= ord(c) <= 126 for c in token),
+            "Registry credential framing is invalid")
 
 
 def approved_package(approved):

@@ -153,8 +153,9 @@ class Controller:
         self.run("stop-writers", self.dc(record, "stop", "api", "worker"), timeout=200)
 
     def registry(self, record, auth):
-        require(isinstance(auth.get("username"), str) and len(auth["username"]) < 80 and
-                isinstance(auth.get("token"), str) and 16 <= len(auth["token"]) <= 300, "Registry authentication is missing")
+        policy.registry_auth(auth)
+        with self.log.open("a") as log:
+            log.write(f"{datetime.datetime.now(datetime.timezone.utc).isoformat()} registry-auth token-bytes={len(auth['token'])} username-valid=true\n")
         with tempfile.TemporaryDirectory(prefix="registry-", dir=self.storage) as directory:
             self.run("registry-login", ["docker", "--config", directory, "login", "ghcr.io", "-u", auth["username"], "--password-stdin"], auth["token"].encode())
             for component in ("api", "web"):
@@ -446,9 +447,10 @@ class Controller:
                     # Journal preserves an explicit recover path; no implicit data restore.
                     raise PolicyError("Rollback did not complete; run recover to restore the previous verified application")
             return {"result": "unchanged", "release": target}
-        header = stream.readline(4097)
-        require(len(header) <= 4096 and header.endswith(b"\n"), "Invalid registry authentication framing")
+        header = stream.readline(policy.MAX_AUTH_HEADER + 1)
+        require(len(header) <= policy.MAX_AUTH_HEADER and header.endswith(b"\n"), "Invalid registry authentication framing")
         auth = json.loads(header)
+        policy.registry_auth(auth)
         with tempfile.TemporaryDirectory(prefix="incoming-", dir=self.storage) as temporary:
             archive = Path(temporary) / "release.tar.gz"
             total = 0
