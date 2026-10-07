@@ -51,6 +51,10 @@ Controller dùng Compose project `agri-trace-uat`, named PG/Caddy volumes và
 đường dẫn signer/TLS tuyệt đối tới runtime Fabric gốc. `current` trỏ tới app
 release mới; runtime Fabric gốc vẫn được sử dụng và phải được giữ lại.
 
+Web server dùng `API_INTERNAL_BASE_URL=http://api:8080/api` để render QR qua
+Docker network. Browser vẫn dùng `NEXT_PUBLIC_API_BASE_URL` đã build theo
+public origin. Không dùng loopback của host làm URL API bên trong container.
+
 ## Rollback và sự cố
 
 - Rollback tự động khi candidate health/verification thất bại. Database và
@@ -88,6 +92,11 @@ và config khi writers/Fabric dừng. Fabric resume trong finally. Snapshot
 được mã hóa CMS AES-256-GCM bằng public certificate, private key chỉ bàn giao
 trên máy chủ sở hữu. Workflow upload ciphertext `.cms` làm artifact 30 ngày,
 kể cả khi candidate fail sau snapshot. Backup plaintext vẫn private trên VPS.
+
+Download/upload artifact phải đạt để workflow CD báo success. Nếu app đã verify
+nhưng upload backup thất bại, state current vẫn là app đã verify; rerun delivery
+của cùng SHA để kiểm app và upload lại ciphertext. Không restore DB hoặc rollback
+dữ liệu chỉ để xử lý lỗi upload artifact.
 
 Tải artifact `uat-encrypted-backup-<SHA>-<attempt>` từ Actions. Giải mã trên
 máy tin cậy, ngoài repo, bằng OpenSSL với private key bàn giao riêng:

@@ -17,8 +17,12 @@ import type {
   SensorReadingResponse,
 } from "./types";
 
-const API_BASE_URL =
+const PUBLIC_API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api";
+const API_BASE_URL =
+  typeof window === "undefined"
+    ? (process.env.API_INTERNAL_BASE_URL ?? PUBLIC_API_BASE_URL)
+    : PUBLIC_API_BASE_URL;
 const USE_MOCK_API = process.env.NEXT_PUBLIC_MOCK_API === "true";
 export const AUTH_STORAGE_KEY = "agritrace-auth";
 

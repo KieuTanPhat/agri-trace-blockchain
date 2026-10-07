@@ -108,6 +108,9 @@ class Controller:
             require(services[name]["environment"]["DATABASE_URL"] == expected_database, "Database configuration changed")
         for name in ("api", "web"):
             require(not services[name].get("volumes") and not services[name].get("secrets"), "Public service received host secrets")
+        if record["manifest"].get("controller"):
+            require(services["web"]["environment"].get("API_INTERNAL_BASE_URL") == "http://api:8080/api",
+                    "Web server must use the internal API for public trace rendering")
         require(services["api"]["environment"]["FABRIC_ENABLED"] == "false" and
                 services["api"]["environment"]["CORS_ORIGIN"] == self.config["origin"] and
                 services["api"]["environment"]["JWT_SECRET"] == self.environment["JWT_SECRET"], "API environment changed")

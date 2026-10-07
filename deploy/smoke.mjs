@@ -29,7 +29,7 @@ try {
   try {accounts = JSON.parse(readFileSync(config.UAT_ACCOUNTS_FILE, 'utf8'));}
   catch {throw new Error('Cannot read UAT accounts; credentials withheld');}
   assert.ok(Array.isArray(accounts) && accounts.length === UAT_ROLES.length, 'UAT accounts are incomplete');
-  assert.equal((await fetch(`${config.PUBLIC_ORIGIN}/login`)).status, 200);
+  assert.equal((await fetch(`${config.PUBLIC_ORIGIN}/login`)).status, 200, 'Public login page failed to render');
   assert.equal((await fetch(`${config.PUBLIC_ORIGIN}/api/docs`)).status, 404);
   await request('/health');
   for (const role of UAT_ROLES) {
@@ -73,7 +73,7 @@ try {
       }
       assert.equal(proof.proofStatus, 'VERIFIED');
     }
-    assert.equal((await fetch(`${config.PUBLIC_ORIGIN}/trace/${harvest.traceQr.traceToken}`)).status, 200);
+    assert.equal((await fetch(`${config.PUBLIC_ORIGIN}/trace/${harvest.traceQr.traceToken}`)).status, 200, 'Public QR page failed to render');
   }
   const refreshed = await request('/auth/refresh', undefined, {refreshToken: credentials.SYSTEM_ADMIN});
   assert.ok(refreshed.accessToken && refreshed.refreshToken);

@@ -198,7 +198,6 @@ jobs:
         run: node deploy/cd/send.mjs status
       - name: Retrieve only the encrypted backup
         if: always() && env.OPERATION != 'recover'
-        continue-on-error: true
         run: node deploy/cd/send.mjs backup "$TARGET_SHA"
       - name: Upload encrypted off-VPS recovery snapshot
         if: always() && env.OPERATION != 'recover'
@@ -206,7 +205,7 @@ jobs:
         with:
           name: uat-encrypted-backup-${{ needs.gate.outputs.target }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/uat-backup-${{ needs.gate.outputs.target }}.cms
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
       - name: Summarize this delivery
         if: always()
