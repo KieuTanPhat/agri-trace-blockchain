@@ -66,6 +66,9 @@ public origin. Không dùng loopback của host làm URL API bên trong containe
   Không giảm sequence. CLI commit timeout phải query committed trên 2 peer.
 - Nếu rollback cũng thất bại hoặc process bị ngắt: đọc status, chọn recover.
   Journal giữ baseline hashes/counts để verify dữ liệu cũ sau phục hồi.
+  Nếu state đã promote nhưng journal chưa xóa, recovery lấy package chaincode
+  của release trước trong journal và tăng sequence khi cần; không lấy nhầm
+  package mới từ state để chạy với application cũ.
 - `_prisma_migrations` chưa finished là lỗi cần reconcile schema/Prisma sau
   review. Không chạy `migrate reset`, seed, xóa outbox/proof hay tự restore
   dump để làm CI xanh. CD chặn release tiếp theo khi lịch sử migration chưa rõ.

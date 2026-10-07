@@ -289,6 +289,13 @@ class Controller:
     def restore_definition(self, state, previous):
         actual = self.definition()
         known = state["chaincode"]
+        # A crash after switch() can leave the candidate in state while the
+        # journal still requests the previous release. Recover its historical
+        # package, rather than starting old application code against new code.
+        if known["fingerprint"] != previous["manifest"]["chaincode"]:
+            known = previous.get("chaincode")
+            require(known is not None and known["fingerprint"] == previous["manifest"]["chaincode"],
+                    "Previous release chaincode package metadata is missing")
         if actual["sequence"] == known["sequence"] and actual["version"] == known["version"]:
             return known
         # Restore old package through a higher sequence; never rewind ledger.
@@ -404,7 +411,8 @@ class Controller:
         for name in additions:
             require(candidate["manifest"]["migrations"].get(name) == applied[name], "Unexpected migration after interrupted deploy")
             policy.additive_sql((Path(candidate["directory"]) / "apps/api/prisma/migrations" / name / "migration.sql").read_text())
-        self.switch(previous, dict(state, current=previous["id"], chaincode=chaincode,
+        self.switch(previous, dict(state, current=previous["id"],
+                    previous=state["current"] if state["current"] != previous["id"] else state.get("previous"), chaincode=chaincode,
                     compatible_migrations=sorted(set(state.get("compatible_migrations", [])) | set(additions))))
         (self.storage / "journal.json").unlink()
         return {"result": "recovered", "release": previous["id"], "counts": evidence["counts"]}

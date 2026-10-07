@@ -119,6 +119,32 @@ class DeliveryFailureRecovery(unittest.TestCase):
             self.controller.rollout(self.candidate, self.state)
         self.assertNotIn("stop-" + self.old["id"], self.controller.calls)
 
+    def test_recover_after_state_promotion_restores_previous_chaincode_package(self):
+        self.old["chaincode"] = copy.deepcopy(self.state["chaincode"])
+        self.controller.save_record(self.old)
+        self.candidate["manifest"]["chaincode"] = "d" * 64
+        promoted = dict(self.state, current=self.candidate["id"], previous=self.old["id"],
+                        chaincode={"sequence": 2, "version": "cd-new", "packages": {"1": "new", "2": "new"}, "fingerprint": "d" * 64})
+        atomic_json(self.base / "cd/state.json", promoted)
+        self.controller.journal(self.old, self.candidate, "application", self.controller.data)
+        self.controller.definition = lambda: {"sequence": 2, "version": "cd-new"}
+        restored = []
+
+        def lifecycle(packages, version, sequence):
+            restored.append((packages, sequence))
+            return {"packages": packages, "version": version, "sequence": sequence}
+
+        self.controller.lifecycle = lifecycle
+        self.controller.restore_definition = Controller.restore_definition.__get__(self.controller)
+        self.assertEqual(self.controller.recover()["result"], "recovered")
+        state = self.controller.state()
+        self.assertEqual(restored, [({"1": "old", "2": "old"}, 3)])
+        self.assertEqual(state["current"], self.old["id"])
+        self.assertEqual(state["previous"], self.candidate["id"])
+        self.assertEqual(state["chaincode"]["fingerprint"], "c" * 64)
+        self.assertEqual(state["chaincode"]["sequence"], 3)
+        self.assertFalse((self.base / "cd/journal.json").exists())
+
     def test_deleted_or_changed_history_is_detected(self):
         for after in ({"fingerprints": {}, "counts": {"trace_event": 40}},
                       {"fingerprints": {"event": "mutated"}, "counts": {"trace_event": 40}},
