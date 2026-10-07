@@ -204,6 +204,15 @@ jobs:
           "${dc[@]}" --profile tools run --rm bootstrap
           "${dc[@]}" up -d --wait --wait-timeout 240 api worker web proxy
           node deploy/smoke.mjs --env .uat/ci/.env.uat --expect-proof PENDING
+      - name: Collect UAT HTTP diagnostics
+        if: failure()
+        env:
+          COMPOSE_PROJECT_NAME: agri-trace-uat-ci
+        run: |
+          if [ -f .uat/ci/.env.uat ]; then
+            docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml ps --all
+            docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml logs --no-color --tail 80 web proxy
+          fi
       - name: Stop disposable UAT stack
         if: always()
         env:

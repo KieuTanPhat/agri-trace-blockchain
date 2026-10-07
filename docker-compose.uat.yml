@@ -140,6 +140,7 @@ services:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
       PORT: "3000"
+      API_INTERNAL_BASE_URL: http://api:8080/api
       NODE_OPTIONS: --max-old-space-size=512
     depends_on:
       api:

@@ -48,6 +48,35 @@ describe("API client", () => {
 
     await expect(getPublicTrace("missing")).resolves.toBeNull();
   });
+
+  it("renders server-side public trace through the internal Docker API", async () => {
+    vi.stubEnv("API_INTERNAL_BASE_URL", "http://api:8080/api");
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: { lotId: "lot-1" } })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { getPublicTrace } = await import("./api-client");
+
+    await expect(getPublicTrace("trace token")).resolves.toEqual({ lotId: "lot-1" });
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "http://api:8080/api/public/trace/trace%20token",
+    );
+  });
+
+  it("keeps browser requests on the public API even with an internal URL configured", async () => {
+    vi.stubEnv("API_INTERNAL_BASE_URL", "http://api:8080/api");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: { lotId: "lot-1" } })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { getPublicTrace } = await import("./api-client");
+
+    await getPublicTrace("trace token");
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "http://api.test/api/public/trace/trace%20token",
+    );
+  });
 });
 
 describe("session and retry safety", () => {

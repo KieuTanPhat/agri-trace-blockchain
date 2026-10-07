@@ -51,6 +51,10 @@ Controller dùng Compose project `agri-trace-uat`, named PG/Caddy volumes và
 đường dẫn signer/TLS tuyệt đối tới runtime Fabric gốc. `current` trỏ tới app
 release mới; runtime Fabric gốc vẫn được sử dụng và phải được giữ lại.
 
+Web server dùng `API_INTERNAL_BASE_URL=http://api:8080/api` để render QR qua
+Docker network. Browser vẫn dùng `NEXT_PUBLIC_API_BASE_URL` đã build theo
+public origin. Không dùng loopback của host làm URL API bên trong container.
+
 ## Rollback và sự cố
 
 - Rollback tự động khi candidate health/verification thất bại. Database và
