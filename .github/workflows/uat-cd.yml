@@ -178,6 +178,7 @@ jobs:
       EXPECTED_SEQUENCE: ${{ inputs.expected_sequence }}
       OPERATION: ${{ needs.gate.outputs.operation }}
       TARGET_SHA: ${{ needs.gate.outputs.target }}
+      REGISTRY_USERNAME: ${{ github.actor }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

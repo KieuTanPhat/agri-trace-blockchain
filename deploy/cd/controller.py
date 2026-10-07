@@ -153,8 +153,9 @@ class Controller:
         self.run("stop-writers", self.dc(record, "stop", "api", "worker"), timeout=200)
 
     def registry(self, record, auth):
-        require(isinstance(auth.get("username"), str) and len(auth["username"]) < 80 and
-                isinstance(auth.get("token"), str) and 16 <= len(auth["token"]) <= 300, "Registry authentication is missing")
+        policy.registry_auth(auth)
+        with self.log.open("a") as log:
+            log.write(f"{datetime.datetime.now(datetime.timezone.utc).isoformat()} registry-auth token-bytes={len(auth['token'])} username-valid=true\n")
         with tempfile.TemporaryDirectory(prefix="registry-", dir=self.storage) as directory:
             self.run("registry-login", ["docker", "--config", directory, "login", "ghcr.io", "-u", auth["username"], "--password-stdin"], auth["token"].encode())
             for component in ("api", "web"):
@@ -288,6 +289,13 @@ class Controller:
     def restore_definition(self, state, previous):
         actual = self.definition()
         known = state["chaincode"]
+        # A crash after switch() can leave the candidate in state while the
+        # journal still requests the previous release. Recover its historical
+        # package, rather than starting old application code against new code.
+        if known["fingerprint"] != previous["manifest"]["chaincode"]:
+            known = previous.get("chaincode")
+            require(known is not None and known["fingerprint"] == previous["manifest"]["chaincode"],
+                    "Previous release chaincode package metadata is missing")
         if actual["sequence"] == known["sequence"] and actual["version"] == known["version"]:
             return known
         # Restore old package through a higher sequence; never rewind ledger.
@@ -403,7 +411,8 @@ class Controller:
         for name in additions:
             require(candidate["manifest"]["migrations"].get(name) == applied[name], "Unexpected migration after interrupted deploy")
             policy.additive_sql((Path(candidate["directory"]) / "apps/api/prisma/migrations" / name / "migration.sql").read_text())
-        self.switch(previous, dict(state, current=previous["id"], chaincode=chaincode,
+        self.switch(previous, dict(state, current=previous["id"],
+                    previous=state["current"] if state["current"] != previous["id"] else state.get("previous"), chaincode=chaincode,
                     compatible_migrations=sorted(set(state.get("compatible_migrations", [])) | set(additions))))
         (self.storage / "journal.json").unlink()
         return {"result": "recovered", "release": previous["id"], "counts": evidence["counts"]}
@@ -446,9 +455,10 @@ class Controller:
                     # Journal preserves an explicit recover path; no implicit data restore.
                     raise PolicyError("Rollback did not complete; run recover to restore the previous verified application")
             return {"result": "unchanged", "release": target}
-        header = stream.readline(4097)
-        require(len(header) <= 4096 and header.endswith(b"\n"), "Invalid registry authentication framing")
+        header = stream.readline(policy.MAX_AUTH_HEADER + 1)
+        require(len(header) <= policy.MAX_AUTH_HEADER and header.endswith(b"\n"), "Invalid registry authentication framing")
         auth = json.loads(header)
+        policy.registry_auth(auth)
         with tempfile.TemporaryDirectory(prefix="incoming-", dir=self.storage) as temporary:
             archive = Path(temporary) / "release.tar.gz"
             total = 0

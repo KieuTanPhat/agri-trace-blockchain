@@ -4,7 +4,7 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
-from policy import PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate
+from policy import PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth
 
 SHA = "a" * 40
 REPO = "KieuTanPhat/agri-trace-blockchain"
@@ -42,6 +42,18 @@ def bundle(directory, extra=None, mutate=None):
 
 
 class Policies(unittest.TestCase):
+    def test_opaque_job_credentials_support_long_tokens_without_logging_them(self):
+        for username in ("KieuTanPhat", "github-actions[bot]"):
+            registry_auth({"username": username, "token": "ghs_" + "A" * 1500})
+        for auth in (None, {}, {"username": "", "token": "A" * 32},
+                     {"username": "-option", "token": "A" * 32},
+                     {"username": "KieuTanPhat", "token": "A" * 8193},
+                     {"username": "KieuTanPhat", "token": "A" * 32 + "\n"},
+                     {"username": "KieuTanPhat", "token": "A" * 32 + "\x00"}):
+            with self.assertRaises(PolicyError) as failure:
+                registry_auth(auth)
+            self.assertNotIn("A" * 16, str(failure.exception))
+
     def test_real_fabric_approved_package_shape(self):
         package_id = "agritrace_1.0:" + "a" * 64
         self.assertEqual(approved_package({"source": {"Type": {"LocalPackage": {"package_id": package_id}}}}), package_id)

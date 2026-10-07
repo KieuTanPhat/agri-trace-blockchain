@@ -66,6 +66,9 @@ public origin. Không dùng loopback của host làm URL API bên trong containe
   Không giảm sequence. CLI commit timeout phải query committed trên 2 peer.
 - Nếu rollback cũng thất bại hoặc process bị ngắt: đọc status, chọn recover.
   Journal giữ baseline hashes/counts để verify dữ liệu cũ sau phục hồi.
+  Nếu state đã promote nhưng journal chưa xóa, recovery lấy package chaincode
+  của release trước trong journal và tăng sequence khi cần; không lấy nhầm
+  package mới từ state để chạy với application cũ.
 - `_prisma_migrations` chưa finished là lỗi cần reconcile schema/Prisma sau
   review. Không chạy `migrate reset`, seed, xóa outbox/proof hay tự restore
   dump để làm CI xanh. CD chặn release tiếp theo khi lịch sử migration chưa rõ.
@@ -128,6 +131,9 @@ Publish chỉ có contents:read/packages:write. Deliver có contents/actions/
 packages:read, nhận SSH key từ environment. GHCR login token có hạn của job,
 được xóa khỏi temporary Docker config sau pull. Source/revision/origin labels
 phải khớp digest manifest; full-SHA tags đã có được reuse khi rerun.
+Registry username lấy rõ từ `github.actor`; credential job được coi là chuỗi
+opaque, cho tối đa 8 KiB trong header truyền tối đa 16 KiB, không ghi giá trị
+vào log. Guard không phụ thuộc độ dài token ngắn của các phiên bản cũ.
 
 Controller là code root-owned ở `/usr/local/lib/agri-trace-cd`; không tự thay
 controller bằng file trong candidate. Manifest kiểm version hash 4 helper
