@@ -183,7 +183,7 @@ jobs:
           dc=(docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml)
           "${dc[@]}" build api web
           "${dc[@]}" up -d --wait --wait-timeout 120 postgres
-          "${dc[@]}" --profile tools run --rm migrate
+          python3 deploy/cd/check-migrate.py --env .uat/ci/.env.uat
           "${dc[@]}" --profile tools run --rm bootstrap
           "${dc[@]}" --profile tools run --rm bootstrap
           "${dc[@]}" up -d --wait --wait-timeout 240 api worker web proxy
