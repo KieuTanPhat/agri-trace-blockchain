@@ -152,6 +152,11 @@ class Controller:
     def stop(self, record):
         self.run("stop-writers", self.dc(record, "stop", "api", "worker"), timeout=200)
 
+    def migrate(self, record):
+        # compose run uses an already pulled image by default; --no-build is
+        # an option of compose up, not run. Explicitly prohibit registry pulls.
+        self.run("migration-deploy", self.dc(record, "--profile", "tools", "run", "--rm", "--no-deps", "--pull", "never", "migrate"), timeout=300)
+
     def registry(self, record, auth):
         policy.registry_auth(auth)
         with self.log.open("a") as log:
@@ -355,7 +360,7 @@ class Controller:
             self.stop(old)
             snapshot = self.snapshot(old, candidate["sha"], before)
             self.journal(old, candidate, "migration")
-            self.run("migration-deploy", self.dc(candidate, "--profile", "tools", "run", "--rm", "--no-deps", "--no-build", "--pull", "never", "migrate"), timeout=300)
+            self.migrate(candidate)
             if expected_sequence is not None:
                 self.journal(old, candidate, "chaincode")
                 chaincode = self.upgrade(candidate, expected_sequence)

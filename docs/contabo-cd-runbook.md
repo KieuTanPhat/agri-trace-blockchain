@@ -77,6 +77,10 @@ public origin. Không dùng loopback của host làm URL API bên trong containe
 
 ## Migration và chaincode
 
+Application CI chạy chính `Controller.migrate` trên PostgreSQL UAT tạm của
+runner. VPS dùng image đã pull theo digest với `compose run --pull never`;
+không dùng cờ `--no-build` (chỉ có ở `compose up`).
+
 Checksum trong catalog DB của migration đã apply được giữ nguyên.
 Guard nhận bản LF/CRLF của cùng một script như
 [Prisma checksum validation](https://github.com/prisma/prisma-engines/blob/main/schema-engine/connectors/schema-connector/src/checksum.rs),
