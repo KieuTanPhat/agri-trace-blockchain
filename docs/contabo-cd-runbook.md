@@ -93,6 +93,11 @@ và config khi writers/Fabric dừng. Fabric resume trong finally. Snapshot
 trên máy chủ sở hữu. Workflow upload ciphertext `.cms` làm artifact 30 ngày,
 kể cả khi candidate fail sau snapshot. Backup plaintext vẫn private trên VPS.
 
+Download/upload artifact phải đạt để workflow CD báo success. Nếu app đã verify
+nhưng upload backup thất bại, state current vẫn là app đã verify; rerun delivery
+của cùng SHA để kiểm app và upload lại ciphertext. Không restore DB hoặc rollback
+dữ liệu chỉ để xử lý lỗi upload artifact.
+
 Tải artifact `uat-encrypted-backup-<SHA>-<attempt>` từ Actions. Giải mã trên
 máy tin cậy, ngoài repo, bằng OpenSSL với private key bàn giao riêng:
 
