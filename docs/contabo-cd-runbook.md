@@ -77,7 +77,13 @@ public origin. Không dùng loopback của host làm URL API bên trong containe
 
 ## Migration và chaincode
 
-Migration đã apply phải còn nguyên checksum. Auto-CD chỉ cho CREATE TABLE,
+Checksum trong catalog DB của migration đã apply được giữ nguyên.
+Guard nhận bản LF/CRLF của cùng một script như
+[Prisma checksum validation](https://github.com/prisma/prisma-engines/blob/main/schema-engine/connectors/schema-connector/src/checksum.rs),
+đồng thời kiểm bytes source với manifest. Không sửa checksum trong DB; đổi SQL,
+comments hoặc thêm/bớt newline cuối vẫn bị chặn. `.gitattributes` giữ SQL LF.
+
+Auto-CD chỉ cho CREATE TABLE,
 index thường và ADD COLUMN nullable không default/constraint; SQL khác bị
 chặn trước stop app. Breaking migrations cần kế hoạch expand/contract và
 review riêng. Routine CD không đổi image PostgreSQL/Caddy hoặc network policy.

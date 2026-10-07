@@ -200,7 +200,17 @@ def migrations(applied, candidate, directory, compatible_missing=()):
         if name not in candidate:
             require(name in compatible_missing, "Applied migration is absent from release")
         else:
-            require(candidate[name] == digest, "Applied migration checksum was modified")
+            if candidate[name] != digest:
+                # Prisma accepts platform line-ending variants of the same
+                # script. Keep the recorded DB checksum untouched; validate
+                # both manifest bytes and the narrowly equivalent variants.
+                source = Path(directory) / "apps/api/prisma/migrations" / name / "migration.sql"
+                require(source.is_file(), "Migration source file is missing")
+                script = source.read_bytes()
+                require(sha256(script) == candidate[name], "Migration source checksum mismatch")
+                lf = script.replace(b"\r\n", b"\n")
+                require(digest in {sha256(script), sha256(lf), sha256(lf.replace(b"\n", b"\r\n"))},
+                        "Applied migration checksum was modified")
     new = sorted(set(candidate) - set(applied))
     for name in new:
         require(not applied or name > max(applied), "New migrations must append to history")
