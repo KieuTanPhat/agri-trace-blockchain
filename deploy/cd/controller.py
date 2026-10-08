@@ -80,7 +80,8 @@ class Controller:
         self.write_release_environment(record)
 
     def origin_for(self, record):
-        return record.get("manifest", {}).get("origin") or self.config.get("legacy_origin") or self.config["origin"]
+        return (record.get("manifest", {}).get("origin") or self.config.get("legacy_origin") or
+                self.config.get("origin") or self.environment["PUBLIC_ORIGIN"])
 
     def write_release_environment(self, record):
         origin = self.origin_for(record)
