@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-const stylesheet = readFileSync(new URL("./globals.css", import.meta.url), "utf8");
+const stylesheet = readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "globals.css"),
+  "utf8",
+);
 
 function declarations(selector: string, media?: string) {
   const element = document.createElement("style");
