@@ -1,9 +1,8 @@
 {
-	auto_https off
 	admin off
 }
 
-:80 {
+{$CADDY_SITE_ADDRESS} {
 	encode gzip
 
 	@docs path /api/docs /api/docs/* /api/docs-json /api/docs-yaml

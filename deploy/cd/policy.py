@@ -1,14 +1,16 @@
 """Fail-closed release policies. No Docker or network side effects."""
 import hashlib
+import ipaddress
 import json
 import re
 import tarfile
 from pathlib import Path, PurePosixPath
+from urllib.parse import urlsplit
 
 SHA = re.compile(r"^[a-f0-9]{40}$")
 DIGEST = re.compile(r"^[a-f0-9]{64}$")
 OPERATIONS = {"deploy", "upgrade", "rollback", "recover", "status", "backup"}
-FIXED_FILES = {"docker-compose.uat.yml", "docker-compose.uat-fabric.yml", "deploy/Caddyfile.uat"}
+FIXED_FILES = {"docker-compose.uat.yml", "docker-compose.uat-https.yml", "docker-compose.uat-fabric.yml", "deploy/Caddyfile.uat"}
 MAX_AUTH_HEADER = 16 * 1024
 
 
@@ -73,6 +75,30 @@ def image(value, repository, component):
             "Expected an immutable image digest from this repository")
 
 
+def valid_public_origin(value):
+    try:
+        if value.endswith("/"):
+            return False
+        parsed = urlsplit(value)
+        host = parsed.hostname or ""
+        if parsed.username or parsed.password or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+            return False
+        if parsed.scheme == "http":
+            return ipaddress.ip_address(host).version == 4
+        if parsed.scheme == "https":
+            try:
+                ipaddress.ip_address(host)
+                return False
+            except ValueError:
+                labels = host.split(".")
+                return not parsed.port and len(labels) >= 2 and all(
+                    re.fullmatch(r"[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?", label)
+                    for label in labels)
+        return False
+    except (ValueError, TypeError):
+        return False
+
+
 def allowed_file(name):
     if name in FIXED_FILES:
         return True
@@ -95,6 +121,7 @@ def fingerprint(files):
 def validate_manifest(manifest, sha, repository, origin):
     require(manifest.get("format") == 1 and manifest.get("sha") == sha, "Manifest commit mismatch")
     require(manifest.get("repository") == repository and manifest.get("origin") == origin, "Manifest deployment target mismatch")
+    require(valid_public_origin(origin), "Invalid public deployment origin")
     require(isinstance(manifest.get("files"), dict) and 3 <= len(manifest["files"]) <= 1000, "Invalid manifest file list")
     require(FIXED_FILES <= manifest["files"].keys(), "Missing deployment configuration")
     for name, digest in manifest["files"].items():

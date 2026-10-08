@@ -77,12 +77,40 @@ class Controller:
         atomic_json(directory / "images.json", {"services": {
             name: {"image": record["manifest"]["web" if name == "web" else "api"]}
             for name in ("api", "worker", "migrate", "bootstrap", "web")}})
+        self.write_release_environment(record)
+
+    def origin_for(self, record):
+        return record.get("manifest", {}).get("origin") or self.config.get("legacy_origin") or self.config["origin"]
+
+    def write_release_environment(self, record):
+        origin = self.origin_for(record)
+        cors_origins = (self.environment.get("CORS_ORIGINS", origin).split(",")
+                        if origin.startswith("https://") else [origin])
+        values = {"PUBLIC_ORIGIN": origin, "CORS_ORIGINS": ",".join(cors_origins)}
+        directory = self.storage / "records" / record["id"]
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        filename = directory / "origin.env"
+        temporary = filename.with_suffix(".tmp")
+        with temporary.open("w") as output:
+            os.chmod(temporary, 0o600)
+            for key, value in values.items():
+                require(not any(char in value for char in "\r\n\0"), "Invalid release origin environment")
+                output.write(f"{key}={value}\n")
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, filename)
+        os.chown(filename, 0, 0)
 
     def dc(self, record, *args):
         root = Path(record["directory"])
+        self.write_release_environment(record)
+        compose_files = ["-f", str(root / "docker-compose.uat.yml")]
+        if self.origin_for(record).startswith("https://"):
+            compose_files += ["-f", str(root / "docker-compose.uat-https.yml")]
+        compose_files += ["-f", str(root / "docker-compose.uat-fabric.yml"),
+                          "-f", str(self.storage / "records" / record["id"] / "images.json")]
         return ["docker", "compose", "--project-name", "agri-trace-uat", "--env-file", self.config["env"],
-                "-f", str(root / "docker-compose.uat.yml"), "-f", str(root / "docker-compose.uat-fabric.yml"),
-                "-f", str(self.storage / "records" / record["id"] / "images.json"), *args]
+                "--env-file", str(self.storage / "records" / record["id"] / "origin.env"), *compose_files, *args]
 
     def preflight(self, record):
         require(shutil.disk_usage(self.base).free >= 12 * 1024 ** 3, "At least 12 GiB free disk is required")
@@ -92,17 +120,36 @@ class Controller:
         model = json.loads(self.run("compose-preflight", self.dc(record, "--profile", "tools", "config", "--format", "json")))
         require(model["name"] == "agri-trace-uat", "Compose project changed")
         services = model["services"]
+        release_origin = self.origin_for(record)
         require(set(services) == {"postgres", "migrate", "bootstrap", "api", "worker", "web", "proxy"}, "Unexpected Compose services")
         for name, service in services.items():
-            require(len(service.get("ports", [])) == (1 if name == "proxy" else 0), "Unexpected published service port")
+            require(len(service.get("ports", [])) == (2 if name == "proxy" and release_origin.startswith("https://") else
+                    1 if name == "proxy" else 0), "Unexpected published service port")
             require(not service.get("privileged") and not service.get("cap_add") and not service.get("devices") and
                     not service.get("network_mode") and not service.get("pid"), "Unexpected container privilege")
         require(services["postgres"]["image"] == self.environment["POSTGRES_IMAGE"] and
                 services["proxy"]["image"] == self.environment["CADDY_IMAGE"], "Infrastructure image changes require separate review")
         require(services["postgres"]["volumes"][0]["source"] == "postgres-data" and
                 services["postgres"]["volumes"][0]["target"] == "/var/lib/postgresql", "Database volume changed")
-        port = services["proxy"]["ports"][0]
-        require(str(port["published"]) == self.environment["HTTP_PORT"] and port["host_ip"] == self.environment["HTTP_BIND"], "Public binding changed")
+        release_environment = self.storage / "records" / record["id"] / "origin.env"
+        release_values = policy.read_env(release_environment)
+        if release_origin.startswith("https://"):
+            require(self.environment["PUBLIC_ORIGIN"] == release_origin and
+                    release_origin in self.environment.get("CORS_ORIGINS", "").split(","),
+                    "Administrator must update the installed origin before domain delivery")
+        expected_ports = {("80", "tcp"): (self.environment["HTTP_PORT"], self.environment["HTTP_BIND"])}
+        if release_origin.startswith("https://"):
+            expected_ports[("443", "tcp")] = (self.environment["HTTPS_PORT"], self.environment["HTTPS_BIND"])
+        actual_ports = {}
+        for port in services["proxy"]["ports"]:
+            key = (str(port["target"]), port.get("protocol", "tcp"))
+            require(key not in actual_ports, "Duplicate public port")
+            actual_ports[key] = (str(port["published"]), port["host_ip"])
+        expected_ports = {key: (str(value[0]), value[1]) for key, value in expected_ports.items()}
+        require(actual_ports == expected_ports, "Public binding changed")
+        require(services["proxy"].get("environment", {}).get("CADDY_SITE_ADDRESS") == self.environment["CADDY_SITE_ADDRESS"],
+                "Caddy site address changed")
+        require(release_values["PUBLIC_ORIGIN"] == release_origin, "Release public origin overlay is invalid")
         expected_database = f"postgresql://{self.environment['POSTGRES_USER']}:{self.environment['POSTGRES_PASSWORD']}@postgres:5432/{self.environment['POSTGRES_DB']}?schema=public"
         for name in ("api", "worker", "migrate", "bootstrap"):
             require(services[name]["environment"]["DATABASE_URL"] == expected_database, "Database configuration changed")
@@ -111,8 +158,15 @@ class Controller:
         if record["manifest"].get("controller"):
             require(services["web"]["environment"].get("API_INTERNAL_BASE_URL") == "http://api:8080/api",
                     "Web server must use the internal API for public trace rendering")
+            build_args = services["web"].get("build", {}).get("args", {})
+            require(build_args.get("NEXT_PUBLIC_API_BASE_URL") == f"{release_origin}/api" and
+                    build_args.get("NEXT_PUBLIC_TRACE_BASE_URL") == f"{release_origin}/trace" and
+                    build_args.get("NEXT_PUBLIC_MOCK_API") == "false",
+                    "Web build public URLs do not match the release origin")
+        cors_origins = release_values["CORS_ORIGINS"].split(",")
         require(services["api"]["environment"]["FABRIC_ENABLED"] == "false" and
-                services["api"]["environment"]["CORS_ORIGIN"] == self.config["origin"] and
+                services["api"]["environment"]["CORS_ORIGIN"] == release_values["CORS_ORIGINS"] and
+                release_origin in cors_origins and
                 services["api"]["environment"]["JWT_SECRET"] == self.environment["JWT_SECRET"], "API environment changed")
         worker = services["worker"]
         require(worker["environment"]["FABRIC_ENABLED"] == "true" and worker["user"] == f"{self.environment['WORKER_UID']}:{self.environment['WORKER_GID']}", "Worker signing boundary changed")
@@ -136,7 +190,7 @@ class Controller:
         return applied
 
     def verify(self, record, canary=None):
-        payload = {"origin": self.config["origin"], "accounts": json.loads(Path(self.config["accounts"]).read_text()), "canary": canary}
+        payload = {"origin": self.origin_for(record), "accounts": json.loads(Path(self.config["accounts"]).read_text()), "canary": canary}
         script = Path(__file__).with_name("verify.mjs").read_text()
         output = self.run("release-verification", self.dc(record, "exec", "-T", "worker", "node", "--input-type=module", "-e", script),
                           json.dumps(payload).encode(), timeout=480)
@@ -148,6 +202,16 @@ class Controller:
         self.run("api-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "api"), timeout=240)
         self.run("worker-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "worker"), timeout=240)
         self.run("web-proxy-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "web", "proxy"), timeout=240)
+        if self.origin_for(record).startswith("https://"):
+            deadline = time.monotonic() + 180
+            while time.monotonic() < deadline:
+                try:
+                    with urllib.request.urlopen(self.origin_for(record) + "/login", timeout=5) as response:
+                        require(response.status == 200, "Public HTTPS login route is not ready")
+                        return
+                except Exception:
+                    time.sleep(5)
+            require(False, "Public HTTPS route did not become ready")
 
     def stop(self, record):
         self.run("stop-writers", self.dc(record, "stop", "api", "worker"), timeout=200)

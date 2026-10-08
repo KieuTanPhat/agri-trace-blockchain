@@ -15,11 +15,21 @@ try {
   // The config model contains secrets; never print it or Docker stderr.
   assert.equal(result.status, 0, 'Compose configuration could not be resolved');
   const model = JSON.parse(result.stdout);
-  for (const [name, service] of Object.entries(model.services)) {
-    assert.equal((service.ports ?? []).length, name === 'proxy' ? 1 : 0, `${name} publishes unexpected ports`);
+  const expectedPorts = [{target: 80, published: config.HTTP_PORT, host_ip: config.HTTP_BIND, protocol: 'tcp'}];
+  if (new URL(config.PUBLIC_ORIGIN).protocol === 'https:') {
+    expectedPorts.push({target: 443, published: config.HTTPS_PORT, host_ip: config.HTTPS_BIND, protocol: 'tcp'});
   }
-  assert.equal(String(model.services.proxy.ports[0].published), config.HTTP_PORT);
-  assert.equal(model.services.proxy.ports[0].host_ip, config.HTTP_BIND);
+  for (const [name, service] of Object.entries(model.services)) {
+    const ports = service.ports ?? [];
+    assert.equal(ports.length, name === 'proxy' ? expectedPorts.length : 0, `${name} publishes unexpected ports`);
+    if (name === 'proxy') {
+      const actual = ports.map(port => ({target: Number(port.target), published: String(port.published),
+        host_ip: port.host_ip, protocol: port.protocol ?? 'tcp'})).sort((a, b) => a.target - b.target);
+      const expected = expectedPorts.map(port => ({...port, published: String(port.published)})).sort((a, b) => a.target - b.target);
+      assert.deepEqual(actual, expected, 'Proxy ports do not match the public origin');
+    }
+  }
+  assert.equal(model.services.proxy.environment.CADDY_SITE_ADDRESS, config.CADDY_SITE_ADDRESS);
   assert.equal(model.services.web.build.args.NEXT_PUBLIC_API_BASE_URL, `${config.PUBLIC_ORIGIN}/api`);
   assert.equal(model.services.web.build.args.NEXT_PUBLIC_TRACE_BASE_URL, `${config.PUBLIC_ORIGIN}/trace`);
   assert.equal(model.services.web.build.args.NEXT_PUBLIC_MOCK_API, 'false');

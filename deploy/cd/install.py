@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """One-time/reviewed administrator install. Never called by the CD SSH key."""
 import argparse
+import datetime
 import importlib.util
 import json
 import os
@@ -104,10 +105,102 @@ def install(args):
     print(json.dumps({"result": "installed", "current": controller.state()["current"], "origin": config["origin"], "user": "agri-cd"}))
 
 
+def update_origin(args):
+    policy.require(os.getuid() == 0, "Run the origin update as administrator")
+    os.umask(0o077)
+    base = Path(args.base).resolve()
+    private = Path("/etc/agri-trace-cd")
+    config_file = private / "config.json"
+    policy.require(config_file.is_file(), "CD controller is not installed")
+    config = json.loads(config_file.read_text())
+    policy.require(config["base"] == str(base) and config["repository"] == args.repository,
+                    "Installed deployment target differs")
+    environment_file = Path(config["env"])
+    environment = policy.read_env(environment_file)
+    policy.require(environment.get("PUBLIC_ORIGIN") == config["origin"],
+                    "Installed origin and private environment differ; reconcile manually")
+    policy.require(policy.valid_public_origin(args.update_origin), "Invalid public deployment origin")
+
+    from urllib.parse import urlsplit
+    parsed = urlsplit(args.update_origin)
+    hostname = parsed.hostname
+    legacy_origin = config.get("legacy_origin") or config["origin"]
+    if parsed.scheme == "https":
+        apex = hostname.removeprefix("www.")
+        site_address = f"{apex},www.{apex},{legacy_origin}"
+        http_port = "80"
+    else:
+        site_address = f"http://{hostname}"
+        http_port = str(parsed.port or 80)
+
+    cors_origins = environment.get("CORS_ORIGINS", environment.get("PUBLIC_ORIGIN", config["origin"])).split(",")
+    for origin in (legacy_origin, config["origin"], args.update_origin):
+        if origin not in cors_origins:
+            cors_origins.append(origin)
+    if parsed.scheme == "https":
+        www_origin = f"https://www.{hostname.removeprefix('www.')}"
+        if www_origin not in cors_origins:
+            cors_origins.append(www_origin)
+    config["legacy_origin"] = legacy_origin
+    environment.update({
+        "PUBLIC_ORIGIN": args.update_origin,
+        "CADDY_SITE_ADDRESS": site_address,
+        "CORS_ORIGINS": ",".join(cors_origins),
+        "HTTP_PORT": http_port,
+        "HTTPS_BIND": environment.get("HTTPS_BIND", "0.0.0.0"),
+        "HTTPS_PORT": "443",
+    })
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    env_backup = environment_file.with_name(environment_file.name + ".before-origin-" + stamp)
+    config_backup = config_file.with_name(config_file.name + ".before-origin-" + stamp)
+    policy.require(not env_backup.exists() and not config_backup.exists(), "Origin backup already exists")
+    shutil.copyfile(environment_file, env_backup)
+    shutil.copyfile(config_file, config_backup)
+    env_backup.chmod(0o600)
+    config_backup.chmod(0o600)
+    os.chown(env_backup, 0, 0)
+    os.chown(config_backup, 0, 0)
+
+    env_temp = environment_file.with_name(environment_file.name + ".origin-tmp")
+    config["origin"] = args.update_origin
+    try:
+        env_temp.write_text("\n".join(f"{key}={value}" for key, value in environment.items()) + "\n")
+        env_temp.chmod(0o600)
+        os.chown(env_temp, 0, 0)
+        os.replace(env_temp, environment_file)
+        atomic_json(config_file, config)
+    except Exception:
+        if env_temp.exists():
+            env_temp.unlink()
+        shutil.copyfile(env_backup, environment_file)
+        environment_file.chmod(0o600)
+        os.chown(environment_file, 0, 0)
+        shutil.copyfile(config_backup, config_file)
+        config_file.chmod(0o600)
+        os.chown(config_file, 0, 0)
+        raise
+
+    installed = Path("/usr/local/lib/agri-trace-cd")
+    installed.mkdir(mode=0o755, parents=True, exist_ok=True)
+    for name in ("controller.py", "policy.py", "verify.mjs", "entry"):
+        shutil.copyfile(Path(__file__).with_name(name), installed / name)
+        (installed / name).chmod(0o755 if name == "entry" else 0o644)
+        os.chown(installed / name, 0, 0)
+    print(json.dumps({"result": "origin-updated", "origin": args.update_origin,
+                      "backup": str(env_backup), "configBackup": str(config_backup)}))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="/opt/agri-trace")
     parser.add_argument("--repository", required=True)
-    parser.add_argument("--public-key", required=True)
-    parser.add_argument("--certificate", required=True)
-    install(parser.parse_args())
+    parser.add_argument("--public-key")
+    parser.add_argument("--certificate")
+    parser.add_argument("--update-origin")
+    arguments = parser.parse_args()
+    if arguments.update_origin:
+        update_origin(arguments)
+    else:
+        policy.require(bool(arguments.public_key and arguments.certificate),
+                       "Initial install requires --public-key and --certificate")
+        install(arguments)

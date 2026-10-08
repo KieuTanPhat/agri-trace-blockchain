@@ -4,7 +4,7 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
-from policy import PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth
+from policy import PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth, valid_public_origin
 
 SHA = "a" * 40
 REPO = "KieuTanPhat/agri-trace-blockchain"
@@ -12,7 +12,8 @@ ORIGIN = "http://13.140.170.166"
 
 
 def bundle(directory, extra=None, mutate=None):
-    files = {"docker-compose.uat.yml": b"services: {}", "docker-compose.uat-fabric.yml": b"services: {}",
+    files = {"docker-compose.uat.yml": b"services: {}", "docker-compose.uat-https.yml": b"services: {}",
+             "docker-compose.uat-fabric.yml": b"services: {}",
              "deploy/Caddyfile.uat": b":80 {}", "blockchain/chaincode/src/index.ts": b"export {}",
              "blockchain/chaincode/dist/index.js": b"module.exports={}", "apps/api/prisma/migrations/20260101000000_init/migration.sql": b"CREATE TABLE x (id INT);"}
     hashes = {name: sha256(data) for name, data in files.items()}
@@ -101,6 +102,14 @@ class Policies(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             result = extract(bundle(directory), Path(directory) / "release", SHA, REPO, ORIGIN)
             self.assertEqual(result["sha"], SHA)
+
+    def test_public_origin_accepts_http_ipv4_and_https_domain(self):
+        for origin in ("http://13.140.170.166", "https://nongtrace.site"):
+            with self.subTest(origin=origin):
+                self.assertTrue(valid_public_origin(origin))
+        for origin in ("https://127.0.0.1", "https://nongtrace.site/path", "https://nongtrace.site/", "http://nongtrace.site", "https://nongtrace.site:8443"):
+            with self.subTest(origin=origin):
+                self.assertFalse(valid_public_origin(origin))
 
     def test_no_path_traversal_links_credentials_or_duplicate_members(self):
         for extra in (("../escape", b"x"), ("/etc/passwd", b"x"), ("deploy/Caddyfile.uat", b"duplicate"),

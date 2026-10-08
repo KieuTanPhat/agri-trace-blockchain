@@ -1,0 +1,5 @@
+# Include only when PUBLIC_ORIGIN uses HTTPS. Caddy obtains and renews the TLS certificate.
+services:
+  proxy:
+    ports:
+      - "${HTTPS_BIND:-0.0.0.0}:${HTTPS_PORT:-443}:443"
