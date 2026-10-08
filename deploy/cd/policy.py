@@ -99,6 +99,14 @@ def valid_public_origin(value):
         return False
 
 
+def https_origins(origin):
+    require(valid_public_origin(origin), "Invalid public deployment origin")
+    if not origin.startswith("https://"):
+        return []
+    hostname = urlsplit(origin).hostname.removeprefix("www.")
+    return [f"https://{hostname}", f"https://www.{hostname}"]
+
+
 def allowed_file(name):
     if name in FIXED_FILES:
         return True

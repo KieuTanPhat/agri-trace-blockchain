@@ -150,6 +150,8 @@ controller bằng file trong candidate. Manifest kiểm version hash 4 helper
 files. Khi sửa controller/policy/verify/entry: review/tests, admin cài bằng
 `deploy/cd/install.py` từ bản source đã review rồi mới chạy lại CD. Installer
 idempotent giữ config/state/khóa/ledger; đây là ranh giới quyền quản trị server.
+Installer giữ cùng khóa `delivery.lock` với CD; khi deploy đang chạy hoặc còn
+recovery journal, lệnh cài/update-origin bị từ chối trước khi đổi cấu hình.
 
 ## Chuyển origin sang HTTPS domain
 
@@ -177,8 +179,11 @@ một candidate đã qua review.
 5. Sau khi CD đạt, kiểm tra HTTPS login, API health, QR cũ/mới, phiên đăng nhập,
    PWA và camera trên điện thoại. Kiểm các QR đã in trước khi chuyển origin.
 
-Không dispatch domain release trước khi DNS phân giải đúng và port 443 truy cập
-công khai; controller chờ HTTPS `/login` trước bước verify.
+Không dispatch domain release trước khi DNS phân giải đúng và đường TCP 443 đã
+được kiểm từ ngoài (dùng listener tạm khi proxy cũ chỉ có HTTP, rồi dừng listener
+trước deploy). Controller chờ TLS hợp lệ và `/login` HTTP 200 trên cả apex và
+`www` trước verify. Verifier kiểm CORS, refresh/logout, PWA assets và lịch sử
+ledger/QR; kế hoạch review ở [nongtrace-uat-release-plan.md](nongtrace-uat-release-plan.md).
 
 Rollback về release HTTP IPv4 cũ giữ dịch vụ truy cập qua IP cũ. Release cũ chưa
 được build cho HTTPS domain; nếu cần rollback, kiểm tra lại qua IP và chỉ mở lại

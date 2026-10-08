@@ -190,7 +190,10 @@ class Controller:
         return applied
 
     def verify(self, record, canary=None):
-        payload = {"origin": self.origin_for(record), "accounts": json.loads(Path(self.config["accounts"]).read_text()), "canary": canary}
+        self.write_release_environment(record)
+        values = policy.read_env(self.storage / "records" / record["id"] / "origin.env")
+        payload = {"origin": self.origin_for(record), "corsOrigins": values["CORS_ORIGINS"].split(","),
+                   "accounts": json.loads(Path(self.config["accounts"]).read_text()), "canary": canary}
         script = Path(__file__).with_name("verify.mjs").read_text()
         output = self.run("release-verification", self.dc(record, "exec", "-T", "worker", "node", "--input-type=module", "-e", script),
                           json.dumps(payload).encode(), timeout=480)
@@ -203,15 +206,18 @@ class Controller:
         self.run("worker-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "worker"), timeout=240)
         self.run("web-proxy-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "web", "proxy"), timeout=240)
         if self.origin_for(record).startswith("https://"):
+            self.phase = "public-https-readiness"
+            origins = policy.https_origins(self.origin_for(record))
             deadline = time.monotonic() + 180
             while time.monotonic() < deadline:
                 try:
-                    with urllib.request.urlopen(self.origin_for(record) + "/login", timeout=5) as response:
-                        require(response.status == 200, "Public HTTPS login route is not ready")
-                        return
+                    for origin in origins:
+                        with urllib.request.urlopen(origin + "/login", timeout=5) as response:
+                            require(response.status == 200, "Public HTTPS login route is not ready")
+                    return
                 except Exception:
                     time.sleep(5)
-            require(False, "Public HTTPS route did not become ready")
+            require(False, "Public HTTPS routes did not become ready for apex and www")
 
     def stop(self, record):
         self.run("stop-writers", self.dc(record, "stop", "api", "worker"), timeout=200)

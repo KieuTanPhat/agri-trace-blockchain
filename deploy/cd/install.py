@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """One-time/reviewed administrator install. Never called by the CD SSH key."""
 import argparse
+import contextlib
 import datetime
 import importlib.util
 import json
@@ -13,6 +14,22 @@ spec = importlib.util.spec_from_file_location("cd_controller", Path(__file__).wi
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 Controller, atomic_json, policy = module.Controller, module.atomic_json, module.policy
+
+
+@contextlib.contextmanager
+def administrator_lock(base):
+    import fcntl
+    policy.require(os.getuid() == 0, "Run the reviewed installer as administrator")
+    storage = Path(base).resolve() / "cd"
+    storage.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with (storage / "delivery.lock").open("a") as lock:
+        os.chmod(lock.name, 0o600)
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise policy.PolicyError("Another delivery is running; no configuration was changed")
+        policy.require(not (storage / "journal.json").exists(), "Recover interrupted delivery before updating the controller")
+        yield
 
 
 def install(args):
@@ -198,9 +215,10 @@ if __name__ == "__main__":
     parser.add_argument("--certificate")
     parser.add_argument("--update-origin")
     arguments = parser.parse_args()
-    if arguments.update_origin:
-        update_origin(arguments)
-    else:
-        policy.require(bool(arguments.public_key and arguments.certificate),
-                       "Initial install requires --public-key and --certificate")
-        install(arguments)
+    with administrator_lock(arguments.base):
+        if arguments.update_origin:
+            update_origin(arguments)
+        else:
+            policy.require(bool(arguments.public_key and arguments.certificate),
+                           "Initial install requires --public-key and --certificate")
+            install(arguments)

@@ -4,7 +4,7 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
-from policy import PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth, valid_public_origin
+from policy import PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth, valid_public_origin, https_origins
 
 SHA = "a" * 40
 REPO = "KieuTanPhat/agri-trace-blockchain"
@@ -110,6 +110,13 @@ class Policies(unittest.TestCase):
         for origin in ("https://127.0.0.1", "https://nongtrace.site/path", "https://nongtrace.site/", "http://nongtrace.site", "https://nongtrace.site:8443"):
             with self.subTest(origin=origin):
                 self.assertFalse(valid_public_origin(origin))
+
+    def test_https_readiness_requires_both_domain_names(self):
+        for origin in ("https://nongtrace.site", "https://www.nongtrace.site"):
+            self.assertEqual(https_origins(origin), ["https://nongtrace.site", "https://www.nongtrace.site"])
+        self.assertEqual(https_origins(ORIGIN), [])
+        with self.assertRaises(PolicyError):
+            https_origins("https://nongtrace.site/path")
 
     def test_no_path_traversal_links_credentials_or_duplicate_members(self):
         for extra in (("../escape", b"x"), ("/etc/passwd", b"x"), ("deploy/Caddyfile.uat", b"duplicate"),
