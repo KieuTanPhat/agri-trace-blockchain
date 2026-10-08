@@ -31,6 +31,26 @@ try {
   assert.equal(health.runtime.running,true);
   assert.equal(health.runtime.lastError,null);
   assert.equal(health.backlog.deadLetter,0);
+  phase='cors';
+  const corsOrigins=input.corsOrigins??[input.origin];
+  for(const origin of [...corsOrigins,'https://unapproved.example']){
+    const preflight=await fetch(`${input.origin}/api/auth/login`,{
+      method:'OPTIONS',signal:AbortSignal.timeout(15000),headers:{Origin:origin,
+        'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'content-type,authorization,idempotency-key'},
+    });
+    assert.equal(preflight.status,204);
+    assert.equal(preflight.headers.get('access-control-allow-origin'),corsOrigins.includes(origin)?origin:null);
+    if(corsOrigins.includes(origin)){
+      const allowed=preflight.headers.get('access-control-allow-headers').toLowerCase();
+      for(const header of ['content-type','authorization','idempotency-key'])assert.ok(allowed.includes(header));
+    }
+  }
+  phase='pwa';
+  const manifestResponse=await fetch(`${input.origin}/manifest.webmanifest`,{signal:AbortSignal.timeout(15000)});
+  assert.equal(manifestResponse.status,200);
+  const manifest=await manifestResponse.json();
+  assert.ok(manifest.start_url&&manifest.icons.length>0);
+  assert.equal((await fetch(`${input.origin}/sw.js`,{signal:AbortSignal.timeout(15000)})).status,200);
   phase='roles';
   for(const role of ['SYSTEM_ADMIN','FARM_STAFF','TRANSPORTER','RETAILER','AUDITOR']){
     const account=input.accounts.find(a=>a.role===role);
@@ -40,6 +60,14 @@ try {
     refresh.push(auth.refreshToken);
     assert.equal((await http('/auth/me',role)).role.code,role);
   }
+  phase='refresh-logout';
+  const rotated=await http('/auth/refresh',undefined,{refreshToken:refresh[0]});
+  assert.ok(rotated.accessToken&&rotated.refreshToken);
+  refresh.push(rotated.refreshToken);
+  tokens.SYSTEM_ADMIN=rotated.accessToken;
+  assert.equal((await http('/auth/me','SYSTEM_ADMIN')).role.code,'SYSTEM_ADMIN');
+  await http('/auth/logout',undefined,{refreshToken:rotated.refreshToken});
+  await http('/auth/refresh',undefined,{refreshToken:rotated.refreshToken},401);
   await http('/organizations','AUDITOR',{name:'CD forbidden write',type:'FARM'},403);
   await db.connect();
   const gatewayConfig=loadConfig(process.env);
@@ -105,7 +133,7 @@ try {
     assert.ok(trace.timeline.every(event=>event.proofStatus==='VERIFIED'));
     assert.equal((await fetch(`${input.origin}/trace/${qr.trace_token}`,{signal:AbortSignal.timeout(15000)})).status,200);
   }
-  console.log(JSON.stringify({result:'passed',counts,fingerprints,directLedgerEvents:events.length,entityHistories:groups.size,verifiedQR:qrs.length,roles:5,canary:input.canary??null}));
+  console.log(JSON.stringify({result:'passed',counts,fingerprints,directLedgerEvents:events.length,entityHistories:groups.size,verifiedQR:qrs.length,roles:5,corsOrigins,refreshLogout:true,pwaAssets:true,canary:input.canary??null}));
 }catch{
   console.error(`Release verification failed at ${phase}; sensitive diagnostics withheld`);
   process.exitCode=1;

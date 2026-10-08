@@ -1,14 +1,86 @@
 import copy
 import importlib.util
+import json
 import os
 import tempfile
 import unittest
+from unittest.mock import MagicMock, patch
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location("cd_controller", Path(__file__).with_name("controller.py"))
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 Controller, atomic_json, PolicyError = module.Controller, module.atomic_json, module.PolicyError
+
+
+class DomainDelivery(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.base = Path(temporary.name)
+        env = self.base / ".env"
+        env.write_text("PUBLIC_ORIGIN=https://nongtrace.site\n"
+                       "CORS_ORIGINS=http://13.140.170.166,https://nongtrace.site,https://www.nongtrace.site\n")
+        accounts = self.base / "accounts.json"
+        accounts.write_text("[]")
+        self.controller = Controller({"base": str(self.base), "env": str(env), "accounts": str(accounts),
+                                      "origin": "https://nongtrace.site", "legacy_origin": "http://13.140.170.166"})
+        self.legacy = {"id": "uat-" + "a" * 40, "directory": str(self.base / "old"), "manifest": {}}
+        self.domain = {"id": "uat-" + "b" * 40, "directory": str(self.base / "new"),
+                       "manifest": {"origin": "https://nongtrace.site"}}
+
+    def test_legacy_http_origin_and_cors_survive_domain_cutover(self):
+        for record, origin, expected_cors, https in (
+                (self.legacy, "http://13.140.170.166", "http://13.140.170.166", False),
+                (self.domain, "https://nongtrace.site", self.controller.environment["CORS_ORIGINS"], True)):
+            command = self.controller.dc(record, "config")
+            values = module.policy.read_env(self.base / "cd/records" / record["id"] / "origin.env")
+            self.assertEqual(values, {"PUBLIC_ORIGIN": origin, "CORS_ORIGINS": expected_cors})
+            self.assertEqual(any(value.endswith("docker-compose.uat-https.yml") for value in command), https)
+            self.assertEqual(command.count("--env-file"), 2)
+        # Switching back must not inherit the new public URL or CORS list.
+        self.controller.dc(self.legacy, "up")
+        self.assertEqual(self.controller.origin_for(self.legacy), "http://13.140.170.166")
+
+    def test_verifier_receives_the_release_origin_and_cors(self):
+        self.controller.run = MagicMock(return_value=b'{"result":"passed"}')
+        self.controller.verify(self.domain)
+        payload = json.loads(self.controller.run.call_args.args[2])
+        self.assertEqual(payload["origin"], "https://nongtrace.site")
+        self.assertEqual(payload["corsOrigins"], self.controller.environment["CORS_ORIGINS"].split(","))
+
+    @staticmethod
+    def response():
+        response = MagicMock()
+        response.__enter__.return_value.status = 200
+        return response
+
+    def test_www_tls_failure_blocks_release_with_the_correct_phase(self):
+        self.controller.run = MagicMock(return_value=b"")
+        with patch.object(module.time, "monotonic", side_effect=[0, 1, 181]), \
+                patch.object(module.time, "sleep"), \
+                patch.object(module.urllib.request, "urlopen", side_effect=[self.response(), OSError("TLS failure")]) as request:
+            with self.assertRaisesRegex(PolicyError, "apex and www"):
+                self.controller.start(self.domain)
+        self.assertEqual(self.controller.phase, "public-https-readiness")
+        self.assertEqual([call.args[0] for call in request.call_args_list],
+                         ["https://nongtrace.site/login", "https://www.nongtrace.site/login"])
+
+    def test_both_https_routes_must_succeed_before_returning_ready(self):
+        self.controller.run = MagicMock(return_value=b"")
+        with patch.object(module.time, "monotonic", side_effect=[0, 1, 2]), \
+                patch.object(module.time, "sleep") as sleep, \
+                patch.object(module.urllib.request, "urlopen",
+                             side_effect=[self.response(), OSError("not yet ready"), self.response(), self.response()]) as request:
+            self.controller.start(self.domain)
+        self.assertEqual(request.call_count, 4)
+        sleep.assert_called_once_with(5)
+
+    def test_legacy_http_release_does_not_wait_for_domain_tls(self):
+        self.controller.run = MagicMock(return_value=b"")
+        with patch.object(module.urllib.request, "urlopen") as request:
+            self.controller.start(self.legacy)
+        request.assert_not_called()
 
 
 class Rehearsal(Controller):

@@ -150,12 +150,50 @@ controller bằng file trong candidate. Manifest kiểm version hash 4 helper
 files. Khi sửa controller/policy/verify/entry: review/tests, admin cài bằng
 `deploy/cd/install.py` từ bản source đã review rồi mới chạy lại CD. Installer
 idempotent giữ config/state/khóa/ledger; đây là ranh giới quyền quản trị server.
+Installer giữ cùng khóa `delivery.lock` với CD; khi deploy đang chạy hoặc còn
+recovery journal, lệnh cài/update-origin bị từ chối trước khi đổi cấu hình.
+
+## Chuyển origin sang HTTPS domain
+
+Domain cutover cần DNS đúng, origin Web/API mới, TLS proxy và helper CD cùng
+một candidate đã qua review.
+
+1. Nameserver TenTen đã được ủy quyền. Tại DNS, tạo `A @ -> 13.140.170.166`
+   và `CNAME www -> nongtrace.site`; chờ resolver công khai trả về đúng IP.
+   Chỉ tạo AAAA sau khi IPv6 VPS đã được cấu hình và kiểm tra từ ngoài.
+2. Mở TCP 443 ở firewall VPS/provider, giữ TCP 80 để Caddy xác thực chứng chỉ
+   và chuyển hướng HTTP. Bảo đảm không có chương trình khác chiếm hai cổng này.
+3. Chạy HTTP/HTTPS Compose preflight cho candidate. Với origin HTTPS, Caddy tự
+   cấp/gia hạn chứng chỉ; Web build theo `${origin}/api` và `${origin}/trace`;
+   API CORS và public trace base dùng cùng origin.
+4. Trước CD đầu tiên với helper mới, quản trị viên cài controller đã review và
+   cập nhật origin/env trên VPS bằng:
+
+   ```bash
+   sudo python3 deploy/cd/install.py --base /opt/agri-trace --repository KieuTanPhat/agri-trace-blockchain --update-origin https://nongtrace.site
+   ```
+
+   Lệnh lưu bản sao mode 600 của env và controller config trước khi ghi.
+   Cập nhật GitHub repository variable `UAT_PUBLIC_ORIGIN` cùng origin trước
+   khi merge/push candidate để CD build đúng Web image.
+5. Sau khi CD đạt, kiểm tra HTTPS login, API health, QR cũ/mới, phiên đăng nhập,
+   PWA và camera trên điện thoại. Kiểm các QR đã in trước khi chuyển origin.
+
+Không dispatch domain release trước khi DNS phân giải đúng và đường TCP 443 đã
+được kiểm từ ngoài (dùng listener tạm khi proxy cũ chỉ có HTTP, rồi dừng listener
+trước deploy). Controller chờ TLS hợp lệ và `/login` HTTP 200 trên cả apex và
+`www` trước verify. Verifier kiểm CORS, refresh/logout, PWA assets và lịch sử
+ledger/QR; kế hoạch review ở [nongtrace-uat-release-plan.md](nongtrace-uat-release-plan.md).
+
+Rollback về release HTTP IPv4 cũ giữ dịch vụ truy cập qua IP cũ. Release cũ chưa
+được build cho HTTPS domain; nếu cần rollback, kiểm tra lại qua IP và chỉ mở lại
+domain HTTPS sau khi triển khai một release đã build theo origin domain.
 
 ## Giới hạn hiện tại
 
 - Single VPS có downtime ngắn khi backup/rollout, không hứa zero downtime.
-- HTTP IPv4 theo quyết định UAT; domain/HTTPS thay origin cần build Web mới và
-  kiểm QR URLs cũ, CORS, cookie/PWA trước đổi public endpoint.
+- UAT vẫn dùng HTTP IPv4 cho đến khi cutover được duyệt; domain/HTTPS cần build
+  Web mới và kiểm QR URLs cũ, CORS, cookie/PWA trước khi đổi public endpoint.
 - Verification toàn bộ lịch sử phù hợp UAT và giới hạn 10.000 events; khi dữ
   liệu lớn hơn cần mở rộng verifier/budget sau review.
 - Giữ release/images/snapshots phục hồi; CD chặn khi disk còn dưới 12 GiB.

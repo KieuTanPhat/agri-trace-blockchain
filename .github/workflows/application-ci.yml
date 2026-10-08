@@ -176,6 +176,10 @@ jobs:
           npm run build --workspace blockchain/chaincode
           node deploy/prepare.mjs --directory .uat/ci --origin http://127.0.0.1:18080 --release "uat-${GITHUB_SHA}"
           node deploy/preflight.mjs --env .uat/ci/.env.uat
+          node deploy/prepare.mjs --directory .uat/https --origin https://nongtrace.site --release "uat-${GITHUB_SHA}"
+          node deploy/preflight.mjs --env .uat/https/.env.uat --config-only
+          https_dc=(docker compose --env-file .uat/https/.env.uat -f docker-compose.uat.yml -f docker-compose.uat-https.yml)
+          "${https_dc[@]}" run --rm --no-deps proxy caddy validate --config /etc/caddy/Caddyfile
       - name: Build and start UAT through the HTTP proxy
         env:
           COMPOSE_PROJECT_NAME: agri-trace-uat-ci

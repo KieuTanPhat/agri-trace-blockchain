@@ -81,7 +81,7 @@ services:
       JWT_EXPIRES_IN: 1h
       JWT_REFRESH_EXPIRES_DAYS: "7"
       IOT_INGEST_API_KEY: ${IOT_INGEST_API_KEY:?Set IOT_INGEST_API_KEY}
-      CORS_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN}
+      CORS_ORIGIN: ${CORS_ORIGINS:?Set CORS_ORIGINS}
       PUBLIC_TRACE_BASE_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN}/trace
       FABRIC_ENABLED: "false"
       NODE_OPTIONS: --max-old-space-size=512
@@ -158,6 +158,8 @@ services:
   proxy:
     image: ${CADDY_IMAGE:?Set a pinned Caddy image}
     restart: unless-stopped
+    environment:
+      CADDY_SITE_ADDRESS: ${CADDY_SITE_ADDRESS:?Set CADDY_SITE_ADDRESS}
     ports:
       - "${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-80}:80"
     volumes:

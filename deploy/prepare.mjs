@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdirSync, existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { CADDY_IMAGE, POSTGRES_IMAGE, validateConfig } from './config.mjs';
+import { CADDY_IMAGE, POSTGRES_IMAGE, caddySiteAddress, validateConfig } from './config.mjs';
 import { UAT_ROLES } from './fixtures.mjs';
 
 try {
@@ -11,8 +11,13 @@ try {
   const envFile = path.join(directory, '.env.uat');
   const accountsFile = path.join(directory, 'accounts.json');
   if (existsSync(envFile) || existsSync(accountsFile)) throw new Error('Configuration already exists; refusing to overwrite credentials');
+  const origin = new URL(values.origin);
+  const https = origin.protocol === 'https:';
   const config = validateConfig({
-    PUBLIC_ORIGIN: values.origin, HTTP_BIND: '0.0.0.0', HTTP_PORT: new URL(values.origin).port || '80',
+    PUBLIC_ORIGIN: values.origin, CADDY_SITE_ADDRESS: caddySiteAddress(values.origin),
+    CORS_ORIGINS: values.origin,
+    HTTP_BIND: '0.0.0.0', HTTP_PORT: https ? '80' : origin.port || '80',
+    HTTPS_BIND: '0.0.0.0', HTTPS_PORT: '443',
     RELEASE_TAG: values.release, POSTGRES_IMAGE, CADDY_IMAGE,
     POSTGRES_DB: 'agri_trace_uat', POSTGRES_USER: 'agritrace',
     POSTGRES_PASSWORD: randomBytes(32).toString('hex'), JWT_SECRET: randomBytes(32).toString('hex'),
