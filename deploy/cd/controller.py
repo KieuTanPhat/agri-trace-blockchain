@@ -100,7 +100,6 @@ class Controller:
             output.flush()
             os.fsync(output.fileno())
         os.replace(temporary, filename)
-        os.chown(filename, 0, 0)
 
     def dc(self, record, *args):
         root = Path(record["directory"])
