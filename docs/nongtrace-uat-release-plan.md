@@ -43,6 +43,19 @@ Release approval riêng của AGT-031 đã được cung cấp trong yêu cầu 
    Xác nhận `recoveryRequired=false`, tải backup mã hóa và kiểm checksum.
 7. Ghi SHA, digests, CI/CD URLs, chứng chỉ và kết quả vào báo cáo bàn giao.
 
+## Review sau cutover
+
+Deploy HTTPS, rollback về bản HTTP và redeploy cùng SHA `b80354e` đều đạt.
+Backup mã hóa đã giải mã/kiểm checksum; PostgreSQL copy khớp 42 event/proof
+fingerprints và chạy migration bằng candidate image thành công.
+
+Kiểm giao diện phát hiện header trang QR ở 320 px cắt tên sản phẩm: ảnh giữ
+125 px trong flex row, phần chữ còn 95 px nhưng cần 135 px. Sửa CSS scoped của
+trang trace: xếp ảnh/nội dung dọc ở breakpoint điện thoại, cho tên/mã dài xuống
+dòng. Thêm regression tests cho các declarations, chờ ba CI và CD đúng SHA,
+sau đó đo lại title overflow trên browser tại 320/390 px. Đây là bổ sung vào
+release HTTPS; không thay API, migration hoặc chaincode.
+
 ## Phục hồi và điều kiện hoàn tất
 
 CD rollback khi candidate không đạt. DB, outbox và ledger được bảo toàn;

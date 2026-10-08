@@ -1363,6 +1363,7 @@ a.list-row:hover { background: var(--primary-pale); }
   box-shadow: var(--shadow-sm);
 }
 .trace-page .page-header { min-height: 190px; }
+.trace-page .page-header h1, .trace-page .page-header .muted { overflow-wrap: anywhere; }
 .trace-page .header-actions {
   background: rgba(255,255,255,0.85);
   padding: 14px;
@@ -1574,6 +1575,8 @@ a.list-row:hover { background: var(--primary-pale); }
   .dashboard .iot-panel .stats-row { grid-template-columns: 1fr; }
   .dashboard .timeline { grid-template-columns: 1fr; }
 
+  .trace-page .page-header { flex-direction: column; align-items: stretch; }
+  .trace-page .trace-product-photo { width: 100%; height: 160px; flex-shrink: 0; }
   .trace-page .header-actions { width: 100%; }
 }
 
