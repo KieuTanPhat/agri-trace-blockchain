@@ -9,7 +9,7 @@ export function caddySiteAddress(publicOrigin) {
   const origin = new URL(publicOrigin);
   if (origin.protocol === 'https:') {
     const apex = origin.hostname.replace(/^www\./, '');
-    return `${apex},www.${apex},http://13.140.170.166`;
+    return `${apex}, www.${apex}, http://13.140.170.166`;
   }
   return `http://${origin.hostname}`;
 }

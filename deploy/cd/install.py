@@ -127,7 +127,7 @@ def update_origin(args):
     legacy_origin = config.get("legacy_origin") or config["origin"]
     if parsed.scheme == "https":
         apex = hostname.removeprefix("www.")
-        site_address = f"{apex},www.{apex},{legacy_origin}"
+        site_address = f"{apex}, www.{apex}, {legacy_origin}"
         http_port = "80"
     else:
         site_address = f"http://{hostname}"
