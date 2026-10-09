@@ -465,6 +465,11 @@ const prisma = new PrismaClient({
           .proofStatus,
       ).toBe('BLOCKCHAIN_UNAVAILABLE');
       await confirm(events[0]);
+      await checkStatus('BLOCKCHAIN_UNAVAILABLE');
+      await prisma.blockchainOutbox.updateMany({
+        where: { eventId: { in: events.map((event) => event.id) } },
+        data: { status: 'COMPLETED' },
+      });
       await checkStatus('VERIFIED');
     });
 
