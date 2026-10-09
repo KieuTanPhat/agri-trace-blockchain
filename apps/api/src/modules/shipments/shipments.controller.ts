@@ -14,7 +14,12 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
@@ -64,6 +69,34 @@ export class ShipmentsController {
   }
 
   @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @ApiOkResponse({
+    description:
+      'Chi tiết chuyến hàng; telemetry.deviceSequence là chuỗi số nguyên hoặc null.',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            telemetry: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  deviceSequence: {
+                    type: 'string',
+                    nullable: true,
+                    pattern: '^[0-9]+$',
+                    example: '9223372036854775807',
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
   @Get(':id')
   get(
     @Param('id', ParseUUIDPipe) id: string,
