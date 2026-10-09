@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   PanelLeftClose,
   PanelLeftOpen,
@@ -40,6 +40,8 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/trace/");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileToggle = useRef<HTMLButtonElement>(null);
+  const sidebar = useRef<HTMLElement>(null);
   const [query, setQuery] = useState("");
   const [searchData, setSearchData] = useState<{
     userId?: string;
@@ -71,13 +73,34 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!mobileOpen) return;
+    const media = window.matchMedia("(max-width: 760px)");
+    const closeOnDesktop = () => {
+      if (!media.matches) setMobileOpen(false);
+    };
+    closeOnDesktop();
+    if (!media.matches) return;
+    const toggle = mobileToggle.current;
+    const links = Array.from(sidebar.current?.querySelectorAll<HTMLAnchorElement>("a[href]") ?? []);
+    toggle?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setMobileOpen(false);
+      if (event.key === "Tab") {
+        const targets = [toggle, ...links].filter((element): element is HTMLButtonElement | HTMLAnchorElement => element !== null);
+        const index = targets.indexOf(document.activeElement as HTMLButtonElement | HTMLAnchorElement);
+        const next = (index + (event.shiftKey ? -1 : 1) + targets.length) % targets.length;
+        event.preventDefault();
+        targets[next]?.focus();
+      }
     };
+    media.addEventListener("change", closeOnDesktop);
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      media.removeEventListener("change", closeOnDesktop);
+      document.removeEventListener("keydown", onKey);
+      if (media.matches) toggle?.focus();
+    };
   }, [mobileOpen]);
 
   if (isPublic) return <main className="public-content">{children}</main>;
@@ -216,6 +239,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
         </button>
         <button
           className="icon-button mobile-toggle"
+          ref={mobileToggle}
           title="Điều hướng"
           aria-label={mobileOpen ? "Đóng điều hướng" : "Mở điều hướng"}
           aria-expanded={mobileOpen}
@@ -229,11 +253,12 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
         {mobileOpen && (
           <button
             className="nav-backdrop"
+            tabIndex={-1}
             aria-label="Đóng điều hướng"
             onClick={() => setMobileOpen(false)}
           />
         )}
-        <aside className="sidebar" id="main-navigation">
+        <aside className="sidebar" id="main-navigation" ref={sidebar}>
           <p className="sidebar-heading">Không gian quản lý</p>
           <nav className="nav-list" aria-label="Điều hướng chính">
             {navigation
@@ -298,7 +323,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </aside>
-        <main className="content">
+        <main className="content" inert={mobileOpen}>
           <div className="page-content" key={`${auth.user.id}:${pathname}`}>
             {children}
           </div>

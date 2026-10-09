@@ -64,8 +64,45 @@ export default function ScanPage() {
         </div>
       </section>
 
-      <section className="grid two">
-        <div className="panel">
+      <section className="grid two scan-grid">
+        <form className="panel form-grid scan-lookup-panel" onSubmit={(event) => { event.preventDefault(); openTrace(); }}>
+          <div className="panel-title">
+            <div className="panel-title-left">
+              <span className="panel-icon success">
+                <IconSearch size={16} />
+              </span>
+              <h2>Tra cứu nông sản</h2>
+            </div>
+          </div>
+          <div className="field">
+            <label htmlFor="trace-code">Trace token hoặc đường dẫn</label>
+            <input
+              className="input"
+              id="trace-code"
+              enterKeyHint="go"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="Nhập token trên mã QR..."
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+            />
+          </div>
+          <button className="button" type="submit" disabled={!code.trim()}>
+            <IconSearch size={14} /> Mở trang tra cứu
+          </button>
+          <div className="design-note">
+            <Lightbulb size={28} />
+            <div>
+              <strong>Mẹo nhỏ</strong>
+              <p>
+                Bạn có thể quét mã QR trên bao bì sản phẩm hoặc nhập trực tiếp
+                mã lô để xem thông tin chi tiết.
+              </p>
+            </div>
+          </div>
+        </form>
+        <div className="panel scan-preview-panel">
           <div className="panel-title">
             <div className="panel-title-left">
               <span className="panel-icon info">
@@ -112,39 +149,6 @@ export default function ScanPage() {
             <div>
               <strong>Mã QR được tạo từ hệ thống AgriTrace.</strong>
               <p>Đảm bảo tính toàn vẹn và bảo mật dữ liệu.</p>
-            </div>
-          </div>
-        </div>
-        <div className="panel form-grid">
-          <div className="panel-title">
-            <div className="panel-title-left">
-              <span className="panel-icon success">
-                <IconSearch size={16} />
-              </span>
-              <h2>Tra cứu nông sản</h2>
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor="trace-code">Trace token hoặc đường dẫn</label>
-            <input
-              className="input"
-              id="trace-code"
-              placeholder="Nhập token trên mã QR..."
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-            />
-          </div>
-          <button className="button" onClick={openTrace}>
-            <IconSearch size={14} /> Mở trang tra cứu
-          </button>
-          <div className="design-note">
-            <Lightbulb size={28} />
-            <div>
-              <strong>Mẹo nhỏ</strong>
-              <p>
-                Bạn có thể quét mã QR trên bao bì sản phẩm hoặc nhập trực tiếp
-                mã lô để xem thông tin chi tiết.
-              </p>
             </div>
           </div>
         </div>

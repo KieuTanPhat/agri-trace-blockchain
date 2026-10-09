@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, Download, Leaf, Sprout, Truck, Award, House, ChevronRight, MoreHorizontal, Clock, MapPin } from "lucide-react";
+import { Search, Download, Leaf, Sprout, Truck, Award, House, ChevronRight, Clock, MapPin } from "lucide-react";
 import type { LotTrace } from "@/lib/types";
 import { StateBadge } from "./state-badge";
 import { labelForState } from "@/lib/display-labels";
@@ -17,6 +17,9 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
   const [page, setPage] = useState(1);
   const filtered = lots.filter(lot => (!state || lot.currentState === state) && (!farm || lot.farmOrg.organizationId === farm) && `${lot.productName} ${lot.lotCode} ${lot.farmOrg.name}`.toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi")));
   const farms = [...new Map(lots.map(lot => [lot.farmOrg.organizationId, lot.farmOrg])).values()];
+  const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
+  const currentPage = Math.min(page, pageCount);
+  const firstIndex = (currentPage - 1) * perPage;
   const stats = [
     { label: "Tổng số lô nông sản", value: lots.length, icon: Leaf, state: "" },
     { label: "Đã đến điểm nhận", value: lots.filter(lot => lot.currentState === "ARRIVED").length, icon: Sprout, state: "ARRIVED" },
@@ -30,27 +33,26 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
     const a = document.createElement("a"); a.href = url; a.download = "agritrace-lo-nong-san.csv"; a.click(); URL.revokeObjectURL(url);
   }
   return <>
-    <section className="lot-stats">{stats.map(({ icon: Icon, ...s }) => <button className="stat-card" key={s.label} onClick={() => setState(s.state)} aria-pressed={state === s.state}><span className="stat-icon"><Icon /></span><span className="stat-body"><strong className="stat-value">{s.value}</strong><span className="stat-label">{s.label}</span></span><ChevronRight size={18} /></button>)}</section>
+    <section className="lot-stats">{stats.map(({ icon: Icon, ...s }) => <button className="stat-card" key={s.label} onClick={() => { setState(s.state); setPage(1); }} aria-pressed={state === s.state}><span className="stat-icon"><Icon /></span><span className="stat-body"><strong className="stat-value">{s.value}</strong><span className="stat-label">{s.label}</span></span><ChevronRight size={18} /></button>)}</section>
     <section className="panel lot-table-panel">
       <div className="table-toolbar">
-        <label className="table-search"><Search size={20} /><input placeholder="Tìm theo tên nông sản, mã lô, trang trại..." aria-label="Tìm lô" value={query} onChange={e => setQuery(e.target.value)} /></label>
-        <select className="select" aria-label="Lọc trạng thái" value={state} onChange={e => setState(e.target.value)}><option value="">Tất cả trạng thái</option>{[...new Set(lots.map(lot => lot.currentState))].map(s => <option key={s} value={s}>{labelForState(s)}</option>)}</select>
-        <select className="select" aria-label="Lọc trang trại" value={farm} onChange={e => setFarm(e.target.value)}><option value="">Tất cả trang trại</option>{farms.map(f => <option key={f.organizationId} value={f.organizationId}>{f.name}</option>)}</select>
-        <select className="select" aria-label="Thời gian" defaultValue=""><option value="">Mọi thời gian</option></select>
+        <label className="table-search"><Search size={20} /><input placeholder="Tìm tên, mã lô, trang trại..." aria-label="Tìm lô" value={query} onChange={e => { setQuery(e.target.value); setPage(1); }} /></label>
+        <select className="select" aria-label="Lọc trạng thái" value={state} onChange={e => { setState(e.target.value); setPage(1); }}><option value="">Tất cả trạng thái</option>{[...new Set(lots.map(lot => lot.currentState))].map(s => <option key={s} value={s}>{labelForState(s)}</option>)}</select>
+        <select className="select" aria-label="Lọc trang trại" value={farm} onChange={e => { setFarm(e.target.value); setPage(1); }}><option value="">Tất cả trang trại</option>{farms.map(f => <option key={f.organizationId} value={f.organizationId}>{f.name}</option>)}</select>
         <button className="button secondary" onClick={exportCsv}><Download size={18} />Xuất dữ liệu</button>
       </div>
-      <div className="table-scroll"><table className="lot-table"><thead><tr><th>#</th><th>Nông sản</th><th>Mã lô</th><th>Trang trại</th><th>Cập nhật gần nhất</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{filtered.slice((page-1)*perPage, page*perPage).map((b, i) => {
+      <div className="table-scroll"><table className="lot-table" role="table" aria-label="Danh sách lô nông sản"><thead role="rowgroup"><tr role="row"><th scope="col">#</th><th scope="col">Nông sản</th><th scope="col">Mã lô</th><th scope="col">Trang trại</th><th scope="col">Cập nhật gần nhất</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead><tbody role="rowgroup">{filtered.slice(firstIndex, firstIndex + perPage).map((b, i) => {
         const latest = [...b.timeline].sort((a, c) => c.eventTime.localeCompare(a.eventTime))[0];
-        return <tr key={b.lotId}><td>{(page-1)*perPage + i + 1}</td><td><Link href={`/lots/${b.lotId}`} className="product-cell"><span className={`product-thumb ${b.productName.toLowerCase().includes("xoài") ? "mango-thumb" : ""}`}>{b.productName.toLowerCase().includes("xoài") ? "🥭" : <Image src="/farm-greens.png" alt="" width={104} height={112} />}</span><strong>{b.productName}</strong></Link></td><td>{b.lotCode}</td><td><span className="farm-cell"><House size={20} /><div><strong>{b.farmOrg.name}</strong><span className="farm-location"><MapPin size={12} />{b.farmOrg.type === 'FARM' ? 'Cù Chi, TP. Hồ Chí Minh' : 'Nhà Bè, TP. Hồ Chí Minh'}</span></div></span></td><td><div className="update-cell"><span className="update-time"><Clock size={14} />{latest ? formatTraceDate(latest.eventTime) : "Chưa ghi nhận"}</span><span className="update-by">Bởi {b.farmOrg.name}</span></div></td><td><StateBadge state={b.currentState} /></td><td><button className="icon-button" aria-label={`Thao tác ${b.productName}`}><MoreHorizontal size={18} /></button></td></tr>;
+        return <tr key={b.lotId} role="row"><td role="cell" className="lot-row-index">{firstIndex + i + 1}</td><td role="cell" className="lot-row-product"><Link href={`/lots/${b.lotId}`} className="product-cell"><span className={`product-thumb ${b.productName.toLowerCase().includes("xoài") ? "mango-thumb" : ""}`}>{b.productName.toLowerCase().includes("xoài") ? "🥭" : <Image src="/farm-greens.png" alt="" width={104} height={112} />}</span><strong>{b.productName}</strong></Link></td><td role="cell" data-label="Mã lô">{b.lotCode}</td><td role="cell" data-label="Trang trại"><span className="farm-cell"><House size={20} /><div><strong>{b.farmOrg.name}</strong><span className="farm-location"><MapPin size={12} />{b.farmOrg.type === 'FARM' ? 'Cù Chi, TP. Hồ Chí Minh' : 'Nhà Bè, TP. Hồ Chí Minh'}</span></div></span></td><td role="cell" data-label="Cập nhật"><div className="update-cell"><span className="update-time"><Clock size={14} />{latest ? formatTraceDate(latest.eventTime) : "Chưa ghi nhận"}</span><span className="update-by">Bởi {b.farmOrg.name}</span></div></td><td role="cell" data-label="Trạng thái"><StateBadge state={b.currentState} /></td><td role="cell" className="lot-row-action"><Link className="button secondary" href={`/lots/${b.lotId}`} aria-label={`Xem chi tiết lô ${b.lotCode}`}>Xem chi tiết <ChevronRight size={18} /></Link></td></tr>;
       })}</tbody></table></div>
       {!filtered.length && <p className="table-empty">Không có lô phù hợp với bộ lọc.</p>}
       <div className="table-footer">
-        <span>Hiển thị {Math.min((page-1)*perPage+1, filtered.length)} – {Math.min(page*perPage, filtered.length)} của {filtered.length} lô nông sản</span>
+        <span aria-live="polite">Hiển thị {Math.min(firstIndex + 1, filtered.length)} – {Math.min(firstIndex + perPage, filtered.length)} của {filtered.length} lô nông sản</span>
         <div className="pagination">
-          <button className="icon-button pagination-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)} aria-label="Trang trước">&lt;</button>
-          <span className="pagination-current">{page}</span>
-          <button className="icon-button pagination-btn" disabled={page * perPage >= filtered.length} onClick={() => setPage(p => p + 1)} aria-label="Trang sau">&gt;</button>
-          <select className="select pagination-select" value={perPage} onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}>
+          <button className="icon-button pagination-btn" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)} aria-label="Trang trước">&lt;</button>
+          <span className="pagination-current" aria-current="page">{currentPage}</span>
+          <button className="icon-button pagination-btn" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)} aria-label="Trang sau">&gt;</button>
+          <select className="select pagination-select" aria-label="Số lô mỗi trang" value={perPage} onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}>
             <option value={10}>10 / trang</option>
             <option value={25}>25 / trang</option>
             <option value={50}>50 / trang</option>
