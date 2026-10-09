@@ -58,6 +58,10 @@ release HTTPS; không thay API, migration hoặc chaincode.
 
 ## Phục hồi và điều kiện hoàn tất
 
+Đã hoàn thành các bước và diễn tập bổ sung. Source/digests, CI/CD, rollback,
+redeploy và kiểm chứng cuối nằm trong
+[nongtrace-uat-deployment-status.md](nongtrace-uat-deployment-status.md).
+
 CD rollback khi candidate không đạt. DB, outbox và ledger được bảo toàn;
 không reset/seed/restore dữ liệu để làm kiểm tra đạt. Release HTTP trước cutover
 vẫn truy cập được qua IP khi rollback; các QR cũ dùng IP được kiểm riêng.

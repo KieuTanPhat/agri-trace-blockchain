@@ -1,11 +1,15 @@
 # Kết quả kiểm chứng CD UAT Contabo — 08/10/2026
 
+Báo cáo này giữ evidence của giai đoạn CD HTTP. Runtime HTTPS hiện hành,
+source/digests và kiểm chứng ngày 09/10 nằm trong
+[nongtrace-uat-deployment-status.md](nongtrace-uat-deployment-status.md).
+
 Đã hoàn thành CD trên VPS `13.140.170.166`: ba CI đúng commit, publish GHCR,
 deploy/verify, rollback, redeploy, upgrade chaincode và backup ngoài VPS đều đạt.
 Kế hoạch/review: [contabo-cd-plan.md](contabo-cd-plan.md).
 Vận hành: [contabo-cd-runbook.md](contabo-cd-runbook.md).
 
-## Release đang chạy
+## Release trong lượt kiểm chứng HTTP
 
 - Source SHA: `dbeb65b83023d0631f1ae0943253139fcf94873d` trên main.
 - Current: `/opt/agri-trace/releases/uat-dbeb65b83023d0631f1ae0943253139fcf94873d`;

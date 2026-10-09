@@ -4,7 +4,8 @@
 
 Báo cáo này lưu lượt deploy thủ công ngày 07/10. CD đã hoàn thành ngày 08/10;
 release/digests, 41 ledger events, chaincode sequence 2 và các lượt kiểm chứng
-hiện hành nằm trong [contabo-cd-status.md](contabo-cd-status.md).
+của giai đoạn HTTP nằm trong [contabo-cd-status.md](contabo-cd-status.md).
+UAT HTTPS/source hiện hành: [nongtrace-uat-deployment-status.md](nongtrace-uat-deployment-status.md).
 
 - Web: <http://13.140.170.166/login>
 - API health: <http://13.140.170.166/api/health>
