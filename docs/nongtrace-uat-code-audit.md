@@ -7,10 +7,13 @@ Baseline code: `5880ef11f2d55886791fefd26e5981074900b83b`.
 Baseline UAT: `de3a997c875e6acb6b0c3fd1fbd4f7f483f2ba9c`, HTTPS,
 43 trace events/proofs; recoveryRequired=false.
 
-Kết quả cuối: PR #66/#67 đã merge vào main, UAT chạy source `086ada4`;
-lượt CI đầy đủ sau sửa/deploy và kiểm tra UAT trực tiếp đều đạt.
-45 events/proofs, 6 QR VERIFIED, recoveryRequired=false. Không phát hiện
-lỗi mới trong các kịch bản của lượt kiểm tra cuối; phần policy/backlog ở cuối.
+PR #66/#67/#69 đã merge vào main, UAT chạy source `1d903d0`;
+lượt workspace và CI đầy đủ sau sửa/deploy đạt. Kiểm chứng runtime đạt
+46 events/proofs, 6 QR VERIFIED, recoveryRequired=false; giữ đủ 45 dấu vết
+của release trước. Bộ public checks độc lập cuối từ Windows đạt cả 17 checks;
+các lần timeout trước đó vẫn được ghi trong đối chiếu bên dưới. Không phát hiện
+lỗi chức năng mới trong lượt kiểm tra cuối. Phần policy/backlog ở cuối không
+được coi là đã giao.
 
 ## Kế hoạch thực hiện
 
@@ -163,14 +166,14 @@ Source `086ada424160908fa041bca0dc0a5ca9ffc8f993` đã deploy qua
   CORS/PWA đạt, giữ đủ baseline 43 events của đợt HTTPS trước đó.
   Helper khớp immutable release manifest; chaincode sequence 2/version
   `cd-dbeb65b83023` và fingerprint giữ nguyên; recoveryRequired=false.
-- Browser trên release cuối: Farm có hai link simulator ở dashboard cùng
+- Browser trên release `086ada4`: Farm có hai link simulator ở dashboard cùng
   link sidebar; Admin có 0 link simulator, URL trực tiếp bị chặn trước form.
   Event labels đã dịch; URL QR sai bị chặn, Enter với QR cũ theo IP mở trang
   HTTPS đúng lô với 8 events đã xác minh. Console không có error/warn.
   QR ở 320 và 390 px không tràn ngang, tên sản phẩm đầy đủ; viewport đã reset.
 
 Sau yêu cầu kiểm tra thêm một lần của Phát, đã dispatch cả ba workflow trên
-source cuối ở chế độ full check (`workflow_dispatch` bật toàn bộ classifier).
+source `086ada4` ở chế độ full check (`workflow_dispatch` bật toàn bộ classifier).
 Lượt mới sau sửa và deploy đã đạt cả ba workflow:
 
 | Kiểm tra lại đầy đủ trên `086ada4` | Kết quả |
@@ -182,8 +185,105 @@ Lượt mới sau sửa và deploy đã đạt cả ba workflow:
 API của lượt kiểm tra mới có 86 unit + 57 PostgreSQL e2e tests và 3 bootstrap
 tests đạt; Web có 97 unit + 82 lint contract + 4 image checks đạt. Các workflow
 đã chạy lại sau khi sửa xong; kết quả không tái sử dụng lượt kiểm tra baseline.
-Không phát hiện lỗi mới trong những kịch bản của lượt cuối. Phần báo cáo chỉ
-thay docs; runtime vẫn là release `086ada4` đã kiểm chứng.
+Lượt CI trên `086ada4` đạt; lượt workspace local tiếp sau phát hiện timeout
+của test dependency graph, được xử lý trong phần dưới.
+
+### Kiểm tra workspace bổ sung và sửa độ ổn định của test
+
+Lượt `npm run check` toàn workspace trên Windows thất bại tại lint contract:
+`npm ls --all --json` bị ETIMEDOUT đúng deadline 30 giây. Đây là lỗi thời gian
+chờ của kiểm tra local; không có kết quả cho thấy graph sai. Đo độc lập cùng
+Node 22.22.3/npm 12.1.0: command exit 0 sau 21,45 giây, JSON không có problems.
+
+[PR #69](https://github.com/KieuTanPhat/agri-trace-blockchain/pull/69) tăng riêng
+deadline đọc toàn graph lên 120 giây hữu hạn. Giữ nguyên npm của caller,
+maxBuffer, assertion lỗi process, exit code 0, JSON parse và problems=[];
+không retry hoặc bỏ kiểm peer dependencies. Không thay runtime code,
+dependencies, schema hoặc chaincode. PR đã merge thành
+`1d903d04b044424b656307aeb1a5a218f9b78ef5`.
+
+Sau sửa đã chạy lại toàn bộ `npm run check` từ đầu, exit code 0:
+
+- API: lint/typecheck/build, 86 unit + 20 HTTP đạt; 37 DB tests skip local.
+- Web: typecheck/build/lint, 97 unit + 82 lint contract + 4 image checks đạt.
+- Chaincode: typecheck/build/runtime load, 34 tests và coverage đạt.
+- Gateway: typecheck/build/runtime load, 3 tests đạt.
+
+PR #69 đạt [Application 37882099373](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/37882099373),
+[Blockchain 37882099343](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/37882099343),
+[Dependency Audit 37882099319](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/37882099319):
+Web Node 22/24/26, production containers, UAT proxy/backup-restore và dependency
+graph đạt; API/Fabric không đổi được skip trong PR.
+
+Sau merge và sửa xong, chạy thêm cả ba workflow full check trên `1d903d0`:
+
+| Kiểm tra cuối sau PR #69 | Kết quả |
+| --- | --- |
+| [Application 37882521076](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/37882521076) | API/Web Node 22/24/26, PostgreSQL e2e/bootstrap, production containers và backup/restore đạt |
+| [Blockchain 37882523047](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/37882523047) | Gateway/chaincode Node 22/24/26, standalone và API/Worker/Fabric integration đạt |
+| [Dependency Audit 37882524864](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/37882524864) | Workspace/standalone audit và dependency graph đạt |
+
+Không skip API, Web, containers hoặc Fabric trong lượt full check cuối.
+Push CI trên cùng SHA cũng đạt:
+[Application 37882501846](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/37882501846),
+[Blockchain 37882501793](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/37882501793),
+[Dependency Audit 37882501847](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/37882501847).
+
+### Kiểm chứng release cuối `1d903d0`
+
+[CD 37882501886](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/37882501886)
+đạt cả gate, publish và delivery/verification. Source runtime là
+`1d903d04b044424b656307aeb1a5a218f9b78ef5`, UAT origin `https://nongtrace.site`.
+
+- Probe mới sau deploy: 42 Admin/Auditor business-write và 10 compliance
+  requests bị từ chối 403; cả 17 bảng nghiệp vụ giữ nguyên count và row
+  fingerprint trước/sau. Năm role đăng nhập được, quyền đọc còn hoạt động;
+  Admin/Auditor có allowedCommands=[]. Giữ đủ 45 event fingerprints trước
+  rollout; 46 events/outbox/proofs đã xác minh.
+- Verifier độc lập sau probe: 46 truy vấn ledger trực tiếp, 25 entity histories,
+  6 QR VERIFIED, 5 role login/refresh/logout; CORS và PWA assets đạt. Giữ đủ
+  baseline 41 và 43 events của các đợt trước. Helper khớp immutable manifest,
+  không có recovery journal; recoveryRequired=false.
+- API/Web/Worker/PostgreSQL healthy, proxy chạy; cả 5 services có 0 restarts,
+  6 Fabric containers chạy, cổng 443 được publish và cert volume bền vững.
+  Chaincode sequence 2/version `cd-dbeb65b83023` và fingerprint giữ nguyên.
+- Backup CD cuối đã tải khỏi VPS, CMS decrypt và 5 component checksums đạt.
+  Snapshot baseline có 45 events; artifact digest
+  `sha256:93eab0deeab9729af6164111edcb7fe5b77c429c52771bbd6f76d887075add44`.
+  Không restore/rewind UAT đang chạy.
+
+| Image đã triển khai | Digest |
+| --- | --- |
+| API/Worker | `sha256:396b32a8b4023df0a081e8dbedc3e579b4c086ee75a5a3d37e7b71d33cf17c00` |
+| Web | `sha256:767fc14c2421eb7657dcfa7c70d619b8900391fba60d3efa62338aaf0bff5a42` |
+
+Đối chiếu HTTPS bên ngoài sau release cuối:
+
+- DNS công khai: apex A `13.140.170.166`, www CNAME `nongtrace.site`, không có
+  AAAA. Cổng 443 nhận kết nối; kiểm TLS nghiêm ngặt cho cả hai host đạt,
+  TLS 1.3 và chứng chỉ được tin cậy đến 06/01/2027. Không bỏ xác minh TLS.
+- Helper public-check từ Windows có lần timeout ở deadline 10/15/30 giây.
+  Đã sửa cách dùng helper: đọc hết response body, dùng chung connection pool,
+  connect/request deadline hữu hạn 30 giây; giữ nguyên assertion status,
+  redirect và proof. Đây là thay đổi công cụ kiểm chứng riêng, không phải
+  bằng chứng đã sửa được nguyên nhân kết nối chậm.
+- Curl độc lập từ Windows trả `/login` HTTP 200 cho cả hai host; `/api/health`
+  HTTP 200 sau 2,37 giây. `/sw.js` trả HTTP 200, 959 bytes sau 18,49 giây,
+  trong khi cùng route từ VPS mất 0,52 giây. Trang SSR QR từ VPS trả HTTP 200
+  sau 0,91 giây. DNS lookup Node tại Windows 2–11 ms; firewall cho phép 443,
+  máy chủ không có container restart. Chưa xác định được nguyên nhân của
+  biến động đường kết nối Windows; không coi các lượt timeout là pass.
+- Một bộ kiểm tra độc lập bằng Windows curl sau đó đạt cả 17 checks, đọc
+  đầy đủ response body, xác minh TLS mặc định của nền tảng; mỗi request có
+  deadline 30 giây và không retry. Hai host đều đạt login, health, docs 404,
+  PWA assets, SSR QR, HTTP 308 đến HTTPS cùng host và public API QR với toàn
+  timeline VERIFIED; QR legacy IP trả 200. Thời gian của lượt này 0,59–1,75
+  giây/request. Kết quả xác nhận khả năng truy cập hiện tại, không chứng minh
+  nguyên nhân các lần kết nối chậm trước đó đã được loại bỏ.
+- Browser mới trên release `1d903d0` tải login, vào trang scan, Enter với QR
+  legacy IP mở đúng URL HTTPS; trang hiện đủ 8 events đã xác minh và
+  “Đã khớp bằng chứng”, nhãn event tiếng Việt. Console không có error/warn.
+  Tab cũ bị timeout đọc UI/chụp ảnh; tab mới hoạt động và đã lưu ảnh kiểm chứng.
 
 ### Phần còn lại thuộc acceptance/policy
 
