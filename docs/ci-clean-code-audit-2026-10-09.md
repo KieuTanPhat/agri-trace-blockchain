@@ -104,3 +104,18 @@ gốc. Kết quả PR và push main phải đọc từ GitHub Actions của đú
    runbook hiện có; không coi báo cáo local là nghiệm thu release.
 
 Lệnh và chính sách chi tiết được cập nhật trong [docs/ci.md](ci.md).
+
+## Kiểm chứng tích hợp trên main mới
+
+PR #70 được tạo từ main `204b284`. CI lần đầu phát hiện bài E2E chạy tám
+lượt thu hoạch đồng thời vượt timeout mặc định 5 giây trên Node 22; cùng
+suite đạt trên Node 24 và 26. Bài này được cấp riêng 30 giây, giữ tám lượt
+và toàn bộ assertion chống thu hoạch vượt kế hoạch. Timeout transaction
+và hành vi API không thay đổi. Commit mới phải qua lại cả ba workflow
+trước khi merge; kết quả commit cũ không thay bằng chứng cho commit mới.
+
+Trên checkout main mới, API unit đạt 86 test và E2E PostgreSQL đạt 57
+test, không skip. Sau sửa timeout, chạy riêng bài thu hoạch đồng thời trên
+PostgreSQL test đạt (tám lượt); các test khác không được chọn trong lần chạy
+riêng này. Kết quả cuối của root check, CI và CD được ghi ở PR
+[\#70](https://github.com/KieuTanPhat/agri-trace-blockchain/pull/70).
