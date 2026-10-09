@@ -16,7 +16,7 @@
     "start:prod": "node dist/main",
     "start:worker": "tsx src/worker-main.ts",
     "start:worker:prod": "node dist/worker-main",
-    "lint": "oxlint src/ test/",
+    "lint": "oxlint --max-warnings 0 src/ test/",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",

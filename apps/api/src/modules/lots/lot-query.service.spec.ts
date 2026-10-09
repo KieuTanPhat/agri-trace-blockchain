@@ -2,11 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { vi } from 'vitest';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { OrganizationAccessService } from '../auth/organization-access.service.js';
-import type { TraceService } from '../trace/trace.service.js';
 import { calculateTraceEventHash } from '../trace/public.js';
-import { LotsService } from './lots.service.js';
+import { LotQueryService } from './lot-query.service.js';
+import type { PublicLot } from './lot-query.types.js';
 
-function publicFixture() {
+function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
   const lotId = randomUUID();
   const cycleId = randomUUID();
   const actorUserId = randomUUID();
@@ -63,6 +63,7 @@ function publicFixture() {
               cycleCode: 'TEST-CYCLE',
               currentState: 'GROWING',
               startDate: events[0].eventTime,
+              certificates: cycleCertificates,
               farm: { organizationId: randomUUID(), name: 'Test farm' },
             },
           },
@@ -73,15 +74,101 @@ function publicFixture() {
     },
     traceEvent: { findMany: vi.fn().mockResolvedValue(events) },
   };
-  const service = new LotsService(
+  const service = new LotQueryService(
     database as unknown as PrismaService,
     {} as OrganizationAccessService,
-    {} as TraceService,
   );
-  return { service, events, actorUserId };
+  return { service, events, actorUserId, database };
 }
 
 describe('Public lot proof projection', () => {
+  it('includes approved public cycle certificates using an explicit field allowlist', async () => {
+    const certificate = {
+      type: 'VietGAP',
+      issuer: 'Test issuer',
+      issueDate: new Date('2026-09-01'),
+      expiryDate: null,
+      documentHash: 'a'.repeat(64),
+      status: 'APPROVED',
+      documentRef: 'private-reference',
+      reviewNote: 'private-review',
+    };
+    const { service, database } = publicFixture([certificate]);
+    const result = await service.getPublic('test-token');
+    expect(result.certificates).toHaveLength(1);
+    expect(result.certificates[0]).not.toHaveProperty('documentRef');
+    expect(JSON.stringify(result)).not.toContain('private-reference');
+    expect(JSON.stringify(result)).not.toContain('private-review');
+    expect(database.traceQr.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: {
+          lot: {
+            include: expect.objectContaining({
+              certificates: expect.objectContaining({
+                where: { isPublic: true, status: 'APPROVED' },
+              }),
+              harvest: {
+                include: {
+                  cycle: {
+                    include: expect.objectContaining({
+                      certificates: expect.objectContaining({
+                        where: { isPublic: true, status: 'APPROVED' },
+                      }),
+                    }),
+                  },
+                },
+              },
+            }),
+          },
+        },
+      }),
+    );
+  });
+
+  it.each(['PENDING', 'FAILED', 'DEAD_LETTER'] as const)(
+    'does not hide earlier %s delivery behind the latest confirmed event',
+    async (state) => {
+      const { service, database, events } = publicFixture();
+      database.traceEvent.findMany.mockResolvedValue([
+        {
+          ...events[0],
+          blockchainProof:
+            state === 'DEAD_LETTER'
+              ? events[0].blockchainProof
+              : { ...events[0].blockchainProof, transactionStatus: state },
+          blockchainOutbox: {
+            status: state === 'DEAD_LETTER' ? 'DEAD_LETTER' : 'RETRY',
+          },
+        },
+        events[1],
+      ]);
+      const result = await service.getPublic('test-token');
+      expect(result.proofStatus).toBe(
+        state === 'PENDING' ? 'PENDING' : 'BLOCKCHAIN_UNAVAILABLE',
+      );
+      expect(result.timeline[1].proofStatus).toBe('VERIFIED');
+    },
+  );
+
+  it('keeps sibling harvests out of the query and rejects unknown tokens', async () => {
+    const { service, database, events } = publicFixture();
+    await service.getPublic('test-token');
+    expect(database.traceEvent.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [
+            { lotId: events[0].lotId },
+            { cycleId: events[0].cycleId, lotId: null },
+          ],
+        },
+      }),
+    );
+    database.traceQr.findUnique.mockResolvedValue(null);
+    await expect(service.getPublic('unknown-token')).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
   it('verifies every event before returning VERIFIED without exposing hash input', async () => {
     const { service, actorUserId } = publicFixture();
     const result = await service.getPublic('test-token');

@@ -115,7 +115,7 @@ test("lint and build enforce both engines; check includes this contract", () => 
   const { scripts } = readJson(path.join(webRoot, "package.json"));
   assert.equal(
     scripts.lint,
-    "eslint src/ && oxlint --config .oxlintrc.json src/",
+    "eslint --max-warnings 0 src/ && oxlint --max-warnings 0 --config .oxlintrc.json src/",
   );
   assert.equal(
     scripts.build,
@@ -138,7 +138,9 @@ test("installed workspace dependency graph has no invalid peers", () => {
     {
       cwd: path.resolve(webRoot, "../.."),
       encoding: "utf8",
-      timeout: 30_000,
+      // Walking the complete installed graph can exceed 30s on Windows under
+      // load. Keep a finite budget without relaxing exit-code or peer checks.
+      timeout: 120_000,
       maxBuffer: 5 * 1024 * 1024,
     },
   );
@@ -602,14 +604,20 @@ test("beforeInteractive is allowed in the App Router root layout", () => {
 
 for (const [engine, source, diagnostic] of [
   ["ESLint", "export const value: any = 1;", /no-explicit-any/],
+  ["ESLint warning", "const unusedLintCanary = 1;", /no-unused-vars/],
   [
     "Oxlint Next",
     "export function LintBuildCanary() { return <script src='/blocked.js' />; }",
     /no-sync-scripts/,
   ],
+  [
+    "Oxlint Next warning",
+    "export function LintBuildCanary() { return <img src='/blocked.png' alt='canary' />; }",
+    /no-img-element/,
+  ],
 ]) {
   test(
-    `a real build stops on ${engine} errors before invoking the compiler`,
+    `a real build stops on ${engine} diagnostics before invoking the compiler`,
     { timeout: 90_000 },
     () => {
       assert.ok(

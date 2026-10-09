@@ -20,6 +20,8 @@ import {
 import { getLots } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
 import type { LotTrace } from "@/lib/types";
+import { canAccessManagementRoute } from "@/lib/permissions";
+import { getAuthorizationScope } from "@/lib/auth-scope";
 
 const navigation = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
@@ -41,11 +43,12 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const authorizationScope = getAuthorizationScope(auth.user);
   const [searchData, setSearchData] = useState<{
-    userId?: string;
+    scope?: string;
     lots: LotTrace[];
   }>({ lots: [] });
-  const lots = searchData.userId === auth.user?.id ? searchData.lots : [];
+  const lots = searchData.scope === authorizationScope ? searchData.lots : [];
   const [searchFailed, setSearchFailed] = useState(false);
   useEffect(() => {
     let active = true;
@@ -55,7 +58,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     if (!auth.isAuthenticated) return;
     getLots()
       .then((items) => {
-        if (active) setSearchData({ userId: auth.user?.id, lots: items });
+        if (active) setSearchData({ scope: authorizationScope, lots: items });
       })
       .catch(() => {
         if (active) setSearchFailed(true);
@@ -63,7 +66,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [auth.isAuthenticated, auth.user?.id]);
+  }, [auth.isAuthenticated, authorizationScope]);
   useEffect(() => {
     if (!auth.isLoading && !auth.isAuthenticated && !isPublic)
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
@@ -89,19 +92,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     );
 
   const role = auth.user.role.code;
-  if (
-    (pathname.startsWith("/admin") && role !== "SYSTEM_ADMIN") ||
-    (pathname.startsWith("/iot-simulator") &&
-      !["SYSTEM_ADMIN", "FARM_STAFF", "IOT_DEVICE"].includes(role)) ||
-    (pathname.startsWith("/production-cycles") &&
-      ![
-        "SYSTEM_ADMIN",
-        "FARM_STAFF",
-        "TRANSPORTER",
-        "RETAILER",
-        "AUDITOR",
-      ].includes(role))
-  )
+  if (!canAccessManagementRoute(pathname, role))
     return (
       <main className="public-content">
         <div className="notice error" role="alert">
@@ -240,23 +231,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           <p className="sidebar-heading">Không gian quản lý</p>
           <nav className="nav-list" aria-label="Điều hướng chính">
             {navigation
-              .filter((item) =>
-                item.href === "/admin"
-                  ? auth.user?.role.code === "SYSTEM_ADMIN"
-                  : item.href === "/iot-simulator"
-                    ? ["SYSTEM_ADMIN", "FARM_STAFF", "IOT_DEVICE"].includes(
-                        auth.user?.role.code ?? "",
-                      )
-                    : item.href === "/production-cycles"
-                      ? [
-                          "SYSTEM_ADMIN",
-                          "FARM_STAFF",
-                          "TRANSPORTER",
-                          "RETAILER",
-                          "AUDITOR",
-                        ].includes(auth.user?.role.code ?? "")
-                      : true,
-              )
+              .filter(({ href }) => canAccessManagementRoute(href, role))
               .map(({ href, label, icon: Icon }) => {
                 const active =
                   href === "/"
@@ -302,7 +277,10 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
         <main className="content">
-          <div className="page-content" key={`${auth.user.id}:${auth.user.organizationId}:${auth.user.role.code}:${pathname}`}>
+          <div
+            className="page-content"
+            key={`${authorizationScope}:${pathname}`}
+          >
             {children}
           </div>
           <footer className="footer">

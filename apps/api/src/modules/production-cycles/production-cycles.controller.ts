@@ -1,3 +1,4 @@
+import { FARM_WRITE_ROLES } from '../auth/business-write.policy.js';
 import {
   Body,
   Controller,
@@ -28,7 +29,7 @@ import { ProductionCyclesService } from './production-cycles.service.js';
 @ApiTags('production-cycles')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SYSTEM_ADMIN', 'FARM_STAFF')
+@Roles(...FARM_WRITE_ROLES)
 @Controller('production-cycles')
 export class ProductionCyclesController {
   constructor(
@@ -70,7 +71,8 @@ export class ProductionCyclesController {
   }
 
   @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @Post() create(
+  @Post()
+  create(
     @Body() dto: CreateProductionCycleDto,
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
@@ -80,7 +82,8 @@ export class ProductionCyclesController {
     );
   }
   @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @Post(':id/plant') plant(
+  @Post(':id/plant')
+  plant(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: PlantCycleDto,
     @IdempotencyKey() key: string,
@@ -91,7 +94,8 @@ export class ProductionCyclesController {
     );
   }
   @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @Post(':id/care') care(
+  @Post(':id/care')
+  care(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CareRecordDto,
     @IdempotencyKey() key: string,
@@ -102,7 +106,8 @@ export class ProductionCyclesController {
     );
   }
   @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @Post(':id/sensor-readings') sensor(
+  @Post(':id/sensor-readings')
+  sensor(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SensorReadingDto,
     @IdempotencyKey() key: string,
@@ -113,7 +118,8 @@ export class ProductionCyclesController {
     );
   }
   @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @Post(':id/close') close(
+  @Post(':id/close')
+  close(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: VersionedCommandDto,
     @IdempotencyKey() key: string,
@@ -124,7 +130,8 @@ export class ProductionCyclesController {
     );
   }
   @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @Post(':id/cancel') cancel(
+  @Post(':id/cancel')
+  cancel(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CancelCycleDto,
     @IdempotencyKey() key: string,

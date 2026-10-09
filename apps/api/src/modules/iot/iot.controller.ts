@@ -1,4 +1,8 @@
 import {
+  FARM_WRITE_ROLES,
+  TRANSPORT_WRITE_ROLES,
+} from '../auth/business-write.policy.js';
+import {
   Body,
   Controller,
   Get,
@@ -79,7 +83,7 @@ export class IotController {
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF')
+  @Roles(...FARM_WRITE_ROLES)
   @Post('readings')
   ingestForUser(
     @Body() input: IngestSensorReadingDto,
@@ -111,7 +115,7 @@ export class IotController {
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF')
+  @Roles(...FARM_WRITE_ROLES)
   @Post('cycles/:cycleId/digests')
   createSensorDigest(
     @Param('cycleId', ParseUUIDPipe) cycleId: string,
@@ -131,7 +135,7 @@ export class IotController {
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SYSTEM_ADMIN', 'TRANSPORTER')
+  @Roles(...TRANSPORT_WRITE_ROLES)
   @Post('shipments/:shipmentId/telemetry')
   ingestTelemetryForUser(
     @Param('shipmentId', ParseUUIDPipe) shipmentId: string,
@@ -157,7 +161,7 @@ export class IotController {
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SYSTEM_ADMIN', 'TRANSPORTER')
+  @Roles(...TRANSPORT_WRITE_ROLES)
   @Post('shipments/:shipmentId/devices')
   bindShipmentDevice(
     @Param('shipmentId', ParseUUIDPipe) shipmentId: string,
@@ -177,7 +181,7 @@ export class IotController {
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SYSTEM_ADMIN', 'TRANSPORTER')
+  @Roles(...TRANSPORT_WRITE_ROLES)
   @Post('shipments/:shipmentId/devices/:deviceId/unbind')
   unbindShipmentDevice(
     @Param('shipmentId', ParseUUIDPipe) shipmentId: string,
@@ -216,7 +220,7 @@ export class IotController {
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SYSTEM_ADMIN', 'TRANSPORTER')
+  @Roles(...TRANSPORT_WRITE_ROLES)
   @Post('shipments/:shipmentId/telemetry-digests')
   createTelemetryDigest(
     @Param('shipmentId', ParseUUIDPipe) shipmentId: string,

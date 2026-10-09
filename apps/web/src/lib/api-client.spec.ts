@@ -120,7 +120,32 @@ describe("cookie-backed session", () => {
       code: "NETWORK_ERROR",
     });
   });
-
+  it("uses the caller's stable key for a sensor retry", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () =>
+      json({
+        success: true,
+        data: { status: "accepted", readingId: "reading" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { sendSensorReading, setSession } = await import("./api-client");
+    setSession(auth);
+    const payload = {
+      deviceId: "device",
+      cycleId: "cycle",
+      sensorType: "TEMPERATURE",
+      value: 25,
+      unit: "C",
+      recordedAt: "2026-09-29T00:00:00.000Z",
+    };
+    await sendSensorReading(payload, "sensor-key");
+    await sendSensorReading(payload, "sensor-key");
+    expect(
+      fetchMock.mock.calls.map((call) =>
+        new Headers(call[1]?.headers).get("idempotency-key"),
+      ),
+    ).toEqual(["sensor-key", "sensor-key"]);
+  });
   it("keeps the in-memory session if logout cannot reach the server", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
     const { readSession, revokeSession, setSession } = await import("./api-client");

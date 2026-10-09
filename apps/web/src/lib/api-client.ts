@@ -4,6 +4,7 @@ import {
   mockSendSensorReading,
   mockSubmitCommand,
 } from "./mock-api";
+import { getAuthorizationScope } from "./auth-scope";
 import type {
   AllowedCommand,
   AuthUser,
@@ -300,6 +301,7 @@ export async function request<T>(
     ? (readAccessToken() ?? (await refreshAccessToken()))
     : null;
   const requestIdentity = identityVersion;
+  const requestScope = authenticated ? getAuthorizationScope(session?.user) : null;
   const headers = new Headers(init.headers);
   if (init.body) headers.set("content-type", "application/json");
   if (token) headers.set("authorization", `Bearer ${token}`);
@@ -329,7 +331,7 @@ export async function request<T>(
         message?: string | string[];
       }
     | null;
-  if (authenticated && identityVersion !== requestIdentity)
+  if (authenticated && (identityVersion !== requestIdentity || getAuthorizationScope(session?.user) !== requestScope))
     throw {
       status: 401,
       code: "SESSION_CHANGED",
@@ -337,7 +339,7 @@ export async function request<T>(
     };
   if (response.status === 401 && authenticated && canRefresh) {
     if (readAccessToken() === token) await refreshAccessToken();
-    if (identityVersion !== requestIdentity) {
+    if (identityVersion !== requestIdentity || getAuthorizationScope(session?.user) !== requestScope) {
       throw {
         status: 401,
         code: "SESSION_CHANGED",

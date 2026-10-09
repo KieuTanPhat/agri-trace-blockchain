@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import { vi } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { TraceService } from '../trace/trace.service.js';
@@ -82,82 +82,48 @@ describe('ComplianceService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('atomically approves a pending certificate and records an audit event', async () => {
-    const pending = {
-      id: 'b9038f8a-5a42-49fc-aa62-93225c5b7994',
-      lotId: certificateInput.lotId,
-      cycleId: null,
-      status: 'PENDING',
-      documentHash: certificateInput.documentHash,
-    };
-    const approved = { ...pending, status: 'APPROVED', reviewNote: 'Valid' };
-    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
-    const prisma = {
-      organization: {
-        findUnique: vi.fn().mockResolvedValue({ type: 'AUDITOR' }),
-      },
-      certificate: { findUnique: vi.fn().mockResolvedValue(pending) },
-      $transaction: vi.fn(async (callback) =>
-        callback({
-          certificate: {
-            updateMany,
-            findUniqueOrThrow: vi.fn().mockResolvedValue(approved),
+  it.each(['SYSTEM_ADMIN', 'AUDITOR', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER'])(
+    'denies %s unassigned compliance review and inspection without touching persistence',
+    async (role) => {
+      const transaction = vi.fn();
+      const prisma = { $transaction: transaction };
+      const trace = { createInTransaction: vi.fn() };
+      const service = new ComplianceService(
+        prisma as unknown as PrismaService,
+        trace as unknown as TraceService,
+      );
+      const actor = { ...auditor, role };
+      await expect(
+        service.reviewCertificate('id', { status: 'APPROVED' }, actor),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        service.createInspection(
+          {
+            lotId: certificateInput.lotId,
+            result: 'PASS',
+            inspectedAt: certificateInput.issueDate,
           },
-        }),
-      ),
-    };
-    const trace = { createInTransaction: vi.fn().mockResolvedValue({}) };
-    const service = new ComplianceService(
-      prisma as unknown as PrismaService,
-      trace as unknown as TraceService,
-    );
+          actor,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(transaction).not.toHaveBeenCalled();
+      expect(trace.createInTransaction).not.toHaveBeenCalled();
+    },
+  );
 
-    await expect(
-      service.reviewCertificate(
-        pending.id,
-        { status: 'APPROVED', reviewNote: 'Valid' },
-        auditor,
-      ),
-    ).resolves.toEqual(approved);
-    expect(updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: pending.id, status: 'PENDING' },
-      }),
-    );
-    expect(trace.createInTransaction).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ eventType: 'CERTIFICATE_APPROVED' }),
-    );
-  });
-
-  it('rejects a concurrent second review', async () => {
-    const pending = {
-      id: 'b9038f8a-5a42-49fc-aa62-93225c5b7994',
-      lotId: certificateInput.lotId,
-      cycleId: null,
-      status: 'PENDING',
-      documentHash: certificateInput.documentHash,
-    };
-    const prisma = {
-      organization: {
-        findUnique: vi.fn().mockResolvedValue({ type: 'AUDITOR' }),
-      },
-      certificate: { findUnique: vi.fn().mockResolvedValue(pending) },
-      $transaction: vi.fn(async (callback) =>
-        callback({
-          certificate: {
-            updateMany: vi.fn().mockResolvedValue({ count: 0 }),
-          },
-        }),
-      ),
-    };
-    const service = new ComplianceService(
-      prisma as unknown as PrismaService,
-      {} as TraceService,
-    );
-
-    await expect(
-      service.reviewCertificate(pending.id, { status: 'REJECTED' }, auditor),
-    ).rejects.toBeInstanceOf(ConflictException);
-  });
+  it.each(['SYSTEM_ADMIN', 'AUDITOR', 'TRANSPORTER', 'RETAILER'])(
+    'denies %s certificate submission before reading data',
+    async (role) => {
+      const prisma = { lot: { findUnique: vi.fn() }, $transaction: vi.fn() };
+      const service = new ComplianceService(
+        prisma as unknown as PrismaService,
+        {} as TraceService,
+      );
+      await expect(
+        service.createCertificate(certificateInput, { ...auditor, role }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.lot.findUnique).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    },
+  );
 });

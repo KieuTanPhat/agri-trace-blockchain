@@ -22,6 +22,9 @@ import { getDashboard } from "@/lib/api-client";
 import type { Dashboard } from "@/lib/types";
 import { ErrorState } from "@/components/error-state";
 import { LoadingState } from "@/components/loading-state";
+import { useAuth } from "@/lib/auth-store";
+import { getAuthorizationScope } from "@/lib/auth-scope";
+import { canWriteFarm } from "@/lib/permissions";
 
 const statIcons: Record<string, React.ReactNode> = {
   "Lô đang theo dõi": <IconPackage size={20} />,
@@ -37,6 +40,8 @@ function getStatIcon(label: string) {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const canSimulate = canWriteFarm(user?.role.code);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [error, setError] = useState("");
   const load = useCallback(() => {
@@ -193,7 +198,10 @@ export default function DashboardPage() {
           message="Hãy ghi nhận một lần thu hoạch để tạo lô đầu tiên."
         />
       )}
-      <IotOverviewPanel />
+      <IotOverviewPanel
+        authorizationScope={getAuthorizationScope(user)}
+        canOpenSimulator={canSimulate}
+      />
 
       <div className="panel">
         <div className="panel-title">
@@ -238,15 +246,17 @@ export default function DashboardPage() {
             <span>Tra cứu nhanh nông sản</span>
           </span>
         </Link>
-        <Link className="quick-link-card" href="/iot-simulator">
-          <span className="quick-link-icon success">
-            <IconZap size={18} />
-          </span>
-          <span className="quick-link-text">
-            <strong>IoT giả lập</strong>
-            <span>Mô phỏng cảm biến</span>
-          </span>
-        </Link>
+        {canSimulate && (
+          <Link className="quick-link-card" href="/iot-simulator">
+            <span className="quick-link-icon success">
+              <IconZap size={18} />
+            </span>
+            <span className="quick-link-text">
+              <strong>IoT giả lập</strong>
+              <span>Mô phỏng cảm biến</span>
+            </span>
+          </Link>
+        )}
         <Link
           className="quick-link-card"
           href={lot?.traceToken ? `/trace/${lot.traceToken}` : "/scan"}

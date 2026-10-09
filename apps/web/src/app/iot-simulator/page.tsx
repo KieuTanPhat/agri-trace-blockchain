@@ -12,6 +12,8 @@ import { getProductionCycles, sendSensorReading } from "@/lib/api-client";
 import { saveStoredIotReading } from "@/lib/iot-local-store";
 import type { ProductionCycleOption, SensorReadingResponse } from "@/lib/types";
 import { ShieldCheck, Code2, Copy, Check } from "lucide-react";
+import { useAuth } from "@/lib/auth-store";
+import { getAuthorizationScope } from "@/lib/auth-scope";
 
 const statusLabels: Record<string, string> = {
   idle: "Sẵn sàng",
@@ -22,6 +24,8 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function IotSimulatorPage() {
+  const { user } = useAuth();
+  const authorizationScope = getAuthorizationScope(user);
   const [deviceId, setDeviceId] = useState("");
   const [cycleId, setCycleId] = useState("");
   const [cycles, setCycles] = useState<ProductionCycleOption[]>([]);
@@ -65,12 +69,15 @@ export default function IotSimulatorPage() {
       setResponse(result);
       setStatus(result.status);
       if (result.status === "accepted" && result.readingId) {
-        saveStoredIotReading({
-          ...payload,
-          readingId: result.readingId,
-          acceptedAt: new Date().toISOString(),
-          status: "accepted",
-        });
+        saveStoredIotReading(
+          {
+            ...payload,
+            readingId: result.readingId,
+            acceptedAt: new Date().toISOString(),
+            status: "accepted",
+          },
+          authorizationScope,
+        );
       }
     } catch (cause) {
       const error = cause as {

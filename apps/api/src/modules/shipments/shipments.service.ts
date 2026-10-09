@@ -1,4 +1,11 @@
 import {
+  assertBusinessActor,
+  FARM_WRITE_ROLES,
+  TRANSPORT_WRITE_ROLES,
+  RETAIL_WRITE_ROLES,
+  CUSTODY_WRITE_ROLES,
+} from '../auth/business-write.policy.js';
+import {
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -98,7 +105,12 @@ export class ShipmentsService {
   }
 
   async create(input: CreateShipmentDto, actor: Actor) {
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
     const lot = await this.access.assertLotAccess(actor, input.lotId);
+    if (lot.farmOrgId !== actor.organizationId)
+      throw new ForbiddenException(
+        'Lô không thuộc tổ chức của người tạo chuyến',
+      );
     const fullLot = await this.prisma.lot.findUnique({ where: { id: lot.id } });
     if (!fullLot || fullLot.currentState !== 'HARVESTED')
       throw new ConflictException('Lô hàng chưa sẵn sàng vận chuyển');
@@ -408,6 +420,10 @@ export class ShipmentsService {
     actor: Actor,
     party: 'transporter' | 'retailer',
   ) {
+    assertBusinessActor(
+      actor,
+      party === 'transporter' ? TRANSPORT_WRITE_ROLES : RETAIL_WRITE_ROLES,
+    );
     const shipment = await this.prisma.shipment.findUnique({ where: { id } });
     if (!shipment)
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
@@ -415,13 +431,14 @@ export class ShipmentsService {
       party === 'transporter'
         ? shipment.transporterOrgId
         : shipment.retailerOrgId;
-    if (actor.role !== 'SYSTEM_ADMIN' && actor.organizationId !== expected)
+    if (actor.organizationId !== expected)
       throw new ForbiddenException(
         'Tổ chức hiện tại không có quyền quản lý chuyến hàng',
       );
     return shipment;
   }
   private async getAndAssertCurrentCustodian(id: string, actor: Actor) {
+    assertBusinessActor(actor, CUSTODY_WRITE_ROLES);
     const shipment = await this.prisma.shipment.findUnique({ where: { id } });
     if (!shipment)
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
@@ -429,11 +446,17 @@ export class ShipmentsService {
       throw new ConflictException(
         'Không thể ghi nhận hư hỏng ở trạng thái hiện tại',
       );
+    assertBusinessActor(
+      actor,
+      shipment.status === 'IN_TRANSIT'
+        ? TRANSPORT_WRITE_ROLES
+        : RETAIL_WRITE_ROLES,
+    );
     const expected =
       shipment.status === 'IN_TRANSIT'
         ? shipment.transporterOrgId
         : shipment.retailerOrgId;
-    if (actor.role !== 'SYSTEM_ADMIN' && actor.organizationId !== expected)
+    if (actor.organizationId !== expected)
       throw new ForbiddenException(
         'Tổ chức hiện tại không đang quản lý lô hàng',
       );

@@ -36,9 +36,11 @@ export function classifyChanges(files, force = false) {
 }
 
 export function changedFiles(eventName, event, sha) {
-  // Dispatches, merge queues and pushes without a baseline run every check.
-  if (!['push', 'pull_request'].includes(eventName)) return null;
-  const base = eventName === 'pull_request' ? event.pull_request?.base?.sha : event.before;
+  // Every main push is a potential CD candidate. Its exact SHA must pass the
+  // full pipeline, even when a documentation commit follows unverified code.
+  // Only PRs use path selection; dispatches and merge queues also run in full.
+  if (eventName !== 'pull_request') return null;
+  const base = event.pull_request?.base?.sha;
   if (!base || /^0+$/.test(base)) return null;
   if (!/^[a-f0-9]{40,64}$/.test(base) || !/^[a-f0-9]{40,64}$/.test(sha ?? '')) {
     throw new Error('Invalid CI comparison SHA');
