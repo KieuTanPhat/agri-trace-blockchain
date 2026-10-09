@@ -125,6 +125,60 @@ export type LotTrace = {
   };
 };
 
+// Matches the public projection in the API's toPublicLotDto presenter.
+export type PublicLotTrace = {
+  lotId: string;
+  traceToken: string;
+  lotCode: string;
+  productName: string;
+  harvestTime: string;
+  initialQuantity: number;
+  availableQuantity: number;
+  unit: string;
+  currentState: LotState;
+  productionCycle: {
+    cycleId: string;
+    cycleCode: string;
+    currentState: ProductionCycleState;
+    startDate: string | null;
+  };
+  farmOrg: Organization;
+  allowedCommands: [];
+  proofStatus: ProofStatus;
+  timeline: {
+    eventId: string;
+    entityType: TraceEvent["entityType"];
+    eventType: string;
+    eventTime: string;
+    summary: string;
+    proofStatus: ProofStatus;
+    actor: { role: "SYSTEM_ACTOR"; organizationName: string };
+  }[];
+  blockchainProof?: {
+    network: string;
+    txId: string | null;
+    dataHash: string;
+    transactionStatus: "PENDING" | "CONFIRMED" | "FAILED";
+    recordedAt: string | null;
+  };
+  shipment: {
+    status: NonNullable<LotTrace["shipment"]>["status"];
+    origin: string;
+    destination: string;
+    pickupTime: string | null;
+    arrivalTime: string | null;
+    receivedTime: string | null;
+  } | null;
+  certificates: {
+    type: string;
+    issuer: string;
+    issueDate: string;
+    expiryDate: string | null;
+    documentHash: string;
+    status: "APPROVED";
+  }[];
+};
+
 export type DashboardStat = { label: string; value: string };
 export type Dashboard = {
   featuredLot: LotTrace | null;

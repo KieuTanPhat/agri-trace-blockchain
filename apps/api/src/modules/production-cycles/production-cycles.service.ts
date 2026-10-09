@@ -289,7 +289,7 @@ export class ProductionCyclesService {
     to: 'PLANTED' | 'COMPLETED' | 'CANCELLED',
     actor: Actor,
     eventType: string,
-    businessData: Record<string, unknown>,
+    businessData: Prisma.InputJsonObject,
     extra: Record<string, unknown> = {},
   ) {
     return this.prisma.$transaction(async (tx) => {
@@ -310,7 +310,7 @@ export class ProductionCyclesService {
         cycleId: id,
         eventType,
         actor,
-        businessData: businessData as never,
+        businessData: businessData,
       });
       return cycle;
     });
