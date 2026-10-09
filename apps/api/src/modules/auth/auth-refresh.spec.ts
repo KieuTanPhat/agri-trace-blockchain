@@ -84,6 +84,7 @@ describe('AuthService refresh token rotation', () => {
     const prisma = {
       refreshSession: {
         findUnique: vi.fn(async () => ({ ...session, revokedAt: oldRevokedAt })),
+        findFirst: vi.fn().mockResolvedValue({ id: 'rotated-session' }),
         updateMany,
       },
       $transaction: vi.fn(async (callback) =>
@@ -131,5 +132,34 @@ describe('AuthService refresh token rotation', () => {
       where: { familyId, revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
+  });
+
+  it('returns 401 when a just-logged-out family has no active session', async () => {
+    const familyId = 'd6212d56-a3b2-4d54-9779-cc8507a6bd53';
+    const findFirst = vi.fn().mockResolvedValue(null);
+    const updateMany = vi.fn();
+    const prisma = {
+      refreshSession: {
+        findUnique: vi.fn().mockResolvedValue({
+          familyId,
+          revokedAt: new Date(),
+        }),
+        findFirst,
+        updateMany,
+      },
+    };
+    const service = new AuthService(
+      prisma as unknown as PrismaService,
+      new JwtService({ secret: 'refresh-test-secret' }),
+    );
+
+    await expect(service.refresh({ refreshToken: 'logged-out-token' })).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { familyId, revokedAt: null, expiresAt: { gt: expect.any(Date) } },
+      select: { id: true },
+    });
+    expect(updateMany).not.toHaveBeenCalled();
   });
 });

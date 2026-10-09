@@ -83,7 +83,10 @@ export class AuthService {
 
     if (session.revokedAt) {
       if (Date.now() - session.revokedAt.getTime() <= this.concurrentRefreshWindowMs) {
-        throw new ConflictException('Refresh token đang được xoay vòng');
+        if (await this.hasActiveFamilySession(session.familyId)) {
+          throw new ConflictException('Refresh token đang được xoay vòng');
+        }
+        throw new UnauthorizedException('Phiên đã bị thu hồi');
       }
       await this.revokeFamily(session.familyId);
       throw new UnauthorizedException('Refresh token đã được sử dụng lại');
@@ -123,7 +126,10 @@ export class AuthService {
       });
       if (latest?.revokedAt) {
         if (Date.now() - latest.revokedAt.getTime() <= this.concurrentRefreshWindowMs) {
-          throw new ConflictException('Refresh token đang được xoay vòng');
+          if (await this.hasActiveFamilySession(session.familyId)) {
+            throw new ConflictException('Refresh token đang được xoay vòng');
+          }
+          throw new UnauthorizedException('Phiên đã bị thu hồi');
         }
         await this.revokeFamily(session.familyId);
       }
@@ -146,6 +152,13 @@ export class AuthService {
       where: { familyId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+  }
+
+  private async hasActiveFamilySession(familyId: string): Promise<boolean> {
+    return (await this.prisma.refreshSession.findFirst({
+      where: { familyId, revokedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true },
+    })) !== null;
   }
 
   async getProfile(userId: string) {
