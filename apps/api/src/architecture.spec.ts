@@ -1,8 +1,30 @@
 import { readFile } from 'node:fs/promises';
 
 describe('Modular monolith composition roots', () => {
+  it('separates lot queries/presentation from transactional harvest commands', async () => {
+    const query = await readFile(
+      new URL('./modules/lots/lot-query.service.ts', import.meta.url),
+      'utf8',
+    );
+    const presenter = await readFile(
+      new URL('./modules/lots/lot.presenter.ts', import.meta.url),
+      'utf8',
+    );
+    const harvest = await readFile(
+      new URL('./modules/lots/lot-harvest.service.ts', import.meta.url),
+      'utf8',
+    );
+    expect(query).not.toContain('$transaction');
+    expect(query).not.toContain('createInTransaction');
+    expect(presenter).not.toContain('PrismaService');
+    expect(presenter).not.toContain('@Injectable');
+    expect(harvest).toContain('$transaction');
+    expect(harvest).toContain('createInTransaction');
+  });
+
   it('does not start the blockchain worker from the API module', async () => {
-    const source = await readFile(new URL('./app.module.ts', import.meta.url),
+    const source = await readFile(
+      new URL('./app.module.ts', import.meta.url),
       'utf8',
     );
 

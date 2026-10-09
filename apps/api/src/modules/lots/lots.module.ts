@@ -4,12 +4,13 @@ import { PrismaModule } from '../../prisma/prisma.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { TraceModule } from '../trace/trace.module.js';
 import { LotsController, PublicTraceController } from './lots.controller.js';
-import { LotsService } from './lots.service.js';
+import { LotHarvestService } from './lot-harvest.service.js';
+import { LotQueryService } from './lot-query.service.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, TraceModule, IdempotencyModule],
   controllers: [LotsController, PublicTraceController],
-  providers: [LotsService],
-  exports: [LotsService],
+  providers: [LotHarvestService, LotQueryService],
+  exports: [LotHarvestService, LotQueryService],
 })
 export class LotsModule {}

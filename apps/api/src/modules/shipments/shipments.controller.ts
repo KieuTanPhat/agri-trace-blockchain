@@ -1,4 +1,10 @@
 import {
+  FARM_WRITE_ROLES,
+  TRANSPORT_WRITE_ROLES,
+  RETAIL_WRITE_ROLES,
+  CUSTODY_WRITE_ROLES,
+} from '../auth/business-write.policy.js';
+import {
   Body,
   Controller,
   Get,
@@ -66,7 +72,7 @@ export class ShipmentsController {
     return this.service.get(id, req.user);
   }
 
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF')
+  @Roles(...FARM_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post()
   create(
@@ -78,7 +84,7 @@ export class ShipmentsController {
       this.service.create(dto, req.user),
     );
   }
-  @Roles('SYSTEM_ADMIN', 'TRANSPORTER')
+  @Roles(...TRANSPORT_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/start')
   start(
@@ -91,7 +97,7 @@ export class ShipmentsController {
       this.service.start(id, dto, req.user),
     );
   }
-  @Roles('SYSTEM_ADMIN', 'TRANSPORTER')
+  @Roles(...TRANSPORT_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/arrive')
   arrive(
@@ -104,7 +110,7 @@ export class ShipmentsController {
       this.service.arrive(id, dto, req.user),
     );
   }
-  @Roles('SYSTEM_ADMIN', 'RETAILER')
+  @Roles(...RETAIL_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/receive')
   receive(
@@ -117,7 +123,7 @@ export class ShipmentsController {
       this.service.receive(id, dto, req.user),
     );
   }
-  @Roles('SYSTEM_ADMIN', 'RETAILER')
+  @Roles(...RETAIL_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/reject')
   reject(
@@ -130,7 +136,7 @@ export class ShipmentsController {
       this.service.reject(id, dto, req.user),
     );
   }
-  @Roles('SYSTEM_ADMIN', 'TRANSPORTER', 'RETAILER')
+  @Roles(...CUSTODY_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/damage')
   damage(

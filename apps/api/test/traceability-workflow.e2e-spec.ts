@@ -13,7 +13,7 @@ import { PrismaClient } from '../src/generated/prisma/client.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { OrganizationAccessService } from '../src/modules/auth/organization-access.service.js';
 import { TraceService } from '../src/modules/trace/trace.service.js';
-import { LotsService } from '../src/modules/lots/lots.service.js';
+import { LotHarvestService } from '../src/modules/lots/lot-harvest.service.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 const prisma = new PrismaClient({
@@ -64,6 +64,7 @@ const prisma = new PrismaClient({
         ['transporter', 'TRANSPORTER', transporter.id],
         ['retailer', 'RETAILER', retailer.id],
         ['admin', 'SYSTEM_ADMIN', null],
+        ['auditor', 'AUDITOR', null],
         ['unscoped', 'FARM_STAFF', null],
       ] as const) {
         const role = await prisma.role.upsert({
@@ -464,6 +465,15 @@ const prisma = new PrismaClient({
           .proofStatus,
       ).toBe('BLOCKCHAIN_UNAVAILABLE');
       await confirm(events[0]);
+      await checkStatus('BLOCKCHAIN_UNAVAILABLE');
+      await prisma.blockchainOutbox.updateMany({
+        where: { eventId: { in: events.map((event) => event.id) } },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          nextAttemptAt: null,
+        },
+      });
       await checkStatus('VERIFIED');
     });
 
@@ -511,7 +521,7 @@ const prisma = new PrismaClient({
     });
 
     it('serializes concurrent harvests without exceeding the production plan', async () => {
-      const failures = vi.spyOn(app.get(LotsService), 'recordHarvest');
+      const failures = vi.spyOn(app.get(LotHarvestService), 'recordHarvest');
       for (let attempt = 0; attempt < 8; attempt += 1) {
         failures.mockClear();
         const cycle = await plantedCycle(1);
@@ -722,7 +732,13 @@ const prisma = new PrismaClient({
         .set('Authorization', 'Bearer ' + jwt.sign({ sub: users.admin }))
         .set('Idempotency-Key', randomUUID())
         .send({ status: 'APPROVED' })
-        .expect(200);
+        .expect(403);
+      // Pre-approved evidence is a database fixture, not an invented reviewer role.
+      // AGT-026 must decide an authorized actor before the HTTP review path opens.
+      await prisma.certificate.update({
+        where: { id: certificate.id },
+        data: { status: 'APPROVED' },
+      });
       const approved = await request(app.getHttpServer())
         .get(tracePath)
         .expect(200);
@@ -732,6 +748,118 @@ const prisma = new PrismaClient({
       );
       expect(JSON.stringify(approved.body.data)).not.toContain(users.farm);
     });
+
+    it('projects approved public cycle certificates but excludes pending and private siblings', async () => {
+      const { cycle, traceQr } = await harvestedLot();
+      for (const fixture of [
+        { type: 'PUBLIC_APPROVED', status: 'APPROVED', isPublic: true },
+        { type: 'PRIVATE_APPROVED', status: 'APPROVED', isPublic: false },
+        { type: 'PUBLIC_PENDING', status: 'PENDING', isPublic: true },
+      ]) {
+        await prisma.certificate.create({
+          data: {
+            cycleId: cycle.id,
+            ...fixture,
+            issuer: 'Fixture issuer',
+            issueDate: new Date('2026-09-26'),
+            documentRef: 'internal-document',
+            documentHash: 'c'.repeat(64),
+            reviewNote: 'internal-review',
+          },
+        });
+      }
+      const result = await request(app.getHttpServer())
+        .get('/api/public/trace/' + traceQr.traceToken)
+        .expect(200);
+      expect(
+        result.body.data.certificates.map((c: { type: string }) => c.type),
+      ).toEqual(['PUBLIC_APPROVED']);
+      expect(JSON.stringify(result.body.data)).not.toContain(
+        'internal-document',
+      );
+      expect(JSON.stringify(result.body.data)).not.toContain('internal-review');
+    });
+
+    it.each(['admin', 'auditor'])(
+      'keeps %s business commands read-only without changing DB, events, outbox or quantities',
+      async (user) => {
+        const { cycle, lot, shipment } = await startedShipment();
+        const certificate = (
+          await post('/certificates', {
+            lotId: lot.id,
+            type: 'VietGAP',
+            issuer: 'Fixture',
+            issueDate: '2026-09-26',
+            documentRef: 'private',
+            documentHash: 'a'.repeat(64),
+          }).expect(201)
+        ).body.data;
+        const routes = [
+          '/production-cycles',
+          ...[
+            'plant',
+            'care',
+            'sensor-readings',
+            'close',
+            'cancel',
+            'harvests',
+          ].map((action) => `/production-cycles/${cycle.id}/${action}`),
+          '/shipments',
+          ...['start', 'arrive', 'receive', 'reject', 'damage'].map(
+            (action) => `/shipments/${shipment.id}/${action}`,
+          ),
+          '/certificates',
+          '/inspections',
+          '/iot/readings',
+          `/iot/cycles/${cycle.id}/digests`,
+          ...['telemetry', 'devices', 'telemetry-digests'].map(
+            (action) => `/iot/shipments/${shipment.id}/${action}`,
+          ),
+          `/iot/shipments/${shipment.id}/devices/${randomUUID()}/unbind`,
+        ];
+        const snapshot = async () => ({
+          cycles: await prisma.productionCycle.count(),
+          care: await prisma.careRecord.count(),
+          harvests: await prisma.harvestEvent.count(),
+          lots: await prisma.lot.count(),
+          shipments: await prisma.shipment.count(),
+          movements: await prisma.quantityMovement.count(),
+          readings: await prisma.sensorReading.count(),
+          digests: await prisma.sensorDigest.count(),
+          telemetry: await prisma.shipmentTelemetry.count(),
+          bindings: await prisma.shipmentTrackingBinding.count(),
+          telemetryDigests: await prisma.shipmentTelemetryDigest.count(),
+          certificates: await prisma.certificate.count(),
+          inspections: await prisma.inspection.count(),
+          events: await prisma.traceEvent.count(),
+          outbox: await prisma.blockchainOutbox.count(),
+          idempotency: await prisma.idempotencyRecord.count(),
+          lot: await prisma.lot.findUnique({ where: { id: lot.id } }),
+          shipment: await prisma.shipment.findUnique({
+            where: { id: shipment.id },
+          }),
+        });
+        const before = await snapshot();
+        for (const path of routes) await post(path, {}, user).expect(403);
+        await request(app.getHttpServer())
+          .patch(`/api/certificates/${certificate.id}/review`)
+          .set('Authorization', 'Bearer ' + jwt.sign({ sub: users[user] }))
+          .set('Idempotency-Key', randomUUID())
+          .send({ status: 'APPROVED' })
+          .expect(403);
+        expect(await snapshot()).toEqual(before);
+        for (const path of [
+          '/production-cycles',
+          '/lots',
+          '/shipments',
+          '/certificates',
+          '/inspections',
+        ])
+          await get(path, user).expect(200);
+        const projection = await get(`/lots/${lot.id}`, user).expect(200);
+        expect(projection.body.data.allowedCommands).toEqual([]);
+      },
+    );
 
     it('validates malformed identifiers and blank master-data names at the HTTP boundary', async () => {
       await get('/inspections?lotId=not-a-uuid').expect(400);

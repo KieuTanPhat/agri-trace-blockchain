@@ -39,7 +39,7 @@ export default function LotsPage() {
           </p>
         </div>
         <div className="header-actions">
-          {user && ["SYSTEM_ADMIN", "FARM_STAFF"].includes(user.role.code) && (
+          {user?.role.code === "FARM_STAFF" && (
             <HarvestDialog onCreated={load} />
           )}
         </div>

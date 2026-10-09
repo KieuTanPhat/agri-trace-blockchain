@@ -1,5 +1,9 @@
 import {
-  ConflictException,
+  assertBusinessActor,
+  FARM_WRITE_ROLES,
+  rejectUnassignedComplianceWrite,
+} from '../auth/business-write.policy.js';
+import {
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -64,35 +68,11 @@ export class ComplianceService {
     });
   }
 
-  async createInspection(input: CreateInspectionDto, actor: Actor) {
-    await this.assertAuditor(actor);
-    if (!(await this.prisma.lot.findUnique({ where: { id: input.lotId } })))
-      throw new NotFoundException('Không tìm thấy lô cần thanh tra');
-    return this.prisma.$transaction(async (tx) => {
-      const inspection = await tx.inspection.create({
-        data: {
-          lotId: input.lotId,
-          inspectorOrgId: actor.organizationId,
-          result: input.result,
-          note: input.note,
-          inspectedAt: new Date(input.inspectedAt),
-          evidenceRef: input.evidenceRef,
-        },
-      });
-      await this.trace.createInTransaction(tx, {
-        entityType: 'INSPECTION',
-        entityId: inspection.id,
-        lotId: input.lotId,
-        eventType: 'INSPECTION_RECORDED',
-        eventTime: inspection.inspectedAt,
-        actor,
-        businessData: {
-          result: inspection.result,
-          evidenceRef: inspection.evidenceRef ?? null,
-        },
-      });
-      return inspection;
-    });
+  async createInspection(
+    _input: CreateInspectionDto,
+    _actor: Actor,
+  ): Promise<never> {
+    return rejectUnassignedComplianceWrite();
   }
 
   listCertificates(actor: Actor, lotId?: string, cycleId?: string) {
@@ -143,6 +123,7 @@ export class ComplianceService {
   }
 
   async createCertificate(input: CreateCertificateDto, actor: Actor) {
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
     if (Boolean(input.lotId) === Boolean(input.cycleId))
       throw new UnprocessableEntityException(
         'Chứng chỉ phải gắn với đúng một Lot hoặc ProductionCycle',
@@ -183,69 +164,24 @@ export class ComplianceService {
   }
 
   async reviewCertificate(
-    certificateId: string,
-    input: ReviewCertificateDto,
-    actor: Actor,
-  ) {
-    await this.assertAuditor(actor);
-    const certificate = await this.prisma.certificate.findUnique({
-      where: { id: certificateId },
-    });
-    if (!certificate) throw new NotFoundException('Không tìm thấy chứng chỉ');
-    if (certificate.status !== 'PENDING')
-      throw new ConflictException('Chứng chỉ đã được xét duyệt');
-
-    return this.prisma.$transaction(async (tx) => {
-      const result = await tx.certificate.updateMany({
-        where: { id: certificateId, status: 'PENDING' },
-        data: {
-          status: input.status,
-          reviewedBy: actor.sub,
-          reviewedAt: new Date(),
-          reviewNote: input.reviewNote,
-        },
-      });
-      if (result.count !== 1)
-        throw new ConflictException('Chứng chỉ đã được xét duyệt');
-
-      const reviewed = await tx.certificate.findUniqueOrThrow({
-        where: { id: certificateId },
-      });
-      await this.trace.createInTransaction(tx, {
-        entityType: 'CERTIFICATE',
-        entityId: reviewed.id,
-        lotId: reviewed.lotId ?? undefined,
-        cycleId: reviewed.cycleId ?? undefined,
-        eventType:
-          input.status === 'APPROVED'
-            ? 'CERTIFICATE_APPROVED'
-            : 'CERTIFICATE_REJECTED',
-        actor,
-        businessData: {
-          documentHash: reviewed.documentHash,
-          status: reviewed.status,
-          reviewNote: reviewed.reviewNote ?? null,
-        },
-      });
-      return reviewed;
-    });
+    _certificateId: string,
+    _input: ReviewCertificateDto,
+    _actor: Actor,
+  ): Promise<never> {
+    return rejectUnassignedComplianceWrite();
   }
 
   private async assertCertificateSubmissionAccess(
     input: CreateCertificateDto,
     actor: Actor,
   ) {
-    const unrestricted = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role);
-    if (!unrestricted && (actor.role !== 'FARM_STAFF' || !actor.organizationId))
-      throw new ForbiddenException('Không có quyền gửi chứng chỉ');
-
     if (input.lotId) {
       const lot = await this.prisma.lot.findUnique({
         where: { id: input.lotId },
         select: { farmOrgId: true },
       });
       if (!lot) throw new NotFoundException('Không tìm thấy lô');
-      if (!unrestricted && lot.farmOrgId !== actor.organizationId)
+      if (lot.farmOrgId !== actor.organizationId)
         throw new ForbiddenException('Lô không thuộc tổ chức của người dùng');
       return;
     }
@@ -255,18 +191,7 @@ export class ComplianceService {
       select: { farmOrgId: true },
     });
     if (!cycle) throw new NotFoundException('Không tìm thấy chu kỳ sản xuất');
-    if (!unrestricted && cycle.farmOrgId !== actor.organizationId)
+    if (cycle.farmOrgId !== actor.organizationId)
       throw new ForbiddenException('Chu kỳ không thuộc tổ chức của người dùng');
-  }
-
-  private async assertAuditor(actor: Actor) {
-    if (actor.role === 'SYSTEM_ADMIN') return;
-    if (actor.role !== 'AUDITOR' || !actor.organizationId)
-      throw new ForbiddenException('Chỉ đơn vị thanh tra được phép thao tác');
-    const organization = await this.prisma.organization.findUnique({
-      where: { id: actor.organizationId },
-    });
-    if (!organization || organization.type !== 'AUDITOR')
-      throw new ForbiddenException('Tổ chức thanh tra không hợp lệ');
   }
 }

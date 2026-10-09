@@ -58,6 +58,28 @@ describe("session restoration", () => {
       JSON.parse(localStorage.getItem("agritrace-auth")!).refreshToken,
     ).toBe("new-refresh");
   });
+  it("updates its user after a same-tab refresh notification", async () => {
+    vi.mocked(getProfile).mockResolvedValue(user);
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await screen.findByText("Người dùng");
+    await act(async () => {
+      localStorage.setItem(
+        "agritrace-auth",
+        JSON.stringify({
+          accessToken: "new",
+          refreshToken: "rotated",
+          user: { ...user, fullName: "Updated role" },
+        }),
+      );
+      window.dispatchEvent(new Event("auth-changed"));
+    });
+    expect(screen.getByText("Updated role")).toBeInTheDocument();
+  });
+
   it("keeps a saved session after a temporary profile failure", async () => {
     vi.mocked(getProfile).mockRejectedValue({ status: 503 });
     render(

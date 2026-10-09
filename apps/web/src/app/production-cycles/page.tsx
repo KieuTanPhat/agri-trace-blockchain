@@ -7,6 +7,7 @@ import type { ProductionCycleOption } from "@/lib/types";
 import { emptyCatalog, type Catalog } from "@/lib/catalog";
 import { DataForm } from "@/components/data-form";
 import { QrCodeCard } from "@/components/qr-code-card";
+import { canWriteFarm } from "@/lib/permissions";
 type Cycle = ProductionCycleOption & {
   maxHarvestQuantity?: string;
   plot?: { name: string };
@@ -33,8 +34,7 @@ const states: Record<string, string> = {
 };
 export default function CyclesPage() {
   const { user } = useAuth();
-  const canWrite =
-    user?.role.code === "SYSTEM_ADMIN" || user?.role.code === "FARM_STAFF";
+  const canWrite = canWriteFarm(user?.role.code);
   const [cycles, setCycles] = useState<ProductionCycleOption[]>([]);
   const [catalog, setCatalog] = useState<Catalog>(emptyCatalog);
   const [selected, setSelected] = useState("");

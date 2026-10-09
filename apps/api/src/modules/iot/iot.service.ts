@@ -1,4 +1,9 @@
 import {
+  assertBusinessActor,
+  FARM_WRITE_ROLES,
+  TRANSPORT_WRITE_ROLES,
+} from '../auth/business-write.policy.js';
+import {
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -79,6 +84,8 @@ export class IotService {
   }
 
   async ingest(input: IngestSensorReadingDto, authenticatedActor?: Actor) {
+    if (authenticatedActor)
+      assertBusinessActor(authenticatedActor, FARM_WRITE_ROLES);
     const device = await this.findDevice(input.deviceId);
     if (device.cycleId !== input.cycleId)
       throw new UnprocessableEntityException(
@@ -86,7 +93,6 @@ export class IotService {
       );
     if (
       authenticatedActor &&
-      authenticatedActor.role !== 'SYSTEM_ADMIN' &&
       authenticatedActor.organizationId !== device.organizationId
     )
       throw new ForbiddenException(
@@ -203,6 +209,8 @@ export class IotService {
     idempotencyKey?: string,
     authenticatedActor?: Actor,
   ) {
+    if (authenticatedActor)
+      assertBusinessActor(authenticatedActor, TRANSPORT_WRITE_ROLES);
     const device = await this.findDevice(input.deviceId);
     const binding = await this.prisma.shipmentTrackingBinding.findFirst({
       where: {
@@ -228,7 +236,6 @@ export class IotService {
     }
     if (
       authenticatedActor &&
-      authenticatedActor.role !== 'SYSTEM_ADMIN' &&
       authenticatedActor.organizationId !== binding.transporterOrgId
     )
       throw new ForbiddenException(
@@ -267,14 +274,12 @@ export class IotService {
     input: BindShipmentDeviceDto,
     actor: Actor,
   ) {
+    assertBusinessActor(actor, TRANSPORT_WRITE_ROLES);
     const shipment = await this.prisma.shipment.findUnique({
       where: { id: shipmentId },
     });
     if (!shipment) throw new NotFoundException('Không tìm thấy chuyến hàng');
-    if (
-      actor.role !== 'SYSTEM_ADMIN' &&
-      actor.organizationId !== shipment.transporterOrgId
-    )
+    if (actor.organizationId !== shipment.transporterOrgId)
       throw new ForbiddenException('Không có quyền gắn thiết bị chuyến hàng');
     const device = await this.findDevice(input.deviceId);
     if (device.organizationId !== shipment.transporterOrgId)
@@ -308,14 +313,12 @@ export class IotService {
     deviceId: string,
     actor: Actor,
   ) {
+    assertBusinessActor(actor, TRANSPORT_WRITE_ROLES);
     const shipment = await this.prisma.shipment.findUnique({
       where: { id: shipmentId },
     });
     if (!shipment) throw new NotFoundException('Không tìm thấy chuyến hàng');
-    if (
-      actor.role !== 'SYSTEM_ADMIN' &&
-      actor.organizationId !== shipment.transporterOrgId
-    )
+    if (actor.organizationId !== shipment.transporterOrgId)
       throw new ForbiddenException('Không có quyền tháo thiết bị chuyến hàng');
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.shipmentTrackingBinding.updateMany({
@@ -343,14 +346,12 @@ export class IotService {
     input: CreateTelemetryDigestDto,
     actor: Actor,
   ) {
+    assertBusinessActor(actor, TRANSPORT_WRITE_ROLES);
     const shipment = await this.prisma.shipment.findUnique({
       where: { id: shipmentId },
     });
     if (!shipment) throw new NotFoundException('Không tìm thấy chuyến hàng');
-    if (
-      actor.role !== 'SYSTEM_ADMIN' &&
-      actor.organizationId !== shipment.transporterOrgId
-    )
+    if (actor.organizationId !== shipment.transporterOrgId)
       throw new ForbiddenException('Không có quyền tạo telemetry digest');
     const periodStart = new Date(input.periodStart);
     const periodEnd = new Date(input.periodEnd);
@@ -452,15 +453,13 @@ export class IotService {
   }
 
   private async assertCycleOwner(cycleId: string, actor: Actor) {
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
     const cycle = await this.prisma.productionCycle.findUnique({
       where: { id: cycleId },
       select: { farmOrgId: true },
     });
     if (!cycle) throw new NotFoundException('Không tìm thấy chu kỳ sản xuất');
-    if (
-      actor.role !== 'SYSTEM_ADMIN' &&
-      actor.organizationId !== cycle.farmOrgId
-    )
+    if (actor.organizationId !== cycle.farmOrgId)
       throw new ForbiddenException('Không có quyền tạo sensor digest');
   }
 

@@ -64,6 +64,13 @@ Source/image digests, CI/CD, rollback và backup evidence nằm trong
 [báo cáo HTTPS UAT](docs/nongtrace-uat-deployment-status.md);
 vận hành theo [CD runbook](docs/contabo-cd-runbook.md).
 
+Rà soát code/quyền sau triển khai: [kế hoạch và kết quả audit](docs/nongtrace-uat-code-audit.md).
+Admin quản trị identity/masterdata; Auditor chỉ đọc. Inspection và review chứng chỉ
+đang chặn ghi cho tới khi AGT-026 phê duyệt actor, theo AGT-007.
+
+Module lots tách `LotHarvestService` (transaction + outbox), `LotQueryService`
+(query), presenter (projection), action policy (role/org/state) và proof status.
+
 ## Kiểm tra toàn bộ
 
 ```bash
