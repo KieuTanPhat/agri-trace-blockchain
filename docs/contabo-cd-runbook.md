@@ -2,7 +2,8 @@
 
 Thiết kế và review: [contabo-cd-plan.md](contabo-cd-plan.md). Workflow:
 [UAT CD](../.github/workflows/uat-cd.yml). Release code và evidence thực tế được
-ghi trong [contabo-cd-status.md](contabo-cd-status.md).
+ghi trong [báo cáo HTTPS UAT hiện hành](nongtrace-uat-deployment-status.md).
+Báo cáo [contabo-cd-status.md](contabo-cd-status.md) giữ evidence CD HTTP trước cutover.
 
 ## Luồng bình thường
 
@@ -192,8 +193,9 @@ domain HTTPS sau khi triển khai một release đã build theo origin domain.
 ## Giới hạn hiện tại
 
 - Single VPS có downtime ngắn khi backup/rollout, không hứa zero downtime.
-- UAT vẫn dùng HTTP IPv4 cho đến khi cutover được duyệt; domain/HTTPS cần build
-  Web mới và kiểm QR URLs cũ, CORS, cookie/PWA trước khi đổi public endpoint.
+- UAT đã cutover sang `https://nongtrace.site`; giữ HTTP IPv4 cho QR legacy và
+  rollback về release HTTP. Source/digests và kiểm chứng cuối nằm trong báo cáo
+  HTTPS; camera/cài PWA trên điện thoại cần thiết bị thật.
 - Verification toàn bộ lịch sử phù hợp UAT và giới hạn 10.000 events; khi dữ
   liệu lớn hơn cần mở rộng verifier/budget sau review.
 - Giữ release/images/snapshots phục hồi; CD chặn khi disk còn dưới 12 GiB.
