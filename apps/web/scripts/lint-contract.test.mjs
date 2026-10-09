@@ -138,7 +138,9 @@ test("installed workspace dependency graph has no invalid peers", () => {
     {
       cwd: path.resolve(webRoot, "../.."),
       encoding: "utf8",
-      timeout: 30_000,
+      // Walking the complete installed graph can exceed 30s on Windows under
+      // load. Keep a finite budget without relaxing exit-code or peer checks.
+      timeout: 120_000,
       maxBuffer: 5 * 1024 * 1024,
     },
   );
