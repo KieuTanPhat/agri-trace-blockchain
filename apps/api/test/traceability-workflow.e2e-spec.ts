@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Test } from '@nestjs/testing';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomUUID } from 'node:crypto';
@@ -708,6 +709,122 @@ const prisma = new PrismaClient({
         body,
         'transporter',
       ).expect(409);
+    });
+
+    it('returns exact JSON-safe device sequences in shipment detail', async () => {
+      const { shipment } = await startedShipment();
+      const device = (
+        await post(
+          '/iot/devices',
+          {
+            organizationId: transporterOrgId,
+            deviceCode: 'SEQUENCE-TRACKER-' + randomUUID(),
+            name: 'Sequence tracker',
+            type: 'GPS',
+          },
+          'transporter',
+        ).expect(201)
+      ).body.data;
+      const binding = (
+        await post(
+          `/iot/shipments/${shipment.id}/devices`,
+          { deviceId: device.id },
+          'transporter',
+        ).expect(201)
+      ).body.data;
+      const recordedAt = new Date(
+        new Date(binding.boundAt).getTime() + 1000,
+      ).toISOString();
+      const telemetry = {
+        deviceId: device.id,
+        latitude: 10.5,
+        longitude: 106.5,
+        recordedAt,
+      };
+      const sequenced = (
+        await post(
+          `/iot/shipments/${shipment.id}/telemetry`,
+          { ...telemetry, deviceSequence: 0 },
+          'transporter',
+        ).expect(201)
+      ).body.data;
+      const unsequenced = (
+        await post(
+          `/iot/shipments/${shipment.id}/telemetry`,
+          telemetry,
+          'transporter',
+        ).expect(201)
+      ).body.data;
+      const maximumSequence = 9223372036854775807n;
+      const maximum = await prisma.shipmentTelemetry.create({
+        data: {
+          shipmentId: shipment.id,
+          deviceId: device.id,
+          bindingId: binding.id,
+          deviceSequence: maximumSequence,
+          latitude: telemetry.latitude,
+          longitude: telemetry.longitude,
+          recordedAt: new Date(recordedAt),
+        },
+      });
+
+      const detail = (
+        await get(`/shipments/${shipment.id}`, 'transporter').expect(200)
+      ).body.data;
+      expect(detail.telemetry).toHaveLength(3);
+      expect(detail.telemetry).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: sequenced.telemetryId,
+            deviceSequence: '0',
+          }),
+          expect.objectContaining({
+            id: unsequenced.telemetryId,
+            deviceSequence: null,
+          }),
+          expect.objectContaining({
+            id: maximum.id,
+            deviceSequence: maximumSequence.toString(),
+          }),
+        ]),
+      );
+      expect(
+        (await prisma.shipmentTelemetry.findUniqueOrThrow({
+          where: { id: maximum.id },
+        })).deviceSequence,
+      ).toBe(maximumSequence);
+      await get(`/shipments/${shipment.id}`, 'foreign').expect(403);
+    });
+
+    it('documents nullable device sequence strings in generated Swagger', () => {
+      const document = SwaggerModule.createDocument(
+        app,
+        new DocumentBuilder().build(),
+      );
+      const response = document.paths['/api/shipments/{id}']?.get?.responses?.[
+        '200'
+      ];
+      expect(response).toMatchObject({
+        content: {
+          'application/json': {
+            schema: {
+              properties: {
+                data: {
+                  properties: {
+                    telemetry: {
+                      items: {
+                        properties: {
+                          deviceSequence: { type: 'string', nullable: true },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
     });
 
     it('exposes only reviewed public certificates in a QR trace', async () => {
