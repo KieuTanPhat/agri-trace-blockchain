@@ -77,9 +77,10 @@ Module lots tách `LotHarvestService` (transaction + outbox), `LotQueryService`
 npm run check
 ```
 
-Lệnh trên chạy lint, typecheck, unit/e2e test và build tương ứng cho các workspace.
+Lệnh trên chạy test logic CI/CD, rồi lint, typecheck, unit/e2e test và build
+tương ứng cho các workspace. Lint API/Web chặn cả warning; build Web chạy lint.
 Test ràng buộc và nghiệp vụ PostgreSQL cần `TEST_DATABASE_URL` trỏ đến database
-test riêng đã chạy migration; thiếu biến này thì các test database bị bỏ qua.
+test riêng đã chạy migration; thiếu hoặc để rỗng biến này thì E2E từ chối chạy.
 Không đặt `TEST_DATABASE_URL` thành database production.
 Để chạy riêng một phần:
 
@@ -92,7 +93,11 @@ npm run check --workspace blockchain/gateway
 
 Web chạy ESLint cho React/TypeScript/accessibility và Oxlint cho các rule Next.js.
 `npm run build --workspace apps/web` chạy cả hai trước khi biên dịch; `check`
-còn kiểm tra hợp đồng lint và xác nhận build bị chặn khi có lỗi.
+còn kiểm tra hợp đồng lint và xác nhận build bị chặn khi có warning hoặc lỗi.
+
+PR chọn job theo phạm vi thay đổi; mọi push lên `main` chạy đầy đủ để CD dùng
+bằng chứng của đúng SHA. Xem [chính sách CI](docs/ci.md) và
+[báo cáo kiểm tra CI/clean code](docs/ci-clean-code-audit-2026-10-09.md).
 
 Mạng Fabric local cần thêm Docker; xem script trong `blockchain/network`.
 

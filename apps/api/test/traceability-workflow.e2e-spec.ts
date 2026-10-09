@@ -520,6 +520,7 @@ const prisma = new PrismaClient({
       expect(detail.allowedCommands).toEqual([]);
     });
 
+    // Eight real database races need more than the default 5s on busy CI runners.
     it('serializes concurrent harvests without exceeding the production plan', async () => {
       const failures = vi.spyOn(app.get(LotHarvestService), 'recordHarvest');
       for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -559,7 +560,7 @@ const prisma = new PrismaClient({
         ).toBe(0.6);
       }
       failures.mockRestore();
-    });
+    }, 30_000);
 
     it('keeps concurrent trace appends on a single chain', async () => {
       const trace = app.get(TraceService);

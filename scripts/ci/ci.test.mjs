@@ -119,6 +119,15 @@ test('dispatch, merge queue and missing push baselines run everything', () => {
   }
 });
 
+test('main pushes with a valid baseline still require every check for the deployable SHA', () => {
+  // A documentation push after a failed code push must not create green gates
+  // that let CD deploy the unverified code from the preceding commit.
+  const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  const files = changedFiles('push', { before: sha }, sha);
+  assert.equal(files, null);
+  assert.ok(Object.values(classifyChanges(files ?? [], files === null)).every(Boolean));
+});
+
 test('gate rejects failures, cancellation and unexpected skips for selected jobs', () => {
   for (const result of ['failure', 'cancelled', 'skipped']) {
     assert.ok(gateErrors('blockchain', {
