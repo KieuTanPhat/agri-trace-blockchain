@@ -1,4 +1,4 @@
-import type { Dashboard, LotTrace, SensorReadingRequest, SensorReadingResponse } from "./types";
+import type { Dashboard, LotTrace, PublicLotTrace, SensorReadingRequest, SensorReadingResponse } from "./types";
 
 export const mockLots: LotTrace[] = [
   {
@@ -104,6 +104,63 @@ export const mockLots: LotTrace[] = [
     ]
   }
 ];
+
+export function mockPublicTrace(traceToken: string): PublicLotTrace | null {
+  const lot = mockLots.find(
+    (item) => item.traceToken === traceToken || item.lotId === traceToken || item.lotCode === traceToken,
+  );
+  if (!lot) return null;
+
+  return {
+    lotId: lot.lotId,
+    traceToken: lot.traceToken ?? lot.lotId,
+    lotCode: lot.lotCode,
+    productName: lot.productName,
+    harvestTime: lot.harvestTime,
+    initialQuantity: lot.initialQuantity,
+    availableQuantity: lot.availableQuantity,
+    unit: lot.unit,
+    currentState: lot.currentState,
+    productionCycle: {
+      cycleId: lot.productionCycle.cycleId,
+      cycleCode: lot.productionCycle.cycleCode,
+      currentState: lot.productionCycle.currentState,
+      startDate: lot.productionCycle.startDate ?? null,
+    },
+    farmOrg: lot.farmOrg,
+    allowedCommands: [],
+    proofStatus: lot.proofStatus,
+    timeline: lot.timeline.map((event) => ({
+      eventId: event.eventId,
+      entityType: event.entityType,
+      eventType: event.eventType,
+      eventTime: event.eventTime,
+      summary: event.summary,
+      proofStatus: event.proofStatus,
+      actor: { role: "SYSTEM_ACTOR", organizationName: "AgriTrace" },
+    })),
+    blockchainProof: lot.blockchainProof
+      ? {
+          network: lot.blockchainProof.network,
+          txId: lot.blockchainProof.txId ?? null,
+          dataHash: lot.blockchainProof.dataHash,
+          transactionStatus: lot.blockchainProof.transactionStatus,
+          recordedAt: lot.blockchainProof.recordedAt ?? null,
+        }
+      : undefined,
+    shipment: lot.shipment
+      ? {
+          status: lot.shipment.status,
+          origin: lot.shipment.origin,
+          destination: lot.shipment.destination,
+          pickupTime: null,
+          arrivalTime: null,
+          receivedTime: null,
+        }
+      : null,
+    certificates: [],
+  };
+}
 
 export function mockDashboard(): Dashboard {
   return {
