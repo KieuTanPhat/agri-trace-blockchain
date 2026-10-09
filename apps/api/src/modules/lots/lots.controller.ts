@@ -1,3 +1,4 @@
+import { FARM_WRITE_ROLES } from '../auth/business-write.policy.js';
 import {
   Body,
   Controller,
@@ -16,7 +17,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { RecordHarvestDto } from './dto.js';
-import { LotsService } from './lots.service.js';
+import { LotHarvestService } from './lot-harvest.service.js';
+import { LotQueryService } from './lot-query.service.js';
 
 @ApiTags('lots')
 @ApiBearerAuth()
@@ -24,10 +26,11 @@ import { LotsService } from './lots.service.js';
 @Controller()
 export class LotsController {
   constructor(
-    private readonly service: LotsService,
+    private readonly harvests: LotHarvestService,
+    private readonly query: LotQueryService,
     private readonly idempotency: IdempotencyService,
   ) {}
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF')
+  @Roles(...FARM_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('production-cycles/:cycleId/harvests')
   harvest(
@@ -44,18 +47,18 @@ export class LotsController {
         requestType: 'COMMAND',
         payload: { cycleId, ...dto },
       },
-      () => this.service.recordHarvest(cycleId, dto, req.user),
+      () => this.harvests.recordHarvest(cycleId, dto, req.user),
     );
   }
 
   @Get('dashboard')
   dashboard(@Req() req: AuthenticatedRequest) {
-    return this.service.getDashboard(req.user);
+    return this.query.getDashboard(req.user);
   }
 
   @Get('lots')
   getLots(@Req() req: AuthenticatedRequest) {
-    return this.service.getList(req.user);
+    return this.query.getList(req.user);
   }
 
   @Get('lots/:lotId')
@@ -63,15 +66,15 @@ export class LotsController {
     @Param('lotId', ParseUUIDPipe) lotId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.service.getInternal(lotId, req.user);
+    return this.query.getInternal(lotId, req.user);
   }
 }
 
 @ApiTags('public-trace')
 @Controller('public/trace')
 export class PublicTraceController {
-  constructor(private readonly service: LotsService) {}
+  constructor(private readonly query: LotQueryService) {}
   @Get(':token') get(@Param('token') token: string) {
-    return this.service.getPublic(token);
+    return this.query.getPublic(token);
   }
 }

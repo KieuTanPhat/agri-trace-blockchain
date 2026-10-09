@@ -1,4 +1,8 @@
 import {
+  FARM_WRITE_ROLES,
+  COMPLIANCE_REVIEW_ROLES,
+} from '../auth/business-write.policy.js';
+import {
   Body,
   Controller,
   Get,
@@ -11,7 +15,12 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiHeader,
+  ApiTags,
+} from '@nestjs/swagger';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -43,7 +52,11 @@ export class ComplianceController {
     return this.service.listInspections(request.user, lotId);
   }
 
-  @Roles('SYSTEM_ADMIN', 'AUDITOR')
+  @Roles(...COMPLIANCE_REVIEW_ROLES)
+  @ApiForbiddenResponse({
+    description:
+      'AGT-026: chưa phê duyệt vai trò ghi inspection; endpoint chỉ từ chối ghi.',
+  })
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('inspections')
   createInspection(
@@ -73,7 +86,7 @@ export class ComplianceController {
     return this.service.listCertificates(request.user, lotId, cycleId);
   }
 
-  @Roles('SYSTEM_ADMIN', 'AUDITOR', 'FARM_STAFF')
+  @Roles(...FARM_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('certificates')
   createCertificate(
@@ -93,9 +106,13 @@ export class ComplianceController {
     );
   }
 
-  @Roles('SYSTEM_ADMIN', 'AUDITOR')
+  @Roles(...COMPLIANCE_REVIEW_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Patch('certificates/:id/review')
+  @ApiForbiddenResponse({
+    description:
+      'AGT-026: chưa phê duyệt reviewer; Admin/Auditor không ghi nghiệp vụ.',
+  })
   reviewCertificate(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() input: ReviewCertificateDto,

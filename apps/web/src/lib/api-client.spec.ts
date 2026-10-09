@@ -52,13 +52,19 @@ describe("API client", () => {
   it("renders server-side public trace through the internal Docker API", async () => {
     vi.stubEnv("API_INTERNAL_BASE_URL", "http://api:8080/api");
     vi.stubGlobal("window", undefined);
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ success: true, data: { lotId: "lot-1" } })),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ success: true, data: { lotId: "lot-1" } }),
+        ),
+      );
     vi.stubGlobal("fetch", fetchMock);
     const { getPublicTrace } = await import("./api-client");
 
-    await expect(getPublicTrace("trace token")).resolves.toEqual({ lotId: "lot-1" });
+    await expect(getPublicTrace("trace token")).resolves.toEqual({
+      lotId: "lot-1",
+    });
     expect(fetchMock.mock.calls[0][0]).toBe(
       "http://api:8080/api/public/trace/trace%20token",
     );
@@ -66,9 +72,13 @@ describe("API client", () => {
 
   it("keeps browser requests on the public API even with an internal URL configured", async () => {
     vi.stubEnv("API_INTERNAL_BASE_URL", "http://api:8080/api");
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ success: true, data: { lotId: "lot-1" } })),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ success: true, data: { lotId: "lot-1" } }),
+        ),
+      );
     vi.stubGlobal("fetch", fetchMock);
     const { getPublicTrace } = await import("./api-client");
 
@@ -127,6 +137,46 @@ describe("session and retry safety", () => {
       new Headers(fetchMock.mock.calls[2][1]?.headers).get("authorization"),
     ).toBe("Bearer new");
   });
+  it("notifies the current tab when refresh changes the user's role", async () => {
+    const user = { id: "same-user", role: { code: "SYSTEM_ADMIN" } };
+    localStorage.setItem(
+      "agritrace-auth",
+      JSON.stringify({ accessToken: "old", refreshToken: "refresh", user }),
+    );
+    const updated = { ...user, role: { code: "AUDITOR" } };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(json({}, 401))
+        .mockResolvedValueOnce(
+          json({
+            success: true,
+            data: {
+              accessToken: "new",
+              refreshToken: "rotated",
+              user: updated,
+            },
+          }),
+        )
+        .mockResolvedValueOnce(json({ success: true, data: updated })),
+    );
+    const changed = vi.fn();
+    window.addEventListener("auth-changed", changed);
+    try {
+      const { getProfile } = await import("./api-client");
+      await expect(getProfile()).rejects.toMatchObject({
+        code: "SESSION_CHANGED",
+      });
+      expect(changed).toHaveBeenCalledTimes(1);
+      expect(
+        JSON.parse(localStorage.getItem("agritrace-auth")!).user.role.code,
+      ).toBe("AUDITOR");
+    } finally {
+      window.removeEventListener("auth-changed", changed);
+    }
+  });
+
   it("preserves the session when the refresh server is temporarily unavailable", async () => {
     localStorage.setItem(
       "agritrace-auth",
@@ -207,15 +257,54 @@ describe("session and retry safety", () => {
       );
     },
   );
-  it("uses the caller's stable key for a sensor retry", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockImplementation(async () =>
-        json({
-          success: true,
-          data: { status: "accepted", readingId: "reading" },
-        }),
+  it.each([200, 401])(
+    "discards a late %i response after the same user's role or organization changes",
+    async (status) => {
+      const oldAuth = {
+        accessToken: "old",
+        refreshToken: "refresh",
+        user: {
+          id: "same-user",
+          organizationId: "old-org",
+          role: { code: "FARM_STAFF" },
+        },
+      };
+      const newAuth = {
+        accessToken: "new",
+        refreshToken: "rotated",
+        user: {
+          id: "same-user",
+          organizationId: "new-org",
+          role: { code: "AUDITOR" },
+        },
+      };
+      localStorage.setItem("agritrace-auth", JSON.stringify(oldAuth));
+      const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () => {
+        localStorage.setItem("agritrace-auth", JSON.stringify(newAuth));
+        return json(
+          { success: true, data: { secret: "old-organization-data" } },
+          status,
+        );
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const { request } = await import("./api-client");
+      await expect(request("/lots")).rejects.toMatchObject({
+        code: "SESSION_CHANGED",
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(localStorage.getItem("agritrace-auth")!)).toEqual(
+        newAuth,
       );
+    },
+  );
+
+  it("uses the caller's stable key for a sensor retry", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () =>
+      json({
+        success: true,
+        data: { status: "accepted", readingId: "reading" },
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const { sendSensorReading } = await import("./api-client");
     const payload = {

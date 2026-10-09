@@ -1,4 +1,8 @@
 import {
+  assertBusinessActor,
+  FARM_WRITE_ROLES,
+} from '../auth/business-write.policy.js';
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -98,6 +102,7 @@ export class ProductionCyclesService {
   }
 
   async create(input: CreateProductionCycleDto, actor: Actor) {
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
     const farm = await this.access.assertFarmAccess(actor, input.farmId);
     const [product, plot] = await Promise.all([
       this.prisma.product.findUnique({ where: { id: input.productId } }),
@@ -154,6 +159,7 @@ export class ProductionCyclesService {
   }
 
   async plant(id: string, input: PlantCycleDto, actor: Actor) {
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, id);
     return this.transition(
       id,
@@ -168,6 +174,7 @@ export class ProductionCyclesService {
   }
 
   async addCare(id: string, input: CareRecordDto, actor: Actor) {
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, id);
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.productionCycle.updateMany({
@@ -213,6 +220,7 @@ export class ProductionCyclesService {
   }
 
   async addSensorReading(id: string, input: SensorReadingDto, actor: Actor) {
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
     const cycle = await this.access.assertProductionCycleAccess(actor, id);
     if (!['PLANTED', 'GROWING'].includes(cycle.currentState)) {
       throw new UnprocessableEntityException(
@@ -247,6 +255,7 @@ export class ProductionCyclesService {
   }
 
   async close(id: string, input: VersionedCommandDto, actor: Actor) {
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, id);
     return this.transition(
       id,
@@ -260,6 +269,7 @@ export class ProductionCyclesService {
   }
 
   async cancel(id: string, input: CancelCycleDto, actor: Actor) {
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, id);
     return this.transition(
       id,

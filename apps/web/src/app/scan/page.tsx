@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { getTracePath } from "@/lib/trace-input";
 import { useRouter } from "next/navigation";
 import { IconQrCode, IconSearch } from "@/components/icons";
 import { QrCodeCard } from "@/components/qr-code-card";
@@ -17,25 +18,20 @@ export default function ScanPage() {
   const [code, setCode] = useState("");
   const traceBaseUrl =
     process.env.NEXT_PUBLIC_TRACE_BASE_URL ?? "http://localhost:3000/trace";
-  const selectedTraceUrl =
-    code.startsWith("http://") || code.startsWith("https://")
-      ? code
-      : `${traceBaseUrl}/${code}`;
+  const [error, setError] = useState("");
+  const tracePath = getTracePath(code);
+  const selectedTraceUrl = tracePath
+    ? `${traceBaseUrl.replace(/\/$/, "")}/${tracePath.slice("/trace/".length)}`
+    : null;
 
-  function openTrace() {
-    const trimmed = code.trim();
-    if (!trimmed) return;
-    try {
-      const url = new URL(trimmed);
-      const traceIndex = url.pathname.indexOf("/trace/");
-      if (traceIndex >= 0) {
-        router.push(url.pathname);
-        return;
-      }
-    } catch {
-      // Plain lot ids are accepted.
+  function openTrace(event: FormEvent) {
+    event.preventDefault();
+    if (!tracePath) {
+      setError("Nhập token trên mã QR hoặc đường dẫn /trace/<token> hợp lệ.");
+      return;
     }
-    router.push(`/trace/${encodeURIComponent(trimmed)}`);
+    setError("");
+    router.push(tracePath);
   }
 
   return (
@@ -76,7 +72,11 @@ export default function ScanPage() {
           </div>
           <div className="scan-display">
             <div className="qr-display">
-              <QrCodeCard value={selectedTraceUrl} />
+              {selectedTraceUrl ? (
+                <QrCodeCard value={selectedTraceUrl} />
+              ) : (
+                <p>Nhập token hoặc đường dẫn để hiển thị mã QR.</p>
+              )}
               <p className="qr-url">
                 <LinkIcon size={18} />
                 {selectedTraceUrl}
@@ -115,7 +115,11 @@ export default function ScanPage() {
             </div>
           </div>
         </div>
-        <div className="panel form-grid">
+        <form
+          className="panel form-grid"
+          aria-label="Tra cứu nông sản"
+          onSubmit={openTrace}
+        >
           <div className="panel-title">
             <div className="panel-title-left">
               <span className="panel-icon success">
@@ -131,10 +135,18 @@ export default function ScanPage() {
               id="trace-code"
               placeholder="Nhập token trên mã QR..."
               value={code}
-              onChange={(event) => setCode(event.target.value)}
+              onChange={(event) => {
+                setCode(event.target.value);
+                setError("");
+              }}
             />
           </div>
-          <button className="button" onClick={openTrace}>
+          {error && (
+            <p className="notice error" role="alert">
+              {error}
+            </p>
+          )}
+          <button className="button" type="submit">
             <IconSearch size={14} /> Mở trang tra cứu
           </button>
           <div className="design-note">
@@ -143,11 +155,11 @@ export default function ScanPage() {
               <strong>Mẹo nhỏ</strong>
               <p>
                 Bạn có thể quét mã QR trên bao bì sản phẩm hoặc nhập trực tiếp
-                mã lô để xem thông tin chi tiết.
+                trace token trên mã QR để xem thông tin chi tiết.
               </p>
             </div>
           </div>
-        </div>
+        </form>
       </section>
     </div>
   );

@@ -4,6 +4,7 @@ import {
   mockSendSensorReading,
   mockSubmitCommand,
 } from "./mock-api";
+import { getAuthorizationScope } from "./auth-scope";
 import type {
   AllowedCommand,
   AuthUser,
@@ -202,6 +203,21 @@ function readAccessToken(): string | null {
   return readStoredAuth()?.accessToken ?? null;
 }
 
+function readSessionScope(): string {
+  return getAuthorizationScope(readStoredAuth()?.user);
+}
+
+function assertSessionScope(scope: string): void {
+  if (readSessionScope() !== scope) {
+    throw {
+      status: 401,
+      code: "SESSION_CHANGED",
+      message:
+        "Quyền hoặc phiên đăng nhập đã thay đổi. Vui lòng tải lại dữ liệu.",
+    };
+  }
+}
+
 function readStoredAuth(): StoredAuth | null {
   if (typeof window === "undefined") return null;
   try {
@@ -263,6 +279,7 @@ async function refreshAccessToken(): Promise<string> {
         message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
       };
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event("auth-changed"));
     return next.accessToken;
   })().finally(() => {
     refreshPromise = null;
@@ -292,7 +309,7 @@ export async function request<T>(
   canRefresh = true,
 ): Promise<T> {
   const method = init.method?.toUpperCase() ?? "GET";
-  const sessionUserId = authenticated ? readStoredAuth()?.user?.id : undefined;
+  const sessionScope = authenticated ? readSessionScope() : null;
   const token = authenticated ? readAccessToken() : null;
   const headers = new Headers(init.headers);
   if (init.body) headers.set("content-type", "application/json");
@@ -322,14 +339,10 @@ export async function request<T>(
         message?: string | string[];
       }
     | null;
-  if (authenticated && readStoredAuth()?.user?.id !== sessionUserId)
-    throw {
-      status: 401,
-      code: "SESSION_CHANGED",
-      message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
-    };
+  if (sessionScope !== null) assertSessionScope(sessionScope);
   if (response.status === 401 && authenticated && canRefresh) {
     if (readAccessToken() === token) await refreshAccessToken();
+    if (sessionScope !== null) assertSessionScope(sessionScope);
     return request<T>(path, { ...init, headers }, authenticated, false);
   }
   if (!response.ok) {
