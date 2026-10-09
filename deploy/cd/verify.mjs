@@ -8,16 +8,22 @@ import {loadConfig, connectGateway, FabricBlockchainAdapter} from './blockchain/
 const input = JSON.parse(readFileSync(0, 'utf8'));
 const tokens = {};
 const refresh = [];
+function refreshCookie(response) {
+  const cookie=response.headers.get('set-cookie')?.split(';',1)[0];
+  assert.match(cookie??'',/^agritrace_refresh=[A-Za-z0-9_-]+$/,'Refresh cookie missing');
+  return cookie;
+}
 let phase = 'health';
 const db = new pg.Client({connectionString: process.env.DATABASE_URL});
 let connection;
-async function http(route, role, body, expected=body === undefined ? 200 : 201, key) {
+async function http(route, role, body, expected=body === undefined ? 200 : 201, key, options={}) {
   const response = await fetch(`${input.origin}/api${route}`, {
     method: body === undefined ? 'GET' : 'POST', signal: AbortSignal.timeout(15000),
-    headers: {...(role ? {Authorization:`Bearer ${tokens[role]}`} : {}), ...(body ? {'Content-Type':'application/json'} : {}), ...(key ? {'Idempotency-Key':key} : {})},
+    headers: {...(role ? {Authorization:`Bearer ${tokens[role]}`} : {}), ...(body ? {'Content-Type':'application/json'} : {}), ...(key ? {'Idempotency-Key':key} : {}), ...(options.cookie ? {Cookie:options.cookie} : {})},
     ...(body === undefined ? {} : {body:JSON.stringify(body)}),
   });
   assert.equal(response.status,expected);
+  if(options.onCookie)options.onCookie(refreshCookie(response));
   return (await response.json()).data;
 }
 try {
@@ -55,19 +61,18 @@ try {
   for(const role of ['SYSTEM_ADMIN','FARM_STAFF','TRANSPORTER','RETAILER','AUDITOR']){
     const account=input.accounts.find(a=>a.role===role);
     assert.ok(account);
-    const auth=await http('/auth/login',undefined,{email:account.email,password:account.password});
+    const auth=await http('/auth/login',undefined,{email:account.email,password:account.password},201,undefined,{onCookie:(cookie)=>refresh.push(cookie)});
     tokens[role]=auth.accessToken;
-    refresh.push(auth.refreshToken);
     assert.equal((await http('/auth/me',role)).role.code,role);
   }
   phase='refresh-logout';
-  const rotated=await http('/auth/refresh',undefined,{refreshToken:refresh[0]});
-  assert.ok(rotated.accessToken&&rotated.refreshToken);
-  refresh.push(rotated.refreshToken);
+  let rotatedCookie;
+  const rotated=await http('/auth/refresh',undefined,{},201,undefined,{cookie:refresh[0],onCookie:(cookie)=>{rotatedCookie=cookie;refresh.push(cookie);}});
+  assert.ok(rotated.accessToken&&rotatedCookie);
   tokens.SYSTEM_ADMIN=rotated.accessToken;
   assert.equal((await http('/auth/me','SYSTEM_ADMIN')).role.code,'SYSTEM_ADMIN');
-  await http('/auth/logout',undefined,{refreshToken:rotated.refreshToken});
-  await http('/auth/refresh',undefined,{refreshToken:rotated.refreshToken},401);
+  await http('/auth/logout',undefined,{},201,undefined,{cookie:rotatedCookie});
+  await http('/auth/refresh',undefined,{},401,undefined,{cookie:rotatedCookie});
   await http('/organizations','AUDITOR',{name:'CD forbidden write',type:'FARM'},403);
   await db.connect();
   const gatewayConfig=loadConfig(process.env);
@@ -140,5 +145,5 @@ try {
 }finally{
   connection?.close();
   await db.end().catch(()=>{});
-  for(const refreshToken of refresh)await http('/auth/logout',undefined,{refreshToken}).catch(()=>{});
+  for(const cookie of refresh)await http('/auth/logout',undefined,{},201,undefined,{cookie}).catch(()=>{});
 }

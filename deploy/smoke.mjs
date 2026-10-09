@@ -11,14 +11,21 @@ let accounts;
 const tokens = {};
 const credentials = {};
 
-async function request(route, role, body, expected = body === undefined ? 200 : 201, key = body === undefined ? undefined : randomUUID()) {
+function refreshCookie(response) {
+  const cookie = response.headers.get('set-cookie')?.split(';', 1)[0];
+  assert.match(cookie ?? '', /^agritrace_refresh=[A-Za-z0-9_-]+$/, 'Refresh cookie missing');
+  return cookie;
+}
+
+async function request(route, role, body, expected = body === undefined ? 200 : 201, key = body === undefined ? undefined : randomUUID(), options = {}) {
   const response = await fetch(`${config.PUBLIC_ORIGIN}/api${route}`, {
     method: body === undefined ? 'GET' : 'POST', signal: AbortSignal.timeout(15_000),
-    headers: {...(role ? {Authorization: `Bearer ${tokens[role]}`} : {}), ...(body === undefined ? {} : {'Content-Type': 'application/json'}), ...(key ? {'Idempotency-Key': key} : {})},
+    headers: {...(role ? {Authorization: `Bearer ${tokens[role]}`} : {}), ...(body === undefined ? {} : {'Content-Type': 'application/json'}), ...(key ? {'Idempotency-Key': key} : {}), ...(options.cookie ? {Cookie: options.cookie} : {})},
     ...(body === undefined ? {} : {body: JSON.stringify(body)}),
   });
   // Never include request bodies, responses containing tokens or credentials.
   assert.equal(response.status, expected, `Unexpected HTTP status at ${route}`);
+  if (options.onCookie) options.onCookie(refreshCookie(response));
   const envelope = await response.json();
   return envelope.data;
 }
@@ -35,9 +42,8 @@ try {
   for (const role of UAT_ROLES) {
     const account = accounts.find(item => item.role === role);
     assert.ok(account, 'Required UAT account is missing');
-    const session = await request('/auth/login', undefined, {email: account.email, password: account.password});
+    const session = await request('/auth/login', undefined, {email: account.email, password: account.password}, 201, undefined, {onCookie: (cookie) => {credentials[role] = cookie;}});
     tokens[role] = session.accessToken;
-    credentials[role] = session.refreshToken;
     assert.equal((await request('/auth/me', role)).role.code, role);
   }
   await request('/organizations', 'AUDITOR', {name: 'Must be rejected', type: 'FARM'}, 403);
@@ -75,10 +81,11 @@ try {
     }
     assert.equal((await fetch(`${config.PUBLIC_ORIGIN}/trace/${harvest.traceQr.traceToken}`)).status, 200, 'Public QR page failed to render');
   }
-  const refreshed = await request('/auth/refresh', undefined, {refreshToken: credentials.SYSTEM_ADMIN});
-  assert.ok(refreshed.accessToken && refreshed.refreshToken);
-  await request('/auth/logout', undefined, {refreshToken: refreshed.refreshToken});
-  await request('/auth/refresh', undefined, {refreshToken: refreshed.refreshToken}, 401);
+  let rotatedCookie;
+  const refreshed = await request('/auth/refresh', undefined, {}, 201, undefined, {cookie: credentials.SYSTEM_ADMIN, onCookie: (cookie) => {rotatedCookie = cookie;}});
+  assert.ok(refreshed.accessToken && rotatedCookie);
+  await request('/auth/logout', undefined, {}, 201, undefined, {cookie: rotatedCookie});
+  await request('/auth/refresh', undefined, {}, 401, undefined, {cookie: rotatedCookie});
   console.log(JSON.stringify({result: 'passed', roles: UAT_ROLES, cycleId: cycle.id, lotIds: lots, proof: values['expect-proof'], flows: ['login/me', 'RBAC rejection', 'idempotency replay', 'two harvests', 'shipments receive/reject', 'public QR', 'refresh/logout']}));
 } catch (error) {
   console.error(error instanceof Error ? error.message : 'UAT smoke failed');
