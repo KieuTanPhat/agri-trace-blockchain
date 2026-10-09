@@ -1,9 +1,12 @@
 # Kết quả triển khai HTTPS UAT nongtrace.site — 09/10/2026
 
 UAT đã triển khai và kiểm chứng tại [https://nongtrace.site](https://nongtrace.site).
-Runtime cuối: `de3a997c875e6acb6b0c3fd1fbd4f7f483f2ba9c`.
+Runtime cuối của đợt HTTPS: `de3a997c875e6acb6b0c3fd1fbd4f7f483f2ba9c`.
 Deploy, rollback, redeploy, TLS hai host, đăng nhập, QR/ledger và backup restore
 đều đạt. Bản báo cáo chỉ thay docs; source SHA runtime giữ theo release này.
+
+Đợt rà soát code tiếp theo và release UAT tương ứng được ghi riêng tại
+[nongtrace-uat-code-audit.md](nongtrace-uat-code-audit.md).
 
 ## Phạm vi và approval
 
@@ -92,7 +95,7 @@ không publish port, không nối UAT network: tám migrations, mọi counts và
 event/proof fingerprints khớp. Chạy migration bằng API image candidate trên
 bản copy đạt. Container kiểm thử được xóa sau assert ID/label/network/ports.
 
-## Release cuối và kiểm chứng bổ sung
+## Release cuối của đợt HTTPS và kiểm chứng bổ sung
 
 - Source SHA: `de3a997c875e6acb6b0c3fd1fbd4f7f483f2ba9c` (merge #64).
 - Current: `/opt/agri-trace/releases/uat-de3a997c875e6acb6b0c3fd1fbd4f7f483f2ba9c`;
