@@ -1,6 +1,6 @@
 import type { SensorReadingRequest } from "./types";
 
-export const IOT_READING_STORAGE_KEY = "agri-traceability:iot-readings:v2";
+export const IOT_READING_STORAGE_KEY = "agri-traceability:iot-readings:v3";
 
 export type StoredIotReading = SensorReadingRequest & {
   readingId: string;
@@ -8,11 +8,14 @@ export type StoredIotReading = SensorReadingRequest & {
   status: "accepted";
 };
 
-export function readStoredIotReadings(): StoredIotReading[] {
-  if (typeof window === "undefined") return [];
-  const raw = window.localStorage.getItem(IOT_READING_STORAGE_KEY);
-  if (!raw) return [];
+export function readStoredIotReadings(scope: string): StoredIotReading[] {
+  if (typeof window === "undefined" || scope === "null") return [];
+  // Legacy v2 readings have no owner and cannot be assigned to a logged-in user.
   try {
+    const raw = window.localStorage.getItem(
+      `${IOT_READING_STORAGE_KEY}:${scope}`,
+    );
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -20,8 +23,16 @@ export function readStoredIotReadings(): StoredIotReading[] {
   }
 }
 
-export function saveStoredIotReading(reading: StoredIotReading) {
-  const next = [reading, ...readStoredIotReadings()].slice(0, 20);
-  window.localStorage.setItem(IOT_READING_STORAGE_KEY, JSON.stringify(next));
-  window.dispatchEvent(new Event("iot-readings-updated"));
+export function saveStoredIotReading(reading: StoredIotReading, scope: string) {
+  if (typeof window === "undefined" || scope === "null") return;
+  try {
+    const next = [reading, ...readStoredIotReadings(scope)].slice(0, 20);
+    window.localStorage.setItem(
+      `${IOT_READING_STORAGE_KEY}:${scope}`,
+      JSON.stringify(next),
+    );
+    window.dispatchEvent(new Event("iot-readings-updated"));
+  } catch {
+    // This cache is optional; an accepted API write must not become a failed command.
+  }
 }

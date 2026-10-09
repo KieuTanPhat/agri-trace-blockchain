@@ -19,11 +19,30 @@ const stateLabels: Record<string, string> = {
   VERIFIED: "Đã xác minh",
   PENDING: "Chờ xác minh",
   INTEGRITY_WARNING: "Cảnh báo toàn vẹn",
-  BLOCKCHAIN_UNAVAILABLE: "Blockchain tạm không khả dụng"
+  BLOCKCHAIN_UNAVAILABLE: "Blockchain tạm không khả dụng",
 };
 
 const eventLabels: Record<string, string> = {
   PRODUCTION_CYCLE_CREATED: "Khởi tạo vụ trồng",
+  CYCLE_PLANTED: "Ghi nhận gieo trồng",
+  CYCLE_COMPLETED: "Kết thúc vụ trồng",
+  CYCLE_CANCELLED: "Hủy vụ trồng",
+  SENSOR_READING_RECORDED: "Ghi nhận cảm biến",
+  SENSOR_DIGEST_CREATED: "Tổng hợp dữ liệu cảm biến",
+  SENSOR_DIGEST_FINALIZED: "Chốt dữ liệu cảm biến cuối kỳ",
+  SHIPMENT_STARTED: "Bắt đầu vận chuyển",
+  SHIPMENT_ARRIVED: "Đến điểm nhận",
+  SHIPMENT_RECEIVED: "Cửa hàng nhận lô",
+  SHIPMENT_REJECTED: "Cửa hàng từ chối",
+  SHIPMENT_DAMAGE_RECORDED: "Ghi nhận hàng hư hỏng",
+  SHIPMENT_TELEMETRY_DIGEST_CREATED: "Tổng hợp dữ liệu vận chuyển",
+  SHIPMENT_TELEMETRY_DIGEST_FINALIZED: "Chốt dữ liệu vận chuyển",
+  TRACKING_DEVICE_BOUND: "Gắn thiết bị theo dõi",
+  TRACKING_DEVICE_UNBOUND: "Ngừng theo dõi thiết bị",
+  INSPECTION_RECORDED: "Ghi nhận kết quả kiểm tra",
+  CERTIFICATE_SUBMITTED: "Gửi chứng chỉ xét duyệt",
+  CERTIFICATE_APPROVED: "Phê duyệt chứng chỉ",
+  CERTIFICATE_REJECTED: "Từ chối chứng chỉ",
   PLANTING_RECORDED: "Ghi nhận gieo trồng",
   CARE_RECORDED: "Ghi nhận chăm sóc",
   SENSOR_RECORDED: "Ghi nhận cảm biến",
@@ -36,7 +55,7 @@ const eventLabels: Record<string, string> = {
   MARKED_FOR_SALE: "Đưa lên kệ bán",
   LOT_SOLD: "Đã bán",
   RECALL_RECORDED: "Thu hồi lô",
-  LOT_EXPIRED: "Lô hết hạn"
+  LOT_EXPIRED: "Lô hết hạn",
 };
 
 const roleLabels: Record<Role, string> = {
@@ -46,14 +65,14 @@ const roleLabels: Record<Role, string> = {
   TRANSPORTER: "Đơn vị vận chuyển",
   RETAILER: "Nhà bán lẻ",
   AUDITOR: "Kiểm tra viên",
-  SYSTEM_ACTOR: "Tác vụ hệ thống"
+  SYSTEM_ACTOR: "Tác vụ hệ thống",
 };
 
 const proofLabels: Record<ProofStatus, string> = {
   VERIFIED: "Đã khớp bằng chứng",
   PENDING: "Đang chờ ghi nhận",
   INTEGRITY_WARNING: "Dữ liệu không khớp",
-  BLOCKCHAIN_UNAVAILABLE: "Không truy vấn được blockchain"
+  BLOCKCHAIN_UNAVAILABLE: "Không truy vấn được blockchain",
 };
 
 export function labelForState(state: string) {
