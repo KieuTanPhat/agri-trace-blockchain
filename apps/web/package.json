@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node scripts/run-next.mjs dev",
     "build": "npm run lint && node scripts/run-next.mjs build",
-    "lint": "eslint src/ && oxlint --config .oxlintrc.json src/",
+    "lint": "eslint --max-warnings 0 src/ && oxlint --max-warnings 0 --config .oxlintrc.json src/",
     "lint:contract": "node --test scripts/lint-contract.test.mjs",
     "test:image-optimizer": "node --test scripts/image-optimizer.test.mjs",
     "typecheck": "tsc --noEmit",

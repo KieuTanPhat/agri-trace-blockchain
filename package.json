@@ -41,9 +41,9 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "npm run test:e2e --workspace apps/api",
-    "test:ci": "node --test scripts/ci/ci.test.mjs",
+    "test:ci": "node --test scripts/ci/ci.test.mjs deploy/cd/gate.test.mjs deploy/cd/send.test.mjs",
     "test:worker-contract": "npm run build --workspace blockchain/gateway && npm run prisma:generate --workspace apps/api && npm run build --workspace apps/api && npm run build --workspace blockchain/chaincode && node --test scripts/ci/worker-contract.test.mjs",
-    "check": "npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
+    "check": "npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
   },
   "workspaces": [
     "apps/*",

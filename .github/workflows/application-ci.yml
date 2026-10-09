@@ -34,6 +34,8 @@ jobs:
           persist-credentials: false
       - id: changes
         run: node scripts/ci/changes.mjs
+      - name: Check CI selection and gates before conditional jobs
+        run: node --test scripts/ci/ci.test.mjs
       - name: Check CD policy, failure recovery and exact-commit gate
         run: |
           python3 -m unittest discover -s deploy/cd -p 'test_*.py' -v
@@ -80,7 +82,6 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm install --global npm@12.1.0
       - run: npm ci --no-audit --no-fund
-      - run: npm run test:ci
       # The API consumes Gateway's compiled workspace exports.
       - run: npm run build --workspace blockchain/gateway
       - run: npm run db:migrate --workspace apps/api

@@ -21,11 +21,18 @@ Lỗi audit không ngăn lint/test/build trả kết quả nhưng vẫn chặn m
 `Dependency gate`. Strict status checks yêu cầu kiểm tra trên nhánh đã cập
 nhật với `main`.
 
+Mọi push lên `main` chạy đầy đủ các job trên đúng SHA, kể cả commit tài liệu.
+CD dùng ba workflow push thành công của SHA đó: nếu chọn job theo diff của
+push, một commit tài liệu sau commit code chưa đạt có thể tạo gate xanh khi
+API/Web/Fabric bị bỏ qua. Chỉ PR được tối ưu bằng chọn đường dẫn. Test logic
+chọn job và gate chạy trong job `changes` của Application CI, trước các job
+có điều kiện; không phụ thuộc việc API có được chọn hay không.
+
 Ruleset GitHub phải bắt buộc đúng ba **tên job** ở bảng trên, nguồn check là
 GitHub Actions. Tệp workflow không tự bật branch protection. Giữ các quy
 tắc PR, chống xóa nhánh và chống force push đang có khi cập nhật ruleset.
 
-## Phạm vi thay đổi và job cần chạy
+## Phạm vi thay đổi PR và job cần chạy
 
 | Thay đổi | Các kiểm tra được chọn |
 | --- | --- |
@@ -37,7 +44,7 @@ tắc PR, chống xóa nhánh và chống force push đang có khi cập nhật 
 | Root manifests/lockfile, cấu hình npm/Node, Docker ignore, CI scripts/workflows, manifest chaincode dùng trong Docker build | Tất cả. |
 | Chỉ tài liệu | Gate vẫn chạy; job nặng được skip có kiểm tra. Audit vẫn chạy. |
 
-Dispatch, merge queue và push thiếu SHA nền chạy toàn bộ pipeline. Git diff
+Mọi push `main`, dispatch và merge queue chạy toàn bộ pipeline. Git diff PR
 không giới hạn 300 file. Đổi tên được xét như xóa và thêm để kiểm tra cả
 đường dẫn nguồn và đích, kể cả khi chuyển giữa workspace hoặc sang tài liệu.
 Test hồi quy dùng Git repository thật để xác nhận các trường hợp này.
@@ -150,6 +157,9 @@ và tùy chọn. Tùy chọn mặc định của hai rule ESLint được ghi r�
 - Oxlint chạy 21 rule Next.js bằng plugin native; tắt nhóm correctness mặc
   định vì các rule ESLint đã kiểm riêng. Không bỏ rule Next.js hoặc hạ mức lỗi.
 - `npm run lint --workspace apps/web` bắt buộc cả hai engine thành công.
+  API và Web dùng `--max-warnings 0` trong lint: warning cũng chặn lint/check,
+  giữ nguyên rule và severity để diagnostic vẫn rõ. Build Web chạy lint;
+  hợp đồng kiểm build bị chặn bởi cả warning và error của từng engine.
   `npm run build --workspace apps/web` chạy lint trước Next.js. Cấu hình
   `ignoreDuringBuilds` chỉ tránh lần lint nội bộ lặp của Next.js; dùng lệnh
   build trong package.json để đảm bảo điều kiện này.
@@ -180,6 +190,12 @@ Audit standalone dùng `npm audit --workspaces=false --package-lock-only
 
 `npm run check` cần `DATABASE_URL` và `TEST_DATABASE_URL` trỏ tới database
 test riêng đã chạy migration. Không dùng database nghiệp vụ để chạy E2E.
+Lệnh này chạy `test:ci` trước các workspace. `test:ci` gồm test chọn job,
+CI gate và CD gate/SSH transport; các test transport chỉ chạy trên Linux.
+E2E từ chối chạy nếu thiếu `TEST_DATABASE_URL`, tránh kết quả xanh khi các
+bài PostgreSQL bị skip. Test controller/policy Python chạy riêng trong CI:
+`python -m unittest discover -s deploy/cd -p 'test_*.py' -v`; controller cần
+Linux để kiểm durable directory fsync.
 Để chạy smoke Fabric, dựng network bằng các lệnh trong README Blockchain,
 build Gateway, đặt `COMPOSE_PROJECT_NAME` riêng, khởi động `postgres api`
 bằng hai file Compose rồi chạy `node scripts/ci/fabric-integration.mjs`.
