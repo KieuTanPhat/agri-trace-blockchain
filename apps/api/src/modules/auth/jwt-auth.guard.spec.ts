@@ -12,6 +12,7 @@ import { JwtAuthGuard } from './jwt-auth.guard.js';
 
 describe('Current account authorization', () => {
   const id = 'd6212d56-a3b2-4d54-9779-cc8507a6bd53';
+  const sid = '4f0f4d55-5a20-4a75-a583-1f247ca86cb6';
   const jwt = new JwtService({
     secret: 'guard-tests-only-secret',
   });
@@ -23,12 +24,14 @@ describe('Current account authorization', () => {
       findUnique,
       create: vi.fn(),
     },
+    refreshSession: { findFirst: vi.fn() },
   };
 
   const guard = new JwtAuthGuard(jwt, prisma as unknown as PrismaService);
 
   beforeEach(() => {
     vi.resetAllMocks();
+    prisma.refreshSession.findFirst.mockResolvedValue({ id: sid });
   });
 
   function context() {
@@ -36,6 +39,7 @@ describe('Current account authorization', () => {
       headers: {
         authorization: `Bearer ${jwt.sign({
           sub: id,
+          sid,
           role: 'SYSTEM_ADMIN',
           email: 'old@example.com',
         })}`,
@@ -60,6 +64,7 @@ describe('Current account authorization', () => {
         code: 'FARM_STAFF',
       },
       organizationId: '631e9648-174d-48a0-9494-353bda8775da',
+      organization: { status: 'ACTIVE' },
       accountStatus: 'ACTIVE',
     };
 
@@ -71,6 +76,7 @@ describe('Current account authorization', () => {
 
     expect(request.user).toEqual({
       sub: id,
+      sid,
       email: current.email,
       role: current.role.code,
       organizationId: current.organizationId,
@@ -79,6 +85,26 @@ describe('Current account authorization', () => {
 
     current.accountStatus = 'LOCKED';
 
+    await expect(guard.canActivate(context().ctx)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+
+    current.accountStatus = 'ACTIVE';
+    current.organization.status = 'INACTIVE';
+    await expect(guard.canActivate(context().ctx)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('rejects a revoked session even when its JWT has not expired', async () => {
+    findUnique.mockResolvedValue({
+      id,
+      email: 'staff@example.com',
+      role: { code: 'FARM_STAFF' },
+      organizationId: null,
+      accountStatus: 'ACTIVE',
+    });
+    prisma.refreshSession.findFirst.mockResolvedValue(null);
     await expect(guard.canActivate(context().ctx)).rejects.toBeInstanceOf(
       UnauthorizedException,
     );

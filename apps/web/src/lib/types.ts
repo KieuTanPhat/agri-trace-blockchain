@@ -143,8 +143,6 @@ export type AuthUser = {
 export type LoginResponse = {
   accessToken: string;
   tokenType: "Bearer";
-  refreshToken: string;
-  refreshExpiresAt: string;
   user: AuthUser;
 };
 

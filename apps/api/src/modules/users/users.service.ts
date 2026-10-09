@@ -67,13 +67,22 @@ export class UsersService {
   }
 
   async updateStatus(id: string, input: UpdateUserStatusDto) {
-    if (!(await this.prisma.user.findUnique({ where: { id } }))) {
-      throw new NotFoundException('Không tìm thấy người dùng');
-    }
-    return this.prisma.user.update({
-      where: { id },
-      data: { accountStatus: input.accountStatus },
-      select: { id: true, email: true, accountStatus: true, updatedAt: true },
+    return this.prisma.$transaction(async (tx) => {
+      if (!(await tx.user.findUnique({ where: { id } }))) {
+        throw new NotFoundException('Không tìm thấy người dùng');
+      }
+      const user = await tx.user.update({
+        where: { id },
+        data: { accountStatus: input.accountStatus },
+        select: { id: true, email: true, accountStatus: true, updatedAt: true },
+      });
+      if (input.accountStatus !== 'ACTIVE') {
+        await tx.refreshSession.updateMany({
+          where: { userId: id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+      return user;
     });
   }
 }

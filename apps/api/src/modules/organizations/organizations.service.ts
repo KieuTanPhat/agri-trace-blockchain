@@ -19,16 +19,20 @@ export class OrganizationsService {
   }
 
   async update(id: string, input: UpdateOrganizationDto) {
-    const existing = await this.prisma.organization.findUnique({
-      where: { id },
-    });
-    if (!existing) throw new NotFoundException('Không tìm thấy tổ chức');
-    return this.prisma.organization.update({
-      where: { id },
-      data: {
-        name: input.name?.trim(),
-        status: input.status,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.organization.findUnique({ where: { id } });
+      if (!existing) throw new NotFoundException('Không tìm thấy tổ chức');
+      const organization = await tx.organization.update({
+        where: { id },
+        data: { name: input.name?.trim(), status: input.status },
+      });
+      if (input.status && input.status !== 'ACTIVE') {
+        await tx.refreshSession.updateMany({
+          where: { user: { organizationId: id }, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+      return organization;
     });
   }
 }

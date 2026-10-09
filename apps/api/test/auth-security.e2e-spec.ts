@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { hash } from 'bcrypt';
+import { createHash } from 'node:crypto';
 import request from 'supertest';
 import { vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
@@ -18,6 +19,7 @@ describe('Auth security (e2e)', () => {
     passwordHash: string;
     fullName: string | null;
     organizationId: string | null;
+    organization: { status: string } | null;
     role: {
       id: string;
       code: string;
@@ -27,10 +29,12 @@ describe('Auth security (e2e)', () => {
   } | null;
   const password = 'test-password-123';
   const prisma = {
+    $transaction: vi.fn(),
     user: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn() },
     refreshSession: {
       create: vi.fn().mockResolvedValue({}),
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       updateMany: vi.fn(),
     },
   };
@@ -48,6 +52,7 @@ describe('Auth security (e2e)', () => {
         code: 'USER',
         name: 'User',
       },
+      organization: null,
       accountStatus: 'ACTIVE',
     };
     const findUser = ({
@@ -79,6 +84,11 @@ describe('Auth security (e2e)', () => {
       const { passwordHash: _secret, ...safe } = user!;
       return safe;
     });
+    prisma.$transaction.mockImplementation(async (callback) =>
+      callback({ refreshSession: prisma.refreshSession }),
+    );
+    prisma.refreshSession.updateMany.mockResolvedValue({ count: 1 });
+    prisma.refreshSession.findFirst.mockResolvedValue({ id: 'active-session' });
 
     const fixture = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
@@ -114,7 +124,7 @@ describe('Auth security (e2e)', () => {
     '/api/organizations',
   ])('blocks farm staff from administration at %s', async (path) => {
     user!.role.code = 'FARM_STAFF';
-    const token = await jwt.signAsync({ sub: user!.id });
+    const token = await jwt.signAsync({ sub: user!.id, sid: user!.id });
     await request(app.getHttpServer())
       .post(path)
       .set('Authorization', 'Bearer ' + token)
@@ -131,6 +141,81 @@ describe('Auth security (e2e)', () => {
         expect(body.message).toContain('Đăng ký đang tạm khóa');
       });
     expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('sets a HttpOnly refresh cookie without exposing it in JSON', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: user!.email, password })
+      .expect(201);
+    expect(login.body.accessToken).toBeTruthy();
+    expect(login.body.refreshToken).toBeUndefined();
+    const cookie = login.headers['set-cookie'][0] as string;
+    expect(cookie).toContain('agritrace_refresh=');
+    expect(cookie).toContain('HttpOnly');
+    expect(cookie).toContain('SameSite=Lax');
+
+    const token = cookie.split(';')[0].split('=')[1];
+    prisma.refreshSession.findUnique.mockResolvedValue({
+      id: 'session-1',
+      familyId: 'd6212d56-a3b2-4d54-9779-cc8507a6bd53',
+      userId: user!.id,
+      tokenHash: createHash('sha256').update(token).digest('hex'),
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      user,
+    });
+    const refresh = await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .set('Cookie', cookie.split(';')[0])
+      .expect(201);
+    expect(refresh.body.accessToken).toBeTruthy();
+    expect(refresh.body.refreshToken).toBeUndefined();
+    expect(refresh.headers['set-cookie'][0]).toContain('HttpOnly');
+
+    await request(app.getHttpServer())
+      .post('/api/auth/logout')
+      .set('Cookie', refresh.headers['set-cookie'][0].split(';')[0])
+      .expect(201)
+      .expect(({ headers }) => {
+        expect(headers['set-cookie'][0]).toContain('Max-Age=0');
+      });
+  });
+
+  it('rejects cross-origin cookie operations', async () => {
+    await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .set('Origin', 'https://evil.example')
+      .set('Cookie', 'agritrace_refresh=token')
+      .expect(403);
+  });
+
+  it('rejects the existing access JWT immediately after logout revokes its family', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: user!.email, password })
+      .expect(201);
+    const cookie = login.headers['set-cookie'][0].split(';')[0];
+    await request(app.getHttpServer())
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(200);
+    const familyId = prisma.refreshSession.create.mock.calls[0][0].data.familyId;
+    prisma.refreshSession.findUnique.mockResolvedValue({ familyId });
+    await request(app.getHttpServer())
+      .post('/api/auth/logout')
+      .set('Cookie', cookie)
+      .expect(201);
+    expect(prisma.refreshSession.updateMany).toHaveBeenCalledWith({
+      where: { familyId, revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+    prisma.refreshSession.findFirst.mockResolvedValue(null);
+    const rejected = await request(app.getHttpServer())
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(401);
+    expect(rejected.body.message).toContain('Phiên đăng nhập đã bị thu hồi');
   });
 
   it.each([
@@ -173,6 +258,7 @@ describe('Auth security (e2e)', () => {
   it('rejects an existing token after the user is deleted', async () => {
     const token = jwt.sign({
       sub: user!.id,
+      sid: 'd6212d56-a3b2-4d54-9779-cc8507a6bd53',
       email: user!.email,
       role: user!.role.code,
     });
@@ -184,20 +270,23 @@ describe('Auth security (e2e)', () => {
   });
 
   it('rejects missing and invalid tokens before querying persistence', async () => {
-    await request(app.getHttpServer()).get('/api/auth/me').expect(401);
-    await request(app.getHttpServer())
+    const missing = await request(app.getHttpServer()).get('/api/auth/me').expect(401);
+    expect(missing.body.message).toContain('Thiếu Bearer token');
+    const invalid = await request(app.getHttpServer())
       .get('/api/auth/me')
       .set('Authorization', 'Bearer invalid')
       .expect(401);
+    expect(invalid.body.message).toContain('Access token không hợp lệ');
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 
   it('rejects expired tokens', async () => {
-    const token = jwt.sign({ sub: user!.id }, { expiresIn: -1 });
-    await request(app.getHttpServer())
+    const token = jwt.sign({ sub: user!.id, sid: user!.id }, { expiresIn: -1 });
+    const expired = await request(app.getHttpServer())
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
+    expect(expired.body.message).toContain('Access token đã hết hạn');
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 

@@ -24,26 +24,53 @@ const API_BASE_URL =
     ? (process.env.API_INTERNAL_BASE_URL ?? PUBLIC_API_BASE_URL)
     : PUBLIC_API_BASE_URL;
 const USE_MOCK_API = process.env.NEXT_PUBLIC_MOCK_API === "true";
-export const AUTH_STORAGE_KEY = "agritrace-auth";
+export const AUTH_STORAGE_KEY = "agritrace-auth"; // Legacy key, removed on startup.
 
 type ApiEnvelope<T> = { success: true; data: T };
-type StoredAuth = {
-  accessToken: string;
-  refreshToken: string;
-  refreshExpiresAt: string;
-  user: AuthUser;
-};
+let session: LoginResponse | null = null;
+let sessionVersion = 0;
+let identityVersion = 0;
 let refreshPromise: Promise<string> | null = null;
+
+export function readSession(): LoginResponse | null {
+  return session;
+}
+
+export function setSession(next: LoginResponse, newIdentity = true): void {
+  const changedAccount =
+    session?.user.id !== next.user.id ||
+    session?.user.organizationId !== next.user.organizationId ||
+    session?.user.role.code !== next.user.role.code;
+  session = next;
+  sessionVersion++;
+  if (newIdentity || changedAccount) identityVersion++;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("auth-changed"));
+}
+
+export function clearSession(): void {
+  session = null;
+  sessionVersion++;
+  identityVersion++;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("auth-changed"));
+}
+
+export async function restoreSession(): Promise<LoginResponse> {
+  await refreshAccessToken();
+  if (!session) throw new Error("Không khôi phục được phiên đăng nhập");
+  return session;
+}
 
 export async function login(
   email: string,
   password: string,
 ): Promise<LoginResponse> {
-  return request(
+  const result = await request<LoginResponse>(
     "/auth/login",
     { method: "POST", body: JSON.stringify({ email, password }) },
     false,
   );
+  setSession(result);
+  return result;
 }
 
 export async function getProfile(): Promise<AuthUser> {
@@ -199,30 +226,17 @@ export async function sendSensorReading(
 }
 
 function readAccessToken(): string | null {
-  return readStoredAuth()?.accessToken ?? null;
-}
-
-function readStoredAuth(): StoredAuth | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(
-      localStorage.getItem(AUTH_STORAGE_KEY) ?? "null",
-    ) as StoredAuth | null;
-  } catch {
-    return null;
-  }
+  return session?.accessToken ?? null;
 }
 
 async function refreshAccessToken(): Promise<string> {
   if (refreshPromise) return refreshPromise;
   refreshPromise = (async () => {
-    const stored = readStoredAuth();
-    if (!stored?.refreshToken) throw new Error("Không có refresh token");
+    const startedAt = sessionVersion;
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: "POST",
       cache: "no-store",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ refreshToken: stored.refreshToken }),
+      credentials: "include",
     }).catch(() => {
       throw {
         status: 0,
@@ -233,15 +247,15 @@ async function refreshAccessToken(): Promise<string> {
     const envelope = (await response
       .json()
       .catch(() => null)) as ApiEnvelope<LoginResponse> | null;
-    if (readStoredAuth()?.refreshToken !== stored.refreshToken)
+    if (sessionVersion !== startedAt)
       throw {
         status: 401,
+        code: "SESSION_CHANGED",
         message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
       };
     if (!response.ok || !envelope?.success) {
       if (response.status === 401 || response.status === 403) {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-        window.dispatchEvent(new Event("auth-changed"));
+        clearSession();
       }
       throw {
         status: response.status,
@@ -251,19 +265,8 @@ async function refreshAccessToken(): Promise<string> {
             : "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
       };
     }
-    const next: StoredAuth = {
-      accessToken: envelope.data.accessToken,
-      refreshToken: envelope.data.refreshToken,
-      refreshExpiresAt: envelope.data.refreshExpiresAt,
-      user: envelope.data.user,
-    };
-    if (readStoredAuth()?.refreshToken !== stored.refreshToken)
-      throw {
-        status: 401,
-        message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
-      };
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next));
-    return next.accessToken;
+    setSession(envelope.data, false);
+    return envelope.data.accessToken;
   })().finally(() => {
     refreshPromise = null;
   });
@@ -271,14 +274,15 @@ async function refreshAccessToken(): Promise<string> {
 }
 
 export async function revokeSession(): Promise<void> {
-  const stored = readStoredAuth();
-  if (!stored?.refreshToken) return;
-  await fetch(`${API_BASE_URL}/auth/logout`, {
+  // A refresh response can set a new cookie even after the UI has logged out.
+  // Wait for that response, then revoke whichever cookie the browser holds.
+  await refreshPromise?.catch(() => undefined);
+  const response = await fetch(`${API_BASE_URL}/auth/logout`, {
     method: "POST",
     keepalive: true,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ refreshToken: stored.refreshToken }),
-  }).catch(() => undefined);
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Không thể đăng xuất. Vui lòng thử lại.");
 }
 
 function isApiError(error: unknown): error is { status: number } {
@@ -292,8 +296,10 @@ export async function request<T>(
   canRefresh = true,
 ): Promise<T> {
   const method = init.method?.toUpperCase() ?? "GET";
-  const sessionUserId = authenticated ? readStoredAuth()?.user?.id : undefined;
-  const token = authenticated ? readAccessToken() : null;
+  const token = authenticated
+    ? (readAccessToken() ?? (await refreshAccessToken()))
+    : null;
+  const requestIdentity = identityVersion;
   const headers = new Headers(init.headers);
   if (init.body) headers.set("content-type", "application/json");
   if (token) headers.set("authorization", `Bearer ${token}`);
@@ -304,6 +310,7 @@ export async function request<T>(
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     cache: "no-store",
+    credentials: "include",
     headers,
   }).catch(() => {
     throw {
@@ -322,7 +329,7 @@ export async function request<T>(
         message?: string | string[];
       }
     | null;
-  if (authenticated && readStoredAuth()?.user?.id !== sessionUserId)
+  if (authenticated && identityVersion !== requestIdentity)
     throw {
       status: 401,
       code: "SESSION_CHANGED",
@@ -330,12 +337,18 @@ export async function request<T>(
     };
   if (response.status === 401 && authenticated && canRefresh) {
     if (readAccessToken() === token) await refreshAccessToken();
+    if (identityVersion !== requestIdentity) {
+      throw {
+        status: 401,
+        code: "SESSION_CHANGED",
+        message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
+      };
+    }
     return request<T>(path, { ...init, headers }, authenticated, false);
   }
   if (!response.ok) {
     if (response.status === 401 && authenticated) {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      window.dispatchEvent(new Event("auth-changed"));
+      clearSession();
     }
     const detail =
       payload && "error" in payload && payload.error ? payload.error : payload;

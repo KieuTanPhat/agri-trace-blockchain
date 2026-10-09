@@ -1,130 +1,76 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   AUTH_STORAGE_KEY,
-  getProfile,
+  clearSession,
   login as loginRequest,
+  readSession,
+  restoreSession,
   revokeSession,
 } from "./api-client";
 import type { AuthUser } from "./types";
+import { IOT_READING_STORAGE_KEY } from "./iot-local-store";
 
-type StoredAuth = {
-  accessToken: string;
-  refreshToken: string;
-  refreshExpiresAt: string;
-  user: AuthUser;
-};
 type AuthStore = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login(email: string, password: string): Promise<void>;
-  logout(): void;
+  logout(): Promise<void>;
 };
 
 const AuthContext = createContext<AuthStore | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [auth, setAuth] = useState<StoredAuth | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) {
-      setIsLoading(false);
-      return;
-    }
-    try {
-      const stored = JSON.parse(raw) as StoredAuth;
-      if (
-        !stored?.accessToken ||
-        !stored.refreshToken ||
-        !stored.user?.role?.code
-      )
-        throw new Error("missing token");
-      setAuth(stored);
-      getProfile()
-        .then((user) => {
-          if (!active) return;
-          const latest = JSON.parse(
-            localStorage.getItem(AUTH_STORAGE_KEY) ?? "null",
-          ) as StoredAuth | null;
-          if (!latest || latest.user.id !== stored.user.id) {
-            setAuth(latest);
-            return;
-          }
-          const refreshed = { ...latest, user };
-          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(refreshed));
-          setAuth(refreshed);
-        })
-        .catch(() => {
-          if (!active) return;
-          if (!localStorage.getItem(AUTH_STORAGE_KEY)) setAuth(null);
-        })
-        .finally(() => {
-          if (active) setIsLoading(false);
-        });
-    } catch {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      setIsLoading(false);
-    }
+    // Remove tokens saved by older releases. The new session is memory-only.
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem(IOT_READING_STORAGE_KEY);
+    const sync = () => setUser(readSession()?.user ?? null);
+    window.addEventListener("auth-changed", sync);
+    restoreSession()
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) {
+          sync();
+          setIsLoading(false);
+        }
+      });
     return () => {
       active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const sync = () => {
-      try {
-        setAuth(JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) ?? "null"));
-      } catch {
-        setAuth(null);
-      }
-    };
-    window.addEventListener("storage", sync);
-    window.addEventListener("auth-changed", sync);
-    return () => {
-      window.removeEventListener("storage", sync);
       window.removeEventListener("auth-changed", sync);
     };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const response = await loginRequest(email, password);
-    const next = {
-      accessToken: response.accessToken,
-      refreshToken: response.refreshToken,
-      refreshExpiresAt: response.refreshExpiresAt,
-      user: response.user,
-    };
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next));
-    setAuth(next);
+    const previous = readSession()?.user;
+    await loginRequest(email, password);
+    if (previous) {
+      localStorage.removeItem(
+        `${IOT_READING_STORAGE_KEY}:${previous.id}:${previous.organizationId ?? "system"}`,
+      );
+    }
   }, []);
 
-  const logout = useCallback(() => {
-    void revokeSession();
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    setAuth(null);
+  const logout = useCallback(async () => {
+    await revokeSession();
+    const current = readSession()?.user;
+    if (current) {
+      localStorage.removeItem(
+        `${IOT_READING_STORAGE_KEY}:${current.id}:${current.organizationId ?? "system"}`,
+      );
+    }
+    clearSession();
   }, []);
 
   const value = useMemo<AuthStore>(
-    () => ({
-      user: auth?.user ?? null,
-      isAuthenticated: Boolean(auth),
-      isLoading,
-      login,
-      logout,
-    }),
-    [auth, isLoading, login, logout],
+    () => ({ user, isAuthenticated: Boolean(user), isLoading, login, logout }),
+    [user, isLoading, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
