@@ -94,7 +94,9 @@ Thứ tự cần duyệt và diễn tập trên DB riêng trước khi dùng UAT
    Giữ writers dừng nếu chaincode hoặc migration chưa đạt.
 4. Apply các migration đã review. Provision role bằng
    `npm run db:provision-compliance-role --workspace apps/api`; script chỉ thêm
-   role thiếu, không tạo tài khoản hay thay mật khẩu.
+   role thiếu, không tạo tài khoản hay thay mật khẩu. Lệnh dùng Node và Prisma
+   client đã compile trong image production; nếu chạy từ source, cần generate
+   Prisma và build API trước. Không cần cài `tsx` vào image runtime.
 5. Đưa API/Worker/Web tương thích lên, cấp Reviewer/assignment qua Admin, canary
    và đối soát queue, proof, state, quantity trước khi mở writes.
 6. Ghi evidence trên đúng candidate SHA; UAT/RC và production có gate riêng.

@@ -194,7 +194,8 @@ class Controller:
         values = policy.read_env(self.storage / "records" / record["id"] / "origin.env")
         payload = {"origin": self.origin_for(record), "corsOrigins": values["CORS_ORIGINS"].split(","),
                    "accounts": json.loads(Path(self.config["accounts"]).read_text()), "canary": canary,
-                   "requireSessionFamily": bool(canary) or record.get("sessionContract") == "family-v1"}
+                   "requireSessionFamily": bool(canary) or record.get("sessionContract") == "family-v1",
+                   "legacyQrLotIds": record.get("legacyQrLotIds", [])}
         script = (Path(__file__).with_name("session-auth.mjs").read_text() + "\n" +
                   Path(__file__).with_name("verify.mjs").read_text())
         output = self.run("release-verification", self.dc(record, "exec", "-T", "worker", "node", "--input-type=module", "-e", script),
@@ -446,6 +447,9 @@ class Controller:
 
     def rollout(self, candidate, state, expected_sequence=None):
         old = self.record(state["current"])
+        # Only an administrator's reviewed cutover may establish this catalog.
+        # A routine release must not widen the legacy sensor exception.
+        candidate["legacyQrLotIds"] = list(old.get("legacyQrLotIds", []))
         require(not (self.storage / "journal.json").exists(), "Interrupted deployment needs recover before a new rollout")
         self.preflight(candidate)
         new_migrations = policy.migrations(self.applied(old), candidate["manifest"]["migrations"], candidate["directory"])
