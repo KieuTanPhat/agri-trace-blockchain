@@ -4,12 +4,20 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-store";
 import { request } from "@/lib/api-client";
 import { ResponsiveTable } from "@/components/responsive-table";
+import { labelForRole } from "@/lib/display-labels";
+import type { Role } from "@/lib/types";
 import { DataForm, type Field } from "@/components/data-form";
 import { emptyCatalog, type Catalog } from "@/lib/catalog";
 import type { components } from "@/lib/generated/api";
 type AdminUser = components["schemas"]["UserListDto"];
 type Org = { id: string; name: string; type: string; status: string };
 const tabs = ["Tổ chức", "Tài khoản", "Sản phẩm", "Nông trại", "Thửa đất"];
+const statusLabels: Record<string, string> = {
+  ACTIVE: "Đang hoạt động", INACTIVE: "Ngừng hoạt động", LOCKED: "Đã khóa",
+};
+const organizationLabels: Record<string, string> = {
+  FARM: "Nông trại", TRANSPORTER: "Vận chuyển", RETAILER: "Bán lẻ", AUDITOR: "Kiểm định",
+};
 export default function AdminPage() {
   const { user } = useAuth();
   const allowed = user?.role.code === "SYSTEM_ADMIN";
@@ -84,7 +92,7 @@ export default function AdminPage() {
         name: "roleCode",
         label: "Vai trò",
         required: true,
-        options: roles.map((r) => ({ value: r.code, label: r.name })),
+        options: roles.map((r) => ({ value: r.code, label: labelForRole(r.code as Role) })),
       },
       {
         name: "organizationId",
@@ -123,28 +131,28 @@ export default function AdminPage() {
     ],
   ];
   const rows = [
-    orgs.map((o) => [o.id, o.name, o.type, o.status]),
-    users.map((u) => [u.id, u.fullName, u.email, u.role.name, u.accountStatus]),
+    orgs.map((o) => [o.id, o.name, organizationLabels[o.type] ?? o.type, statusLabels[o.status] ?? o.status]),
+    users.map((u) => [u.id, u.fullName, u.email, labelForRole(u.role.code as Role), statusLabels[u.accountStatus] ?? u.accountStatus]),
     catalog.products.map((p) => [
       p.id,
       p.productName,
       p.variety ?? "",
       p.defaultUnit ?? "",
-      p.status,
+      statusLabels[p.status] ?? p.status,
     ]),
     catalog.farms.map((f) => [
       f.id,
       f.name,
       f.organization?.name ?? "",
       f.location ?? "",
-      f.status,
+      statusLabels[f.status] ?? f.status,
     ]),
     catalog.plots.map((p) => [
       p.id,
       p.name,
       p.farm?.name ?? "",
       [p.area, p.unit].filter(Boolean).join(" "),
-      p.status,
+      statusLabels[p.status] ?? p.status,
     ]),
   ][tab];
   const headers = [

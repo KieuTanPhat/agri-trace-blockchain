@@ -17,3 +17,11 @@ Các trạng thái thu hồi/hết hạn vẫn hiển thị trước phần bằ
 Chạy `npm run check --workspace apps/web` trên Node/npm được ghi trong README. Kiểm tra trình duyệt ở 320, 390, 768 và 1440 px: landing, scan, login, dashboard, lô/chi tiết, vụ trồng/chi tiết, admin/phân công, kiểm định, giả lập IoT và các trạng thái lỗi. Kiểm thêm tên dài, mã băm, bộ lọc đổi trang, bàn phím/Escape, camera bị từ chối và ảnh QR sai.
 
 Dữ liệu fixture khi kiểm tra local không phải bằng chứng nghiệm thu nghiệp vụ trên UAT. AGT-028 vẫn cần nghiệm thu theo issue, gồm thiết bị camera thật và người được phân công.
+
+### Kết quả kiểm tra giao diện ngày 2026-10-11
+
+- `npm run check --workspace apps/web` đạt: 146 tests, 84 lint-contract tests, 4 image-optimizer tests, TypeScript, ESLint/Oxlint và production build.
+- Đã kiểm tra landing, login, scanner, public trace, dashboard, lô/chi tiết, vụ trồng/chi tiết, năm danh mục admin, phân công, kiểm định, IoT và thư viện giao diện với viewport 320/390/768/1440 px. Không phát hiện tràn ngang trong 76 lần đo bố cục, gồm dữ liệu tên dài và mã băm.
+- Menu quản lý trên mobile mở/đóng và điều hướng đúng; bảng desktop và thẻ mobile chuyển theo breakpoint. Hộp thoại thu hoạch/vận chuyển vừa màn hình 320 px, trường nhập có nhãn truy cập.
+- Tải ảnh QR thật trong fixture điều hướng tới trang truy xuất cùng origin. URL sai bị từ chối; mã không tồn tại hiển thị trạng thái 404. Đã kiểm tra các trạng thái 403/409/422/503, Auditor không có biểu mẫu ghi dữ liệu.
+- Fixture chạy riêng trên localhost; không gửi thay đổi nghiệp vụ lên môi trường thật. Quyền camera bị từ chối và giải phóng camera được kiểm tra tự động; chưa xác nhận camera trên thiết bị vật lý.

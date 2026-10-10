@@ -9,6 +9,8 @@ import type { LotTrace, ProductionCycleOption } from "@/lib/types";
 
 type Certificate = components["schemas"]["CertificateRecordDto"];
 type Inspection = components["schemas"]["InspectionListDto"];
+const certificateLabels: Record<string, string> = { PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", REJECTED: "Đã từ chối" };
+const inspectionLabels = { PASS: "Đạt", FAIL: "Không đạt", CONDITIONAL: "Đạt có điều kiện" };
 type Snapshot = {
   scope: string;
   certificates: Certificate[];
@@ -242,7 +244,7 @@ function ComplianceWorkbench({
                   )
                   .map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.lot.lotCode} — {item.result} — {item.inspectedAt}
+                      {item.lot.lotCode} — {inspectionLabels[item.result]} — {item.inspectedAt}
                     </option>
                   ))}
               </select>
@@ -368,7 +370,7 @@ function ComplianceWorkbench({
                 {item.type} — {item.issuer}
               </h3>
               <p>
-                {item.status} ·{" "}
+                {certificateLabels[item.status] ?? item.status} ·{" "}
                 {item.status === "APPROVED" &&
                 !certificates.some(
                   (child) =>
@@ -400,7 +402,7 @@ function ComplianceWorkbench({
           inspections.map((item) => (
             <article key={item.id}>
               <h3>
-                {item.lot.lotCode} — {item.result}
+                {item.lot.lotCode} — {inspectionLabels[item.result]}
               </h3>
               <p>
                 {item.inspectedAt} · {item.organization?.name}
