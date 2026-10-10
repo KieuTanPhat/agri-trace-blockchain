@@ -1061,6 +1061,24 @@ const prisma = new PrismaClient({
       const journal = await prisma.commandCommit.findUniqueOrThrow({
         where: { idempotencyRecordId: record.id },
       });
+      // A reloaded browser has only its key, not the raw harvest form.
+      const recovered = await get(
+        `/production-cycles/${cycle.id}/harvest-request-status`,
+      )
+        .set('Idempotency-Key', key)
+        .expect(200);
+      const committedBody = journal.responseBody as unknown as {
+        lot: { id: string; lotCode: string };
+        traceQr: { traceToken: string };
+      };
+      expect(recovered.headers['cache-control']).toBe('no-store');
+      expect(recovered.body.data).toEqual({
+        status: 'COMMITTED',
+        result: {
+          lot: { id: committedBody.lot.id, lotCode: committedBody.lot.lotCode },
+          traceQr: { traceToken: committedBody.traceQr.traceToken },
+        },
+      });
       const replay = await post(
         `/production-cycles/${cycle.id}/harvests`,
         body,
@@ -1076,6 +1094,26 @@ const prisma = new PrismaClient({
           where: { cycleId: cycle.id },
         }),
       ).toBe(1);
+      const lotId = committedBody.lot.id;
+      expect(
+        await prisma.lot.count({ where: { harvest: { cycleId: cycle.id } } }),
+      ).toBe(1);
+      expect(await prisma.traceQr.count({ where: { lotId } })).toBe(1);
+      expect(
+        await prisma.quantityMovement.count({
+          where: { lotId, type: 'HARVEST_IN' },
+        }),
+      ).toBe(1);
+      const movement = await prisma.quantityMovement.findFirstOrThrow({
+        where: { lotId, type: 'HARVEST_IN' },
+      });
+      expect(Number(movement.afterQty)).toBe(1);
+      expect(await prisma.traceEvent.count({ where: { lotId } })).toBe(2);
+      expect(
+        await prisma.blockchainOutbox.count({
+          where: { traceEvent: { lotId } },
+        }),
+      ).toBe(2);
       await expect(
         prisma.commandCommit.update({
           where: { id: journal.id },
@@ -1088,6 +1126,156 @@ const prisma = new PrismaClient({
         'foreign',
         key,
       ).expect(403);
+    });
+
+    it('keeps missing, expired processing and unjournaled success harvests unresolved', async () => {
+      const cycle = await plantedCycle();
+      const body = {
+        quantity: 1,
+        unit: 'kg',
+        harvestTime: '2026-09-26T00:00:00.000Z',
+      };
+      const status = (key: string, user = 'farm') =>
+        get(`/production-cycles/${cycle.id}/harvest-request-status`, user).set(
+          'Idempotency-Key',
+          key,
+        );
+      expect((await status(randomUUID()).expect(200)).body.data).toEqual({
+        status: 'NOT_FOUND',
+      });
+      await get(`/production-cycles/${cycle.id}/harvest-request-status`).expect(
+        400,
+      );
+      await status('x'.repeat(256)).expect(400);
+      const scope = canonicalSha256({
+        requesterId: users.farm,
+        role: 'FARM_STAFF',
+        organizationId: farmOrgId,
+      });
+      const key = randomUUID();
+      const record = await prisma.idempotencyRecord.create({
+        data: {
+          requesterId: users.farm,
+          operation: 'RECORD_HARVEST',
+          requestType: 'COMMAND',
+          idempotencyKey: key,
+          authorizationScope: scope,
+          requestHash: canonicalSha256({ cycleId: cycle.id, ...body }),
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          expiresAt: new Date('2026-01-02T00:00:00Z'),
+          status: 'PROCESSING',
+        },
+      });
+      expect((await status(key).expect(200)).body.data).toEqual({
+        status: 'NEEDS_RECONCILIATION',
+      });
+      await post(
+        `/production-cycles/${cycle.id}/harvests`,
+        body,
+        'farm',
+        key,
+      ).expect(409);
+      await prisma.idempotencyRecord.update({
+        where: { id: record.id },
+        data: {
+          status: 'COMPLETED',
+          responseStatus: 201,
+          responseBody: { lot: { id: randomUUID() } },
+        },
+      });
+      expect((await status(key).expect(200)).body.data).toEqual({
+        status: 'NEEDS_RECONCILIATION',
+      });
+      await status(key, 'foreign').expect(403);
+      await status(key, 'admin').expect(403);
+      expect(
+        await prisma.harvestEvent.count({ where: { cycleId: cycle.id } }),
+      ).toBe(0);
+    });
+
+    it('only recovers a journal for its requester, current scope and original cycle', async () => {
+      const cycle = await plantedCycle(),
+        otherCycle = await plantedCycle();
+      const key = randomUUID();
+      await post(
+        `/production-cycles/${cycle.id}/harvests`,
+        {
+          quantity: 1,
+          unit: 'kg',
+          harvestTime: '2026-09-26T00:00:00.000Z',
+        },
+        'farm',
+        key,
+      ).expect(201);
+      const status = (id = cycle.id, actor = 'farm') =>
+        get(`/production-cycles/${id}/harvest-request-status`, actor).set(
+          'Idempotency-Key',
+          key,
+        );
+      expect((await status(otherCycle.id).expect(200)).body.data).toEqual({
+        status: 'NEEDS_RECONCILIATION',
+      });
+      const role = await prisma.role.findUniqueOrThrow({
+        where: { code: 'FARM_STAFF' },
+      });
+      const colleague = await prisma.user.create({
+        data: {
+          email: `colleague-${randomUUID()}@example.test`,
+          fullName: 'Recovery colleague',
+          roleId: role.id,
+          organizationId: farmOrgId,
+          passwordHash: 'not-a-login-fixture',
+        },
+      });
+      users.colleague = colleague.id;
+      sessionIds.colleague = randomUUID();
+      await prisma.refreshSession.create({
+        data: {
+          id: sessionIds.colleague,
+          familyId: sessionIds.colleague,
+          userId: colleague.id,
+          tokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+      });
+      expect(
+        (await status(cycle.id, 'colleague').expect(200)).body.data,
+      ).toEqual({ status: 'NOT_FOUND' });
+      // A legacy authorization scope is never enough to disclose a QR.
+      const record = await prisma.idempotencyRecord.findFirstOrThrow({
+        where: { idempotencyKey: key },
+      });
+      await prisma.idempotencyRecord.update({
+        where: { id: record.id },
+        data: { authorizationScope: null },
+      });
+      expect((await status().expect(200)).body.data).toEqual({
+        status: 'NEEDS_RECONCILIATION',
+      });
+    });
+
+    it('reports a terminal rolled-back harvest rejection without inventing a result', async () => {
+      const cycle = await plantedCycle(),
+        key = randomUUID();
+      await post(
+        `/production-cycles/${cycle.id}/harvests`,
+        {
+          quantity: 2,
+          unit: 'kg',
+          harvestTime: '2026-09-26T00:00:00.000Z',
+        },
+        'farm',
+        key,
+      ).expect(422);
+      const status = await get(
+        `/production-cycles/${cycle.id}/harvest-request-status`,
+      )
+        .set('Idempotency-Key', key)
+        .expect(200);
+      expect(status.body.data).toEqual({ status: 'REJECTED' });
+      expect(
+        await prisma.harvestEvent.count({ where: { cycleId: cycle.id } }),
+      ).toBe(0);
     });
 
     it('keeps NO_DATA windows sealed with no invented digest or membership', async () => {

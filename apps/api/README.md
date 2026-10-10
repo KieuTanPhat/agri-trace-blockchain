@@ -1,5 +1,8 @@
 # Agri Trace API
 
+Xem [phục hồi yêu cầu thu hoạch](../../docs/harvest-recovery.md) cho API đối soát
+journal và cách retry sau khi mất phản hồi.
+
 NestJS API sử dụng PostgreSQL và Prisma. API mặc định chạy tại
 `http://localhost:8080/api`.
 

@@ -619,6 +619,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/production-cycles/{cycleId}/harvest-request-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["LotsController_getHarvestStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/production-cycles/{cycleId}/harvests": {
         parameters: {
             query?: never;
@@ -1611,6 +1627,14 @@ export interface components {
             updatedAt: string;
             version: number;
         };
+        HarvestRequestStatusDto: {
+            result?: components["schemas"]["RecoveredHarvestDto"];
+            /**
+             * @description NOT_FOUND is not permission to replace the key. Only an immutable command journal proves COMMITTED.
+             * @enum {string}
+             */
+            status: "NOT_FOUND" | "COMMITTED" | "REJECTED" | "NEEDS_RECONCILIATION";
+        };
         HarvestResultDto: {
             cycleVersion: number;
             harvest: components["schemas"]["HarvestEventRecordDto"];
@@ -2157,6 +2181,18 @@ export interface components {
             qualityNote?: string;
             quantity: number;
             unit: string;
+        };
+        RecoveredHarvestDto: {
+            lot: components["schemas"]["RecoveredLotDto"];
+            traceQr: components["schemas"]["RecoveredQrDto"];
+        };
+        RecoveredLotDto: {
+            /** Format: uuid */
+            id: string;
+            lotCode: string;
+        };
+        RecoveredQrDto: {
+            traceToken: string;
         };
         RegisterDto: Record<string, never>;
         RejectShipmentDto: {
@@ -7832,6 +7868,126 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["ProductionCycleRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    LotsController_getHarvestStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+            };
+            path: {
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["HarvestRequestStatusDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;

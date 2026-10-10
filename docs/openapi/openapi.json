@@ -2262,6 +2262,27 @@
         ],
         "type": "object"
       },
+      "HarvestRequestStatusDto": {
+        "properties": {
+          "result": {
+            "$ref": "#/components/schemas/RecoveredHarvestDto"
+          },
+          "status": {
+            "description": "NOT_FOUND is not permission to replace the key. Only an immutable command journal proves COMMITTED.",
+            "enum": [
+              "NOT_FOUND",
+              "COMMITTED",
+              "REJECTED",
+              "NEEDS_RECONCILIATION"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
       "HarvestResultDto": {
         "properties": {
           "cycleVersion": {
@@ -4251,6 +4272,48 @@
           "harvestTime",
           "quantity",
           "unit"
+        ],
+        "type": "object"
+      },
+      "RecoveredHarvestDto": {
+        "properties": {
+          "lot": {
+            "$ref": "#/components/schemas/RecoveredLotDto"
+          },
+          "traceQr": {
+            "$ref": "#/components/schemas/RecoveredQrDto"
+          }
+        },
+        "required": [
+          "lot",
+          "traceQr"
+        ],
+        "type": "object"
+      },
+      "RecoveredLotDto": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lotCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "lotCode"
+        ],
+        "type": "object"
+      },
+      "RecoveredQrDto": {
+        "properties": {
+          "traceToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "traceToken"
         ],
         "type": "object"
       },
@@ -13159,6 +13222,173 @@
         ],
         "tags": [
           "production-cycles"
+        ]
+      }
+    },
+    "/api/production-cycles/{cycleId}/harvest-request-status": {
+      "get": {
+        "operationId": "LotsController_getHarvestStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cycleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/HarvestRequestStatusDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "lots"
         ]
       }
     },
