@@ -26,7 +26,8 @@ Kiểm HTTPS apex/www, auth năm role, QR/direct ledger và dịch vụ được
 Nếu lỗi, phục hồi cấu hình, URL QR và các container bằng image trước cutover.
 Release quản trị được ghi rõ nguồn API gốc và nguồn Web; không giả mạo CI/main.
 Source nghiệp vụ phải trùng byte với bản đang chạy; riêng `migration_lock.toml`
-cho phép khác CRLF/LF do checkout Windows và Git archive, giữ nguyên nội dung.
+và `Caddyfile.uat` cho phép khác CRLF/LF do checkout Windows và Git archive,
+giữ nguyên nội dung và chính sách proxy.
 
 QR đã in chứa địa chỉ cũ cần được in lại từ liên kết mới. Token và dữ liệu QR
 được giữ, nhưng việc gỡ miền cũ khiến đường dẫn đã in trên giấy không còn mở được.
@@ -53,7 +54,7 @@ JWT và email tại Agent trước khi gửi sang Datadog US5. Không thu log Po
 Fabric hoặc Portainer. Giới hạn Agent 768 MiB/1 CPU; không publish port;
 APM/process tracing/security/remote configuration không được bật trong bước này.
 
-Xem Logs Explorer với `env:uat service:agritrace`, hoặc lọc theo `container_name`.
+Xem Logs Explorer với `host:agritrace-uat env:uat`, hoặc lọc theo `container_name`.
 Kiểm Agent healthy, số log gửi tăng và log đã xuất hiện trên tài khoản Datadog.
 Giữ nguyên container IDs của ứng dụng trong khi cài Agent. Cần theo dõi usage
 log ingestion/index và thời hạn credit của gói đang dùng; không tự đổi gói.

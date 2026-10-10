@@ -47,6 +47,13 @@ def verify_business_source(previous, source):
             aliases.require(old_bytes == new_bytes, "Business source changed: " + str(relative))
 
 
+def verify_proxy_policy(previous, source):
+    relative = Path("deploy/Caddyfile.uat")
+    old_bytes = (previous / relative).read_bytes().replace(b"\r\n", b"\n")
+    new_bytes = (source / relative).read_bytes().replace(b"\r\n", b"\n")
+    aliases.require(old_bytes == new_bytes, "Proxy policy changed")
+
+
 def query(controller, record, sql):
     command = aliases.compose(controller, record, "exec", "-T", "postgres", "psql", "-U",
                               controller.environment["POSTGRES_USER"], "-d", controller.environment["POSTGRES_DB"],
@@ -129,7 +136,7 @@ def execute(args):
         source = base / "releases" / ("uat-" + args.source_sha)
         aliases.require(source.is_dir(), "Archive exact reviewed source first")
         verify_business_source(Path(previous["directory"]), source)
-        aliases.require((source / "deploy/Caddyfile.uat").read_bytes() == (Path(previous["directory"]) / "deploy/Caddyfile.uat").read_bytes(), "Proxy policy changed")
+        verify_proxy_policy(Path(previous["directory"]), source)
         image = json.loads(controller.run("cutover-image", ["docker", "image", "inspect", args.web_image]))[0]
         labels = image["Config"].get("Labels", {})
         aliases.require(labels.get("org.opencontainers.image.revision") == args.source_sha and labels.get("agritrace.public-origin") == args.origin, "Web build provenance is invalid")
