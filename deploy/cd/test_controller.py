@@ -49,6 +49,55 @@ class DomainDelivery(unittest.TestCase):
         self.assertEqual(payload["origin"], "https://agritrace.dev")
         self.assertEqual(payload["corsOrigins"], self.controller.environment["CORS_ORIGINS"].split(","))
 
+    def test_candidate_and_promoted_release_require_session_family(self):
+        self.controller.run = MagicMock(return_value=b'{"result":"passed"}')
+        for record, canary, expected in ((self.legacy, None, False), (self.domain, "b" * 40, True),
+                                        (dict(self.domain, sessionContract="family-v1"), None, True)):
+            with self.subTest(expected=expected, canary=canary):
+                self.controller.verify(record, canary)
+                payload = json.loads(self.controller.run.call_args.args[2])
+                self.assertEqual(payload["requireSessionFamily"], expected)
+
+    def test_resume_fabric_waits_for_both_peers_before_reconcile(self):
+        self.controller.run = MagicMock(return_value=b"")
+        self.controller.definition = MagicMock(side_effect=[PolicyError("peer unavailable"), {"sequence": 2}])
+        with patch.object(module.time, "monotonic", side_effect=[0, 1, 2]), \
+                patch.object(module.time, "sleep") as sleep:
+            self.controller.resume_fabric()
+        self.assertEqual(self.controller.run.call_args.args[1], ["docker", "start", *module.FABRIC])
+        self.assertEqual(self.controller.definition.call_count, 2)
+        sleep.assert_called_once_with(5)
+
+    def test_resume_fabric_times_out_without_starting_application(self):
+        self.controller.run = MagicMock(return_value=b"")
+        self.controller.definition = MagicMock(side_effect=PolicyError("peer unavailable"))
+        with patch.object(module.time, "monotonic", side_effect=[0, 1, 181]), \
+                patch.object(module.time, "sleep"):
+            with self.assertRaisesRegex(PolicyError, "Fabric peers"):
+                self.controller.resume_fabric()
+        self.assertEqual(self.controller.phase, "fabric-readiness")
+        self.assertEqual(self.controller.run.call_count, 1)
+
+    def test_snapshot_resume_does_not_overwrite_the_original_failure_phase(self):
+        (self.base / "backups").mkdir()
+        self.controller.environment.update(POSTGRES_USER="test", POSTGRES_DB="test")
+        self.controller.dc = MagicMock(return_value=["docker", "compose"])
+
+        def run(label, arguments, **kwargs):
+            self.controller.phase = label
+            if label == "ledger-volume-path":
+                return f"/var/lib/docker/volumes/{arguments[-1]}/_data".encode()
+            if label == "ledger-consistent-backup":
+                raise PolicyError("simulated ledger backup failure")
+            return b""
+
+        self.controller.run = run
+        self.controller.resume_fabric = MagicMock(side_effect=lambda: setattr(self.controller, "phase", "fabric-readiness"))
+        with patch.object(module, "atomic_json"), self.assertRaisesRegex(PolicyError, "ledger backup"):
+            self.controller.snapshot(self.legacy, "c" * 40, {})
+        self.controller.resume_fabric.assert_called_once()
+        self.assertEqual(self.controller.phase, "ledger-consistent-backup")
+
     @staticmethod
     def response():
         response = MagicMock()
@@ -132,6 +181,9 @@ class Rehearsal(Controller):
         self.calls.append("reconcile-definition")
         return state["chaincode"]
 
+    def resume_fabric(self):
+        self.calls.append("resume-fabric")
+
 
 @unittest.skipIf(os.name == "nt", "Controller uses Linux durable directory fsync; policy tests remain portable")
 class DeliveryFailureRecovery(unittest.TestCase):
@@ -159,6 +211,7 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.assertEqual(self.controller.state()["previous"], self.old["id"])
         self.assertFalse((self.base / "cd/journal.json").exists())
         self.assertLess(self.controller.calls.index("snapshot"), self.controller.calls.index("migration-deploy"))
+        self.assertEqual(self.controller.record(self.candidate["id"])["sessionContract"], "family-v1")
 
     def test_candidate_failure_restores_old_app_without_data_restore(self):
         self.controller.fail_candidate = True
@@ -176,6 +229,23 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.assertNotIn("migration-deploy", self.controller.calls)
         self.assertIn("start-" + self.old["id"], self.controller.calls)
 
+    def test_partial_migration_failure_keeps_writers_stopped_for_reconciliation(self):
+        def migrate(record):
+            self.controller.calls.append("migration-deploy")
+            raise PolicyError("simulated partial migration failure")
+
+        def applied(record):
+            if "migration-deploy" in self.controller.calls:
+                raise PolicyError("unfinished migration")
+            return {"20260101_init": "a" * 64}
+
+        self.controller.migrate = migrate
+        self.controller.applied = applied
+        with self.assertRaisesRegex(PolicyError, "recovery-required"):
+            self.controller.rollout(self.candidate, self.state)
+        self.assertNotIn("start-" + self.old["id"], self.controller.calls)
+        self.assertTrue((self.base / "cd/journal.json").exists())
+
     def test_failed_rollback_leaves_recoverable_journal(self):
         self.controller.fail_candidate = self.controller.fail_rollback = True
         with self.assertRaisesRegex(PolicyError, "recovery-required"):
@@ -184,6 +254,67 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.controller.fail_candidate = self.controller.fail_rollback = False
         self.assertEqual(self.controller.recover()["result"], "recovered")
         self.assertFalse((self.base / "cd/journal.json").exists())
+
+    def test_recover_resumes_fabric_left_stopped_by_interrupted_snapshot(self):
+        self.controller.journal(self.old, self.candidate, "snapshot", self.controller.data)
+
+        def reconcile(state, previous):
+            if "resume-fabric" not in self.controller.calls:
+                raise PolicyError("Fabric is still stopped after an interrupted snapshot")
+            self.controller.calls.append("reconcile-definition")
+            return state["chaincode"]
+
+        self.controller.restore_definition = reconcile
+        self.assertEqual(self.controller.recover()["result"], "recovered")
+        calls = self.controller.calls
+        self.assertLess(calls.index("stop-" + self.candidate["id"]), calls.index("resume-fabric"))
+        self.assertLess(calls.index("resume-fabric"), calls.index("reconcile-definition"))
+        self.assertLess(calls.index("reconcile-definition"), calls.index("start-" + self.old["id"]))
+
+    def test_recover_does_not_open_writers_before_migration_reconciliation(self):
+        self.controller.journal(self.old, self.candidate, "migration", self.controller.data)
+        self.controller.applied = MagicMock(side_effect=PolicyError("unfinished migration"))
+        with self.assertRaisesRegex(PolicyError, "unfinished migration"):
+            self.controller.recover()
+        self.assertNotIn("start-" + self.old["id"], self.controller.calls)
+        self.assertTrue((self.base / "cd/journal.json").exists())
+
+    def test_recover_validates_additive_migration_bytes_and_line_ending_variants(self):
+        name = "20260102_note"
+        script = b'ALTER TABLE "lot" ADD COLUMN "memo" TEXT;\r\n'
+        filename = Path(self.candidate["directory"]) / "apps/api/prisma/migrations" / name / "migration.sql"
+        filename.parent.mkdir(parents=True)
+        filename.write_bytes(script)
+        self.candidate["manifest"]["migrations"][name] = module.policy.sha256(script)
+        self.controller.save_record(self.candidate)
+        self.controller.applied = MagicMock(return_value={"20260101_init": "a" * 64, name: module.policy.sha256(script.replace(b"\r\n", b"\n"))})
+        self.controller.journal(self.old, self.candidate, "migration", self.controller.data)
+        self.assertEqual(self.controller.recover()["result"], "recovered")
+        self.assertEqual(self.controller.state()["compatible_migrations"], [name])
+
+    def test_recover_rejects_unknown_completed_migration_before_starting_writers(self):
+        self.controller.applied = MagicMock(return_value={"20260101_init": "a" * 64, "20260102_unknown": "d" * 64})
+        self.controller.journal(self.old, self.candidate, "migration", self.controller.data)
+        with self.assertRaises(PolicyError):
+            self.controller.recover()
+        self.assertNotIn("start-" + self.old["id"], self.controller.calls)
+        self.assertTrue((self.base / "cd/journal.json").exists())
+
+    def test_result_write_failure_keeps_journal_if_rollback_also_fails(self):
+        self.controller.fail_rollback = True
+
+        def persist(filename, data):
+            if Path(filename).name == "last-result.json" and data.get("result") == "passed":
+                raise OSError("simulated persistence failure after promotion")
+            return atomic_json(filename, data)
+
+        with patch.object(module, "atomic_json", side_effect=persist):
+            with self.assertRaisesRegex(PolicyError, "recovery-required"):
+                self.controller.rollout(self.candidate, self.state)
+        self.assertTrue((self.base / "cd/journal.json").exists())
+        self.controller.fail_rollback = False
+        self.assertEqual(self.controller.recover()["result"], "recovered")
+        self.assertEqual(self.controller.state()["current"], self.old["id"])
 
     def test_chaincode_change_blocks_before_writers_stop(self):
         self.candidate["manifest"]["chaincode"] = "d" * 64

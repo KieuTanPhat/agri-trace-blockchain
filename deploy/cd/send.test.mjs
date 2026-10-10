@@ -60,3 +60,27 @@ test('failed backup transport never leaves an incomplete artifact',{skip:process
   assert.equal(existsSync(path.join(f.root,`uat-backup-${sha}.cms`)),false);
   assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
 });
+
+test('missing host pin removes the private key before SSH starts',t=>{
+  const f=fixture(t);delete f.env.UAT_KNOWN_HOSTS;
+  const result=f.run('deploy',sha,f.archive);
+  assert.equal(result.status,1);assert.equal(existsSync(f.marker),false);
+  assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
+  assert.ok(!result.stderr.includes(f.env.UAT_SSH_PRIVATE_KEY));
+});
+
+test('missing private key leaves no temporary SSH directory',t=>{
+  const f=fixture(t);delete f.env.UAT_SSH_PRIVATE_KEY;
+  const result=f.run('deploy',sha,f.archive);
+  assert.equal(result.status,1);assert.equal(existsSync(f.marker),false);
+  assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
+});
+
+test('known-hosts write failure cleans up a key already written',t=>{
+  const f=fixture(t);
+  mkdirSync(path.join(f.root,'agri-cd-ssh','known_hosts'),{recursive:true});
+  const result=f.run('deploy',sha,f.archive);
+  assert.equal(result.status,1);assert.equal(existsSync(f.marker),false);
+  assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
+  assert.ok(!result.stderr.includes(f.env.UAT_SSH_PRIVATE_KEY));
+});

@@ -20,7 +20,7 @@ def bundle(directory, extra=None, mutate=None):
     manifest = {"format": 1, "sha": SHA, "repository": REPO, "origin": ORIGIN, "files": hashes, "chaincode": fingerprint(hashes),
                 "migrations": {"20260101000000_init": hashes["apps/api/prisma/migrations/20260101000000_init/migration.sql"]},
                 "api": f"ghcr.io/{REPO.lower()}/api@sha256:{'0' * 64}", "web": f"ghcr.io/{REPO.lower()}/web@sha256:{'1' * 64}"}
-    manifest["controller"] = {name: "0" * 64 for name in ("controller.py", "policy.py", "verify.mjs", "entry")}
+    manifest["controller"] = {name: "0" * 64 for name in ("controller.py", "policy.py", "verify.mjs", "session-auth.mjs", "entry")}
     if mutate:
         mutate(manifest)
     files["cd-manifest.json"] = json.dumps(manifest).encode()
@@ -164,6 +164,20 @@ class Policies(unittest.TestCase):
             new = dict(old, **{"20260102_note": sha256(sql.encode())})
             self.assertEqual(migrations(old, new, directory), ["20260102_note"])
             self.assertEqual(migrations(new, old, directory, ["20260102_note"]), [])
+
+    def test_new_migration_checks_exact_bytes_before_decoding_sql(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "apps/api/prisma/migrations/20260102_note/migration.sql"
+            target.parent.mkdir(parents=True)
+            for ending in (b"\n", b"\r\n"):
+                with self.subTest(ending=ending):
+                    script = b'ALTER TABLE "lot" ADD COLUMN "memo" TEXT;' + ending
+                    target.write_bytes(script)
+                    catalog = {"20260102_note": sha256(script)}
+                    self.assertEqual(migrations({}, catalog, directory), ["20260102_note"])
+                    target.write_bytes(script + b"-- modified after packaging\n")
+                    with self.assertRaisesRegex(PolicyError, "source checksum"):
+                        migrations({}, catalog, directory)
 
 
 if __name__ == "__main__":
