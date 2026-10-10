@@ -65,6 +65,7 @@ const roleLabels: Record<Role, string> = {
   TRANSPORTER: "Đơn vị vận chuyển",
   RETAILER: "Nhà bán lẻ",
   AUDITOR: "Kiểm tra viên",
+  COMPLIANCE_REVIEWER: "Người duyệt tuân thủ",
   SYSTEM_ACTOR: "Tác vụ hệ thống",
 };
 

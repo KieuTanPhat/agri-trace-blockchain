@@ -3,6 +3,9 @@
 Monorepo cho hệ thống truy xuất nguồn gốc nông sản, tổng hợp frontend, backend và
 Hyperledger Fabric trong một cấu trúc thống nhất.
 
+Tiến độ triển khai core và các cổng chưa đạt:
+[core implementation](docs/core-implementation-2026-10-10.md).
+
 ## Cấu trúc
 
 ```text

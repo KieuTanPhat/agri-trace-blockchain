@@ -51,10 +51,12 @@ export class ShipmentsController {
     payload: unknown,
     fn: () => Promise<unknown>,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
         requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
         operation,
         requestType: 'COMMAND',
         payload,
@@ -62,13 +64,27 @@ export class ShipmentsController {
       fn,
     );
   }
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   @Get()
   list(@Req() req: AuthenticatedRequest) {
     return this.service.list(req.user);
   }
 
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   @ApiOkResponse({
     description:
       'Chi tiết chuyến hàng; telemetry.deviceSequence là chuỗi số nguyên hoặc null.',

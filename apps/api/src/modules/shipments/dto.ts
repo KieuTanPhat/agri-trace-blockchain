@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsDateString,
   IsInt,
@@ -8,6 +8,8 @@ import {
   IsString,
   IsUUID,
   Min,
+  MinLength,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateShipmentDto {
@@ -41,7 +43,11 @@ export class ReceiveShipmentDto extends ShipmentTransitionDto {
 }
 
 export class RejectShipmentDto extends ShipmentTransitionDto {
-  @IsString() reason!: string;
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(1000)
+  reason!: string;
 }
 
 export class DamageShipmentDto extends ShipmentTransitionDto {
@@ -49,5 +55,10 @@ export class DamageShipmentDto extends ShipmentTransitionDto {
   @IsNumber({ maxDecimalPlaces: 3 })
   @IsPositive()
   quantity!: number;
-  @IsString() reason!: string;
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(1000)
+  reason!: string;
+  @IsOptional() @IsString() @MaxLength(2048) evidenceRef?: string;
 }

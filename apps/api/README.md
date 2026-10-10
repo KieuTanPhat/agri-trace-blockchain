@@ -3,6 +3,12 @@
 NestJS API sử dụng PostgreSQL và Prisma. API mặc định chạy tại
 `http://localhost:8080/api`.
 
+Các thay đổi command journal, reviewer scope, harvest sensor window và cutover
+Fabric v3 được ghi trong [implementation record](../../docs/core-implementation-2026-10-10.md).
+Các migration mới cần review SQL/rehearsal có kiểm soát trước triển khai. Sau
+migrate, dùng `npm run db:provision-compliance-role --workspace apps/api` để thêm
+role reviewer còn thiếu; không dùng demo seed trên dữ liệu dùng chung.
+
 ## Chạy local
 
 Từ thư mục gốc repository:

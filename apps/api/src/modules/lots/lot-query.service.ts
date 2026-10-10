@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
+import { assignedFarmWhere } from '../auth/compliance-scope.js';
 import type { Actor } from '../trace/trace.service.js';
 import {
   INTERNAL_LOT_INCLUDE,
@@ -30,29 +31,31 @@ export class LotQueryService {
     const lots = await this.prisma.lot.findMany({
       where: ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)
         ? undefined
-        : {
-            OR: [
-              {
-                farmOrgId:
-                  actor.organizationId ??
-                  '00000000-0000-0000-0000-000000000000',
-              },
-              {
-                shipment: {
-                  transporterOrgId:
+        : actor.role === 'COMPLIANCE_REVIEWER'
+          ? { harvest: { cycle: { farm: assignedFarmWhere(actor) } } }
+          : {
+              OR: [
+                {
+                  farmOrgId:
                     actor.organizationId ??
                     '00000000-0000-0000-0000-000000000000',
                 },
-              },
-              {
-                shipment: {
-                  retailerOrgId:
-                    actor.organizationId ??
-                    '00000000-0000-0000-0000-000000000000',
+                {
+                  shipment: {
+                    transporterOrgId:
+                      actor.organizationId ??
+                      '00000000-0000-0000-0000-000000000000',
+                  },
                 },
-              },
-            ],
-          },
+                {
+                  shipment: {
+                    retailerOrgId:
+                      actor.organizationId ??
+                      '00000000-0000-0000-0000-000000000000',
+                  },
+                },
+              ],
+            },
       include: INTERNAL_LOT_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });

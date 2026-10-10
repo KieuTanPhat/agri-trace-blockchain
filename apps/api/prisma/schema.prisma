@@ -33,6 +33,9 @@ model User {
   trackingBindings ShipmentTrackingBinding[]
   traceEvents      TraceEvent[]
   refreshSessions  RefreshSession[]
+  complianceAssignments ComplianceAssignment[]
+  complianceAssignmentAudits ComplianceAssignmentAudit[]
+  sensorReconciliations CycleSensorReconciliation[]
 
   @@map("app_user")
 }
@@ -87,6 +90,7 @@ model Farm {
   organization   Organization       @relation(fields: [organizationId], references: [id], onUpdate: NoAction)
   plots          Plot[]
   cycles         ProductionCycle[]
+  complianceAssignments ComplianceAssignment[]
 
   @@index([organizationId], map: "ix_farm_organization")
   @@map("farm")
@@ -153,6 +157,9 @@ model ProductionCycle {
   sensorReadings     SensorReading[]
   traceEvents        TraceEvent[]
 
+  harvestSensorWindows HarvestSensorWindow[]
+  sensorReconciliations CycleSensorReconciliation[]
+
   @@unique([farmId, cycleCode], map: "uq_production_cycle_farm_code")
   @@index([farmOrgId], map: "ix_production_cycle_farm_org")
   @@index([productId], map: "ix_production_cycle_product")
@@ -216,6 +223,8 @@ model SensorReading {
   createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   cycle      ProductionCycle @relation(fields: [cycleId], references: [id], onUpdate: NoAction)
   device     IotDevice       @relation(fields: [deviceId], references: [id], onUpdate: NoAction)
+  harvestMembership HarvestSensorMembership?
+  lateMarker LateSensorReading?
 
   @@index([cycleId, recordedAt], map: "ix_sensor_reading_cycle_time")
   @@index([deviceId, recordedAt], map: "ix_sensor_reading_device_time")
@@ -255,6 +264,9 @@ model HarvestEvent {
   cycle               ProductionCycle @relation(fields: [cycleId], references: [id], onUpdate: NoAction)
   finalSensorDigest   SensorDigest?   @relation(fields: [finalSensorDigestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   lot                 Lot?
+  sensorWindow HarvestSensorWindow?
+  lateReadings LateSensorReading[]
+  sensorReconciliations CycleSensorReconciliation[]
 
   @@index([cycleId, harvestTime], map: "ix_harvest_cycle_time")
   @@map("harvest_event")
@@ -582,6 +594,8 @@ model IdempotencyRecord {
   responseBody   Json?             @map("response_body")
   resourceId     String?           @map("resource_id") @db.VarChar(255)
   requesterId    String            @map("requester_id") @db.VarChar(255)
+  authorizationScope String?       @map("authorization_scope") @db.VarChar(64)
+  commandCommit  CommandCommit?
   createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime          @default(now()) @map("updated_at") @db.Timestamptz(6)
   expiresAt      DateTime?         @map("expires_at") @db.Timestamptz(6)
@@ -590,6 +604,116 @@ model IdempotencyRecord {
   @@index([expiresAt], map: "ix_idempotency_expires")
   @@index([status], map: "ix_idempotency_status")
   @@map("idempotency_record")
+}
+
+/// Immutable result journal; never stores authentication responses or secrets.
+model CommandCommit {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("command_commit_id") @db.Uuid
+  idempotencyRecordId String @unique @map("idempotency_record_id") @db.Uuid
+  requesterId String @map("requester_id") @db.VarChar(255)
+  operation String @db.VarChar(100)
+  authorizationScope String @map("authorization_scope") @db.VarChar(64)
+  actorScope Json @map("actor_scope")
+  resourceIds Json @map("resource_ids")
+  responseStatus Int @map("response_status")
+  responseBody Json @map("response_body")
+  committedAt DateTime @default(now()) @map("committed_at") @db.Timestamptz(6)
+  idempotencyRecord IdempotencyRecord @relation(fields: [idempotencyRecordId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([requesterId, committedAt], map: "ix_command_commit_requester_time")
+  @@map("command_commit")
+}
+
+model ComplianceAssignment {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("assignment_id") @db.Uuid
+  reviewerUserId String @map("reviewer_user_id") @db.Uuid
+  farmId String @map("farm_id") @db.Uuid
+  grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  reviewer User @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  audits ComplianceAssignmentAudit[]
+
+  @@unique([reviewerUserId, farmId], map: "ux_compliance_assignment_active", where: raw("(revoked_at IS NULL)"))
+  @@index([farmId, revokedAt], map: "ix_compliance_assignment_farm")
+  @@map("compliance_assignment")
+}
+
+model ComplianceAssignmentAudit {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("assignment_audit_id") @db.Uuid
+  assignmentId String @map("assignment_id") @db.Uuid
+  action String @db.VarChar(30)
+  actorUserId String @map("actor_user_id") @db.Uuid
+  reason String
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  assignment ComplianceAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([assignmentId, recordedAt], map: "ix_compliance_assignment_audit_time")
+  @@map("compliance_assignment_audit")
+}
+
+model HarvestSensorWindow {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("window_id") @db.Uuid
+  cycleId String @map("cycle_id") @db.Uuid
+  harvestId String @unique @map("harvest_id") @db.Uuid
+  periodStart DateTime @map("period_start") @db.Timestamptz(6)
+  periodEnd DateTime @map("period_end") @db.Timestamptz(6)
+  includeStart Boolean @map("include_start")
+  status String @db.VarChar(30)
+  readingCount Int @map("reading_count")
+  digestHash String? @map("digest_hash") @db.VarChar(64)
+  schemaVersion String @default("harvest-sensor-1") @map("schema_version") @db.VarChar(50)
+  finalizedAt DateTime @default(now()) @map("finalized_at") @db.Timestamptz(6)
+  sealedAt DateTime? @map("sealed_at") @db.Timestamptz(6)
+  reconciliationId String? @map("reconciliation_id") @db.Uuid
+  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  harvest HarvestEvent @relation(fields: [harvestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reconciliation CycleSensorReconciliation? @relation(fields: [reconciliationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  readings HarvestSensorMembership[]
+
+  @@unique([cycleId, periodEnd], map: "uq_harvest_sensor_window_cutoff")
+  @@index([cycleId, periodEnd], map: "ix_harvest_sensor_window_cycle")
+  @@map("harvest_sensor_window")
+}
+
+model HarvestSensorMembership {
+  windowId String @map("window_id") @db.Uuid
+  readingId String @unique @map("reading_id") @db.Uuid
+  window HarvestSensorWindow @relation(fields: [windowId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reading SensorReading @relation(fields: [readingId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@id([windowId, readingId])
+  @@map("harvest_sensor_membership")
+}
+
+model LateSensorReading {
+  readingId String @id @map("reading_id") @db.Uuid
+  closedHarvestId String @map("closed_harvest_id") @db.Uuid
+  detectedAt DateTime @default(now()) @map("detected_at") @db.Timestamptz(6)
+  reading SensorReading @relation(fields: [readingId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  closedHarvest HarvestEvent @relation(fields: [closedHarvestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("late_sensor_reading")
+}
+
+model CycleSensorReconciliation {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("reconciliation_id") @db.Uuid
+  cycleId String @map("cycle_id") @db.Uuid
+  revision Int
+  throughHarvestId String? @map("through_harvest_id") @db.Uuid
+  plantedAt DateTime @map("planted_at") @db.Timestamptz(6)
+  cutoffEnd DateTime? @map("cutoff_end") @db.Timestamptz(6)
+  recordedById String @map("recorded_by_id") @db.Uuid
+  reason String
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  throughHarvest HarvestEvent? @relation(fields: [throughHarvestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  recordedBy User @relation(fields: [recordedById], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  windows HarvestSensorWindow[]
+
+  @@unique([cycleId, revision], map: "uq_cycle_sensor_reconciliation_revision")
+  @@map("cycle_sensor_reconciliation")
 }
 
 enum AccountStatus {

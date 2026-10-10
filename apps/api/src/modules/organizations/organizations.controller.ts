@@ -41,10 +41,12 @@ export class OrganizationsController {
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.idem.execute(
+    return this.idem.executeCommand(
       {
         idempotencyKey: key,
         requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
         operation: 'CREATE_ORGANIZATIONS',
         requestType: 'COMMAND',
         payload: input,

@@ -72,6 +72,7 @@ export const PUBLIC_LOT_INCLUDE = {
 export const PUBLIC_TRACE_INCLUDE = {
   blockchainProof: {
     select: {
+      eventId: true,
       transactionStatus: true,
       txId: true,
       channelId: true,

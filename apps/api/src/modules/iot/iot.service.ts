@@ -14,8 +14,16 @@ import { isUUID } from 'class-validator';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  commandTransaction,
+  lockAggregate,
+} from '../../common/idempotency/command-transaction.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
+import {
+  validateSensorTime,
+  markLateReading,
+} from './harvest-sensor-window.js';
 import type {
   CreateSensorDigestDto,
   CreateTelemetryDigestDto,
@@ -49,66 +57,81 @@ export class IotService {
   }
 
   async createDevice(input: CreateIotDeviceDto, actor: Actor) {
-    if (
-      actor.role !== 'SYSTEM_ADMIN' &&
-      actor.organizationId !== input.organizationId
-    )
-      throw new ForbiddenException(
-        'Không có quyền đăng ký thiết bị cho tổ chức',
-      );
-    if (
-      !(await this.prisma.organization.findUnique({
-        where: { id: input.organizationId },
-      }))
-    ) {
-      throw new UnprocessableEntityException('Organization does not exist');
-    }
-    if (input.cycleId) {
-      const cycle = await this.prisma.productionCycle.findUnique({
-        where: { id: input.cycleId },
-      });
-      if (!cycle || cycle.farmOrgId !== input.organizationId)
-        throw new UnprocessableEntityException(
-          'Chu kỳ không thuộc tổ chức đăng ký thiết bị',
+    return commandTransaction(this.prisma, async (tx) => {
+      if (
+        actor.role !== 'SYSTEM_ADMIN' &&
+        actor.organizationId !== input.organizationId
+      )
+        throw new ForbiddenException(
+          'Không có quyền đăng ký thiết bị cho tổ chức',
         );
-    }
-    return this.prisma.iotDevice.create({
-      data: {
-        organizationId: input.organizationId,
-        cycleId: input.cycleId,
-        deviceCode: input.deviceCode.trim(),
-        name: input.name.trim(),
-        type: input.type.trim(),
-      },
+      if (
+        !(await tx.organization.findFirst({
+          where: { id: input.organizationId },
+        }))
+      ) {
+        throw new UnprocessableEntityException('Organization does not exist');
+      }
+      if (input.cycleId) {
+        const cycle = await tx.productionCycle.findUnique({
+          where: { id: input.cycleId },
+        });
+        if (!cycle || cycle.farmOrgId !== input.organizationId)
+          throw new UnprocessableEntityException(
+            'Chu kỳ không thuộc tổ chức đăng ký thiết bị',
+          );
+      }
+      const organization = await tx.organization.findUniqueOrThrow({
+        where: { id: input.organizationId },
+      });
+      if (
+        organization.status !== 'ACTIVE' ||
+        !['FARM', 'TRANSPORTER'].includes(organization.type) ||
+        (input.cycleId && organization.type !== 'FARM')
+      )
+        throw new UnprocessableEntityException(
+          'Tổ chức đăng ký thiết bị không hợp lệ',
+        );
+      return tx.iotDevice.create({
+        data: {
+          organizationId: input.organizationId,
+          cycleId: input.cycleId,
+          deviceCode: input.deviceCode.trim(),
+          name: input.name.trim(),
+          type: input.type.trim(),
+        },
+      });
     });
   }
 
   async ingest(input: IngestSensorReadingDto, authenticatedActor?: Actor) {
     if (authenticatedActor)
       assertBusinessActor(authenticatedActor, FARM_WRITE_ROLES);
-    const device = await this.findDevice(input.deviceId);
-    if (device.cycleId !== input.cycleId)
-      throw new UnprocessableEntityException(
-        'Thiết bị không thuộc chu kỳ đã khai báo',
-      );
-    if (
-      authenticatedActor &&
-      authenticatedActor.organizationId !== device.organizationId
-    )
-      throw new ForbiddenException(
-        'Không có quyền gửi dữ liệu cho thiết bị này',
-      );
-    const cycle = await this.prisma.productionCycle.findUnique({
-      where: { id: input.cycleId },
-    });
-    if (!cycle || !['PLANTED', 'GROWING'].includes(cycle.currentState))
-      throw new UnprocessableEntityException(
-        'Chu kỳ không ở trạng thái nhận dữ liệu cảm biến',
-      );
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'cycle', input.cycleId);
+      const device = await this.findDevice(input.deviceId, tx);
+      if (device.cycleId !== input.cycleId)
+        throw new UnprocessableEntityException(
+          'Thiết bị không thuộc chu kỳ đã khai báo',
+        );
+      if (
+        authenticatedActor &&
+        authenticatedActor.organizationId !== device.organizationId
+      )
+        throw new ForbiddenException(
+          'Không có quyền gửi dữ liệu cho thiết bị này',
+        );
+      const cycle = await tx.productionCycle.findUnique({
+        where: { id: input.cycleId },
+      });
+      if (!cycle || !['PLANTED', 'GROWING'].includes(cycle.currentState))
+        throw new UnprocessableEntityException(
+          'Chu kỳ không ở trạng thái nhận dữ liệu cảm biến',
+        );
 
-    // Raw readings remain off-chain. Only explicit aggregate digests create a
-    // TraceEvent/BlockchainProof, preventing high-frequency IoT ledger spam.
-    const reading = await this.prisma.$transaction(async (tx) => {
+      // Raw readings remain off-chain. Only explicit aggregate digests create a
+      // TraceEvent/BlockchainProof, preventing high-frequency IoT ledger spam.
+      await validateSensorTime(tx, input.cycleId, new Date(input.recordedAt));
       const created = await tx.sensorReading.create({
         data: {
           deviceId: device.id,
@@ -123,9 +146,9 @@ export class IotService {
         where: { id: device.id },
         data: { lastSeenAt: new Date() },
       });
-      return created;
+      const late = await markLateReading(tx, created);
+      return { status: 'accepted', readingId: created.id, late };
     });
-    return { status: 'accepted', readingId: reading.id };
   }
 
   async createSensorDigest(
@@ -134,32 +157,33 @@ export class IotService {
     actor: Actor,
   ) {
     await this.assertCycleOwner(cycleId, actor);
-    const periodStart = new Date(input.periodStart);
-    const periodEnd = new Date(input.periodEnd);
-    this.assertPeriod(periodStart, periodEnd);
-    const readings = await this.prisma.sensorReading.findMany({
-      where: { cycleId, recordedAt: { gte: periodStart, lte: periodEnd } },
-      orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
-    });
-    if (!readings.length)
-      throw new UnprocessableEntityException(
-        'Không có dữ liệu cảm biến trong khoảng đã chọn',
-      );
-    const digestHash = canonicalSha256({
-      schemaVersion: 'sensor-digest-1',
-      cycleId,
-      periodStart: periodStart.toISOString(),
-      periodEnd: periodEnd.toISOString(),
-      readings: readings.map((reading) => ({
-        id: reading.id,
-        deviceId: reading.deviceId,
-        sensorType: reading.sensorType,
-        value: reading.value.toString(),
-        unit: reading.unit,
-        recordedAt: reading.recordedAt.toISOString(),
-      })),
-    });
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'cycle', cycleId);
+      const periodStart = new Date(input.periodStart);
+      const periodEnd = new Date(input.periodEnd);
+      this.assertPeriod(periodStart, periodEnd);
+      const readings = await tx.sensorReading.findMany({
+        where: { cycleId, recordedAt: { gte: periodStart, lte: periodEnd } },
+        orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
+      });
+      if (!readings.length)
+        throw new UnprocessableEntityException(
+          'Không có dữ liệu cảm biến trong khoảng đã chọn',
+        );
+      const digestHash = canonicalSha256({
+        schemaVersion: 'sensor-digest-1',
+        cycleId,
+        periodStart: periodStart.toISOString(),
+        periodEnd: periodEnd.toISOString(),
+        readings: readings.map((reading) => ({
+          id: reading.id,
+          deviceId: reading.deviceId,
+          sensorType: reading.sensorType,
+          value: reading.value.toString(),
+          unit: reading.unit,
+          recordedAt: reading.recordedAt.toISOString(),
+        })),
+      });
       if (
         await tx.sensorDigest.findFirst({
           where: { cycleId, periodStart, periodEnd },
@@ -211,62 +235,69 @@ export class IotService {
   ) {
     if (authenticatedActor)
       assertBusinessActor(authenticatedActor, TRANSPORT_WRITE_ROLES);
-    const device = await this.findDevice(input.deviceId);
-    const binding = await this.prisma.shipmentTrackingBinding.findFirst({
-      where: {
-        shipmentId,
-        deviceId: device.id,
-        status: 'ACTIVE',
-        unboundAt: null,
-      },
-      include: { shipment: true },
-    });
-    if (!binding)
-      throw new UnprocessableEntityException(
-        'Thiết bị chưa được gắn với chuyến vận chuyển',
-      );
-    if (binding.shipment.status !== 'IN_TRANSIT')
-      throw new ConflictException(
-        'Chuyến hàng không còn nhận dữ liệu giám sát',
-      );
-    if (new Date(input.recordedAt) < binding.boundAt) {
-      throw new UnprocessableEntityException(
-        'Telemetry time precedes device binding',
-      );
-    }
-    if (
-      authenticatedActor &&
-      authenticatedActor.organizationId !== binding.transporterOrgId
-    )
-      throw new ForbiddenException(
-        'Không có quyền gửi telemetry cho chuyến hàng này',
-      );
-    if (Math.abs(input.latitude) > 90 || Math.abs(input.longitude) > 180)
-      throw new UnprocessableEntityException('Tọa độ không hợp lệ');
+    return commandTransaction(this.prisma, async (tx) => {
+      const shipment = await tx.shipment.findUnique({
+        where: { id: shipmentId },
+      });
+      if (!shipment) throw new NotFoundException('Không tìm thấy chuyến hàng');
+      await lockAggregate(tx, 'lot', shipment.lotId);
+      const device = await this.findDevice(input.deviceId, tx);
+      const binding = await tx.shipmentTrackingBinding.findFirst({
+        where: {
+          shipmentId,
+          deviceId: device.id,
+          status: 'ACTIVE',
+          unboundAt: null,
+        },
+        include: { shipment: true },
+      });
+      if (!binding)
+        throw new UnprocessableEntityException(
+          'Thiết bị chưa được gắn với chuyến vận chuyển',
+        );
+      if (binding.shipment.status !== 'IN_TRANSIT')
+        throw new ConflictException(
+          'Chuyến hàng không còn nhận dữ liệu giám sát',
+        );
+      if (new Date(input.recordedAt) < binding.boundAt) {
+        throw new UnprocessableEntityException(
+          'Telemetry time precedes device binding',
+        );
+      }
+      if (
+        authenticatedActor &&
+        authenticatedActor.organizationId !== binding.transporterOrgId
+      )
+        throw new ForbiddenException(
+          'Không có quyền gửi telemetry cho chuyến hàng này',
+        );
+      if (Math.abs(input.latitude) > 90 || Math.abs(input.longitude) > 180)
+        throw new UnprocessableEntityException('Tọa độ không hợp lệ');
 
-    const telemetry = await this.prisma.shipmentTelemetry.create({
-      data: {
-        shipmentId,
-        deviceId: device.id,
-        bindingId: binding.id,
-        deviceSequence:
-          input.deviceSequence === undefined
-            ? undefined
-            : BigInt(input.deviceSequence),
-        idempotencyKey,
-        latitude: input.latitude,
-        longitude: input.longitude,
-        accuracy: input.accuracy,
-        speed: input.speed,
-        heading: input.heading,
-        temperature: input.temperature,
-        humidity: input.humidity,
-        battery: input.battery,
-        recordedAt: new Date(input.recordedAt),
-        validityStatus: 'VALID',
-      },
+      const telemetry = await tx.shipmentTelemetry.create({
+        data: {
+          shipmentId,
+          deviceId: device.id,
+          bindingId: binding.id,
+          deviceSequence:
+            input.deviceSequence === undefined
+              ? undefined
+              : BigInt(input.deviceSequence),
+          idempotencyKey,
+          latitude: input.latitude,
+          longitude: input.longitude,
+          accuracy: input.accuracy,
+          speed: input.speed,
+          heading: input.heading,
+          temperature: input.temperature,
+          humidity: input.humidity,
+          battery: input.battery,
+          recordedAt: new Date(input.recordedAt),
+          validityStatus: 'VALID',
+        },
+      });
+      return { status: 'accepted', telemetryId: telemetry.id };
     });
-    return { status: 'accepted', telemetryId: telemetry.id };
   }
 
   async bindShipmentDevice(
@@ -286,7 +317,14 @@ export class IotService {
       throw new ForbiddenException(
         'Thiết bị không thuộc đơn vị vận chuyển của chuyến hàng',
       );
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'lot', shipment.lotId);
+      const current = await tx.shipment.findUniqueOrThrow({
+        where: { id: shipmentId },
+      });
+      const activeDevice = await this.findDevice(input.deviceId, tx);
+      if (activeDevice.organizationId !== current.transporterOrgId)
+        throw new ConflictException('Thiết bị không thuộc đơn vị vận chuyển');
       const binding = await tx.shipmentTrackingBinding.create({
         data: {
           shipmentId,
@@ -320,7 +358,8 @@ export class IotService {
     if (!shipment) throw new NotFoundException('Không tìm thấy chuyến hàng');
     if (actor.organizationId !== shipment.transporterOrgId)
       throw new ForbiddenException('Không có quyền tháo thiết bị chuyến hàng');
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'lot', shipment.lotId);
       const updated = await tx.shipmentTrackingBinding.updateMany({
         where: { shipmentId, deviceId, status: 'ACTIVE', unboundAt: null },
         data: { status: 'INACTIVE', unboundAt: new Date() },
@@ -347,39 +386,40 @@ export class IotService {
     actor: Actor,
   ) {
     assertBusinessActor(actor, TRANSPORT_WRITE_ROLES);
-    const shipment = await this.prisma.shipment.findUnique({
-      where: { id: shipmentId },
-    });
-    if (!shipment) throw new NotFoundException('Không tìm thấy chuyến hàng');
-    if (actor.organizationId !== shipment.transporterOrgId)
-      throw new ForbiddenException('Không có quyền tạo telemetry digest');
-    const periodStart = new Date(input.periodStart);
-    const periodEnd = new Date(input.periodEnd);
-    this.assertPeriod(periodStart, periodEnd);
-    const readings = await this.prisma.shipmentTelemetry.findMany({
-      where: { shipmentId, recordedAt: { gte: periodStart, lte: periodEnd } },
-      orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
-    });
-    if (!readings.length)
-      throw new UnprocessableEntityException(
-        'Không có telemetry trong khoảng đã chọn',
-      );
-    const digestHash = canonicalSha256({
-      schemaVersion: 'shipment-telemetry-digest-1',
-      shipmentId,
-      periodStart: periodStart.toISOString(),
-      periodEnd: periodEnd.toISOString(),
-      readings: readings.map((item) => ({
-        id: item.id,
-        deviceId: item.deviceId,
-        latitude: item.latitude.toString(),
-        longitude: item.longitude.toString(),
-        temperature: item.temperature?.toString() ?? null,
-        humidity: item.humidity?.toString() ?? null,
-        recordedAt: item.recordedAt.toISOString(),
-      })),
-    });
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      const shipment = await tx.shipment.findUnique({
+        where: { id: shipmentId },
+      });
+      if (!shipment) throw new NotFoundException('Không tìm thấy chuyến hàng');
+      await lockAggregate(tx, 'lot', shipment.lotId);
+      if (actor.organizationId !== shipment.transporterOrgId)
+        throw new ForbiddenException('Không có quyền tạo telemetry digest');
+      const periodStart = new Date(input.periodStart);
+      const periodEnd = new Date(input.periodEnd);
+      this.assertPeriod(periodStart, periodEnd);
+      const readings = await tx.shipmentTelemetry.findMany({
+        where: { shipmentId, recordedAt: { gte: periodStart, lte: periodEnd } },
+        orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
+      });
+      if (!readings.length)
+        throw new UnprocessableEntityException(
+          'Không có telemetry trong khoảng đã chọn',
+        );
+      const digestHash = canonicalSha256({
+        schemaVersion: 'shipment-telemetry-digest-1',
+        shipmentId,
+        periodStart: periodStart.toISOString(),
+        periodEnd: periodEnd.toISOString(),
+        readings: readings.map((item) => ({
+          id: item.id,
+          deviceId: item.deviceId,
+          latitude: item.latitude.toString(),
+          longitude: item.longitude.toString(),
+          temperature: item.temperature?.toString() ?? null,
+          humidity: item.humidity?.toString() ?? null,
+          recordedAt: item.recordedAt.toISOString(),
+        })),
+      });
       if (
         await tx.shipmentTelemetryDigest.findFirst({
           where: { shipmentId, periodStart, periodEnd },
@@ -470,8 +510,11 @@ export class IotService {
       );
   }
 
-  private async findDevice(deviceId: string) {
-    const device = await this.prisma.iotDevice.findFirst({
+  private async findDevice(
+    deviceId: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
+    const device = await db.iotDevice.findFirst({
       where: isUUID(deviceId)
         ? { OR: [{ id: deviceId }, { deviceCode: deviceId }] }
         : { deviceCode: deviceId },

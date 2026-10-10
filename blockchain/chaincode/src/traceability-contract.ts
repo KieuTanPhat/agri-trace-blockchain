@@ -1,20 +1,37 @@
-import { Context, Contract, Info, Returns, Transaction } from "fabric-contract-api";
+import {
+  Context,
+  Contract,
+  Info,
+  Returns,
+  Transaction,
+} from "fabric-contract-api";
 
 import { contractError } from "./errors";
-import { fromLedgerBytes, KEY_TYPES, timestampToIso, toLedgerBytes } from "./ledger";
+import {
+  fromLedgerBytes,
+  KEY_TYPES,
+  timestampToIso,
+  toLedgerBytes,
+} from "./ledger";
 import {
   SCHEMA_VERSION,
+  ENVELOPE_VERSION,
   type BlockchainProof,
   type EntityLedgerHead,
   type HealthResult,
   type StoredTraceEvent,
-  type SubmitReceipt
+  type SubmitReceipt,
 } from "./types";
-import { parseTraceEventInput, requireEntityId, requireEntityType, requireEventId } from "./validation";
+import {
+  parseTraceEventInput,
+  requireEntityId,
+  requireEntityType,
+  requireEventId,
+} from "./validation";
 
 @Info({
   title: "AgriTraceContract",
-  description: "Immutable agricultural trace-event digest and proof registry"
+  description: "Immutable agricultural trace-event digest and proof registry",
 })
 export class AgriTraceContract extends Contract {
   public constructor() {
@@ -23,24 +40,75 @@ export class AgriTraceContract extends Contract {
 
   @Transaction()
   @Returns("string")
-  public async RecordTraceEvent(ctx: Context, inputJson: string): Promise<string> {
+  public async RecordTraceEvent(
+    ctx: Context,
+    inputJson: string,
+  ): Promise<string> {
     this.assertTechnicalRelayer(ctx);
     const input = parseTraceEventInput(inputJson);
-    const eventKey = ctx.stub.createCompositeKey(KEY_TYPES.event, [input.eventId]);
-    if ((await ctx.stub.getState(eventKey)).length > 0) {
-      throw contractError("DUPLICATE_EVENT", `eventId ${input.eventId} already exists`);
+    const eventKey = ctx.stub.createCompositeKey(KEY_TYPES.event, [
+      input.eventId,
+    ]);
+    const previousBytes = await ctx.stub.getState(eventKey);
+    if (previousBytes.length > 0) {
+      const previous = fromLedgerBytes<StoredTraceEvent>(
+        previousBytes,
+        `event ${input.eventId}`,
+      );
+      const fields = [
+        "eventId",
+        "entityType",
+        "entityId",
+        "cycleId",
+        "lotId",
+        "eventType",
+        "eventTime",
+        "dataHash",
+        "previousEventHash",
+        "schemaVersion",
+        "canonicalizationVersion",
+      ] as const;
+      if (
+        fields.some(
+          (field) => (previous[field] ?? null) !== (input[field] ?? null),
+        ) ||
+        (previous.envelopeVersion &&
+          (previous.envelopeVersion !== input.envelopeVersion ||
+            previous.nonce !== input.nonce))
+      )
+        throw contractError(
+          "DUPLICATE_EVENT_CONFLICT",
+          "eventId already exists with a different public tuple",
+        );
+      throw contractError(
+        "DUPLICATE_EVENT",
+        `eventId ${input.eventId} already exists`,
+      );
     }
 
-    const headKey = ctx.stub.createCompositeKey(KEY_TYPES.entityHead, [input.entityType, input.entityId]);
+    const headKey = ctx.stub.createCompositeKey(KEY_TYPES.entityHead, [
+      input.entityType,
+      input.entityId,
+    ]);
     const existingHeadBytes = await ctx.stub.getState(headKey);
-    const existingHead = existingHeadBytes.length > 0
-      ? fromLedgerBytes<EntityLedgerHead>(existingHeadBytes, `entity ${input.entityType}/${input.entityId}`)
-      : undefined;
+    const existingHead =
+      existingHeadBytes.length > 0
+        ? fromLedgerBytes<EntityLedgerHead>(
+            existingHeadBytes,
+            `entity ${input.entityType}/${input.entityId}`,
+          )
+        : undefined;
     if (existingHead && input.previousEventHash !== existingHead.lastDataHash) {
-      throw contractError("HASH_CHAIN_CONFLICT", "previousEventHash does not match the current entity head");
+      throw contractError(
+        "HASH_CHAIN_CONFLICT",
+        "previousEventHash does not match the current entity head",
+      );
     }
     if (!existingHead && input.previousEventHash) {
-      throw contractError("HASH_CHAIN_CONFLICT", "genesis event must not declare previousEventHash");
+      throw contractError(
+        "HASH_CHAIN_CONFLICT",
+        "genesis event must not declare previousEventHash",
+      );
     }
 
     const txId = ctx.stub.getTxID();
@@ -55,9 +123,11 @@ export class AgriTraceContract extends Contract {
       channelId,
       recordedAt,
       submitterMspId,
-      submitterId
+      submitterId,
     };
     const proof: BlockchainProof = {
+      envelopeVersion: input.envelopeVersion,
+      nonce: input.nonce,
       docType: "blockchainProof",
       eventId: input.eventId,
       entityType: input.entityType,
@@ -74,7 +144,7 @@ export class AgriTraceContract extends Contract {
       channelId,
       recordedAt,
       submitterMspId,
-      submitterId
+      submitterId,
     };
     const head: EntityLedgerHead = {
       docType: "entityHead",
@@ -85,11 +155,17 @@ export class AgriTraceContract extends Contract {
       lastEventId: input.eventId,
       lastEventTime: input.eventTime,
       lastDataHash: input.dataHash,
-      updatedAt: recordedAt
+      updatedAt: recordedAt,
     };
-    const proofKey = ctx.stub.createCompositeKey(KEY_TYPES.proof, [input.eventId]);
+    const proofKey = ctx.stub.createCompositeKey(KEY_TYPES.proof, [
+      input.eventId,
+    ]);
     const historyKey = ctx.stub.createCompositeKey(KEY_TYPES.entityEvent, [
-      input.entityType, input.entityId, recordedAt, txId, input.eventId
+      input.entityType,
+      input.entityId,
+      recordedAt,
+      txId,
+      input.eventId,
     ]);
 
     await ctx.stub.putState(eventKey, toLedgerBytes(event));
@@ -110,7 +186,7 @@ export class AgriTraceContract extends Contract {
       dataHash: input.dataHash,
       txId,
       recordedAt,
-      submitterMspId
+      submitterMspId,
     };
     return this.stringify(receipt);
   }
@@ -118,38 +194,72 @@ export class AgriTraceContract extends Contract {
   @Transaction(false)
   @Returns("string")
   public async QueryEvent(ctx: Context, eventId: string): Promise<string> {
-    const key = ctx.stub.createCompositeKey(KEY_TYPES.event, [requireEventId(eventId)]);
-    return this.stringify(fromLedgerBytes<StoredTraceEvent>(await ctx.stub.getState(key), `event ${eventId}`));
+    const key = ctx.stub.createCompositeKey(KEY_TYPES.event, [
+      requireEventId(eventId),
+    ]);
+    return this.stringify(
+      fromLedgerBytes<StoredTraceEvent>(
+        await ctx.stub.getState(key),
+        `event ${eventId}`,
+      ),
+    );
   }
 
   @Transaction(false)
   @Returns("string")
   public async GetProof(ctx: Context, eventId: string): Promise<string> {
-    const key = ctx.stub.createCompositeKey(KEY_TYPES.proof, [requireEventId(eventId)]);
-    return this.stringify(fromLedgerBytes<BlockchainProof>(await ctx.stub.getState(key), `proof ${eventId}`));
+    const key = ctx.stub.createCompositeKey(KEY_TYPES.proof, [
+      requireEventId(eventId),
+    ]);
+    return this.stringify(
+      fromLedgerBytes<BlockchainProof>(
+        await ctx.stub.getState(key),
+        `proof ${eventId}`,
+      ),
+    );
   }
 
   @Transaction(false)
   @Returns("string")
   public async GetExpectedHash(ctx: Context, eventId: string): Promise<string> {
-    return (JSON.parse(await this.GetProof(ctx, eventId)) as BlockchainProof).dataHash;
+    return (JSON.parse(await this.GetProof(ctx, eventId)) as BlockchainProof)
+      .dataHash;
   }
 
   @Transaction(false)
   @Returns("string")
-  public async GetEntityHead(ctx: Context, entityType: string, entityId: string): Promise<string> {
+  public async GetEntityHead(
+    ctx: Context,
+    entityType: string,
+    entityId: string,
+  ): Promise<string> {
     const safeType = requireEntityType(entityType);
     const safeId = requireEntityId(entityId);
-    const key = ctx.stub.createCompositeKey(KEY_TYPES.entityHead, [safeType, safeId]);
-    return this.stringify(fromLedgerBytes<EntityLedgerHead>(await ctx.stub.getState(key), `entity ${safeType}/${safeId}`));
+    const key = ctx.stub.createCompositeKey(KEY_TYPES.entityHead, [
+      safeType,
+      safeId,
+    ]);
+    return this.stringify(
+      fromLedgerBytes<EntityLedgerHead>(
+        await ctx.stub.getState(key),
+        `entity ${safeType}/${safeId}`,
+      ),
+    );
   }
 
   @Transaction(false)
   @Returns("string")
-  public async QueryEntityHistory(ctx: Context, entityType: string, entityId: string): Promise<string> {
+  public async QueryEntityHistory(
+    ctx: Context,
+    entityType: string,
+    entityId: string,
+  ): Promise<string> {
     const safeType = requireEntityType(entityType);
     const safeId = requireEntityId(entityId);
-    const iterator = await ctx.stub.getStateByPartialCompositeKey(KEY_TYPES.entityEvent, [safeType, safeId]);
+    const iterator = await ctx.stub.getStateByPartialCompositeKey(
+      KEY_TYPES.entityEvent,
+      [safeType, safeId],
+    );
     const events: StoredTraceEvent[] = [];
     try {
       while (events.length < 100) {
@@ -162,7 +272,11 @@ export class AgriTraceContract extends Contract {
     } finally {
       await iterator.close();
     }
-    if (events.length === 0) throw contractError("NOT_FOUND", `entity history ${safeType}/${safeId} does not exist`);
+    if (events.length === 0)
+      throw contractError(
+        "NOT_FOUND",
+        `entity history ${safeType}/${safeId} does not exist`,
+      );
     return this.stringify(events);
   }
 
@@ -173,25 +287,33 @@ export class AgriTraceContract extends Contract {
     entityType: string,
     entityId: string,
     pageSize: string,
-    bookmark: string
+    bookmark: string,
   ): Promise<string> {
     const safeType = requireEntityType(entityType);
     const safeId = requireEntityId(entityId);
     const requestedSize = Number(pageSize);
-    if (!Number.isInteger(requestedSize) || requestedSize < 1 || requestedSize > 500) {
-      throw contractError("INVALID_INPUT", "pageSize must be an integer between 1 and 500");
+    if (
+      !Number.isInteger(requestedSize) ||
+      requestedSize < 1 ||
+      requestedSize > 500
+    ) {
+      throw contractError(
+        "INVALID_INPUT",
+        "pageSize must be an integer between 1 and 500",
+      );
     }
     const result = await ctx.stub.getStateByPartialCompositeKeyWithPagination(
       KEY_TYPES.entityEvent,
       [safeType, safeId],
       requestedSize,
-      bookmark
+      bookmark,
     );
     const events: StoredTraceEvent[] = [];
     try {
       while (true) {
         const item = await result.iterator.next();
-        if (item.value?.value) events.push(await this.readHistoryValue(ctx, item.value.value));
+        if (item.value?.value)
+          events.push(await this.readHistoryValue(ctx, item.value.value));
         if (item.done) break;
       }
     } finally {
@@ -200,24 +322,36 @@ export class AgriTraceContract extends Contract {
     return this.stringify({
       records: events,
       bookmark: result.metadata.bookmark,
-      fetchedRecordsCount: result.metadata.fetchedRecordsCount
+      fetchedRecordsCount: result.metadata.fetchedRecordsCount,
     });
   }
 
   @Transaction(false)
   @Returns("string")
   public async HealthCheck(_ctx: Context): Promise<string> {
-    const result: HealthResult = { status: "OK", contract: "AgriTraceContract", schemaVersion: SCHEMA_VERSION };
+    const result: HealthResult = {
+      status: "OK",
+      contract: "AgriTraceContract",
+      schemaVersion: SCHEMA_VERSION,
+      envelopeVersion: ENVELOPE_VERSION,
+      supportedReadVersions: ["2.0.0", "3.0.0"],
+    };
     return this.stringify(result);
   }
 
   private assertTechnicalRelayer(ctx: Context): void {
     if (!ctx.clientIdentity.assertAttributeValue("app.role", "relayer")) {
-      throw contractError("UNAUTHORIZED_RELAYER", "Fabric identity must have app.role=relayer");
+      throw contractError(
+        "UNAUTHORIZED_RELAYER",
+        "Fabric identity must have app.role=relayer",
+      );
     }
   }
 
-  private async readHistoryValue(ctx: Context, value: Uint8Array): Promise<StoredTraceEvent> {
+  private async readHistoryValue(
+    ctx: Context,
+    value: Uint8Array,
+  ): Promise<StoredTraceEvent> {
     const raw = Buffer.from(value).toString("utf8");
     try {
       const parsed = JSON.parse(raw) as StoredTraceEvent;
@@ -226,7 +360,10 @@ export class AgriTraceContract extends Contract {
       // Legacy history entries stored only eventId and are resolved below.
     }
     const eventKey = ctx.stub.createCompositeKey(KEY_TYPES.event, [raw]);
-    return fromLedgerBytes<StoredTraceEvent>(await ctx.stub.getState(eventKey), `event ${raw}`);
+    return fromLedgerBytes<StoredTraceEvent>(
+      await ctx.stub.getState(eventKey),
+      `event ${raw}`,
+    );
   }
 
   private stringify(value: unknown): string {

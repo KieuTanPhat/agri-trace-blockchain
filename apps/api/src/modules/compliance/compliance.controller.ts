@@ -43,7 +43,14 @@ export class ComplianceController {
     private readonly idempotency: IdempotencyService,
   ) {}
 
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   @Get('inspections')
   inspections(
     @Req() request: AuthenticatedRequest,
@@ -64,10 +71,12 @@ export class ComplianceController {
     @Headers('idempotency-key') key: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
         requesterId: request.user.sub,
+        actor: request.user,
+        responseStatus: 201,
         operation: 'CREATE_INSPECTION',
         requestType: 'COMMAND',
         payload: input,
@@ -76,7 +85,14 @@ export class ComplianceController {
     );
   }
 
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   @Get('certificates')
   certificates(
     @Req() request: AuthenticatedRequest,
@@ -94,10 +110,12 @@ export class ComplianceController {
     @Headers('idempotency-key') key: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
         requesterId: request.user.sub,
+        actor: request.user,
+        responseStatus: 201,
         operation: 'CREATE_CERTIFICATE',
         requestType: 'COMMAND',
         payload: input,
@@ -119,10 +137,12 @@ export class ComplianceController {
     @Headers('idempotency-key') key: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
         requesterId: request.user.sub,
+        actor: request.user,
+        responseStatus: 200,
         operation: 'REVIEW_CERTIFICATE',
         requestType: 'COMMAND',
         payload: { id, ...input },

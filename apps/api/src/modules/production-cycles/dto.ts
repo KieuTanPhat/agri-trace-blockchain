@@ -9,6 +9,7 @@ import {
   IsUUID,
   MaxLength,
   Min,
+  MinLength,
 } from 'class-validator';
 
 export class CreateProductionCycleDto {
@@ -58,4 +59,10 @@ export class SensorReadingDto {
 
 export class CancelCycleDto extends VersionedCommandDto {
   @IsString() @MaxLength(500) reason!: string;
+}
+
+export class ReconcileCycleSensorDto extends VersionedCommandDto {
+  @IsDateString() plantedAt!: string;
+  @IsOptional() @IsUUID() throughHarvestId?: string;
+  @IsString() @MinLength(1) @MaxLength(1000) reason!: string;
 }

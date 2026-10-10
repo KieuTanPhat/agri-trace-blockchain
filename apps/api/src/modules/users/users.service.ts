@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { hash } from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { commandTransaction } from '../../common/idempotency/command-transaction.js';
 import type { CreateUserDto, UpdateUserStatusDto } from './dto.js';
 
 @Injectable()
@@ -33,36 +34,52 @@ export class UsersService {
   }
 
   async create(input: CreateUserDto) {
-    const email = input.email.trim().toLowerCase();
-    if (await this.prisma.user.findFirst({ where: { email } })) {
-      throw new ConflictException('Email đã tồn tại');
-    }
-    const role = await this.prisma.role.findUnique({
-      where: { code: input.roleCode },
-    });
-    if (!role) throw new UnprocessableEntityException('Role không hợp lệ');
-    if (role.code !== 'SYSTEM_ADMIN' && !input.organizationId) {
-      throw new UnprocessableEntityException(
-        'Tài khoản nghiệp vụ phải thuộc một tổ chức',
-      );
-    }
-    if (
-      input.organizationId &&
-      !(await this.prisma.organization.findUnique({
-        where: { id: input.organizationId },
-      }))
-    ) {
-      throw new UnprocessableEntityException('Organization does not exist');
-    }
-    return this.prisma.user.create({
-      data: {
-        email,
-        fullName: input.fullName.trim(),
-        passwordHash: await hash(input.password, 12),
-        roleId: role.id,
-        organizationId: input.organizationId,
-      },
-      select: { id: true, email: true, fullName: true, accountStatus: true },
+    const passwordHash = await hash(input.password, 12);
+    return commandTransaction(this.prisma, async (tx) => {
+      const email = input.email.trim().toLowerCase();
+      if (await tx.user.findFirst({ where: { email } })) {
+        throw new ConflictException('Email đã tồn tại');
+      }
+      const role = await tx.role.findUnique({
+        where: { code: input.roleCode },
+      });
+      if (!role) throw new UnprocessableEntityException('Role không hợp lệ');
+      if (role.code !== 'SYSTEM_ADMIN' && !input.organizationId) {
+        throw new UnprocessableEntityException(
+          'Tài khoản nghiệp vụ phải thuộc một tổ chức',
+        );
+      }
+      if (
+        input.organizationId &&
+        !(await tx.organization.findUnique({
+          where: { id: input.organizationId },
+        }))
+      ) {
+        throw new UnprocessableEntityException('Organization does not exist');
+      }
+      if (role.code === 'COMPLIANCE_REVIEWER') {
+        const organization = await tx.organization.findUnique({
+          where: { id: input.organizationId! },
+        });
+        if (
+          !organization ||
+          organization.type !== 'AUDITOR' ||
+          organization.status !== 'ACTIVE'
+        )
+          throw new UnprocessableEntityException(
+            'Reviewer phải thuộc tổ chức AUDITOR đang hoạt động',
+          );
+      }
+      return tx.user.create({
+        data: {
+          email,
+          fullName: input.fullName.trim(),
+          passwordHash,
+          roleId: role.id,
+          organizationId: input.organizationId,
+        },
+        select: { id: true, email: true, fullName: true, accountStatus: true },
+      });
     });
   }
 

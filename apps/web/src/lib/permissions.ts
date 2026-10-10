@@ -16,6 +16,7 @@ export function canAccessManagementRoute(path: string, role: Role): boolean {
       "TRANSPORTER",
       "RETAILER",
       "AUDITOR",
+      "COMPLIANCE_REVIEWER",
     ].includes(role);
   }
   return true;

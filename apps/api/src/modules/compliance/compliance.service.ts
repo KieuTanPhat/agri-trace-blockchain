@@ -10,6 +10,8 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { commandTransaction } from '../../common/idempotency/command-transaction.js';
+import { assignedFarmWhere } from '../auth/compliance-scope.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
 import type {
@@ -30,35 +32,40 @@ export class ComplianceService {
     return this.prisma.inspection.findMany({
       where: {
         lotId: lotId || undefined,
+        ...(actor.role === 'COMPLIANCE_REVIEWER'
+          ? { lot: { harvest: { cycle: { farm: assignedFarmWhere(actor) } } } }
+          : {}),
         OR: unrestricted
           ? undefined
-          : [
-              {
-                lot: {
-                  farmOrgId:
-                    actor.organizationId ??
-                    '00000000-0000-0000-0000-000000000000',
-                },
-              },
-              {
-                lot: {
-                  shipment: {
-                    transporterOrgId:
+          : actor.role === 'COMPLIANCE_REVIEWER'
+            ? undefined
+            : [
+                {
+                  lot: {
+                    farmOrgId:
                       actor.organizationId ??
                       '00000000-0000-0000-0000-000000000000',
                   },
                 },
-              },
-              {
-                lot: {
-                  shipment: {
-                    retailerOrgId:
-                      actor.organizationId ??
-                      '00000000-0000-0000-0000-000000000000',
+                {
+                  lot: {
+                    shipment: {
+                      transporterOrgId:
+                        actor.organizationId ??
+                        '00000000-0000-0000-0000-000000000000',
+                    },
                   },
                 },
-              },
-            ],
+                {
+                  lot: {
+                    shipment: {
+                      retailerOrgId:
+                        actor.organizationId ??
+                        '00000000-0000-0000-0000-000000000000',
+                    },
+                  },
+                },
+              ],
       },
       include: {
         organization: { select: { id: true, name: true, type: true } },
@@ -83,40 +90,49 @@ export class ComplianceService {
         cycleId: cycleId || undefined,
         OR: unrestricted
           ? undefined
-          : [
-              {
-                lot: {
-                  farmOrgId:
-                    actor.organizationId ??
-                    '00000000-0000-0000-0000-000000000000',
+          : actor.role === 'COMPLIANCE_REVIEWER'
+            ? [
+                {
+                  lot: {
+                    harvest: { cycle: { farm: assignedFarmWhere(actor) } },
+                  },
                 },
-              },
-              {
-                cycle: {
-                  farmOrgId:
-                    actor.organizationId ??
-                    '00000000-0000-0000-0000-000000000000',
-                },
-              },
-              {
-                lot: {
-                  shipment: {
-                    transporterOrgId:
+                { cycle: { farm: assignedFarmWhere(actor) } },
+              ]
+            : [
+                {
+                  lot: {
+                    farmOrgId:
                       actor.organizationId ??
                       '00000000-0000-0000-0000-000000000000',
                   },
                 },
-              },
-              {
-                lot: {
-                  shipment: {
-                    retailerOrgId:
+                {
+                  cycle: {
+                    farmOrgId:
                       actor.organizationId ??
                       '00000000-0000-0000-0000-000000000000',
                   },
                 },
-              },
-            ],
+                {
+                  lot: {
+                    shipment: {
+                      transporterOrgId:
+                        actor.organizationId ??
+                        '00000000-0000-0000-0000-000000000000',
+                    },
+                  },
+                },
+                {
+                  lot: {
+                    shipment: {
+                      retailerOrgId:
+                        actor.organizationId ??
+                        '00000000-0000-0000-0000-000000000000',
+                    },
+                  },
+                },
+              ],
       },
       orderBy: { issueDate: 'desc' },
     });
@@ -129,7 +145,7 @@ export class ComplianceService {
         'Chứng chỉ phải gắn với đúng một Lot hoặc ProductionCycle',
       );
     await this.assertCertificateSubmissionAccess(input, actor);
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
       const certificate = await tx.certificate.create({
         data: {
           lotId: input.lotId,

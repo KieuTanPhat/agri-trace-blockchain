@@ -40,10 +40,12 @@ export class UsersController {
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.idem.execute(
+    return this.idem.executeCommand(
       {
         idempotencyKey: key,
         requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
         operation: 'CREATE_USERS',
         requestType: 'COMMAND',
         payload: input,

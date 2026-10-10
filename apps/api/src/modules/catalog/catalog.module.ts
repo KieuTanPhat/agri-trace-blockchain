@@ -28,6 +28,8 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { IdempotencyModule } from '../../common/idempotency/idempotency.module.js';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
+import { commandTransaction } from '../../common/idempotency/command-transaction.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 class ProductDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
@@ -93,17 +95,19 @@ class CatalogController {
     req: AuthenticatedRequest,
     operation: string,
     payload: unknown,
-    command: () => Promise<unknown>,
+    command: (tx: Prisma.TransactionClient) => Promise<unknown>,
   ) {
-    return this.idem.execute(
+    return this.idem.executeCommand(
       {
         idempotencyKey: key,
         requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
         operation,
         payload,
         requestType: 'COMMAND',
       },
-      command,
+      () => commandTransaction(this.db, command),
     );
   }
   @Post('products') @Roles('SYSTEM_ADMIN') product(
@@ -111,8 +115,8 @@ class CatalogController {
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.run(key, req, 'CREATE_PRODUCT', dto, () =>
-      this.db.product.create({ data: dto }),
+    return this.run(key, req, 'CREATE_PRODUCT', dto, (tx) =>
+      tx.product.create({ data: dto }),
     );
   }
   @Post('farms') @Roles('SYSTEM_ADMIN') farm(
@@ -120,15 +124,15 @@ class CatalogController {
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.run(key, req, 'CREATE_FARM', dto, async () => {
-      const org = await this.db.organization.findUnique({
+    return this.run(key, req, 'CREATE_FARM', dto, async (tx) => {
+      const org = await tx.organization.findUnique({
         where: { id: dto.organizationId },
       });
       if (!org || org.type !== 'FARM' || org.status !== 'ACTIVE')
         throw new UnprocessableEntityException(
           'Chọn tổ chức nông trại đang hoạt động',
         );
-      return this.db.farm.create({ data: dto });
+      return tx.farm.create({ data: dto });
     });
   }
   @Post('plots') @Roles('SYSTEM_ADMIN') plot(
@@ -136,11 +140,11 @@ class CatalogController {
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.run(key, req, 'CREATE_PLOT', dto, async () => {
-      const farm = await this.db.farm.findUnique({ where: { id: dto.farmId } });
+    return this.run(key, req, 'CREATE_PLOT', dto, async (tx) => {
+      const farm = await tx.farm.findUnique({ where: { id: dto.farmId } });
       if (!farm || farm.status !== 'ACTIVE')
         throw new UnprocessableEntityException('Chọn nông trại đang hoạt động');
-      return this.db.plot.create({ data: dto });
+      return tx.plot.create({ data: dto });
     });
   }
 }

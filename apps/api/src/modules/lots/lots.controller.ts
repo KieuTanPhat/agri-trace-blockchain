@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Headers,
+  Header,
   Param,
   ParseUUIDPipe,
   Post,
@@ -39,10 +40,12 @@ export class LotsController {
     @Headers('idempotency-key') key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
         requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
         operation: 'RECORD_HARVEST',
         requestType: 'COMMAND',
         payload: { cycleId, ...dto },
@@ -74,7 +77,9 @@ export class LotsController {
 @Controller('public/trace')
 export class PublicTraceController {
   constructor(private readonly query: LotQueryService) {}
-  @Get(':token') get(@Param('token') token: string) {
+  @Header('Cache-Control', 'no-store')
+  @Get(':token')
+  get(@Param('token') token: string) {
     return this.query.getPublic(token);
   }
 }

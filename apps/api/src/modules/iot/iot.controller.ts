@@ -41,14 +41,16 @@ export class IotController {
   private run(
     operation: string,
     key: string,
-    requesterId: string,
+    requester: AuthenticatedRequest['user'] | string,
     payload: unknown,
     command: () => Promise<unknown>,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
-        requesterId,
+        requesterId: typeof requester === 'string' ? requester : requester.sub,
+        actor: typeof requester === 'string' ? null : requester,
+        responseStatus: 201,
         operation,
         requestType: 'IOT_INGEST',
         payload,
@@ -75,7 +77,7 @@ export class IotController {
     @Headers('idempotency-key') key: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.run('CREATE_IOT_DEVICE', key, request.user.sub, input, () =>
+    return this.run('CREATE_IOT_DEVICE', key, request.user, input, () =>
       this.service.createDevice(input, request.user),
     );
   }
@@ -90,7 +92,7 @@ export class IotController {
     @Headers('idempotency-key') key: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.run('INGEST_SENSOR_READING', key, request.user.sub, input, () =>
+    return this.run('INGEST_SENSOR_READING', key, request.user, input, () =>
       this.service.ingest(input, request.user),
     );
   }
@@ -126,7 +128,7 @@ export class IotController {
     return this.run(
       'CREATE_SENSOR_DIGEST',
       key,
-      request.user.sub,
+      request.user,
       { cycleId, ...input },
       () => this.service.createSensorDigest(cycleId, input, request.user),
     );
@@ -146,7 +148,7 @@ export class IotController {
     return this.run(
       'INGEST_SHIPMENT_TELEMETRY',
       key,
-      request.user.sub,
+      request.user,
       { shipmentId, ...input },
       () =>
         this.service.ingestShipmentTelemetry(
@@ -172,7 +174,7 @@ export class IotController {
     return this.run(
       'BIND_SHIPMENT_DEVICE',
       key,
-      request.user.sub,
+      request.user,
       { shipmentId, ...input },
       () => this.service.bindShipmentDevice(shipmentId, input, request.user),
     );
@@ -192,7 +194,7 @@ export class IotController {
     return this.run(
       'UNBIND_SHIPMENT_DEVICE',
       key,
-      request.user.sub,
+      request.user,
       { shipmentId, deviceId },
       () =>
         this.service.unbindShipmentDevice(shipmentId, deviceId, request.user),
@@ -231,7 +233,7 @@ export class IotController {
     return this.run(
       'CREATE_SHIPMENT_TELEMETRY_DIGEST',
       key,
-      request.user.sub,
+      request.user,
       { shipmentId, ...input },
       () => this.service.createTelemetryDigest(shipmentId, input, request.user),
     );

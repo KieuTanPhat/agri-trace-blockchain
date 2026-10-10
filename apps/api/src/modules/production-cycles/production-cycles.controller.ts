@@ -23,6 +23,7 @@ import {
   PlantCycleDto,
   SensorReadingDto,
   VersionedCommandDto,
+  ReconcileCycleSensorDto,
 } from './dto.js';
 import { ProductionCyclesService } from './production-cycles.service.js';
 
@@ -43,10 +44,12 @@ export class ProductionCyclesController {
     payload: unknown,
     command: () => Promise<unknown>,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
         requesterId: request.user.sub,
+        actor: request.user,
+        responseStatus: 201,
         operation,
         requestType: 'COMMAND',
         payload,
@@ -56,13 +59,27 @@ export class ProductionCyclesController {
   }
 
   @Get()
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   list(@Req() req: AuthenticatedRequest) {
     return this.service.list(req.user);
   }
 
   @Get(':id')
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   get(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: AuthenticatedRequest,
@@ -91,6 +108,19 @@ export class ProductionCyclesController {
   ) {
     return this.run('PLANT_PRODUCTION_CYCLE', key, req, { id, ...dto }, () =>
       this.service.plant(id, dto, req.user),
+    );
+  }
+  @Roles('SYSTEM_ADMIN')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @Post(':id/sensor-reconciliations')
+  reconcileSensor(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReconcileCycleSensorDto,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.run('RECONCILE_CYCLE_SENSOR', key, req, { id, ...dto }, () =>
+      this.service.reconcileSensorHistory(id, dto, req.user),
     );
   }
   @ApiHeader({ name: 'Idempotency-Key', required: true })
