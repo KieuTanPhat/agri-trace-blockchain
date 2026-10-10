@@ -7,6 +7,9 @@ import { TimelineItem } from "@/components/timeline-item";
 import { getPublicTrace } from "@/lib/api-client";
 import { labelForProof } from "@/lib/display-labels";
 import { formatTraceDate } from "@/lib/format-date";
+import { LotWarnings } from "@/components/lot-warnings";
+
+export const dynamic = "force-dynamic";
 
 export default async function PublicTracePage({
   params,
@@ -14,7 +17,18 @@ export default async function PublicTracePage({
   params: Promise<{ lotId: string }>;
 }) {
   const { lotId } = await params;
-  const trace = await getPublicTrace(lotId);
+  let trace: Awaited<ReturnType<typeof getPublicTrace>>;
+  try {
+    trace = await getPublicTrace(lotId);
+  } catch {
+    return (
+      <ErrorState
+        status={503}
+        title="Chưa tải được thông tin truy xuất"
+        message="Kết nối tạm thời gián đoạn. Vui lòng tải lại trang để lấy trạng thái mới nhất."
+      />
+    );
+  }
   if (!trace)
     return (
       <ErrorState
@@ -51,6 +65,57 @@ export default async function PublicTracePage({
         <div className="header-actions">
           <StateBadge state={trace.currentState} />
         </div>
+      </section>
+
+      <LotWarnings lot={trace} />
+
+      <section className="panel">
+        <h2>Thông tin lô hàng</h2>
+        <p>Thu hoạch: {formatTraceDate(trace.harvestTime)}</p>
+        <p>
+          Ban đầu: {trace.initialQuantity} {trace.unit} · Còn lại:{" "}
+          {trace.availableQuantity} {trace.unit}
+        </p>
+        <p>Hạn sử dụng: {trace.expiryDate ?? "Chưa khai báo"}</p>
+        <p>
+          Cảm biến trong khoảng đã chốt: {trace.sensorEvidence.readingCount}{" "}
+          mẫu.
+        </p>
+        {trace.sensorEvidence.periodStart && trace.sensorEvidence.periodEnd && (
+          <p>
+            {formatTraceDate(trace.sensorEvidence.periodStart)} đến{" "}
+            {formatTraceDate(trace.sensorEvidence.periodEnd)}
+          </p>
+        )}
+        {trace.shipment && (
+          <p>
+            Giao nhận: {trace.shipment.origin} → {trace.shipment.destination}
+          </p>
+        )}
+      </section>
+
+      <section className="panel">
+        <h2>Chứng nhận công khai đang hiệu lực</h2>
+        {trace.certificates.length ? (
+          trace.certificates.map((certificate, index) => (
+            <article key={`${certificate.documentHash}-${index}`}>
+              <h3>
+                {certificate.type} — {certificate.issuer}
+              </h3>
+              <p>
+                Ngày cấp: {formatTraceDate(certificate.issueDate)} · Hết hạn:{" "}
+                {certificate.expiryDate
+                  ? formatTraceDate(certificate.expiryDate)
+                  : "Chưa khai báo"}
+              </p>
+              <p style={{ overflowWrap: "anywhere" }}>
+                SHA-256: {certificate.documentHash}
+              </p>
+            </article>
+          ))
+        ) : (
+          <p>Chưa có chứng nhận công khai đang hiệu lực.</p>
+        )}
       </section>
 
       <section className="grid two">
@@ -95,7 +160,7 @@ export default async function PublicTracePage({
               <div>
                 <h3>{labelForProof(trace.proofStatus)}</h3>
                 <p className="muted">
-                  Không đánh đồng lỗi kết nối blockchain với sai lệch dữ liệu.
+                  Bằng chứng kiểm tra tính toàn vẹn dữ liệu đã ghi nhận.
                 </p>
               </div>
             </div>

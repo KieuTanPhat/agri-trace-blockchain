@@ -18,7 +18,13 @@ describe('Modular monolith composition roots', () => {
     expect(query).not.toContain('createInTransaction');
     expect(presenter).not.toContain('PrismaService');
     expect(presenter).not.toContain('@Injectable');
-    expect(harvest).toContain('$transaction');
+    const commandTransaction = await readFile(
+      new URL('./common/idempotency/command-transaction.ts', import.meta.url),
+      'utf8',
+    );
+    expect(harvest).toContain('commandTransaction(');
+    expect(commandTransaction).toContain('prisma.$transaction(');
+    expect(commandTransaction).toContain('tx.commandCommit.create(');
     expect(harvest).toContain('createInTransaction');
   });
 

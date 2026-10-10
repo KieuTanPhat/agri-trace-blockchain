@@ -1,0 +1,10 @@
+export const ROLE_CODES = [
+  'SYSTEM_ADMIN',
+  'FARM_STAFF',
+  'IOT_DEVICE',
+  'TRANSPORTER',
+  'RETAILER',
+  'AUDITOR',
+  'COMPLIANCE_REVIEWER',
+  'SYSTEM_ACTOR',
+] as const;

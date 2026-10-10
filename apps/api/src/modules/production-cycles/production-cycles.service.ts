@@ -4,13 +4,27 @@ import {
 } from '../auth/business-write.policy.js';
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  commandTransaction,
+  lockAggregate,
+} from '../../common/idempotency/command-transaction.js';
+import { quantity } from '../../common/quantity.js';
+import { businessTimestamp } from '../../common/timestamp.js';
+import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
+import { assignedFarmWhere } from '../auth/compliance-scope.js';
+import {
+  validateSensorTime,
+  markLateReading,
+  plantedTime,
+} from '../iot/harvest-sensor-window.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
 import type {
@@ -20,6 +34,7 @@ import type {
   PlantCycleDto,
   SensorReadingDto,
   VersionedCommandDto,
+  ReconcileCycleSensorDto,
 } from './dto.js';
 
 @Injectable()
@@ -54,7 +69,29 @@ export class ProductionCyclesService {
         sensorDigests: { orderBy: { periodEnd: 'desc' } },
         certificates: true,
         harvestEvents: {
-          include: { lot: { include: { shipment: true } } },
+          where:
+            actor.role === 'TRANSPORTER'
+              ? {
+                  lot: {
+                    shipment: {
+                      transporterOrgId:
+                        actor.organizationId ??
+                        '00000000-0000-0000-0000-000000000000',
+                    },
+                  },
+                }
+              : actor.role === 'RETAILER'
+                ? {
+                    lot: {
+                      shipment: {
+                        retailerOrgId:
+                          actor.organizationId ??
+                          '00000000-0000-0000-0000-000000000000',
+                      },
+                    },
+                  }
+                : undefined,
+          include: { lot: { include: { shipment: true } }, sensorWindow: true },
           orderBy: { harvestTime: 'asc' },
         },
       },
@@ -65,6 +102,8 @@ export class ProductionCyclesService {
 
   private visibleWhere(actor: Actor): Prisma.ProductionCycleWhereInput {
     if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) return {};
+    if (actor.role === 'COMPLIANCE_REVIEWER')
+      return { farm: assignedFarmWhere(actor) };
     if (actor.role === 'FARM_STAFF')
       return {
         farmOrgId:
@@ -122,7 +161,32 @@ export class ProductionCyclesService {
         'Thửa đất không thuộc nông trại hoặc không hoạt động',
       );
 
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      const activeFarm = await tx.farm.findUnique({
+        where: { id: farm.id },
+        include: { organization: true },
+      });
+      const activeProduct = await tx.product.findUnique({
+        where: { id: input.productId },
+      });
+      const activePlot = input.plotId
+        ? await tx.plot.findUnique({ where: { id: input.plotId } })
+        : null;
+      if (
+        !activeFarm ||
+        activeFarm.status !== 'ACTIVE' ||
+        activeFarm.organization.status !== 'ACTIVE' ||
+        activeFarm.organizationId !== actor.organizationId ||
+        !activeProduct ||
+        activeProduct.status !== 'ACTIVE' ||
+        (input.plotId &&
+          (!activePlot ||
+            activePlot.status !== 'ACTIVE' ||
+            activePlot.farmId !== farm.id))
+      )
+        throw new UnprocessableEntityException(
+          'Dữ liệu nông trại/sản phẩm/thửa đất không còn hợp lệ',
+        );
       const cycle = await tx.productionCycle.create({
         data: {
           cycleCode: input.cycleCode.trim(),
@@ -130,11 +194,16 @@ export class ProductionCyclesService {
           farmOrgId: farm.organizationId,
           plotId: input.plotId,
           productId: input.productId,
-          startDate: input.startDate ? new Date(input.startDate) : undefined,
-          plannedHarvest: input.plannedHarvest
-            ? new Date(input.plannedHarvest)
+          startDate: input.startDate
+            ? normalizeExpiryDate(input.startDate)
             : undefined,
-          maxHarvestQuantity: input.maxHarvestQuantity,
+          plannedHarvest: input.plannedHarvest
+            ? normalizeExpiryDate(input.plannedHarvest)
+            : undefined,
+          maxHarvestQuantity:
+            input.maxHarvestQuantity === undefined
+              ? undefined
+              : quantity(input.maxHarvestQuantity),
           harvestUnit: input.harvestUnit,
           note: input.note,
         },
@@ -161,6 +230,7 @@ export class ProductionCyclesService {
   async plant(id: string, input: PlantCycleDto, actor: Actor) {
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, id);
+    const plantedAt = businessTimestamp(input.plantedAt, 'Thời điểm trồng');
     return this.transition(
       id,
       input.version,
@@ -168,15 +238,34 @@ export class ProductionCyclesService {
       'PLANTED',
       actor,
       'CYCLE_PLANTED',
-      { plantedAt: input.plantedAt },
-      { startDate: new Date(input.plantedAt) },
+      { plantedAt: plantedAt.toISOString() },
+      { startDate: normalizeExpiryDate(plantedAt.toISOString()) },
+      plantedAt,
     );
   }
 
   async addCare(id: string, input: CareRecordDto, actor: Actor) {
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, id);
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'cycle', id);
+      const plantedAt =
+        (await plantedTime(tx, id)) ??
+        (
+          await tx.cycleSensorReconciliation.findFirst({
+            where: { cycleId: id },
+            orderBy: { revision: 'desc' },
+          })
+        )?.plantedAt;
+      if (!plantedAt)
+        throw new ConflictException(
+          'Cần đối soát mốc trồng trước khi ghi chăm sóc',
+        );
+      const eventTime = businessTimestamp(
+        input.eventTime,
+        'Thời điểm chăm sóc',
+        { notBefore: plantedAt },
+      );
       const updated = await tx.productionCycle.updateMany({
         where: {
           id,
@@ -193,9 +282,10 @@ export class ProductionCyclesService {
         data: {
           cycleId: id,
           careType: input.careType,
-          eventTime: new Date(input.eventTime),
+          eventTime,
           materialName: input.materialName,
-          quantity: input.quantity,
+          quantity:
+            input.quantity === undefined ? undefined : quantity(input.quantity),
           unit: input.unit,
           method: input.method,
           note: input.note,
@@ -213,6 +303,8 @@ export class ProductionCyclesService {
           materialName: care.materialName,
           quantity: care.quantity?.toString() ?? null,
           unit: care.unit,
+          method: care.method,
+          note: care.note,
         },
       });
       return { care, version: input.version + 1 };
@@ -242,15 +334,130 @@ export class ProductionCyclesService {
     }
     // Raw sensor readings are deliberately kept off-chain. SensorDigest is the
     // auditable aggregate that produces TraceEvent/BlockchainProof records.
-    return this.prisma.sensorReading.create({
-      data: {
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'cycle', id);
+      const currentCycle = await tx.productionCycle.findUniqueOrThrow({
+        where: { id },
+      });
+      const currentDevice = await tx.iotDevice.findUniqueOrThrow({
+        where: { id: input.deviceId },
+      });
+      if (
+        !['PLANTED', 'GROWING'].includes(currentCycle.currentState) ||
+        currentDevice.status !== 'ACTIVE' ||
+        currentDevice.cycleId !== id ||
+        currentDevice.organizationId !== currentCycle.farmOrgId
+      )
+        throw new ConflictException(
+          'Chu kỳ hoặc thiết bị không còn nhận dữ liệu',
+        );
+      const recordedAt = businessTimestamp(
+        input.recordedAt,
+        'Thời gian cảm biến',
+      );
+      await validateSensorTime(tx, id, recordedAt);
+      const reading = await tx.sensorReading.create({
+        data: {
+          cycleId: id,
+          deviceId: input.deviceId,
+          sensorType: input.sensorType,
+          value: input.value,
+          unit: input.unit,
+          recordedAt,
+        },
+      });
+      const late = await markLateReading(tx, reading);
+      return { ...reading, late };
+    });
+  }
+
+  async reconcileSensorHistory(
+    id: string,
+    input: ReconcileCycleSensorDto,
+    actor: Actor,
+  ) {
+    if (actor.role !== 'SYSTEM_ADMIN' || !actor.sub)
+      throw new ForbiddenException('Chỉ Admin được ghi đối soát legacy');
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'cycle', id);
+      const cycle = await tx.productionCycle.findUnique({ where: { id } });
+      if (!cycle) throw new NotFoundException('Không tìm thấy vụ sản xuất');
+      if (
+        cycle.version !== input.version ||
+        !['PLANTED', 'GROWING'].includes(cycle.currentState)
+      )
+        throw new ConflictException('Version/trạng thái chu kỳ đã thay đổi');
+      if (await tx.harvestSensorWindow.count({ where: { cycleId: id } }))
+        throw new ConflictException(
+          'Không thay đổi mốc legacy sau khi đã finalize window mới',
+        );
+      const legacy = await tx.harvestEvent.findMany({
+        where: { cycleId: id },
+        orderBy: [{ harvestTime: 'desc' }, { id: 'desc' }],
+        include: { finalSensorDigest: true },
+      });
+      const last = legacy[0];
+      if ((input.throughHarvestId ?? null) !== (last?.id ?? null))
+        throw new ConflictException(
+          'Cần đối soát đến đúng harvest legacy cuối cùng',
+        );
+      const start = businessTimestamp(input.plantedAt, 'Mốc trồng đối soát');
+      const known = await plantedTime(tx, id);
+      if (
+        !Number.isFinite(start.getTime()) ||
+        start.getTime() > Date.now() ||
+        (last && start >= last.harvestTime) ||
+        (known && start.getTime() !== known.getTime()) ||
+        legacy.some(
+          (harvest) =>
+            harvest.harvestTime < start ||
+            harvest.harvestTime.getTime() > Date.now(),
+        ) ||
+        !input.reason.trim()
+      )
+        throw new UnprocessableEntityException(
+          'Mốc trồng/cutoff/lý do đối soát không hợp lệ',
+        );
+      const previous = await tx.cycleSensorReconciliation.aggregate({
+        where: { cycleId: id },
+        _max: { revision: true },
+      });
+      const record = await tx.cycleSensorReconciliation.create({
+        data: {
+          cycleId: id,
+          revision: (previous._max.revision ?? 0) + 1,
+          throughHarvestId: last?.id,
+          plantedAt: start,
+          cutoffEnd: last?.harvestTime,
+          recordedById: actor.sub!,
+          reason: input.reason.trim(),
+        },
+      });
+      await this.trace.createInTransaction(tx, {
+        entityType: 'PRODUCTION_CYCLE',
+        entityId: id,
         cycleId: id,
-        deviceId: input.deviceId,
-        sensorType: input.sensorType,
-        value: input.value,
-        unit: input.unit,
-        recordedAt: new Date(input.recordedAt),
-      },
+        eventType: 'CORRECTION_RECORDED',
+        actor,
+        businessData: {
+          reconciliationId: record.id,
+          revision: record.revision,
+          plantedAt: start.toISOString(),
+          cutoffEnd: record.cutoffEnd?.toISOString() ?? null,
+          throughHarvestId: record.throughHarvestId,
+          reason: record.reason,
+          legacySources: legacy.map((harvest) => ({
+            harvestId: harvest.id,
+            finalSensorDigestId: harvest.finalSensorDigestId,
+            digestHash: harvest.finalSensorDigest?.digestHash ?? null,
+          })),
+        },
+      });
+      await tx.productionCycle.update({
+        where: { id },
+        data: { version: { increment: 1 } },
+      });
+      return { reconciliation: record, cycleVersion: cycle.version + 1 };
     });
   }
 
@@ -291,8 +498,10 @@ export class ProductionCyclesService {
     eventType: string,
     businessData: Prisma.InputJsonObject,
     extra: Record<string, unknown> = {},
+    eventTime?: Date,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'cycle', id);
       const result = await tx.productionCycle.updateMany({
         where: { id, version, currentState: { in: from } },
         data: { ...extra, currentState: to, version: { increment: 1 } },
@@ -310,6 +519,7 @@ export class ProductionCyclesService {
         cycleId: id,
         eventType,
         actor,
+        eventTime,
         businessData: businessData,
       });
       return cycle;

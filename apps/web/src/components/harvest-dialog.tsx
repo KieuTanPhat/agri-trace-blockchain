@@ -20,6 +20,7 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("kg");
   const [lotCode, setLotCode] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -45,7 +46,13 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
     event.preventDefault();
     if (busy.current) return;
     busy.current = true;
-    const payload = JSON.stringify({ cycleId, quantity, unit, lotCode });
+    const payload = JSON.stringify({
+      cycleId,
+      quantity,
+      unit,
+      lotCode,
+      expiryDate,
+    });
     if (attempt.current.payload !== payload)
       attempt.current = {
         payload,
@@ -62,6 +69,7 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
           quantity: Number(quantity),
           unit,
           lotCode: lotCode.trim() || undefined,
+          expiryDate: expiryDate || undefined,
         },
         attempt.current.key,
       );
@@ -70,6 +78,7 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
       dialog.current?.close();
       setQuantity("");
       setLotCode("");
+      setExpiryDate("");
       onCreated();
     } catch (cause) {
       setMessage(
@@ -146,7 +155,7 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
                 className="input"
                 type="number"
                 min="0.001"
-                step="any"
+                step="0.001"
                 required
                 value={quantity}
                 onChange={(event) => setQuantity(event.target.value)}
@@ -169,6 +178,16 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
               maxLength={120}
               value={lotCode}
               onChange={(event) => setLotCode(event.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="harvest-expiry">Ngày hết hạn (nếu có)</label>
+            <input
+              id="harvest-expiry"
+              className="input"
+              type="date"
+              value={expiryDate}
+              onChange={(event) => setExpiryDate(event.target.value)}
             />
           </div>
           {message && (

@@ -10,6 +10,11 @@ import {
   type Prisma,
 } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  authorizeCommand,
+  type CommandActor,
+} from './command-authorization.js';
+import { commandContext, commandResponseJson } from './command-transaction.js';
 
 export interface StartIdempotencyInput {
   idempotencyKey: string;
@@ -18,6 +23,8 @@ export interface StartIdempotencyInput {
   requestType: string;
   payload: unknown;
   expiresInMinutes?: number;
+  authorizationScope?: string;
+  responseStatus?: number;
 }
 
 export type IdempotencyStartResult =
@@ -35,12 +42,32 @@ export type IdempotencyStartResult =
 export class IdempotencyService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
+  /** HTTP business commands must enter here, including device commands. */
+  async executeCommand<T>(
+    input: StartIdempotencyInput & { actor: CommandActor | null },
+    command: () => Promise<T>,
+  ): Promise<T | Prisma.JsonValue | null> {
+    const scope = await authorizeCommand(this.prisma, input);
+    return this.execute(
+      { ...input, authorizationScope: scope },
+      command,
+      async () => {
+        if ((await authorizeCommand(this.prisma, input)) !== scope)
+          throw new ConflictException('Phạm vi command đã thay đổi');
+      },
+      input,
+    );
+  }
+
   async execute<T>(
     input: StartIdempotencyInput,
     command: () => Promise<T>,
+    authorize?: () => Promise<void>,
+    authorizedInput?: StartIdempotencyInput & { actor: CommandActor | null },
   ): Promise<T | Prisma.JsonValue | null> {
     const started = await this.start(input);
     if (started.type === 'REPLAY') {
+      await authorize?.();
       if (started.status >= 400)
         throw new HttpException(
           (started.body as object) ?? { message: 'Thao tác thất bại' },
@@ -50,7 +77,20 @@ export class IdempotencyService {
     }
     let result: T;
     try {
-      result = await command();
+      if (authorizedInput && input.authorizationScope) {
+        const context = {
+          recordId: started.recordId,
+          authorizationScope: input.authorizationScope,
+          input: authorizedInput,
+          responseStatus: input.responseStatus ?? 200,
+          committed: false,
+        };
+        result = await commandContext.run(context, command);
+        if (!context.committed)
+          throw new Error('Business command did not commit its result journal');
+      } else {
+        result = await command();
+      }
     } catch (error) {
       // Unknown infrastructure failures may have happened after commit.
       // Leave them PROCESSING for reconciliation instead of risking a replay.
@@ -61,13 +101,17 @@ export class IdempotencyService {
       }
       throw error;
     }
-    const body = JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue;
-    await this.complete(started.recordId, 200, body);
+    const body = commandResponseJson(result);
+    await this.complete(started.recordId, input.responseStatus ?? 200, body);
     return result;
   }
 
   async start(input: StartIdempotencyInput): Promise<IdempotencyStartResult> {
-    if (!input.idempotencyKey?.trim()) {
+    if (
+      typeof input.idempotencyKey !== 'string' ||
+      !input.idempotencyKey.trim() ||
+      input.idempotencyKey.trim().length > 255
+    ) {
       throw new ConflictException('Thiếu header Idempotency-Key');
     }
 
@@ -84,6 +128,7 @@ export class IdempotencyService {
           operation: input.operation,
           requestType: input.requestType,
           requestHash,
+          authorizationScope: input.authorizationScope,
           status: IdempotencyStatus.PROCESSING,
           expiresAt,
         },
@@ -165,10 +210,47 @@ export class IdempotencyService {
     }
 
     if (
+      input.authorizationScope &&
+      record.authorizationScope !== input.authorizationScope
+    ) {
+      throw new ConflictException(
+        'Idempotency-Key thuộc phạm vi khác hoặc bản ghi legacy cần đối soát',
+      );
+    }
+
+    // A journal is positive evidence of the original business commit. Absence
+    // of a journal never authorizes re-execution of an uncertain request.
+    if (input.authorizationScope) {
+      const committed = await this.prisma.commandCommit.findUnique({
+        where: { idempotencyRecordId: record.id },
+      });
+      if (committed) {
+        if (
+          committed.authorizationScope !== input.authorizationScope ||
+          committed.requesterId !== input.requesterId ||
+          committed.operation !== input.operation
+        )
+          throw new ConflictException('Journal không khớp phạm vi command');
+        return {
+          type: 'REPLAY',
+          status: committed.responseStatus,
+          body: committed.responseBody,
+        };
+      }
+    }
+
+    if (
       (record.status === IdempotencyStatus.COMPLETED ||
         record.status === IdempotencyStatus.FAILED) &&
       record.responseStatus !== null
     ) {
+      if (
+        input.authorizationScope &&
+        record.status === IdempotencyStatus.COMPLETED
+      )
+        throw new ConflictException(
+          'Kết quả command thiếu journal; cần đối soát',
+        );
       return {
         type: 'REPLAY',
         status: record.responseStatus,

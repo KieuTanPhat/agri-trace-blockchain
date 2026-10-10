@@ -25,8 +25,11 @@ describe('IotService', () => {
     const prisma = {
       iotDevice: { findFirst: vi.fn().mockResolvedValue(device) },
     };
+    const transaction = { ...prisma, $executeRaw: vi.fn() };
     const service = new IotService(
-      prisma as unknown as PrismaService,
+      {
+        $transaction: vi.fn(async (callback) => callback(transaction)),
+      } as unknown as PrismaService,
       {} as TraceService,
     );
 
@@ -40,18 +43,32 @@ describe('IotService', () => {
   });
 
   it('stores a raw reading without creating a blockchain trace event', async () => {
-    const create = vi.fn().mockResolvedValue({ id: 'reading-1' });
+    const create = vi
+      .fn()
+      .mockResolvedValue({
+        id: 'reading-1',
+        cycleId: device.cycleId,
+        recordedAt: new Date(input.recordedAt),
+      });
     const update = vi.fn().mockResolvedValue({});
-    const transaction = vi.fn(async (callback) =>
-      callback({ sensorReading: { create }, iotDevice: { update } }),
-    );
-    const prisma = {
-      iotDevice: { findFirst: vi.fn().mockResolvedValue(device) },
+    const tx = {
+      $executeRaw: vi.fn(),
+      iotDevice: { findFirst: vi.fn().mockResolvedValue(device), update },
       productionCycle: {
         findUnique: vi.fn().mockResolvedValue({ currentState: 'GROWING' }),
       },
-      $transaction: transaction,
+      sensorReading: { create },
+      traceEvent: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { businessData: { plantedAt: '2026-09-20T00:00:00.000Z' } },
+          ]),
+      },
+      harvestEvent: { findFirst: vi.fn().mockResolvedValue(null) },
     };
+    const transaction = vi.fn(async (callback) => callback(tx));
+    const prisma = { $transaction: transaction };
     const trace = { createInTransaction: vi.fn() };
     const service = new IotService(
       prisma as unknown as PrismaService,
@@ -61,6 +78,7 @@ describe('IotService', () => {
     await expect(service.ingest(input)).resolves.toEqual({
       status: 'accepted',
       readingId: 'reading-1',
+      late: false,
     });
     expect(trace.createInTransaction).not.toHaveBeenCalled();
   });

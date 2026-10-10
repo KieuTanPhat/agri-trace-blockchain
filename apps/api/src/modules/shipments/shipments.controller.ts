@@ -1,3 +1,10 @@
+import { ApiDataResponse } from '../../common/api/openapi.js';
+import { ShipmentRecordDto } from '../../common/api/record.dto.js';
+import {
+  ShipmentListDto,
+  ShipmentDetailDto,
+  ShipmentDamageDto,
+} from '../../common/api/response.dto.js';
 import {
   FARM_WRITE_ROLES,
   TRANSPORT_WRITE_ROLES,
@@ -14,12 +21,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiHeader,
-  ApiOkResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
 import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
@@ -51,10 +53,12 @@ export class ShipmentsController {
     payload: unknown,
     fn: () => Promise<unknown>,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
         requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
         operation,
         requestType: 'COMMAND',
         payload,
@@ -62,41 +66,29 @@ export class ShipmentsController {
       fn,
     );
   }
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @ApiDataResponse(ShipmentListDto, 200, true)
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   @Get()
   list(@Req() req: AuthenticatedRequest) {
     return this.service.list(req.user);
   }
 
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
-  @ApiOkResponse({
-    description:
-      'Chi tiết chuyến hàng; telemetry.deviceSequence là chuỗi số nguyên hoặc null.',
-    schema: {
-      type: 'object',
-      properties: {
-        data: {
-          type: 'object',
-          properties: {
-            telemetry: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  deviceSequence: {
-                    type: 'string',
-                    nullable: true,
-                    pattern: '^[0-9]+$',
-                    example: '9223372036854775807',
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  })
+  @ApiDataResponse(ShipmentDetailDto, 200)
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   @Get(':id')
   get(
     @Param('id', ParseUUIDPipe) id: string,
@@ -105,6 +97,7 @@ export class ShipmentsController {
     return this.service.get(id, req.user);
   }
 
+  @ApiDataResponse(ShipmentRecordDto, 201)
   @Roles(...FARM_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post()
@@ -117,6 +110,7 @@ export class ShipmentsController {
       this.service.create(dto, req.user),
     );
   }
+  @ApiDataResponse(ShipmentRecordDto, 201)
   @Roles(...TRANSPORT_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/start')
@@ -130,6 +124,7 @@ export class ShipmentsController {
       this.service.start(id, dto, req.user),
     );
   }
+  @ApiDataResponse(ShipmentRecordDto, 201)
   @Roles(...TRANSPORT_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/arrive')
@@ -143,6 +138,7 @@ export class ShipmentsController {
       this.service.arrive(id, dto, req.user),
     );
   }
+  @ApiDataResponse(ShipmentRecordDto, 201)
   @Roles(...RETAIL_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/receive')
@@ -156,6 +152,7 @@ export class ShipmentsController {
       this.service.receive(id, dto, req.user),
     );
   }
+  @ApiDataResponse(ShipmentRecordDto, 201)
   @Roles(...RETAIL_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/reject')
@@ -169,6 +166,7 @@ export class ShipmentsController {
       this.service.reject(id, dto, req.user),
     );
   }
+  @ApiDataResponse(ShipmentDamageDto, 201)
   @Roles(...CUSTODY_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/damage')

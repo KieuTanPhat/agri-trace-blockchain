@@ -1,3 +1,8 @@
+import { ApiDataResponse } from '../../common/api/openapi.js';
+import {
+  TraceHistoryDto,
+  TraceProofDto,
+} from '../../common/api/response.dto.js';
 import {
   Controller,
   Get,
@@ -18,6 +23,7 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 export class TraceController {
   constructor(private readonly trace: TraceService) {}
 
+  @ApiDataResponse(TraceHistoryDto, 200, true)
   @Get('lots/:lotId')
   getLotHistory(
     @Param('lotId', ParseUUIDPipe) lotId: string,
@@ -26,6 +32,7 @@ export class TraceController {
     return this.trace.getLotHistory(lotId, req.user);
   }
 
+  @ApiDataResponse(TraceProofDto, 200)
   @Get('events/:eventId/proof')
   getProof(
     @Param('eventId', ParseUUIDPipe) eventId: string,

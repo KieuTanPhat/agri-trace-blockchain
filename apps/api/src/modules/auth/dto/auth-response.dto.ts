@@ -1,8 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ROLE_CODES } from '../role-codes.js';
 
 class AuthRoleDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty() code!: string;
+  @ApiProperty({ enum: ROLE_CODES }) code!: string;
   @ApiProperty() name!: string;
 }
 
@@ -35,12 +36,17 @@ class AuthSessionDto {
   @ApiProperty({ type: AuthUserDto }) user!: AuthUserDto;
 }
 
-export class AuthSessionResponseDto {
+class AuthEnvelopeDto {
+  @ApiProperty({ format: 'date-time' }) timestamp!: string;
+  @ApiProperty() requestId!: string;
+}
+
+export class AuthSessionResponseDto extends AuthEnvelopeDto {
   @ApiProperty({ enum: [true] }) success!: boolean;
   @ApiProperty({ type: AuthSessionDto }) data!: AuthSessionDto;
 }
 
-export class AuthProfileResponseDto {
+export class AuthProfileResponseDto extends AuthEnvelopeDto {
   @ApiProperty({ enum: [true] }) success!: boolean;
   @ApiProperty({ type: AuthUserDto }) data!: AuthUserDto;
 }
@@ -49,7 +55,7 @@ class RevocationDto {
   @ApiProperty({ enum: [true] }) revoked!: boolean;
 }
 
-export class AuthLogoutResponseDto {
+export class AuthLogoutResponseDto extends AuthEnvelopeDto {
   @ApiProperty({ enum: [true] }) success!: boolean;
   @ApiProperty({ type: RevocationDto }) data!: RevocationDto;
 }

@@ -1,3 +1,9 @@
+import { ApiDataResponse } from '../../common/api/openapi.js';
+import {
+  InspectionRecordDto,
+  CertificateRecordDto,
+} from '../../common/api/record.dto.js';
+import { InspectionListDto } from '../../common/api/response.dto.js';
 import {
   FARM_WRITE_ROLES,
   COMPLIANCE_REVIEW_ROLES,
@@ -43,7 +49,15 @@ export class ComplianceController {
     private readonly idempotency: IdempotencyService,
   ) {}
 
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @ApiDataResponse(InspectionListDto, 200, true)
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   @Get('inspections')
   inspections(
     @Req() request: AuthenticatedRequest,
@@ -52,10 +66,11 @@ export class ComplianceController {
     return this.service.listInspections(request.user, lotId);
   }
 
+  @ApiDataResponse(InspectionRecordDto, 201)
   @Roles(...COMPLIANCE_REVIEW_ROLES)
   @ApiForbiddenResponse({
     description:
-      'AGT-026: chưa phê duyệt vai trò ghi inspection; endpoint chỉ từ chối ghi.',
+      'Chỉ COMPLIANCE_REVIEWER có assignment active với Farm của Lot được ghi inspection.',
   })
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('inspections')
@@ -64,10 +79,12 @@ export class ComplianceController {
     @Headers('idempotency-key') key: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
         requesterId: request.user.sub,
+        actor: request.user,
+        responseStatus: 201,
         operation: 'CREATE_INSPECTION',
         requestType: 'COMMAND',
         payload: input,
@@ -76,7 +93,15 @@ export class ComplianceController {
     );
   }
 
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @ApiDataResponse(CertificateRecordDto, 200, true)
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   @Get('certificates')
   certificates(
     @Req() request: AuthenticatedRequest,
@@ -86,6 +111,7 @@ export class ComplianceController {
     return this.service.listCertificates(request.user, lotId, cycleId);
   }
 
+  @ApiDataResponse(CertificateRecordDto, 201)
   @Roles(...FARM_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('certificates')
@@ -94,10 +120,12 @@ export class ComplianceController {
     @Headers('idempotency-key') key: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
         requesterId: request.user.sub,
+        actor: request.user,
+        responseStatus: 201,
         operation: 'CREATE_CERTIFICATE',
         requestType: 'COMMAND',
         payload: input,
@@ -106,12 +134,13 @@ export class ComplianceController {
     );
   }
 
+  @ApiDataResponse(CertificateRecordDto, 200)
   @Roles(...COMPLIANCE_REVIEW_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Patch('certificates/:id/review')
   @ApiForbiddenResponse({
     description:
-      'AGT-026: chưa phê duyệt reviewer; Admin/Auditor không ghi nghiệp vụ.',
+      'Cần assignment active với Farm; reviewer không được tự duyệt hoặc ghi lại quyết định.',
   })
   reviewCertificate(
     @Param('id', ParseUUIDPipe) id: string,
@@ -119,10 +148,12 @@ export class ComplianceController {
     @Headers('idempotency-key') key: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
         requesterId: request.user.sub,
+        actor: request.user,
+        responseStatus: 200,
         operation: 'REVIEW_CERTIFICATE',
         requestType: 'COMMAND',
         payload: { id, ...input },

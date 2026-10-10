@@ -3,6 +3,9 @@
 Monorepo cho hệ thống truy xuất nguồn gốc nông sản, tổng hợp frontend, backend và
 Hyperledger Fabric trong một cấu trúc thống nhất.
 
+Tiến độ triển khai core và các cổng chưa đạt:
+[core implementation](docs/core-implementation-2026-10-10.md).
+
 ## Cấu trúc
 
 ```text
@@ -65,13 +68,31 @@ Source/image digests, CI/CD, rollback và backup evidence nằm trong
 vận hành theo [CD runbook](docs/contabo-cd-runbook.md).
 
 Rà soát code/quyền sau triển khai: [kế hoạch và kết quả audit](docs/nongtrace-uat-code-audit.md).
-Admin quản trị identity/masterdata; Auditor chỉ đọc. Inspection và review chứng chỉ
-đang chặn ghi cho tới khi AGT-026 phê duyệt actor, theo AGT-007.
+Admin quản trị identity/masterdata; Auditor chỉ đọc. Bản code trên nhánh core
+thêm COMPLIANCE_REVIEWER trong tổ chức AUDITOR, chỉ ghi inspection/review chứng
+nhận cho Farm được Admin phân công. SQL, provision role và UAT của thay đổi này
+còn cần hoàn tất trước phát hành; xem implementation record ở đầu tài liệu.
 
 Module lots tách `LotHarvestService` (transaction + outbox), `LotQueryService`
 (query), presenter (projection), action policy (role/org/state) và proof status.
 
 ## Kiểm tra toàn bộ
+
+Swagger sinh từ NestJS là contract. Sau `npm ci`, sinh Prisma client và build
+Gateway trước khi xuất OpenAPI/kiểu TypeScript cho Web:
+
+```bash
+npm run prisma:generate --workspace apps/api
+npm run build --workspace blockchain/gateway
+npm run api-contract:generate
+npm run api-contract:check
+```
+
+Exporter dùng metadata đã compile và cấu hình riêng, không mở listener hoặc
+kết nối database/Fabric. Kết quả nằm trong `docs/openapi/openapi.json`, checksum
+`docs/openapi/openapi.sha256` và `apps/web/src/lib/generated/api.d.ts`; sửa DTO/decorator NestJS rồi sinh lại,
+không sửa trực tiếp file sinh. CI API chặn contract lệch và schema public lộ
+các field nội bộ đã liệt kê trong generator.
 
 ```bash
 npm run check

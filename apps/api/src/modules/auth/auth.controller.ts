@@ -18,6 +18,7 @@ import {
   ApiConflictResponse,
   ApiCookieAuth,
   ApiCreatedResponse,
+  ApiResponse,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
@@ -48,6 +49,10 @@ export class AuthController {
   constructor(@Inject(AuthService) private readonly authService: AuthService) {}
 
   @Post('register')
+  @ApiResponse({
+    status: 501,
+    description: 'Account registration is disabled; Admin provisions accounts.',
+  })
   register(@Body() input: RegisterDto) {
     return this.authService.register(input);
   }

@@ -1,37 +1,71 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { vi } from 'vitest';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { OrganizationAccessService } from '../auth/organization-access.service.js';
 import { calculateTraceEventHash } from '../trace/public.js';
 import { LotQueryService } from './lot-query.service.js';
 import type { PublicLot } from './lot-query.types.js';
+import { Prisma } from '../../generated/prisma/client.js';
 
 function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
   const lotId = randomUUID();
   const cycleId = randomUUID();
   const actorUserId = randomUUID();
-  let previousEventHash: string | null = null;
+  const harvestId = randomUUID();
+  const window = {
+    id: randomUUID(),
+    cycleId,
+    harvestId,
+    periodStart: new Date('2026-09-24T00:00:00.000Z'),
+    periodEnd: new Date('2026-09-25T00:00:00.000Z'),
+    includeStart: true,
+    status: 'NO_DATA',
+    readingCount: 0,
+    digestHash: null,
+    schemaVersion: 'harvest-sensor-1',
+    reconciliationId: null,
+    finalizedAt: new Date('2026-09-25T00:00:00.000Z'),
+    sealedAt: new Date('2026-09-25T00:00:00.000Z'),
+    readings: [],
+    harvest: { cycleId, harvestTime: new Date('2026-09-25T00:00:00.000Z') },
+  };
   const events = [0, 1].map((sequence) => {
     const input = {
       id: randomUUID(),
-      entityType: 'LOT',
-      entityId: lotId,
+      entityType: sequence === 0 ? 'SENSOR_DIGEST' : 'HARVEST',
+      entityId: sequence === 0 ? window.id : harvestId,
       lotId,
       cycleId,
-      eventType: 'SHIPMENT_STARTED',
-      eventTime: new Date(`2026-09-2${sequence + 5}T00:00:00.000Z`),
+      eventType:
+        sequence === 0 ? 'SENSOR_DIGEST_FINALIZED' : 'HARVEST_RECORDED',
+      eventTime: window.periodEnd,
       actorUserId,
       actorOrganizationId: randomUUID(),
-      actorRole: 'TRANSPORTER',
+      actorRole: 'FARM_STAFF',
       authProofType: 'TOKEN_FINGERPRINT',
       actorAuthProof: 'a'.repeat(64),
-      businessData: { quantity: '1' },
-      previousEventHash,
+      businessData: {
+        quantity: '1',
+        ...(sequence === 0
+          ? {
+              windowId: window.id,
+              harvestId,
+              periodStart: window.periodStart.toISOString(),
+              periodEnd: window.periodEnd.toISOString(),
+              includeStart: true,
+              status: 'NO_DATA',
+              digestHash: null,
+              readingCount: 0,
+              schemaVersion: 'harvest-sensor-1',
+              reconciliationId: null,
+            }
+          : { sensorWindowId: window.id, sensorEvidenceStatus: 'NO_DATA' }),
+      },
+      previousEventHash: null,
       schemaVersion: '2.0.0',
       canonicalizationVersion: 'RFC8785',
     };
     const dataHash = calculateTraceEventHash(input);
-    previousEventHash = dataHash;
     return {
       ...input,
       dataHash,
@@ -39,7 +73,9 @@ function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
         dataHash,
         transactionStatus: 'CONFIRMED',
         network: 'audit-fixture',
-        txId: randomUUID(),
+        eventId: input.id,
+        channelId: 'agritrace',
+        txId: randomBytes(32).toString('hex'),
         recordedAt: new Date(),
       },
       blockchainOutbox: { status: 'COMPLETED' },
@@ -52,11 +88,24 @@ function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
           id: lotId,
           lotCode: 'TEST-LOT',
           product: { productName: 'Test vegetables' },
-          initialQuantity: 1,
-          availableQuantity: 1,
+          initialQuantity: new Prisma.Decimal(1),
+          availableQuantity: new Prisma.Decimal(1),
+          expiryDate: null,
           unit: 'kg',
-          currentState: 'IN_TRANSIT',
+          currentState: 'HARVESTED',
+          quantityMovements: [
+            {
+              type: 'HARVEST_IN',
+              quantity: new Prisma.Decimal(1),
+              unit: 'kg',
+              beforeQty: new Prisma.Decimal(0),
+              delta: new Prisma.Decimal(1),
+              afterQty: new Prisma.Decimal(1),
+            },
+          ],
           harvest: {
+            sensorWindow: window,
+            _count: { lateReadings: 0 },
             harvestTime: events[0].eventTime,
             cycle: {
               id: cycleId,
@@ -105,18 +154,26 @@ describe('Public lot proof projection', () => {
           lot: {
             include: expect.objectContaining({
               certificates: expect.objectContaining({
-                where: { isPublic: true, status: 'APPROVED' },
+                where: expect.objectContaining({
+                  isPublic: true,
+                  status: 'APPROVED',
+                  replacements: { none: { status: 'APPROVED' } },
+                }),
               }),
               harvest: {
-                include: {
+                include: expect.objectContaining({
                   cycle: {
                     include: expect.objectContaining({
                       certificates: expect.objectContaining({
-                        where: { isPublic: true, status: 'APPROVED' },
+                        where: expect.objectContaining({
+                          isPublic: true,
+                          status: 'APPROVED',
+                          replacements: { none: { status: 'APPROVED' } },
+                        }),
                       }),
                     }),
                   },
-                },
+                }),
               },
             }),
           },

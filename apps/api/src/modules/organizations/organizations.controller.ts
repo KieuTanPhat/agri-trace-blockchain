@@ -1,3 +1,6 @@
+import { ApiHeader } from '@nestjs/swagger';
+import { ApiDataResponse } from '../../common/api/openapi.js';
+import { OrganizationRecordDto } from '../../common/api/record.dto.js';
 import { Req } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
@@ -29,22 +32,27 @@ export class OrganizationsController {
     private readonly idem: IdempotencyService,
   ) {}
 
+  @ApiDataResponse(OrganizationRecordDto, 200, true)
   @Get()
   list() {
     return this.service.list();
   }
 
+  @ApiDataResponse(OrganizationRecordDto, 201)
   @Roles('SYSTEM_ADMIN')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post()
   create(
     @Body() input: CreateOrganizationDto,
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.idem.execute(
+    return this.idem.executeCommand(
       {
         idempotencyKey: key,
         requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
         operation: 'CREATE_ORGANIZATIONS',
         requestType: 'COMMAND',
         payload: input,
@@ -53,6 +61,7 @@ export class OrganizationsController {
     );
   }
 
+  @ApiDataResponse(OrganizationRecordDto, 200)
   @Roles('SYSTEM_ADMIN')
   @Patch(':id')
   update(

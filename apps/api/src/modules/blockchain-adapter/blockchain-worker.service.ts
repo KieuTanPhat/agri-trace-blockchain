@@ -1,16 +1,30 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { type TraceEventInput } from '@agri-trace/fabric-gateway';
+import { type TraceEventEnvelope } from '@agri-trace/fabric-gateway';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { FabricAdapterProvider } from './fabric-adapter.provider.js';
+import { privateTraceEvidenceMatches } from '../trace/trace-evidence.js';
+import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
 
 type FabricReceipt = {
   txId?: string;
   recordedAt?: string;
   channelId?: string;
   dataHash?: string;
+  eventId?: string;
+  envelopeVersion?: string;
+  nonce?: string;
+  entityType?: string;
+  entityId?: string;
+  cycleId?: string;
+  lotId?: string;
+  eventType?: string;
+  eventTime?: string;
+  previousEventHash?: string;
+  schemaVersion?: string;
+  canonicalizationVersion?: string;
 };
 
 type ClaimedOutbox = Prisma.BlockchainOutboxGetPayload<{
@@ -35,6 +49,16 @@ export class BlockchainWorkerService {
     this.running = true;
     let processed = 0;
     try {
+      // Capability/network failures must not consume leases or retry budgets.
+      const adapter = await this.fabric.getAdapter();
+      const health = (await adapter.healthCheck()) as {
+        status?: string;
+        envelopeVersion?: string;
+      };
+      if (health.status !== 'OK' || health.envelopeVersion !== '3.0.0')
+        throw new Error(
+          'Fabric writer paused: incompatible chaincode envelope',
+        );
       const jobs = await this.claimPending(limit);
       for (const job of jobs) {
         await this.submit(job);
@@ -125,10 +149,21 @@ export class BlockchainWorkerService {
           `Unsupported trace contract version ${event.schemaVersion}/${event.canonicalizationVersion}`,
         );
       }
+      if (!privateTraceEvidenceMatches(event)) {
+        throw new PermanentBlockchainError(
+          'Private trace evidence is missing or its hash does not match',
+        );
+      }
       const adapter = await this.fabric.getAdapter();
-      const input: TraceEventInput = {
+      if (!(await harvestSensorTraceEvidenceMatches(this.prisma, event)))
+        throw new PermanentBlockchainError(
+          'Sensor trace event does not match its immutable harvest window',
+        );
+      const input: TraceEventEnvelope = {
         eventId: event.id,
-        entityType: event.entityType as TraceEventInput['entityType'],
+        nonce: event.id,
+        envelopeVersion: '3.0.0',
+        entityType: event.entityType as TraceEventEnvelope['entityType'],
         entityId: event.entityId,
         cycleId: event.cycleId ?? undefined,
         lotId: event.lotId ?? undefined,
@@ -138,31 +173,61 @@ export class BlockchainWorkerService {
         previousEventHash: event.previousEventHash ?? undefined,
         schemaVersion: '2.0.0',
         canonicalizationVersion: 'RFC8785',
-        actorContext: {
-          actorUserId: event.actorUserId ?? undefined,
-          organizationId: event.actorOrganizationId ?? undefined,
-          role: event.actorRole,
-          authProofType: (event.authProofType ??
-            'SYSTEM_ASSERTION') as TraceEventInput['actorContext']['authProofType'],
-          actorAuthProof: event.actorAuthProof ?? event.dataHash,
-        },
       };
 
-      let receipt: FabricReceipt;
+      let submitted: FabricReceipt | undefined;
       try {
-        receipt = (await adapter.submitTraceEvent(input)) as FabricReceipt;
+        // Fabric Gateway submitTransaction returns only after a VALID commit.
+        submitted = (await adapter.submitTraceEvent(input)) as FabricReceipt;
+        if (!submitted?.txId)
+          throw new Error('Fabric commit receipt is missing transaction id');
       } catch (error) {
         if (
           !(error instanceof Error) ||
-          !error.message.includes('DUPLICATE_EVENT')
+          !/\bDUPLICATE_EVENT:/.test(error.message)
         ) {
           throw error;
         }
-        receipt = (await adapter.getProof(event.id)) as FabricReceipt;
       }
+      // A proof queried from committed ledger state is required for both a new
+      // submission and recovery of an already committed event (including v2).
+      const receipt = (await adapter.getProof(event.id)) as FabricReceipt;
+      const fields = [
+        'eventId',
+        'entityType',
+        'entityId',
+        'cycleId',
+        'lotId',
+        'eventType',
+        'eventTime',
+        'dataHash',
+        'previousEventHash',
+        'schemaVersion',
+        'canonicalizationVersion',
+      ] as const;
+      if (
+        !receipt ||
+        fields.some(
+          (field) => (receipt[field] ?? null) !== (input[field] ?? null),
+        ) ||
+        (receipt.envelopeVersion !== undefined &&
+          (receipt.envelopeVersion !== input.envelopeVersion ||
+            receipt.nonce !== input.nonce)) ||
+        (receipt.envelopeVersion === undefined &&
+          receipt.nonce !== undefined) ||
+        (submitted &&
+          (submitted.txId !== receipt.txId ||
+            submitted.dataHash !== receipt.dataHash ||
+            submitted.eventId !== receipt.eventId))
+      )
+        throw new PermanentBlockchainError(
+          'Fabric committed proof does not match the complete public event tuple',
+        );
 
-      if (!receipt.txId) {
-        throw new Error('Fabric receipt is missing transaction id');
+      if (!receipt.txId || !/^[a-f0-9]{64}$/.test(receipt.txId)) {
+        throw new PermanentBlockchainError(
+          'Fabric receipt has a missing or invalid transaction id',
+        );
       }
       if (!receipt.dataHash) {
         throw new Error('Fabric receipt is missing data hash');
@@ -173,17 +238,20 @@ export class BlockchainWorkerService {
         );
       }
 
-      const recordedAt = receipt.recordedAt
-        ? new Date(receipt.recordedAt)
-        : new Date();
+      const recordedAt = new Date(receipt.recordedAt ?? '');
       if (!Number.isFinite(recordedAt.getTime())) {
         throw new PermanentBlockchainError(
           'Fabric receipt has an invalid recording time',
         );
       }
-      const channelId =
-        receipt.channelId ??
-        this.config.get<string>('FABRIC_CHANNEL_NAME', 'agritrace');
+      const channelId = this.config.get<string>(
+        'FABRIC_CHANNEL_NAME',
+        'agritrace',
+      );
+      if (receipt.channelId !== channelId)
+        throw new PermanentBlockchainError(
+          'Fabric proof belongs to a different channel',
+        );
       const network = this.config.get<string>(
         'FABRIC_NETWORK_NAME',
         'hyperledger-fabric',
@@ -259,7 +327,7 @@ export class BlockchainWorkerService {
     ).slice(0, 2000);
     const terminal =
       error instanceof PermanentBlockchainError ||
-      /\b(HASH_CHAIN_CONFLICT|INVALID_INPUT|UNAUTHORIZED_RELAYER):/.test(
+      /\b(HASH_CHAIN_CONFLICT|DUPLICATE_EVENT_CONFLICT|INVALID_INPUT|UNAUTHORIZED_RELAYER):/.test(
         message,
       ) ||
       job.attemptCount >= maxRetries;

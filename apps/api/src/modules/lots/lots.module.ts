@@ -6,11 +6,13 @@ import { TraceModule } from '../trace/trace.module.js';
 import { LotsController, PublicTraceController } from './lots.controller.js';
 import { LotHarvestService } from './lot-harvest.service.js';
 import { LotQueryService } from './lot-query.service.js';
+import { LotCommandsService } from './lot-commands.service.js';
+import { LotCommandsController } from './lot-commands.controller.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, TraceModule, IdempotencyModule],
-  controllers: [LotsController, PublicTraceController],
-  providers: [LotHarvestService, LotQueryService],
+  controllers: [LotsController, PublicTraceController, LotCommandsController],
+  providers: [LotHarvestService, LotQueryService, LotCommandsService],
   exports: [LotHarvestService, LotQueryService],
 })
 export class LotsModule {}

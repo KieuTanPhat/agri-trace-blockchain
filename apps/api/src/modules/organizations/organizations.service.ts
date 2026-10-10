@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { commandTransaction } from '../../common/idempotency/command-transaction.js';
 import type { CreateOrganizationDto, UpdateOrganizationDto } from './dto.js';
 
 @Injectable()
@@ -13,9 +14,11 @@ export class OrganizationsService {
   }
 
   create(input: CreateOrganizationDto) {
-    return this.prisma.organization.create({
-      data: { name: input.name.trim(), type: input.type },
-    });
+    return commandTransaction(this.prisma, (tx) =>
+      tx.organization.create({
+        data: { name: input.name.trim(), type: input.type },
+      }),
+    );
   }
 
   async update(id: string, input: UpdateOrganizationDto) {

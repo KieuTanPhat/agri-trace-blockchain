@@ -1,10 +1,12 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-store";
 import { request } from "@/lib/api-client";
 import { DataForm, type Field } from "@/components/data-form";
 import { emptyCatalog, type Catalog } from "@/lib/catalog";
-import type { AuthUser } from "@/lib/types";
+import type { components } from "@/lib/generated/api";
+type AdminUser = components["schemas"]["UserListDto"];
 type Org = { id: string; name: string; type: string; status: string };
 const tabs = ["Tổ chức", "Tài khoản", "Sản phẩm", "Nông trại", "Thửa đất"];
 export default function AdminPage() {
@@ -13,7 +15,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState(0);
   const [catalog, setCatalog] = useState<Catalog>(emptyCatalog);
   const [orgs, setOrgs] = useState<Org[]>([]);
-  const [users, setUsers] = useState<AuthUser[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [roles, setRoles] = useState<{ code: string; name: string }[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -25,7 +27,7 @@ export default function AdminPage() {
       const [c, o, u, r] = await Promise.all([
         request<Catalog>("/catalog"),
         request<Org[]>("/organizations"),
-        request<AuthUser[]>("/users"),
+        request<AdminUser[]>("/users"),
         request<{ code: string; name: string }[]>("/users/roles"),
       ]);
       setCatalog(c);
@@ -155,6 +157,9 @@ export default function AdminPage() {
     <div className="grid">
       <section className="page-header">
         <h1>Quản trị hệ thống</h1>
+        <Link className="button secondary" href="/admin/compliance-assignments">
+          Phân công Reviewer
+        </Link>
       </section>
       <div className="actions">
         {tabs.map((t, i) => (

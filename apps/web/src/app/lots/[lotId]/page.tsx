@@ -19,6 +19,7 @@ import { labelForProof } from "@/lib/display-labels";
 import type { LotTrace } from "@/lib/types";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
+import { LotWarnings } from "@/components/lot-warnings";
 
 export default function LotDetailPage() {
   const { lotId } = useParams<{ lotId: string }>();
@@ -71,6 +72,8 @@ export default function LotDetailPage() {
           <LotPicker lots={lots} currentLotId={lot.lotId} basePath="lots" />
         </div>
       </section>
+
+      <LotWarnings lot={lot} />
 
       <section className="grid two">
         <div className="grid">

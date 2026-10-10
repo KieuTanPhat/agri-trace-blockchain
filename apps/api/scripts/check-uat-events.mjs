@@ -1,7 +1,8 @@
 import { pathToFileURL } from 'node:url';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../dist/generated/prisma/client.js';
-import { calculateTraceEventHash } from '../dist/modules/trace/public.js';
+import { privateTraceEvidenceMatches } from '../dist/modules/trace/trace-evidence.js';
+import { harvestSensorTraceEvidenceMatches } from '../dist/modules/iot/harvest-sensor-evidence.js';
 
 // Read-only compatibility check. This does not submit, retry or create proofs.
 export async function inspectEvents(database, validate) {
@@ -15,21 +16,19 @@ export async function inspectEvents(database, validate) {
       if (events.length === 0) break;
       for (const event of events) {
         const reasons = [];
-        if (calculateTraceEventHash(event) !== event.dataHash) reasons.push('LOCAL_HASH_MISMATCH');
+        if (!privateTraceEvidenceMatches(event)) reasons.push('PRIVATE_EVIDENCE_MISMATCH');
         if (event.schemaVersion !== '2.0.0' || event.canonicalizationVersion !== 'RFC8785') reasons.push('UNSUPPORTED_CONTRACT_VERSION');
+        if (!(await harvestSensorTraceEvidenceMatches(tx, event))) reasons.push('SENSOR_EVIDENCE_MISMATCH');
+        try {
         const input = {
-          eventId: event.id, entityType: event.entityType, entityId: event.entityId,
+          eventId: event.id, nonce: event.id, envelopeVersion: '3.0.0', entityType: event.entityType, entityId: event.entityId,
           cycleId: event.cycleId ?? undefined, lotId: event.lotId ?? undefined,
           eventType: event.eventType, eventTime: event.eventTime.toISOString(),
           dataHash: event.dataHash, previousEventHash: event.previousEventHash ?? undefined,
           schemaVersion: event.schemaVersion, canonicalizationVersion: event.canonicalizationVersion,
-          actorContext: {
-            actorUserId: event.actorUserId ?? undefined, organizationId: event.actorOrganizationId ?? undefined,
-            role: event.actorRole, authProofType: event.authProofType ?? 'SYSTEM_ASSERTION',
-            actorAuthProof: event.actorAuthProof ?? event.dataHash,
-          },
         };
-        try {validate(JSON.stringify(input));}
+        validate(JSON.stringify(input));
+        }
         catch {reasons.push('CHAINCODE_INPUT_REJECTED');}
         if (reasons.length) failures.push({eventId: event.id, eventType: event.eventType, reasons});
         checked++;
