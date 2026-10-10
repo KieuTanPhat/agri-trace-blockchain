@@ -1,6 +1,7 @@
 import {
   mockDashboard,
   mockLots,
+  mockPublicTrace,
   mockSendSensorReading,
   mockSubmitCommand,
 } from "./mock-api";
@@ -14,6 +15,7 @@ import type {
   LotTrace,
   Organization,
   ProductionCycleOption,
+  PublicLotTrace,
   SensorReadingRequest,
   SensorReadingResponse,
 } from "./types";
@@ -96,17 +98,8 @@ export async function getLotById(lotId: string): Promise<LotTrace> {
 
 export async function getPublicTrace(
   traceToken: string,
-): Promise<LotTrace | null> {
-  if (USE_MOCK_API) {
-    return (
-      mockLots.find(
-        (lot) =>
-          lot.traceToken === traceToken ||
-          lot.lotId === traceToken ||
-          lot.lotCode === traceToken,
-      ) ?? null
-    );
-  }
+): Promise<PublicLotTrace | null> {
+  if (USE_MOCK_API) return mockPublicTrace(traceToken);
   try {
     return await request(
       `/public/trace/${encodeURIComponent(traceToken)}`,

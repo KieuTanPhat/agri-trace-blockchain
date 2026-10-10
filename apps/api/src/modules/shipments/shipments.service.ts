@@ -101,7 +101,13 @@ export class ShipmentsService {
       throw new ForbiddenException(
         'Tổ chức hiện tại không có quyền xem chuyến hàng',
       );
-    return shipment;
+    return {
+      ...shipment,
+      telemetry: shipment.telemetry.map((reading) => ({
+        ...reading,
+        deviceSequence: reading.deviceSequence?.toString() ?? null,
+      })),
+    };
   }
 
   async create(input: CreateShipmentDto, actor: Actor) {

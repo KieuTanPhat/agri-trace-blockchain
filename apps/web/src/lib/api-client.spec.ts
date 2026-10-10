@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PublicLotTrace } from "./types";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 const user = {
   id: "user-1",
@@ -34,6 +35,73 @@ describe("public API", () => {
     expect(fetchMock.mock.calls[0][0]).toBe(
       "http://api.test/api/public/trace/trace%20token",
     );
+  });
+
+  it("accepts the public projection with nullable dates and no internal shipment fields", async () => {
+    const trace = {
+      lotId: "lot-1",
+      traceToken: "trace-token",
+      lotCode: "LOT-1",
+      productName: "Vegetables",
+      harvestTime: "2026-10-09T00:00:00.000Z",
+      initialQuantity: 10,
+      availableQuantity: 10,
+      unit: "kg",
+      currentState: "HARVESTED",
+      productionCycle: {
+        cycleId: "cycle-1",
+        cycleCode: "CYCLE-1",
+        currentState: "GROWING",
+        startDate: null,
+      },
+      farmOrg: { organizationId: "farm-1", name: "Farm", type: "FARM" },
+      allowedCommands: [],
+      proofStatus: "PENDING",
+      timeline: [{
+        eventId: "event-1",
+        entityType: "HARVEST",
+        eventType: "HARVEST_RECORDED",
+        eventTime: "2026-10-09T00:00:00.000Z",
+        summary: "Harvest recorded",
+        proofStatus: "PENDING",
+        actor: { role: "SYSTEM_ACTOR", organizationName: "AgriTrace" },
+      }],
+      blockchainProof: {
+        network: "Fabric",
+        dataHash: "a".repeat(64),
+        transactionStatus: "PENDING",
+        txId: null,
+        recordedAt: null,
+      },
+      shipment: {
+        status: "CREATED",
+        origin: "Farm",
+        destination: "Retailer",
+        pickupTime: null,
+        arrivalTime: null,
+        receivedTime: null,
+      },
+      certificates: [{
+        type: "Quality",
+        issuer: "Issuer",
+        issueDate: "2026-10-09T00:00:00.000Z",
+        expiryDate: null,
+        documentHash: "b".repeat(64),
+        status: "APPROVED",
+      }],
+    } satisfies PublicLotTrace;
+    localStorage.setItem("agritrace-auth", JSON.stringify({ accessToken: "private-session" }));
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: trace })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { getPublicTrace } = await import("./api-client");
+
+    const result = await getPublicTrace(trace.traceToken);
+
+    expectTypeOf(result).toEqualTypeOf<PublicLotTrace | null>();
+    expect(result).toEqual(trace);
+    expect(new Headers(fetchMock.mock.calls[0][1]?.headers).has("authorization")).toBe(false);
   });
 
   it("uses the internal API for server-side public traces", async () => {

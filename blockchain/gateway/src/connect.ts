@@ -20,28 +20,37 @@ export async function connectGateway(config: GatewayConfig): Promise<GatewayConn
     "grpc.ssl_target_name_override": config.peerHostAlias
   });
 
-  const certificate = await fs.readFile(config.identityCertPath);
-  const privateKeyPath = await findSinglePrivateKey(config.identityKeyDirectory);
-  const privateKey = crypto.createPrivateKey(await fs.readFile(privateKeyPath));
-  const gateway = connect({
-    client,
-    identity: { mspId: config.mspId, credentials: certificate },
-    signer: signers.newPrivateKeySigner(privateKey),
-    hash: hash.sha256,
-    evaluateOptions: () => ({ deadline: deadlineAfter(5_000) }),
-    endorseOptions: () => ({ deadline: deadlineAfter(15_000) }),
-    submitOptions: () => ({ deadline: deadlineAfter(5_000) }),
-    commitStatusOptions: () => ({ deadline: deadlineAfter(60_000) })
-  });
+  try {
+    const certificate = await fs.readFile(config.identityCertPath);
+    const privateKeyPath = await findSinglePrivateKey(config.identityKeyDirectory);
+    const privateKey = crypto.createPrivateKey(await fs.readFile(privateKeyPath));
+    const gateway = connect({
+      client,
+      identity: { mspId: config.mspId, credentials: certificate },
+      signer: signers.newPrivateKeySigner(privateKey),
+      hash: hash.sha256,
+      evaluateOptions: () => ({ deadline: deadlineAfter(5_000) }),
+      endorseOptions: () => ({ deadline: deadlineAfter(15_000) }),
+      submitOptions: () => ({ deadline: deadlineAfter(5_000) }),
+      commitStatusOptions: () => ({ deadline: deadlineAfter(60_000) })
+    });
 
-  return {
-    gateway,
-    client,
-    close: () => {
-      gateway.close();
+    return {
+      gateway,
+      client,
+      close: () => {
+        gateway.close();
+        client.close();
+      }
+    };
+  } catch (error) {
+    try {
       client.close();
+    } finally {
+      // Preserve the initialization error used by the caller's retry policy.
+      throw error;
     }
-  };
+  }
 }
 
 async function findSinglePrivateKey(directory: string): Promise<string> {
