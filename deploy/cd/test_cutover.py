@@ -59,6 +59,18 @@ class CutoverBoundaries(unittest.TestCase):
             with self.assertRaises(ValueError):
                 cutover.verify_business_source(old, new)
 
+    def test_proxy_line_endings_do_not_allow_policy_changes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            old, new = Path(temporary) / "old", Path(temporary) / "new"
+            for root in (old, new):
+                (root / "deploy").mkdir(parents=True)
+            (old / "deploy/Caddyfile.uat").write_bytes(b"{$CADDY_SITE_ADDRESS} {\r\n respond /api/docs 404\r\n}\r\n")
+            (new / "deploy/Caddyfile.uat").write_bytes(b"{$CADDY_SITE_ADDRESS} {\n respond /api/docs 404\n}\n")
+            cutover.verify_proxy_policy(old, new)
+            (new / "deploy/Caddyfile.uat").write_bytes(b"{$CADDY_SITE_ADDRESS} {\n respond /api/docs 200\n}\n")
+            with self.assertRaises(ValueError):
+                cutover.verify_proxy_policy(old, new)
+
 
 if __name__ == "__main__":
     unittest.main()
