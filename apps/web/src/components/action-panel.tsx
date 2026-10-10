@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useId, useRef, useState } from "react";
 import { ArrowRight, ClipboardCheck, LoaderCircle, X } from "lucide-react";
 import { getOrganizations, submitCommand } from "@/lib/api-client";
 import type {
@@ -32,6 +32,7 @@ export function ActionPanel({
   lot: LotTrace;
   onCompleted?: () => void;
 }) {
+  const fieldId = useId();
   const [pending, setPending] = useState(false);
   const [selected, setSelected] = useState<AllowedCommand | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -142,14 +143,14 @@ export function ActionPanel({
       <dialog
         className="command-dialog"
         ref={dialog}
-        aria-labelledby="command-title"
+        aria-labelledby={`${fieldId}-title`}
         onCancel={(event) => {
           if (pending) event.preventDefault();
         }}
       >
         <form onSubmit={runCommand}>
           <div className="panel-title">
-            <h2 id="command-title">
+            <h2 id={`${fieldId}-title`}>
               {selected ? labels[selected] : "Xác nhận thao tác"}
             </h2>
             <button
@@ -172,8 +173,9 @@ export function ActionPanel({
           {selected === "createShipment" && (
             <div className="form-grid">
               <div className="field">
-                <label>Đơn vị vận chuyển</label>
+                <label htmlFor={`${fieldId}-transporter`}>Đơn vị vận chuyển</label>
                 <select
+                  id={`${fieldId}-transporter`}
                   className="select"
                   required
                   value={input.transporterOrgId ?? ""}
@@ -195,8 +197,9 @@ export function ActionPanel({
                 </select>
               </div>
               <div className="field">
-                <label>Điểm bán nhận hàng</label>
+                <label htmlFor={`${fieldId}-retailer`}>Điểm bán nhận hàng</label>
                 <select
+                  id={`${fieldId}-retailer`}
                   className="select"
                   required
                   value={input.retailerOrgId ?? ""}
@@ -218,8 +221,9 @@ export function ActionPanel({
                 </select>
               </div>
               <div className="field">
-                <label>Điểm đi</label>
+                <label htmlFor={`${fieldId}-origin`}>Điểm đi</label>
                 <input
+                  id={`${fieldId}-origin`}
                   className="input"
                   required
                   value={input.origin ?? ""}
@@ -229,8 +233,9 @@ export function ActionPanel({
                 />
               </div>
               <div className="field">
-                <label>Điểm đến</label>
+                <label htmlFor={`${fieldId}-destination`}>Điểm đến</label>
                 <input
+                  id={`${fieldId}-destination`}
                   className="input"
                   required
                   value={input.destination ?? ""}
@@ -244,8 +249,9 @@ export function ActionPanel({
           {selected === "reportDamage" && (
             <>
               <div className="field">
-                <label>Số lượng hư hỏng ({lot.unit})</label>
+                <label htmlFor={`${fieldId}-quantity`}>Số lượng hư hỏng ({lot.unit})</label>
                 <input
+                  id={`${fieldId}-quantity`}
                   className="input"
                   type="number"
                   min="0.001"
@@ -267,8 +273,9 @@ export function ActionPanel({
           {selected === "receiveRetail" && (
             <div className="form-grid">
               <div className="field">
-                <label>Số lượng nhận ({lot.unit})</label>
+                <label htmlFor={`${fieldId}-received`}>Số lượng nhận ({lot.unit})</label>
                 <input
+                  id={`${fieldId}-received`}
                   className="input"
                   type="number"
                   min="0.001"
@@ -285,8 +292,9 @@ export function ActionPanel({
                 />
               </div>
               <div className="field">
-                <label>Số lượng hư hỏng ({lot.unit})</label>
+                <label htmlFor={`${fieldId}-damaged`}>Số lượng hư hỏng ({lot.unit})</label>
                 <input
+                  id={`${fieldId}-damaged`}
                   className="input"
                   type="number"
                   min="0"
@@ -302,8 +310,9 @@ export function ActionPanel({
                 />
               </div>
               <div className="field">
-                <label>Ghi chú</label>
+                <label htmlFor={`${fieldId}-note`}>Ghi chú</label>
                 <input
+                  id={`${fieldId}-note`}
                   className="input"
                   value={input.note ?? ""}
                   onChange={(event) =>
@@ -369,10 +378,12 @@ function ReasonField({
   value?: string;
   onChange(value: string): void;
 }) {
+  const fieldId = useId();
   return (
     <div className="field">
-      <label>Lý do</label>
+      <label htmlFor={fieldId}>Lý do</label>
       <textarea
+        id={fieldId}
         className="input"
         required
         maxLength={1000}

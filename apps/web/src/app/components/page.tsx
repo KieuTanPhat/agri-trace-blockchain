@@ -27,7 +27,7 @@ const states = [
 ];
 
 export default function ComponentsPage() {
-  const lot = mockLots[0];
+  const lot = { ...mockLots[0], allowedCommands: [] };
 
   return (
     <>
@@ -39,7 +39,8 @@ export default function ComponentsPage() {
           <p className="eyebrow">Thư viện giao diện</p>
           <h1>Bộ giao diện dùng chung</h1>
           <p className="muted">
-            Kiểm tra badge, timeline, action panel và các trạng thái lỗi.
+            Xem nhãn trạng thái, dòng thời gian và các trạng thái lỗi. Dữ liệu
+            minh họa trong thư viện chỉ dùng để kiểm tra giao diện.
           </p>
         </div>
       </section>

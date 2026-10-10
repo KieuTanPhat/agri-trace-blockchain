@@ -1,171 +1,93 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { getTracePath } from "@/lib/trace-input";
 import { useRouter } from "next/navigation";
-import { IconQrCode, IconSearch } from "@/components/icons";
-import { QrCodeCard } from "@/components/qr-code-card";
+import { ArrowRight, Leaf, Search, ShieldCheck, Truck } from "lucide-react";
+import { getTracePath } from "@/lib/trace-input";
 import { CameraScanner } from "@/components/camera-scanner";
-import {
-  Smartphone,
-  Leaf,
-  ShieldCheck,
-  Lightbulb,
-  Link as LinkIcon,
-} from "lucide-react";
 
 export default function ScanPage() {
   const router = useRouter();
   const [code, setCode] = useState("");
-  const traceBaseUrl =
-    process.env.NEXT_PUBLIC_TRACE_BASE_URL ?? "http://localhost:3000/trace";
   const [error, setError] = useState("");
-  const tracePath = getTracePath(code);
-  const selectedTraceUrl = tracePath
-    ? `${traceBaseUrl.replace(/\/$/, "")}/${tracePath.slice("/trace/".length)}`
-    : null;
-
   function openTrace(event: FormEvent) {
     event.preventDefault();
-    if (!tracePath) {
-      setError("Nhập token trên mã QR hoặc đường dẫn /trace/<token> hợp lệ.");
+    const path = getTracePath(code);
+    if (!path) {
+      setError("Nhập mã trên QR hoặc đường dẫn /trace/<token> hợp lệ.");
       return;
     }
     setError("");
-    router.push(tracePath);
+    router.push(path);
   }
-
   return (
-    <div className="design-page scan-page">
-      <section className="page-header">
-        <div className="page-header-icon">
-          <IconQrCode size={22} />
-        </div>
-        <div>
-          <p className="eyebrow">Luồng quét mã</p>
-          <h1>Quét hoặc nhập mã truy xuất</h1>
-          <p className="muted">
-            Nhập trace token trên QR hoặc dán đường dẫn tra cứu công khai.
-          </p>
-        </div>
-        <div className="header-features">
-          <span className="header-feature">
-            <ShieldCheck size={16} /> Minh bạch nguồn gốc
-          </span>
-          <span className="header-feature">
-            <Leaf size={16} /> An toàn nông sản
-          </span>
-          <span className="header-feature">
-            <Smartphone size={16} /> Vì người tiêu dùng
-          </span>
-        </div>
+    <div className="scan-page grid">
+      <section className="scan-heading">
+        <p className="eyebrow">TRA CỨU CÔNG KHAI</p>
+        <h1>Quét mã. Hiểu nguồn gốc.</h1>
+        <p className="muted">
+          Xem hành trình của nông sản bằng mã QR trên sản phẩm. Không cần tài
+          khoản.
+        </p>
       </section>
-
-      <CameraScanner onTrace={(path) => router.push(path)} />
-      <section className="grid two">
-        <div className="panel">
-          <div className="panel-title">
-            <div className="panel-title-left">
-              <span className="panel-icon info">
-                <IconQrCode size={16} />
-              </span>
-              <h2>Mã QR đang chọn</h2>
-            </div>
-          </div>
-          <div className="scan-display">
-            <div className="qr-display">
-              {selectedTraceUrl ? (
-                <QrCodeCard value={selectedTraceUrl} />
-              ) : (
-                <p>Nhập token hoặc đường dẫn để hiển thị mã QR.</p>
-              )}
-              <p className="qr-url">
-                <LinkIcon size={18} />
-                {selectedTraceUrl}
-              </p>
-            </div>
-            <div className="scan-guide">
-              <div className="phone-illustration" aria-hidden="true">
-                <Smartphone size={120} strokeWidth={1.2} />
-                <IconQrCode size={40} />
-                <Leaf size={54} />
-              </div>
-              <h3>Quét bằng camera điện thoại</h3>
+      <div className="scan-layout">
+        <CameraScanner onTrace={(path) => router.push(path)} />
+        <div className="grid">
+          <form
+            className="panel form-grid"
+            aria-label="Tra cứu nông sản"
+            onSubmit={openTrace}
+          >
+            <div>
+              <h2>Nhập mã truy xuất</h2>
               <p className="muted">
-                Hướng camera vào mã QR để mở trang truy xuất nguồn gốc trên
-                thiết bị di động.
-              </p>
-              <p className="guide-item">
-                <IconQrCode size={22} />
-                Truy cập nhanh chóng
-              </p>
-              <p className="guide-item">
-                <ShieldCheck size={22} />
-                Thông tin rõ ràng, dễ đối chiếu
-              </p>
-              <p className="guide-item">
-                <Leaf size={22} />
-                Kết nối trang trại và người tiêu dùng
+                Dùng mã trên sản phẩm hoặc dán đường dẫn truy xuất.
               </p>
             </div>
-          </div>
-          <div className="design-note" style={{ marginTop: 18 }}>
-            <ShieldCheck size={28} />
-            <div>
-              <strong>Mã QR được tạo từ hệ thống AgriTrace.</strong>
-              <p>
-                Mở trang truy xuất để xem trạng thái xác thực và các cảnh báo
-                hiện tại.
+            <div className="field">
+              <label htmlFor="trace-code">Mã truy xuất hoặc đường dẫn</label>
+              <input
+                className="input"
+                id="trace-code"
+                placeholder="Nhập mã truy xuất trên sản phẩm"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={2048}
+                required
+                value={code}
+                onChange={(event) => {
+                  setCode(event.target.value);
+                  setError("");
+                }}
+              />
+            </div>
+            {error && (
+              <p className="notice error" role="alert">
+                {error}
               </p>
-            </div>
-          </div>
-        </div>
-        <form
-          className="panel form-grid"
-          aria-label="Tra cứu nông sản"
-          onSubmit={openTrace}
-        >
-          <div className="panel-title">
-            <div className="panel-title-left">
-              <span className="panel-icon success">
-                <IconSearch size={16} />
-              </span>
-              <h2>Tra cứu nông sản</h2>
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor="trace-code">Trace token hoặc đường dẫn</label>
-            <input
-              className="input"
-              id="trace-code"
-              placeholder="Nhập token trên mã QR..."
-              value={code}
-              onChange={(event) => {
-                setCode(event.target.value);
-                setError("");
-              }}
-            />
-          </div>
-          {error && (
-            <p className="notice error" role="alert">
-              {error}
+            )}
+            <button className="button" type="submit">
+              <Search size={18} /> Tra cứu nông sản <ArrowRight size={18} />
+            </button>
+          </form>
+          <section className="panel scan-benefits">
+            <h2>Thông tin đi cùng sản phẩm</h2>
+            <p>
+              <Leaf size={19} /> Nông trại và vụ trồng liên quan
             </p>
-          )}
-          <button className="button" type="submit">
-            <IconSearch size={14} /> Mở trang tra cứu
-          </button>
-          <div className="design-note">
-            <Lightbulb size={28} />
-            <div>
-              <strong>Mẹo nhỏ</strong>
-              <p>
-                Bạn có thể quét mã QR trên bao bì sản phẩm hoặc nhập trực tiếp
-                trace token trên mã QR để xem thông tin chi tiết.
-              </p>
-            </div>
-          </div>
-        </form>
-      </section>
+            <p>
+              <Truck size={19} /> Các mốc thu hoạch và giao nhận
+            </p>
+            <p>
+              <ShieldCheck size={19} /> Trạng thái xác minh dữ liệu
+            </p>
+            <small>
+              Thông tin tra cứu phản ánh dữ liệu được công khai. Trạng thái bằng
+              chứng không thay thế chứng nhận chất lượng.
+            </small>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

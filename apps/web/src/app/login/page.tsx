@@ -11,7 +11,7 @@ export default function LoginPage() {
   const busy = useRef(false);
   const auth = useAuth();
   const router = useRouter();
-  const [nextPath, setNextPath] = useState("/");
+  const [nextPath, setNextPath] = useState("/dashboard");
   const [nextReady, setNextReady] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,9 +23,11 @@ export default function LoginPage() {
     setNextPath(
       requested?.startsWith("/") &&
         !requested.startsWith("//") &&
-        !requested.includes("\\")
+        !requested.includes("\\") &&
+        requested !== "/" &&
+        !/^\/login(?:[/?#]|$)/.test(requested)
         ? requested
-        : "/",
+        : "/dashboard",
     );
     setNextReady(true);
   }, []);
@@ -57,6 +59,18 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
+      <div className="login-story">
+        <p className="eyebrow">KHÔNG GIAN LÀM VIỆC</p>
+        <h2>
+          Ghi nhận hôm nay.
+          <br />
+          Minh bạch cả hành trình.
+        </h2>
+        <p>
+          Quản lý nguồn gốc, theo dõi giao nhận và đối chiếu bằng chứng trong
+          cùng một hệ thống.
+        </p>
+      </div>
       <form className="panel login-card" onSubmit={submit}>
         <Image
           src="/agritrace/brand/agritrace-logo.svg"

@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./responsive.css";
+import "./landing.css";
 import { RegisterServiceWorker } from "@/components/register-service-worker";
 import { AuthProvider } from "@/lib/auth-store";
 import { AppFrame } from "@/components/app-frame";
@@ -11,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#23764f",
+  themeColor: "#00875a",
   width: "device-width",
   initialScale: 1
 };

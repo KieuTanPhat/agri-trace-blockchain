@@ -41,7 +41,7 @@ export default function CompliancePage() {
             ? cause.message
             : String(
                 (cause as { message?: string })?.message ??
-                  "Không tải được compliance.",
+                  "Không tải được dữ liệu kiểm định.",
               ),
       });
     }
@@ -226,13 +226,13 @@ function ComplianceWorkbench({
         <section className="grid two">
           <div className="grid">
             <label className="field">
-              Inspection gốc hoặc bản sửa
+              Kiểm định gốc hoặc bản sửa
               <select
                 className="select"
                 value={inspectionId}
                 onChange={(event) => setInspectionId(event.target.value)}
               >
-                <option value="">Ghi inspection mới</option>
+                <option value="">Ghi kiểm định mới</option>
                 {inspections
                   .filter(
                     (item) =>
@@ -252,8 +252,8 @@ function ComplianceWorkbench({
                 key={inspectionId}
                 title={
                   originalInspection
-                    ? "Ghi bản sửa inspection"
-                    : "Ghi inspection"
+                    ? "Ghi bản sửa kiểm định"
+                    : "Ghi kiểm định"
                 }
                 path="/inspections"
                 extra={
@@ -408,13 +408,13 @@ function ComplianceWorkbench({
               {item.note && <p>{item.note}</p>}
               {item.supersedesId && (
                 <p>
-                  Sửa inspection {item.supersedesId}: {item.correctionReason}
+                  Sửa kiểm định {item.supersedesId}: {item.correctionReason}
                 </p>
               )}
             </article>
           ))
         ) : (
-          <p>Chưa có inspection.</p>
+          <p>Chưa có kiểm định.</p>
         )}
       </section>
     </>

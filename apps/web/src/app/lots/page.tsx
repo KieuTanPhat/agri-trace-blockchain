@@ -34,8 +34,7 @@ export default function LotsPage() {
           <p className="eyebrow">Quản lý lô</p>
           <h1>Danh sách lô nông sản</h1>
           <p className="muted">
-            Theo dõi trạng thái, timeline và thao tác được backend cho phép trên
-            từng lô.
+            Theo dõi trạng thái, lịch sử và các thao tác khả dụng trên từng lô.
           </p>
         </div>
         <div className="header-actions">

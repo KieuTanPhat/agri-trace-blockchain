@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   PanelLeftClose,
   PanelLeftOpen,
@@ -14,9 +14,10 @@ import {
   Thermometer,
   Blocks,
   Search,
-  Bell,
+  Home,
   LogOut,
 } from "lucide-react";
+import { PublicHeader } from "./landing-navigation";
 import { getLots } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
 import type { LotTrace } from "@/lib/types";
@@ -24,7 +25,7 @@ import { canAccessManagementRoute } from "@/lib/permissions";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 
 const navigation = [
-  { href: "/", label: "Tổng quan", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
   { href: "/admin", label: "Quản trị", icon: Blocks },
   { href: "/production-cycles", label: "Vụ trồng", icon: LayoutDashboard },
   { href: "/lots", label: "Lô nông sản", icon: Package },
@@ -38,11 +39,13 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const auth = useAuth();
   const isPublic =
+    pathname === "/" ||
     pathname === "/login" ||
     pathname === "/scan" ||
     pathname.startsWith("/trace/");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileDialog = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
   const authorizationScope = getAuthorizationScope(auth.user);
   const [searchData, setSearchData] = useState<{
@@ -56,7 +59,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     setSearchData({ lots: [] });
     setQuery("");
     setSearchFailed(false);
-    if (!auth.isAuthenticated) return;
+    if (!auth.isAuthenticated || isPublic) return;
     getLots()
       .then((items) => {
         if (active) setSearchData({ scope: authorizationScope, lots: items });
@@ -67,7 +70,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [auth.isAuthenticated, authorizationScope]);
+  }, [auth.isAuthenticated, authorizationScope, isPublic]);
   useEffect(() => {
     if (!auth.isLoading && !auth.isAuthenticated && !isPublic)
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
@@ -76,15 +79,33 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     setMobileOpen(false);
   }, [pathname]);
   useEffect(() => {
+    const dialog = mobileDialog.current;
+    if (mobileOpen && dialog && !dialog.open) dialog.showModal();
+    if (!mobileOpen && dialog?.open) dialog.close();
     if (!mobileOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileOpen(false);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const desktop = window.matchMedia("(min-width: 901px)");
+    const resize = () => {
+      if (desktop.matches) setMobileOpen(false);
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    desktop.addEventListener("change", resize);
+    return () => {
+      document.body.style.overflow = overflow;
+      desktop.removeEventListener("change", resize);
+    };
   }, [mobileOpen]);
 
-  if (isPublic) return <main className="public-content">{children}</main>;
+  if (pathname === "/") return <>{children}</>;
+  if (isPublic)
+    return (
+      <div className="public-shell">
+        <PublicHeader />
+        <main className="public-content" id="main-content">
+          {children}
+        </main>
+      </div>
+    );
   if (auth.isLoading || !auth.isAuthenticated || !auth.user)
     return (
       <main className="public-content">
@@ -99,7 +120,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
         <div className="notice error" role="alert">
           Bạn không có quyền sử dụng chức năng này.
         </div>
-        <Link href="/">Về tổng quan</Link>
+        <Link href="/dashboard">Về tổng quan</Link>
       </main>
     );
   const roleName = auth.user.role.name || auth.user.role.code;
@@ -109,8 +130,15 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
       data-collapsed={collapsed}
       data-mobile-open={mobileOpen}
     >
+      <a className="app-skip-link" href="#main-content">
+        Đi đến nội dung
+      </a>
       <header className="topbar">
-        <Link className="brand" href="/" aria-label="AgriTrace - Tổng quan">
+        <Link
+          className="brand"
+          href="/dashboard"
+          aria-label="AgriTrace - Tổng quan"
+        >
           <Image
             className="brand-logo"
             src="/agritrace/brand/agritrace-logo.svg"
@@ -164,14 +192,14 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </div>
-        <button
-          className="icon-button notification-btn"
-          title="Thông báo"
-          aria-label="Thông báo"
+        <Link
+          className="icon-button home-link"
+          href="/"
+          aria-label="Trang giới thiệu"
+          title="Trang giới thiệu"
         >
-          <Bell size={20} />
-          <span className="notification-dot" aria-hidden="true" />
-        </button>
+          <Home size={19} />
+        </Link>
         <div className="topbar-meta">
           <span className="workspace-avatar">
             {auth.user.fullName.slice(0, 2).toUpperCase()}
@@ -217,20 +245,67 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           title="Điều hướng"
           aria-label={mobileOpen ? "Đóng điều hướng" : "Mở điều hướng"}
           aria-expanded={mobileOpen}
-          aria-controls="main-navigation"
+          aria-controls="mobile-management-navigation"
           onClick={() => setMobileOpen(!mobileOpen)}
         >
           {mobileOpen ? <X size={21} /> : <PanelLeftOpen size={21} />}
         </button>
       </header>
-      <div className="layout">
-        {mobileOpen && (
+      <dialog
+        className="mobile-management-nav"
+        id="mobile-management-navigation"
+        ref={mobileDialog}
+        aria-labelledby="mobile-nav-title"
+        onClose={() => setMobileOpen(false)}
+        onCancel={() => setMobileOpen(false)}
+      >
+        <div className="panel-title">
+          <h2 id="mobile-nav-title">Không gian quản lý</h2>
           <button
-            className="nav-backdrop"
-            aria-label="Đóng điều hướng"
+            className="icon-button"
+            type="button"
+            aria-label="Đóng menu quản lý"
             onClick={() => setMobileOpen(false)}
-          />
-        )}
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="mobile-user">
+          <strong>{auth.user.fullName}</strong>
+          <span>{roleName}</span>
+        </div>
+        <nav
+          className="nav-list"
+          aria-label="Điều hướng quản lý trên điện thoại"
+        >
+          {navigation
+            .filter(({ href }) => canAccessManagementRoute(href, role))
+            .map(({ href, label, icon: Icon }) => (
+              <Link
+                className="nav-link"
+                href={href}
+                key={href}
+                aria-current={
+                  pathname === href || pathname.startsWith(href + "/")
+                    ? "page"
+                    : undefined
+                }
+                onClick={() => setMobileOpen(false)}
+              >
+                <Icon size={21} />
+                <span>{label}</span>
+              </Link>
+            ))}
+        </nav>
+        <Link
+          className="button secondary"
+          href="/"
+          onClick={() => setMobileOpen(false)}
+        >
+          <Home size={18} /> Trang giới thiệu
+        </Link>
+      </dialog>
+      <div className="layout">
         <aside className="sidebar" id="main-navigation">
           <p className="sidebar-heading">Không gian quản lý</p>
           <nav className="nav-list" aria-label="Điều hướng chính">
@@ -238,8 +313,8 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
               .filter(({ href }) => canAccessManagementRoute(href, role))
               .map(({ href, label, icon: Icon }) => {
                 const active =
-                  href === "/"
-                    ? pathname === "/"
+                  href === "/dashboard"
+                    ? pathname === "/dashboard"
                     : pathname.startsWith(
                         href.split("/").slice(0, 2).join("/"),
                       );
@@ -280,7 +355,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </aside>
-        <main className="content">
+        <main className="content" id="main-content">
           <div
             className="page-content"
             key={`${authorizationScope}:${pathname}`}

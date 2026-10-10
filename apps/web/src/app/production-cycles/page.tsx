@@ -7,6 +7,7 @@ import type { ProductionCycleOption } from "@/lib/types";
 import type { components } from "@/lib/generated/api";
 import { sumQuantities } from "@/lib/quantity-display";
 import { emptyCatalog, type Catalog } from "@/lib/catalog";
+import { ResponsiveTable } from "@/components/responsive-table";
 import { DataForm } from "@/components/data-form";
 import { QrCodeCard } from "@/components/qr-code-card";
 import { canWriteFarm } from "@/lib/permissions";
@@ -71,7 +72,7 @@ export default function CyclesPage() {
   };
   const active = detail && ["PLANTED", "GROWING"].includes(detail.currentState);
   return (
-    <div className="grid">
+    <div className="grid cycles-page">
       <section className="page-header">
         <h1>Quản lý vụ trồng</h1>
         <button
@@ -163,37 +164,49 @@ export default function CyclesPage() {
         ) : cycles.length === 0 ? (
           <p>Chưa có vụ trồng.</p>
         ) : (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Mã vụ</th>
-                  <th>Sản phẩm</th>
-                  <th>Nông trại</th>
-                  <th>Trạng thái</th>
-                  <th>Chi tiết</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cycles.map((c) => (
-                  <tr key={c.id}>
-                    <td>{c.cycleCode}</td>
-                    <td>{c.product.productName}</td>
-                    <td>{c.farm.name}</td>
-                    <td>{states[c.currentState]}</td>
-                    <td>
-                      <button
-                        className="button secondary"
-                        onClick={() => setSelected(c.id)}
-                      >
-                        Xem
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveTable
+            caption="Danh sách vụ trồng"
+            rows={cycles}
+            rowKey={(cycle) => cycle.id}
+            columns={[
+              {
+                key: "code",
+                label: "Mã vụ",
+                render: (cycle) => cycle.cycleCode,
+              },
+              {
+                key: "product",
+                label: "Sản phẩm",
+                render: (cycle) => cycle.product.productName,
+              },
+              {
+                key: "farm",
+                label: "Nông trại",
+                render: (cycle) => cycle.farm.name,
+              },
+              {
+                key: "state",
+                label: "Trạng thái",
+                render: (cycle) => (
+                  <span className="badge">{states[cycle.currentState]}</span>
+                ),
+              },
+              {
+                key: "detail",
+                label: "Chi tiết",
+                render: (cycle) => (
+                  <button
+                    className="button secondary small"
+                    aria-label={"Xem vụ " + cycle.cycleCode}
+                    aria-pressed={selected === cycle.id}
+                    onClick={() => setSelected(cycle.id)}
+                  >
+                    Xem vụ
+                  </button>
+                ),
+              },
+            ]}
+          />
         )}
       </section>
       {selected && !detail && !error && (

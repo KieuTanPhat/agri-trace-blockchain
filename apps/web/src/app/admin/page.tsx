@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-store";
 import { request } from "@/lib/api-client";
+import { ResponsiveTable } from "@/components/responsive-table";
 import { DataForm, type Field } from "@/components/data-form";
 import { emptyCatalog, type Catalog } from "@/lib/catalog";
 import type { components } from "@/lib/generated/api";
@@ -154,18 +155,19 @@ export default function AdminPage() {
     ["Thửa đất", "Nông trại", "Diện tích", "Trạng thái"],
   ][tab];
   return (
-    <div className="grid">
+    <div className="grid admin-page">
       <section className="page-header">
         <h1>Quản trị hệ thống</h1>
         <Link className="button secondary" href="/admin/compliance-assignments">
-          Phân công Reviewer
+          Phân công người duyệt
         </Link>
       </section>
-      <div className="actions">
+      <div className="section-tabs" aria-label="Danh mục quản trị">
         {tabs.map((t, i) => (
           <button
             className={tab === i ? "button" : "button secondary"}
             key={t}
+            aria-pressed={tab === i}
             onClick={() => setTab(i)}
           >
             {t}
@@ -210,26 +212,16 @@ export default function AdminPage() {
         ) : rows.length === 0 ? (
           <p>Chưa có dữ liệu.</p>
         ) : (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  {headers.map((h) => (
-                    <th key={h}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r[0]}>
-                    {r.slice(1).map((v, i) => (
-                      <td key={i}>{v}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveTable<string[]>
+            caption={"Danh sách " + tabs[tab]}
+            rows={rows}
+            rowKey={(row) => row[0]}
+            columns={headers.map((header, index) => ({
+              key: header,
+              label: header,
+              render: (row) => row[index + 1],
+            }))}
+          />
         )}
       </section>
     </div>

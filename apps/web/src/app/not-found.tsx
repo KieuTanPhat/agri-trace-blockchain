@@ -7,7 +7,7 @@ export default function NotFound() {
       status={404}
       title="Không tìm thấy trang"
       message="Đường dẫn này chưa có trong bản dựng hiện tại hoặc mã lô không tồn tại."
-      action={<Link className="button secondary" href="/">Về dashboard</Link>}
+      action={<Link className="button secondary" href="/">Về trang chủ</Link>}
     />
   );
 }
