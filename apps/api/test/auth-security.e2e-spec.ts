@@ -149,6 +149,60 @@ describe('Auth security (e2e)', () => {
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
+  it.each([
+    'a'.repeat(72),
+    'á'.repeat(36),
+    '🌾'.repeat(18),
+    'a'.repeat(70) + 'á',
+  ])(
+    'accepts a correct password at exactly 72 UTF-8 bytes (%#)',
+    async (boundaryPassword) => {
+      expect(Buffer.byteLength(boundaryPassword, 'utf8')).toBe(72);
+      user!.passwordHash = await hash(boundaryPassword, 4);
+      const response = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: user!.email, password: boundaryPassword })
+        .expect(201);
+      expect(response.body.accessToken).toBeTruthy();
+      expect(prisma.refreshSession.create).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([
+    ['a'.repeat(72), 'a'.repeat(73)],
+    ['á'.repeat(36), 'á'.repeat(36) + 'unexpected-suffix'],
+    ['🌾'.repeat(18), '🌾'.repeat(19)],
+    ['a'.repeat(71), 'a'.repeat(71) + 'á'],
+  ])(
+    'rejects over-72-byte input before password comparison or session creation (%#)',
+    async (prefix, overLimit) => {
+      user!.passwordHash = await hash(prefix, 4);
+      expect(Buffer.byteLength(overLimit, 'utf8')).toBeGreaterThan(72);
+      await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: user!.email, password: overLimit })
+        .expect(400);
+      expect(prisma.user.findFirst).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.refreshSession.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it('compares the complete password without trimming whitespace or changing its hash', async () => {
+    const exact = ' ' + password + ' ';
+    const originalHash = await hash(exact, 4);
+    user!.passwordHash = originalHash;
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: user!.email, password })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: user!.email, password: exact })
+      .expect(201);
+    expect(user!.passwordHash).toBe(originalHash);
+  });
+
   it('publishes the cookie session contract and recoverable 409 in Swagger', () => {
     const document = SwaggerModule.createDocument(
       app,

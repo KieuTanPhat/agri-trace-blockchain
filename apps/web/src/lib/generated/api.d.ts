@@ -1325,6 +1325,10 @@ export interface components {
             fullName: string;
             /** Format: uuid */
             organizationId?: string;
+            /**
+             * Format: password
+             * @description At least 12 characters and at most 72 UTF-8 bytes. Passwords are never trimmed or truncated.
+             */
             password: string;
             roleCode: string;
         };
@@ -1837,7 +1841,10 @@ export interface components {
         LoginDto: {
             /** Format: email */
             email: string;
-            /** Format: password */
+            /**
+             * Format: password
+             * @description At most 72 UTF-8 bytes. Passwords are never trimmed or truncated.
+             */
             password: string;
         };
         LotCommandResultDto: {
