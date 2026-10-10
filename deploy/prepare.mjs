@@ -6,7 +6,7 @@ import { CADDY_IMAGE, POSTGRES_IMAGE, caddySiteAddress, validateConfig } from '.
 import { UAT_ROLES } from './fixtures.mjs';
 
 try {
-  const {values} = parseArgs({options: {directory: {type: 'string', default: '.uat'}, origin: {type: 'string', default: 'http://13.140.170.166'}, release: {type: 'string'}}});
+  const {values} = parseArgs({options: {directory: {type: 'string', default: '.uat'}, origin: {type: 'string', default: 'https://agritrace.dev'}, release: {type: 'string'}}});
   const directory = path.resolve(values.directory);
   const envFile = path.join(directory, '.env.uat');
   const accountsFile = path.join(directory, 'accounts.json');

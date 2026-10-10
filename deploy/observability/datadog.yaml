@@ -1,0 +1,29 @@
+site: us5.datadoghq.com
+env: uat
+hostname: agritrace-uat
+logs_enabled: true
+logs_config:
+  processing_rules:
+    - type: exclude_at_match
+      name: routine_healthchecks
+      pattern: '"path":"/?(?:api/)?health(?:/ready)?(?:\?[^" ]*)?"'
+    - type: mask_sequences
+      name: json_credentials
+      pattern: '(?i)"(?:password|accessToken|refreshToken|authorization|cookie|jwt_secret|iot_ingest_api_key|api_key)"\s*:\s*"[^"\r\n]*"'
+      replace_placeholder: '"redacted":"[REDACTED]"'
+    - type: mask_sequences
+      name: bearer_tokens
+      pattern: '(?i)Bearer\s+[a-zA-Z0-9._~+/=-]+'
+      replace_placeholder: 'Bearer [REDACTED]'
+    - type: mask_sequences
+      name: jwt_tokens
+      pattern: 'eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+'
+      replace_placeholder: '[REDACTED_JWT]'
+    - type: mask_sequences
+      name: query_credentials
+      pattern: '(?i)(?:api[_-]?key|password|access[_-]?token|refresh[_-]?token|token|secret)=[^&\s"?#]+'
+      replace_placeholder: 'redacted=[REDACTED]'
+    - type: mask_sequences
+      name: email_addresses
+      pattern: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+      replace_placeholder: '[REDACTED_EMAIL]'

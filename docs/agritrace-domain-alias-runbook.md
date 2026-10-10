@@ -1,5 +1,8 @@
 # Tên miền HTTPS song song với nongtrace.site
 
+> Lịch sử thao tác trước cutover. Cấu hình song song đã được thay thế bởi
+> [runbook agritrace.dev và Datadog](agritrace-cutover-runbook.md).
+
 Ngày chuẩn bị: 10/10/2026. Giữ `https://nongtrace.site` làm public origin chuẩn,
 thêm `https://agritrace.dev` và `https://www.agritrace.dev` vào cùng ứng dụng.
 Hai miền dùng chung dữ liệu; không tạo database, API, Worker hoặc Fabric khác.

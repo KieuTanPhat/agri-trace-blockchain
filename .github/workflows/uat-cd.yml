@@ -122,7 +122,7 @@ jobs:
         env:
           DOCKER_CONFIG: ${{ runner.temp }}/ghcr-config
         run: |
-          [[ "$PUBLIC_ORIGIN" == "https://nongtrace.site" || "$PUBLIC_ORIGIN" =~ ^http://[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$PUBLIC_ORIGIN" == "https://agritrace.dev" || "$PUBLIC_ORIGIN" =~ ^http://[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
           registry="ghcr.io/${GITHUB_REPOSITORY,,}"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           labels=(--label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" --label "org.opencontainers.image.revision=$GITHUB_SHA" --label "agritrace.public-origin=$PUBLIC_ORIGIN")

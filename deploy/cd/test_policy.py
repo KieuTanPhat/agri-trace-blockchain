@@ -104,19 +104,19 @@ class Policies(unittest.TestCase):
             self.assertEqual(result["sha"], SHA)
 
     def test_public_origin_accepts_http_ipv4_and_https_domain(self):
-        for origin in ("http://13.140.170.166", "https://nongtrace.site"):
+        for origin in ("http://13.140.170.166", "https://agritrace.dev"):
             with self.subTest(origin=origin):
                 self.assertTrue(valid_public_origin(origin))
-        for origin in ("https://127.0.0.1", "https://nongtrace.site/path", "https://nongtrace.site/", "http://nongtrace.site", "https://nongtrace.site:8443"):
+        for origin in ("https://127.0.0.1", "https://agritrace.dev/path", "https://agritrace.dev/", "http://agritrace.dev", "https://agritrace.dev:8443"):
             with self.subTest(origin=origin):
                 self.assertFalse(valid_public_origin(origin))
 
     def test_https_readiness_requires_both_domain_names(self):
-        for origin in ("https://nongtrace.site", "https://www.nongtrace.site"):
-            self.assertEqual(https_origins(origin), ["https://nongtrace.site", "https://www.nongtrace.site"])
+        for origin in ("https://agritrace.dev", "https://www.agritrace.dev"):
+            self.assertEqual(https_origins(origin), ["https://agritrace.dev", "https://www.agritrace.dev"])
         self.assertEqual(https_origins(ORIGIN), [])
         with self.assertRaises(PolicyError):
-            https_origins("https://nongtrace.site/path")
+            https_origins("https://agritrace.dev/path")
 
     def test_no_path_traversal_links_credentials_or_duplicate_members(self):
         for extra in (("../escape", b"x"), ("/etc/passwd", b"x"), ("deploy/Caddyfile.uat", b"duplicate"),
