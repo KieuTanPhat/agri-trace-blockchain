@@ -1,13 +1,21 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   AUTH_STORAGE_KEY,
-  clearSession,
+  isSessionRestoring,
   login as loginRequest,
   readSession,
   restoreSession,
   revokeSession,
+  startSessionSynchronization,
 } from "./api-client";
 import type { AuthUser } from "./types";
 import { IOT_READING_STORAGE_KEY } from "./iot-local-store";
@@ -29,43 +37,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     // Remove tokens saved by older releases. The new session is memory-only.
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem(IOT_READING_STORAGE_KEY);
-    const sync = () => setUser(readSession()?.user ?? null);
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(IOT_READING_STORAGE_KEY);
+      localStorage.removeItem("agri-traceability:iot-readings:v2");
+    } catch {
+      // Login remains available when optional browser storage is disabled.
+    }
+    const sync = () => {
+      if (!active) return;
+      setUser(readSession()?.user ?? null);
+      setIsLoading(isSessionRestoring());
+    };
     window.addEventListener("auth-changed", sync);
-    restoreSession()
+    const stopSynchronization = startSessionSynchronization();
+    void restoreSession()
       .catch(() => undefined)
-      .finally(() => {
-        if (active) {
-          sync();
-          setIsLoading(false);
-        }
-      });
+      .finally(sync);
     return () => {
       active = false;
+      stopSynchronization();
       window.removeEventListener("auth-changed", sync);
     };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const previous = readSession()?.user;
     await loginRequest(email, password);
-    if (previous) {
-      localStorage.removeItem(
-        `${IOT_READING_STORAGE_KEY}:${previous.id}:${previous.organizationId ?? "system"}`,
-      );
-    }
   }, []);
 
   const logout = useCallback(async () => {
     await revokeSession();
-    const current = readSession()?.user;
-    if (current) {
-      localStorage.removeItem(
-        `${IOT_READING_STORAGE_KEY}:${current.id}:${current.organizationId ?? "system"}`,
-      );
-    }
-    clearSession();
   }, []);
 
   const value = useMemo<AuthStore>(

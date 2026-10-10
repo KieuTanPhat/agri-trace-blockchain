@@ -11,10 +11,17 @@ let accounts;
 const tokens = {};
 const credentials = {};
 
-function refreshCookie(response) {
-  const cookie = response.headers.get('set-cookie')?.split(';', 1)[0];
-  assert.match(cookie ?? '', /^agritrace_refresh=[A-Za-z0-9_-]+$/, 'Refresh cookie missing');
-  return cookie;
+function refreshCookie(response, previous = '') {
+  const cookies = new Map(previous.split('; ').filter(Boolean).map(pair => pair.split('=')));
+  for (const header of response.headers.getSetCookie()) {
+    const [name, value] = header.split(';', 1)[0].split('=');
+    if (/Max-Age=0(?:;|$)/i.test(header)) cookies.delete(name);
+    else cookies.set(name, value);
+  }
+  const sessionId = cookies.get('agritrace_session');
+  assert.match(sessionId ?? '', /^[a-f0-9-]{36}$/, 'Session cookie missing');
+  assert.match(cookies.get(`agritrace_refresh_${sessionId}`) ?? '', /^[A-Za-z0-9_-]+$/, 'Refresh cookie missing');
+  return [...cookies].map(([name, value]) => `${name}=${value}`).join('; ');
 }
 
 async function request(route, role, body, expected = body === undefined ? 200 : 201, key = body === undefined ? undefined : randomUUID(), options = {}) {
@@ -25,7 +32,7 @@ async function request(route, role, body, expected = body === undefined ? 200 : 
   });
   // Never include request bodies, responses containing tokens or credentials.
   assert.equal(response.status, expected, `Unexpected HTTP status at ${route}`);
-  if (options.onCookie) options.onCookie(refreshCookie(response));
+  if (options.onCookie) options.onCookie(refreshCookie(response, options.cookie));
   const envelope = await response.json();
   return envelope.data;
 }

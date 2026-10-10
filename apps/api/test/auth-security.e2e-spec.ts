@@ -2,12 +2,14 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { hash } from 'bcrypt';
 import { createHash } from 'node:crypto';
 import request from 'supertest';
 import { vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { sessionFamilyWhere } from '../src/modules/auth/session-family.js';
 
 // Real HTTP, validation, bcrypt and JWT; only persistence is replaced.
 describe('Auth security (e2e)', () => {
@@ -85,7 +87,11 @@ describe('Auth security (e2e)', () => {
       return safe;
     });
     prisma.$transaction.mockImplementation(async (callback) =>
-      callback({ refreshSession: prisma.refreshSession }),
+      callback({
+        refreshSession: prisma.refreshSession,
+        user: prisma.user,
+        $queryRaw: vi.fn().mockResolvedValue([]),
+      }),
     );
     prisma.refreshSession.updateMany.mockResolvedValue({ count: 1 });
     prisma.refreshSession.findFirst.mockResolvedValue({ id: 'active-session' });
@@ -143,6 +149,38 @@ describe('Auth security (e2e)', () => {
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
+  it('publishes the cookie session contract and recoverable 409 in Swagger', () => {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .addBearerAuth()
+        .addCookieAuth(
+          'agritrace_session',
+          { type: 'apiKey', in: 'cookie' },
+          'agritrace_session',
+        )
+        .build(),
+    );
+    expect(document.paths['/api/auth/refresh'].post?.security).toEqual([
+      { agritrace_session: [] },
+    ]);
+    expect(document.paths['/api/auth/refresh'].post?.responses).toHaveProperty(
+      '409',
+    );
+    expect(document.components?.schemas?.AuthSessionDto).toMatchObject({
+      properties: {
+        accessToken: { type: 'string' },
+        sessionId: { format: 'uuid' },
+      },
+    });
+    expect(document.components?.schemas?.AuthSessionDto).not.toHaveProperty(
+      'properties.refreshToken',
+    );
+    expect(document.components?.schemas?.LoginDto).toMatchObject({
+      required: ['email', 'password'],
+    });
+  });
+
   it('sets a HttpOnly refresh cookie without exposing it in JSON', async () => {
     const login = await request(app.getHttpServer())
       .post('/api/auth/login')
@@ -150,15 +188,16 @@ describe('Auth security (e2e)', () => {
       .expect(201);
     expect(login.body.accessToken).toBeTruthy();
     expect(login.body.refreshToken).toBeUndefined();
-    const cookie = login.headers['set-cookie'][0] as string;
-    expect(cookie).toContain('agritrace_refresh=');
+    const cookie = login.headers['set-cookie'][1] as string;
+    const selector = login.headers['set-cookie'][0].split(';')[0];
+    expect(cookie).toContain(`agritrace_refresh_${login.body.sessionId}=`);
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('SameSite=Lax');
 
     const token = cookie.split(';')[0].split('=')[1];
     prisma.refreshSession.findUnique.mockResolvedValue({
       id: 'session-1',
-      familyId: 'd6212d56-a3b2-4d54-9779-cc8507a6bd53',
+      familyId: login.body.sessionId,
       userId: user!.id,
       tokenHash: createHash('sha256').update(token).digest('hex'),
       expiresAt: new Date(Date.now() + 60_000),
@@ -167,7 +206,7 @@ describe('Auth security (e2e)', () => {
     });
     const refresh = await request(app.getHttpServer())
       .post('/api/auth/refresh')
-      .set('Cookie', cookie.split(';')[0])
+      .set('Cookie', `${selector}; ${cookie.split(';')[0]}`)
       .expect(201);
     expect(refresh.body.accessToken).toBeTruthy();
     expect(refresh.body.refreshToken).toBeUndefined();
@@ -175,7 +214,10 @@ describe('Auth security (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/api/auth/logout')
-      .set('Cookie', refresh.headers['set-cookie'][0].split(';')[0])
+      .set(
+        'Cookie',
+        `${selector}; ${refresh.headers['set-cookie'][0].split(';')[0]}`,
+      )
       .expect(201)
       .expect(({ headers }) => {
         expect(headers['set-cookie'][0]).toContain('Max-Age=0');
@@ -195,19 +237,27 @@ describe('Auth security (e2e)', () => {
       .post('/api/auth/login')
       .send({ email: user!.email, password })
       .expect(201);
-    const cookie = login.headers['set-cookie'][0].split(';')[0];
+    const cookie = (login.headers['set-cookie'] as unknown as string[])
+      .map((value) => value.split(';')[0])
+      .join('; ');
     await request(app.getHttpServer())
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${login.body.accessToken}`)
       .expect(200);
-    const familyId = prisma.refreshSession.create.mock.calls[0][0].data.familyId;
-    prisma.refreshSession.findUnique.mockResolvedValue({ familyId });
+    const familyId =
+      prisma.refreshSession.create.mock.calls[0][0].data.familyId;
+    prisma.refreshSession.findUnique.mockResolvedValue({
+      id: familyId,
+      familyId,
+      userId: user!.id,
+      user: { organizationId: null },
+    });
     await request(app.getHttpServer())
       .post('/api/auth/logout')
       .set('Cookie', cookie)
       .expect(201);
     expect(prisma.refreshSession.updateMany).toHaveBeenCalledWith({
-      where: { familyId, revokedAt: null },
+      where: { ...sessionFamilyWhere(familyId), revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
     prisma.refreshSession.findFirst.mockResolvedValue(null);
@@ -270,7 +320,9 @@ describe('Auth security (e2e)', () => {
   });
 
   it('rejects missing and invalid tokens before querying persistence', async () => {
-    const missing = await request(app.getHttpServer()).get('/api/auth/me').expect(401);
+    const missing = await request(app.getHttpServer())
+      .get('/api/auth/me')
+      .expect(401);
     expect(missing.body.message).toContain('Thiếu Bearer token');
     const invalid = await request(app.getHttpServer())
       .get('/api/auth/me')

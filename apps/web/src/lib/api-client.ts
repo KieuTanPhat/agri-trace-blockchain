@@ -6,6 +6,13 @@ import {
   mockSubmitCommand,
 } from "./mock-api";
 import { getAuthorizationScope } from "./auth-scope";
+import {
+  AUTH_SYNC_KEY,
+  publishAuthChange,
+  readAuthChange,
+  withAuthLock,
+} from "./auth-coordination";
+import { clearStoredIotReadings } from "./iot-local-store";
 import type {
   AllowedCommand,
   AuthUser,
@@ -33,47 +40,150 @@ type ApiEnvelope<T> = { success: true; data: T };
 let session: LoginResponse | null = null;
 let sessionVersion = 0;
 let identityVersion = 0;
-let refreshPromise: Promise<string> | null = null;
+let refreshFlight: { version: number; promise: Promise<string> } | null = null;
+let identityMutation: Promise<unknown> | null = null;
+let mutationIntent = 0;
+let knownAuthChange = readAuthChange();
+let restoreCount = 0;
+
+function notifySessionChange(): void {
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new Event("auth-changed"));
+}
+
+function sessionChanged() {
+  return {
+    status: 401,
+    code: "SESSION_CHANGED",
+    message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
+  };
+}
+
+export function isSessionRestoring(): boolean {
+  return restoreCount > 0;
+}
+
+function synchronizeBrowserSession(): boolean {
+  const change = readAuthChange();
+  if (change?.id === knownAuthChange?.id) return false;
+  knownAuthChange = change;
+  clearSession(false);
+  if (change?.state === "signed-in")
+    void restoreSession().catch(() => undefined);
+  return true;
+}
+
+export function startSessionSynchronization(): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === AUTH_SYNC_KEY || event.key === null)
+      synchronizeBrowserSession();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener("focus", synchronizeBrowserSession);
+  window.addEventListener("pageshow", synchronizeBrowserSession);
+  document.addEventListener("visibilitychange", synchronizeBrowserSession);
+  synchronizeBrowserSession();
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener("focus", synchronizeBrowserSession);
+    window.removeEventListener("pageshow", synchronizeBrowserSession);
+    document.removeEventListener("visibilitychange", synchronizeBrowserSession);
+  };
+}
+
+function assertSessionVersion(
+  version: number,
+  changeId: string | undefined,
+): void {
+  synchronizeBrowserSession();
+  if (sessionVersion !== version || knownAuthChange?.id !== changeId)
+    throw sessionChanged();
+}
 
 export function readSession(): LoginResponse | null {
   return session;
 }
 
 export function setSession(next: LoginResponse, newIdentity = true): void {
+  const hadSession = session !== null;
   const changedAccount =
     session?.user.id !== next.user.id ||
     session?.user.organizationId !== next.user.organizationId ||
     session?.user.role.code !== next.user.role.code;
+  if (changedAccount)
+    clearStoredIotReadings(getAuthorizationScope(session?.user));
   session = next;
   sessionVersion++;
   if (newIdentity || changedAccount) identityVersion++;
-  if (typeof window !== "undefined") window.dispatchEvent(new Event("auth-changed"));
+  if (newIdentity || (changedAccount && hadSession))
+    knownAuthChange = publishAuthChange("signed-in");
+  notifySessionChange();
 }
 
-export function clearSession(): void {
+export function clearSession(broadcast = true): void {
+  clearStoredIotReadings(getAuthorizationScope(session?.user));
   session = null;
   sessionVersion++;
   identityVersion++;
-  if (typeof window !== "undefined") window.dispatchEvent(new Event("auth-changed"));
+  if (broadcast) knownAuthChange = publishAuthChange("signed-out");
+  notifySessionChange();
 }
 
-export async function restoreSession(): Promise<LoginResponse> {
-  await refreshAccessToken();
-  if (!session) throw new Error("Không khôi phục được phiên đăng nhập");
-  return session;
+export async function restoreSession(retryBusy = true): Promise<LoginResponse> {
+  restoreCount++;
+  notifySessionChange();
+  try {
+    const version = sessionVersion;
+    const changeId = knownAuthChange?.id;
+    for (;;) {
+      try {
+        await refreshAccessToken();
+        break;
+      } catch (error) {
+        if (!retryBusy || !isApiError(error) || error.status !== 409)
+          throw error;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        assertSessionVersion(version, changeId);
+      }
+    }
+    if (!session) throw new Error("Không khôi phục được phiên đăng nhập");
+    return session;
+  } finally {
+    restoreCount--;
+    notifySessionChange();
+  }
 }
 
 export async function login(
   email: string,
   password: string,
 ): Promise<LoginResponse> {
-  const result = await request<LoginResponse>(
-    "/auth/login",
-    { method: "POST", body: JSON.stringify({ email, password }) },
-    false,
-  );
-  setSession(result);
-  return result;
+  synchronizeBrowserSession();
+  const intent = ++mutationIntent;
+  sessionVersion++;
+  identityVersion++;
+  const mutation = withAuthLock(async () => {
+    if (intent !== mutationIntent) throw sessionChanged();
+    // A queued login is a new user intent. Adopt another tab's completed
+    // logout before sending it, then invalidate any restoration it started.
+    synchronizeBrowserSession();
+    const version = ++sessionVersion;
+    const changeId = knownAuthChange?.id;
+    const result = await request<LoginResponse>(
+      "/auth/login",
+      { method: "POST", body: JSON.stringify({ email, password }) },
+      false,
+    );
+    assertSessionVersion(version, changeId);
+    setSession(result);
+    return result;
+  });
+  identityMutation = mutation;
+  try {
+    return await mutation;
+  } finally {
+    if (identityMutation === mutation) identityMutation = null;
+  }
 }
 
 export async function getProfile(): Promise<AuthUser> {
@@ -224,59 +334,86 @@ function readAccessToken(): string | null {
 }
 
 async function refreshAccessToken(): Promise<string> {
-  if (refreshPromise) return refreshPromise;
-  refreshPromise = (async () => {
-    const startedAt = sessionVersion;
-    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-      method: "POST",
-      cache: "no-store",
-      credentials: "include",
-    }).catch(() => {
-      throw {
-        status: 0,
-        code: "NETWORK_ERROR",
-        message: "Không thể làm mới phiên do mất kết nối. Vui lòng thử lại.",
-      };
-    });
-    const envelope = (await response
-      .json()
-      .catch(() => null)) as ApiEnvelope<LoginResponse> | null;
-    if (sessionVersion !== startedAt)
-      throw {
-        status: 401,
-        code: "SESSION_CHANGED",
-        message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
-      };
-    if (!response.ok || !envelope?.success) {
-      if (response.status === 401 || response.status === 403) {
-        clearSession();
+  const startedAt = sessionVersion;
+  const changeId = knownAuthChange?.id;
+  if (refreshFlight?.version === startedAt) return refreshFlight.promise;
+  const promise = withAuthLock(async () => {
+    assertSessionVersion(startedAt, changeId);
+    for (let attempt = 0; ; attempt++) {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: "POST",
+        cache: "no-store",
+        credentials: "include",
+      }).catch(() => {
+        throw {
+          status: 0,
+          code: "NETWORK_ERROR",
+          message: "Không thể làm mới phiên do mất kết nối. Vui lòng thử lại.",
+        };
+      });
+      const envelope = (await response
+        .json()
+        .catch(() => null)) as ApiEnvelope<LoginResponse> | null;
+      assertSessionVersion(startedAt, changeId);
+      if (response.status === 409) {
+        if (attempt < 3) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 200 * 2 ** attempt),
+          );
+          assertSessionVersion(startedAt, changeId);
+          continue;
+        }
+        throw {
+          status: 409,
+          code: "REFRESH_BUSY",
+          message: "Phiên đang được làm mới. Vui lòng thử lại.",
+        };
       }
-      throw {
-        status: response.status,
-        message:
-          response.status >= 500
-            ? "Máy chủ tạm thời không phản hồi. Vui lòng thử lại."
-            : "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
-      };
+      if (!response.ok || !envelope?.success) {
+        if (response.status === 401 || response.status === 403) {
+          clearSession();
+        }
+        throw {
+          status: response.status,
+          message:
+            response.status >= 500
+              ? "Máy chủ tạm thời không phản hồi. Vui lòng thử lại."
+              : "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+        };
+      }
+      setSession(envelope.data, false);
+      return envelope.data.accessToken;
     }
-    setSession(envelope.data, false);
-    return envelope.data.accessToken;
-  })().finally(() => {
-    refreshPromise = null;
+  }).finally(() => {
+    if (refreshFlight?.promise === promise) refreshFlight = null;
   });
-  return refreshPromise;
+  refreshFlight = { version: startedAt, promise };
+  return promise;
 }
 
 export async function revokeSession(): Promise<void> {
-  // A refresh response can set a new cookie even after the UI has logged out.
-  // Wait for that response, then revoke whichever cookie the browser holds.
-  await refreshPromise?.catch(() => undefined);
-  const response = await fetch(`${API_BASE_URL}/auth/logout`, {
-    method: "POST",
-    keepalive: true,
-    credentials: "include",
+  synchronizeBrowserSession();
+  mutationIntent++;
+  const version = ++sessionVersion;
+  identityVersion++;
+  const changeId = knownAuthChange?.id;
+  const mutation = withAuthLock(async () => {
+    assertSessionVersion(version, changeId);
+    const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: "POST",
+      keepalive: true,
+      credentials: "include",
+    });
+    assertSessionVersion(version, changeId);
+    if (!response.ok) throw new Error("Không thể đăng xuất. Vui lòng thử lại.");
+    clearSession();
   });
-  if (!response.ok) throw new Error("Không thể đăng xuất. Vui lòng thử lại.");
+  identityMutation = mutation;
+  try {
+    await mutation;
+  } finally {
+    if (identityMutation === mutation) identityMutation = null;
+  }
 }
 
 function isApiError(error: unknown): error is { status: number } {
@@ -289,12 +426,22 @@ export async function request<T>(
   authenticated = true,
   canRefresh = true,
 ): Promise<T> {
+  if (authenticated) {
+    if (
+      synchronizeBrowserSession() ||
+      identityMutation ||
+      (!session && isSessionRestoring())
+    )
+      throw sessionChanged();
+  }
   const method = init.method?.toUpperCase() ?? "GET";
   const token = authenticated
     ? (readAccessToken() ?? (await refreshAccessToken()))
     : null;
   const requestIdentity = identityVersion;
-  const requestScope = authenticated ? getAuthorizationScope(session?.user) : null;
+  const requestScope = authenticated
+    ? getAuthorizationScope(session?.user)
+    : null;
   const headers = new Headers(init.headers);
   if (init.body) headers.set("content-type", "application/json");
   if (token) headers.set("authorization", `Bearer ${token}`);
@@ -324,7 +471,12 @@ export async function request<T>(
         message?: string | string[];
       }
     | null;
-  if (authenticated && (identityVersion !== requestIdentity || getAuthorizationScope(session?.user) !== requestScope))
+  if (authenticated) synchronizeBrowserSession();
+  if (
+    authenticated &&
+    (identityVersion !== requestIdentity ||
+      getAuthorizationScope(session?.user) !== requestScope)
+  )
     throw {
       status: 401,
       code: "SESSION_CHANGED",
@@ -332,7 +484,10 @@ export async function request<T>(
     };
   if (response.status === 401 && authenticated && canRefresh) {
     if (readAccessToken() === token) await refreshAccessToken();
-    if (identityVersion !== requestIdentity || getAuthorizationScope(session?.user) !== requestScope) {
+    if (
+      identityVersion !== requestIdentity ||
+      getAuthorizationScope(session?.user) !== requestScope
+    ) {
       throw {
         status: 401,
         code: "SESSION_CHANGED",

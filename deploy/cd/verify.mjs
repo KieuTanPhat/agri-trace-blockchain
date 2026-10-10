@@ -8,10 +8,17 @@ import {loadConfig, connectGateway, FabricBlockchainAdapter} from './blockchain/
 const input = JSON.parse(readFileSync(0, 'utf8'));
 const tokens = {};
 const refresh = [];
-function refreshCookie(response) {
-  const cookie=response.headers.get('set-cookie')?.split(';',1)[0];
-  assert.match(cookie??'',/^agritrace_refresh=[A-Za-z0-9_-]+$/,'Refresh cookie missing');
-  return cookie;
+function refreshCookie(response,previous='') {
+  const cookies=new Map(previous.split('; ').filter(Boolean).map(pair=>pair.split('=')));
+  for(const header of response.headers.getSetCookie()){
+    const [name,value]=header.split(';',1)[0].split('=');
+    if(/Max-Age=0(?:;|$)/i.test(header))cookies.delete(name);
+    else cookies.set(name,value);
+  }
+  const sessionId=cookies.get('agritrace_session');
+  assert.match(sessionId??'',/^[a-f0-9-]{36}$/,'Session cookie missing');
+  assert.match(cookies.get(`agritrace_refresh_${sessionId}`)??'',/^[A-Za-z0-9_-]+$/,'Refresh cookie missing');
+  return [...cookies].map(([name,value])=>`${name}=${value}`).join('; ');
 }
 let phase = 'health';
 const db = new pg.Client({connectionString: process.env.DATABASE_URL});
@@ -23,7 +30,7 @@ async function http(route, role, body, expected=body === undefined ? 200 : 201, 
     ...(body === undefined ? {} : {body:JSON.stringify(body)}),
   });
   assert.equal(response.status,expected);
-  if(options.onCookie)options.onCookie(refreshCookie(response));
+  if(options.onCookie)options.onCookie(refreshCookie(response,options.cookie));
   return (await response.json()).data;
 }
 try {

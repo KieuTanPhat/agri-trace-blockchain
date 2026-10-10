@@ -39,7 +39,7 @@ model User {
 
 model RefreshSession {
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @map("refresh_session_id") @db.Uuid
-  familyId  String    @map("family_id") @db.Uuid
+  familyId  String?   @map("family_id") @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   tokenHash String    @unique @map("token_hash") @db.VarChar(64)
   expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)

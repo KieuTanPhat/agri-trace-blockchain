@@ -11,9 +11,11 @@ import { JwtService } from '@nestjs/jwt';
 import { compare } from 'bcrypt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import type { LoginDto } from './dto/login.dto.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import type { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import { lockSessionOwner, sessionFamilyWhere } from './session-family.js';
 
 @Injectable()
 export class AuthService {
@@ -30,7 +32,7 @@ export class AuthService {
     );
   }
 
-  async login(input: LoginDto) {
+  async login(input: LoginDto, previousRefreshToken?: string) {
     const email = input.email.trim().toLowerCase();
 
     // The live database enforces case-insensitive uniqueness through
@@ -61,104 +63,141 @@ export class AuthService {
       throw new UnauthorizedException('Tổ chức hiện không hoạt động');
     }
 
-    const { passwordHash: _passwordHash, ...safeUser } = user;
-
-    return this.createAuthResponse(safeUser);
+    const result = await this.prisma.$transaction(async (tx) => {
+      await lockSessionOwner(tx, user.id, user.organizationId);
+      const current = await tx.user.findUnique({
+        where: { id: user.id },
+        include: { role: true, organization: { select: { status: true } } },
+      });
+      if (
+        !current ||
+        current.passwordHash !== user.passwordHash ||
+        current.accountStatus !== 'ACTIVE' ||
+        (current.organizationId && current.organization?.status !== 'ACTIVE')
+      ) {
+        throw new UnauthorizedException(
+          'Tài khoản hoặc tổ chức không hoạt động',
+        );
+      }
+      const { passwordHash: _passwordHash, ...safeUser } = current;
+      return this.createAuthResponse(tx, safeUser);
+    });
+    // A browser account switch also invalidates access tokens held by other
+    // tabs. Logout uses the same DB locks as rotation, including old tokens.
+    if (previousRefreshToken) {
+      await this.logout({ refreshToken: previousRefreshToken });
+    }
+    return result;
   }
 
   async refresh(input: RefreshTokenDto) {
     const tokenHash = this.hashRefreshToken(input.refreshToken);
-    const session = await this.prisma.refreshSession.findUnique({
+    const owner = await this.prisma.refreshSession.findUnique({
       where: { tokenHash },
-      include: {
-        user: {
-          select: this.safeUserSelect,
-        },
+      select: {
+        userId: true,
+        user: { select: { organizationId: true } },
       },
     });
-    if (!session)
+    if (!owner)
       throw new UnauthorizedException(
         'Refresh token không hợp lệ hoặc đã hết hạn',
       );
 
-    if (session.revokedAt) {
-      if (Date.now() - session.revokedAt.getTime() <= this.concurrentRefreshWindowMs) {
-        if (await this.hasActiveFamilySession(session.familyId)) {
-          throw new ConflictException('Refresh token đang được xoay vòng');
-        }
-        throw new UnauthorizedException('Phiên đã bị thu hồi');
+    const result = await this.prisma.$transaction(async (tx) => {
+      await lockSessionOwner(tx, owner.userId, owner.user.organizationId);
+      // Re-read after acquiring the locks: neither the token nor the account
+      // snapshot from before this transaction may authorize a new session.
+      const session = await tx.refreshSession.findUnique({
+        where: { tokenHash },
+        include: { user: { select: this.safeUserSelect } },
+      });
+      if (!session) return { state: 'revoked' } as const;
+      const familyId = session.familyId ?? session.id;
+      if (
+        session.user.accountStatus !== 'ACTIVE' ||
+        (session.user.organizationId &&
+          session.user.organization?.status !== 'ACTIVE')
+      ) {
+        await this.revokeFamily(tx, familyId);
+        return { state: 'revoked' } as const;
       }
-      await this.revokeFamily(session.familyId);
-      throw new UnauthorizedException('Refresh token đã được sử dụng lại');
-    }
+      if (session.revokedAt) {
+        if (
+          Date.now() - session.revokedAt.getTime() <=
+          this.concurrentRefreshWindowMs
+        ) {
+          const active = await tx.refreshSession.findFirst({
+            where: {
+              ...sessionFamilyWhere(familyId),
+              revokedAt: null,
+              expiresAt: { gt: new Date() },
+            },
+            select: { id: true },
+          });
+          return { state: active ? 'conflict' : 'revoked' } as const;
+        }
+        await this.revokeFamily(tx, familyId);
+        return { state: 'revoked' } as const;
+      }
+      if (session.expiresAt <= new Date()) return { state: 'revoked' } as const;
 
-    if (
-      session.expiresAt <= new Date() ||
-      session.user.accountStatus !== 'ACTIVE' ||
-      (session.user.organizationId && session.user.organization?.status !== 'ACTIVE')
-    ) {
-      throw new UnauthorizedException('Phiên đã hết hạn hoặc tài khoản bị khóa');
-    }
-
-    const nextToken = randomBytes(48).toString('base64url');
-    const nextHash = this.hashRefreshToken(nextToken);
-    const expiresAt = this.refreshExpiry();
-    const rotated = await this.prisma.$transaction(async (tx) => {
+      const nextToken = randomBytes(48).toString('base64url');
+      const expiresAt = session.expiresAt;
       const revoked = await tx.refreshSession.updateMany({
-        where: { id: session.id, revokedAt: null, expiresAt: { gt: new Date() } },
+        where: {
+          id: session.id,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
         data: { revokedAt: new Date() },
       });
-      if (revoked.count !== 1) return false;
+      if (revoked.count !== 1) return { state: 'revoked' } as const;
       await tx.refreshSession.create({
         data: {
           userId: session.userId,
-          familyId: session.familyId,
-          tokenHash: nextHash,
+          familyId,
+          tokenHash: this.hashRefreshToken(nextToken),
           expiresAt,
         },
       });
-      return true;
+      return {
+        state: 'rotated',
+        payload: this.authPayload(session.user, familyId, nextToken, expiresAt),
+      } as const;
     });
-    if (!rotated) {
-      const latest = await this.prisma.refreshSession.findUnique({
-        where: { id: session.id },
-        select: { revokedAt: true },
-      });
-      if (latest?.revokedAt) {
-        if (Date.now() - latest.revokedAt.getTime() <= this.concurrentRefreshWindowMs) {
-          if (await this.hasActiveFamilySession(session.familyId)) {
-            throw new ConflictException('Refresh token đang được xoay vòng');
-          }
-          throw new UnauthorizedException('Phiên đã bị thu hồi');
-        }
-        await this.revokeFamily(session.familyId);
-      }
-      throw new UnauthorizedException('Refresh token đã được sử dụng lại');
-    }
-    return this.authPayload(session.user, session.familyId, nextToken, expiresAt);
+    // Throw after commit so replay/account revocation is not rolled back.
+    if (result.state === 'conflict')
+      throw new ConflictException('Refresh token đang được xoay vòng');
+    if (result.state !== 'rotated')
+      throw new UnauthorizedException('Phiên đã bị thu hồi hoặc hết hạn');
+    return result.payload;
   }
 
   async logout(input: RefreshTokenDto) {
     const session = await this.prisma.refreshSession.findUnique({
       where: { tokenHash: this.hashRefreshToken(input.refreshToken) },
-      select: { familyId: true },
+      select: {
+        id: true,
+        familyId: true,
+        userId: true,
+        user: { select: { organizationId: true } },
+      },
     });
-    if (session) await this.revokeFamily(session.familyId);
+    if (session) {
+      await this.prisma.$transaction(async (tx) => {
+        await lockSessionOwner(tx, session.userId, session.user.organizationId);
+        await this.revokeFamily(tx, session.familyId ?? session.id);
+      });
+    }
     return { revoked: true };
   }
 
-  private async revokeFamily(familyId: string) {
-    await this.prisma.refreshSession.updateMany({
-      where: { familyId, revokedAt: null },
+  private async revokeFamily(tx: Prisma.TransactionClient, familyId: string) {
+    await tx.refreshSession.updateMany({
+      where: { ...sessionFamilyWhere(familyId), revokedAt: null },
       data: { revokedAt: new Date() },
     });
-  }
-
-  private async hasActiveFamilySession(familyId: string): Promise<boolean> {
-    return (await this.prisma.refreshSession.findFirst({
-      where: { familyId, revokedAt: null, expiresAt: { gt: new Date() } },
-      select: { id: true },
-    })) !== null;
   }
 
   async getProfile(userId: string) {
@@ -174,18 +213,21 @@ export class AuthService {
     return user;
   }
 
-  private async createAuthResponse(user: {
-    id: string;
-    email: string;
-    role: {
-      code: string;
-    };
-    [key: string]: unknown;
-  }) {
+  private async createAuthResponse(
+    tx: Prisma.TransactionClient,
+    user: {
+      id: string;
+      email: string;
+      role: {
+        code: string;
+      };
+      [key: string]: unknown;
+    },
+  ) {
     const refreshToken = randomBytes(48).toString('base64url');
     const familyId = randomUUID();
     const expiresAt = this.refreshExpiry();
-    await this.prisma.refreshSession.create({
+    await tx.refreshSession.create({
       data: {
         id: familyId,
         familyId,
@@ -209,6 +251,7 @@ export class AuthService {
     refreshExpiresAt: Date,
   ) {
     return {
+      sessionId: familyId,
       accessToken: this.jwtService.sign({
         sub: user.id,
         sid: familyId,

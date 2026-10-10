@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { isUUID } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthenticatedRequest, JwtPayload } from './auth.types.js';
+import { sessionFamilyWhere } from './session-family.js';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -36,8 +37,10 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     if (
-      typeof payload?.sub !== 'string' || !isUUID(payload.sub) ||
-      typeof payload?.sid !== 'string' || !isUUID(payload.sid)
+      typeof payload?.sub !== 'string' ||
+      !isUUID(payload.sub) ||
+      typeof payload?.sid !== 'string' ||
+      !isUUID(payload.sid)
     ) {
       throw new UnauthorizedException(
         'Token thiếu định danh người dùng hoặc phiên hợp lệ',
@@ -72,7 +75,7 @@ export class JwtAuthGuard implements CanActivate {
 
     const activeSession = await this.prisma.refreshSession.findFirst({
       where: {
-        familyId: payload.sid,
+        ...sessionFamilyWhere(payload.sid),
         userId: user.id,
         revokedAt: null,
         expiresAt: { gt: new Date() },
@@ -80,7 +83,9 @@ export class JwtAuthGuard implements CanActivate {
       select: { id: true },
     });
     if (!activeSession) {
-      throw new UnauthorizedException('Phiên đăng nhập đã bị thu hồi hoặc hết hạn');
+      throw new UnauthorizedException(
+        'Phiên đăng nhập đã bị thu hồi hoặc hết hạn',
+      );
     }
 
     request.user = {

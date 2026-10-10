@@ -1,165 +1,104 @@
 import { JwtService } from '@nestjs/jwt';
-import { createHash } from 'node:crypto';
 import { vi } from 'vitest';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import type { PrismaService } from '../../prisma/prisma.service.js';
 import { AuthService } from './auth.service.js';
+import { sessionFamilyWhere } from './session-family.js';
 
 describe('AuthService refresh token rotation', () => {
-  it('revokes the presented token and returns a different refresh token', async () => {
-    const presented = 'r'.repeat(48);
-    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
-    const create = vi.fn().mockResolvedValue({});
-    const prisma = {
-      refreshSession: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'session-1',
-          familyId: 'd6212d56-a3b2-4d54-9779-cc8507a6bd53',
-          userId: 'd6212d56-a3b2-4d54-9779-cc8507a6bd53',
-          tokenHash: createHash('sha256').update(presented).digest('hex'),
-          expiresAt: new Date(Date.now() + 60_000),
-          revokedAt: null,
-          user: {
-            id: 'd6212d56-a3b2-4d54-9779-cc8507a6bd53',
-            email: 'staff@example.com',
-            fullName: 'Staff',
-            organizationId: null,
-            role: { id: 'role-1', code: 'FARM_STAFF', name: 'Farm staff' },
-            accountStatus: 'ACTIVE',
-          },
-        }),
-      },
-      $transaction: vi.fn(async (callback) =>
-        callback({ refreshSession: { updateMany, create } }),
-      ),
-    };
-    const service = new AuthService(
-      prisma as unknown as PrismaService,
-      new JwtService({ secret: 'refresh-test-secret' }),
-    );
-
-    const result = await service.refresh({ refreshToken: presented });
-
-    expect(result.accessToken).toBeTruthy();
-    expect(result.refreshToken).not.toBe(presented);
-    expect(updateMany).toHaveBeenCalledWith({
-      where: {
-        id: 'session-1',
-        revokedAt: null,
-        expiresAt: { gt: expect.any(Date) },
-      },
-      data: { revokedAt: expect.any(Date) },
-    });
-    expect(create).toHaveBeenCalledOnce();
-  });
-
-  it('allows only one concurrent refresh without revoking the newly issued session', async () => {
-    const token = 'r'.repeat(48);
-    const familyId = 'd6212d56-a3b2-4d54-9779-cc8507a6bd53';
-    let oldRevoked = false;
-    let oldRevokedAt: Date | null = null;
+  const id = 'd6212d56-a3b2-4d54-9779-cc8507a6bd53';
+  function fixture(overrides: Record<string, unknown> = {}) {
     const session = {
-      id: familyId,
-      familyId,
-      userId: familyId,
+      id,
+      familyId: id,
+      userId: id,
       expiresAt: new Date(Date.now() + 60_000),
       revokedAt: null,
       user: {
-        id: familyId,
+        id,
         email: 'staff@example.com',
         role: { code: 'FARM_STAFF' },
         organizationId: null,
         accountStatus: 'ACTIVE',
       },
+      ...overrides,
     };
-    const updateMany = vi.fn(async ({ where }: { where: { id?: string; familyId?: string } }) => {
-      if (where.familyId) {
-        return { count: 1 };
-      }
-      if (oldRevoked) return { count: 0 };
-      oldRevoked = true;
-      oldRevokedAt = new Date();
-      return { count: 1 };
-    });
-    const create = vi.fn().mockResolvedValue({});
-    const prisma = {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
       refreshSession: {
-        findUnique: vi.fn(async () => ({ ...session, revokedAt: oldRevokedAt })),
-        findFirst: vi.fn().mockResolvedValue({ id: 'rotated-session' }),
-        updateMany,
+        findUnique: vi.fn().mockResolvedValue(session),
+        findFirst: vi.fn().mockResolvedValue(null),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        create: vi.fn().mockResolvedValue({}),
       },
-      $transaction: vi.fn(async (callback) =>
-        callback({ refreshSession: { updateMany, create } }),
+    };
+    const prisma = {
+      refreshSession: { findUnique: vi.fn().mockResolvedValue(session) },
+      $transaction: vi.fn(async (callback) => callback(tx)),
+    };
+    return {
+      session,
+      tx,
+      prisma,
+      service: new AuthService(
+        prisma as unknown as PrismaService,
+        new JwtService({ secret: 'refresh-test-secret' }),
       ),
     };
-    const service = new AuthService(
-      prisma as unknown as PrismaService,
-      new JwtService({ secret: 'refresh-test-secret' }),
-    );
+  }
 
-    const results = await Promise.allSettled([
-      service.refresh({ refreshToken: token }),
-      service.refresh({ refreshToken: token }),
-    ]);
-    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
-    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
-    expect(results.find((result) => result.status === 'rejected')).toMatchObject({
-      reason: { status: 409 },
+  it('returns a rotated secret and a JWT bound to the family', async () => {
+    const { service, tx } = fixture();
+    const result = await service.refresh({ refreshToken: 'old-token' });
+    expect(result.refreshToken).not.toBe('old-token');
+    expect(result.sessionId).toBe(id);
+    expect(new JwtService().decode(result.accessToken)).toMatchObject({
+      sub: id,
+      sid: id,
     });
-    expect(create).toHaveBeenCalledOnce();
-    expect(updateMany.mock.calls.some(([input]) => input.where.familyId)).toBe(false);
+    expect(tx.refreshSession.create).toHaveBeenCalledOnce();
   });
 
-  it('rejects replay of an already rotated token and revokes its family', async () => {
-    const familyId = 'd6212d56-a3b2-4d54-9779-cc8507a6bd53';
-    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
-    const prisma = {
-      refreshSession: {
-        findUnique: vi.fn().mockResolvedValue({
-          familyId,
-          revokedAt: new Date(Date.now() - 10_000),
-        }),
-        updateMany,
-      },
-    };
-    const service = new AuthService(
-      prisma as unknown as PrismaService,
-      new JwtService({ secret: 'refresh-test-secret' }),
-    );
-    await expect(service.refresh({ refreshToken: 'old-token' })).rejects.toMatchObject({
-      status: 401,
+  it('re-checks a session revoked after the initial owner lookup', async () => {
+    const { service, tx, session } = fixture();
+    tx.refreshSession.findUnique.mockResolvedValue({
+      ...session,
+      revokedAt: new Date(),
     });
-    expect(updateMany).toHaveBeenCalledWith({
-      where: { familyId, revokedAt: null },
+    await expect(
+      service.refresh({ refreshToken: 'old-token' }),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(tx.refreshSession.create).not.toHaveBeenCalled();
+  });
+
+  it('returns a recoverable 409 for the losing concurrent rotation', async () => {
+    const { service, tx } = fixture({ revokedAt: new Date() });
+    tx.refreshSession.findFirst.mockResolvedValue({ id: 'new-session' });
+    await expect(
+      service.refresh({ refreshToken: 'old-token' }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(tx.refreshSession.updateMany).not.toHaveBeenCalled();
+    expect(tx.refreshSession.create).not.toHaveBeenCalled();
+  });
+
+  it('revokes the family on replay outside the concurrency window', async () => {
+    const { service, tx } = fixture({
+      revokedAt: new Date(Date.now() - 10_000),
+    });
+    await expect(
+      service.refresh({ refreshToken: 'old-token' }),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(tx.refreshSession.updateMany).toHaveBeenCalledWith({
+      where: { ...sessionFamilyWhere(id), revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
   });
 
-  it('returns 401 when a just-logged-out family has no active session', async () => {
-    const familyId = 'd6212d56-a3b2-4d54-9779-cc8507a6bd53';
-    const findFirst = vi.fn().mockResolvedValue(null);
-    const updateMany = vi.fn();
-    const prisma = {
-      refreshSession: {
-        findUnique: vi.fn().mockResolvedValue({
-          familyId,
-          revokedAt: new Date(),
-        }),
-        findFirst,
-        updateMany,
-      },
-    };
-    const service = new AuthService(
-      prisma as unknown as PrismaService,
-      new JwtService({ secret: 'refresh-test-secret' }),
-    );
-
-    await expect(service.refresh({ refreshToken: 'logged-out-token' })).rejects.toMatchObject({
-      status: 401,
+  it('uses a legacy session ID as its family without a backfill', async () => {
+    const { service, tx } = fixture({ familyId: null });
+    const result = await service.refresh({ refreshToken: 'legacy-token' });
+    expect(result.sessionId).toBe(id);
+    expect(tx.refreshSession.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ familyId: id }),
     });
-    expect(findFirst).toHaveBeenCalledWith({
-      where: { familyId, revokedAt: null, expiresAt: { gt: expect.any(Date) } },
-      select: { id: true },
-    });
-    expect(updateMany).not.toHaveBeenCalled();
   });
 });
