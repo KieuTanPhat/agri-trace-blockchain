@@ -5,6 +5,9 @@ Hyperledger Fabric trong một cấu trúc thống nhất.
 
 Tiến độ triển khai core và các cổng chưa đạt:
 [core implementation](docs/core-implementation-2026-10-10.md).
+UAT đã triển khai core `53bec18`, Fabric sequence 3 và 14 migration;
+[báo cáo cutover](docs/uat-core-deployment-2026-10-10.md) ghi kiểm chứng và phần
+nghiệm thu còn lại.
 
 ## Cấu trúc
 
@@ -71,10 +74,11 @@ Evidence của lần HTTPS trước nằm trong
 [báo cáo lịch sử](docs/nongtrace-uat-deployment-status.md).
 
 Rà soát code/quyền sau triển khai: [kế hoạch và kết quả audit](docs/nongtrace-uat-code-audit.md).
-Admin quản trị identity/masterdata; Auditor chỉ đọc. Bản code trên nhánh core
-thêm COMPLIANCE_REVIEWER trong tổ chức AUDITOR, chỉ ghi inspection/review chứng
-nhận cho Farm được Admin phân công. SQL, provision role và UAT của thay đổi này
-còn cần hoàn tất trước phát hành; xem implementation record ở đầu tài liệu.
+Admin quản trị identity/masterdata; Auditor chỉ đọc. Core thêm
+COMPLIANCE_REVIEWER trong tổ chức AUDITOR, chỉ ghi inspection/review chứng nhận
+cho Farm được Admin phân công. SQL và provision role đã hoàn tất trên UAT;
+Admin/owner còn cần phân công Reviewer và nghiệm thu nghiệp vụ đầy đủ. Xem
+báo cáo cutover và implementation record ở đầu tài liệu.
 
 Module lots tách `LotHarvestService` (transaction + outbox), `LotQueryService`
 (query), presenter (projection), action policy (role/org/state) và proof status.

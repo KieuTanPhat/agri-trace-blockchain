@@ -1,5 +1,11 @@
 # Triển khai core — 10/10/2026
 
+Cập nhật vận hành: UAT đã triển khai `53bec18`, 14 migration và Fabric sequence 3
+lúc 20:42 ICT. Xem [báo cáo cutover](uat-core-deployment-2026-10-10.md).
+Các giới hạn ban đầu trong bảng source bên dưới được ghi trước triển khai;
+canary hiện đã kiểm CommandCommit/replay, multi-harvest/NO_DATA, v3 và proof/QR
+lịch sử. Nghiệm thu nghiệp vụ đầy đủ, Reviewer assignment và mobile còn thiếu.
+
 Nhánh: `codex/core-completion`, worktree riêng. Baseline:
 `9e228b7c236d9527727b496849d07ca2d160d04f` (đã có PR #71 về auth session).
 Đây là bản ghi thay đổi source, chưa phải nghiệm thu hay phê duyệt phát hành.
@@ -78,13 +84,14 @@ Sửa DTO/decorator rồi sinh lại; cập nhật
 response DTO nếu projection/schema thay đổi. CI kiểm response envelope, reference,
 Idempotency-Key và danh sách field cấm trong public projection, sau đó kiểm drift.
 
-## 4. Cutover có kiểm soát — chưa thực hiện
+## 4. Kế hoạch cutover có kiểm soát
 
 Migration mới có trigger, deferred constraint, FK và partial unique index;
 `deploy/cd/policy.py` phải tiếp tục chặn auto rollout khi còn migration chưa được
 review riêng. Không sửa applied migration/checksum, nới allowlist hoặc seed DB chung.
 
-Thứ tự cần duyệt và diễn tập trên DB riêng trước khi dùng UAT:
+Thứ tự đã review và thực hiện trên UAT theo báo cáo cutover; assignment/owner
+signoff và nghiệm thu đầy đủ vẫn là cổng riêng:
 
 1. Review SQL cụ thể và generated contract; kiểm schema/migration từ DB trống
    và bản sao đã loại thông tin nhạy cảm. Ghi checksum/SHA/người review/kết quả.
@@ -97,8 +104,9 @@ Thứ tự cần duyệt và diễn tập trên DB riêng trước khi dùng UAT
    role thiếu, không tạo tài khoản hay thay mật khẩu. Lệnh dùng Node và Prisma
    client đã compile trong image production; nếu chạy từ source, cần generate
    Prisma và build API trước. Không cần cài `tsx` vào image runtime.
-5. Đưa API/Worker/Web tương thích lên, cấp Reviewer/assignment qua Admin, canary
-   và đối soát queue, proof, state, quantity trước khi mở writes.
+5. Đưa API/Worker/Web tương thích lên, chạy canary và đối soát queue, proof,
+   state, quantity trước khi mở writes. Việc cấp Reviewer/assignment qua Admin
+   còn chờ owner; không thay role của năm tài khoản UAT cũ.
 6. Ghi evidence trên đúng candidate SHA; UAT/RC và production có gate riêng.
 
 Image cũ ghi envelope v2 hoặc thiếu windows/journals không là rollback candidate.
@@ -132,7 +140,8 @@ phân công, cutoff harvest tăng, receipt đủ tuple và timestamp không ở 
 Theo yêu cầu tạo PR và kiểm tra trước merge, các suite và migrations đã được
 chạy trên DB test có trigger thật; sửa regression và bổ sung ca cho phần mới.
 Xem [bằng chứng PR #75](core-pr75-verification-2026-10-10.md) và checks/SHA cuối
-trong PR. Provision role, cutover và nghiệm thu UAT vẫn chưa thực hiện.
+trong PR. Provision role và cutover UAT đã hoàn tất theo báo cáo liên kết ở đầu
+tài liệu; nghiệm thu UAT đầy đủ vẫn chưa thực hiện.
 
 Thứ tự còn lại:
 
