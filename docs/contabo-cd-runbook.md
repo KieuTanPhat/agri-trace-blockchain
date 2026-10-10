@@ -76,6 +76,11 @@ public origin. Không dùng loopback của host làm URL API bên trong containe
   Nếu state đã promote nhưng journal chưa xóa, recovery lấy package chaincode
   của release trước trong journal và tăng sequence khi cần; không lấy nhầm
   package mới từ state để chạy với application cũ.
+- Recovery và rollback tự động resume Fabric, đợi committed definition trên cả
+  hai peer, rồi kiểm migration history trước khi mở lại API/Worker. Migration
+  chưa finished, checksum sai hoặc schema không rõ giữ writers dừng và journal
+  còn lại để quản trị đối soát. Lỗi ghi kết quả sau promote cũng giữ journal
+  nếu rollback không thể xác minh.
 - `_prisma_migrations` chưa finished là lỗi cần reconcile schema/Prisma sau
   review. Không chạy `migrate reset`, seed, xóa outbox/proof hay tự restore
   dump để làm CI xanh. CD chặn release tiếp theo khi lịch sử migration chưa rõ.
@@ -153,10 +158,24 @@ opaque, cho tối đa 8 KiB trong header truyền tối đa 16 KiB, không ghi g
 vào log. Guard không phụ thuộc độ dài token ngắn của các phiên bản cũ.
 
 Controller là code root-owned ở `/usr/local/lib/agri-trace-cd`; không tự thay
-controller bằng file trong candidate. Manifest kiểm version hash 4 helper
-files. Khi sửa controller/policy/verify/entry: review/tests, admin cài bằng
+controller bằng file trong candidate. Manifest kiểm version hash 5 helper
+files, gồm `session-auth.mjs`. Khi sửa controller/policy/verify/session-auth/entry: review/tests, admin cài bằng
 `deploy/cd/install.py` từ bản source đã review rồi mới chạy lại CD. Installer
 idempotent giữ config/state/khóa/ledger; đây là ranh giới quyền quản trị server.
+
+Verifier nhận diện contract refresh của release lịch sử khi kiểm baseline hoặc
+rollback: JSON token cũ hoặc cookie session family. Candidate mới bắt buộc
+cookie family, không trả refresh token trong JSON. Release đã promote lưu
+`sessionContract=family-v1` để lần kiểm sau không hạ về legacy. Test logout
+dùng phiên Auditor sau kiểm quyền, giữ phiên Admin cho proof/QR và chỉ đăng
+nhập 5 lần để baseline + candidate không vượt rate limit. Không cấp thêm
+quyền/credential legacy cho ứng dụng; fallback chỉ nằm trong verifier quản trị.
+
+Chạy regression portable bằng `npm run test:ci`. Trên Linux còn chạy
+`python3 -m unittest discover -s deploy/cd -p 'test_*.py' -v` để kiểm đủ flock,
+fsync và journal; SSH tests trên Windows được skip theo nền tảng. CI còn chạy
+verifier trong VM với I/O mô phỏng để kiểm contract cũ/mới và JWT đã logout;
+production-container/Fabric smoke vẫn là kiểm chứng tích hợp riêng.
 Installer giữ cùng khóa `delivery.lock` với CD; khi deploy đang chạy hoặc còn
 recovery journal, lệnh cài/update-origin bị từ chối trước khi đổi cấu hình.
 

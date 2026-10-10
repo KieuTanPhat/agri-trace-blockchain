@@ -41,7 +41,7 @@ def install(args):
     source = Path(__file__).parent
     installed = Path("/usr/local/lib/agri-trace-cd")
     installed.mkdir(mode=0o755, parents=True, exist_ok=True)
-    for name in ("controller.py", "policy.py", "verify.mjs", "entry"):
+    for name in policy.CONTROLLER_FILES:
         shutil.copyfile(source / name, installed / name)
         (installed / name).chmod(0o755 if name == "entry" else 0o644)
         os.chown(installed / name, 0, 0)
@@ -205,7 +205,7 @@ def update_origin(args):
 
     installed = Path("/usr/local/lib/agri-trace-cd")
     installed.mkdir(mode=0o755, parents=True, exist_ok=True)
-    for name in ("controller.py", "policy.py", "verify.mjs", "entry"):
+    for name in policy.CONTROLLER_FILES:
         shutil.copyfile(Path(__file__).with_name(name), installed / name)
         (installed / name).chmod(0o755 if name == "entry" else 0o644)
         os.chown(installed / name, 0, 0)

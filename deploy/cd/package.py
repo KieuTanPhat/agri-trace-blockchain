@@ -6,7 +6,7 @@ import json
 import subprocess
 import tarfile
 from pathlib import Path
-from policy import SHA, allowed_file, fingerprint, require, sha256, validate_manifest
+from policy import CONTROLLER_FILES, SHA, allowed_file, fingerprint, require, sha256, validate_manifest
 
 
 def package(sha, api, web, repository, origin, dist, output):
@@ -16,7 +16,7 @@ def package(sha, api, web, repository, origin, dist, output):
     raw = subprocess.check_output(["git", "archive", "--format=tar", sha])
     with tarfile.open(fileobj=io.BytesIO(raw)) as source:
         for member in source:
-            if member.name in {f"deploy/cd/{name}" for name in ("controller.py", "policy.py", "verify.mjs", "entry")}:
+            if member.name in {f"deploy/cd/{name}" for name in CONTROLLER_FILES}:
                 controller[member.name.split("/")[-1]] = sha256(source.extractfile(member).read())
             if member.isfile() and allowed_file(member.name) and not "/dist/" in member.name:
                 files[member.name] = source.extractfile(member).read()

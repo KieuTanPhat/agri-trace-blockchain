@@ -39,7 +39,8 @@ jobs:
       - name: Check CD policy, failure recovery and exact-commit gate
         run: |
           python3 -m unittest discover -s deploy/cd -p 'test_*.py' -v
-          node --test deploy/cd/gate.test.mjs deploy/cd/send.test.mjs
+          node --test deploy/cd/gate.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs
+          node --experimental-vm-modules --test deploy/cd/verify.test.mjs
 
   api:
     name: API / Node ${{ matrix.node }}

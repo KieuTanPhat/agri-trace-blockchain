@@ -193,8 +193,10 @@ class Controller:
         self.write_release_environment(record)
         values = policy.read_env(self.storage / "records" / record["id"] / "origin.env")
         payload = {"origin": self.origin_for(record), "corsOrigins": values["CORS_ORIGINS"].split(","),
-                   "accounts": json.loads(Path(self.config["accounts"]).read_text()), "canary": canary}
-        script = Path(__file__).with_name("verify.mjs").read_text()
+                   "accounts": json.loads(Path(self.config["accounts"]).read_text()), "canary": canary,
+                   "requireSessionFamily": bool(canary) or record.get("sessionContract") == "family-v1"}
+        script = (Path(__file__).with_name("session-auth.mjs").read_text() + "\n" +
+                  Path(__file__).with_name("verify.mjs").read_text())
         output = self.run("release-verification", self.dc(record, "exec", "-T", "worker", "node", "--input-type=module", "-e", script),
                           json.dumps(payload).encode(), timeout=480)
         result = json.loads(output)
@@ -300,8 +302,23 @@ class Controller:
             atomic_json(index_file, index)
         finally:
             # Persistent services only: peers recreate chaincode containers.
-            self.run("fabric-resume", ["docker", "start", *FABRIC], timeout=180)
+            phase = self.phase
+            self.resume_fabric()
+            self.phase = phase
         return str(directory)
+
+    def resume_fabric(self):
+        self.run("fabric-resume", ["docker", "start", *FABRIC], timeout=180)
+        self.phase = "fabric-readiness"
+        deadline = time.monotonic() + 180
+        while time.monotonic() < deadline:
+            try:
+                self.definition()
+                return
+            except (PolicyError, subprocess.TimeoutExpired):
+                self.phase = "fabric-readiness"
+                time.sleep(5)
+        require(False, "Fabric peers did not become ready; application writers remain stopped")
 
     def peer_env(self, org):
         samples = Path(self.config["network_root"]) / "blockchain/.fabric/fabric-samples"
@@ -312,12 +329,12 @@ class Controller:
                            CORE_PEER_ADDRESS=f"localhost:{7051 if org == 1 else 9051}", CORE_PEER_TLS_ROOTCERT_FILE=str(tls), FABRIC_CFG_PATH=str(samples / "config"))
         return str(samples / "bin/peer"), environment
 
-    def peer(self, label, org, *arguments):
+    def peer(self, label, org, *arguments, timeout=480):
         binary, environment = self.peer_env(org)
-        return self.run(label, [binary, "lifecycle", "chaincode", *arguments], env=environment, timeout=480)
+        return self.run(label, [binary, "lifecycle", "chaincode", *arguments], env=environment, timeout=timeout)
 
     def definition(self):
-        results = [json.loads(self.peer("chaincode-query-committed", org, "querycommitted", "--channelID", "agritrace", "--name", "agritrace", "--output", "json")) for org in (1, 2)]
+        results = [json.loads(self.peer("chaincode-query-committed", org, "querycommitted", "--channelID", "agritrace", "--name", "agritrace", "--output", "json", timeout=30)) for org in (1, 2)]
         require(results[0] == results[1], "Peers disagree on the committed chaincode definition")
         require(results[0].get("endorsement_plugin") == "escc" and results[0].get("validation_plugin") == "vscc" and
                 results[0].get("validation_parameter") == "EiAvQ2hhbm5lbC9BcHBsaWNhdGlvbi9FbmRvcnNlbWVudA==" and
@@ -440,25 +457,28 @@ class Controller:
             evidence = self.verify(candidate, candidate["sha"])
             self.preserve(before, evidence)
             candidate["verified"] = True
+            candidate["sessionContract"] = "family-v1"
             candidate["chaincode"] = chaincode
             self.save_record(candidate)
             updated = dict(state, current=candidate["id"], previous=old["id"] if old["id"] != candidate["id"] else state.get("previous"),
                            chaincode=chaincode, compatible_migrations=sorted(set(state.get("compatible_migrations", [])) | set(new_migrations)))
             self.switch(candidate, updated)
-            (self.storage / "journal.json").unlink()
             atomic_json(self.storage / "last-result.json", {"result": "passed", "sha": candidate["sha"], "release": candidate["id"], "snapshot": snapshot,
                        "counts": evidence["counts"], "canary": evidence["canary"], "chaincode": chaincode})
+            (self.storage / "journal.json").unlink()
             return {"result": "passed", "release": candidate["id"], "counts": evidence["counts"], "chaincodeSequence": chaincode["sequence"]}
         except Exception as error:
             failed_phase = self.phase
             try:
                 self.stop(candidate)
+                self.resume_fabric()
+                compatible = self.recovery_migrations(old, candidate, state)
                 restored = self.restore_definition(state, old)
                 self.start(old)
                 evidence = self.verify(old)
                 self.preserve(before, evidence)
                 # Expanded schema stays; compatible migration names remain known for recovery.
-                restored_state = dict(state, chaincode=restored, compatible_migrations=sorted(set(state.get("compatible_migrations", [])) | set(new_migrations)))
+                restored_state = dict(state, chaincode=restored, compatible_migrations=compatible)
                 self.switch(old, restored_state)
                 (self.storage / "journal.json").unlink()
                 rollback = "verified"
@@ -466,6 +486,20 @@ class Controller:
                 rollback = "recovery-required"
             atomic_json(self.storage / "last-result.json", {"result": "failed", "sha": candidate["sha"], "phase": failed_phase, "rollback": rollback, "snapshot": snapshot})
             raise PolicyError(f"Release failed at {failed_phase}; rollback={rollback}; database and ledger were not restored") from error
+
+    def recovery_migrations(self, previous, candidate, state):
+        applied = self.applied(previous)
+        additions = sorted(set(applied) - set(previous["manifest"]["migrations"]))
+        compatible = set(state.get("compatible_migrations", []))
+        policy.migrations(applied, candidate["manifest"]["migrations"], candidate["directory"], compatible)
+        policy.migrations(applied, previous["manifest"]["migrations"], previous["directory"], compatible | set(additions))
+        for name in additions:
+            if name in compatible:
+                continue
+            script = (Path(candidate["directory"]) / "apps/api/prisma/migrations" / name / "migration.sql").read_bytes()
+            require(policy.sha256(script) == candidate["manifest"]["migrations"].get(name), "Unexpected migration after interrupted deploy")
+            policy.additive_sql(script.decode("utf-8"))
+        return sorted(compatible | set(additions))
 
     def recover(self):
         if not (self.storage / "journal.json").exists():
@@ -475,20 +509,17 @@ class Controller:
         previous = self.record(journal["previous"])
         candidate = self.record(journal["candidate"])
         self.stop(candidate)
+        self.resume_fabric()
+        # A completed migration from an interrupted release still requires compatibility validation.
+        compatible = self.recovery_migrations(previous, candidate, state)
         chaincode = self.restore_definition(state, previous)
         self.start(previous)
         evidence = self.verify(previous)
         if journal.get("baseline"):
             self.preserve(journal["baseline"], evidence)
-        # A completed migration from an interrupted release still requires compatibility validation.
-        applied = self.applied(previous)
-        additions = sorted(set(applied) - set(previous["manifest"]["migrations"]))
-        for name in additions:
-            require(candidate["manifest"]["migrations"].get(name) == applied[name], "Unexpected migration after interrupted deploy")
-            policy.additive_sql((Path(candidate["directory"]) / "apps/api/prisma/migrations" / name / "migration.sql").read_text())
         self.switch(previous, dict(state, current=previous["id"],
                     previous=state["current"] if state["current"] != previous["id"] else state.get("previous"), chaincode=chaincode,
-                    compatible_migrations=sorted(set(state.get("compatible_migrations", [])) | set(additions))))
+                    compatible_migrations=compatible))
         (self.storage / "journal.json").unlink()
         return {"result": "recovered", "release": previous["id"], "counts": evidence["counts"]}
 

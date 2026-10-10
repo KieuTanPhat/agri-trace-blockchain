@@ -9,9 +9,11 @@ const [operation, value, archive] = process.argv.slice(2);
 const temp = path.join(process.env.RUNNER_TEMP, 'agri-cd-ssh');
 const key = path.join(temp,'key');
 mkdirSync(temp,{recursive:true,mode:0o700});
-writeFileSync(key,process.env.UAT_SSH_PRIVATE_KEY.trim()+'\n',{mode:0o600});
-writeFileSync(path.join(temp,'known_hosts'),process.env.UAT_KNOWN_HOSTS.trim()+'\n',{mode:0o600});
 try {
+  assert.ok(typeof process.env.UAT_SSH_PRIVATE_KEY==='string'&&process.env.UAT_SSH_PRIVATE_KEY.trim(),'CD SSH private key is unavailable');
+  assert.ok(typeof process.env.UAT_KNOWN_HOSTS==='string'&&process.env.UAT_KNOWN_HOSTS.trim(),'CD SSH host pin is unavailable');
+  writeFileSync(key,process.env.UAT_SSH_PRIVATE_KEY.trim()+'\n',{mode:0o600});
+  writeFileSync(path.join(temp,'known_hosts'),process.env.UAT_KNOWN_HOSTS.trim()+'\n',{mode:0o600});
   assert.ok(['deploy','upgrade','rollback','recover','status','backup'].includes(operation));
   assert.match(process.env.UAT_HOST,/^\d{1,3}(?:\.\d{1,3}){3}$/);
   assert.match(process.env.UAT_USER,/^[a-z][a-z0-9-]*$/);

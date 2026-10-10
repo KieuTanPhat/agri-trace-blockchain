@@ -7,19 +7,8 @@ import {loadConfig, connectGateway, FabricBlockchainAdapter} from './blockchain/
 
 const input = JSON.parse(readFileSync(0, 'utf8'));
 const tokens = {};
+const sessions = {};
 const refresh = [];
-function refreshCookie(response,previous='') {
-  const cookies=new Map(previous.split('; ').filter(Boolean).map(pair=>pair.split('=')));
-  for(const header of response.headers.getSetCookie()){
-    const [name,value]=header.split(';',1)[0].split('=');
-    if(/Max-Age=0(?:;|$)/i.test(header))cookies.delete(name);
-    else cookies.set(name,value);
-  }
-  const sessionId=cookies.get('agritrace_session');
-  assert.match(sessionId??'',/^[a-f0-9-]{36}$/,'Session cookie missing');
-  assert.match(cookies.get(`agritrace_refresh_${sessionId}`)??'',/^[A-Za-z0-9_-]+$/,'Refresh cookie missing');
-  return [...cookies].map(([name,value])=>`${name}=${value}`).join('; ');
-}
 let phase = 'health';
 const db = new pg.Client({connectionString: process.env.DATABASE_URL});
 let connection;
@@ -30,8 +19,10 @@ async function http(route, role, body, expected=body === undefined ? 200 : 201, 
     ...(body === undefined ? {} : {body:JSON.stringify(body)}),
   });
   assert.equal(response.status,expected);
-  if(options.onCookie)options.onCookie(refreshCookie(response,options.cookie));
-  return (await response.json()).data;
+  const data = (await response.json()).data;
+  if(options.onSession)options.onSession(readSessionCredential(response,data,options.previous,
+    Boolean(input.canary)||input.requireSessionFamily===true));
+  return data;
 }
 try {
   assert.equal((await fetch(`${input.origin}/login`,{signal:AbortSignal.timeout(15000)})).status,200);
@@ -68,19 +59,27 @@ try {
   for(const role of ['SYSTEM_ADMIN','FARM_STAFF','TRANSPORTER','RETAILER','AUDITOR']){
     const account=input.accounts.find(a=>a.role===role);
     assert.ok(account);
-    const auth=await http('/auth/login',undefined,{email:account.email,password:account.password},201,undefined,{onCookie:(cookie)=>refresh.push(cookie)});
+    const auth=await http('/auth/login',undefined,{email:account.email,password:account.password},201,undefined,
+      {onSession:(credential)=>{sessions[role]=credential;refresh.push(credential);}});
     tokens[role]=auth.accessToken;
     assert.equal((await http('/auth/me',role)).role.code,role);
   }
-  phase='refresh-logout';
-  let rotatedCookie;
-  const rotated=await http('/auth/refresh',undefined,{},201,undefined,{cookie:refresh[0],onCookie:(cookie)=>{rotatedCookie=cookie;refresh.push(cookie);}});
-  assert.ok(rotated.accessToken&&rotatedCookie);
-  tokens.SYSTEM_ADMIN=rotated.accessToken;
-  assert.equal((await http('/auth/me','SYSTEM_ADMIN')).role.code,'SYSTEM_ADMIN');
-  await http('/auth/logout',undefined,{},201,undefined,{cookie:rotatedCookie});
-  await http('/auth/refresh',undefined,{},401,undefined,{cookie:rotatedCookie});
   await http('/organizations','AUDITOR',{name:'CD forbidden write',type:'FARM'},403);
+  phase='refresh-logout';
+  // Reuse Auditor after its permission check; keep Admin alive for proofs and
+  // stay within the ten-login limit across baseline + candidate verification.
+  const lifecycleSession=sessions.AUDITOR;
+  let rotatedSession;
+  const request=sessionRequest(lifecycleSession);
+  const rotated=await http('/auth/refresh',undefined,request.body,201,undefined,{cookie:request.cookie,previous:lifecycleSession,
+    onSession:(credential)=>{rotatedSession=credential;refresh.push(credential);}});
+  assert.ok(rotated.accessToken&&rotatedSession);
+  tokens.LIFECYCLE=rotated.accessToken;
+  assert.equal((await http('/auth/me','LIFECYCLE')).role.code,'AUDITOR');
+  const logout=sessionRequest(rotatedSession);
+  await http('/auth/logout',undefined,logout.body,201,undefined,{cookie:logout.cookie});
+  await http('/auth/refresh',undefined,logout.body,401,undefined,{cookie:logout.cookie});
+  if(rotatedSession.kind==='family')await http('/auth/me','LIFECYCLE',undefined,401);
   await db.connect();
   const gatewayConfig=loadConfig(process.env);
   connection=await connectGateway(gatewayConfig);
@@ -152,5 +151,8 @@ try {
 }finally{
   connection?.close();
   await db.end().catch(()=>{});
-  for(const cookie of refresh)await http('/auth/logout',undefined,{},201,undefined,{cookie}).catch(()=>{});
+  for(const credential of refresh){
+    const request=sessionRequest(credential);
+    await http('/auth/logout',undefined,request.body,201,undefined,{cookie:request.cookie}).catch(()=>{});
+  }
 }

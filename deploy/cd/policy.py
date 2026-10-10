@@ -12,6 +12,7 @@ DIGEST = re.compile(r"^[a-f0-9]{64}$")
 OPERATIONS = {"deploy", "upgrade", "rollback", "recover", "status", "backup"}
 FIXED_FILES = {"docker-compose.uat.yml", "docker-compose.uat-https.yml", "docker-compose.uat-fabric.yml", "deploy/Caddyfile.uat"}
 MAX_AUTH_HEADER = 16 * 1024
+CONTROLLER_FILES = ("controller.py", "policy.py", "verify.mjs", "session-auth.mjs", "entry")
 
 
 class PolicyError(Exception):
@@ -139,7 +140,7 @@ def validate_manifest(manifest, sha, repository, origin):
     image(manifest.get("api"), repository, "api")
     image(manifest.get("web"), repository, "web")
     controller = manifest.get("controller", {})
-    require(set(controller) == {"controller.py", "policy.py", "verify.mjs", "entry"} and
+    require(set(controller) == set(CONTROLLER_FILES) and
             all(isinstance(value, str) and DIGEST.fullmatch(value) for value in controller.values()), "Controller version metadata is missing")
     expected = {k.split("/")[-2]: v for k, v in manifest["files"].items() if k.endswith("/migration.sql")}
     require(manifest.get("migrations") == expected and bool(expected), "Migration catalog mismatch")
@@ -249,7 +250,7 @@ def migrations(applied, candidate, directory, compatible_missing=()):
     new = sorted(set(candidate) - set(applied))
     for name in new:
         require(not applied or name > max(applied), "New migrations must append to history")
-        sql = (Path(directory) / "apps/api/prisma/migrations" / name / "migration.sql").read_text()
-        require(sha256(sql.encode()) == candidate[name], "Migration source checksum mismatch")
-        additive_sql(sql)
+        script = (Path(directory) / "apps/api/prisma/migrations" / name / "migration.sql").read_bytes()
+        require(sha256(script) == candidate[name], "Migration source checksum mismatch")
+        additive_sql(script.decode("utf-8"))
     return new
