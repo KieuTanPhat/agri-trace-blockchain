@@ -1,6 +1,7 @@
 import copy
 import importlib.util
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -37,6 +38,26 @@ class CutoverBoundaries(unittest.TestCase):
 
     def test_qr_sql_quotes_existing_values(self):
         self.assertEqual(cutover.sql_string("value'with-quote"), "'value''with-quote'")
+
+    def test_only_prisma_lock_line_endings_are_compatible(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            old, new = Path(temporary) / "old", Path(temporary) / "new"
+            relative = Path("apps/api/prisma/migrations/migration_lock.toml")
+            for root in (old, new):
+                (root / relative).parent.mkdir(parents=True)
+            (old / relative).write_bytes(b'provider = "postgresql"\r\n')
+            (new / relative).write_bytes(b'provider = "postgresql"\n')
+            cutover.verify_business_source(old, new)
+            (new / relative).write_bytes(b'provider = "sqlite"\n')
+            with self.assertRaises(ValueError):
+                cutover.verify_business_source(old, new)
+            (new / relative).write_bytes(b'provider = "postgresql"\n')
+            for root in (old, new):
+                (root / "apps/api/src").mkdir(parents=True)
+            (old / "apps/api/src/auth.ts").write_bytes(b"original\n")
+            (new / "apps/api/src/auth.ts").write_bytes(b"changed\n")
+            with self.assertRaises(ValueError):
+                cutover.verify_business_source(old, new)
 
 
 if __name__ == "__main__":
