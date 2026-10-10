@@ -224,6 +224,20 @@ class Controller:
     def stop(self, record):
         self.run("stop-writers", self.dc(record, "stop", "api", "worker"), timeout=200)
 
+    @contextlib.contextmanager
+    def stop_on_failure(self, record):
+        # Readiness can fail after API/Worker have started. An unverified
+        # recovery must not keep accepting writes while its journal is open.
+        try:
+            yield
+        except Exception:
+            failed_phase = self.phase
+            try:
+                self.stop(record)
+            finally:
+                self.phase = failed_phase
+            raise
+
     def migrate(self, record):
         # compose run uses an already pulled image by default; --no-build is
         # an option of compose up, not run. Explicitly prohibit registry pulls.
@@ -470,17 +484,18 @@ class Controller:
         except Exception as error:
             failed_phase = self.phase
             try:
-                self.stop(candidate)
-                self.resume_fabric()
-                compatible = self.recovery_migrations(old, candidate, state)
-                restored = self.restore_definition(state, old)
-                self.start(old)
-                evidence = self.verify(old)
-                self.preserve(before, evidence)
-                # Expanded schema stays; compatible migration names remain known for recovery.
-                restored_state = dict(state, chaincode=restored, compatible_migrations=compatible)
-                self.switch(old, restored_state)
-                (self.storage / "journal.json").unlink()
+                with self.stop_on_failure(old):
+                    self.stop(candidate)
+                    self.resume_fabric()
+                    compatible = self.recovery_migrations(old, candidate, state)
+                    restored = self.restore_definition(state, old)
+                    self.start(old)
+                    evidence = self.verify(old)
+                    self.preserve(before, evidence)
+                    # Expanded schema stays; compatible migration names remain known for recovery.
+                    restored_state = dict(state, chaincode=restored, compatible_migrations=compatible)
+                    self.switch(old, restored_state)
+                    (self.storage / "journal.json").unlink()
                 rollback = "verified"
             except Exception:
                 rollback = "recovery-required"
@@ -508,19 +523,20 @@ class Controller:
         state = self.state()
         previous = self.record(journal["previous"])
         candidate = self.record(journal["candidate"])
-        self.stop(candidate)
-        self.resume_fabric()
-        # A completed migration from an interrupted release still requires compatibility validation.
-        compatible = self.recovery_migrations(previous, candidate, state)
-        chaincode = self.restore_definition(state, previous)
-        self.start(previous)
-        evidence = self.verify(previous)
-        if journal.get("baseline"):
-            self.preserve(journal["baseline"], evidence)
-        self.switch(previous, dict(state, current=previous["id"],
-                    previous=state["current"] if state["current"] != previous["id"] else state.get("previous"), chaincode=chaincode,
-                    compatible_migrations=compatible))
-        (self.storage / "journal.json").unlink()
+        with self.stop_on_failure(previous):
+            self.stop(candidate)
+            self.resume_fabric()
+            # A completed migration from an interrupted release still requires compatibility validation.
+            compatible = self.recovery_migrations(previous, candidate, state)
+            chaincode = self.restore_definition(state, previous)
+            self.start(previous)
+            evidence = self.verify(previous)
+            if journal.get("baseline"):
+                self.preserve(journal["baseline"], evidence)
+            self.switch(previous, dict(state, current=previous["id"],
+                        previous=state["current"] if state["current"] != previous["id"] else state.get("previous"), chaincode=chaincode,
+                        compatible_migrations=compatible))
+            (self.storage / "journal.json").unlink()
         return {"result": "recovered", "release": previous["id"], "counts": evidence["counts"]}
 
     def execute(self, parts, stream):
@@ -552,15 +568,18 @@ class Controller:
                 policy.migrations(self.applied(old), record["manifest"]["migrations"], record["directory"], state.get("compatible_migrations", []))
                 self.journal(old, record, "rollback", before)
                 try:
-                    self.stop(old)
-                    self.snapshot(old, parts[1], before)
-                    _, evidence = self.rollback_to(target, state, before)
-                    (self.storage / "journal.json").unlink()
+                    with self.stop_on_failure(record):
+                        self.stop(old)
+                        self.snapshot(old, parts[1], before)
+                        _, evidence = self.rollback_to(target, state, before)
+                        (self.storage / "journal.json").unlink()
                     return {"result": "rolled-back", "release": target, "counts": evidence["counts"]}
                 except Exception:
                     # Journal preserves an explicit recover path; no implicit data restore.
                     raise PolicyError("Rollback did not complete; run recover to restore the previous verified application")
             return {"result": "unchanged", "release": target}
+        # This must precede transport/record writes and the same-SHA fast path.
+        require(not (self.storage / "journal.json").exists(), "Interrupted deployment needs recover before a new rollout")
         header = stream.readline(policy.MAX_AUTH_HEADER + 1)
         require(len(header) <= policy.MAX_AUTH_HEADER and header.endswith(b"\n"), "Invalid registry authentication framing")
         auth = json.loads(header)

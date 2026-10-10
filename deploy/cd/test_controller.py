@@ -139,6 +139,7 @@ class Rehearsal(Controller):
         self.fail_candidate = False
         self.fail_rollback = False
         self.fail_snapshot = False
+        self.writers_running = True
         self.data = {"result": "passed", "counts": {"trace_event": 40}, "fingerprints": {"event": "unchanged"}, "canary": None}
 
     def preflight(self, record):
@@ -162,9 +163,12 @@ class Rehearsal(Controller):
 
     def stop(self, record):
         self.calls.append("stop-" + record["id"])
+        self.phase = "stop-writers"
+        self.writers_running = False
 
     def start(self, record):
         self.calls.append("start-" + record["id"])
+        self.writers_running = True
 
     def snapshot(self, old, attempt, baseline):
         self.calls.append("snapshot")
@@ -251,9 +255,114 @@ class DeliveryFailureRecovery(unittest.TestCase):
         with self.assertRaisesRegex(PolicyError, "recovery-required"):
             self.controller.rollout(self.candidate, self.state)
         self.assertTrue((self.base / "cd/journal.json").exists())
+        self.assertFalse(self.controller.writers_running)
         self.controller.fail_candidate = self.controller.fail_rollback = False
         self.assertEqual(self.controller.recover()["result"], "recovered")
         self.assertFalse((self.base / "cd/journal.json").exists())
+
+    def test_failed_automatic_rollback_stops_partially_started_writers(self):
+        self.controller.fail_candidate = True
+        original_start = self.controller.start
+
+        def start(record):
+            original_start(record)
+            if record["id"] == self.old["id"]:
+                self.controller.phase = "worker-readiness"
+                raise PolicyError("Worker failed after API started")
+
+        self.controller.start = start
+        with self.assertRaisesRegex(PolicyError, "recovery-required"):
+            self.controller.rollout(self.candidate, self.state)
+        self.assertFalse(self.controller.writers_running)
+        self.assertTrue((self.base / "cd/journal.json").exists())
+        self.assertEqual(self.controller.state()["current"], self.old["id"])
+
+    def test_recover_rejected_history_stops_writers_again(self):
+        self.controller.journal(self.old, self.candidate, "application", self.controller.data)
+        self.controller.data["fingerprints"] = {}
+        with self.assertRaisesRegex(PolicyError, "history changed"):
+            self.controller.recover()
+        self.assertFalse(self.controller.writers_running)
+        self.assertTrue((self.base / "cd/journal.json").exists())
+
+    def test_recover_stops_writers_after_readiness_verification_or_promotion_failure(self):
+        for method in ("start", "verify", "switch"):
+            with self.subTest(method=method):
+                self.controller.journal(self.old, self.candidate, "application", self.controller.data)
+                original = getattr(self.controller, method)
+
+                def fail(*args):
+                    if method == "start":
+                        original(*args)
+                    self.controller.phase = "simulated-" + method
+                    raise PolicyError("simulated recovery failure")
+
+                with patch.object(self.controller, method, side_effect=fail):
+                    with self.assertRaisesRegex(PolicyError, "simulated recovery failure"):
+                        self.controller.recover()
+                self.assertFalse(self.controller.writers_running)
+                self.assertEqual(self.controller.phase, "simulated-" + method)
+                self.assertTrue((self.base / "cd/journal.json").exists())
+                self.assertEqual(self.controller.state()["current"], self.old["id"])
+
+    def test_failed_manual_rollback_stops_the_unverified_target(self):
+        self.candidate["verified"] = True
+        self.controller.save_record(self.candidate)
+        self.controller.fail_candidate = True
+        with self.assertRaisesRegex(PolicyError, "run recover"):
+            self.controller.execute(["rollback", self.candidate["sha"]], MagicMock())
+        self.assertFalse(self.controller.writers_running)
+        self.assertTrue((self.base / "cd/journal.json").exists())
+        self.assertEqual(self.controller.state()["current"], self.old["id"])
+
+    def test_failed_manual_rollback_stops_partially_started_writers(self):
+        self.candidate["verified"] = True
+        self.controller.save_record(self.candidate)
+        original_start = self.controller.start
+
+        def start(record):
+            original_start(record)
+            self.controller.phase = "worker-readiness"
+            raise PolicyError("Worker failed after API started")
+
+        self.controller.start = start
+        with self.assertRaisesRegex(PolicyError, "run recover"):
+            self.controller.execute(["rollback", self.candidate["sha"]], MagicMock())
+        self.assertFalse(self.controller.writers_running)
+        self.assertEqual(self.controller.phase, "worker-readiness")
+        self.assertTrue((self.base / "cd/journal.json").exists())
+
+    def test_failed_stop_after_recovery_failure_keeps_the_journal_and_reports_failure(self):
+        self.controller.journal(self.old, self.candidate, "application", self.controller.data)
+        self.controller.verify = MagicMock(side_effect=PolicyError("recovery verification failed"))
+        original_stop = self.controller.stop
+
+        def stop(record):
+            if record["id"] == self.old["id"]:
+                raise PolicyError("Docker could not confirm writers stopped")
+            original_stop(record)
+
+        self.controller.stop = stop
+        with self.assertRaisesRegex(PolicyError, "could not confirm writers stopped"):
+            self.controller.recover()
+        self.assertTrue((self.base / "cd/journal.json").exists())
+        self.assertEqual(self.controller.state()["current"], self.old["id"])
+
+    def test_pending_journal_blocks_deploy_and_upgrade_even_for_the_current_sha(self):
+        self.controller.journal(self.old, self.candidate, "application", self.controller.data)
+        for operation in ("deploy", "upgrade"):
+            for current in (self.old, self.candidate):
+                atomic_json(self.base / "cd/state.json", dict(self.state, current=current["id"]))
+                with self.subTest(operation=operation, current=current["id"]):
+                    stream = MagicMock()
+                    parts = [operation, current["sha"], "d" * 64]
+                    if operation == "upgrade":
+                        parts.append("1")
+                    with self.assertRaisesRegex(PolicyError, "recover"):
+                        self.controller.execute(parts, stream)
+                    stream.readline.assert_not_called()
+                    self.assertEqual(self.controller.calls, [])
+                    self.assertTrue((self.base / "cd/journal.json").exists())
 
     def test_recover_resumes_fabric_left_stopped_by_interrupted_snapshot(self):
         self.controller.journal(self.old, self.candidate, "snapshot", self.controller.data)
