@@ -1,5 +1,10 @@
 # Vận hành CD UAT Contabo
 
+Origin vận hành hiện hành: `https://agritrace.dev`. Theo
+[runbook chuyển miền và Datadog](agritrace-cutover-runbook.md) khi quản trị
+hostname/QR/giám sát. Các báo cáo HTTPS và ví dụ miền cũ bên dưới là lịch sử;
+không dùng lại origin cũ trong cấu hình deploy hiện hành.
+
 Thiết kế và review: [contabo-cd-plan.md](contabo-cd-plan.md). Workflow:
 [UAT CD](../.github/workflows/uat-cd.yml). Release code và evidence thực tế được
 ghi trong [báo cáo HTTPS UAT hiện hành](nongtrace-uat-deployment-status.md).

@@ -1,5 +1,8 @@
 # agritrace.dev song song với nongtrace.site — 10/10/2026
 
+> Evidence lịch sử của bước thêm alias. Yêu cầu vận hành sau đó chuyển hoàn toàn
+> sang agritrace.dev, theo [runbook hiện hành](agritrace-cutover-runbook.md).
+
 Đã thêm `https://agritrace.dev` và `https://www.agritrace.dev` vào cùng UAT.
 Hai hostname mới giữ nguyên trên thanh địa chỉ, không chuyển hướng sang miền cũ.
 `https://nongtrace.site` và `https://www.nongtrace.site` tiếp tục hoạt động.

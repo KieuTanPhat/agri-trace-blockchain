@@ -31,7 +31,7 @@ it("extracts the token from an old HTTP QR URL and navigates locally", () => {
 it("shows an input error instead of opening a misleading URL route", () => {
   render(<ScanPage />);
   fireEvent.change(screen.getByLabelText("Trace token hoặc đường dẫn"), {
-    target: { value: "https://nongtrace.site/admin/trace/token" },
+    target: { value: "https://agritrace.dev/admin/trace/token" },
   });
   fireEvent.submit(screen.getByRole("form", { name: "Tra cứu nông sản" }));
   expect(screen.getByRole("alert")).toHaveTextContent("hợp lệ");

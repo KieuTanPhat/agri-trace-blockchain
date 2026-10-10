@@ -4,11 +4,11 @@ import { getTracePath } from "./trace-input";
 describe("public QR input", () => {
   it.each([
     ["  abc_-123  ", "/trace/abc_-123"],
-    ["https://nongtrace.site/trace/abc_-123", "/trace/abc_-123"],
-    ["https://www.nongtrace.site/trace/abc/?campaign=test#proof", "/trace/abc"],
+    ["https://agritrace.dev/trace/abc_-123", "/trace/abc_-123"],
+    ["https://www.agritrace.dev/trace/abc/?campaign=test#proof", "/trace/abc"],
     ["http://13.140.170.166/trace/abc", "/trace/abc"],
     ["https://elsewhere.example/trace/abc", "/trace/abc"],
-    ["https://nongtrace.site/trace/%61bc", "/trace/abc"],
+    ["https://agritrace.dev/trace/%61bc", "/trace/abc"],
   ])("normalizes %s to the local trace route", (input, expected) => {
     expect(getTracePath(input)).toBe(expected);
   });

@@ -19,20 +19,20 @@ class DomainDelivery(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.base = Path(temporary.name)
         env = self.base / ".env"
-        env.write_text("PUBLIC_ORIGIN=https://nongtrace.site\n"
-                       "CORS_ORIGINS=http://13.140.170.166,https://nongtrace.site,https://www.nongtrace.site\n")
+        env.write_text("PUBLIC_ORIGIN=https://agritrace.dev\n"
+                       "CORS_ORIGINS=http://13.140.170.166,https://agritrace.dev,https://www.agritrace.dev\n")
         accounts = self.base / "accounts.json"
         accounts.write_text("[]")
         self.controller = Controller({"base": str(self.base), "env": str(env), "accounts": str(accounts),
-                                      "origin": "https://nongtrace.site", "legacy_origin": "http://13.140.170.166"})
+                                      "origin": "https://agritrace.dev", "legacy_origin": "http://13.140.170.166"})
         self.legacy = {"id": "uat-" + "a" * 40, "directory": str(self.base / "old"), "manifest": {}}
         self.domain = {"id": "uat-" + "b" * 40, "directory": str(self.base / "new"),
-                       "manifest": {"origin": "https://nongtrace.site"}}
+                       "manifest": {"origin": "https://agritrace.dev"}}
 
     def test_legacy_http_origin_and_cors_survive_domain_cutover(self):
         for record, origin, expected_cors, https in (
                 (self.legacy, "http://13.140.170.166", "http://13.140.170.166", False),
-                (self.domain, "https://nongtrace.site", self.controller.environment["CORS_ORIGINS"], True)):
+                (self.domain, "https://agritrace.dev", self.controller.environment["CORS_ORIGINS"], True)):
             command = self.controller.dc(record, "config")
             values = module.policy.read_env(self.base / "cd/records" / record["id"] / "origin.env")
             self.assertEqual(values, {"PUBLIC_ORIGIN": origin, "CORS_ORIGINS": expected_cors})
@@ -46,7 +46,7 @@ class DomainDelivery(unittest.TestCase):
         self.controller.run = MagicMock(return_value=b'{"result":"passed"}')
         self.controller.verify(self.domain)
         payload = json.loads(self.controller.run.call_args.args[2])
-        self.assertEqual(payload["origin"], "https://nongtrace.site")
+        self.assertEqual(payload["origin"], "https://agritrace.dev")
         self.assertEqual(payload["corsOrigins"], self.controller.environment["CORS_ORIGINS"].split(","))
 
     @staticmethod
@@ -64,7 +64,7 @@ class DomainDelivery(unittest.TestCase):
                 self.controller.start(self.domain)
         self.assertEqual(self.controller.phase, "public-https-readiness")
         self.assertEqual([call.args[0] for call in request.call_args_list],
-                         ["https://nongtrace.site/login", "https://www.nongtrace.site/login"])
+                         ["https://agritrace.dev/login", "https://www.agritrace.dev/login"])
 
     def test_both_https_routes_must_succeed_before_returning_ready(self):
         self.controller.run = MagicMock(return_value=b"")

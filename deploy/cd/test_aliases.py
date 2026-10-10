@@ -13,31 +13,31 @@ spec.loader.exec_module(aliases)
 
 class HttpsAliases(unittest.TestCase):
     def setUp(self):
-        self.environment = {"PUBLIC_ORIGIN": "https://nongtrace.site",
-                            "CADDY_SITE_ADDRESS": "nongtrace.site, www.nongtrace.site, http://13.140.170.166",
-                            "CORS_ORIGINS": "http://13.140.170.166,https://nongtrace.site,https://www.nongtrace.site",
+        self.environment = {"PUBLIC_ORIGIN": "https://agritrace.dev",
+                            "CADDY_SITE_ADDRESS": "agritrace.dev, www.agritrace.dev, http://13.140.170.166",
+                            "CORS_ORIGINS": "http://13.140.170.166,https://agritrace.dev,https://www.agritrace.dev",
                             "JWT_SECRET": "untouched-test-value"}
 
     def test_aliases_preserve_primary_origin_existing_hosts_and_unrelated_settings(self):
-        additions = ["https://agritrace.dev", "https://www.agritrace.dev"]
+        additions = ["https://trace.example.com", "https://www.trace.example.com"]
         result = aliases.alias_environment(self.environment, additions)
         self.assertEqual(result["PUBLIC_ORIGIN"], self.environment["PUBLIC_ORIGIN"])
         self.assertEqual(result["JWT_SECRET"], self.environment["JWT_SECRET"])
-        self.assertEqual(result["CADDY_SITE_ADDRESS"], self.environment["CADDY_SITE_ADDRESS"] + ", agritrace.dev, www.agritrace.dev")
+        self.assertEqual(result["CADDY_SITE_ADDRESS"], self.environment["CADDY_SITE_ADDRESS"] + ", trace.example.com, www.trace.example.com")
         self.assertEqual(result["CORS_ORIGINS"], self.environment["CORS_ORIGINS"] + "," + ",".join(additions))
         self.assertEqual(aliases.alias_environment(result, additions), result)
         self.assertNotIn("PUBLIC_ALIAS_ORIGINS", self.environment)
 
     def test_malformed_aliases_cannot_inject_hosts_cors_or_environment_lines(self):
-        for value in ("http://agritrace.dev", "https://127.0.0.1", "https://agritrace.dev/", "https://agritrace.dev:443",
-                      "https://user@agritrace.dev", "https://agritrace.dev?query=1", "https://*.agritrace.dev",
-                      "https://agritrace.dev\nJWT_SECRET=changed", "https://agritrace.dev,evil.example"):
+        for value in ("http://trace.example.com", "https://127.0.0.1", "https://trace.example.com/", "https://trace.example.com:443",
+                      "https://user@trace.example.com", "https://trace.example.com?query=1", "https://*.trace.example.com",
+                      "https://trace.example.com\nJWT_SECRET=changed", "https://trace.example.com,evil.example"):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 aliases.alias_environment(self.environment, [value])
 
     def test_environment_edit_preserves_unrelated_secret_bytes_and_rejects_duplicate_public_keys(self):
         raw = b"# private\r\nJWT_SECRET=a=b=c\r\nCORS_ORIGINS=old\r\nFINAL=unchanged\r\n"
-        result = aliases.replace_environment(raw, {"CORS_ORIGINS": "new", "PUBLIC_ALIAS_ORIGINS": "https://agritrace.dev"})
+        result = aliases.replace_environment(raw, {"CORS_ORIGINS": "new", "PUBLIC_ALIAS_ORIGINS": "https://trace.example.com"})
         self.assertIn(b"JWT_SECRET=a=b=c\r\n", result)
         self.assertIn(b"FINAL=unchanged\r\n", result)
         self.assertIn(b"CORS_ORIGINS=new\r\n", result)
@@ -72,8 +72,8 @@ class HttpsAliases(unittest.TestCase):
     def test_failed_rollout_restores_both_files_and_restarts_only_targets(self):
         controller = MagicMock()
         writes = []
-        original = b"PUBLIC_ORIGIN=https://nongtrace.site\nCORS_ORIGINS=old\n"
-        target = b"PUBLIC_ORIGIN=https://nongtrace.site\nCORS_ORIGINS=new\n"
+        original = b"PUBLIC_ORIGIN=https://agritrace.dev\nCORS_ORIGINS=old\n"
+        target = b"PUBLIC_ORIGIN=https://agritrace.dev\nCORS_ORIGINS=new\n"
         with patch.object(aliases, "atomic_write", side_effect=lambda path, data: writes.append((path, data))), \
                 patch.object(aliases, "start_targets") as start, patch.object(aliases, "verify_public") as public:
             with self.assertRaisesRegex(RuntimeError, "simulated"):
