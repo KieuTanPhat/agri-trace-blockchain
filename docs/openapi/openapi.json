@@ -1240,6 +1240,9 @@
             "type": "string"
           },
           "password": {
+            "description": "At least 12 characters and at most 72 UTF-8 bytes. Passwords are never trimmed or truncated.",
+            "format": "password",
+            "maxLength": 72,
             "minLength": 12,
             "type": "string"
           },
@@ -3119,6 +3122,7 @@
             "type": "string"
           },
           "password": {
+            "description": "At most 72 UTF-8 bytes. Passwords are never trimmed or truncated.",
             "format": "password",
             "maxLength": 72,
             "type": "string"

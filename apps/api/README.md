@@ -99,6 +99,9 @@ Các endpoint hiện có:
   khôi phục phiên mới qua cookie. Refresh 409 được retry có backoff; phục hồi
   lúc mở trang giữ trạng thái loading khi phiên đang được xoay vòng.
 - `GET /api/auth/me` với header `Authorization: Bearer <token>`
+- Login nhận mật khẩu tối đa 72 byte UTF-8; tạo user cần ít nhất 12 ký tự và
+  tối đa 72 byte UTF-8. Vượt giới hạn trả 400 trước khi tra user/bcrypt/tạo phiên.
+  Không trim/cắt mật khẩu và không thay hash của tài khoản đã tồn tại.
 - `POST /api/auth/register` đang chủ động trả `501`; tài khoản phải do quản trị viên cấp
 
 ## Kiểm tra

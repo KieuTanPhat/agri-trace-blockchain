@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MaxLength } from 'class-validator';
+import { IsByteLength, IsEmail, IsString, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class LoginDto {
@@ -8,7 +8,13 @@ export class LoginDto {
   email!: string;
 
   @IsString()
-  @ApiProperty({ format: 'password', maxLength: 72 })
+  @ApiProperty({
+    format: 'password',
+    maxLength: 72,
+    description:
+      'At most 72 UTF-8 bytes. Passwords are never trimmed or truncated.',
+  })
   @MaxLength(72)
+  @IsByteLength(0, 72)
   password!: string;
 }
