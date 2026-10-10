@@ -5,11 +5,23 @@ import { parse } from 'dotenv';
 export const POSTGRES_IMAGE = 'postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873';
 export const CADDY_IMAGE = 'caddy:2-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f';
 
-export function caddySiteAddress(publicOrigin) {
+export function caddySiteAddress(publicOrigin, publicAliases = '') {
   const origin = new URL(publicOrigin);
+  const aliases = publicAliases ? publicAliases.split(',') : [];
+  if (aliases.length > 8 || (aliases.length && origin.protocol !== 'https:')) {
+    throw new Error('HTTPS aliases require a primary HTTPS origin and at most eight aliases');
+  }
+  for (const value of aliases) {
+    const alias = new URL(value);
+    if (alias.protocol !== 'https:' || value !== alias.origin || isIP(alias.hostname) ||
+        alias.port || alias.username || alias.password || !validDnsHostname(alias.hostname)) {
+      throw new Error('PUBLIC_ALIAS_ORIGINS must contain HTTPS domain origins without paths or ports');
+    }
+  }
   if (origin.protocol === 'https:') {
     const apex = origin.hostname.replace(/^www\./, '');
-    return `${apex}, www.${apex}, http://13.140.170.166`;
+    return [...new Set([apex, `www.${apex}`, 'http://13.140.170.166',
+      ...aliases.map(value => new URL(value).hostname)])].join(', ');
   }
   return `http://${origin.hostname}`;
 }
@@ -29,11 +41,14 @@ export function validateConfig(config) {
       origin.pathname !== '/' || origin.search || origin.hash || config.PUBLIC_ORIGIN.endsWith('/')) {
     throw new Error('PUBLIC_ORIGIN must be an HTTP IPv4 or HTTPS domain origin without a trailing slash');
   }
-  if (config.CADDY_SITE_ADDRESS !== caddySiteAddress(config.PUBLIC_ORIGIN)) {
+  if (config.CADDY_SITE_ADDRESS !== caddySiteAddress(config.PUBLIC_ORIGIN, config.PUBLIC_ALIAS_ORIGINS)) {
     throw new Error('CADDY_SITE_ADDRESS does not match PUBLIC_ORIGIN');
   }
   if (!config.CORS_ORIGINS?.split(',').includes(config.PUBLIC_ORIGIN)) {
     throw new Error('CORS_ORIGINS must include PUBLIC_ORIGIN');
+  }
+  if (config.PUBLIC_ALIAS_ORIGINS?.split(',').some(alias => !config.CORS_ORIGINS.split(',').includes(alias))) {
+    throw new Error('CORS_ORIGINS must include every HTTPS alias');
   }
   if (!/^uat-[a-zA-Z0-9_.-]+$/.test(config.RELEASE_TAG ?? '') || config.RELEASE_TAG.includes('review-required')) {
     throw new Error('Choose an explicit reviewed UAT release tag');

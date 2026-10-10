@@ -60,12 +60,15 @@ Fabric hoặc Worker tạm dừng; các sự kiện chờ được giữ trong
 `blockchain_outbox`. Worker health chỉ mở trong Docker network tại
 `http://worker:8081/health/ready`.
 
-## UAT nongtrace.site
+## UAT agritrace.dev
 
-UAT hiện dùng [https://nongtrace.site](https://nongtrace.site).
+UAT hiện dùng [https://agritrace.dev](https://agritrace.dev).
+Chuyển origin và giám sát Datadog theo [runbook hiện hành](docs/agritrace-cutover-runbook.md).
 Source/image digests, CI/CD, rollback và backup evidence nằm trong
-[báo cáo HTTPS UAT](docs/nongtrace-uat-deployment-status.md);
+[báo cáo chuyển miền và Datadog](docs/agritrace-cutover-status.md);
 vận hành theo [CD runbook](docs/contabo-cd-runbook.md).
+Evidence của lần HTTPS trước nằm trong
+[báo cáo lịch sử](docs/nongtrace-uat-deployment-status.md).
 
 Rà soát code/quyền sau triển khai: [kế hoạch và kết quả audit](docs/nongtrace-uat-code-audit.md).
 Admin quản trị identity/masterdata; Auditor chỉ đọc. Bản code trên nhánh core

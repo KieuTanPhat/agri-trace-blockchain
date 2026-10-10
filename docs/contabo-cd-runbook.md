@@ -1,8 +1,14 @@
 # Vận hành CD UAT Contabo
 
+Origin vận hành hiện hành: `https://agritrace.dev`. Theo
+[runbook chuyển miền và Datadog](agritrace-cutover-runbook.md) khi quản trị
+hostname/QR/giám sát. Báo cáo HTTPS của miền cũ được giữ làm lịch sử;
+không dùng lại origin cũ trong cấu hình deploy hiện hành.
+
 Thiết kế và review: [contabo-cd-plan.md](contabo-cd-plan.md). Workflow:
 [UAT CD](../.github/workflows/uat-cd.yml). Release code và evidence thực tế được
-ghi trong [báo cáo HTTPS UAT hiện hành](nongtrace-uat-deployment-status.md).
+ghi trong [báo cáo chuyển miền hiện hành](agritrace-cutover-status.md).
+Báo cáo [HTTPS của miền cũ](nongtrace-uat-deployment-status.md) là lịch sử.
 Báo cáo [contabo-cd-status.md](contabo-cd-status.md) giữ evidence CD HTTP trước cutover.
 
 ## Luồng bình thường
@@ -159,8 +165,8 @@ recovery journal, lệnh cài/update-origin bị từ chối trước khi đổi
 Domain cutover cần DNS đúng, origin Web/API mới, TLS proxy và helper CD cùng
 một candidate đã qua review.
 
-1. Nameserver TenTen đã được ủy quyền. Tại DNS, tạo `A @ -> 13.140.170.166`
-   và `CNAME www -> nongtrace.site`; chờ resolver công khai trả về đúng IP.
+1. Tại DNS của `agritrace.dev`, tạo `A @ -> 13.140.170.166`
+   và `CNAME www -> agritrace.dev`; chờ resolver công khai trả về đúng IP.
    Chỉ tạo AAAA sau khi IPv6 VPS đã được cấu hình và kiểm tra từ ngoài.
 2. Mở TCP 443 ở firewall VPS/provider, giữ TCP 80 để Caddy xác thực chứng chỉ
    và chuyển hướng HTTP. Bảo đảm không có chương trình khác chiếm hai cổng này.
@@ -171,7 +177,7 @@ một candidate đã qua review.
    cập nhật origin/env trên VPS bằng:
 
    ```bash
-   sudo python3 deploy/cd/install.py --base /opt/agri-trace --repository KieuTanPhat/agri-trace-blockchain --update-origin https://nongtrace.site
+   sudo python3 deploy/cd/install.py --base /opt/agri-trace --repository KieuTanPhat/agri-trace-blockchain --update-origin https://agritrace.dev
    ```
 
    Lệnh lưu bản sao mode 600 của env và controller config trước khi ghi.
@@ -190,12 +196,32 @@ Rollback về release HTTP IPv4 cũ giữ dịch vụ truy cập qua IP cũ. Rel
 được build cho HTTPS domain; nếu cần rollback, kiểm tra lại qua IP và chỉ mở lại
 domain HTTPS sau khi triển khai một release đã build theo origin domain.
 
+## Thêm tên miền HTTPS song song
+
+Giữ `PUBLIC_ORIGIN`/`UAT_PUBLIC_ORIGIN=https://agritrace.dev` và QR chuẩn khi
+thêm một alias HTTPS đã được phê duyệt. Dùng `deploy/cd/aliases.py`
+để preview, áp dụng và rollback dưới cùng khóa `delivery.lock` của CD.
+[Runbook alias](agritrace-domain-alias-runbook.md) và
+[báo cáo alias ngày 10/10](agritrace-domain-alias-status.md) ghi bước coexistence
+trước cutover; không áp dụng lại danh sách hostname cũ.
+Lệnh quản trị chỉ recreate API/proxy bằng image hiện có; không migrate,
+bootstrap, thay image, dừng Worker/Fabric hoặc promote release khác.
+`PUBLIC_ALIAS_ORIGINS`, Caddy hosts và CORS được lưu trong shared env; controller
+hiện có giữ cấu hình đó trong các lần deploy HTTPS tiếp theo.
+
+Web UAT bật build arg `NEXT_PUBLIC_API_SAME_ORIGIN=true` để gọi `/api` trên origin
+đang mở; development và Docker local giữ URL API cấu hình riêng. Điều này cần thiết cho
+refresh cookie `SameSite=Lax` và kiểm tra `Sec-Fetch-Site` của bản auth mới;
+chỉ thêm CORS không đủ để đăng nhập xuyên hai site khác nhau. SSR tiếp tục
+gọi `API_INTERNAL_BASE_URL`, QR tiếp tục dùng origin chuẩn. Patch Web này cần
+được tích hợp trước khi phát hành auth dùng cookie trên các alias.
+
 ## Giới hạn hiện tại
 
 - Single VPS có downtime ngắn khi backup/rollout, không hứa zero downtime.
-- UAT đã cutover sang `https://nongtrace.site`; giữ HTTP IPv4 cho QR legacy và
-  rollback về release HTTP. Source/digests và kiểm chứng cuối nằm trong báo cáo
-  HTTPS; camera/cài PWA trên điện thoại cần thiết bị thật.
+- UAT đã cutover sang `https://agritrace.dev`; giữ HTTP IPv4 cho QR legacy.
+  Source/digests và kiểm chứng cuối nằm trong báo cáo chuyển miền hiện hành;
+  camera/cài PWA trên điện thoại cần thiết bị thật.
 - Verification toàn bộ lịch sử phù hợp UAT và giới hạn 10.000 events; khi dữ
   liệu lớn hơn cần mở rộng verifier/budget sau review.
 - Giữ release/images/snapshots phục hồi; CD chặn khi disk còn dưới 12 GiB.

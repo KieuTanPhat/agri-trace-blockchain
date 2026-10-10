@@ -1,0 +1,49 @@
+services:
+  agent:
+    image: ${DATADOG_IMAGE:?Set the reviewed immutable Datadog image}
+    container_name: agritrace-datadog-agent
+    restart: unless-stopped
+    pid: host
+    cgroup: host
+    environment:
+      DD_API_KEY: ${DD_API_KEY:?Set the private Datadog API key}
+      DD_SITE: us5.datadoghq.com
+      DD_HOSTNAME: agritrace-uat
+      DD_ENV: uat
+      DD_SERVICE: agritrace
+      DD_TAGS: "project:agritrace domain:agritrace.dev"
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+      DD_CONTAINER_EXCLUDE_LOGS: "name:.*"
+      DD_CONTAINER_INCLUDE_LOGS: "name:^agri-trace-uat-(api|worker|web|proxy)-1$"
+      DD_CONTAINER_EXCLUDE_METRICS: "name:.*"
+      DD_CONTAINER_INCLUDE_METRICS: "name:^agri-trace-uat-(api|worker|web|proxy)-1$"
+      DD_APM_ENABLED: "false"
+      DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED: "false"
+      DD_ORCHESTRATOR_EXPLORER_ENABLED: "false"
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "false"
+      DD_REMOTE_CONFIGURATION_ENABLED: "false"
+      DD_SBOM_ENABLED: "false"
+      DD_CLOUD_PROVIDER_METADATA: "[]"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /proc:/host/proc:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+      - ./config/datadog.yaml:/etc/datadog-agent/datadog.yaml:ro
+      - agent-run:/opt/datadog-agent/run
+    mem_limit: 768m
+    cpus: 1.0
+    healthcheck:
+      test: [CMD, agent, health]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  agent-run:
