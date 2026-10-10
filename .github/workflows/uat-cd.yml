@@ -137,7 +137,7 @@ jobs:
           if docker manifest inspect "$registry/web:$GITHUB_SHA" >/dev/null 2>&1; then
             docker pull "$registry/web:$GITHUB_SHA"
           else
-            docker build "${labels[@]}" -t "$registry/web:$GITHUB_SHA" -f apps/web/Dockerfile --build-arg "NEXT_PUBLIC_API_BASE_URL=$PUBLIC_ORIGIN/api" --build-arg "NEXT_PUBLIC_TRACE_BASE_URL=$PUBLIC_ORIGIN/trace" --build-arg NEXT_PUBLIC_MOCK_API=false .
+            docker build "${labels[@]}" -t "$registry/web:$GITHUB_SHA" -f apps/web/Dockerfile --build-arg "NEXT_PUBLIC_API_BASE_URL=$PUBLIC_ORIGIN/api" --build-arg NEXT_PUBLIC_API_SAME_ORIGIN=true --build-arg "NEXT_PUBLIC_TRACE_BASE_URL=$PUBLIC_ORIGIN/trace" --build-arg NEXT_PUBLIC_MOCK_API=false .
             docker push "$registry/web:$GITHUB_SHA"
           fi
           api="$(docker inspect --format '{{index .RepoDigests 0}}' "$registry/api:$GITHUB_SHA")"

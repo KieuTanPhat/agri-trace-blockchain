@@ -5,6 +5,7 @@ describe("API client", () => {
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_MOCK_API", "false");
     vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://api.test/api");
+    vi.stubEnv("NEXT_PUBLIC_API_SAME_ORIGIN", "false");
     vi.resetModules();
     localStorage.clear();
   });
@@ -12,6 +13,30 @@ describe("API client", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it("uses the browser origin when the UAT proxy flag is enabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_SAME_ORIGIN", "true");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: { lotId: "lot-1" } })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { getPublicTrace } = await import("./api-client");
+    await getPublicTrace("trace-token");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/public/trace/trace-token");
+  });
+
+  it("keeps SSR on the internal API when the UAT proxy flag is enabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_SAME_ORIGIN", "true");
+    vi.stubEnv("API_INTERNAL_BASE_URL", "http://api:8080/api");
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: { lotId: "lot-1" } })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { getPublicTrace } = await import("./api-client");
+    await getPublicTrace("trace-token");
+    expect(fetchMock.mock.calls[0][0]).toBe("http://api:8080/api/public/trace/trace-token");
   });
 
   it("uses the real public trace endpoint and unwraps the API envelope", async () => {
