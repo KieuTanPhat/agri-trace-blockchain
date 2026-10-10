@@ -1,5 +1,10 @@
 # Audit và sửa luồng deploy — 10/10/2026
 
+Cập nhật sau audit: UAT đã cutover core `53bec18` lúc 20:42 ICT ngày 10/10,
+cài đủ helper được review, 14 migration và Fabric sequence 3.
+[Báo cáo triển khai](uat-core-deployment-2026-10-10.md) ghi evidence và giới hạn
+nghiệm thu. Các blocker vận hành bên dưới là trạng thái lịch sử trước cutover.
+
 Baseline source: `4826dc60d6c386f5bea303c8c1ab17a2575b051f`.
 Liên quan [AGT-031](https://github.com/KieuTanPhat/agri-trace-blockchain/issues/43)
 và [AGT-005](https://github.com/KieuTanPhat/agri-trace-blockchain/issues/17).

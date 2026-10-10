@@ -1,5 +1,9 @@
 # Kế hoạch cutover core UAT — 10/10/2026
 
+Đã thực hiện trên UAT lúc 20:42 ICT ngày 10/10/2026, source `53bec18`.
+[Báo cáo kết quả](../uat-core-deployment-2026-10-10.md) ghi từng gate thực tế;
+baseline dưới đây là trạng thái trước triển khai.
+
 Người dùng yêu cầu lập kế hoạch và thực hiện triển khai UAT trong phiên này.
 Đây là review của coding assistant, không phải nghiệm thu độc lập hoặc signoff
 của các owner AGT. Không triển khai production theo kế hoạch này.

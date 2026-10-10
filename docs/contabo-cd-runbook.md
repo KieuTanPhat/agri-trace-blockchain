@@ -243,6 +243,18 @@ gọi `API_INTERNAL_BASE_URL`, QR tiếp tục dùng origin chuẩn. Patch Web n
 
 ## Giới hạn hiện tại
 
+Core UAT đã cutover sang `53bec18`, 14 migration và Fabric sequence 3;
+xem [báo cáo triển khai](uat-core-deployment-2026-10-10.md) và
+[kế hoạch quản trị](plans/uat-core-cutover-2026-10-10.md). Policy auto migration
+giữ nguyên. Rollback trước core bị chặn vì schema/envelope không tương thích;
+pause writes và fix forward nếu không có image core tương thích đã được xác minh.
+Không đưa migration core vào `compatible_migrations` để né guard.
+
+Metadata root-owned của release giữ `legacyQrLotIds` cho đúng sáu Lot trước
+cutover. Release thường chỉ kế thừa danh sách từ current đã xác minh. Verifier
+đếm riêng `legacyQR` và `verifiedQR`, kiểm sensor legacy rỗng, quantity/state,
+event proof và ledger; không sửa catalog để bỏ qua QR mới lỗi hoặc bịa window.
+
 - Single VPS có downtime ngắn khi backup/rollout, không hứa zero downtime.
 - UAT đã cutover sang `https://agritrace.dev`; giữ HTTP IPv4 cho QR legacy.
   Source/digests và kiểm chứng cuối nằm trong báo cáo chuyển miền hiện hành;
