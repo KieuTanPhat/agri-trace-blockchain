@@ -73,6 +73,12 @@ public origin. Không dùng loopback của host làm URL API bên trong containe
   Không giảm sequence. CLI commit timeout phải query committed trên 2 peer.
 - Nếu rollback cũng thất bại hoặc process bị ngắt: đọc status, chọn recover.
   Journal giữ baseline hashes/counts để verify dữ liệu cũ sau phục hồi.
+  Khi rollback tự động, rollback thủ công hoặc recover đã khởi động API/Worker
+  nhưng readiness, verification, đối soát lịch sử hoặc ghi state thất bại,
+  controller dừng lại cả hai writer và giữ journal. Nếu Docker không xác nhận
+  được lệnh stop, operation vẫn fail; quản trị viên phải kiểm tra tiến trình
+  trực tiếp trên VPS trước khi thử recover. Deploy/upgrade bị chặn khi còn
+  journal, kể cả rerun đúng SHA đang nằm trong state current.
   Nếu state đã promote nhưng journal chưa xóa, recovery lấy package chaincode
   của release trước trong journal và tăng sequence khi cần; không lấy nhầm
   package mới từ state để chạy với application cũ.

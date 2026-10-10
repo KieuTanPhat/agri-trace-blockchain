@@ -84,3 +84,34 @@ biến bằng chứng source/CI thành bằng chứng UAT của core mới.
 
 Review local cuối không còn finding cần sửa trong phạm vi này. PR và CI đúng
 SHA là cổng tiếp theo; kết quả và SHA merge được ghi trực tiếp trong PR.
+
+## Rà soát tiếp sau PR #77
+
+Baseline: `da6fee6fe4107fd24f9f84768f61b00dbfa77461`. PR #77 đã merge;
+lượt này xử lý code còn thiếu trong các nhánh recovery. Hai finding P1:
+
+| Lỗi | Kế hoạch đã review và cách sửa |
+| --- | --- |
+| Rollback tự động, rollback thủ công và recover có thể để API/Worker chạy sau khi startup một phần, verification, preservation hoặc state promotion thất bại. Journal yêu cầu recovery nhưng writers vẫn mở. | Bao toàn bộ transition khôi phục bằng cùng guard dừng writers khi có lỗi. Giữ phase lỗi gốc và journal; không ghi thành công khi cleanup stop thất bại. |
+| Journal chỉ được kiểm trong `rollout`, sau transport và nhánh trả `unchanged` cho cùng SHA. Rerun một release đã promote nhưng chưa hoàn tất transaction có thể báo thành công mà chưa recover. | Kiểm journal ngay trước đọc credential/archive và trước nhánh cùng SHA; deploy/upgrade phải yêu cầu recover kể cả state đã promote. Status/backup vẫn đọc được. |
+
+Review kế hoạch loại phương án chỉ dừng candidate: writer của release phục hồi
+cũng có thể đã chạy hoặc chỉ API đã ready trước Worker lỗi. Guard vì vậy áp dụng
+cho cả ba đường rollback/recover và bao cả verification/preservation/persistence.
+Nếu Docker không dừng được writer, chỉ giữ journal và báo lỗi; không coi đó là
+bằng chứng writer đã dừng. Đây là tự review kỹ thuật, chưa thay human signoff.
+
+Regression trước sửa thất bại tại các ca writer vẫn chạy và journal không được
+chặn trước đọc transport. Sau sửa, **63/63 test Python trên Linux (WSL Ubuntu,
+Python 3.12.3), 0 skip** đạt. Bộ test thêm kiểm startup một phần, verifier từ
+chối, lịch sử thiếu, promotion lỗi, Docker stop lỗi và rerun cùng SHA trước/sau
+promotion. Các ca rollback/recover thành công hiện có tiếp tục đạt.
+
+CI container/PostgreSQL/Fabric trên head PR là gate trước merge. Kết quả/SHA
+cuối được ghi trong PR. Không thay migration SQL, chaincode, signer, image
+hoặc dữ liệu UAT trong lượt sửa code này.
+
+[UAT CD của merge #77](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/38050864669)
+đạt CI gate/publish nhưng delivery báo `Controller version metadata is missing`
+trước stop/backup. Vẫn cần admin cài đủ helper từ source đã review và giữ gate
+cutover core riêng; không nới kiểm manifest/migration để làm CD xanh.
