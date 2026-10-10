@@ -3,6 +3,7 @@
 Origin hiện hành là `https://agritrace.dev`; `www.agritrace.dev` cũng được phục vụ.
 Miền cũ được gỡ khỏi Caddy, CORS, Web build, API QR base và cấu hình GitHub CD.
 DNS miền cũ được chủ tài khoản gỡ tại TENTEN sau khi ứng dụng chuyển thành công.
+Evidence đã triển khai: [agritrace-cutover-status.md](agritrace-cutover-status.md).
 
 ## Cutover quản trị
 

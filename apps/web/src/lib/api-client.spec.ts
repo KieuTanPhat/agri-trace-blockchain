@@ -37,7 +37,7 @@ describe("public API", () => {
   it("uses the current browser origin in production so aliases retain cookie sessions", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_API_SAME_ORIGIN", "true");
-    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://nongtrace.site/api");
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://agritrace.dev/api");
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValue(json({ success: true, data: auth }));
