@@ -46,7 +46,12 @@ npm run dev:worker
 ```
 
 Frontend chạy ở `http://localhost:3000`; API chạy ở
-`http://localhost:8080/api`. Frontend mặc định kết nối backend thật. Worker là
+`http://localhost:8080/api`. Trang `/` giới thiệu AgriTrace bằng tiếng Việt và cung cấp tra cứu QR công khai.
+Truy cập trực tiếp `/login` để đăng nhập; sau đăng nhập mở `/dashboard`.
+Trang giới thiệu không có liên kết đăng nhập hoặc lô/QR mẫu.
+Xem [frontend và bố cục mobile](docs/frontend.md) để kiểm tra giao diện.
+
+Frontend mặc định kết nối backend thật. Worker là
 process độc lập; chỉ worker được cấp Fabric signing identity.
 
 ## Chạy bằng Docker Compose

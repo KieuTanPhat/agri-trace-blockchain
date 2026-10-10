@@ -109,7 +109,7 @@ export default function IotSimulatorPage() {
           <p className="eyebrow">IOT-01</p>
           <h1>Bộ giả lập cảm biến IoT</h1>
           <p className="muted">
-            Mô phỏng một bản ghi cảm biến chuẩn hóa gắn với ProductionCycle.
+            Gửi bản ghi cảm biến cho vụ trồng đang hoạt động.
           </p>
         </div>
         <div className="header-features">
@@ -117,7 +117,7 @@ export default function IotSimulatorPage() {
             <IconThermometer size={14} /> Giám sát môi trường
           </span>
           <span className="header-feature">
-            <IconActivity size={14} /> Dữ liệu thời gian thực
+            <IconActivity size={14} /> Ghi nhận môi trường
           </span>
           <span className="header-feature">
             <IconWifi size={14} /> Kết nối minh bạch
@@ -261,9 +261,9 @@ export default function IotSimulatorPage() {
           <div className="system-health">
             <span className="health-dot" />
             <span className="health-text">
-              Hệ thống hoạt động bình thường
+              Cấu hình gửi dữ liệu
               <br />
-              <small>Sẵn sàng nhận dữ liệu</small>
+              <small>Trạng thái gửi được hiển thị ở trên</small>
             </span>
           </div>
           <div className="json-panel">

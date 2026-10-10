@@ -12,7 +12,7 @@ afterEach(() => {
 
 it("opens a token through the form without requiring a mouse click", () => {
   render(<ScanPage />);
-  fireEvent.change(screen.getByLabelText("Trace token hoặc đường dẫn"), {
+  fireEvent.change(screen.getByLabelText("Mã truy xuất hoặc đường dẫn"), {
     target: { value: "  public-token  " },
   });
   fireEvent.submit(screen.getByRole("form", { name: "Tra cứu nông sản" }));
@@ -21,7 +21,7 @@ it("opens a token through the form without requiring a mouse click", () => {
 
 it("extracts the token from an old HTTP QR URL and navigates locally", () => {
   render(<ScanPage />);
-  fireEvent.change(screen.getByLabelText("Trace token hoặc đường dẫn"), {
+  fireEvent.change(screen.getByLabelText("Mã truy xuất hoặc đường dẫn"), {
     target: { value: "http://13.140.170.166/trace/public-token" },
   });
   fireEvent.submit(screen.getByRole("form", { name: "Tra cứu nông sản" }));
@@ -30,7 +30,7 @@ it("extracts the token from an old HTTP QR URL and navigates locally", () => {
 
 it("shows an input error instead of opening a misleading URL route", () => {
   render(<ScanPage />);
-  fireEvent.change(screen.getByLabelText("Trace token hoặc đường dẫn"), {
+  fireEvent.change(screen.getByLabelText("Mã truy xuất hoặc đường dẫn"), {
     target: { value: "https://agritrace.dev/admin/trace/token" },
   });
   fireEvent.submit(screen.getByRole("form", { name: "Tra cứu nông sản" }));

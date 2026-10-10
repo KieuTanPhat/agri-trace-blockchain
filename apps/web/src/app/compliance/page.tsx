@@ -9,6 +9,8 @@ import type { LotTrace, ProductionCycleOption } from "@/lib/types";
 
 type Certificate = components["schemas"]["CertificateRecordDto"];
 type Inspection = components["schemas"]["InspectionListDto"];
+const certificateLabels: Record<string, string> = { PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", REJECTED: "Đã từ chối" };
+const inspectionLabels = { PASS: "Đạt", FAIL: "Không đạt", CONDITIONAL: "Đạt có điều kiện" };
 type Snapshot = {
   scope: string;
   certificates: Certificate[];
@@ -41,7 +43,7 @@ export default function CompliancePage() {
             ? cause.message
             : String(
                 (cause as { message?: string })?.message ??
-                  "Không tải được compliance.",
+                  "Không tải được dữ liệu kiểm định.",
               ),
       });
     }
@@ -226,13 +228,13 @@ function ComplianceWorkbench({
         <section className="grid two">
           <div className="grid">
             <label className="field">
-              Inspection gốc hoặc bản sửa
+              Kiểm định gốc hoặc bản sửa
               <select
                 className="select"
                 value={inspectionId}
                 onChange={(event) => setInspectionId(event.target.value)}
               >
-                <option value="">Ghi inspection mới</option>
+                <option value="">Ghi kiểm định mới</option>
                 {inspections
                   .filter(
                     (item) =>
@@ -242,7 +244,7 @@ function ComplianceWorkbench({
                   )
                   .map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.lot.lotCode} — {item.result} — {item.inspectedAt}
+                      {item.lot.lotCode} — {inspectionLabels[item.result]} — {item.inspectedAt}
                     </option>
                   ))}
               </select>
@@ -252,8 +254,8 @@ function ComplianceWorkbench({
                 key={inspectionId}
                 title={
                   originalInspection
-                    ? "Ghi bản sửa inspection"
-                    : "Ghi inspection"
+                    ? "Ghi bản sửa kiểm định"
+                    : "Ghi kiểm định"
                 }
                 path="/inspections"
                 extra={
@@ -368,7 +370,7 @@ function ComplianceWorkbench({
                 {item.type} — {item.issuer}
               </h3>
               <p>
-                {item.status} ·{" "}
+                {certificateLabels[item.status] ?? item.status} ·{" "}
                 {item.status === "APPROVED" &&
                 !certificates.some(
                   (child) =>
@@ -400,7 +402,7 @@ function ComplianceWorkbench({
           inspections.map((item) => (
             <article key={item.id}>
               <h3>
-                {item.lot.lotCode} — {item.result}
+                {item.lot.lotCode} — {inspectionLabels[item.result]}
               </h3>
               <p>
                 {item.inspectedAt} · {item.organization?.name}
@@ -408,13 +410,13 @@ function ComplianceWorkbench({
               {item.note && <p>{item.note}</p>}
               {item.supersedesId && (
                 <p>
-                  Sửa inspection {item.supersedesId}: {item.correctionReason}
+                  Sửa kiểm định {item.supersedesId}: {item.correctionReason}
                 </p>
               )}
             </article>
           ))
         ) : (
-          <p>Chưa có inspection.</p>
+          <p>Chưa có kiểm định.</p>
         )}
       </section>
     </>

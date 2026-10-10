@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { ResponsiveTable } from "@/components/responsive-table";
 import { ActionPanel } from "@/components/action-panel";
 import { LotPicker } from "@/components/lot-picker";
 import {
@@ -115,45 +116,49 @@ export default function LotDetailPage() {
               <p>Chưa tạo chuyến vận chuyển.</p>
             )}
             <h3>Lịch sử số lượng</h3>
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Thời gian</th>
-                    <th>Thao tác</th>
-                    <th>Trước</th>
-                    <th>Thay đổi</th>
-                    <th>Còn lại</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lot.quantityMovements?.map((m) => (
-                    <tr key={m.id}>
-                      <td>{new Date(m.createdAt).toLocaleString("vi-VN")}</td>
-                      <td>
-                        {(
-                          {
-                            HARVEST_IN: "Thu hoạch",
-                            DAMAGE_OUT: "Hư hỏng",
-                            REJECT_OUT: "Từ chối",
-                          } as Record<string, string>
-                        )[m.type] ?? m.type}
-                      </td>
-                      <td>
-                        {m.beforeQty} {m.unit}
-                      </td>
-                      <td>
-                        {m.delta > 0 ? "+" : ""}
-                        {m.delta} {m.unit}
-                      </td>
-                      <td>
-                        {m.afterQty} {m.unit}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ResponsiveTable
+              caption="Lịch sử số lượng"
+              rows={lot.quantityMovements ?? []}
+              rowKey={(movement) => movement.id}
+              columns={[
+                {
+                  key: "time",
+                  label: "Thời gian",
+                  render: (movement) =>
+                    new Date(movement.createdAt).toLocaleString("vi-VN"),
+                },
+                {
+                  key: "type",
+                  label: "Thao tác",
+                  render: (movement) =>
+                    (
+                      ({
+                        HARVEST_IN: "Thu hoạch",
+                        DAMAGE_OUT: "Hư hỏng",
+                        REJECT_OUT: "Từ chối",
+                        SOLD_OUT: "Đã bán",
+                      }) as Record<string, string>
+                    )[movement.type] ?? movement.type,
+                },
+                {
+                  key: "before",
+                  label: "Trước",
+                  render: (movement) =>
+                    `${movement.beforeQty} ${movement.unit}`,
+                },
+                {
+                  key: "delta",
+                  label: "Thay đổi",
+                  render: (movement) =>
+                    `${movement.delta > 0 ? "+" : ""}${movement.delta} ${movement.unit}`,
+                },
+                {
+                  key: "after",
+                  label: "Còn lại",
+                  render: (movement) => `${movement.afterQty} ${movement.unit}`,
+                },
+              ]}
+            />
           </div>
           <div className="panel">
             <div className="panel-title">

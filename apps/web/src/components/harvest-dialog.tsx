@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { QrCodeCard } from "./qr-code-card";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { LoaderCircle, Plus, X } from "lucide-react";
 import { getProductionCycles } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
@@ -31,6 +31,7 @@ function ScopedHarvestDialog({
   scope: string;
   onCreated(): void;
 }) {
+  const titleId = useId();
   const busy = useRef(false);
   const mounted = useRef(false);
   const [recovery, setRecovery] = useState<HarvestRecovery | null>(null);
@@ -204,6 +205,7 @@ function ScopedHarvestDialog({
       )}
       <dialog
         className="command-dialog"
+        aria-labelledby={titleId}
         ref={dialog}
         onCancel={(e) => {
           if (pending) e.preventDefault();
@@ -211,7 +213,7 @@ function ScopedHarvestDialog({
       >
         <form onSubmit={submit}>
           <div className="panel-title">
-            <h2>Ghi nhận thu hoạch</h2>
+            <h2 id={titleId}>Ghi nhận thu hoạch</h2>
             <button
               className="icon-button"
               type="button"

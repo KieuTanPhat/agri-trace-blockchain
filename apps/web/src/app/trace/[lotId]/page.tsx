@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Image from "next/image";
 import { ErrorState } from "@/components/error-state";
 import { IconClock, IconShield, IconDatabase } from "@/components/icons";
@@ -34,11 +35,18 @@ export default async function PublicTracePage({
       <ErrorState
         status={404}
         title="Không tìm thấy lô"
-        message="Mã QR hoặc mã lô không tồn tại."
+        message="Mã QR hoặc mã truy xuất không tồn tại. Kiểm tra lại mã trên sản phẩm."
+        action={<Link className="button secondary" href="/scan">Quét lại mã QR</Link>}
       />
     );
 
   const proof = trace.blockchainProof;
+  const proofTone = {
+    VERIFIED: "verified",
+    PENDING: "pending",
+    INTEGRITY_WARNING: "mismatch",
+    BLOCKCHAIN_UNAVAILABLE: "unavailable",
+  }[trace.proofStatus];
   const traceUrl = `${process.env.NEXT_PUBLIC_TRACE_BASE_URL ?? "http://localhost:3000/trace"}/${trace.traceToken ?? lotId}`;
   return (
     <div className="design-page trace-page">
@@ -58,8 +66,7 @@ export default async function PublicTracePage({
             {trace.productionCycle.cycleCode}
           </p>
           <p className="muted" style={{ marginTop: 8, maxWidth: 620 }}>
-            Lô được tạo từ một lần thu hoạch độc lập; lịch sử canh tác và
-            logistics được liên kết nhưng không dùng chung một trạng thái.
+            Theo dấu nông sản từ vụ trồng, lần thu hoạch đến các chặng giao nhận.
           </p>
         </div>
         <div className="header-actions">
@@ -148,14 +155,14 @@ export default async function PublicTracePage({
               <div>
                 <h2>Bằng chứng chuỗi khối</h2>
                 <p className="muted">
-                  Hash và trạng thái giao dịch của TraceEvent
+                  Mã băm và trạng thái bằng chứng của sự kiện
                 </p>
               </div>
             </div>
           </div>
           <div className="proof-overview">
             <QrCodeCard value={traceUrl} />
-            <div className={`proof-summary proof-${trace.proofStatus}`}>
+            <div className={`proof-summary proof-${proofTone}`}>
               <IconShield size={54} />
               <div>
                 <h3>{labelForProof(trace.proofStatus)}</h3>

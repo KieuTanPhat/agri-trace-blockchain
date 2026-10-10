@@ -11,7 +11,9 @@ import { useState } from "react";
 import { getLots } from "@/lib/api-client";
 import { AppFrame } from "./app-frame";
 
-const { auth } = vi.hoisted(() => ({
+const { auth, location, replace } = vi.hoisted(() => ({
+  location: { pathname: "/lots" },
+  replace: vi.fn(),
   auth: {
     isAuthenticated: true,
     isLoading: false,
@@ -27,13 +29,47 @@ const { auth } = vi.hoisted(() => ({
 vi.mock("@/lib/auth-store", () => ({ useAuth: () => auth }));
 vi.mock("@/lib/api-client", () => ({ getLots: vi.fn() }));
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/lots",
-  useRouter: () => ({ replace: vi.fn() }),
+  usePathname: () => location.pathname,
+  useRouter: () => ({ replace }),
 }));
 vi.mock("next/image", () => ({ default: () => null }));
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  location.pathname = "/lots";
+  auth.isAuthenticated = true;
+  auth.isLoading = false;
+});
+
+it.each(["/", "/scan", "/trace/token"])(
+  "keeps %s public while authentication is loading",
+  async (pathname) => {
+    location.pathname = pathname;
+    auth.isAuthenticated = false;
+    auth.isLoading = true;
+    render(
+      <AppFrame>
+        <p>Public information</p>
+      </AppFrame>,
+    );
+    await act(async () => {});
+    expect(screen.getByText("Public information")).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+    expect(getLots).not.toHaveBeenCalled();
+  },
+);
+
+it("requires login for the relocated dashboard", async () => {
+  location.pathname = "/dashboard";
+  auth.isAuthenticated = false;
+  render(
+    <AppFrame>
+      <p>Private information</p>
+    </AppFrame>,
+  );
+  await act(async () => {});
+  expect(replace).toHaveBeenCalledWith("/login?next=%2Fdashboard");
+  expect(screen.queryByText("Private information")).not.toBeInTheDocument();
 });
 
 describe("organization-scoped header search", () => {

@@ -41,14 +41,14 @@ export default function AssignmentsPage() {
     void load();
   }, [load]);
   if (!allowed)
-    return <p className="notice error">Chỉ Admin quản lý phân công.</p>;
+    return <p className="notice error">Chỉ quản trị viên quản lý phân công.</p>;
   const active = data?.assignments.find(
     (item) => item.id === selected && !item.revokedAt,
   );
   return (
     <div className="grid">
       <section className="page-header">
-        <h1>Phân công Reviewer theo nông trại</h1>
+        <h1>Phân công người duyệt theo nông trại</h1>
         <button className="button secondary" onClick={() => void load()}>
           Tải lại
         </button>
@@ -67,7 +67,7 @@ export default function AssignmentsPage() {
             fields={[
               {
                 name: "reviewerUserId",
-                label: "Reviewer đang hoạt động",
+                label: "Người duyệt đang hoạt động",
                 required: true,
                 options: data.users
                   .filter(
