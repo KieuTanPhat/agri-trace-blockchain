@@ -60,7 +60,8 @@ jobs:
       FABRIC_ENABLED: 'false'
     services:
       postgres:
-        image: postgres:16-alpine
+        # Exercise domain/journal recovery on the same PostgreSQL major as UAT.
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_DB: agri_trace_ci
           POSTGRES_USER: test

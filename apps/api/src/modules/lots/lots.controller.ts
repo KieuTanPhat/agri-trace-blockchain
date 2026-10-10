@@ -20,6 +20,8 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { RecordHarvestDto } from './dto.js';
 import { LotHarvestService } from './lot-harvest.service.js';
 import { LotQueryService } from './lot-query.service.js';
+import { HarvestRequestStatusService } from './harvest-request-status.service.js';
+import { HarvestRequestStatusDto } from './harvest-request-status.dto.js';
 import { ApiDataResponse } from '../../common/api/openapi.js';
 import {
   DashboardDto,
@@ -37,7 +39,21 @@ export class LotsController {
     private readonly harvests: LotHarvestService,
     private readonly query: LotQueryService,
     private readonly idempotency: IdempotencyService,
+    private readonly harvestStatus: HarvestRequestStatusService,
   ) {}
+  @Roles(...FARM_WRITE_ROLES)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @Header('Cache-Control', 'no-store')
+  @Get('production-cycles/:cycleId/harvest-request-status')
+  @ApiDataResponse(HarvestRequestStatusDto)
+  getHarvestStatus(
+    @Param('cycleId', ParseUUIDPipe) cycleId: string,
+    @Headers('idempotency-key') key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.harvestStatus.get(cycleId, key, req.user);
+  }
+
   @Roles(...FARM_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('production-cycles/:cycleId/harvests')
