@@ -25,6 +25,8 @@ giữ id/token/createdAt, mọi sự kiện và proof. Không migrate/seed hoặ
 Kiểm HTTPS apex/www, auth năm role, QR/direct ledger và dịch vụ được bảo vệ.
 Nếu lỗi, phục hồi cấu hình, URL QR và các container bằng image trước cutover.
 Release quản trị được ghi rõ nguồn API gốc và nguồn Web; không giả mạo CI/main.
+Source nghiệp vụ phải trùng byte với bản đang chạy; riêng `migration_lock.toml`
+cho phép khác CRLF/LF do checkout Windows và Git archive, giữ nguyên nội dung.
 
 QR đã in chứa địa chỉ cũ cần được in lại từ liên kết mới. Token và dữ liệu QR
 được giữ, nhưng việc gỡ miền cũ khiến đường dẫn đã in trên giấy không còn mở được.

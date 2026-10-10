@@ -30,6 +30,23 @@ def sql_string(value):
     return "'" + str(value).replace("'", "''") + "'"
 
 
+def verify_business_source(previous, source):
+    for directory in ("apps/api/src", "apps/api/prisma", "blockchain/gateway", "blockchain/chaincode/src"):
+        old_root, new_root = previous / directory, source / directory
+        for old in old_root.rglob("*"):
+            if not old.is_file() or "node_modules" in old.parts or "dist" in old.parts:
+                continue
+            relative = old.relative_to(old_root)
+            new = new_root / relative
+            aliases.require(new.is_file(), "Business source missing: " + str(relative))
+            old_bytes, new_bytes = old.read_bytes(), new.read_bytes()
+            # The deployed Prisma lock metadata was copied from a Windows checkout;
+            # Git archives use LF. Allow only that metadata's CRLF/LF difference.
+            if directory == "apps/api/prisma" and relative.as_posix() == "migrations/migration_lock.toml":
+                old_bytes, new_bytes = old_bytes.replace(b"\r\n", b"\n"), new_bytes.replace(b"\r\n", b"\n")
+            aliases.require(old_bytes == new_bytes, "Business source changed: " + str(relative))
+
+
 def query(controller, record, sql):
     command = aliases.compose(controller, record, "exec", "-T", "postgres", "psql", "-U",
                               controller.environment["POSTGRES_USER"], "-d", controller.environment["POSTGRES_DB"],
@@ -111,13 +128,7 @@ def execute(args):
         aliases.require(previous.get("verified") and re.fullmatch(r"[a-f0-9]{40}", args.source_sha), "Require verified current and exact source SHA")
         source = base / "releases" / ("uat-" + args.source_sha)
         aliases.require(source.is_dir(), "Archive exact reviewed source first")
-        # These must be byte-identical to the deployed business code and signing policy.
-        for directory in ("apps/api/src", "apps/api/prisma", "blockchain/gateway", "blockchain/chaincode/src"):
-            old_root, new_root = Path(previous["directory"]) / directory, source / directory
-            for old in old_root.rglob("*"):
-                if old.is_file() and "node_modules" not in old.parts and "dist" not in old.parts:
-                    relative = old.relative_to(old_root)
-                    aliases.require((new_root / relative).is_file() and old.read_bytes() == (new_root / relative).read_bytes(), "Business source changed")
+        verify_business_source(Path(previous["directory"]), source)
         aliases.require((source / "deploy/Caddyfile.uat").read_bytes() == (Path(previous["directory"]) / "deploy/Caddyfile.uat").read_bytes(), "Proxy policy changed")
         image = json.loads(controller.run("cutover-image", ["docker", "image", "inspect", args.web_image]))[0]
         labels = image["Config"].get("Labels", {})
