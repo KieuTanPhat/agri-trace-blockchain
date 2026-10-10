@@ -29,10 +29,13 @@ import type {
 
 const PUBLIC_API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api";
+// The UAT proxy exposes /api on each hostname; keep its cookies on that origin.
 const API_BASE_URL =
   typeof window === "undefined"
     ? (process.env.API_INTERNAL_BASE_URL ?? PUBLIC_API_BASE_URL)
-    : PUBLIC_API_BASE_URL;
+    : process.env.NEXT_PUBLIC_API_SAME_ORIGIN === "true"
+      ? "/api"
+      : PUBLIC_API_BASE_URL;
 const USE_MOCK_API = process.env.NEXT_PUBLIC_MOCK_API === "true";
 export const AUTH_STORAGE_KEY = "agritrace-auth"; // Legacy key, removed on startup.
 

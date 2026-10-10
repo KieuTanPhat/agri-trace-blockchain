@@ -132,6 +132,7 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN}/api
+        NEXT_PUBLIC_API_SAME_ORIGIN: "true"
         NEXT_PUBLIC_TRACE_BASE_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN}/trace
         NEXT_PUBLIC_MOCK_API: "false"
     restart: unless-stopped

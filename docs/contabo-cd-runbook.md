@@ -190,6 +190,24 @@ Rollback về release HTTP IPv4 cũ giữ dịch vụ truy cập qua IP cũ. Rel
 được build cho HTTPS domain; nếu cần rollback, kiểm tra lại qua IP và chỉ mở lại
 domain HTTPS sau khi triển khai một release đã build theo origin domain.
 
+## Thêm tên miền HTTPS song song
+
+Giữ `PUBLIC_ORIGIN`/`UAT_PUBLIC_ORIGIN=https://nongtrace.site` và QR chuẩn khi
+thêm `agritrace.dev`. Dùng [runbook alias](agritrace-domain-alias-runbook.md)
+để preview, áp dụng và rollback dưới cùng khóa `delivery.lock` của CD.
+Kết quả thực tế: [báo cáo alias ngày 10/10](agritrace-domain-alias-status.md).
+Lệnh quản trị chỉ recreate API/proxy bằng image hiện có; không migrate,
+bootstrap, thay image, dừng Worker/Fabric hoặc promote release khác.
+`PUBLIC_ALIAS_ORIGINS`, Caddy hosts và CORS được lưu trong shared env; controller
+hiện có giữ cấu hình đó trong các lần deploy HTTPS tiếp theo.
+
+Web UAT bật build arg `NEXT_PUBLIC_API_SAME_ORIGIN=true` để gọi `/api` trên origin
+đang mở; development và Docker local giữ URL API cấu hình riêng. Điều này cần thiết cho
+refresh cookie `SameSite=Lax` và kiểm tra `Sec-Fetch-Site` của bản auth mới;
+chỉ thêm CORS không đủ để đăng nhập xuyên hai site khác nhau. SSR tiếp tục
+gọi `API_INTERNAL_BASE_URL`, QR tiếp tục dùng origin chuẩn. Patch Web này cần
+được tích hợp trước khi phát hành auth dùng cookie trên các alias.
+
 ## Giới hạn hiện tại
 
 - Single VPS có downtime ngắn khi backup/rollout, không hứa zero downtime.

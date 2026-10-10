@@ -145,6 +145,12 @@ def update_origin(args):
     if parsed.scheme == "https":
         apex = hostname.removeprefix("www.")
         site_address = f"{apex}, www.{apex}, {legacy_origin}"
+        # Keep administrator-approved aliases through later origin updates.
+        for alias in filter(None, environment.get("PUBLIC_ALIAS_ORIGINS", "").split(",")):
+            policy.require(alias.startswith("https://") and policy.valid_public_origin(alias), "Invalid installed HTTPS alias")
+            alias_hostname = urlsplit(alias).hostname
+            if alias_hostname not in site_address.split(", "):
+                site_address += f", {alias_hostname}"
         http_port = "80"
     else:
         site_address = f"http://{hostname}"

@@ -25,6 +25,7 @@ beforeEach(() => {
   vi.resetModules();
   vi.stubEnv("NEXT_PUBLIC_MOCK_API", "false");
   vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://api.test/api");
+  vi.stubEnv("NEXT_PUBLIC_API_SAME_ORIGIN", "false");
   localStorage.clear();
 });
 afterEach(() => {
@@ -33,6 +34,47 @@ afterEach(() => {
 });
 
 describe("public API", () => {
+  it("uses the current browser origin in production so aliases retain cookie sessions", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_API_SAME_ORIGIN", "true");
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://nongtrace.site/api");
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(json({ success: true, data: auth }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { login } = await import("./api-client");
+    await login("staff@example.com", "test-password");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/auth/login");
+    expect(fetchMock.mock.calls[0][1]?.credentials).toBe("include");
+  });
+
+  it("keeps server rendering on the configured internal API in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_API_SAME_ORIGIN", "true");
+    vi.stubEnv("API_INTERNAL_BASE_URL", "http://api:8080/api");
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(json({ success: true, data: { lotId: "lot-1" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getPublicTrace } = await import("./api-client");
+    await getPublicTrace("trace-token");
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "http://api:8080/api/public/trace/trace-token",
+    );
+  });
+
+  it("preserves a separate configured API for production Web without the UAT proxy flag", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(json({ success: true, data: auth }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { login } = await import("./api-client");
+    await login("staff@example.com", "test-password");
+    expect(fetchMock.mock.calls[0][0]).toBe("http://api.test/api/auth/login");
+  });
+
   it("maps a missing public trace to null", async () => {
     vi.stubGlobal(
       "fetch",
