@@ -138,13 +138,32 @@ try {
     assert.ok(events.some(e=>e.event_id===head.lastEventId&&e.data_hash===head.lastDataHash));
   }
   phase='public-qr';
+  const legacyIds=input.legacyQrLotIds??[];
+  assert.ok(Array.isArray(legacyIds)&&legacyIds.every(id=>typeof id==='string'&&id.length>0));
+  const legacyLots=new Set(legacyIds);
+  assert.equal(legacyLots.size,legacyIds.length);
+  assert.ok(legacyIds.every(id=>qrs.some(qr=>qr.lot_id===id)),'Legacy QR disappeared');
+  let legacyQR=0;
   for(const qr of qrs){
     const trace=await http(`/public/trace/${qr.trace_token}`);
-    assert.equal(trace.lotId,qr.lot_id);assert.equal(trace.proofStatus,'VERIFIED');
+    assert.equal(trace.lotId,qr.lot_id);
+    if(legacyLots.has(qr.lot_id)){
+      assert.equal(trace.proofStatus,'INTEGRITY_WARNING');
+      assert.equal(trace.sensorEvidence.status,'LEGACY_UNVERIFIED');
+      assert.equal(trace.sensorEvidence.readingCount,0);
+      assert.equal(trace.sensorEvidence.digestHash,null);
+      for(const field of ['periodStart','periodEnd','finalizedAt'])assert.equal(trace.sensorEvidence[field],null);
+      assert.equal(trace.quantityReconciled,true);assert.equal(trace.stateReconciled,true);
+      assert.ok(trace.warnings.includes('LEGACY_UNVERIFIED'));
+      for(const warning of ['QUANTITY_MISMATCH','STATE_MISMATCH','SENSOR_INTEGRITY_WARNING'])assert.ok(!trace.warnings.includes(warning));
+      legacyQR++;
+    }else{
+      assert.equal(trace.proofStatus,'VERIFIED');
+    }
     assert.ok(trace.timeline.every(event=>event.proofStatus==='VERIFIED'));
     assert.equal((await fetch(`${input.origin}/trace/${qr.trace_token}`,{signal:AbortSignal.timeout(15000)})).status,200);
   }
-  console.log(JSON.stringify({result:'passed',counts,fingerprints,directLedgerEvents:events.length,entityHistories:groups.size,verifiedQR:qrs.length,roles:5,corsOrigins,refreshLogout:true,pwaAssets:true,canary:input.canary??null}));
+  console.log(JSON.stringify({result:'passed',counts,fingerprints,directLedgerEvents:events.length,entityHistories:groups.size,verifiedQR:qrs.length-legacyQR,legacyQR,roles:5,corsOrigins,refreshLogout:true,pwaAssets:true,canary:input.canary??null}));
 }catch{
   console.error(`Release verification failed at ${phase}; sensitive diagnostics withheld`);
   process.exitCode=1;

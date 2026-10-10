@@ -20,7 +20,7 @@
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "db:provision-compliance-role": "tsx prisma/provision-compliance-role.ts",
+    "db:provision-compliance-role": "node scripts/provision-compliance-role.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

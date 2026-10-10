@@ -58,6 +58,13 @@ class DomainDelivery(unittest.TestCase):
                 payload = json.loads(self.controller.run.call_args.args[2])
                 self.assertEqual(payload["requireSessionFamily"], expected)
 
+    def test_legacy_qr_exception_is_supplied_only_from_release_metadata(self):
+        self.controller.run = MagicMock(return_value=b'{"result":"passed"}')
+        for record, expected in ((self.domain, []), (dict(self.domain, legacyQrLotIds=["old-lot"]), ["old-lot"])):
+            self.controller.verify(record)
+            payload = json.loads(self.controller.run.call_args.args[2])
+            self.assertEqual(payload["legacyQrLotIds"], expected)
+
     def test_resume_fabric_waits_for_both_peers_before_reconcile(self):
         self.controller.run = MagicMock(return_value=b"")
         self.controller.definition = MagicMock(side_effect=[PolicyError("peer unavailable"), {"sequence": 2}])
@@ -216,6 +223,13 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.assertFalse((self.base / "cd/journal.json").exists())
         self.assertLess(self.controller.calls.index("snapshot"), self.controller.calls.index("migration-deploy"))
         self.assertEqual(self.controller.record(self.candidate["id"])["sessionContract"], "family-v1")
+
+    def test_routine_deploy_inherits_the_cutover_legacy_qr_catalog(self):
+        self.old["legacyQrLotIds"] = ["old-lot"]
+        self.controller.save_record(self.old)
+        self.candidate["legacyQrLotIds"] = ["unreviewed-lot"]
+        self.controller.rollout(self.candidate, self.state)
+        self.assertEqual(self.controller.record(self.candidate["id"])["legacyQrLotIds"], ["old-lot"])
 
     def test_candidate_failure_restores_old_app_without_data_restore(self):
         self.controller.fail_candidate = True

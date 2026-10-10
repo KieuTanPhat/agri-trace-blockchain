@@ -196,6 +196,11 @@ jobs:
           python3 deploy/cd/check-migrate.py --env .uat/ci/.env.uat
           "${dc[@]}" --profile tools run --rm bootstrap
           "${dc[@]}" --profile tools run --rm bootstrap
+          # Exercise the actual runtime image (production dependencies only).
+          "${dc[@]}" run --rm --no-deps api npm run db:provision-compliance-role --workspace apps/api | tee .uat/ci/role-first.log
+          "${dc[@]}" run --rm --no-deps api npm run db:provision-compliance-role --workspace apps/api | tee .uat/ci/role-replay.log
+          grep -Fx 'COMPLIANCE_REVIEWER provisioned; created=1' .uat/ci/role-first.log
+          grep -Fx 'COMPLIANCE_REVIEWER provisioned; created=0' .uat/ci/role-replay.log
           "${dc[@]}" up -d --wait --wait-timeout 240 api worker web proxy
           node deploy/smoke.mjs --env .uat/ci/.env.uat --expect-proof PENDING
           "${dc[@]}" run --rm --no-deps -e APP_ENV=uat -e UAT_VALIDATOR_PATH=/validator/validation.js -v "$PWD/blockchain/chaincode/dist:/validator:ro" --entrypoint node api apps/api/scripts/check-uat-events.mjs

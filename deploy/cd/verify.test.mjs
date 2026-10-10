@@ -5,7 +5,9 @@ import test from 'node:test';
 
 // Run the exact concatenated installed scripts with deterministic external I/O.
 // A revoked family also invalidates its access JWT, matching the current API.
-async function verify({legacy = false, canary = null, requireSessionFamily = false} = {}) {
+async function verify({legacy = false, canary = null, requireSessionFamily = false,
+  legacyQrLotIds = [], qrLegacy = false, qrWarning = false, timelineWarning = false,
+  quantityMismatch = false, sensorOverrides = {}} = {}) {
   const accounts = ['SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR']
     .map(role => ({role, email: `${role}@test.invalid`, password: 'synthetic-private-password'}));
   const sessions = new Map();
@@ -68,7 +70,13 @@ async function verify({legacy = false, canary = null, requireSessionFamily = fal
     if (pathname === '/health/ready') return new Response(JSON.stringify({runtime: {enabled: true, running: true, lastError: null}, backlog: {deadLetter: 0}}));
     if (pathname === '/manifest.webmanifest') return new Response(JSON.stringify({start_url: '/', icons: [{}]}));
     if (pathname === '/api/docs') return reply({}, 404);
-    if (pathname === '/api/public/trace/token-1') return reply({lotId: 'lot-1', proofStatus: 'VERIFIED', timeline: [{proofStatus: 'VERIFIED'}]});
+    if (pathname === '/api/public/trace/token-1') return reply({lotId: 'lot-1',
+      proofStatus: qrLegacy || qrWarning ? 'INTEGRITY_WARNING' : 'VERIFIED',
+      warnings: qrLegacy ? ['LEGACY_UNVERIFIED'] : [],
+      quantityReconciled: !quantityMismatch, stateReconciled: true,
+      sensorEvidence: {status: qrLegacy ? 'LEGACY_UNVERIFIED' : 'FINALIZED', readingCount: 0, digestHash: null,
+        periodStart: null, periodEnd: null, finalizedAt: null, ...sensorOverrides},
+      timeline: [{proofStatus: timelineWarning ? 'INTEGRITY_WARNING' : 'VERIFIED'}]});
     return reply({});
   };
   const db = {Client: class {
@@ -97,7 +105,7 @@ async function verify({legacy = false, canary = null, requireSessionFamily = fal
   const source = ['session-auth.mjs', 'verify.mjs'].map(name => readFileSync(new URL(name, import.meta.url), 'utf8')).join('\n');
   const script = new SourceTextModule(source, {context});
   await script.link(async specifier => {
-    const exports = specifier === 'node:fs' ? {readFileSync: () => JSON.stringify({origin: 'https://agritrace.dev', accounts, canary, requireSessionFamily})} :
+    const exports = specifier === 'node:fs' ? {readFileSync: () => JSON.stringify({origin: 'https://agritrace.dev', accounts, canary, requireSessionFamily, legacyQrLotIds})} :
       specifier === 'pg' ? {default: db} : specifier.includes('blockchain/gateway/') ? gateway : await import(specifier);
     return new SyntheticModule(Object.keys(exports), function () {
       for (const [name, value] of Object.entries(exports)) this.setExport(name, value);
@@ -130,4 +138,38 @@ test('a candidate returning legacy JSON credentials is rejected before canary wr
   assert.equal(result.output.length, 0);
   assert.ok(!result.calls.includes('/api/production-cycles'));
   assert.ok(result.errors.every(error => !error.includes('synthetic-private-password')));
+});
+
+test('only pre-cutover lots may retain an explicit legacy sensor warning with verified history', async () => {
+  const result = await verify({qrLegacy: true, legacyQrLotIds: ['lot-1']});
+  assert.equal(result.runtime.exitCode, 0, result.errors.join('\n'));
+  const evidence = JSON.parse(result.output[0]);
+  assert.equal(evidence.verifiedQR, 0);
+  assert.equal(evidence.legacyQR, 1);
+  assert.equal(evidence.directLedgerEvents, 1);
+});
+
+test('new lots cannot use the legacy warning exception', async () => {
+  const result = await verify({qrLegacy: true});
+  assert.equal(result.runtime.exitCode, 1);
+  assert.equal(result.output.length, 0);
+});
+
+test('the legacy exception cannot accept corrupted sensor evidence or a failed event proof', async () => {
+  for (const options of [{qrWarning: true}, {qrLegacy: true, timelineWarning: true},
+    {qrLegacy: true, quantityMismatch: true}, {qrLegacy: true, sensorOverrides: {readingCount: 1}},
+    {qrLegacy: true, sensorOverrides: {periodStart: '2026-10-10T00:00:00.000Z'}},
+    {qrLegacy: true, sensorOverrides: {digestHash: 'a'.repeat(64)}}]) {
+    const result = await verify({...options, legacyQrLotIds: ['lot-1']});
+    assert.equal(result.runtime.exitCode, 1);
+    assert.equal(result.output.length, 0);
+  }
+});
+
+test('a legacy lot cannot silently become fully verified or disappear from the QR catalog', async () => {
+  for (const options of [{legacyQrLotIds: ['lot-1']}, {qrLegacy: true, legacyQrLotIds: ['other-lot']}]) {
+    const result = await verify(options);
+    assert.equal(result.runtime.exitCode, 1);
+    assert.equal(result.output.length, 0);
+  }
 });
