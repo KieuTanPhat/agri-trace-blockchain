@@ -12,6 +12,7 @@ function actor(
 ): Actor {
   return {
     sub: '11111111-1111-1111-1111-111111111111',
+    sid: '22222222-2222-4222-8222-222222222222',
     email: 'user@example.local',
     role,
     organizationId,

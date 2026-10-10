@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { isUUID } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthenticatedRequest, JwtPayload } from './auth.types.js';
+import { sessionFamilyWhere } from './session-family.js';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -28,13 +29,21 @@ export class JwtAuthGuard implements CanActivate {
     let payload: JwtPayload;
     try {
       payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-    } catch {
-      throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn');
+    } catch (error) {
+      if (error instanceof Error && error.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Access token đã hết hạn');
+      }
+      throw new UnauthorizedException('Access token không hợp lệ');
     }
 
-    if (typeof payload?.sub !== 'string' || !isUUID(payload.sub)) {
+    if (
+      typeof payload?.sub !== 'string' ||
+      !isUUID(payload.sub) ||
+      typeof payload?.sid !== 'string' ||
+      !isUUID(payload.sid)
+    ) {
       throw new UnauthorizedException(
-        'Token thiếu định danh người dùng hợp lệ',
+        'Token thiếu định danh người dùng hoặc phiên hợp lệ',
       );
     }
 
@@ -48,18 +57,40 @@ export class JwtAuthGuard implements CanActivate {
         email: true,
         role: { select: { code: true } },
         organizationId: true,
+        organization: { select: { status: true } },
         accountStatus: true,
       },
     });
 
-    if (!user || user.accountStatus !== 'ACTIVE') {
+    if (!user) {
+      throw new UnauthorizedException('Tài khoản không còn tồn tại');
+    }
+    if (user.accountStatus !== 'ACTIVE') {
+      throw new UnauthorizedException('Tài khoản bị khóa hoặc không hoạt động');
+    }
+
+    if (user.organizationId && user.organization?.status !== 'ACTIVE') {
+      throw new UnauthorizedException('Tổ chức không còn hoạt động');
+    }
+
+    const activeSession = await this.prisma.refreshSession.findFirst({
+      where: {
+        ...sessionFamilyWhere(payload.sid),
+        userId: user.id,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      select: { id: true },
+    });
+    if (!activeSession) {
       throw new UnauthorizedException(
-        'Tài khoản không tồn tại hoặc không hoạt động',
+        'Phiên đăng nhập đã bị thu hồi hoặc hết hạn',
       );
     }
 
     request.user = {
       sub: user.id,
+      sid: payload.sid,
       email: user.email,
       role: user.role.code,
       organizationId: user.organizationId,

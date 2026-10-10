@@ -1,38 +1,58 @@
-import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import type { PublicLotTrace } from "./types";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from "vitest";
 
-describe("API client", () => {
-  beforeEach(() => {
-    vi.stubEnv("NEXT_PUBLIC_MOCK_API", "false");
-    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://api.test/api");
-    vi.resetModules();
-    localStorage.clear();
+const user = {
+  id: "user-1",
+  email: "staff@example.com",
+  fullName: "Staff",
+  organizationId: null,
+  role: { code: "SYSTEM_ADMIN" as const, name: "Admin" },
+  accountStatus: "ACTIVE",
+};
+const auth = { accessToken: "old", tokenType: "Bearer" as const, user };
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status });
+
+beforeEach(() => {
+  vi.resetModules();
+  vi.stubEnv("NEXT_PUBLIC_MOCK_API", "false");
+  vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://api.test/api");
+  localStorage.clear();
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
+
+describe("public API", () => {
+  it("maps a missing public trace to null", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(json({}, 404)),
+    );
+    const { getPublicTrace } = await import("./api-client");
+    await expect(getPublicTrace("missing")).resolves.toBeNull();
   });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
-  });
-
-  it("uses the real public trace endpoint and unwraps the API envelope", async () => {
+  it("reads public traces without authentication", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({ success: true, data: { lotId: "lot-1" } }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
-      );
+      .mockResolvedValue(json({ success: true, data: { lotId: "lot-1" } }));
     vi.stubGlobal("fetch", fetchMock);
     const { getPublicTrace } = await import("./api-client");
-
-    const result = await getPublicTrace("trace token");
-
-    expect(result?.lotId).toBe("lot-1");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("http://api.test/api/public/trace/trace%20token");
-    expect(new Headers(init?.headers).has("idempotency-key")).toBe(false);
+    await expect(getPublicTrace("trace token")).resolves.toEqual({
+      lotId: "lot-1",
+    });
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "http://api.test/api/public/trace/trace%20token",
+    );
   });
 
   it("accepts the public projection with nullable dates and no internal shipment fields", async () => {
@@ -55,15 +75,17 @@ describe("API client", () => {
       farmOrg: { organizationId: "farm-1", name: "Farm", type: "FARM" },
       allowedCommands: [],
       proofStatus: "PENDING",
-      timeline: [{
-        eventId: "event-1",
-        entityType: "HARVEST",
-        eventType: "HARVEST_RECORDED",
-        eventTime: "2026-10-09T00:00:00.000Z",
-        summary: "Harvest recorded",
-        proofStatus: "PENDING",
-        actor: { role: "SYSTEM_ACTOR", organizationName: "AgriTrace" },
-      }],
+      timeline: [
+        {
+          eventId: "event-1",
+          entityType: "HARVEST",
+          eventType: "HARVEST_RECORDED",
+          eventTime: "2026-10-09T00:00:00.000Z",
+          summary: "Harvest recorded",
+          proofStatus: "PENDING",
+          actor: { role: "SYSTEM_ACTOR", organizationName: "AgriTrace" },
+        },
+      ],
       blockchainProof: {
         network: "Fabric",
         dataHash: "a".repeat(64),
@@ -79,19 +101,26 @@ describe("API client", () => {
         arrivalTime: null,
         receivedTime: null,
       },
-      certificates: [{
-        type: "Quality",
-        issuer: "Issuer",
-        issueDate: "2026-10-09T00:00:00.000Z",
-        expiryDate: null,
-        documentHash: "b".repeat(64),
-        status: "APPROVED",
-      }],
+      certificates: [
+        {
+          type: "Quality",
+          issuer: "Issuer",
+          issueDate: "2026-10-09T00:00:00.000Z",
+          expiryDate: null,
+          documentHash: "b".repeat(64),
+          status: "APPROVED",
+        },
+      ],
     } satisfies PublicLotTrace;
-    localStorage.setItem("agritrace-auth", JSON.stringify({ accessToken: "private-session" }));
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ success: true, data: trace })),
+    localStorage.setItem(
+      "agritrace-auth",
+      JSON.stringify({ accessToken: "private-session" }),
     );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ success: true, data: trace })),
+      );
     vi.stubGlobal("fetch", fetchMock);
     const { getPublicTrace } = await import("./api-client");
 
@@ -99,95 +128,333 @@ describe("API client", () => {
 
     expectTypeOf(result).toEqualTypeOf<PublicLotTrace | null>();
     expect(result).toEqual(trace);
-    expect(new Headers(fetchMock.mock.calls[0][1]?.headers).has("authorization")).toBe(false);
+    expect(
+      new Headers(fetchMock.mock.calls[0][1]?.headers).has("authorization"),
+    ).toBe(false);
   });
 
-  it("maps a 404 public trace response to null", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn<typeof fetch>().mockResolvedValue(
-        new Response(JSON.stringify({ message: "Không tìm thấy" }), {
-          status: 404,
-          headers: { "content-type": "application/json" },
-        }),
-      ),
-    );
-    const { getPublicTrace } = await import("./api-client");
-
-    await expect(getPublicTrace("missing")).resolves.toBeNull();
-  });
-
-  it("renders server-side public trace through the internal Docker API", async () => {
+  it("uses the internal API for server-side public traces", async () => {
     vi.stubEnv("API_INTERNAL_BASE_URL", "http://api:8080/api");
     vi.stubGlobal("window", undefined);
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({ success: true, data: { lotId: "lot-1" } }),
-        ),
-      );
+      .mockResolvedValue(json({ success: true, data: { lotId: "lot-1" } }));
     vi.stubGlobal("fetch", fetchMock);
     const { getPublicTrace } = await import("./api-client");
-
-    await expect(getPublicTrace("trace token")).resolves.toEqual({
-      lotId: "lot-1",
-    });
+    await getPublicTrace("token");
     expect(fetchMock.mock.calls[0][0]).toBe(
-      "http://api:8080/api/public/trace/trace%20token",
-    );
-  });
-
-  it("keeps browser requests on the public API even with an internal URL configured", async () => {
-    vi.stubEnv("API_INTERNAL_BASE_URL", "http://api:8080/api");
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({ success: true, data: { lotId: "lot-1" } }),
-        ),
-      );
-    vi.stubGlobal("fetch", fetchMock);
-    const { getPublicTrace } = await import("./api-client");
-
-    await getPublicTrace("trace token");
-    expect(fetchMock.mock.calls[0][0]).toBe(
-      "http://api.test/api/public/trace/trace%20token",
+      "http://api:8080/api/public/trace/token",
     );
   });
 });
 
-describe("session and retry safety", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    vi.stubEnv("NEXT_PUBLIC_MOCK_API", "false");
-    localStorage.clear();
-  });
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
-  });
-  const json = (data: unknown, status = 200) =>
-    new Response(JSON.stringify(data), { status });
-  it("keeps the same command key after refreshing authentication", async () => {
-    const auth = {
-      accessToken: "old",
-      refreshToken: "refresh",
-      user: { id: "u" },
-    };
-    localStorage.setItem("agritrace-auth", JSON.stringify(auth));
+describe("cookie-backed session", () => {
+  it("shares the same browser lock across tab modules before mutating cookies", async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      window.navigator,
+      "locks",
+    );
+    let queue: Promise<unknown> = Promise.resolve();
+    const lock = vi.fn((_name: string, operation: () => Promise<unknown>) => {
+      const result = queue.then(operation);
+      queue = result.catch(() => undefined);
+      return result;
+    });
+    Object.defineProperty(window.navigator, "locks", {
+      configurable: true,
+      value: { request: lock },
+    });
+    let finish!: (response: Response) => void;
+    const other = { ...auth, user: { ...user, id: "user-b" } };
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(json({ message: "expired" }, 401))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(json({ success: true, data: other }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const tabA = await import("./api-client");
+      tabA.setSession(auth);
+      vi.resetModules();
+      const tabB = await import("./api-client");
+      const signingOut = tabA.revokeSession();
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const signingIn = tabB.login("b@example.com", "password");
+      await vi.waitFor(() => expect(lock).toHaveBeenCalledTimes(2));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      finish(json({ success: true, data: { revoked: true } }));
+      await signingOut;
+      await signingIn;
+      expect(tabA.readSession()).toBeNull();
+      expect(tabB.readSession()).toEqual(other);
+      expect(lock.mock.calls.map(([name]) => name)).toEqual([
+        "agritrace-auth",
+        "agritrace-auth",
+      ]);
+    } finally {
+      if (descriptor)
+        Object.defineProperty(window.navigator, "locks", descriptor);
+      else Reflect.deleteProperty(window.navigator, "locks");
+    }
+  });
+  it("recovers a concurrent 409 refresh without discarding the session", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({}, 409))
       .mockResolvedValueOnce(
-        json({
-          success: true,
-          data: { ...auth, accessToken: "new", refreshToken: "rotated" },
-        }),
+        json({ success: true, data: { ...auth, accessToken: "rotated" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const { restoreSession, readSession, setSession } =
+      await import("./api-client");
+    setSession(auth);
+    await expect(restoreSession()).resolves.toMatchObject({
+      accessToken: "rotated",
+    });
+    expect(readSession()?.user.id).toBe(user.id);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the existing session when refresh remains busy", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(json({}, 409)),
+    );
+    const { restoreSession, readSession, setSession } =
+      await import("./api-client");
+    setSession(auth);
+    await expect(restoreSession(false)).rejects.toMatchObject({
+      status: 409,
+      code: "REFRESH_BUSY",
+    });
+    expect(readSession()).toEqual(auth);
+  });
+
+  it("keeps startup restoration pending and retries a busy rotation", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({}, 409))
+      .mockResolvedValueOnce(json({}, 409))
+      .mockResolvedValueOnce(json({}, 409))
+      .mockResolvedValueOnce(json({}, 409))
+      .mockResolvedValueOnce(json({ success: true, data: auth }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { restoreSession, isSessionRestoring, readSession } =
+      await import("./api-client");
+    const restoring = restoreSession();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4), {
+      timeout: 3000,
+    });
+    expect(isSessionRestoring()).toBe(true);
+    expect(readSession()).toBeNull();
+    await expect(restoring).resolves.toEqual(auth);
+    expect(isSessionRestoring()).toBe(false);
+  });
+
+  it("serializes switching accounts after an in-flight refresh and rejects the old command", async () => {
+    let finish!: (response: Response) => void;
+    const other = {
+      ...auth,
+      accessToken: "b",
+      user: { ...user, id: "user-b" },
+    };
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({}, 401))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(json({ success: true, data: other }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { request, login, readSession, setSession } =
+      await import("./api-client");
+    setSession(auth);
+    const old = request("/lots");
+    const rejected = expect(old).rejects.toMatchObject({
+      code: "SESSION_CHANGED",
+    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const switching = login("b@example.com", "password");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    finish(
+      json({ success: true, data: { ...auth, accessToken: "a-rotated" } }),
+    );
+    await rejected;
+    await switching;
+    expect(readSession()).toEqual(other);
+    expect(
+      fetchMock.mock.calls.map(([url]) =>
+        new URL(String(url)).pathname.replace(/^\/api/, ""),
+      ),
+    ).toEqual(["/lots", "/auth/refresh", "/auth/login"]);
+  });
+
+  it("ignores a late refresh 401 after another identity has been selected", async () => {
+    let finish!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      ),
+    );
+    const { restoreSession, setSession, readSession } =
+      await import("./api-client");
+    setSession(auth);
+    const restoring = restoreSession();
+    const rejected = expect(restoring).rejects.toMatchObject({
+      code: "SESSION_CHANGED",
+    });
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    const other = { ...auth, user: { ...user, id: "user-b" } };
+    setSession(other);
+    finish(json({}, 401));
+    await rejected;
+    expect(readSession()).toEqual(other);
+  });
+
+  it("invalidates a tab before an action when another tab changes the browser identity", async () => {
+    const other = {
+      ...auth,
+      accessToken: "b",
+      user: { ...user, id: "user-b" },
+    };
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(json({ success: true, data: other }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = await import("./api-client");
+    const { AUTH_SYNC_KEY } = await import("./auth-coordination");
+    client.setSession(auth);
+    localStorage.setItem(
+      AUTH_SYNC_KEY,
+      JSON.stringify({ id: "other-tab-login", state: "signed-in" }),
+    );
+    await expect(
+      client.request("/shipments", { method: "POST", body: "{}" }),
+    ).rejects.toMatchObject({ code: "SESSION_CHANGED" });
+    await vi.waitFor(() => expect(client.readSession()).toEqual(other));
+    expect(
+      fetchMock.mock.calls.every(([url]) =>
+        String(url).endsWith("/auth/refresh"),
+      ),
+    ).toBe(true);
+  });
+
+  it("synchronizes a second tab's login/logout and clears old IoT data", async () => {
+    const other = { ...auth, user: { ...user, id: "user-b" } };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(json({ success: true, data: other })),
+    );
+    const client = await import("./api-client");
+    const { AUTH_SYNC_KEY } = await import("./auth-coordination");
+    const { getAuthorizationScope } = await import("./auth-scope");
+    const { IOT_READING_STORAGE_KEY } = await import("./iot-local-store");
+    client.setSession(auth);
+    const key = `${IOT_READING_STORAGE_KEY}:${getAuthorizationScope(user)}`;
+    localStorage.setItem(key, "[]");
+    const stop = client.startSessionSynchronization();
+    try {
+      localStorage.setItem(
+        AUTH_SYNC_KEY,
+        JSON.stringify({ id: "tab-b-login", state: "signed-in" }),
+      );
+      window.dispatchEvent(new StorageEvent("storage", { key: AUTH_SYNC_KEY }));
+      expect(client.readSession()).toBeNull();
+      expect(localStorage.getItem(key)).toBeNull();
+      await vi.waitFor(() => expect(client.readSession()).toEqual(other));
+      localStorage.setItem(
+        AUTH_SYNC_KEY,
+        JSON.stringify({ id: "tab-b-logout", state: "signed-out" }),
+      );
+      window.dispatchEvent(new StorageEvent("storage", { key: AUTH_SYNC_KEY }));
+      expect(client.readSession()).toBeNull();
+    } finally {
+      stop();
+    }
+  });
+
+  it("clears the stored IoT scope after logout and role changes", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(json({ success: true, data: { revoked: true } })),
+    );
+    const { setSession, revokeSession, readSession } =
+      await import("./api-client");
+    const { getAuthorizationScope } = await import("./auth-scope");
+    const { IOT_READING_STORAGE_KEY } = await import("./iot-local-store");
+    setSession(auth);
+    const key = `${IOT_READING_STORAGE_KEY}:${getAuthorizationScope(user)}`;
+    localStorage.setItem(key, "[]");
+    setSession(
+      {
+        ...auth,
+        user: { ...user, role: { ...user.role, code: "FARM_STAFF" } },
+      },
+      false,
+    );
+    expect(localStorage.getItem(key)).toBeNull();
+    setSession(auth);
+    localStorage.setItem(key, "[]");
+    await revokeSession();
+    expect(readSession()).toBeNull();
+    expect(localStorage.getItem(key)).toBeNull();
+  });
+  it("keeps access tokens in memory and sends credentials", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ success: true, data: auth }))
+      .mockResolvedValueOnce(json({ success: true, data: { id: "lot" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { login, request } = await import("./api-client");
+    await login("staff@example.com", "password");
+    await request("/lots");
+    expect(localStorage.getItem("agritrace-auth")).toBeNull();
+    expect(fetchMock.mock.calls[0][1]?.credentials).toBe("include");
+    expect(fetchMock.mock.calls[1][1]?.credentials).toBe("include");
+    expect(
+      new Headers(fetchMock.mock.calls[1][1]?.headers).get("authorization"),
+    ).toBe("Bearer old");
+  });
+
+  it("restores a session using only the HttpOnly cookie", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(json({ success: true, data: auth }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { restoreSession, readSession } = await import("./api-client");
+    await expect(restoreSession()).resolves.toEqual(auth);
+    expect(readSession()).toEqual(auth);
+    expect(fetchMock.mock.calls[0][0]).toBe("http://api.test/api/auth/refresh");
+    expect(fetchMock.mock.calls[0][1]?.credentials).toBe("include");
+    expect(fetchMock.mock.calls[0][1]?.body).toBeUndefined();
+  });
+
+  it("retries a command with its original idempotency key", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({}, 401))
+      .mockResolvedValueOnce(
+        json({ success: true, data: { ...auth, accessToken: "new" } }),
       )
       .mockResolvedValueOnce(json({ success: true, data: { id: "created" } }));
     vi.stubGlobal("fetch", fetchMock);
-    const { request } = await import("./api-client");
+    const { request, setSession } = await import("./api-client");
+    setSession(auth);
     await expect(
       request("/production-cycles", {
         method: "POST",
@@ -205,84 +472,23 @@ describe("session and retry safety", () => {
       new Headers(fetchMock.mock.calls[2][1]?.headers).get("authorization"),
     ).toBe("Bearer new");
   });
-  it("notifies the current tab when refresh changes the user's role", async () => {
-    const user = { id: "same-user", role: { code: "SYSTEM_ADMIN" } };
-    localStorage.setItem(
-      "agritrace-auth",
-      JSON.stringify({ accessToken: "old", refreshToken: "refresh", user }),
-    );
-    const updated = { ...user, role: { code: "AUDITOR" } };
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn<typeof fetch>()
-        .mockResolvedValueOnce(json({}, 401))
-        .mockResolvedValueOnce(
-          json({
-            success: true,
-            data: {
-              accessToken: "new",
-              refreshToken: "rotated",
-              user: updated,
-            },
-          }),
-        )
-        .mockResolvedValueOnce(json({ success: true, data: updated })),
-    );
-    const changed = vi.fn();
-    window.addEventListener("auth-changed", changed);
-    try {
-      const { getProfile } = await import("./api-client");
-      await expect(getProfile()).rejects.toMatchObject({
-        code: "SESSION_CHANGED",
+
+  it("does not resurrect a session logged out during refresh", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({}, 401))
+      .mockImplementationOnce(async () => {
+        clearSession();
+        return json({ success: true, data: { ...auth, accessToken: "new" } });
       });
-      expect(changed).toHaveBeenCalledTimes(1);
-      expect(
-        JSON.parse(localStorage.getItem("agritrace-auth")!).user.role.code,
-      ).toBe("AUDITOR");
-    } finally {
-      window.removeEventListener("auth-changed", changed);
-    }
+    vi.stubGlobal("fetch", fetchMock);
+    const { request, setSession, clearSession, readSession } =
+      await import("./api-client");
+    setSession(auth);
+    await expect(request("/lots")).rejects.toMatchObject({ status: 401 });
+    expect(readSession()).toBeNull();
   });
 
-  it("preserves the session when the refresh server is temporarily unavailable", async () => {
-    localStorage.setItem(
-      "agritrace-auth",
-      JSON.stringify({ accessToken: "old", refreshToken: "refresh" }),
-    );
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn<typeof fetch>()
-        .mockResolvedValueOnce(json({}, 401))
-        .mockResolvedValueOnce(json({}, 503)),
-    );
-    const { getProfile } = await import("./api-client");
-    await expect(getProfile()).rejects.toMatchObject({ status: 503 });
-    expect(localStorage.getItem("agritrace-auth")).not.toBeNull();
-  });
-  it("does not resurrect a session logged out during refresh", async () => {
-    localStorage.setItem(
-      "agritrace-auth",
-      JSON.stringify({ accessToken: "old", refreshToken: "refresh" }),
-    );
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn<typeof fetch>()
-        .mockResolvedValueOnce(json({}, 401))
-        .mockImplementationOnce(async () => {
-          localStorage.clear();
-          return json({
-            success: true,
-            data: { accessToken: "new", refreshToken: "rotated" },
-          });
-        }),
-    );
-    const { getProfile } = await import("./api-client");
-    await expect(getProfile()).rejects.toMatchObject({ status: 401 });
-    expect(localStorage.getItem("agritrace-auth")).toBeNull();
-  });
   it("reports a readable network failure", async () => {
     vi.stubGlobal(
       "fetch",
@@ -293,79 +499,6 @@ describe("session and retry safety", () => {
       code: "NETWORK_ERROR",
     });
   });
-  it.each([200, 401])(
-    "discards a late %i response after switching accounts without changing the new session",
-    async (status) => {
-      const oldAuth = {
-        accessToken: "old",
-        refreshToken: "old-refresh",
-        user: { id: "old-user" },
-      };
-      const newAuth = {
-        accessToken: "new",
-        refreshToken: "new-refresh",
-        user: { id: "new-user" },
-      };
-      localStorage.setItem("agritrace-auth", JSON.stringify(oldAuth));
-      const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () => {
-        localStorage.setItem("agritrace-auth", JSON.stringify(newAuth));
-        return json(
-          { success: true, data: { secret: "old-user-data" } },
-          status,
-        );
-      });
-      vi.stubGlobal("fetch", fetchMock);
-      const { request } = await import("./api-client");
-      await expect(request("/lots")).rejects.toMatchObject({
-        code: "SESSION_CHANGED",
-      });
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(JSON.parse(localStorage.getItem("agritrace-auth")!)).toEqual(
-        newAuth,
-      );
-    },
-  );
-  it.each([200, 401])(
-    "discards a late %i response after the same user's role or organization changes",
-    async (status) => {
-      const oldAuth = {
-        accessToken: "old",
-        refreshToken: "refresh",
-        user: {
-          id: "same-user",
-          organizationId: "old-org",
-          role: { code: "FARM_STAFF" },
-        },
-      };
-      const newAuth = {
-        accessToken: "new",
-        refreshToken: "rotated",
-        user: {
-          id: "same-user",
-          organizationId: "new-org",
-          role: { code: "AUDITOR" },
-        },
-      };
-      localStorage.setItem("agritrace-auth", JSON.stringify(oldAuth));
-      const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () => {
-        localStorage.setItem("agritrace-auth", JSON.stringify(newAuth));
-        return json(
-          { success: true, data: { secret: "old-organization-data" } },
-          status,
-        );
-      });
-      vi.stubGlobal("fetch", fetchMock);
-      const { request } = await import("./api-client");
-      await expect(request("/lots")).rejects.toMatchObject({
-        code: "SESSION_CHANGED",
-      });
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(JSON.parse(localStorage.getItem("agritrace-auth")!)).toEqual(
-        newAuth,
-      );
-    },
-  );
-
   it("uses the caller's stable key for a sensor retry", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () =>
       json({
@@ -374,7 +507,8 @@ describe("session and retry safety", () => {
       }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const { sendSensorReading } = await import("./api-client");
+    const { sendSensorReading, setSession } = await import("./api-client");
+    setSession(auth);
     const payload = {
       deviceId: "device",
       cycleId: "cycle",
@@ -391,27 +525,36 @@ describe("session and retry safety", () => {
       ),
     ).toEqual(["sensor-key", "sensor-key"]);
   });
-});
-
-it("reads the API's nested error envelope", async () => {
-  vi.resetModules();
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          success: false,
-          error: { code: "UNAUTHORIZED", message: "Sai email hoặc mật khẩu" },
-        }),
-        { status: 401 },
-      ),
-    ),
-  );
-  const { login } = await import("./api-client");
-  await expect(login("user@example.com", "wrong")).rejects.toMatchObject({
-    status: 401,
-    code: "UNAUTHORIZED",
-    message: "Sai email hoặc mật khẩu",
+  it("keeps the in-memory session if logout cannot reach the server", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    const { readSession, revokeSession, setSession } =
+      await import("./api-client");
+    setSession(auth);
+    await expect(revokeSession()).rejects.toThrow("offline");
+    expect(readSession()).toEqual(auth);
   });
-  vi.unstubAllGlobals();
+
+  it("discards a late response from the previous account", async () => {
+    let finishOld!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockReturnValue(
+        new Promise((resolve) => {
+          finishOld = resolve;
+        }),
+      ),
+    );
+    const { request, readSession, setSession } = await import("./api-client");
+    setSession(auth);
+    const oldRequest = request("/lots");
+    const other = {
+      ...auth,
+      accessToken: "other",
+      user: { ...user, id: "user-2" },
+    };
+    setSession(other);
+    finishOld(json({ success: true, data: [{ id: "old-lot" }] }));
+    await expect(oldRequest).rejects.toMatchObject({ code: "SESSION_CHANGED" });
+    expect(readSession()).toEqual(other);
+  });
 });

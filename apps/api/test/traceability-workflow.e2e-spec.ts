@@ -35,6 +35,7 @@ const prisma = new PrismaClient({
     let transporterOrgId: string;
     let retailerOrgId: string;
     const users: Record<string, string> = {};
+    const sessionIds: Record<string, string> = {};
 
     beforeAll(async () => {
       await prisma.$queryRaw`SELECT 1`;
@@ -84,6 +85,16 @@ const prisma = new PrismaClient({
             },
           })
         ).id;
+        sessionIds[name] = randomUUID();
+        await prisma.refreshSession.create({
+          data: {
+            id: sessionIds[name],
+            familyId: sessionIds[name],
+            userId: users[name],
+            tokenHash: randomUUID(),
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+          },
+        });
       }
       const fixture = await Test.createTestingModule({ imports: [AppModule] })
         .overrideProvider(PrismaService)
@@ -116,10 +127,14 @@ const prisma = new PrismaClient({
 
     afterEach(() => vi.restoreAllMocks());
 
+    function bearer(user: string) {
+      return 'Bearer ' + jwt.sign({ sub: users[user], sid: sessionIds[user] });
+    }
+
     function get(path: string, user = 'farm') {
       return request(app.getHttpServer())
         .get('/api' + path)
-        .set('Authorization', 'Bearer ' + jwt.sign({ sub: users[user] }));
+        .set('Authorization', bearer(user));
     }
     function post(
       path: string,
@@ -129,7 +144,7 @@ const prisma = new PrismaClient({
     ) {
       return request(app.getHttpServer())
         .post('/api' + path)
-        .set('Authorization', 'Bearer ' + jwt.sign({ sub: users[user] }))
+        .set('Authorization', bearer(user))
         .set('Idempotency-Key', key)
         .send(body);
     }
@@ -847,7 +862,7 @@ const prisma = new PrismaClient({
       expect(pending.body.data.certificates).toEqual([]);
       await request(app.getHttpServer())
         .patch(`/api/certificates/${certificate.id}/review`)
-        .set('Authorization', 'Bearer ' + jwt.sign({ sub: users.admin }))
+        .set('Authorization', bearer('admin'))
         .set('Idempotency-Key', randomUUID())
         .send({ status: 'APPROVED' })
         .expect(403);
@@ -961,7 +976,7 @@ const prisma = new PrismaClient({
         for (const path of routes) await post(path, {}, user).expect(403);
         await request(app.getHttpServer())
           .patch(`/api/certificates/${certificate.id}/review`)
-          .set('Authorization', 'Bearer ' + jwt.sign({ sub: users[user] }))
+          .set('Authorization', bearer(user))
           .set('Idempotency-Key', randomUUID())
           .send({ status: 'APPROVED' })
           .expect(403);

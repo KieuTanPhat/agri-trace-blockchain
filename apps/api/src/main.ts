@@ -6,6 +6,7 @@ import { AppModule } from './app.module.js';
 import { ApiResponseInterceptor } from './common/api/api-response.interceptor.js';
 import { GlobalExceptionFilter } from './common/exception/global-exception.filter.js';
 import { createApplicationLogger } from './common/logging/app-logger.js';
+import { SESSION_COOKIE_NAME } from './modules/auth/auth-cookie.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -17,11 +18,15 @@ async function bootstrap() {
     if (!/^[01]$/.test(trustProxyHops)) {
       throw new Error('TRUST_PROXY_HOPS must be 0 or 1');
     }
-    app.getHttpAdapter().getInstance().set('trust proxy', Number(trustProxyHops));
+    app
+      .getHttpAdapter()
+      .getInstance()
+      .set('trust proxy', Number(trustProxyHops));
   }
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: process.env.CORS_ORIGIN?.split(',') ?? 'http://localhost:3000',
+    credentials: true,
   });
   app.useGlobalPipes(
     new ValidationPipe({
@@ -40,6 +45,11 @@ async function bootstrap() {
     )
     .setVersion('2.0.0')
     .addBearerAuth()
+    .addCookieAuth(
+      SESSION_COOKIE_NAME,
+      { type: 'apiKey', in: 'cookie' },
+      SESSION_COOKIE_NAME,
+    )
     .addApiKey(
       { type: 'apiKey', name: 'Idempotency-Key', in: 'header' },
       'idempotency',

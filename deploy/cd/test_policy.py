@@ -137,6 +137,10 @@ class Policies(unittest.TestCase):
     def test_additive_migrations(self):
         additive_sql('-- comment\nCREATE TABLE "extra" ("id" UUID PRIMARY KEY, "note" TEXT); CREATE INDEX "ix_note" ON "extra"("note"); ALTER TABLE "lot" ADD COLUMN "memo" VARCHAR(255);')
 
+    def test_refresh_family_migration_is_rollback_compatible(self):
+        source = Path(__file__).resolve().parents[2] / "apps/api/prisma/migrations/20261009103000_refresh_session_family/migration.sql"
+        additive_sql(source.read_text())
+
     def test_non_compatible_or_disguised_sql_is_blocked(self):
         for sql in ('DROP TABLE lot;', 'ALTER TABLE lot DROP COLUMN x;', 'ALTER TABLE lot ADD COLUMN x TEXT NOT NULL;',
                     'ALTER TABLE lot ADD COLUMN x INT DEFAULT 0;', 'DELETE FROM trace_event;', 'CREATE UNIQUE INDEX x ON lot(x);',

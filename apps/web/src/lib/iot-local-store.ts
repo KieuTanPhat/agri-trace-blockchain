@@ -8,6 +8,16 @@ export type StoredIotReading = SensorReadingRequest & {
   status: "accepted";
 };
 
+export function clearStoredIotReadings(scope: string): void {
+  if (typeof window === "undefined" || scope === "null") return;
+  try {
+    window.localStorage.removeItem(`${IOT_READING_STORAGE_KEY}:${scope}`);
+    window.dispatchEvent(new Event("iot-readings-updated"));
+  } catch {
+    // Cache removal must not prevent session invalidation.
+  }
+}
+
 export function readStoredIotReadings(scope: string): StoredIotReading[] {
   if (typeof window === "undefined" || scope === "null") return [];
   // Legacy v2 readings have no owner and cannot be assigned to a logged-in user.

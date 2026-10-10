@@ -185,8 +185,11 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           title="Đăng xuất"
           aria-label="Đăng xuất"
           onClick={() => {
-            auth.logout();
-            router.replace("/login");
+            void auth.logout().then(() => {
+              router.replace("/login");
+            }).catch(() => {
+              window.alert("Không thể đăng xuất. Vui lòng thử lại.");
+            });
           }}
         >
           <LogOut size={19} />

@@ -10,121 +10,68 @@ import {
 } from "react";
 import {
   AUTH_STORAGE_KEY,
-  getProfile,
+  isSessionRestoring,
   login as loginRequest,
+  readSession,
+  restoreSession,
   revokeSession,
+  startSessionSynchronization,
 } from "./api-client";
 import type { AuthUser } from "./types";
+import { IOT_READING_STORAGE_KEY } from "./iot-local-store";
 
-type StoredAuth = {
-  accessToken: string;
-  refreshToken: string;
-  refreshExpiresAt: string;
-  user: AuthUser;
-};
 type AuthStore = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login(email: string, password: string): Promise<void>;
-  logout(): void;
+  logout(): Promise<void>;
 };
 
 const AuthContext = createContext<AuthStore | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [auth, setAuth] = useState<StoredAuth | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) {
-      setIsLoading(false);
-      return;
-    }
+    // Remove tokens saved by older releases. The new session is memory-only.
     try {
-      const stored = JSON.parse(raw) as StoredAuth;
-      if (
-        !stored?.accessToken ||
-        !stored.refreshToken ||
-        !stored.user?.role?.code
-      )
-        throw new Error("missing token");
-      setAuth(stored);
-      getProfile()
-        .then((user) => {
-          if (!active) return;
-          const latest = JSON.parse(
-            localStorage.getItem(AUTH_STORAGE_KEY) ?? "null",
-          ) as StoredAuth | null;
-          if (!latest || latest.user.id !== stored.user.id) {
-            setAuth(latest);
-            return;
-          }
-          const refreshed = { ...latest, user };
-          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(refreshed));
-          setAuth(refreshed);
-        })
-        .catch(() => {
-          if (!active) return;
-          if (!localStorage.getItem(AUTH_STORAGE_KEY)) setAuth(null);
-        })
-        .finally(() => {
-          if (active) setIsLoading(false);
-        });
-    } catch {
       localStorage.removeItem(AUTH_STORAGE_KEY);
-      setIsLoading(false);
+      localStorage.removeItem(IOT_READING_STORAGE_KEY);
+      localStorage.removeItem("agri-traceability:iot-readings:v2");
+    } catch {
+      // Login remains available when optional browser storage is disabled.
     }
+    const sync = () => {
+      if (!active) return;
+      setUser(readSession()?.user ?? null);
+      setIsLoading(isSessionRestoring());
+    };
+    window.addEventListener("auth-changed", sync);
+    const stopSynchronization = startSessionSynchronization();
+    void restoreSession()
+      .catch(() => undefined)
+      .finally(sync);
     return () => {
       active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const sync = () => {
-      try {
-        setAuth(JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) ?? "null"));
-      } catch {
-        setAuth(null);
-      }
-    };
-    window.addEventListener("storage", sync);
-    window.addEventListener("auth-changed", sync);
-    return () => {
-      window.removeEventListener("storage", sync);
+      stopSynchronization();
       window.removeEventListener("auth-changed", sync);
     };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const response = await loginRequest(email, password);
-    const next = {
-      accessToken: response.accessToken,
-      refreshToken: response.refreshToken,
-      refreshExpiresAt: response.refreshExpiresAt,
-      user: response.user,
-    };
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next));
-    setAuth(next);
+    await loginRequest(email, password);
   }, []);
 
-  const logout = useCallback(() => {
-    void revokeSession();
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    setAuth(null);
+  const logout = useCallback(async () => {
+    await revokeSession();
   }, []);
 
   const value = useMemo<AuthStore>(
-    () => ({
-      user: auth?.user ?? null,
-      isAuthenticated: Boolean(auth),
-      isLoading,
-      login,
-      logout,
-    }),
-    [auth, isLoading, login, logout],
+    () => ({ user, isAuthenticated: Boolean(user), isLoading, login, logout }),
+    [user, isLoading, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

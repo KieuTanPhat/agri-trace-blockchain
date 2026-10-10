@@ -47,7 +47,40 @@ Fabric, retry theo exponential backoff rồi cập nhật `txId`, `channelId` v�
 Các endpoint hiện có:
 
 - `GET /api` và `GET /api/health`
-- `POST /api/auth/login`
+- `POST /api/auth/login` trả access JWT, `sessionId`, `tokenType` và user;
+  refresh secret không có trong JSON. Đăng nhập thành công cũng thu hồi nhóm
+  phiên đang được trình duyệt chọn trước đó.
+- `POST /api/auth/refresh` và `POST /api/auth/logout` dùng refresh cookie
+  `HttpOnly` (`Secure` khi `NODE_ENV=production`), không nhận refresh token
+  trong JSON. Login đặt cookie chọn phiên `agritrace_session` và cookie bí mật
+  `agritrace_refresh_<sessionId>`, cùng path `/api/auth`, `SameSite=Lax`.
+  Client phải giữ cả hai cookie. Chỉ login đổi cookie chọn phiên; refresh/logout
+  chỉ sửa cookie của nhóm phiên đang xử lý. Response cũ của A không thể thay
+  hoặc xóa cookie của B. Các request web phải gửi credentials; `CORS_ORIGIN`
+  phải liệt kê đúng origin của web. Không hỗ trợ web/API ở hai site khác nhau.
+- Access JWT chứa `sid` (mã nhóm phiên). Guard kiểm trạng thái user, tổ chức và
+  nhóm phiên trong PostgreSQL ở mỗi request; logout thu hồi cả nhóm phiên nên
+  JWT cũ bị 401 ngay. Khóa user hoặc tắt tổ chức thu hồi toàn bộ phiên của họ.
+  Login/refresh/logout khóa organization rồi user trong transaction và đọc lại
+  trạng thái trước khi tạo phiên. Update status khóa cùng hàng trước khi thu
+  hồi, nên không bỏ sót phiên mới khi chạy đồng thời. Thời hạn nhóm phiên tính
+  từ login (`JWT_REFRESH_EXPIRES_DAYS`, mặc định 30 ngày); rotation không gia hạn.
+- Refresh rotation chỉ cho một request dùng token cũ thành công. Request đồng
+  thời trong 5 giây trả 409 nhưng không hủy phiên vừa được cấp; dùng lại token
+  cũ sau cửa sổ này trả 401 và thu hồi nhóm phiên vì nghi token bị lộ.
+- Migration `20261009103000_refresh_session_family` phải chạy trước khi bật
+  phiên bản API này. Migration chỉ thêm `family_id` nullable và index, phù hợp
+  policy auto-CD; không backfill hoặc đổi constraint. API mới dùng ID của hàng
+  làm family khi field này NULL. API cũ vẫn có thể insert/rotate session mà
+  không truyền field này sau rollback. JWT cũ không có `sid` bị 401; người dùng
+  web cũ cần đăng nhập lại. Khi triển khai bản cookie mới, thu hồi các refresh
+  session cũ từng lưu trong `localStorage` theo kế hoạch rollout.
+- Web giữ access JWT trong bộ nhớ. Login/logout/refresh dùng chung Web Lock
+  giữa các tab trên HTTPS và hàng đợi trong mỗi tab. Storage event, focus,
+  pageshow và visibility change đồng bộ đổi tài khoản; metadata đồng bộ không
+  chứa token. Tab cũ bỏ request/data, xóa cache IoT theo authorization scope và
+  khôi phục phiên mới qua cookie. Refresh 409 được retry có backoff; phục hồi
+  lúc mở trang giữ trạng thái loading khi phiên đang được xoay vòng.
 - `GET /api/auth/me` với header `Authorization: Bearer <token>`
 - `POST /api/auth/register` đang chủ động trả `501`; tài khoản phải do quản trị viên cấp
 
@@ -57,5 +90,8 @@ Các endpoint hiện có:
 npm run check --workspace apps/api
 ```
 
-Bộ e2e dùng JWT, bcrypt và ValidationPipe thật nhưng mock Prisma, vì vậy không ghi
-vào database local.
+Đặt `TEST_DATABASE_URL` trỏ tới PostgreSQL test riêng đã chạy migration trước
+khi chạy `check`/`test:e2e`. Suite auth-security dùng HTTP, JWT, bcrypt và
+ValidationPipe thật với persistence giả; suite auth-session-concurrency, database
+constraints và workflow ghi vào database test thật. Không dùng database production.
+Chi tiết regression và bằng chứng: [auth session review](../../docs/auth-session-review-2026-10-10.md).
