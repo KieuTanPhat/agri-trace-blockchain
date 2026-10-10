@@ -122,11 +122,15 @@ Các lệnh npm ở trên dùng Node 24.15.0/npm 12.1.0. Rà soát tĩnh 108 fil
 không thấy mẫu private-key block hoặc token GitHub/OpenAI đã liệt kê trong lượt rà.
 Đây là kiểm tra tĩnh/biên dịch, không thay thế kiểm thử nghiệp vụ.
 
-Chưa chạy application test suites, migration/provision role, Fabric transaction,
-deployment, mobile/browser UAT hoặc cập nhật acceptance trên GitHub. Fixture cũ
+Tại hai commit triển khai ban đầu (`f5210e7`, `4203d93`), chưa chạy application
+test suites, migration/provision role, Fabric transaction, deployment,
+mobile/browser UAT hoặc cập nhật acceptance trên GitHub. Fixture cũ
 đã được đổi theo contract mới: certificate nộp/duyệt qua API với Reviewer được
 phân công, cutoff harvest tăng, receipt đủ tuple và timestamp không ở tương lai.
-Các suite còn phải được chạy và xử lý đầy đủ trên DB test có migration/trigger thật.
+Theo yêu cầu tạo PR và kiểm tra trước merge, các suite và migrations đã được
+chạy trên DB test có trigger thật; sửa regression và bổ sung ca cho phần mới.
+Xem [bằng chứng PR #75](core-pr75-verification-2026-10-10.md) và checks/SHA cuối
+trong PR. Provision role, cutover và nghiệm thu UAT vẫn chưa thực hiện.
 
 Thứ tự còn lại:
 

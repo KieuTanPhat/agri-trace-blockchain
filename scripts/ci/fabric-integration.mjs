@@ -130,8 +130,9 @@ async function main() {
     console.log(JSON.stringify(events));
   `);
   const pending = readEvents();
-  assert.equal(pending.length, 4, 'Create, plant, care and harvest must each append one event');
+  assert.equal(pending.length, 5, 'Create, plant, care, harvest sensor window and harvest must each append one event');
   assert.equal(pending.filter(event => event.eventType === 'PRODUCTION_CYCLE_CREATED').length, 1);
+  assert.equal(pending.filter(event => event.eventType === 'SENSOR_DIGEST_FINALIZED').length, 1);
   for (const event of pending) {
     assert.equal(event.blockchainOutbox?.status, 'PENDING');
     assert.equal(event.blockchainProof, null);

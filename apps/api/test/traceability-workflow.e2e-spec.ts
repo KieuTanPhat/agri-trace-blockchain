@@ -15,6 +15,8 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { OrganizationAccessService } from '../src/modules/auth/organization-access.service.js';
 import { TraceService } from '../src/modules/trace/trace.service.js';
 import { LotHarvestService } from '../src/modules/lots/lot-harvest.service.js';
+import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
+import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 const prisma = new PrismaClient({
@@ -201,6 +203,28 @@ const prisma = new PrismaClient({
         'transporter',
       ).expect(201);
       return { ...fixture, shipment };
+    }
+
+    async function deliveredLot(quantity = 1) {
+      const fixture = await startedShipment(quantity);
+      await post(
+        `/shipments/${fixture.shipment.id}/arrive`,
+        {
+          version: 1,
+          lotVersion: 1,
+        },
+        'transporter',
+      ).expect(201);
+      await post(
+        `/shipments/${fixture.shipment.id}/receive`,
+        {
+          version: 2,
+          lotVersion: 2,
+          receivedQuantity: quantity,
+        },
+        'retailer',
+      ).expect(201);
+      return fixture;
     }
 
     it('keeps a linear hash chain when business timestamps are backdated or tied', async () => {
@@ -716,7 +740,9 @@ const prisma = new PrismaClient({
             await post(
               `/iot/shipments/${shipment.id}/telemetry-digests`,
               {
-                periodStart: new Date(timestamp.getTime() - offset).toISOString(),
+                periodStart: new Date(
+                  timestamp.getTime() - offset,
+                ).toISOString(),
                 periodEnd: timestamp.toISOString(),
               },
               'transporter',
@@ -814,9 +840,11 @@ const prisma = new PrismaClient({
         ]),
       );
       expect(
-        (await prisma.shipmentTelemetry.findUniqueOrThrow({
-          where: { id: maximum.id },
-        })).deviceSequence,
+        (
+          await prisma.shipmentTelemetry.findUniqueOrThrow({
+            where: { id: maximum.id },
+          })
+        ).deviceSequence,
       ).toBe(maximumSequence);
       await get(`/shipments/${shipment.id}`, 'foreign').expect(403);
     });
@@ -826,9 +854,8 @@ const prisma = new PrismaClient({
         app,
         new DocumentBuilder().build(),
       );
-      const response = document.paths['/api/shipments/{id}']?.get?.responses?.[
-        '200'
-      ];
+      const response =
+        document.paths['/api/shipments/{id}']?.get?.responses?.['200'];
       expect(response).toMatchObject({
         content: {
           'application/json': {
@@ -1009,6 +1036,549 @@ const prisma = new PrismaClient({
         expect(projection.body.data.allowedCommands).toEqual([]);
       },
     );
+
+    it('recovers the committed harvest journal after response-cache completion fails', async () => {
+      const cycle = await plantedCycle();
+      const key = randomUUID();
+      const body = {
+        quantity: 1,
+        unit: 'kg',
+        harvestTime: '2026-09-26T00:00:00.000Z',
+      };
+      vi.spyOn(app.get(IdempotencyService), 'complete').mockRejectedValueOnce(
+        new Error('simulated cache persistence failure'),
+      );
+      await post(
+        `/production-cycles/${cycle.id}/harvests`,
+        body,
+        'farm',
+        key,
+      ).expect(500);
+      const record = await prisma.idempotencyRecord.findFirstOrThrow({
+        where: { idempotencyKey: key },
+      });
+      expect(record.status).toBe('PROCESSING');
+      const journal = await prisma.commandCommit.findUniqueOrThrow({
+        where: { idempotencyRecordId: record.id },
+      });
+      const replay = await post(
+        `/production-cycles/${cycle.id}/harvests`,
+        body,
+        'farm',
+        key,
+      ).expect(201);
+      expect(replay.body.data).toEqual(journal.responseBody);
+      expect(
+        await prisma.harvestEvent.count({ where: { cycleId: cycle.id } }),
+      ).toBe(1);
+      expect(
+        await prisma.harvestSensorWindow.count({
+          where: { cycleId: cycle.id },
+        }),
+      ).toBe(1);
+      await expect(
+        prisma.commandCommit.update({
+          where: { id: journal.id },
+          data: { responseStatus: 202 },
+        }),
+      ).rejects.toThrow();
+      await post(
+        `/production-cycles/${cycle.id}/harvests`,
+        body,
+        'foreign',
+        key,
+      ).expect(403);
+    });
+
+    it('keeps NO_DATA windows sealed with no invented digest or membership', async () => {
+      const { lot, harvest, sensorWindow } = await harvestedLot();
+      expect(sensorWindow).toMatchObject({
+        status: 'NO_DATA',
+        readingCount: 0,
+        digestHash: null,
+        harvestId: harvest.id,
+      });
+      expect(sensorWindow.sealedAt).toBeTruthy();
+      expect(
+        await prisma.harvestSensorMembership.count({
+          where: { windowId: sensorWindow.id },
+        }),
+      ).toBe(0);
+      await expect(
+        prisma.harvestSensorWindow.update({
+          where: { id: sensorWindow.id },
+          data: { digestHash: 'a'.repeat(64) },
+        }),
+      ).rejects.toThrow();
+      await expect(
+        prisma.lot.update({
+          where: { id: lot.id },
+          data: { lotCode: 'mutated-label' },
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('rolls back harvest, window, Lot, movement and outbox if trace insertion fails', async () => {
+      const cycle = await plantedCycle();
+      const snapshot = async () => ({
+        harvests: await prisma.harvestEvent.count({
+          where: { cycleId: cycle.id },
+        }),
+        windows: await prisma.harvestSensorWindow.count({
+          where: { cycleId: cycle.id },
+        }),
+        lots: await prisma.lot.count({
+          where: { harvest: { cycleId: cycle.id } },
+        }),
+        movements: await prisma.quantityMovement.count({
+          where: { lot: { harvest: { cycleId: cycle.id } } },
+        }),
+        events: await prisma.traceEvent.count({ where: { cycleId: cycle.id } }),
+        outbox: await prisma.blockchainOutbox.count({
+          where: { traceEvent: { cycleId: cycle.id } },
+        }),
+      });
+      const before = await snapshot();
+      const key = randomUUID();
+      const body = {
+        quantity: 1,
+        unit: 'kg',
+        harvestTime: '2026-09-26T00:00:00.000Z',
+      };
+      vi.spyOn(
+        app.get(TraceService),
+        'createInTransaction',
+      ).mockRejectedValueOnce(new Error('simulated trace storage failure'));
+      await post(
+        `/production-cycles/${cycle.id}/harvests`,
+        body,
+        'farm',
+        key,
+      ).expect(500);
+      expect(await snapshot()).toEqual(before);
+      const record = await prisma.idempotencyRecord.findFirstOrThrow({
+        where: { idempotencyKey: key },
+      });
+      expect(record.status).toBe('PROCESSING');
+      expect(
+        await prisma.commandCommit.findUnique({
+          where: { idempotencyRecordId: record.id },
+        }),
+      ).toBeNull();
+      await prisma.idempotencyRecord.update({
+        where: { id: record.id },
+        // Model an old, expired PROCESSING fixture while retaining the DB's
+        // expiresAt >= createdAt invariant; no production record is changed.
+        data: {
+          createdAt: new Date(Date.now() - 2 * 86400000),
+          expiresAt: new Date(Date.now() - 86400000),
+        },
+      });
+      await post(
+        `/production-cycles/${cycle.id}/harvests`,
+        body,
+        'farm',
+        key,
+      ).expect(409);
+      expect(await snapshot()).toEqual(before);
+    });
+
+    it('separates consecutive sensor windows and excludes readings arriving after cutoff', async () => {
+      const cycle = await plantedCycle(2);
+      const device = (
+        await post('/iot/devices', {
+          organizationId: farmOrgId,
+          cycleId: cycle.id,
+          deviceCode: 'WINDOW-' + randomUUID(),
+          name: 'Window sensor',
+          type: 'TEMPERATURE',
+        }).expect(201)
+      ).body.data;
+      const read = async (recordedAt: string, value: number) =>
+        (
+          await post('/iot/readings', {
+            deviceId: device.id,
+            cycleId: cycle.id,
+            sensorType: 'TEMPERATURE',
+            value,
+            unit: 'C',
+            recordedAt,
+          }).expect(201)
+        ).body.data;
+      const firstReading = await read('2026-09-25T12:00:00.000Z', 25);
+      const first = (
+        await post(`/production-cycles/${cycle.id}/harvests`, {
+          quantity: 1,
+          unit: 'kg',
+          harvestTime: '2026-09-26T00:00:00.000Z',
+        }).expect(201)
+      ).body.data;
+      const late = await read('2026-09-25T18:00:00.000Z', 26);
+      const nextReading = await read('2026-09-26T12:00:00.000Z', 27);
+      const second = (
+        await post(`/production-cycles/${cycle.id}/harvests`, {
+          quantity: 1,
+          unit: 'kg',
+          harvestTime: '2026-09-27T00:00:00.000Z',
+        }).expect(201)
+      ).body.data;
+      expect(first.sensorWindow).toMatchObject({
+        status: 'FINALIZED',
+        readingCount: 1,
+        includeStart: true,
+      });
+      expect(second.sensorWindow).toMatchObject({
+        status: 'FINALIZED',
+        readingCount: 1,
+        includeStart: false,
+        periodStart: first.sensorWindow.periodEnd,
+      });
+      for (const [result, reading] of [
+        [first, firstReading],
+        [second, nextReading],
+      ]) {
+        const window = result.sensorWindow;
+        const members = await prisma.harvestSensorMembership.findMany({
+          where: { windowId: window.id },
+        });
+        expect(members.map((member) => member.readingId)).toEqual([
+          reading.readingId,
+        ]);
+        const raw = await prisma.sensorReading.findUniqueOrThrow({
+          where: { id: reading.readingId },
+        });
+        expect(window.digestHash).toBe(
+          canonicalSha256({
+            schemaVersion: 'harvest-sensor-1',
+            cycleId: cycle.id,
+            harvestId: result.harvest.id,
+            periodStart: window.periodStart,
+            periodEnd: window.periodEnd,
+            includeStart: window.includeStart,
+            reconciliationId: null,
+            readings: [
+              {
+                id: raw.id,
+                deviceId: raw.deviceId,
+                sensorType: raw.sensorType,
+                value: raw.value.toString(),
+                unit: raw.unit,
+                recordedAt: raw.recordedAt.toISOString(),
+              },
+            ],
+          }),
+        );
+      }
+      expect(
+        await prisma.lateSensorReading.findUnique({
+          where: { readingId: late.readingId },
+        }),
+      ).toMatchObject({ closedHarvestId: first.harvest.id });
+      expect(
+        await prisma.harvestSensorMembership.count({
+          where: { readingId: late.readingId },
+        }),
+      ).toBe(0);
+    });
+
+    it('sells the exact remaining quantity once and permits recall after SOLD without a zero movement', async () => {
+      const { lot, shipment, traceQr } = await deliveredLot(0.3);
+      await post(
+        `/lots/${lot.id}/mark-for-sale`,
+        { version: 3, shipmentVersion: 3 },
+        'retailer',
+      ).expect(201);
+      const key = randomUUID();
+      const body = { version: 4, shipmentVersion: 3 };
+      const sold = await post(
+        `/lots/${lot.id}/mark-sold`,
+        body,
+        'retailer',
+        key,
+      ).expect(201);
+      expect(sold.body.data).toMatchObject({
+        currentState: 'SOLD',
+        availableQuantity: 0,
+        version: 5,
+      });
+      expect(
+        (
+          await post(`/lots/${lot.id}/mark-sold`, body, 'retailer', key).expect(
+            201,
+          )
+        ).body.data,
+      ).toEqual(sold.body.data);
+      const movements = await prisma.quantityMovement.findMany({
+        where: { lotId: lot.id, type: 'SALE_OUT' },
+      });
+      expect(movements).toHaveLength(1);
+      expect(movements[0].quantity.toString()).toBe('0.3');
+      expect(movements[0].delta.toString()).toBe('-0.3');
+      expect(movements[0].afterQty.toString()).toBe('0');
+      await post(
+        `/lots/${lot.id}/mark-for-sale`,
+        { version: 5, shipmentVersion: 3 },
+        'retailer',
+      ).expect(409);
+      await post(
+        `/lots/${lot.id}/recall`,
+        { version: 5, shipmentVersion: 3, reason: 'Recall sold stock' },
+        'retailer',
+      ).expect(201);
+      expect(
+        await prisma.quantityMovement.count({ where: { lotId: lot.id } }),
+      ).toBe(2);
+      expect(
+        (await get(`/shipments/${shipment.id}`, 'retailer').expect(200)).body
+          .data.status,
+      ).toBe('DELIVERED');
+      const trace = await request(app.getHttpServer())
+        .get(`/api/public/trace/${traceQr.traceToken}`)
+        .expect(200);
+      expect(trace.body.data.currentState).toBe('RECALLED');
+      expect(JSON.stringify(trace.body.data.warnings)).toContain('RECALL');
+    });
+
+    it('serializes competing sale requests and keeps state, quantity and outbox atomic', async () => {
+      const { lot } = await deliveredLot();
+      await post(
+        `/lots/${lot.id}/mark-for-sale`,
+        { version: 3, shipmentVersion: 3 },
+        'retailer',
+      ).expect(201);
+      const results = await Promise.all([
+        post(
+          `/lots/${lot.id}/mark-sold`,
+          { version: 4, shipmentVersion: 3 },
+          'retailer',
+        ),
+        post(
+          `/lots/${lot.id}/mark-sold`,
+          { version: 4, shipmentVersion: 3 },
+          'retailer',
+        ),
+      ]);
+      expect(results.map((response) => response.status).sort()).toEqual([
+        201, 409,
+      ]);
+      expect(
+        await prisma.quantityMovement.count({
+          where: { lotId: lot.id, type: 'SALE_OUT' },
+        }),
+      ).toBe(1);
+      const events = await prisma.traceEvent.findMany({
+        where: { lotId: lot.id, eventType: 'LOT_SOLD' },
+        include: { blockchainOutbox: true },
+      });
+      expect(events).toHaveLength(1);
+      expect(events[0].blockchainOutbox?.status).toBe('PENDING');
+    });
+
+    it('recalls in-transit stock only by its custodian and fails the open shipment atomically', async () => {
+      const { lot, shipment } = await startedShipment();
+      const body = {
+        version: 1,
+        shipmentVersion: 1,
+        reason: 'Withdraw in-transit stock',
+      };
+      await post(`/lots/${lot.id}/recall`, body, 'farm').expect(403);
+      await post(
+        `/lots/${lot.id}/recall`,
+        { ...body, shipmentVersion: 0 },
+        'transporter',
+      ).expect(409);
+      expect(
+        (await get(`/shipments/${shipment.id}`, 'transporter').expect(200)).body
+          .data.status,
+      ).toBe('IN_TRANSIT');
+      const key = randomUUID();
+      await post(`/lots/${lot.id}/recall`, body, 'transporter', key).expect(
+        201,
+      );
+      await post(`/lots/${lot.id}/recall`, body, 'transporter', key).expect(
+        201,
+      );
+      expect(
+        (await get(`/shipments/${shipment.id}`, 'transporter').expect(200)).body
+          .data,
+      ).toMatchObject({ status: 'FAILED', version: 2 });
+      expect(
+        await prisma.quantityMovement.count({
+          where: { lotId: lot.id, type: 'RECALL_OUT' },
+        }),
+      ).toBe(1);
+      await post(
+        `/lots/${lot.id}/recall`,
+        { version: 2, shipmentVersion: 2, reason: 'Must not reclaim custody' },
+        'farm',
+      ).expect(403);
+    });
+
+    it('expires past-date stock once and retains its immutable origin evidence', async () => {
+      const cycle = await plantedCycle();
+      const yesterday = new Date(Date.now() - 86400000)
+        .toISOString()
+        .slice(0, 10);
+      const fixture = (
+        await post(`/production-cycles/${cycle.id}/harvests`, {
+          quantity: 1,
+          unit: 'kg',
+          harvestTime: '2026-09-26T00:00:00.000Z',
+          expiryDate: yesterday,
+        }).expect(201)
+      ).body.data;
+      const key = randomUUID();
+      const body = { version: 0, reason: 'Past expiry date' };
+      await post(`/lots/${fixture.lot.id}/expire`, body, 'farm', key).expect(
+        201,
+      );
+      await post(`/lots/${fixture.lot.id}/expire`, body, 'farm', key).expect(
+        201,
+      );
+      expect(
+        await prisma.quantityMovement.count({
+          where: { lotId: fixture.lot.id, type: 'EXPIRE_OUT' },
+        }),
+      ).toBe(1);
+      expect(
+        (await get(`/lots/${fixture.lot.id}`).expect(200)).body.data,
+      ).toMatchObject({ currentState: 'EXPIRED', availableQuantity: 0 });
+    });
+
+    it('keeps approved certificates immutable and publishes only their approved replacement', async () => {
+      const { lot, traceQr } = await harvestedLot();
+      const body = {
+        lotId: lot.id,
+        type: 'CERTIFICATION',
+        issuer: 'Reviewer fixture',
+        issueDate: '2026-09-26',
+        documentRef: 'private://certificate-fixture',
+        documentHash: 'a'.repeat(64),
+        isPublic: true,
+      };
+      const original = (await post('/certificates', body).expect(201)).body
+        .data;
+      const approve = (id: string, key = randomUUID()) =>
+        request(app.getHttpServer())
+          .patch(`/api/certificates/${id}/review`)
+          .set('Authorization', bearer('reviewer'))
+          .set('Idempotency-Key', key)
+          .send({ version: 0, status: 'APPROVED' });
+      await approve(original.id).expect(200);
+      const correction = (
+        await post('/certificates', {
+          ...body,
+          supersedesId: original.id,
+          correctionReason: 'Correct the document',
+          documentHash: 'b'.repeat(64),
+        }).expect(201)
+      ).body.data;
+      const publicTrace = () =>
+        request(app.getHttpServer()).get(
+          `/api/public/trace/${traceQr.traceToken}`,
+        );
+      expect(
+        (await publicTrace().expect(200)).body.data.certificates.map(
+          (certificate: { documentHash: string }) => certificate.documentHash,
+        ),
+      ).toEqual(['a'.repeat(64)]);
+      const key = randomUUID();
+      await approve(correction.id, key).expect(200);
+      await approve(correction.id, key).expect(200);
+      expect(
+        (await publicTrace().expect(200)).body.data.certificates.map(
+          (certificate: { documentHash: string }) => certificate.documentHash,
+        ),
+      ).toEqual(['b'.repeat(64)]);
+      await expect(
+        prisma.certificate.update({
+          where: { id: original.id },
+          data: { documentHash: 'c'.repeat(64) },
+        }),
+      ).rejects.toThrow();
+      await post('/certificates', {
+        ...body,
+        supersedesId: original.id,
+        correctionReason: 'Stale replacement',
+      }).expect(409);
+    });
+
+    it.each(['admin', 'auditor', 'foreign'])(
+      'denies Lot writes by %s before creating idempotency or business data',
+      async (user) => {
+        const { lot } = await harvestedLot();
+        const before = {
+          lot: await prisma.lot.findUnique({ where: { id: lot.id } }),
+          records: await prisma.idempotencyRecord.count({
+            where: { requesterId: users[user] },
+          }),
+          events: await prisma.traceEvent.count({ where: { lotId: lot.id } }),
+          movements: await prisma.quantityMovement.count({
+            where: { lotId: lot.id },
+          }),
+        };
+        for (const command of [
+          'damage',
+          'mark-for-sale',
+          'mark-sold',
+          'recall',
+          'expire',
+        ]) {
+          const body =
+            command === 'damage'
+              ? { version: 0, reason: 'Not authorized', quantity: 0.1 }
+              : ['recall', 'expire'].includes(command)
+                ? { version: 0, reason: 'Not authorized' }
+                : { version: 0 };
+          await post(`/lots/${lot.id}/${command}`, body, user).expect(403);
+        }
+        expect({
+          lot: await prisma.lot.findUnique({ where: { id: lot.id } }),
+          records: await prisma.idempotencyRecord.count({
+            where: { requesterId: users[user] },
+          }),
+          events: await prisma.traceEvent.count({ where: { lotId: lot.id } }),
+          movements: await prisma.quantityMovement.count({
+            where: { lotId: lot.id },
+          }),
+        }).toEqual(before);
+      },
+    );
+
+    it('uses exact Farm damage movements and blocks commands after full damage', async () => {
+      const { lot } = await harvestedLot(0.3);
+      await post(`/lots/${lot.id}/damage`, {
+        version: 0,
+        quantity: 0.1,
+        reason: 'Partial Farm damage',
+      }).expect(201);
+      expect(
+        (await get(`/lots/${lot.id}`).expect(200)).body.data,
+      ).toMatchObject({ currentState: 'HARVESTED', availableQuantity: 0.2 });
+      const key = randomUUID();
+      const body = {
+        version: 1,
+        quantity: 0.2,
+        reason: 'Full remaining damage',
+      };
+      await post(`/lots/${lot.id}/damage`, body, 'farm', key).expect(201);
+      await post(`/lots/${lot.id}/damage`, body, 'farm', key).expect(201);
+      expect(
+        (await get(`/lots/${lot.id}`).expect(200)).body.data,
+      ).toMatchObject({ currentState: 'DAMAGED', availableQuantity: 0 });
+      expect(
+        await prisma.quantityMovement.count({
+          where: { lotId: lot.id, type: 'DAMAGE_OUT' },
+        }),
+      ).toBe(2);
+      await post('/shipments', {
+        lotId: lot.id,
+        transporterOrgId,
+        retailerOrgId,
+        origin: 'Farm',
+        destination: 'Retailer',
+      }).expect(409);
+    });
 
     it('validates malformed identifiers and blank master-data names at the HTTP boundary', async () => {
       await get('/inspections?lotId=not-a-uuid').expect(400);
