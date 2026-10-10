@@ -2,14 +2,38 @@
 
 import Link from "next/link";
 import { QrCodeCard } from "./qr-code-card";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { LoaderCircle, Plus, X } from "lucide-react";
-import { getProductionCycles, recordHarvest } from "@/lib/api-client";
+import { getProductionCycles } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-store";
+import { getAuthorizationScope } from "@/lib/auth-scope";
+import {
+  beginNewHarvest,
+  recoverHarvest,
+  sendHarvest,
+  type HarvestRecovery,
+} from "@/lib/harvest-recovery";
 import type { ProductionCycleOption } from "@/lib/types";
 
 export function HarvestDialog({ onCreated }: { onCreated(): void }) {
-  const attempt = useRef({ payload: "", key: "", time: "" });
+  const { user } = useAuth();
+  if (!user || user.role.code !== "FARM_STAFF") return null;
+  const scope = getAuthorizationScope(user);
+  return (
+    <ScopedHarvestDialog key={scope} scope={scope} onCreated={onCreated} />
+  );
+}
+
+function ScopedHarvestDialog({
+  scope,
+  onCreated,
+}: {
+  scope: string;
+  onCreated(): void;
+}) {
   const busy = useRef(false);
+  const mounted = useRef(false);
+  const [recovery, setRecovery] = useState<HarvestRecovery | null>(null);
   const [created, setCreated] = useState<{
     lot: { id: string; lotCode: string };
     traceQr: { traceToken: string };
@@ -24,17 +48,93 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    getProductionCycles()
-      .then((items) =>
-        setCycles(
-          items.filter((item) =>
-            ["PLANTED", "GROWING"].includes(item.currentState),
-          ),
-        ),
-      )
-      .catch(() => setMessage("Không tải được chu kỳ sản xuất."));
+  const showError = useCallback((cause: unknown) => {
+    if (!mounted.current) return;
+    setMessage(
+      cause && typeof cause === "object" && "message" in cause
+        ? String(cause.message)
+        : "Không xác định được kết quả thu hoạch. Vui lòng kiểm tra lại.",
+    );
   }, []);
+
+  const applyRecovery = useCallback((next: HarvestRecovery) => {
+    if (!mounted.current) return;
+    setRecovery(next);
+    if (next.state.intent) setCycleId(next.state.intent.cycleId);
+    if (next.status?.status === "COMMITTED" && next.status.result) {
+      setCreated(next.status.result);
+      setMessage(
+        "Đã tìm thấy lô của yêu cầu trước. Chọn ghi nhận lần thu hoạch mới nếu bạn muốn thu hoạch thêm.",
+      );
+      dialog.current?.close();
+    } else if (next.status?.status === "REJECTED") {
+      setMessage(
+        "Yêu cầu trước đã bị từ chối và chưa tạo lô. Bạn có thể bắt đầu lần ghi nhận mới để sửa nội dung.",
+      );
+    } else if (next.state.intent) {
+      setMessage(
+        next.status?.status === "NOT_FOUND"
+          ? "Chưa tìm thấy kết quả. Nhập lại đúng nội dung trước đó để thử lại cùng yêu cầu."
+          : "Yêu cầu trước chưa rõ kết quả. Kiểm tra lại hoặc liên hệ hỗ trợ trước khi thu hoạch thêm.",
+      );
+    } else setMessage("");
+  }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    getProductionCycles()
+      .then((items) => {
+        if (mounted.current)
+          setCycles(
+            items.filter((item) =>
+              ["PLANTED", "GROWING"].includes(item.currentState),
+            ),
+          );
+      })
+      .catch(() => {
+        if (mounted.current) setMessage("Không tải được chu kỳ sản xuất.");
+      });
+    void recoverHarvest(scope).then(applyRecovery).catch(showError);
+    return () => {
+      mounted.current = false;
+    };
+  }, [scope, applyRecovery, showError]);
+
+  async function checkPrevious() {
+    if (busy.current) return;
+    busy.current = true;
+    setPending(true);
+    try {
+      applyRecovery(await recoverHarvest(scope));
+    } catch (cause) {
+      showError(cause);
+    } finally {
+      busy.current = false;
+      if (mounted.current) setPending(false);
+    }
+  }
+
+  async function startNew() {
+    if (busy.current || !recovery) return;
+    busy.current = true;
+    setPending(true);
+    try {
+      const state = await beginNewHarvest(scope, recovery.state.revision);
+      if (!mounted.current) return;
+      applyRecovery({ state });
+      setCreated(null);
+      setCycleId("");
+      setQuantity("");
+      setLotCode("");
+      setExpiryDate("");
+      dialog.current?.showModal();
+    } catch (cause) {
+      showError(cause);
+    } finally {
+      busy.current = false;
+      if (mounted.current) setPending(false);
+    }
+  }
 
   function selectCycle(id: string) {
     setCycleId(id);
@@ -44,62 +144,53 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (busy.current) return;
+    if (busy.current || !recovery) return;
     busy.current = true;
-    const payload = JSON.stringify({
-      cycleId,
-      quantity,
-      unit,
-      lotCode,
-      expiryDate,
-    });
-    if (attempt.current.payload !== payload)
-      attempt.current = {
-        payload,
-        key: crypto.randomUUID(),
-        time: new Date().toISOString(),
-      };
     setPending(true);
     setMessage("");
     try {
-      const result = await recordHarvest(
+      const result = await sendHarvest(
+        scope,
+        recovery.state.revision,
         cycleId,
         {
-          harvestTime: attempt.current.time,
           quantity: Number(quantity),
-          unit,
+          unit: unit.trim(),
           lotCode: lotCode.trim() || undefined,
           expiryDate: expiryDate || undefined,
         },
-        attempt.current.key,
       );
-      setCreated(result);
-      attempt.current = { payload: "", key: "", time: "" };
-      dialog.current?.close();
-      setQuantity("");
-      setLotCode("");
-      setExpiryDate("");
-      onCreated();
+      applyRecovery(result);
+      if (mounted.current && result.status?.status === "COMMITTED") onCreated();
     } catch (cause) {
-      setMessage(
-        typeof cause === "object" && cause && "message" in cause
-          ? String(cause.message)
-          : "Không ghi nhận được thu hoạch.",
-      );
+      showError(cause);
+      // The request may have committed even when its response was lost.
+      try {
+        applyRecovery(await recoverHarvest(scope));
+      } catch {
+        /* Keep the original error and durable intent. */
+      }
     } finally {
       busy.current = false;
-      setPending(false);
+      if (mounted.current) setPending(false);
     }
   }
 
   return (
     <>
-      <button className="button" onClick={() => dialog.current?.showModal()}>
+      <button
+        className="button"
+        disabled={pending}
+        onClick={() => dialog.current?.showModal()}
+      >
         <Plus size={18} /> Ghi nhận thu hoạch
       </button>
       {created && (
         <section className="panel" role="status">
           <h2>Đã tạo lô {created.lot.lotCode}</h2>
+          <button className="button" disabled={pending} onClick={startNew}>
+            Ghi nhận lần thu hoạch mới
+          </button>
           <Link href={"/lots/" + created.lot.id}>Xem lô vừa tạo</Link>
           <QrCodeCard
             value={
@@ -131,55 +222,78 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
               <X size={18} />
             </button>
           </div>
-          <div className="field">
-            <label>Chu kỳ sản xuất</label>
-            <select
-              className="select"
-              required
-              value={cycleId}
-              onChange={(event) => selectCycle(event.target.value)}
-            >
-              <option value="">Chọn chu kỳ</option>
-              {cycles.map((cycle) => (
-                <option key={cycle.id} value={cycle.id}>
-                  {cycle.cycleCode} — {cycle.product.productName} —{" "}
-                  {cycle.farm.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-row">
+          <fieldset
+            disabled={
+              pending ||
+              !recovery ||
+              Boolean(recovery.status && recovery.status.status !== "NOT_FOUND")
+            }
+            style={{ border: 0, padding: 0, margin: 0 }}
+          >
             <div className="field">
-              <label>Số lượng</label>
-              <input
-                className="input"
-                type="number"
-                min="0.001"
-                step="0.001"
+              <label htmlFor="harvest-cycle">Chu kỳ sản xuất</label>
+              <select
+                id="harvest-cycle"
+                className="select"
                 required
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
-              />
+                value={cycleId}
+                disabled={Boolean(recovery?.state.intent)}
+                onChange={(event) => selectCycle(event.target.value)}
+              >
+                <option value="">Chọn chu kỳ</option>
+                {recovery?.state.intent &&
+                  !cycles.some(
+                    (cycle) => cycle.id === recovery.state.intent?.cycleId,
+                  ) && (
+                    <option value={recovery.state.intent.cycleId}>
+                      Chu kỳ của yêu cầu trước
+                    </option>
+                  )}
+                {cycles.map((cycle) => (
+                  <option key={cycle.id} value={cycle.id}>
+                    {cycle.cycleCode} — {cycle.product.productName} —{" "}
+                    {cycle.farm.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-row">
+              <div className="field">
+                <label htmlFor="harvest-quantity">Số lượng</label>
+                <input
+                  id="harvest-quantity"
+                  className="input"
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  required
+                  value={quantity}
+                  onChange={(event) => setQuantity(event.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="harvest-unit">Đơn vị</label>
+                <input
+                  id="harvest-unit"
+                  className="input"
+                  maxLength={30}
+                  required
+                  value={unit}
+                  onChange={(event) => setUnit(event.target.value)}
+                />
+              </div>
             </div>
             <div className="field">
-              <label>Đơn vị</label>
+              <label htmlFor="harvest-code">Mã lô (để trống để tự sinh)</label>
               <input
+                id="harvest-code"
                 className="input"
-                required
-                value={unit}
-                onChange={(event) => setUnit(event.target.value)}
+                maxLength={120}
+                value={lotCode}
+                onChange={(event) => setLotCode(event.target.value)}
               />
             </div>
-          </div>
-          <div className="field">
-            <label>Mã lô (để trống để tự sinh)</label>
-            <input
-              className="input"
-              maxLength={120}
-              value={lotCode}
-              onChange={(event) => setLotCode(event.target.value)}
-            />
-          </div>
+          </fieldset>
           <div className="field">
             <label htmlFor="harvest-expiry">Ngày hết hạn (nếu có)</label>
             <input
@@ -204,14 +318,34 @@ export function HarvestDialog({ onCreated }: { onCreated(): void }) {
             >
               Hủy
             </button>
-            <button className="button" disabled={pending}>
-              {pending ? (
-                <LoaderCircle className="spinner" size={18} />
-              ) : (
-                <Plus size={18} />
-              )}
-              {pending ? "Đang ghi nhận..." : "Tạo lô từ thu hoạch"}
+            {(!recovery?.status || recovery.status.status === "NOT_FOUND") && (
+              <button className="button" disabled={pending || !recovery}>
+                {pending ? (
+                  <LoaderCircle className="spinner" size={18} />
+                ) : (
+                  <Plus size={18} />
+                )}
+                {pending ? "Đang ghi nhận..." : "Tạo lô từ thu hoạch"}
+              </button>
+            )}
+            <button
+              className="button secondary"
+              type="button"
+              disabled={pending}
+              onClick={checkPrevious}
+            >
+              Kiểm tra yêu cầu trước
             </button>
+            {recovery?.status?.status === "REJECTED" && (
+              <button
+                className="button"
+                type="button"
+                disabled={pending}
+                onClick={startNew}
+              >
+                Ghi nhận lần thu hoạch mới
+              </button>
+            )}
           </div>
         </form>
       </dialog>

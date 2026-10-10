@@ -8,11 +8,17 @@ import { LotHarvestService } from './lot-harvest.service.js';
 import { LotQueryService } from './lot-query.service.js';
 import { LotCommandsService } from './lot-commands.service.js';
 import { LotCommandsController } from './lot-commands.controller.js';
+import { HarvestRequestStatusService } from './harvest-request-status.service.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, TraceModule, IdempotencyModule],
   controllers: [LotsController, PublicTraceController, LotCommandsController],
-  providers: [LotHarvestService, LotQueryService, LotCommandsService],
+  providers: [
+    LotHarvestService,
+    LotQueryService,
+    LotCommandsService,
+    HarvestRequestStatusService,
+  ],
   exports: [LotHarvestService, LotQueryService],
 })
 export class LotsModule {}

@@ -255,6 +255,15 @@ export function recordHarvest(
   });
 }
 
+export function getHarvestRequestStatus(
+  cycleId: string,
+  idempotencyKey: string,
+): Promise<components["schemas"]["HarvestRequestStatusDto"]> {
+  return request(`/production-cycles/${cycleId}/harvest-request-status`, {
+    headers: { "idempotency-key": idempotencyKey },
+  });
+}
+
 export async function submitCommand(
   lot: LotTrace,
   command: AllowedCommand,
