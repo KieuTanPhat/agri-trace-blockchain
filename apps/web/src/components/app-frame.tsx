@@ -28,6 +28,7 @@ const navigation = [
   { href: "/admin", label: "Quản trị", icon: Blocks },
   { href: "/production-cycles", label: "Vụ trồng", icon: LayoutDashboard },
   { href: "/lots", label: "Lô nông sản", icon: Package },
+  { href: "/compliance", label: "Kiểm định, chứng nhận", icon: Blocks },
   { href: "/scan", label: "Quét mã QR", icon: ScanLine },
   { href: "/iot-simulator", label: "Cảm biến IoT", icon: Thermometer },
 ];
@@ -185,11 +186,14 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           title="Đăng xuất"
           aria-label="Đăng xuất"
           onClick={() => {
-            void auth.logout().then(() => {
-              router.replace("/login");
-            }).catch(() => {
-              window.alert("Không thể đăng xuất. Vui lòng thử lại.");
-            });
+            void auth
+              .logout()
+              .then(() => {
+                router.replace("/login");
+              })
+              .catch(() => {
+                window.alert("Không thể đăng xuất. Vui lòng thử lại.");
+              });
           }}
         >
           <LogOut size={19} />

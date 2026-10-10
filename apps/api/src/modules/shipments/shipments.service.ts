@@ -13,8 +13,15 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  commandTransaction,
+  lockAggregate,
+} from '../../common/idempotency/command-transaction.js';
+import { assertQuantityReconciled, quantity } from '../../common/quantity.js';
+import { businessTimestamp } from '../../common/timestamp.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
+import { assignedFarmWhere } from '../auth/compliance-scope.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
 import type {
@@ -38,27 +45,29 @@ export class ShipmentsService {
     return this.prisma.shipment.findMany({
       where: unrestricted
         ? undefined
-        : {
-            OR: [
-              {
-                transporterOrgId:
-                  actor.organizationId ??
-                  '00000000-0000-0000-0000-000000000000',
-              },
-              {
-                retailerOrgId:
-                  actor.organizationId ??
-                  '00000000-0000-0000-0000-000000000000',
-              },
-              {
-                lot: {
-                  farmOrgId:
+        : actor.role === 'COMPLIANCE_REVIEWER'
+          ? { lot: { harvest: { cycle: { farm: assignedFarmWhere(actor) } } } }
+          : {
+              OR: [
+                {
+                  transporterOrgId:
                     actor.organizationId ??
                     '00000000-0000-0000-0000-000000000000',
                 },
-              },
-            ],
-          },
+                {
+                  retailerOrgId:
+                    actor.organizationId ??
+                    '00000000-0000-0000-0000-000000000000',
+                },
+                {
+                  lot: {
+                    farmOrgId:
+                      actor.organizationId ??
+                      '00000000-0000-0000-0000-000000000000',
+                  },
+                },
+              ],
+            },
       include: {
         transporter: { select: { id: true, name: true, type: true } },
         retailer: { select: { id: true, name: true, type: true } },
@@ -76,6 +85,8 @@ export class ShipmentsService {
   }
 
   async get(id: string, actor: Actor) {
+    if (actor.role === 'COMPLIANCE_REVIEWER')
+      await this.access.assertShipmentAccess(actor, id);
     const shipment = await this.prisma.shipment.findUnique({
       where: { id },
       include: {
@@ -90,7 +101,9 @@ export class ShipmentsService {
     if (!shipment)
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
     if (
-      !['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role) &&
+      !['SYSTEM_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER'].includes(
+        actor.role,
+      ) &&
       (!actor.organizationId ||
         ![
           shipment.lot.farmOrgId,
@@ -117,32 +130,54 @@ export class ShipmentsService {
       throw new ForbiddenException(
         'Lô không thuộc tổ chức của người tạo chuyến',
       );
-    const fullLot = await this.prisma.lot.findUnique({ where: { id: lot.id } });
-    if (!fullLot || fullLot.currentState !== 'HARVESTED')
-      throw new ConflictException('Lô hàng chưa sẵn sàng vận chuyển');
-    const [transporter, retailer] = await Promise.all([
-      this.prisma.organization.findUnique({
-        where: { id: input.transporterOrgId },
-      }),
-      this.prisma.organization.findUnique({
-        where: { id: input.retailerOrgId },
-      }),
-    ]);
-    if (
-      !transporter ||
-      transporter.type !== 'TRANSPORTER' ||
-      transporter.status !== 'ACTIVE'
-    ) {
-      throw new UnprocessableEntityException('Đơn vị vận chuyển không hợp lệ');
-    }
-    if (
-      !retailer ||
-      retailer.type !== 'RETAILER' ||
-      retailer.status !== 'ACTIVE'
-    ) {
-      throw new UnprocessableEntityException('Đơn vị bán lẻ không hợp lệ');
-    }
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'lot', lot.id);
+      const fullLot = await tx.lot.findUnique({ where: { id: lot.id } });
+      if (!fullLot || fullLot.currentState !== 'HARVESTED')
+        throw new ConflictException('Lô hàng chưa sẵn sàng vận chuyển');
+      const [transporter, retailer] = await Promise.all([
+        tx.organization.findUnique({
+          where: { id: input.transporterOrgId },
+        }),
+        tx.organization.findUnique({
+          where: { id: input.retailerOrgId },
+        }),
+      ]);
+      if (
+        !transporter ||
+        transporter.type !== 'TRANSPORTER' ||
+        transporter.status !== 'ACTIVE'
+      ) {
+        throw new UnprocessableEntityException(
+          'Đơn vị vận chuyển không hợp lệ',
+        );
+      }
+      if (
+        !retailer ||
+        retailer.type !== 'RETAILER' ||
+        retailer.status !== 'ACTIVE'
+      ) {
+        throw new UnprocessableEntityException('Đơn vị bán lẻ không hợp lệ');
+      }
+      if (
+        !fullLot.availableQuantity.greaterThan(0) ||
+        (await tx.shipment.findUnique({ where: { lotId: lot.id } }))
+      )
+        throw new ConflictException(
+          'Lô đã có chuyến hàng hoặc không còn lượng khả dụng',
+        );
+      await assertQuantityReconciled(tx, fullLot);
+      const plannedPickupTime = input.plannedPickupTime
+        ? businessTimestamp(input.plannedPickupTime, 'Dự kiến lấy hàng', {
+            allowFuture: true,
+          })
+        : undefined;
+      const expectedArrival = input.expectedArrivalTime
+        ? businessTimestamp(input.expectedArrivalTime, 'Dự kiến đến', {
+            allowFuture: true,
+            notBefore: plannedPickupTime,
+          })
+        : undefined;
       const shipment = await tx.shipment.create({
         data: {
           lotId: fullLot.id,
@@ -152,12 +187,8 @@ export class ShipmentsService {
           destination: input.destination,
           shippedQuantity: fullLot.availableQuantity,
           unit: fullLot.unit,
-          plannedPickupTime: input.plannedPickupTime
-            ? new Date(input.plannedPickupTime)
-            : undefined,
-          expectedArrival: input.expectedArrivalTime
-            ? new Date(input.expectedArrivalTime)
-            : undefined,
+          plannedPickupTime,
+          expectedArrival,
           vehicleRef: input.vehicleRef,
         },
       });
@@ -172,6 +203,11 @@ export class ShipmentsService {
           retailerOrgId: shipment.retailerOrgId,
           quantity: shipment.shippedQuantity.toString(),
           unit: shipment.unit,
+          origin: shipment.origin,
+          destination: shipment.destination,
+          vehicleRef: shipment.vehicleRef,
+          plannedPickupTime: shipment.plannedPickupTime?.toISOString() ?? null,
+          expectedArrival: shipment.expectedArrival?.toISOString() ?? null,
         },
       });
       return shipment;
@@ -190,7 +226,6 @@ export class ShipmentsService {
       'IN_TRANSPORT',
       'SHIPMENT_STARTED',
       actor,
-      { pickupTime: this.time(input) },
     );
   }
 
@@ -206,22 +241,29 @@ export class ShipmentsService {
       'ARRIVED',
       'SHIPMENT_ARRIVED',
       actor,
-      { arrivalTime: this.time(input) },
     );
   }
 
   async receive(id: string, input: ReceiveShipmentDto, actor: Actor) {
     const shipment = await this.getAndAssertOrg(id, actor, 'retailer');
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'lot', shipment.lotId);
+      const currentShipment = await this.getAndAssertOrg(
+        id,
+        actor,
+        'retailer',
+        tx,
+      );
+      if (currentShipment.status !== 'ARRIVED' || !currentShipment.arrivalTime)
+        throw new ConflictException('Chuyến hàng chưa có mốc đến hợp lệ');
+      const occurredAt = this.time(input, currentShipment.arrivalTime);
       const lot = await tx.lot.findUniqueOrThrow({
         where: { id: shipment.lotId },
       });
-      const damaged = input.damagedQuantity ?? 0;
-      if (
-        !new Prisma.Decimal(input.receivedQuantity)
-          .add(damaged)
-          .equals(lot.availableQuantity)
-      ) {
+      await assertQuantityReconciled(tx, lot);
+      const received = quantity(input.receivedQuantity);
+      const damaged = quantity(input.damagedQuantity ?? 0, true);
+      if (!received.add(damaged).equals(lot.availableQuantity)) {
         throw new UnprocessableEntityException(
           'Số lượng nhận + hư hỏng phải bằng số lượng lô còn lại',
         );
@@ -231,8 +273,8 @@ export class ShipmentsService {
         data: {
           status: 'DELIVERED',
           version: { increment: 1 },
-          receivedTime: this.time(input),
-          receivedQuantity: input.receivedQuantity,
+          receivedTime: occurredAt,
+          receivedQuantity: received,
           rejectedQuantity: 0,
         },
       });
@@ -244,7 +286,7 @@ export class ShipmentsService {
         },
         data: {
           currentState: 'RETAIL_RECEIVED',
-          availableQuantity: input.receivedQuantity,
+          availableQuantity: received,
           version: { increment: 1 },
         },
       });
@@ -256,13 +298,20 @@ export class ShipmentsService {
         lotId: lot.id,
         eventType: 'SHIPMENT_RECEIVED',
         actor,
+        eventTime: occurredAt,
         businessData: {
-          receivedQuantity: String(input.receivedQuantity),
-          damagedQuantity: String(damaged),
+          receivedQuantity: received.toString(),
+          damagedQuantity: damaged.toString(),
           note: input.note ?? null,
+          beforeQuantity: lot.availableQuantity.toString(),
+          afterQuantity: received.toString(),
+          lotVersionBefore: lot.version,
+          lotVersionAfter: lot.version + 1,
+          shipmentVersionBefore: currentShipment.version,
+          shipmentVersionAfter: currentShipment.version + 1,
         },
       });
-      if (damaged > 0)
+      if (damaged.greaterThan(0))
         await tx.quantityMovement.create({
           data: {
             lotId: lot.id,
@@ -271,8 +320,8 @@ export class ShipmentsService {
             quantity: damaged,
             unit: lot.unit,
             beforeQty: lot.availableQuantity,
-            delta: -damaged,
-            afterQty: input.receivedQuantity,
+            delta: damaged.negated(),
+            afterQty: received,
           },
         });
       return tx.shipment.findUniqueOrThrow({ where: { id } });
@@ -281,16 +330,27 @@ export class ShipmentsService {
 
   async reject(id: string, input: RejectShipmentDto, actor: Actor) {
     const shipment = await this.getAndAssertOrg(id, actor, 'retailer');
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'lot', shipment.lotId);
+      const currentShipment = await this.getAndAssertOrg(
+        id,
+        actor,
+        'retailer',
+        tx,
+      );
+      if (currentShipment.status !== 'ARRIVED' || !currentShipment.arrivalTime)
+        throw new ConflictException('Chuyến hàng chưa có mốc đến hợp lệ');
+      const occurredAt = this.time(input, currentShipment.arrivalTime);
       const lot = await tx.lot.findUniqueOrThrow({
         where: { id: shipment.lotId },
       });
+      await assertQuantityReconciled(tx, lot);
       const s = await tx.shipment.updateMany({
         where: { id, version: input.version, status: 'ARRIVED' },
         data: {
           status: 'REJECTED',
           version: { increment: 1 },
-          receivedTime: this.time(input),
+          receivedTime: occurredAt,
           rejectedQuantity: lot.availableQuantity,
           rejectReason: input.reason,
         },
@@ -311,7 +371,12 @@ export class ShipmentsService {
         lotId: shipment.lotId,
         eventType: 'SHIPMENT_REJECTED',
         actor,
-        businessData: { reason: input.reason },
+        eventTime: occurredAt,
+        businessData: {
+          reason: input.reason,
+          rejectedQuantity: lot.availableQuantity.toString(),
+          unit: lot.unit,
+        },
       });
       return tx.shipment.findUniqueOrThrow({ where: { id } });
     });
@@ -319,19 +384,38 @@ export class ShipmentsService {
 
   async damage(id: string, input: DamageShipmentDto, actor: Actor) {
     const shipment = await this.getAndAssertCurrentCustodian(id, actor);
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'lot', shipment.lotId);
+      const currentShipment = await this.getAndAssertCurrentCustodian(
+        id,
+        actor,
+        tx,
+      );
       const lot = await tx.lot.findUniqueOrThrow({
         where: { id: shipment.lotId },
       });
-      if (new Prisma.Decimal(input.quantity).greaterThan(lot.availableQuantity))
+      await assertQuantityReconciled(tx, lot);
+      const damaged = quantity(input.quantity);
+      if (damaged.greaterThan(lot.availableQuantity))
         throw new UnprocessableEntityException(
           'Số lượng hư hỏng vượt số lượng còn lại',
         );
-      const after = lot.availableQuantity.sub(input.quantity);
+      const expectedLotState =
+        currentShipment.status === 'IN_TRANSIT' ? 'IN_TRANSPORT' : 'ARRIVED';
+      const custodyTime =
+        currentShipment.status === 'IN_TRANSIT'
+          ? currentShipment.pickupTime
+          : currentShipment.arrivalTime;
+      if (!custodyTime)
+        throw new ConflictException('Chưa có mốc bàn giao hợp lệ');
+      const occurredAt = this.time(input, custodyTime);
+      if (lot.currentState !== expectedLotState)
+        throw new ConflictException('Trạng thái lô không khớp chuyến hàng');
+      const after = lot.availableQuantity.sub(damaged);
       const lotState = after.isZero() ? 'DAMAGED' : lot.currentState;
-      const shipmentState = after.isZero() ? 'FAILED' : shipment.status;
+      const shipmentState = after.isZero() ? 'FAILED' : currentShipment.status;
       const s = await tx.shipment.updateMany({
-        where: { id, version: input.version, status: shipment.status },
+        where: { id, version: input.version, status: currentShipment.status },
         data: {
           status: shipmentState,
           version: { increment: 1 },
@@ -358,11 +442,20 @@ export class ShipmentsService {
         lotId: lot.id,
         eventType: 'SHIPMENT_DAMAGE_RECORDED',
         actor,
+        eventTime: occurredAt,
         businessData: {
-          quantity: String(input.quantity),
+          quantity: damaged.toString(),
           unit: lot.unit,
           reason: input.reason,
           fullDamage: after.isZero(),
+          beforeQuantity: lot.availableQuantity.toString(),
+          afterQuantity: after.toString(),
+          lotStateBefore: lot.currentState,
+          lotStateAfter: lotState,
+          shipmentStateAfter: shipmentState,
+          evidenceRef: input.evidenceRef ?? null,
+          custodianOrganizationId: actor.organizationId,
+          shipmentStateBefore: currentShipment.status,
         },
       });
       await tx.quantityMovement.create({
@@ -370,10 +463,10 @@ export class ShipmentsService {
           lotId: lot.id,
           eventId: event.id,
           type: 'DAMAGE_OUT',
-          quantity: input.quantity,
+          quantity: damaged,
           unit: lot.unit,
           beforeQty: lot.availableQuantity,
-          delta: -input.quantity,
+          delta: damaged.negated(),
           afterQty: after,
         },
       });
@@ -395,12 +488,40 @@ export class ShipmentsService {
     toLot: 'IN_TRANSPORT' | 'ARRIVED',
     eventType: string,
     actor: Actor,
-    data: Record<string, unknown>,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      await lockAggregate(tx, 'lot', lotId);
+      const currentShipment = await this.getAndAssertOrg(
+        shipmentId,
+        actor,
+        'transporter',
+        tx,
+      );
+      const lot = await tx.lot.findUniqueOrThrow({
+        where: { id: lotId },
+        include: { harvest: { select: { harvestTime: true } } },
+      });
+      if (currentShipment.status !== fromShipment)
+        throw new ConflictException('Trạng thái chuyến hàng đã thay đổi');
+      const previousTime =
+        fromShipment === 'CREATED'
+          ? lot.harvest.harvestTime
+          : currentShipment.pickupTime;
+      if (!previousTime)
+        throw new ConflictException('Chưa có mốc bàn giao trước đó hợp lệ');
+      const occurredAt = this.time(input, previousTime);
+      await assertQuantityReconciled(tx, lot);
+      if (!lot.availableQuantity.greaterThan(0))
+        throw new ConflictException('Lô không còn lượng khả dụng');
       const s = await tx.shipment.updateMany({
         where: { id: shipmentId, version: input.version, status: fromShipment },
-        data: { status: toShipment, version: { increment: 1 }, ...data },
+        data: {
+          status: toShipment,
+          version: { increment: 1 },
+          ...(toShipment === 'IN_TRANSIT'
+            ? { pickupTime: occurredAt }
+            : { arrivalTime: occurredAt }),
+        },
       });
       const l = await tx.lot.updateMany({
         where: { id: lotId, version: input.lotVersion, currentState: fromLot },
@@ -414,8 +535,17 @@ export class ShipmentsService {
         lotId,
         eventType,
         actor,
-        eventTime: this.time(input),
-        businessData: {},
+        eventTime: occurredAt,
+        businessData: {
+          shipmentStateBefore: fromShipment,
+          shipmentStateAfter: toShipment,
+          lotStateBefore: fromLot,
+          lotStateAfter: toLot,
+          lotVersionBefore: lot.version,
+          lotVersionAfter: lot.version + 1,
+          shipmentVersionBefore: currentShipment.version,
+          shipmentVersionAfter: currentShipment.version + 1,
+        },
       });
       return tx.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
     });
@@ -425,12 +555,13 @@ export class ShipmentsService {
     id: string,
     actor: Actor,
     party: 'transporter' | 'retailer',
+    db: Prisma.TransactionClient = this.prisma,
   ) {
     assertBusinessActor(
       actor,
       party === 'transporter' ? TRANSPORT_WRITE_ROLES : RETAIL_WRITE_ROLES,
     );
-    const shipment = await this.prisma.shipment.findUnique({ where: { id } });
+    const shipment = await db.shipment.findUnique({ where: { id } });
     if (!shipment)
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
     const expected =
@@ -443,9 +574,13 @@ export class ShipmentsService {
       );
     return shipment;
   }
-  private async getAndAssertCurrentCustodian(id: string, actor: Actor) {
+  private async getAndAssertCurrentCustodian(
+    id: string,
+    actor: Actor,
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
     assertBusinessActor(actor, CUSTODY_WRITE_ROLES);
-    const shipment = await this.prisma.shipment.findUnique({ where: { id } });
+    const shipment = await db.shipment.findUnique({ where: { id } });
     if (!shipment)
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
     if (!['IN_TRANSIT', 'ARRIVED'].includes(shipment.status))
@@ -468,7 +603,11 @@ export class ShipmentsService {
       );
     return shipment;
   }
-  private time(input: ShipmentTransitionDto) {
-    return input.occurredAt ? new Date(input.occurredAt) : new Date();
+  private time(input: ShipmentTransitionDto, notBefore: Date) {
+    return businessTimestamp(
+      input.occurredAt ?? new Date().toISOString(),
+      'Thời điểm chuyến hàng',
+      { notBefore },
+    );
   }
 }

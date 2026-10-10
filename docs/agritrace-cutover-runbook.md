@@ -26,7 +26,9 @@ giữ id/token/createdAt, mọi sự kiện và proof. Không migrate/seed hoặ
 Kiểm HTTPS apex/www, auth năm role, QR/direct ledger và dịch vụ được bảo vệ.
 Nếu lỗi, phục hồi cấu hình, URL QR và các container bằng image trước cutover.
 Release quản trị được ghi rõ nguồn API gốc và nguồn Web; không giả mạo CI/main.
-Source nghiệp vụ phải trùng byte với bản đang chạy; riêng `migration_lock.toml`
+Source nghiệp vụ phải có cùng tập file và trùng byte với bản đang chạy;
+source SHA phải khác release đang chạy để preview không ghi đè record hiện hành.
+Riêng `migration_lock.toml`
 và `Caddyfile.uat` cho phép khác CRLF/LF do checkout Windows và Git archive,
 giữ nguyên nội dung và chính sách proxy.
 

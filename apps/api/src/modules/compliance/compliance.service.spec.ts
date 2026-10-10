@@ -31,19 +31,25 @@ describe('ComplianceService', () => {
       ...certificateInput,
       cycleId: null,
       expiryDate: null,
+      issueDate: new Date('2026-09-21'),
       status: 'PENDING',
+      supersedesId: null,
+      correctionReason: null,
     };
     const create = vi.fn().mockResolvedValue(certificate);
-    const prisma = {
+    const tx = {
+      $executeRaw: vi.fn(),
       lot: {
         findUnique: vi
           .fn()
-          .mockResolvedValue({ farmOrgId: farmActor.organizationId }),
+          .mockResolvedValue({
+            farmOrgId: farmActor.organizationId,
+            harvest: { cycle: { id: 'cycle', farmId: 'farm' } },
+          }),
       },
-      $transaction: vi.fn(async (callback) =>
-        callback({ certificate: { create } }),
-      ),
+      certificate: { create },
     };
+    const prisma = { $transaction: vi.fn(async (callback) => callback(tx)) };
     const trace = { createInTransaction: vi.fn().mockResolvedValue({}) };
     const service = new ComplianceService(
       prisma as unknown as PrismaService,
@@ -65,13 +71,16 @@ describe('ComplianceService', () => {
   });
 
   it('rejects a farm submitting a certificate for another organization', async () => {
-    const prisma = {
+    const tx = {
+      $executeRaw: vi.fn(),
       lot: {
         findUnique: vi.fn().mockResolvedValue({
           farmOrgId: '758238df-002a-4a5f-9523-a04949bf01bb',
+          harvest: { cycle: { id: 'cycle', farmId: 'farm' } },
         }),
       },
     };
+    const prisma = { $transaction: vi.fn(async (callback) => callback(tx)) };
     const service = new ComplianceService(
       prisma as unknown as PrismaService,
       {} as TraceService,
@@ -94,7 +103,11 @@ describe('ComplianceService', () => {
       );
       const actor = { ...auditor, role };
       await expect(
-        service.reviewCertificate('id', { status: 'APPROVED' }, actor),
+        service.reviewCertificate(
+          'id',
+          { status: 'APPROVED', version: 0 },
+          actor,
+        ),
       ).rejects.toBeInstanceOf(ForbiddenException);
       await expect(
         service.createInspection(

@@ -5,7 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
-type Actor = { role: string; organizationId: string | null };
+import { assertAssignedFarm } from './compliance-scope.js';
+type Actor = {
+  sub?: string | null;
+  role: string;
+  organizationId: string | null;
+};
 
 @Injectable()
 export class OrganizationAccessService {
@@ -36,7 +41,7 @@ export class OrganizationAccessService {
         id: true,
         currentState: true,
         farm: {
-          select: { organizationId: true },
+          select: { id: true, organizationId: true },
         },
       },
     });
@@ -45,6 +50,14 @@ export class OrganizationAccessService {
       throw new NotFoundException('Không tìm thấy vụ sản xuất');
     }
 
+    if (actor.role === 'COMPLIANCE_REVIEWER') {
+      await assertAssignedFarm(
+        this.prisma,
+        { ...actor, sub: actor.sub ?? null },
+        cycle.farm.id,
+      );
+      return cycle;
+    }
     this.assertOrganizationAccess(
       actor,
       cycle.farm.organizationId,
@@ -60,6 +73,7 @@ export class OrganizationAccessService {
       select: {
         id: true,
         farmOrgId: true,
+        harvest: { select: { cycle: { select: { farmId: true } } } },
         shipment: {
           select: { transporterOrgId: true, retailerOrgId: true },
         },
@@ -70,6 +84,14 @@ export class OrganizationAccessService {
       throw new NotFoundException('Không tìm thấy lô hàng');
     }
 
+    if (actor.role === 'COMPLIANCE_REVIEWER') {
+      await assertAssignedFarm(
+        this.prisma,
+        { ...actor, sub: actor.sub ?? null },
+        lot.harvest.cycle.farmId,
+      );
+      return lot;
+    }
     if (!['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) {
       const allowed = [
         lot.farmOrgId,
@@ -91,7 +113,10 @@ export class OrganizationAccessService {
         transporterOrgId: true,
         retailerOrgId: true,
         lot: {
-          select: { farmOrgId: true },
+          select: {
+            farmOrgId: true,
+            harvest: { select: { cycle: { select: { farmId: true } } } },
+          },
         },
       },
     });
@@ -109,6 +134,15 @@ export class OrganizationAccessService {
       shipment.transporterOrgId,
       shipment.retailerOrgId,
     ];
+
+    if (actor.role === 'COMPLIANCE_REVIEWER') {
+      await assertAssignedFarm(
+        this.prisma,
+        { ...actor, sub: actor.sub ?? null },
+        shipment.lot.harvest.cycle.farmId,
+      );
+      return shipment;
+    }
 
     if (
       !actor.organizationId ||
@@ -136,6 +170,10 @@ export class OrganizationAccessService {
       return;
     }
     if (event.cycleId) {
+      if (actor.role === 'COMPLIANCE_REVIEWER') {
+        await this.assertProductionCycleAccess(actor, event.cycleId);
+        return;
+      }
       const cycle = await this.prisma.productionCycle.findFirst({
         where: {
           id: event.cycleId,

@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { ApiResponseInterceptor } from './common/api/api-response.interceptor.js';
 import { GlobalExceptionFilter } from './common/exception/global-exception.filter.js';
 import { createApplicationLogger } from './common/logging/app-logger.js';
-import { SESSION_COOKIE_NAME } from './modules/auth/auth-cookie.js';
+import { createOpenApiDocument } from './common/api/openapi.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -38,31 +38,9 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new ApiResponseInterceptor());
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Agri Trace API')
-    .setDescription(
-      'Command API for agricultural production, lots, shipments and blockchain proofs',
-    )
-    .setVersion('2.0.0')
-    .addBearerAuth()
-    .addCookieAuth(
-      SESSION_COOKIE_NAME,
-      { type: 'apiKey', in: 'cookie' },
-      SESSION_COOKIE_NAME,
-    )
-    .addApiKey(
-      { type: 'apiKey', name: 'Idempotency-Key', in: 'header' },
-      'idempotency',
-    )
-    .build();
-  SwaggerModule.setup(
-    'docs',
-    app,
-    SwaggerModule.createDocument(app, swaggerConfig),
-    {
-      useGlobalPrefix: true,
-    },
-  );
+  SwaggerModule.setup('docs', app, createOpenApiDocument(app), {
+    useGlobalPrefix: true,
+  });
   await app.listen(process.env.PORT ?? 8080);
 }
 await bootstrap();

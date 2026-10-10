@@ -1,29 +1,62 @@
 export const SCHEMA_VERSION = "2.0.0" as const;
 export const CANONICALIZATION_VERSION = "RFC8785" as const;
+export const ENVELOPE_VERSION = "3.0.0" as const;
 
 export const ENTITY_TYPES = [
-  "PRODUCTION_CYCLE", "CARE", "SENSOR", "SENSOR_DIGEST", "HARVEST",
-  "LOT", "SHIPMENT", "SHIPMENT_TELEMETRY", "INSPECTION", "CERTIFICATE"
+  "PRODUCTION_CYCLE",
+  "CARE",
+  "SENSOR",
+  "SENSOR_DIGEST",
+  "HARVEST",
+  "LOT",
+  "SHIPMENT",
+  "SHIPMENT_TELEMETRY",
+  "INSPECTION",
+  "CERTIFICATE",
 ] as const;
 
 export const EVENT_TYPES = [
-  "PRODUCTION_CYCLE_CREATED", "PLANTING_RECORDED", "CARE_RECORDED",
-  "SENSOR_RECORDED", "HARVEST_RECORDED", "PRODUCTION_CYCLE_COMPLETED",
-  "INSPECTION_RECORDED", "CERTIFICATE_ATTACHED", "SHIPMENT_CREATED",
-  "TRANSPORT_STARTED", "TRANSPORT_ARRIVED", "PARTIAL_DAMAGE_RECORDED",
-  "DAMAGE_RECORDED", "RETAIL_RECEIVED", "RETAIL_REJECTED",
-  "MARKED_FOR_SALE", "LOT_SOLD", "RECALL_RECORDED", "LOT_EXPIRED",
-  "ENTITY_CANCELLED", "CORRECTION_RECORDED",
+  "PRODUCTION_CYCLE_CREATED",
+  "PLANTING_RECORDED",
+  "CARE_RECORDED",
+  "SENSOR_RECORDED",
+  "HARVEST_RECORDED",
+  "PRODUCTION_CYCLE_COMPLETED",
+  "INSPECTION_RECORDED",
+  "CERTIFICATE_ATTACHED",
+  "SHIPMENT_CREATED",
+  "TRANSPORT_STARTED",
+  "TRANSPORT_ARRIVED",
+  "PARTIAL_DAMAGE_RECORDED",
+  "DAMAGE_RECORDED",
+  "RETAIL_RECEIVED",
+  "RETAIL_REJECTED",
+  "MARKED_FOR_SALE",
+  "LOT_SOLD",
+  "RECALL_RECORDED",
+  "LOT_EXPIRED",
+  "ENTITY_CANCELLED",
+  "CORRECTION_RECORDED",
   // Current API command/event vocabulary. Legacy names above remain accepted
   // so already-issued proofs and older clients stay query-compatible.
-  "CYCLE_PLANTED", "CYCLE_COMPLETED", "CYCLE_CANCELLED",
-  "SHIPMENT_STARTED", "SHIPMENT_ARRIVED", "SHIPMENT_RECEIVED",
-  "SHIPMENT_REJECTED", "SHIPMENT_DAMAGE_RECORDED",
-  "CERTIFICATE_SUBMITTED", "CERTIFICATE_APPROVED", "CERTIFICATE_REJECTED",
-  "SENSOR_DIGEST_CREATED", "SENSOR_DIGEST_FINALIZED",
+  "CYCLE_PLANTED",
+  "CYCLE_COMPLETED",
+  "CYCLE_CANCELLED",
+  "SHIPMENT_STARTED",
+  "SHIPMENT_ARRIVED",
+  "SHIPMENT_RECEIVED",
+  "SHIPMENT_REJECTED",
+  "SHIPMENT_DAMAGE_RECORDED",
+  "CERTIFICATE_SUBMITTED",
+  "CERTIFICATE_APPROVED",
+  "CERTIFICATE_REJECTED",
+  "SENSOR_DIGEST_CREATED",
+  "SENSOR_DIGEST_FINALIZED",
   "FINAL_SENSOR_DIGEST_CREATED",
-  "SHIPMENT_TELEMETRY_DIGEST_CREATED", "SHIPMENT_TELEMETRY_DIGEST_FINALIZED",
-  "TRACKING_DEVICE_BOUND", "TRACKING_DEVICE_UNBOUND"
+  "SHIPMENT_TELEMETRY_DIGEST_CREATED",
+  "SHIPMENT_TELEMETRY_DIGEST_FINALIZED",
+  "TRACKING_DEVICE_BOUND",
+  "TRACKING_DEVICE_UNBOUND",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -58,7 +91,23 @@ export interface TraceEventInput {
   payloadMetadata?: Record<string, unknown>;
 }
 
-export interface StoredTraceEvent extends TraceEventInput {
+export type TraceEventEnvelope = Omit<
+  TraceEventInput,
+  "actorContext" | "payloadMetadata"
+> & {
+  envelopeVersion: typeof ENVELOPE_VERSION;
+  nonce: string;
+};
+
+// Old ledger records remain readable without rewriting their actor evidence.
+export interface StoredTraceEvent extends Omit<
+  TraceEventInput,
+  "actorContext" | "payloadMetadata"
+> {
+  envelopeVersion?: typeof ENVELOPE_VERSION;
+  nonce?: string;
+  actorContext?: ActorContext;
+  payloadMetadata?: Record<string, unknown>;
   docType: "traceEvent";
   txId: string;
   channelId: string;
@@ -68,6 +117,8 @@ export interface StoredTraceEvent extends TraceEventInput {
 }
 
 export interface BlockchainProof {
+  envelopeVersion?: typeof ENVELOPE_VERSION;
+  nonce?: string;
   docType: "blockchainProof";
   eventId: string;
   entityType: EntityType;
@@ -114,4 +165,6 @@ export interface HealthResult {
   status: "OK";
   contract: "AgriTraceContract";
   schemaVersion: typeof SCHEMA_VERSION;
+  envelopeVersion: typeof ENVELOPE_VERSION;
+  supportedReadVersions: readonly ["2.0.0", "3.0.0"];
 }

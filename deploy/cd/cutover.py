@@ -33,12 +33,13 @@ def sql_string(value):
 def verify_business_source(previous, source):
     for directory in ("apps/api/src", "apps/api/prisma", "blockchain/gateway", "blockchain/chaincode/src"):
         old_root, new_root = previous / directory, source / directory
-        for old in old_root.rglob("*"):
-            if not old.is_file() or "node_modules" in old.parts or "dist" in old.parts:
-                continue
-            relative = old.relative_to(old_root)
-            new = new_root / relative
-            aliases.require(new.is_file(), "Business source missing: " + str(relative))
+        def source_files(root):
+            return {file.relative_to(root): file for file in root.rglob("*")
+                    if file.is_file() and not {"node_modules", "dist"}.intersection(file.relative_to(root).parts)}
+        old_files, new_files = source_files(old_root), source_files(new_root)
+        aliases.require(old_files.keys() == new_files.keys(), "Business source file set changed: " + directory)
+        for relative, old in old_files.items():
+            new = new_files[relative]
             old_bytes, new_bytes = old.read_bytes(), new.read_bytes()
             # The deployed Prisma lock metadata was copied from a Windows checkout;
             # Git archives use LF. Allow only that metadata's CRLF/LF difference.
@@ -133,6 +134,7 @@ def execute(args):
         aliases.require(state["current"] == args.expected_current, "Current release changed")
         previous = controller.record(state["current"])
         aliases.require(previous.get("verified") and re.fullmatch(r"[a-f0-9]{40}", args.source_sha), "Require verified current and exact source SHA")
+        aliases.require(previous["id"] != "uat-" + args.source_sha, "Cutover source must differ from the active release")
         source = base / "releases" / ("uat-" + args.source_sha)
         aliases.require(source.is_dir(), "Archive exact reviewed source first")
         verify_business_source(Path(previous["directory"]), source)

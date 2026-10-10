@@ -35,7 +35,7 @@ describe("service worker request isolation", () => {
     expect(respondWith).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
-  it("only falls back to the public scan page for offline navigation", async () => {
+  it("only falls back to the static explanation for offline navigation", async () => {
     const { onFetch, match } = worker();
     const respondWith = vi.fn();
     onFetch({
@@ -49,6 +49,6 @@ describe("service worker request isolation", () => {
     await expect(respondWith.mock.calls[0][0]).resolves.toBe(
       "public-offline-page",
     );
-    expect(match).toHaveBeenCalledWith("/scan");
+    expect(match).toHaveBeenCalledWith("/offline.html");
   });
 });

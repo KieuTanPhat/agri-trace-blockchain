@@ -5,6 +5,7 @@
 *.ts text eol=lf
 *.md text eol=lf
 *.sql text eol=lf
+docs/openapi/openapi.sha256 text eol=lf
 deploy/cd/*.py text eol=lf
 deploy/cd/*.mjs text eol=lf
 deploy/cd/entry text eol=lf

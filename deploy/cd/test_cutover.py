@@ -71,6 +71,26 @@ class CutoverBoundaries(unittest.TestCase):
             with self.assertRaises(ValueError):
                 cutover.verify_proxy_policy(old, new)
 
+    def test_added_or_deleted_business_files_cannot_bypass_the_cutover_guard(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            old, new = Path(temporary) / "old", Path(temporary) / "new"
+            for directory in ("apps/api/src", "apps/api/prisma", "blockchain/gateway", "blockchain/chaincode/src"):
+                for root in (old, new):
+                    (root / directory).mkdir(parents=True)
+                relative = Path(directory) / "added-source"
+                for root in (old, new):
+                    (root / relative).write_bytes(b"unchanged")
+                cutover.verify_business_source(old, new)
+                (new / relative).unlink()
+                with self.assertRaisesRegex(ValueError, "file set changed"):
+                    cutover.verify_business_source(old, new)
+                (new / relative).write_bytes(b"unchanged")
+                extra = new / directory / "new-business-source"
+                extra.write_bytes(b"unexpected")
+                with self.assertRaisesRegex(ValueError, "file set changed"):
+                    cutover.verify_business_source(old, new)
+                extra.unlink()
+
 
 if __name__ == "__main__":
     unittest.main()

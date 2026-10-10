@@ -10,6 +10,8 @@ import {
   getLotEventProofStatus,
 } from './lot-proof-status.js';
 import { getAllowedLotCommands } from './lot-action.policy.js';
+import { lotEvidence } from './lot-evidence.js';
+import { resolveLotCustodian } from './lot-custody.js';
 
 export function toInternalLotDto(lot: InternalLot, actor: Actor) {
   const traceEvents = [
@@ -20,6 +22,7 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
       a.eventTime.getTime() - b.eventTime.getTime() ||
       a.createdAt.getTime() - b.createdAt.getTime(),
   );
+  const evidence = lotEvidence(lot, traceEvents);
   const latest = traceEvents.at(-1);
   return {
     lotId: lot.id,
@@ -32,6 +35,8 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
     unit: lot.unit,
     currentState: lot.currentState,
     version: lot.version,
+    ...evidence,
+    custodian: resolveLotCustodian(lot),
     quantityMovements: lot.quantityMovements.map((m) => ({
       id: m.id,
       type: m.type,
@@ -64,8 +69,15 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
           type: lot.shipment.retailer.type,
         }
       : undefined,
-    allowedCommands: getAllowedLotCommands(lot, actor),
-    proofStatus: aggregateLotProofStatus(traceEvents),
+    allowedCommands: getAllowedLotCommands(
+      { ...lot, quantityReconciled: evidence.quantityReconciled },
+      actor,
+    ),
+    proofStatus:
+      evidence.sensorEvidence.status === 'INTEGRITY_WARNING' ||
+      evidence.sensorEvidence.status === 'LEGACY_UNVERIFIED'
+        ? 'INTEGRITY_WARNING'
+        : aggregateLotProofStatus(traceEvents),
     timeline: traceEvents.map((event) => ({
       eventId: event.id,
       entityType: event.entityType,
@@ -117,6 +129,7 @@ export function toPublicLotDto(
   traceToken: string,
   traceEvents: PublicTraceEvent[],
 ) {
+  const evidence = lotEvidence(lot, traceEvents);
   const latest = traceEvents.at(-1);
   return {
     lotId: lot.id,
@@ -128,6 +141,7 @@ export function toPublicLotDto(
     availableQuantity: Number(lot.availableQuantity),
     unit: lot.unit,
     currentState: lot.currentState,
+    ...evidence,
     productionCycle: {
       cycleId: lot.harvest.cycle.id,
       cycleCode: lot.harvest.cycle.cycleCode,
@@ -140,7 +154,11 @@ export function toPublicLotDto(
       type: 'FARM',
     },
     allowedCommands: [],
-    proofStatus: aggregateLotProofStatus(traceEvents),
+    proofStatus:
+      evidence.sensorEvidence.status === 'INTEGRITY_WARNING' ||
+      evidence.sensorEvidence.status === 'LEGACY_UNVERIFIED'
+        ? 'INTEGRITY_WARNING'
+        : aggregateLotProofStatus(traceEvents),
     timeline: traceEvents.map((event) => ({
       eventId: event.id,
       entityType: event.entityType,
@@ -196,6 +214,13 @@ function eventSummary(eventType: string) {
     CERTIFICATE_SUBMITTED: 'Gửi chứng chỉ để xét duyệt.',
     CERTIFICATE_APPROVED: 'Chứng chỉ đã được phê duyệt.',
     CERTIFICATE_REJECTED: 'Chứng chỉ bị từ chối.',
+    SENSOR_DIGEST_FINALIZED: 'Chốt dữ liệu cảm biến cho lần thu hoạch.',
+    PARTIAL_DAMAGE_RECORDED: 'Ghi nhận một phần hàng hư hỏng tại Farm.',
+    DAMAGE_RECORDED: 'Toàn bộ lượng hàng còn lại đã hư hỏng tại Farm.',
+    MARKED_FOR_SALE: 'Nhà bán lẻ đưa lô hàng ra bán.',
+    LOT_SOLD: 'Đã bán toàn bộ lượng hàng còn lại.',
+    RECALL_RECORDED: 'Lô hàng đã được thu hồi.',
+    LOT_EXPIRED: 'Ghi nhận lô hàng hết hạn sử dụng.',
   };
   return summaries[eventType] ?? eventType.replaceAll('_', ' ').toLowerCase();
 }

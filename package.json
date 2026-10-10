@@ -13,7 +13,7 @@
     "undici": "6.29.0",
     "tmp": "0.2.7",
     "brace-expansion@^1.0.0": "1.1.21",
-    "brace-expansion@^2.0.0": "2.1.2",
+    "brace-expansion@^2.0.0": "2.1.7",
     "brace-expansion@^4.0.0": "5.0.12",
     "fast-uri@^3.0.0": "3.1.8",
     "sharp": "0.35.5"
@@ -30,6 +30,8 @@
     "pkcs11js": false
   },
   "scripts": {
+    "api-contract:generate": "npm run build --workspace apps/api && node scripts/generate-api-contract.mjs",
+    "api-contract:check": "npm run build --workspace apps/api && node scripts/generate-api-contract.mjs --check",
     "audit:dependencies": "node scripts/audit-dependencies.mjs",
     "check:chaincode:standalone": "node scripts/check-standalone-chaincode.mjs",
     "dev": "npm run dev:web",
@@ -41,7 +43,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "npm run test:e2e --workspace apps/api",
-    "test:ci": "node --test scripts/ci/ci.test.mjs deploy/cd/gate.test.mjs deploy/cd/send.test.mjs",
+    "test:ci": "node --test scripts/ci/ci.test.mjs deploy/config.test.mjs deploy/cd/gate.test.mjs deploy/cd/send.test.mjs",
     "test:worker-contract": "npm run build --workspace blockchain/gateway && npm run prisma:generate --workspace apps/api && npm run build --workspace apps/api && npm run build --workspace blockchain/chaincode && node --test scripts/ci/worker-contract.test.mjs",
     "check": "npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
   },
@@ -49,5 +51,8 @@
     "apps/*",
     "blockchain/chaincode",
     "blockchain/gateway"
-  ]
+  ],
+  "devDependencies": {
+    "openapi-typescript": "7.13.0"
+  }
 }

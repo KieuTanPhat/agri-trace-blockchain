@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEmail,
   IsByteLength,
@@ -11,18 +12,31 @@ import {
 import { Transform } from 'class-transformer';
 
 export class CreateUserDto {
-  @IsEmail() email!: string;
+  @ApiProperty({ type: String, format: 'email' })
+  @IsEmail()
+  email!: string;
+  @ApiProperty({ type: String, maxLength: 255, minLength: 1 })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @MaxLength(255)
   fullName!: string;
-  @IsString() @MinLength(12) @IsByteLength(12, 72) password!: string;
-  @IsString() roleCode!: string;
-  @IsOptional() @IsUUID() organizationId?: string;
+  @ApiProperty({ type: String, minLength: 12 })
+  @IsString()
+  @MinLength(12)
+  @IsByteLength(12, 72)
+  password!: string;
+  @ApiProperty({ type: String })
+  @IsString()
+  roleCode!: string;
+  @ApiProperty({ type: String, required: false, format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  organizationId?: string;
 }
 
 export class UpdateUserStatusDto {
+  @ApiProperty({ enum: ['ACTIVE', 'INACTIVE', 'LOCKED'] })
   @IsIn(['ACTIVE', 'INACTIVE', 'LOCKED'])
   accountStatus!: 'ACTIVE' | 'INACTIVE' | 'LOCKED';
 }

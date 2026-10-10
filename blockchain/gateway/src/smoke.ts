@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 import { canonicalize as canonicalizeJson } from "json-canonicalize";
 
-import { FabricBlockchainAdapter, type TraceEventInput } from "./adapter.js";
+import { FabricBlockchainAdapter, type TraceEventEnvelope } from "./adapter.js";
 import { loadConfig } from "./config.js";
 import { connectGateway } from "./connect.js";
 
@@ -15,25 +15,26 @@ async function main(): Promise<void> {
     const cycleId = crypto.randomUUID();
     const actorId = crypto.randomUUID();
     const now = new Date().toISOString();
-    const payload = { cycleId, productType: "coffee", variety: "Robusta", createdAt: now };
-    const input: TraceEventInput = {
+    const payload = {
+      cycleId,
+      productType: "coffee",
+      variety: "Robusta",
+      createdAt: now,
+    };
+    const input: TraceEventEnvelope = {
       eventId,
+      nonce: eventId,
+      envelopeVersion: "3.0.0",
       entityType: "PRODUCTION_CYCLE",
       entityId: cycleId,
       cycleId,
       eventType: "PRODUCTION_CYCLE_CREATED",
       eventTime: now,
-      dataHash: sha256(canonicalize(payload)),
+      dataHash: sha256(
+        canonicalize({ eventId, actorId, businessData: payload }),
+      ),
       schemaVersion: "2.0.0",
       canonicalizationVersion: "RFC8785",
-      actorContext: {
-        actorUserId: actorId,
-        role: "FARM_STAFF",
-        organizationId: crypto.randomUUID(),
-        authProofType: "TOKEN_FINGERPRINT",
-        actorAuthProof: sha256(canonicalize({ actorId, requestId: eventId, authenticatedAt: now }))
-      },
-      payloadMetadata: { productType: "coffee", variety: "Robusta" }
     };
 
     const receipt = await adapter.submitTraceEvent(input);
@@ -41,12 +42,15 @@ async function main(): Promise<void> {
       adapter.queryEvent(eventId),
       adapter.getProof(eventId),
       adapter.getEntityHead("PRODUCTION_CYCLE", cycleId),
-      adapter.queryEntityHistory("PRODUCTION_CYCLE", cycleId)
+      adapter.queryEntityHistory("PRODUCTION_CYCLE", cycleId),
     ]);
     const expectedHash = await adapter.getExpectedHash(eventId);
-    if (expectedHash !== input.dataHash) throw new Error("Expected hash did not match submitted digest");
+    if (expectedHash !== input.dataHash)
+      throw new Error("Expected hash did not match submitted digest");
 
-    console.log(JSON.stringify({ receipt, event, proof, head, history }, null, 2));
+    console.log(
+      JSON.stringify({ receipt, event, proof, head, history }, null, 2),
+    );
   } finally {
     connection.close();
   }
@@ -58,7 +62,8 @@ function sha256(value: string): string {
 
 function canonicalize(value: unknown): string {
   const result = canonicalizeJson(value);
-  if (result === undefined) throw new Error("Smoke payload cannot be RFC 8785 canonicalized");
+  if (result === undefined)
+    throw new Error("Smoke payload cannot be RFC 8785 canonicalized");
   return result;
 }
 

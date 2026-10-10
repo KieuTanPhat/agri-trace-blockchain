@@ -4,27 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { request, getProductionCycles } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
 import type { ProductionCycleOption } from "@/lib/types";
+import type { components } from "@/lib/generated/api";
+import { sumQuantities } from "@/lib/quantity-display";
 import { emptyCatalog, type Catalog } from "@/lib/catalog";
 import { DataForm } from "@/components/data-form";
 import { QrCodeCard } from "@/components/qr-code-card";
 import { canWriteFarm } from "@/lib/permissions";
-type Cycle = ProductionCycleOption & {
-  maxHarvestQuantity?: string;
-  plot?: { name: string };
-  careRecords: {
-    id: string;
-    careType: string;
-    eventTime: string;
-    note?: string;
-  }[];
-  harvestEvents: {
-    id: string;
-    harvestTime: string;
-    quantity: string;
-    unit: string;
-    lot?: { id: string; lotCode: string };
-  }[];
-};
+type Cycle = components["schemas"]["CycleDetailDto"];
 const states: Record<string, string> = {
   CREATED: "Mới tạo",
   PLANTED: "Đã gieo trồng",
@@ -224,11 +210,10 @@ export default function CyclesPage() {
               {detail.plot?.name ?? "Chưa chọn thửa"}
             </p>
             <p>
-              Đã thu hoạch:{" "}
-              {detail.harvestEvents.reduce(
-                (sum, h) => sum + Number(h.quantity),
-                0,
-              )}{" "}
+              {["TRANSPORTER", "RETAILER"].includes(user?.role.code ?? "")
+                ? "Sản lượng các lần được phép xem:"
+                : "Đã thu hoạch:"}{" "}
+              {sumQuantities(detail.harvestEvents.map((item) => item.quantity))}{" "}
               / {detail.maxHarvestQuantity ?? "—"} {detail.harvestUnit}
             </p>
           </div>
@@ -302,6 +287,11 @@ export default function CyclesPage() {
                   { name: "lotCode", label: "Mã lô (để trống để tự sinh)" },
                   { name: "grade", label: "Phân hạng" },
                   { name: "qualityNote", label: "Ghi chú chất lượng" },
+                  {
+                    name: "expiryDate",
+                    label: "Ngày hết hạn (nếu có)",
+                    type: "date",
+                  },
                 ]}
                 onSaved={(value) => {
                   setHarvest(value as typeof harvest);
@@ -333,6 +323,10 @@ export default function CyclesPage() {
                   {h.lot && (
                     <Link href={"/lots/" + h.lot.id}>{h.lot.lotCode}</Link>
                   )}
+                  {" — "}
+                  {h.sensorWindow
+                    ? `${h.sensorWindow.status === "NO_DATA" ? "Chưa có dữ liệu cảm biến" : "Đã chốt dữ liệu cảm biến"} (${h.sensorWindow.readingCount} mẫu)`
+                    : "Dữ liệu cảm biến lịch sử chưa đối soát"}
                 </p>
               ))
             )}

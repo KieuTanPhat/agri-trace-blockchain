@@ -7,6 +7,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { calculateTraceEventHash } from './trace-hash.js';
+import { privateTraceEvidenceMatches } from './trace-evidence.js';
+import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
+import { getLotEventProofStatus } from '../lots/lot-proof-status.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 
 export type Actor = {
@@ -24,6 +27,7 @@ export interface CreateTraceEventInput {
   lotId?: string;
   eventTime?: Date;
   businessData: Prisma.InputJsonValue;
+  supersedesEventId?: string;
 }
 
 @Injectable()
@@ -105,6 +109,7 @@ export class TraceService {
         businessData: input.businessData,
         dataHash,
         previousEventHash: previous?.dataHash,
+        supersedesEventId: input.supersedesEventId,
       },
     });
 
@@ -135,6 +140,10 @@ export class TraceService {
     });
     if (!event) throw new NotFoundException('Không tìm thấy trace event');
     const proof = event.blockchainProof;
+    const sensorMatches = await harvestSensorTraceEvidenceMatches(
+      this.prisma,
+      event,
+    );
     return {
       eventId,
       network:
@@ -156,7 +165,11 @@ export class TraceService {
       lastError: event.blockchainOutbox?.lastError ?? null,
       localHashMatches:
         (!proof || proof.dataHash === event.dataHash) &&
-        event.dataHash === calculateTraceEventHash(event),
+        privateTraceEvidenceMatches(event) &&
+        sensorMatches,
+      proofStatus: sensorMatches
+        ? getLotEventProofStatus(event)
+        : 'INTEGRITY_WARNING',
     };
   }
 }

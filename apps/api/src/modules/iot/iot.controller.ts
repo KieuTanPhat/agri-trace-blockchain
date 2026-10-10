@@ -1,3 +1,16 @@
+import { ApiDataResponse } from '../../common/api/openapi.js';
+import {
+  IotDeviceRecordDto,
+  SensorDigestRecordDto,
+  ShipmentTrackingBindingRecordDto,
+  ShipmentTelemetryDigestRecordDto,
+} from '../../common/api/record.dto.js';
+import {
+  DeviceListDto,
+  ReadingAcceptedDto,
+  TelemetryAcceptedDto,
+  UnboundDto,
+} from '../../common/api/response.dto.js';
 import {
   FARM_WRITE_ROLES,
   TRANSPORT_WRITE_ROLES,
@@ -41,14 +54,16 @@ export class IotController {
   private run(
     operation: string,
     key: string,
-    requesterId: string,
+    requester: AuthenticatedRequest['user'] | string,
     payload: unknown,
     command: () => Promise<unknown>,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
-        requesterId,
+        requesterId: typeof requester === 'string' ? requester : requester.sub,
+        actor: typeof requester === 'string' ? null : requester,
+        responseStatus: 201,
         operation,
         requestType: 'IOT_INGEST',
         payload,
@@ -57,6 +72,7 @@ export class IotController {
     );
   }
 
+  @ApiDataResponse(DeviceListDto, 200, true)
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'AUDITOR')
@@ -65,6 +81,7 @@ export class IotController {
     return this.service.listDevices(request.user);
   }
 
+  @ApiDataResponse(IotDeviceRecordDto, 201)
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -75,11 +92,12 @@ export class IotController {
     @Headers('idempotency-key') key: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.run('CREATE_IOT_DEVICE', key, request.user.sub, input, () =>
+    return this.run('CREATE_IOT_DEVICE', key, request.user, input, () =>
       this.service.createDevice(input, request.user),
     );
   }
 
+  @ApiDataResponse(ReadingAcceptedDto, 201)
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -90,11 +108,12 @@ export class IotController {
     @Headers('idempotency-key') key: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.run('INGEST_SENSOR_READING', key, request.user.sub, input, () =>
+    return this.run('INGEST_SENSOR_READING', key, request.user, input, () =>
       this.service.ingest(input, request.user),
     );
   }
 
+  @ApiDataResponse(ReadingAcceptedDto, 201)
   @ApiHeader({ name: 'X-Device-Key', required: true })
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(DeviceKeyGuard)
@@ -112,6 +131,7 @@ export class IotController {
     );
   }
 
+  @ApiDataResponse(SensorDigestRecordDto, 201)
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -126,12 +146,13 @@ export class IotController {
     return this.run(
       'CREATE_SENSOR_DIGEST',
       key,
-      request.user.sub,
+      request.user,
       { cycleId, ...input },
       () => this.service.createSensorDigest(cycleId, input, request.user),
     );
   }
 
+  @ApiDataResponse(TelemetryAcceptedDto, 201)
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -146,7 +167,7 @@ export class IotController {
     return this.run(
       'INGEST_SHIPMENT_TELEMETRY',
       key,
-      request.user.sub,
+      request.user,
       { shipmentId, ...input },
       () =>
         this.service.ingestShipmentTelemetry(
@@ -158,6 +179,7 @@ export class IotController {
     );
   }
 
+  @ApiDataResponse(ShipmentTrackingBindingRecordDto, 201)
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -172,12 +194,13 @@ export class IotController {
     return this.run(
       'BIND_SHIPMENT_DEVICE',
       key,
-      request.user.sub,
+      request.user,
       { shipmentId, ...input },
       () => this.service.bindShipmentDevice(shipmentId, input, request.user),
     );
   }
 
+  @ApiDataResponse(UnboundDto, 201)
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -192,13 +215,14 @@ export class IotController {
     return this.run(
       'UNBIND_SHIPMENT_DEVICE',
       key,
-      request.user.sub,
+      request.user,
       { shipmentId, deviceId },
       () =>
         this.service.unbindShipmentDevice(shipmentId, deviceId, request.user),
     );
   }
 
+  @ApiDataResponse(TelemetryAcceptedDto, 201)
   @ApiHeader({ name: 'X-Device-Key', required: true })
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(DeviceKeyGuard)
@@ -217,6 +241,7 @@ export class IotController {
     );
   }
 
+  @ApiDataResponse(ShipmentTelemetryDigestRecordDto, 201)
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -231,7 +256,7 @@ export class IotController {
     return this.run(
       'CREATE_SHIPMENT_TELEMETRY_DIGEST',
       key,
-      request.user.sub,
+      request.user,
       { shipmentId, ...input },
       () => this.service.createTelemetryDigest(shipmentId, input, request.user),
     );

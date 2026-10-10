@@ -13,6 +13,7 @@ import {
   withAuthLock,
 } from "./auth-coordination";
 import { clearStoredIotReadings } from "./iot-local-store";
+import type { components } from "./generated/api";
 import type {
   AllowedCommand,
   AuthUser,
@@ -36,7 +37,9 @@ const API_BASE_URL =
     : process.env.NEXT_PUBLIC_API_SAME_ORIGIN === "true"
       ? "/api"
       : PUBLIC_API_BASE_URL;
-const USE_MOCK_API = process.env.NEXT_PUBLIC_MOCK_API === "true";
+const USE_MOCK_API =
+  process.env.NODE_ENV !== "production" &&
+  process.env.NEXT_PUBLIC_MOCK_API === "true";
 export const AUTH_STORAGE_KEY = "agritrace-auth"; // Legacy key, removed on startup.
 
 type ApiEnvelope<T> = { success: true; data: T };
@@ -242,19 +245,9 @@ export function getProductionCycles(): Promise<ProductionCycleOption[]> {
 
 export function recordHarvest(
   cycleId: string,
-  input: {
-    harvestTime: string;
-    quantity: number;
-    unit: string;
-    grade?: string;
-    qualityNote?: string;
-    lotCode?: string;
-  },
+  input: components["schemas"]["RecordHarvestDto"],
   idempotencyKey = crypto.randomUUID(),
-): Promise<{
-  lot: { id: string; lotCode: string };
-  traceQr: { traceToken: string };
-}> {
+): Promise<components["schemas"]["HarvestResultDto"]> {
   return request(`/production-cycles/${cycleId}/harvests`, {
     headers: { "idempotency-key": idempotencyKey },
     method: "POST",
@@ -285,6 +278,36 @@ export async function submitCommand(
     return { message: "Đã tạo chuyến vận chuyển." };
   }
 
+  if (
+    ["markForSale", "markSold", "recall", "expire"].includes(command) ||
+    (command === "reportDamage" && !lot.shipment)
+  ) {
+    const endpoints: Partial<Record<AllowedCommand, string>> = {
+      markForSale: "mark-for-sale",
+      markSold: "mark-sold",
+      recall: "recall",
+      expire: "expire",
+      reportDamage: "damage",
+    };
+    const action = endpoints[command];
+    if (!action) throw new Error("Thao tác không được hỗ trợ");
+    await request(`/lots/${lot.lotId}/${action}`, {
+      headers: { "idempotency-key": idempotencyKey },
+      method: "POST",
+      body: JSON.stringify({
+        version: lot.version,
+        shipmentVersion: lot.shipment?.version,
+        ...(["recall", "expire", "reportDamage"].includes(command)
+          ? { reason: input.reason }
+          : {}),
+        ...(command === "reportDamage"
+          ? { quantity: input.quantity, evidenceRef: input.evidenceRef }
+          : {}),
+      }),
+    });
+    return { message: "Thao tác đã được ghi nhận thành công." };
+  }
+
   if (!lot.shipment)
     throw {
       status: 409,
@@ -292,7 +315,7 @@ export async function submitCommand(
       message: "Lô chưa có chuyến vận chuyển phù hợp.",
     };
   const base = { version: lot.shipment.version, lotVersion: lot.version ?? 0 };
-  const endpoint: Record<Exclude<AllowedCommand, "createShipment">, string> = {
+  const endpoint: Partial<Record<AllowedCommand, string>> = {
     startTransport: "start",
     reportArrival: "arrive",
     receiveRetail: "receive",
@@ -310,9 +333,16 @@ export async function submitCommand(
       : command === "rejectRetail"
         ? { ...base, reason: input.reason }
         : command === "reportDamage"
-          ? { ...base, quantity: input.quantity, reason: input.reason }
+          ? {
+              ...base,
+              quantity: input.quantity,
+              reason: input.reason,
+              evidenceRef: input.evidenceRef,
+            }
           : base;
-  await request(`/shipments/${lot.shipment.shipmentId}/${endpoint[command]}`, {
+  const action = endpoint[command];
+  if (!action) throw new Error("Thao tác không được hỗ trợ");
+  await request(`/shipments/${lot.shipment.shipmentId}/${action}`, {
     headers: { "idempotency-key": idempotencyKey },
     method: "POST",
     body: JSON.stringify(body),

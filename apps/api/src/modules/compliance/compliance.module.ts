@@ -5,10 +5,12 @@ import { AuthModule } from '../auth/auth.module.js';
 import { TraceModule } from '../trace/trace.module.js';
 import { ComplianceController } from './compliance.controller.js';
 import { ComplianceService } from './compliance.service.js';
+import { ComplianceAssignmentsController } from './assignments.controller.js';
+import { ComplianceAssignmentsService } from './assignments.service.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, TraceModule, IdempotencyModule],
-  controllers: [ComplianceController],
-  providers: [ComplianceService],
+  controllers: [ComplianceController, ComplianceAssignmentsController],
+  providers: [ComplianceService, ComplianceAssignmentsService],
 })
 export class ComplianceModule {}

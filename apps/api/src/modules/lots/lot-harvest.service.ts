@@ -7,6 +7,17 @@ import {
 import { randomBytes } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  commandTransaction,
+  lockAggregate,
+} from '../../common/idempotency/command-transaction.js';
+import { quantity } from '../../common/quantity.js';
+import { normalizeExpiryDate } from '../../common/expiry-date.js';
+import { businessTimestamp } from '../../common/timestamp.js';
+import {
+  prepareHarvestSensorWindow,
+  finalizeHarvestSensorWindow,
+} from '../iot/harvest-sensor-window.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import {
   assertBusinessActor,
@@ -26,8 +37,11 @@ export class LotHarvestService {
   async recordHarvest(cycleId: string, input: RecordHarvestDto, actor: Actor) {
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, cycleId);
-    return this.prisma.$transaction(
+    const harvestedQuantity = quantity(input.quantity);
+    return commandTransaction(
+      this.prisma,
       async (tx) => {
+        await lockAggregate(tx, 'cycle', cycleId);
         const cycle = await tx.productionCycle.findUnique({
           where: { id: cycleId },
         });
@@ -41,21 +55,41 @@ export class LotHarvestService {
           throw new UnprocessableEntityException(
             'Đơn vị thu hoạch không khớp kế hoạch',
           );
-        if (input.finalSensorDigestId) {
-          const digest = await tx.sensorDigest.findUnique({
-            where: { id: input.finalSensorDigestId },
-          });
-          if (!digest || digest.cycleId !== cycleId || !digest.isFinal)
-            throw new UnprocessableEntityException(
-              'Sensor digest cuối kỳ không thuộc chu kỳ hoặc chưa được finalize',
-            );
-        }
+        if (
+          await tx.harvestEvent.findFirst({
+            where: { cycleId, unit: { not: input.unit } },
+            select: { id: true },
+          })
+        )
+          throw new ConflictException(
+            'Lịch sử thu hoạch có đơn vị khác; cần đối soát trước khi ghi tiếp',
+          );
+        const harvestTime = businessTimestamp(
+          input.harvestTime,
+          'Thời điểm thu hoạch',
+        );
+        const expiryDate = input.expiryDate
+          ? normalizeExpiryDate(input.expiryDate)
+          : undefined;
+        if (
+          expiryDate &&
+          expiryDate < normalizeExpiryDate(harvestTime.toISOString())
+        )
+          throw new UnprocessableEntityException(
+            'Ngày hết hạn phải từ ngày thu hoạch',
+          );
+        const sensorSnapshot = await prepareHarvestSensorWindow(
+          tx,
+          cycleId,
+          harvestTime,
+          input.finalSensorDigestId,
+        );
         const aggregate = await tx.harvestEvent.aggregate({
           where: { cycleId },
           _sum: { quantity: true },
         });
         const harvested = aggregate._sum.quantity ?? new Prisma.Decimal(0);
-        const total = harvested.add(input.quantity);
+        const total = harvested.add(harvestedQuantity);
         if (
           cycle.maxHarvestQuantity &&
           total.greaterThan(cycle.maxHarvestQuantity)
@@ -68,8 +102,8 @@ export class LotHarvestService {
           data: {
             cycleId,
             finalSensorDigestId: input.finalSensorDigestId,
-            harvestTime: new Date(input.harvestTime),
-            quantity: input.quantity,
+            harvestTime,
+            quantity: harvestedQuantity,
             unit: input.unit,
             grade: input.grade,
             qualityNote: input.qualityNote,
@@ -85,13 +119,37 @@ export class LotHarvestService {
             harvestId: harvest.id,
             productId: cycle.productId,
             farmOrgId: cycle.farmOrgId,
-            initialQuantity: input.quantity,
-            availableQuantity: input.quantity,
+            initialQuantity: harvestedQuantity,
+            availableQuantity: harvestedQuantity,
             unit: input.unit,
             grade: input.grade,
-            expiryDate: input.expiryDate
-              ? new Date(input.expiryDate)
-              : undefined,
+            expiryDate,
+          },
+        });
+        const sensorWindow = await finalizeHarvestSensorWindow(
+          tx,
+          sensorSnapshot,
+          harvest.id,
+        );
+        await this.trace.createInTransaction(tx, {
+          entityType: 'SENSOR_DIGEST',
+          entityId: sensorWindow.id,
+          cycleId,
+          lotId: lot.id,
+          eventType: 'SENSOR_DIGEST_FINALIZED',
+          actor,
+          eventTime: harvest.harvestTime,
+          businessData: {
+            windowId: sensorWindow.id,
+            harvestId: harvest.id,
+            periodStart: sensorWindow.periodStart.toISOString(),
+            periodEnd: sensorWindow.periodEnd.toISOString(),
+            includeStart: sensorWindow.includeStart,
+            status: sensorWindow.status,
+            digestHash: sensorWindow.digestHash,
+            readingCount: sensorWindow.readingCount,
+            schemaVersion: sensorWindow.schemaVersion,
+            reconciliationId: sensorWindow.reconciliationId,
           },
         });
         const event = await this.trace.createInTransaction(tx, {
@@ -104,9 +162,14 @@ export class LotHarvestService {
           eventTime: harvest.harvestTime,
           businessData: {
             lotCode,
-            quantity: String(input.quantity),
+            quantity: harvestedQuantity.toString(),
             unit: input.unit,
             grade: input.grade ?? null,
+            expiryDate: lot.expiryDate?.toISOString().slice(0, 10) ?? null,
+            qualityNote: input.qualityNote ?? null,
+            harvestArea: input.harvestArea ?? null,
+            sensorWindowId: sensorWindow.id,
+            sensorEvidenceStatus: sensorWindow.status,
           },
         });
         await tx.quantityMovement.create({
@@ -114,11 +177,11 @@ export class LotHarvestService {
             lotId: lot.id,
             eventId: event.id,
             type: 'HARVEST_IN',
-            quantity: input.quantity,
+            quantity: harvestedQuantity,
             unit: input.unit,
             beforeQty: 0,
-            delta: input.quantity,
-            afterQty: input.quantity,
+            delta: harvestedQuantity,
+            afterQty: harvestedQuantity,
           },
         });
         const traceToken = randomBytes(24).toString('base64url');
@@ -129,9 +192,22 @@ export class LotHarvestService {
             traceUrl: `${process.env.PUBLIC_TRACE_BASE_URL ?? 'http://localhost:3000/trace'}/${traceToken}`,
           },
         });
-        return { harvest, lot, traceQr };
+        await tx.productionCycle.update({
+          where: { id: cycleId },
+          data: { version: { increment: 1 } },
+        });
+        return {
+          harvest,
+          lot,
+          traceQr,
+          sensorWindow,
+          cycleVersion: cycle.version + 1,
+        };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        timeout: 30000,
+      },
     );
   }
 }

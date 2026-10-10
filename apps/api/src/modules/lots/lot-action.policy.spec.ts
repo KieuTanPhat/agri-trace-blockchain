@@ -46,7 +46,7 @@ describe('Lot action policy', () => {
         role: 'FARM_STAFF',
         organizationId: 'farm',
       }),
-    ).toEqual(['createShipment']);
+    ).toEqual(['createShipment', 'reportDamage', 'recall']);
     expect(
       getAllowedLotCommands(
         { ...lot, shipment },
@@ -62,7 +62,7 @@ describe('Lot action policy', () => {
         },
         { role: 'TRANSPORTER', organizationId: 'carrier' },
       ),
-    ).toEqual(['reportArrival', 'reportDamage']);
+    ).toEqual(['reportArrival', 'reportDamage', 'recall']);
     expect(
       getAllowedLotCommands(
         {
@@ -72,7 +72,7 @@ describe('Lot action policy', () => {
         },
         { role: 'RETAILER', organizationId: 'retailer' },
       ),
-    ).toEqual(['receiveRetail', 'rejectRetail', 'reportDamage']);
+    ).toEqual(['receiveRetail', 'rejectRetail', 'reportDamage', 'recall']);
   });
   it('denies missing/wrong organizations, wrong roles, empty stock and inconsistent states', () => {
     expect(

@@ -1,3 +1,12 @@
+import { ApiDataResponse } from '../../common/api/openapi.js';
+import { ProductionCycleRecordDto } from '../../common/api/record.dto.js';
+import {
+  CycleListDto,
+  CycleDetailDto,
+  ReconciliationResultDto,
+  CareResultDto,
+  SensorReadingResultDto,
+} from '../../common/api/response.dto.js';
 import { FARM_WRITE_ROLES } from '../auth/business-write.policy.js';
 import {
   Body,
@@ -23,6 +32,7 @@ import {
   PlantCycleDto,
   SensorReadingDto,
   VersionedCommandDto,
+  ReconcileCycleSensorDto,
 } from './dto.js';
 import { ProductionCyclesService } from './production-cycles.service.js';
 
@@ -43,10 +53,12 @@ export class ProductionCyclesController {
     payload: unknown,
     command: () => Promise<unknown>,
   ) {
-    return this.idempotency.execute(
+    return this.idempotency.executeCommand(
       {
         idempotencyKey: key,
         requesterId: request.user.sub,
+        actor: request.user,
+        responseStatus: 201,
         operation,
         requestType: 'COMMAND',
         payload,
@@ -55,14 +67,30 @@ export class ProductionCyclesController {
     );
   }
 
+  @ApiDataResponse(CycleListDto, 200, true)
   @Get()
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   list(@Req() req: AuthenticatedRequest) {
     return this.service.list(req.user);
   }
 
+  @ApiDataResponse(CycleDetailDto, 200)
   @Get(':id')
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR')
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   get(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: AuthenticatedRequest,
@@ -70,6 +98,7 @@ export class ProductionCyclesController {
     return this.service.get(id, req.user);
   }
 
+  @ApiDataResponse(ProductionCycleRecordDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post()
   create(
@@ -81,6 +110,7 @@ export class ProductionCyclesController {
       this.service.create(dto, req.user),
     );
   }
+  @ApiDataResponse(ProductionCycleRecordDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/plant')
   plant(
@@ -93,6 +123,21 @@ export class ProductionCyclesController {
       this.service.plant(id, dto, req.user),
     );
   }
+  @ApiDataResponse(ReconciliationResultDto, 201)
+  @Roles('SYSTEM_ADMIN')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @Post(':id/sensor-reconciliations')
+  reconcileSensor(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReconcileCycleSensorDto,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.run('RECONCILE_CYCLE_SENSOR', key, req, { id, ...dto }, () =>
+      this.service.reconcileSensorHistory(id, dto, req.user),
+    );
+  }
+  @ApiDataResponse(CareResultDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/care')
   care(
@@ -105,6 +150,7 @@ export class ProductionCyclesController {
       this.service.addCare(id, dto, req.user),
     );
   }
+  @ApiDataResponse(SensorReadingResultDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/sensor-readings')
   sensor(
@@ -117,6 +163,7 @@ export class ProductionCyclesController {
       this.service.addSensorReading(id, dto, req.user),
     );
   }
+  @ApiDataResponse(ProductionCycleRecordDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/close')
   close(
@@ -129,6 +176,7 @@ export class ProductionCyclesController {
       this.service.close(id, dto, req.user),
     );
   }
+  @ApiDataResponse(ProductionCycleRecordDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/cancel')
   cancel(

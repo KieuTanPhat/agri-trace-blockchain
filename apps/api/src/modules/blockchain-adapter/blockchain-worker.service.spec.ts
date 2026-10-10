@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { FabricAdapterProvider } from './fabric-adapter.provider.js';
 import { BlockchainWorkerService } from './blockchain-worker.service.js';
+import { calculateTraceEventHash } from '../trace/trace-hash.js';
 
 describe('BlockchainWorkerService distributed claim', () => {
   it('claims due proofs under a PostgreSQL SKIP LOCKED transaction', async () => {
@@ -17,7 +18,15 @@ describe('BlockchainWorkerService distributed claim', () => {
       {
         get: vi.fn((_name: string, fallback: unknown) => fallback),
       } as unknown as ConfigService,
-      {} as FabricAdapterProvider,
+      {
+        getAdapter: vi
+          .fn()
+          .mockResolvedValue({
+            healthCheck: vi
+              .fn()
+              .mockResolvedValue({ status: 'OK', envelopeVersion: '3.0.0' }),
+          }),
+      } as unknown as FabricAdapterProvider,
     );
 
     await expect(service.processPending(7)).resolves.toEqual({
@@ -56,12 +65,11 @@ describe('BlockchainWorkerService distributed claim', () => {
       ),
     };
     const adapter = {
-      submitTraceEvent: vi.fn().mockResolvedValue({
-        txId: 'fabric-tx-1',
-        recordedAt: '2026-09-21T00:00:00.000Z',
-        channelId: 'agritrace',
-        dataHash: job.traceEvent.dataHash,
-      }),
+      healthCheck: vi
+        .fn()
+        .mockResolvedValue({ status: 'OK', envelopeVersion: '3.0.0' }),
+      submitTraceEvent: vi.fn().mockResolvedValue(receiptFor(job)),
+      getProof: vi.fn().mockResolvedValue(receiptFor(job)),
     };
     const service = new BlockchainWorkerService(
       prisma as unknown as PrismaService,
@@ -91,7 +99,7 @@ describe('BlockchainWorkerService distributed claim', () => {
         create: expect.objectContaining({
           eventId: job.eventId,
           transactionStatus: 'CONFIRMED',
-          txId: 'fabric-tx-1',
+          txId: 'c'.repeat(64),
         }),
       }),
     );
@@ -123,6 +131,9 @@ describe('BlockchainWorkerService distributed claim', () => {
       configService(),
       {
         getAdapter: vi.fn().mockResolvedValue({
+          healthCheck: vi
+            .fn()
+            .mockResolvedValue({ status: 'OK', envelopeVersion: '3.0.0' }),
           submitTraceEvent: vi
             .fn()
             .mockRejectedValue(new Error('peer offline')),
@@ -144,8 +155,12 @@ describe('BlockchainWorkerService distributed claim', () => {
   });
 
   it.each([
-    { txId: 'tx', dataHash: 'b'.repeat(64) },
-    { txId: 'tx', dataHash: 'a'.repeat(64), recordedAt: 'invalid' },
+    { txId: 'c'.repeat(64), dataHash: 'b'.repeat(64) },
+    {
+      txId: 'c'.repeat(64),
+      dataHash: claimedJob(1).traceEvent.dataHash,
+      recordedAt: 'invalid',
+    },
   ])('never confirms an invalid receipt: %j', async (receipt) => {
     const { service, updateMany, upsert } = workerWithReceipt(receipt);
     await service.processPending();
@@ -159,8 +174,8 @@ describe('BlockchainWorkerService distributed claim', () => {
 
   it('recovers a committed duplicate by querying the existing proof', async () => {
     const { service, upsert, adapter } = workerWithReceipt({
-      txId: 'original-tx',
-      dataHash: 'a'.repeat(64),
+      txId: 'd'.repeat(64),
+      dataHash: claimedJob(1).traceEvent.dataHash,
     });
     adapter.submitTraceEvent.mockRejectedValue(
       new Error('DUPLICATE_EVENT: already exists'),
@@ -170,7 +185,7 @@ describe('BlockchainWorkerService distributed claim', () => {
     expect(upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({
-          txId: 'original-tx',
+          txId: 'd'.repeat(64),
           transactionStatus: 'CONFIRMED',
         }),
       }),
@@ -195,8 +210,8 @@ describe('BlockchainWorkerService distributed claim', () => {
 
   it('ignores completion from a worker whose lease was reclaimed', async () => {
     const { service, updateMany, upsert } = workerWithReceipt({
-      txId: 'tx',
-      dataHash: 'a'.repeat(64),
+      txId: 'c'.repeat(64),
+      dataHash: claimedJob(1).traceEvent.dataHash,
     });
     updateMany
       .mockResolvedValueOnce({ count: 1 })
@@ -225,8 +240,13 @@ function workerWithReceipt(receipt: object) {
     blockchainOutbox: { updateMany },
   };
   const adapter = {
-    submitTraceEvent: vi.fn().mockResolvedValue(receipt),
-    getProof: vi.fn().mockResolvedValue(receipt),
+    healthCheck: vi
+      .fn()
+      .mockResolvedValue({ status: 'OK', envelopeVersion: '3.0.0' }),
+    submitTraceEvent: vi
+      .fn()
+      .mockResolvedValue({ ...receiptFor(job), ...receipt }),
+    getProof: vi.fn().mockResolvedValue({ ...receiptFor(job), ...receipt }),
   };
   const service = new BlockchainWorkerService(
     prisma as unknown as PrismaService,
@@ -247,7 +267,7 @@ function configService(): ConfigService {
 }
 
 function claimedJob(attemptCount: number) {
-  return {
+  const job = {
     id: 'b0f09ea4-2675-49e9-bccc-f09aaee66548',
     eventId: 'd6212d56-a3b2-4d54-9779-cc8507a6bd53',
     status: 'PROCESSING',
@@ -265,12 +285,12 @@ function claimedJob(attemptCount: number) {
       entityId: '631e9648-174d-48a0-9494-353bda8775da',
       cycleId: null,
       lotId: '631e9648-174d-48a0-9494-353bda8775da',
-      eventType: 'HARVEST_RECORDED',
+      eventType: 'DAMAGE_RECORDED',
       actorUserId: null,
       actorOrganizationId: null,
-      actorRole: 'SYSTEM',
+      actorRole: 'SYSTEM_ACTOR',
       authProofType: 'SYSTEM_ASSERTION',
-      actorAuthProof: 'proof',
+      actorAuthProof: 'e'.repeat(64),
       eventTime: new Date('2026-09-21T00:00:00.000Z'),
       serverRecordedAt: new Date('2026-09-21T00:00:00.000Z'),
       businessData: {},
@@ -282,5 +302,29 @@ function claimedJob(attemptCount: number) {
       causationEventId: null,
       createdAt: new Date('2026-09-21T00:00:00.000Z'),
     },
+  };
+  job.traceEvent.dataHash = calculateTraceEventHash(job.traceEvent);
+  return job;
+}
+
+function receiptFor(job: ReturnType<typeof claimedJob>) {
+  const event = job.traceEvent;
+  return {
+    eventId: event.id,
+    entityType: event.entityType,
+    entityId: event.entityId,
+    cycleId: event.cycleId,
+    lotId: event.lotId,
+    eventType: event.eventType,
+    eventTime: event.eventTime.toISOString(),
+    dataHash: event.dataHash,
+    previousEventHash: event.previousEventHash,
+    schemaVersion: event.schemaVersion,
+    canonicalizationVersion: event.canonicalizationVersion,
+    envelopeVersion: '3.0.0',
+    nonce: event.id,
+    txId: 'c'.repeat(64),
+    channelId: 'agritrace',
+    recordedAt: '2026-09-21T00:00:00.000Z',
   };
 }

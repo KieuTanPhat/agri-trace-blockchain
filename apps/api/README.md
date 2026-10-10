@@ -3,6 +3,12 @@
 NestJS API sử dụng PostgreSQL và Prisma. API mặc định chạy tại
 `http://localhost:8080/api`.
 
+Các thay đổi command journal, reviewer scope, harvest sensor window và cutover
+Fabric v3 được ghi trong [implementation record](../../docs/core-implementation-2026-10-10.md).
+Các migration mới cần review SQL/rehearsal có kiểm soát trước triển khai. Sau
+migrate, dùng `npm run db:provision-compliance-role --workspace apps/api` để thêm
+role reviewer còn thiếu; không dùng demo seed trên dữ liệu dùng chung.
+
 ## Chạy local
 
 Từ thư mục gốc repository:
@@ -35,14 +41,22 @@ npm run db:seed --workspace apps/api
 
 Swagger chạy tại `http://localhost:8080/api/docs`. Mọi command thay đổi nghiệp
 vụ yêu cầu `Idempotency-Key`; frontend không có endpoint cập nhật trực tiếp
-trạng thái. Collection đầy đủ nằm tại
-`postman/Agri-Trace-v2.postman_collection.json`.
+trạng thái. Collection tham khảo nằm tại
+`postman/Agri-Trace-v2.postman_collection.json`; Swagger và OpenAPI sinh từ code
+là contract hiện tại, bao gồm các endpoint mới.
 
-Trace event được ghi cùng transaction với proof `PENDING`. Khi
+Trace event được ghi cùng transaction với outbox `PENDING` và command journal.
+Proof chỉ được xác nhận sau khi Worker đối chiếu receipt đã commit trên ledger. Khi
 `FABRIC_ENABLED=true`, worker gửi hash RFC 8785 và metadata tối thiểu sang
-Fabric, retry theo exponential backoff rồi cập nhật `txId`, `channelId` và
-`CONFIRMED`/`FAILED`. Hướng dẫn chuyển dữ liệu cũ nằm trong
+Fabric, retry theo exponential backoff rồi ghi proof `CONFIRMED` với `txId` và
+`channelId`, hoặc giữ trạng thái `RETRY`/`DEAD_LETTER` trong outbox. Hướng dẫn chuyển dữ liệu cũ nằm trong
 `docs/database-migration-runbook.md`.
+
+OpenAPI và kiểu Web sinh từ metadata NestJS đã compile bằng
+`npm run api-contract:generate` ở root (cần Prisma client và Gateway build).
+`npm run api-contract:check` chặn file sinh bị lệch; exporter không khởi động
+server, Worker hoặc kết nối DB/Fabric. Các API mới và thứ tự cutover có kiểm soát
+nằm trong [implementation record](../../docs/core-implementation-2026-10-10.md).
 
 Các endpoint hiện có:
 

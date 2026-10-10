@@ -7,6 +7,9 @@ export type Field = {
   type?: string;
   required?: boolean;
   min?: number;
+  maxLength?: number;
+  pattern?: string;
+  step?: number;
   dependsOn?: string;
   options?: { value: string; label: string; parentValue?: string }[];
 };
@@ -16,12 +19,14 @@ export function DataForm({
   fields,
   extra = {},
   onSaved,
+  method = "POST",
 }: {
   title: string;
   path: string;
   fields: Field[];
   extra?: Record<string, unknown>;
   onSaved(value: unknown): void;
+  method?: "POST" | "PATCH";
 }) {
   const formId = useId();
   const [values, setValues] = useState<Record<string, string>>({});
@@ -50,22 +55,24 @@ export function DataForm({
             f.name,
             f.type === "number"
               ? Number(values[f.name])
-              : f.type === "datetime-local" || f.type === "date"
-                ? new Date(values[f.name]).toISOString()
-                : f.type === "password"
-                  ? values[f.name]
-                  : values[f.name].trim(),
+              : f.type === "checkbox"
+                ? values[f.name] === "true"
+                : f.type === "datetime-local"
+                  ? new Date(values[f.name]).toISOString()
+                  : f.type === "password"
+                    ? values[f.name]
+                    : values[f.name].trim(),
           ]),
       ),
     });
-    if (attempt.current.body !== body || attempt.current.path !== path)
-      attempt.current = { body, path, key: crypto.randomUUID() };
+    if (attempt.current.body !== body || attempt.current.path !== method + path)
+      attempt.current = { body, path: method + path, key: crypto.randomUUID() };
     busy.current = true;
     setPending(true);
     setError("");
     try {
       const result = await request(path, {
-        method: "POST",
+        method,
         body,
         headers: { "idempotency-key": attempt.current.key },
       });
@@ -120,11 +127,27 @@ export function DataForm({
                   className="input"
                   type={f.type ?? "text"}
                   min={f.min}
+                  maxLength={f.maxLength}
+                  pattern={f.pattern}
                   minLength={f.type === "password" ? 12 : undefined}
-                  step={f.type === "number" ? "any" : undefined}
+                  step={f.type === "number" ? (f.step ?? "any") : undefined}
                   required={f.required}
-                  value={values[f.name] ?? ""}
-                  onChange={(e) => change(f.name, e.target.value)}
+                  value={
+                    f.type === "checkbox" ? undefined : (values[f.name] ?? "")
+                  }
+                  checked={
+                    f.type === "checkbox"
+                      ? values[f.name] === "true"
+                      : undefined
+                  }
+                  onChange={(e) =>
+                    change(
+                      f.name,
+                      f.type === "checkbox"
+                        ? String(e.target.checked)
+                        : e.target.value,
+                    )
+                  }
                 />
               )}
             </label>
