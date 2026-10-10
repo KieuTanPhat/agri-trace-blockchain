@@ -4,6 +4,8 @@ const TOKEN = /^[A-Za-z0-9_-]{1,255}$/;
 export function getTracePath(value: string): string | null {
   const input = value.trim();
   if (TOKEN.test(input)) return `/trace/${input}`;
+  const local = /^\/trace\/([A-Za-z0-9_-]{1,255})\/?$/.exec(input);
+  if (local) return `/trace/${local[1]}`;
   try {
     const url = new URL(input);
     if (

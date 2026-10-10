@@ -19,6 +19,8 @@ describe("public trace mock projection", () => {
         origin: "Farm",
         destination: "Retailer",
         shippedQuantity: 120,
+        receivedQuantity: null,
+        rejectedQuantity: null,
       },
     };
     mockLots.push(lot);
@@ -39,16 +41,48 @@ describe("public trace mock projection", () => {
           receivedTime: null,
         },
       });
-      expect(Object.keys(trace!).sort()).toEqual([
-        "allowedCommands", "availableQuantity", "blockchainProof", "certificates",
-        "currentState", "farmOrg", "harvestTime", "initialQuantity", "lotCode", "lotId",
-        "productName", "productionCycle", "proofStatus", "shipment", "timeline", "traceToken", "unit",
-      ].sort());
-      expect(Object.keys(trace!.shipment!).sort()).toEqual([
-        "status", "origin", "destination", "pickupTime", "arrivalTime", "receivedTime",
-      ].sort());
+      expect(Object.keys(trace!).sort()).toEqual(
+        [
+          "allowedCommands",
+          "availableQuantity",
+          "blockchainProof",
+          "certificates",
+          "currentState",
+          "farmOrg",
+          "harvestTime",
+          "initialQuantity",
+          "lotCode",
+          "lotId",
+          "productName",
+          "productionCycle",
+          "proofStatus",
+          "shipment",
+          "timeline",
+          "traceToken",
+          "unit",
+          "expiryDate",
+          "isExpired",
+          "quantityReconciled",
+          "stateReconciled",
+          "warnings",
+          "sensorEvidence",
+        ].sort(),
+      );
+      expect(Object.keys(trace!.shipment!).sort()).toEqual(
+        [
+          "status",
+          "origin",
+          "destination",
+          "pickupTime",
+          "arrivalTime",
+          "receivedTime",
+        ].sort(),
+      );
       for (const event of trace!.timeline) {
-        expect(event.actor).toEqual({ role: "SYSTEM_ACTOR", organizationName: "AgriTrace" });
+        expect(event.actor).toEqual({
+          role: "SYSTEM_ACTOR",
+          organizationName: "AgriTrace",
+        });
       }
       expect(mockPublicTrace(lot.lotId)).toEqual(trace);
       expect(mockPublicTrace(lot.lotCode)).toEqual(trace);

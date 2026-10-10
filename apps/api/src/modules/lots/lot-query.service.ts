@@ -5,7 +5,7 @@ import { assignedFarmWhere } from '../auth/compliance-scope.js';
 import type { Actor } from '../trace/trace.service.js';
 import {
   INTERNAL_LOT_INCLUDE,
-  PUBLIC_LOT_INCLUDE,
+  publicLotInclude,
   PUBLIC_TRACE_INCLUDE,
 } from './lot-query.types.js';
 import { toInternalLotDto, toPublicLotDto } from './lot.presenter.js';
@@ -91,7 +91,7 @@ export class LotQueryService {
   async getPublic(traceToken: string) {
     const qr = await this.prisma.traceQr.findUnique({
       where: { traceToken },
-      include: { lot: { include: PUBLIC_LOT_INCLUDE } },
+      include: { lot: { include: publicLotInclude() } },
     });
     if (!qr) throw new NotFoundException('Mã truy xuất không hợp lệ');
     const traceEvents = await this.prisma.traceEvent.findMany({

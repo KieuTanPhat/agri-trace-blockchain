@@ -15,6 +15,8 @@ import {
   lockAggregate,
 } from '../../common/idempotency/command-transaction.js';
 import { quantity } from '../../common/quantity.js';
+import { businessTimestamp } from '../../common/timestamp.js';
+import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import { assignedFarmWhere } from '../auth/compliance-scope.js';
@@ -67,7 +69,29 @@ export class ProductionCyclesService {
         sensorDigests: { orderBy: { periodEnd: 'desc' } },
         certificates: true,
         harvestEvents: {
-          include: { lot: { include: { shipment: true } } },
+          where:
+            actor.role === 'TRANSPORTER'
+              ? {
+                  lot: {
+                    shipment: {
+                      transporterOrgId:
+                        actor.organizationId ??
+                        '00000000-0000-0000-0000-000000000000',
+                    },
+                  },
+                }
+              : actor.role === 'RETAILER'
+                ? {
+                    lot: {
+                      shipment: {
+                        retailerOrgId:
+                          actor.organizationId ??
+                          '00000000-0000-0000-0000-000000000000',
+                      },
+                    },
+                  }
+                : undefined,
+          include: { lot: { include: { shipment: true } }, sensorWindow: true },
           orderBy: { harvestTime: 'asc' },
         },
       },
@@ -170,9 +194,11 @@ export class ProductionCyclesService {
           farmOrgId: farm.organizationId,
           plotId: input.plotId,
           productId: input.productId,
-          startDate: input.startDate ? new Date(input.startDate) : undefined,
+          startDate: input.startDate
+            ? normalizeExpiryDate(input.startDate)
+            : undefined,
           plannedHarvest: input.plannedHarvest
-            ? new Date(input.plannedHarvest)
+            ? normalizeExpiryDate(input.plannedHarvest)
             : undefined,
           maxHarvestQuantity:
             input.maxHarvestQuantity === undefined
@@ -204,10 +230,7 @@ export class ProductionCyclesService {
   async plant(id: string, input: PlantCycleDto, actor: Actor) {
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, id);
-    if (new Date(input.plantedAt).getTime() > Date.now())
-      throw new UnprocessableEntityException(
-        'Thời điểm trồng không được ở tương lai',
-      );
+    const plantedAt = businessTimestamp(input.plantedAt, 'Thời điểm trồng');
     return this.transition(
       id,
       input.version,
@@ -215,8 +238,9 @@ export class ProductionCyclesService {
       'PLANTED',
       actor,
       'CYCLE_PLANTED',
-      { plantedAt: input.plantedAt },
-      { startDate: new Date(input.plantedAt) },
+      { plantedAt: plantedAt.toISOString() },
+      { startDate: normalizeExpiryDate(plantedAt.toISOString()) },
+      plantedAt,
     );
   }
 
@@ -225,6 +249,23 @@ export class ProductionCyclesService {
     await this.access.assertProductionCycleAccess(actor, id);
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'cycle', id);
+      const plantedAt =
+        (await plantedTime(tx, id)) ??
+        (
+          await tx.cycleSensorReconciliation.findFirst({
+            where: { cycleId: id },
+            orderBy: { revision: 'desc' },
+          })
+        )?.plantedAt;
+      if (!plantedAt)
+        throw new ConflictException(
+          'Cần đối soát mốc trồng trước khi ghi chăm sóc',
+        );
+      const eventTime = businessTimestamp(
+        input.eventTime,
+        'Thời điểm chăm sóc',
+        { notBefore: plantedAt },
+      );
       const updated = await tx.productionCycle.updateMany({
         where: {
           id,
@@ -241,9 +282,10 @@ export class ProductionCyclesService {
         data: {
           cycleId: id,
           careType: input.careType,
-          eventTime: new Date(input.eventTime),
+          eventTime,
           materialName: input.materialName,
-          quantity: input.quantity,
+          quantity:
+            input.quantity === undefined ? undefined : quantity(input.quantity),
           unit: input.unit,
           method: input.method,
           note: input.note,
@@ -261,6 +303,8 @@ export class ProductionCyclesService {
           materialName: care.materialName,
           quantity: care.quantity?.toString() ?? null,
           unit: care.unit,
+          method: care.method,
+          note: care.note,
         },
       });
       return { care, version: input.version + 1 };
@@ -307,7 +351,11 @@ export class ProductionCyclesService {
         throw new ConflictException(
           'Chu kỳ hoặc thiết bị không còn nhận dữ liệu',
         );
-      await validateSensorTime(tx, id, new Date(input.recordedAt));
+      const recordedAt = businessTimestamp(
+        input.recordedAt,
+        'Thời gian cảm biến',
+      );
+      await validateSensorTime(tx, id, recordedAt);
       const reading = await tx.sensorReading.create({
         data: {
           cycleId: id,
@@ -315,7 +363,7 @@ export class ProductionCyclesService {
           sensorType: input.sensorType,
           value: input.value,
           unit: input.unit,
-          recordedAt: new Date(input.recordedAt),
+          recordedAt,
         },
       });
       const late = await markLateReading(tx, reading);
@@ -353,7 +401,7 @@ export class ProductionCyclesService {
         throw new ConflictException(
           'Cần đối soát đến đúng harvest legacy cuối cùng',
         );
-      const start = new Date(input.plantedAt);
+      const start = businessTimestamp(input.plantedAt, 'Mốc trồng đối soát');
       const known = await plantedTime(tx, id);
       if (
         !Number.isFinite(start.getTime()) ||
@@ -450,6 +498,7 @@ export class ProductionCyclesService {
     eventType: string,
     businessData: Prisma.InputJsonObject,
     extra: Record<string, unknown> = {},
+    eventTime?: Date,
   ) {
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'cycle', id);
@@ -470,6 +519,7 @@ export class ProductionCyclesService {
         cycleId: id,
         eventType,
         actor,
+        eventTime,
         businessData: businessData,
       });
       return cycle;

@@ -4,6 +4,8 @@ import path from "node:path";
 
 const require = createRequire(import.meta.url);
 const command = process.argv[2] ?? "dev";
+if (command === "build" && process.env.NEXT_PUBLIC_MOCK_API === "true")
+  throw new Error("Production builds require NEXT_PUBLIC_MOCK_API=false");
 const nextBin = require.resolve("next/dist/bin/next");
 const wasmPackageJson = require.resolve("@next/swc-wasm-nodejs/package.json");
 const wasmDir = path.dirname(wasmPackageJson);

@@ -19,6 +19,10 @@ const labels: Record<AllowedCommand, string> = {
   reportArrival: "Báo đã đến điểm nhận",
   receiveRetail: "Nhận lô",
   rejectRetail: "Từ chối lô",
+  markForSale: "Đưa ra bán",
+  markSold: "Bán toàn bộ lượng còn lại",
+  recall: "Thu hồi lô",
+  expire: "Ghi nhận hết hạn",
 };
 
 export function ActionPanel({
@@ -63,6 +67,7 @@ export function ActionPanel({
       selected,
       input,
       version: lot.version,
+      shipmentVersion: lot.shipment?.version,
     });
     if (attempt.current.payload !== payload)
       attempt.current = { payload, key: crypto.randomUUID() };
@@ -75,6 +80,7 @@ export function ActionPanel({
         attempt.current.key,
       );
       setResult(response.message);
+      attempt.current = { payload: "", key: "" };
       dialog.current?.close();
       onCompleted?.();
     } catch (cause) {
@@ -113,7 +119,9 @@ export function ActionPanel({
           {lot.allowedCommands.map((command) => (
             <button
               className={
-                command === "rejectRetail" || command === "reportDamage"
+                ["rejectRetail", "reportDamage", "recall", "expire"].includes(
+                  command,
+                )
                   ? "button danger"
                   : "button"
               }
@@ -242,7 +250,7 @@ export function ActionPanel({
                   type="number"
                   min="0.001"
                   max={lot.availableQuantity}
-                  step="any"
+                  step="0.001"
                   required
                   value={input.quantity ?? ""}
                   onChange={(event) =>
@@ -264,7 +272,8 @@ export function ActionPanel({
                   className="input"
                   type="number"
                   min="0.001"
-                  step="any"
+                  step="0.001"
+                  max={lot.availableQuantity}
                   required
                   value={input.receivedQuantity ?? ""}
                   onChange={(event) =>
@@ -281,7 +290,8 @@ export function ActionPanel({
                   className="input"
                   type="number"
                   min="0"
-                  step="any"
+                  step="0.001"
+                  max={lot.availableQuantity}
                   value={input.damagedQuantity ?? 0}
                   onChange={(event) =>
                     setInput({
@@ -303,11 +313,25 @@ export function ActionPanel({
               </div>
             </div>
           )}
-          {selected === "rejectRetail" && (
+          {(selected === "rejectRetail" ||
+            selected === "recall" ||
+            selected === "expire") && (
             <ReasonField
               value={input.reason}
               onChange={(reason) => setInput({ ...input, reason })}
             />
+          )}
+          {selected === "markSold" && (
+            <p className="notice">
+              Xác nhận bán toàn bộ {lot.availableQuantity} {lot.unit}. Tồn sau
+              thao tác là 0.
+            </p>
+          )}
+          {selected === "recall" && (
+            <p className="notice">
+              Lô sẽ được ghi nhận thu hồi và dừng các thao tác tiếp theo. Chuyến
+              đang mở sẽ kết thúc ở trạng thái thất bại.
+            </p>
           )}
           {error && (
             <div className="notice error" role="alert">
@@ -351,6 +375,7 @@ function ReasonField({
       <textarea
         className="input"
         required
+        maxLength={1000}
         value={value ?? ""}
         onChange={(event) => onChange(event.target.value)}
       />

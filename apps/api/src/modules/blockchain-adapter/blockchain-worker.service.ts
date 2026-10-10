@@ -5,8 +5,8 @@ import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { FabricAdapterProvider } from './fabric-adapter.provider.js';
-import { calculateTraceEventHash } from '../trace/trace-hash.js';
-import { harvestSensorEvidenceMatches } from '../iot/harvest-sensor-window.js';
+import { privateTraceEvidenceMatches } from '../trace/trace-evidence.js';
+import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
 
 type FabricReceipt = {
   txId?: string;
@@ -149,64 +149,16 @@ export class BlockchainWorkerService {
           `Unsupported trace contract version ${event.schemaVersion}/${event.canonicalizationVersion}`,
         );
       }
-      try {
-        if (
-          !event.authProofType ||
-          ![
-            'DIGITAL_SIGNATURE',
-            'SIGNED_ASSERTION',
-            'TOKEN_FINGERPRINT',
-            'DEVICE_SIGNATURE',
-            'SYSTEM_ASSERTION',
-          ].includes(event.authProofType) ||
-          !event.actorAuthProof ||
-          !/^[a-f0-9]{64}$/.test(event.actorAuthProof) ||
-          (!event.actorUserId &&
-            !['IOT_DEVICE', 'SYSTEM_ACTOR', 'RELAYER_SERVICE'].includes(
-              event.actorRole,
-            )) ||
-          calculateTraceEventHash(event) !== event.dataHash
-        )
-          throw new Error('Missing or mismatched private evidence');
-      } catch {
+      if (!privateTraceEvidenceMatches(event)) {
         throw new PermanentBlockchainError(
           'Private trace evidence is missing or its hash does not match',
         );
       }
       const adapter = await this.fabric.getAdapter();
-      const businessData = event.businessData;
-      if (
-        event.eventType === 'SENSOR_DIGEST_FINALIZED' &&
-        businessData &&
-        typeof businessData === 'object' &&
-        !Array.isArray(businessData) &&
-        typeof businessData.windowId === 'string'
-      ) {
-        if (
-          !(await harvestSensorEvidenceMatches(
-            this.prisma,
-            businessData.windowId,
-          ))
-        )
-          throw new PermanentBlockchainError(
-            'Harvest sensor window evidence does not match its immutable digest',
-          );
-        const window = await this.prisma.harvestSensorWindow.findUniqueOrThrow({
-          where: { id: businessData.windowId },
-          include: { harvest: { select: { lot: { select: { id: true } } } } },
-        });
-        if (
-          event.entityId !== window.id ||
-          event.cycleId !== window.cycleId ||
-          event.lotId !== window.harvest.lot?.id ||
-          businessData.digestHash !== window.digestHash ||
-          businessData.readingCount !== window.readingCount ||
-          businessData.status !== window.status
-        )
-          throw new PermanentBlockchainError(
-            'Sensor trace event does not match its harvest window',
-          );
-      }
+      if (!(await harvestSensorTraceEvidenceMatches(this.prisma, event)))
+        throw new PermanentBlockchainError(
+          'Sensor trace event does not match its immutable harvest window',
+        );
       const input: TraceEventEnvelope = {
         eventId: event.id,
         nonce: event.id,

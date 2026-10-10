@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Test } from '@nestjs/testing';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
@@ -39,7 +39,9 @@ const prisma = new PrismaClient({
 
     beforeAll(async () => {
       await prisma.$queryRaw`SELECT 1`;
-      const organization = async (type: 'FARM' | 'TRANSPORTER' | 'RETAILER') =>
+      const organization = async (
+        type: 'FARM' | 'TRANSPORTER' | 'RETAILER' | 'AUDITOR',
+      ) =>
         prisma.organization.create({
           data: { name: `Workflow ${type} ${randomUUID()}`, type },
         });
@@ -47,6 +49,7 @@ const prisma = new PrismaClient({
       const transporter = await organization('TRANSPORTER');
       const retailer = await organization('RETAILER');
       const foreignFarm = await organization('FARM');
+      const reviewerOrg = await organization('AUDITOR');
       farmOrgId = farmOrg.id;
       transporterOrgId = transporter.id;
       retailerOrgId = retailer.id;
@@ -67,6 +70,7 @@ const prisma = new PrismaClient({
         ['retailer', 'RETAILER', retailer.id],
         ['admin', 'SYSTEM_ADMIN', null],
         ['auditor', 'AUDITOR', null],
+        ['reviewer', 'COMPLIANCE_REVIEWER', reviewerOrg.id],
         ['unscoped', 'FARM_STAFF', null],
       ] as const) {
         const role = await prisma.role.upsert({
@@ -118,6 +122,15 @@ const prisma = new PrismaClient({
       app.useGlobalInterceptors(new ApiResponseInterceptor());
       await app.init();
       jwt = app.get(JwtService);
+      await post(
+        '/compliance/assignments',
+        {
+          reviewerUserId: users.reviewer,
+          farmId,
+          reason: 'Authorize the existing compliance workflow fixtures',
+        },
+        'admin',
+      ).expect(201);
     }, 30_000);
 
     afterAll(async () => {
@@ -203,7 +216,7 @@ const prisma = new PrismaClient({
               entityId,
               eventType: 'TEST_CHECKPOINT',
               eventTime: new Date(eventTime),
-              actor: { sub: null, organizationId: null, role: 'SYSTEM' },
+              actor: { sub: null, organizationId: null, role: 'SYSTEM_ACTOR' },
               businessData: { sequence: events.length },
             }),
           ),
@@ -388,16 +401,16 @@ const prisma = new PrismaClient({
 
     it('keeps sibling harvest events out of a lot timeline while retaining cycle history', async () => {
       const cycle = await plantedCycle(2);
-      const harvest = async () =>
+      const harvest = async (harvestTime: string) =>
         (
           await post(`/production-cycles/${cycle.id}/harvests`, {
             quantity: 0.5,
             unit: 'kg',
-            harvestTime: '2026-09-26T00:00:00.000Z',
+            harvestTime,
           }).expect(201)
         ).body.data;
-      const first = await harvest();
-      const sibling = await harvest();
+      const first = await harvest('2026-09-26T00:00:00.000Z');
+      const sibling = await harvest('2026-09-27T00:00:00.000Z');
       await post('/shipments', {
         lotId: first.lot.id,
         transporterOrgId,
@@ -452,7 +465,8 @@ const prisma = new PrismaClient({
             eventId: event.id,
             dataHash: event.dataHash,
             network: 'audit-fixture',
-            txId: randomUUID(),
+            txId: randomBytes(32).toString('hex'),
+            channelId: process.env.FABRIC_CHANNEL_NAME ?? 'agritrace',
             recordedAt: new Date(),
             transactionStatus: 'CONFIRMED',
           },
@@ -588,7 +602,7 @@ const prisma = new PrismaClient({
               entityType: 'LOT',
               entityId,
               eventType: 'CONCURRENT_CHECKPOINT',
-              actor: { sub: null, organizationId: null, role: 'SYSTEM' },
+              actor: { sub: null, organizationId: null, role: 'SYSTEM_ACTOR' },
               businessData: { sequence },
             }),
           ),
@@ -641,9 +655,7 @@ const prisma = new PrismaClient({
         periodStart: new Date(
           new Date(body.recordedAt).getTime() - 60_000,
         ).toISOString(),
-        periodEnd: new Date(
-          new Date(body.recordedAt).getTime() + 60_000,
-        ).toISOString(),
+        periodEnd: body.recordedAt,
         isFinal: true,
       }).expect(201);
       expect(
@@ -680,7 +692,7 @@ const prisma = new PrismaClient({
           'transporter',
         ).expect(201)
       ).body.data;
-      const timestamp = new Date(new Date(binding.boundAt).getTime() + 1000);
+      const timestamp = new Date(binding.boundAt);
       const body = {
         deviceId: device.id,
         latitude: 10.5,
@@ -698,14 +710,14 @@ const prisma = new PrismaClient({
         'transporter',
       ).expect(201);
       const digests = [];
-      for (const offset of [3000, 2000, 1000]) {
+      for (const offset of [1000, 2000, 3000]) {
         digests.push(
           (
             await post(
               `/iot/shipments/${shipment.id}/telemetry-digests`,
               {
-                periodStart: new Date(timestamp.getTime() - 1000).toISOString(),
-                periodEnd: new Date(timestamp.getTime() + offset).toISOString(),
+                periodStart: new Date(timestamp.getTime() - offset).toISOString(),
+                periodEnd: timestamp.toISOString(),
               },
               'transporter',
             ).expect(201)
@@ -747,9 +759,7 @@ const prisma = new PrismaClient({
           'transporter',
         ).expect(201)
       ).body.data;
-      const recordedAt = new Date(
-        new Date(binding.boundAt).getTime() + 1000,
-      ).toISOString();
+      const recordedAt = new Date(binding.boundAt).toISOString();
       const telemetry = {
         deviceId: device.id,
         latitude: 10.5,
@@ -824,21 +834,16 @@ const prisma = new PrismaClient({
           'application/json': {
             schema: {
               properties: {
-                data: {
-                  properties: {
-                    telemetry: {
-                      items: {
-                        properties: {
-                          deviceSequence: { type: 'string', nullable: true },
-                        },
-                      },
-                    },
-                  },
-                },
+                data: { $ref: '#/components/schemas/ShipmentDetailDto' },
               },
             },
           },
         },
+      });
+      expect(
+        document.components?.schemas?.ShipmentTelemetryRecordDto,
+      ).toMatchObject({
+        properties: { deviceSequence: { type: 'string', nullable: true } },
       });
     });
 
@@ -864,14 +869,14 @@ const prisma = new PrismaClient({
         .patch(`/api/certificates/${certificate.id}/review`)
         .set('Authorization', bearer('admin'))
         .set('Idempotency-Key', randomUUID())
-        .send({ status: 'APPROVED' })
+        .send({ version: 0, status: 'APPROVED' })
         .expect(403);
-      // Pre-approved evidence is a database fixture, not an invented reviewer role.
-      // AGT-026 must decide an authorized actor before the HTTP review path opens.
-      await prisma.certificate.update({
-        where: { id: certificate.id },
-        data: { status: 'APPROVED' },
-      });
+      await request(app.getHttpServer())
+        .patch(`/api/certificates/${certificate.id}/review`)
+        .set('Authorization', bearer('reviewer'))
+        .set('Idempotency-Key', randomUUID())
+        .send({ version: certificate.version, status: 'APPROVED' })
+        .expect(200);
       const approved = await request(app.getHttpServer())
         .get(tracePath)
         .expect(200);
@@ -889,17 +894,28 @@ const prisma = new PrismaClient({
         { type: 'PRIVATE_APPROVED', status: 'APPROVED', isPublic: false },
         { type: 'PUBLIC_PENDING', status: 'PENDING', isPublic: true },
       ]) {
-        await prisma.certificate.create({
-          data: {
+        const certificate = (
+          await post('/certificates', {
             cycleId: cycle.id,
-            ...fixture,
+            type: fixture.type,
+            isPublic: fixture.isPublic,
             issuer: 'Fixture issuer',
-            issueDate: new Date('2026-09-26'),
+            issueDate: '2026-09-26',
             documentRef: 'internal-document',
             documentHash: 'c'.repeat(64),
-            reviewNote: 'internal-review',
-          },
-        });
+          }).expect(201)
+        ).body.data;
+        if (fixture.status === 'APPROVED')
+          await request(app.getHttpServer())
+            .patch(`/api/certificates/${certificate.id}/review`)
+            .set('Authorization', bearer('reviewer'))
+            .set('Idempotency-Key', randomUUID())
+            .send({
+              version: certificate.version,
+              status: 'APPROVED',
+              reviewNote: 'internal-review',
+            })
+            .expect(200);
       }
       const result = await request(app.getHttpServer())
         .get('/api/public/trace/' + traceQr.traceToken)

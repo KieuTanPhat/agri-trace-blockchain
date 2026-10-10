@@ -20,6 +20,13 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { RecordHarvestDto } from './dto.js';
 import { LotHarvestService } from './lot-harvest.service.js';
 import { LotQueryService } from './lot-query.service.js';
+import { ApiDataResponse } from '../../common/api/openapi.js';
+import {
+  DashboardDto,
+  HarvestResultDto,
+  InternalLotDto,
+  PublicLotDto,
+} from './lot-response.dto.js';
 
 @ApiTags('lots')
 @ApiBearerAuth()
@@ -34,6 +41,7 @@ export class LotsController {
   @Roles(...FARM_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('production-cycles/:cycleId/harvests')
+  @ApiDataResponse(HarvestResultDto, 201)
   harvest(
     @Param('cycleId', ParseUUIDPipe) cycleId: string,
     @Body() dto: RecordHarvestDto,
@@ -55,16 +63,19 @@ export class LotsController {
   }
 
   @Get('dashboard')
+  @ApiDataResponse(DashboardDto)
   dashboard(@Req() req: AuthenticatedRequest) {
     return this.query.getDashboard(req.user);
   }
 
   @Get('lots')
+  @ApiDataResponse(InternalLotDto, 200, true)
   getLots(@Req() req: AuthenticatedRequest) {
     return this.query.getList(req.user);
   }
 
   @Get('lots/:lotId')
+  @ApiDataResponse(InternalLotDto)
   getLot(
     @Param('lotId', ParseUUIDPipe) lotId: string,
     @Req() req: AuthenticatedRequest,
@@ -79,6 +90,7 @@ export class PublicTraceController {
   constructor(private readonly query: LotQueryService) {}
   @Header('Cache-Control', 'no-store')
   @Get(':token')
+  @ApiDataResponse(PublicLotDto)
   get(@Param('token') token: string) {
     return this.query.getPublic(token);
   }

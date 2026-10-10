@@ -36,6 +36,8 @@ model User {
   complianceAssignments ComplianceAssignment[]
   complianceAssignmentAudits ComplianceAssignmentAudit[]
   sensorReconciliations CycleSensorReconciliation[]
+  submittedCertificates Certificate[]
+  recordedInspections Inspection[]
 
   @@map("app_user")
 }
@@ -547,12 +549,22 @@ model Certificate {
   reviewedAt   DateTime?        @map("reviewed_at") @db.Timestamptz(6)
   reviewNote   String?          @map("review_note")
   createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  version      Int              @default(0)
+  submittedByUserId String?      @map("submitted_by_user_id") @db.Uuid
+  submitter User?               @relation(fields: [submittedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  supersedesId String?          @map("supersedes_id") @db.Uuid
+  correctionReason String?      @map("correction_reason")
+  supersedes Certificate?       @relation("CertificateCorrection", fields: [supersedesId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  replacements Certificate[]    @relation("CertificateCorrection")
   cycle        ProductionCycle? @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   lot          Lot?             @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([cycleId], map: "ix_certificate_cycle")
   @@index([lotId], map: "ix_certificate_lot")
   @@index([status], map: "ix_certificate_status")
+  @@index([supersedesId], map: "ix_certificate_supersedes")
+  @@unique([supersedesId], map: "uq_certificate_pending_correction", where: raw("((supersedes_id IS NOT NULL) AND ((status)::text = 'PENDING'::text))"))
+  @@unique([supersedesId], map: "uq_certificate_approved_correction", where: raw("((supersedes_id IS NOT NULL) AND ((status)::text = 'APPROVED'::text))"))
   @@map("certificate")
 }
 
@@ -565,6 +577,12 @@ model Inspection {
   inspectedAt    DateTime         @map("inspected_at") @db.Timestamptz(6)
   evidenceRef    String?          @map("evidence_ref")
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  recordedByUserId String?        @map("recorded_by_user_id") @db.Uuid
+  recorder User?                 @relation(fields: [recordedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  supersedesId String?            @unique @map("supersedes_id") @db.Uuid
+  correctionReason String?        @map("correction_reason")
+  supersedes Inspection?          @relation("InspectionCorrection", fields: [supersedesId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  replacement Inspection?         @relation("InspectionCorrection")
   organization   Organization?    @relation(fields: [inspectorOrgId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   lot            Lot              @relation(fields: [lotId], references: [id], onUpdate: NoAction)
 

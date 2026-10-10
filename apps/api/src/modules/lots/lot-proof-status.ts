@@ -1,4 +1,5 @@
 import { calculateTraceEventHash } from '../trace/public.js';
+import { privateTraceEvidenceMatches } from '../trace/trace-evidence.js';
 
 export type ProofEvent = Parameters<typeof calculateTraceEventHash>[0] & {
   dataHash: string;
@@ -27,18 +28,7 @@ export function aggregateLotProofStatus(events: ProofEvent[]) {
 
 export function getLotEventProofStatus(event?: ProofEvent) {
   if (event) {
-    try {
-      if (
-        event.schemaVersion !== '2.0.0' ||
-        event.canonicalizationVersion !== 'RFC8785' ||
-        !event.authProofType ||
-        !event.actorAuthProof ||
-        event.dataHash !== calculateTraceEventHash(event)
-      )
-        return 'INTEGRITY_WARNING';
-    } catch {
-      return 'INTEGRITY_WARNING';
-    }
+    if (!privateTraceEvidenceMatches(event)) return 'INTEGRITY_WARNING';
   }
   if (!event?.blockchainProof) {
     return event?.blockchainOutbox?.status === 'DEAD_LETTER'

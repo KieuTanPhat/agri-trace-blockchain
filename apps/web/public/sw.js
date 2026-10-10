@@ -1,5 +1,5 @@
-const CACHE_NAME = "agri-traceability-v2";
-const APP_SHELL = ["/scan"];
+const CACHE_NAME = "agri-traceability-v3";
+const APP_SHELL = ["/offline.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -34,5 +34,9 @@ self.addEventListener("fetch", (event) => {
     url.pathname.startsWith("/api/")
   )
     return;
-  event.respondWith(fetch(event.request).catch(() => caches.match("/scan")));
+  // Business pages and API responses always come from the network. The only
+  // offline response is a static explanation without any trace or account data.
+  event.respondWith(fetch(event.request).catch(async () =>
+    (await caches.match("/offline.html")) ?? Response.error(),
+  ));
 });

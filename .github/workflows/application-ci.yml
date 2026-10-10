@@ -86,6 +86,8 @@ jobs:
       - run: npm run build --workspace blockchain/gateway
       - run: npm run db:migrate --workspace apps/api
       - run: npm run check --workspace apps/api
+      - name: Require Swagger and generated Web types to match the current API
+        run: node scripts/generate-api-contract.mjs --check
       - name: Verify UAT bootstrap against real PostgreSQL
         env:
           UAT_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public

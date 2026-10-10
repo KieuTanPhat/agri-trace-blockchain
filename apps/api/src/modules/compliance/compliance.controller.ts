@@ -1,3 +1,9 @@
+import { ApiDataResponse } from '../../common/api/openapi.js';
+import {
+  InspectionRecordDto,
+  CertificateRecordDto,
+} from '../../common/api/record.dto.js';
+import { InspectionListDto } from '../../common/api/response.dto.js';
 import {
   FARM_WRITE_ROLES,
   COMPLIANCE_REVIEW_ROLES,
@@ -43,6 +49,7 @@ export class ComplianceController {
     private readonly idempotency: IdempotencyService,
   ) {}
 
+  @ApiDataResponse(InspectionListDto, 200, true)
   @Roles(
     'SYSTEM_ADMIN',
     'FARM_STAFF',
@@ -59,10 +66,11 @@ export class ComplianceController {
     return this.service.listInspections(request.user, lotId);
   }
 
+  @ApiDataResponse(InspectionRecordDto, 201)
   @Roles(...COMPLIANCE_REVIEW_ROLES)
   @ApiForbiddenResponse({
     description:
-      'AGT-026: chưa phê duyệt vai trò ghi inspection; endpoint chỉ từ chối ghi.',
+      'Chỉ COMPLIANCE_REVIEWER có assignment active với Farm của Lot được ghi inspection.',
   })
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('inspections')
@@ -85,6 +93,7 @@ export class ComplianceController {
     );
   }
 
+  @ApiDataResponse(CertificateRecordDto, 200, true)
   @Roles(
     'SYSTEM_ADMIN',
     'FARM_STAFF',
@@ -102,6 +111,7 @@ export class ComplianceController {
     return this.service.listCertificates(request.user, lotId, cycleId);
   }
 
+  @ApiDataResponse(CertificateRecordDto, 201)
   @Roles(...FARM_WRITE_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('certificates')
@@ -124,12 +134,13 @@ export class ComplianceController {
     );
   }
 
+  @ApiDataResponse(CertificateRecordDto, 200)
   @Roles(...COMPLIANCE_REVIEW_ROLES)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Patch('certificates/:id/review')
   @ApiForbiddenResponse({
     description:
-      'AGT-026: chưa phê duyệt reviewer; Admin/Auditor không ghi nghiệp vụ.',
+      'Cần assignment active với Farm; reviewer không được tự duyệt hoặc ghi lại quyết định.',
   })
   reviewCertificate(
     @Param('id', ParseUUIDPipe) id: string,

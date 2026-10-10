@@ -20,7 +20,10 @@ import { ComplianceModule } from './modules/compliance/compliance.module.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      ignoreEnvFile: process.env.OPENAPI_EXPORT === 'true',
+    }),
     ThrottlerModule.forRoot([
       {
         ttl: Number(process.env.RATE_LIMIT_TTL_MS ?? 60_000),

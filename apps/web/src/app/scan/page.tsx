@@ -5,6 +5,7 @@ import { getTracePath } from "@/lib/trace-input";
 import { useRouter } from "next/navigation";
 import { IconQrCode, IconSearch } from "@/components/icons";
 import { QrCodeCard } from "@/components/qr-code-card";
+import { CameraScanner } from "@/components/camera-scanner";
 import {
   Smartphone,
   Leaf,
@@ -60,6 +61,7 @@ export default function ScanPage() {
         </div>
       </section>
 
+      <CameraScanner onTrace={(path) => router.push(path)} />
       <section className="grid two">
         <div className="panel">
           <div className="panel-title">
@@ -111,7 +113,10 @@ export default function ScanPage() {
             <ShieldCheck size={28} />
             <div>
               <strong>Mã QR được tạo từ hệ thống AgriTrace.</strong>
-              <p>Đảm bảo tính toàn vẹn và bảo mật dữ liệu.</p>
+              <p>
+                Mở trang truy xuất để xem trạng thái xác thực và các cảnh báo
+                hiện tại.
+              </p>
             </div>
           </div>
         </div>

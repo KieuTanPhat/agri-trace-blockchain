@@ -10,7 +10,15 @@ export function assignedFarmWhere(
   if (actor.role !== 'COMPLIANCE_REVIEWER') return { id: NONE };
   return {
     complianceAssignments: {
-      some: { reviewerUserId: actor.sub ?? NONE, revokedAt: null },
+      some: {
+        reviewerUserId: actor.sub ?? NONE,
+        revokedAt: null,
+        reviewer: {
+          accountStatus: 'ACTIVE',
+          role: { code: 'COMPLIANCE_REVIEWER' },
+          organization: { type: 'AUDITOR', status: 'ACTIVE' },
+        },
+      },
     },
   };
 }
@@ -20,7 +28,7 @@ export async function assertAssignedFarm(
   actor: Pick<Actor, 'sub' | 'role'>,
   farmId: string,
   lock = false,
-): Promise<void> {
+): Promise<string> {
   if (actor.role !== 'COMPLIANCE_REVIEWER' || !actor.sub)
     throw new ForbiddenException('Cần reviewer được phân công');
   if (lock) {
@@ -44,4 +52,5 @@ export async function assertAssignedFarm(
     throw new ForbiddenException(
       'Reviewer chưa được phân công nông trại này hoặc đã bị thu hồi',
     );
+  return assigned.id;
 }

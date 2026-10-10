@@ -248,11 +248,14 @@ export default function IotSimulatorPage() {
 
         <div className="grid">
           <ErrorState
-            status={response?.error?.status ?? 200}
+            status={
+              response?.status === "rejected" ? response.error.status : 200
+            }
             title={`Tình trạng: ${statusLabels[status] ?? status}`}
             message={
-              response?.error?.message ??
-              "Gói dữ liệu sẵn sàng gửi đến điểm nhận mô phỏng."
+              response?.status === "rejected"
+                ? response.error.message
+                : "Dữ liệu sẵn sàng gửi đến máy chủ."
             }
           />
           <div className="system-health">

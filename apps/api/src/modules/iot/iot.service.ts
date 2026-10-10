@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { isUUID } from 'class-validator';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
+import { businessTimestamp } from '../../common/timestamp.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
@@ -57,6 +58,7 @@ export class IotService {
   }
 
   async createDevice(input: CreateIotDeviceDto, actor: Actor) {
+    assertBusinessActor(actor, ['SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER']);
     return commandTransaction(this.prisma, async (tx) => {
       if (
         actor.role !== 'SYSTEM_ADMIN' &&
@@ -131,7 +133,11 @@ export class IotService {
 
       // Raw readings remain off-chain. Only explicit aggregate digests create a
       // TraceEvent/BlockchainProof, preventing high-frequency IoT ledger spam.
-      await validateSensorTime(tx, input.cycleId, new Date(input.recordedAt));
+      const recordedAt = businessTimestamp(
+        input.recordedAt,
+        'Thời gian cảm biến',
+      );
+      await validateSensorTime(tx, input.cycleId, recordedAt);
       const created = await tx.sensorReading.create({
         data: {
           deviceId: device.id,
@@ -139,7 +145,7 @@ export class IotService {
           sensorType: input.sensorType,
           value: input.value,
           unit: input.unit,
-          recordedAt: new Date(input.recordedAt),
+          recordedAt,
         },
       });
       await tx.iotDevice.update({
@@ -159,8 +165,14 @@ export class IotService {
     await this.assertCycleOwner(cycleId, actor);
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'cycle', cycleId);
-      const periodStart = new Date(input.periodStart);
-      const periodEnd = new Date(input.periodEnd);
+      const periodStart = businessTimestamp(
+        input.periodStart,
+        'Đầu khoảng cảm biến',
+      );
+      const periodEnd = businessTimestamp(
+        input.periodEnd,
+        'Cuối khoảng cảm biến',
+      );
       this.assertPeriod(periodStart, periodEnd);
       const readings = await tx.sensorReading.findMany({
         where: { cycleId, recordedAt: { gte: periodStart, lte: periodEnd } },
@@ -259,11 +271,19 @@ export class IotService {
         throw new ConflictException(
           'Chuyến hàng không còn nhận dữ liệu giám sát',
         );
-      if (new Date(input.recordedAt) < binding.boundAt) {
+      const recordedAt = businessTimestamp(
+        input.recordedAt,
+        'Thời gian telemetry',
+        { notBefore: binding.boundAt },
+      );
+      if (
+        input.deviceSequence !== undefined &&
+        (!Number.isSafeInteger(input.deviceSequence) ||
+          input.deviceSequence < 0)
+      )
         throw new UnprocessableEntityException(
-          'Telemetry time precedes device binding',
+          'deviceSequence phải là số nguyên an toàn, không âm',
         );
-      }
       if (
         authenticatedActor &&
         authenticatedActor.organizationId !== binding.transporterOrgId
@@ -292,7 +312,7 @@ export class IotService {
           temperature: input.temperature,
           humidity: input.humidity,
           battery: input.battery,
-          recordedAt: new Date(input.recordedAt),
+          recordedAt,
           validityStatus: 'VALID',
         },
       });
@@ -331,6 +351,9 @@ export class IotService {
           deviceId: device.id,
           transporterOrgId: shipment.transporterOrgId,
           boundBy: actor.sub,
+          // Match the millisecond precision advertised by the JSON contract;
+          // a DB now() microsecond default can be later than its serialized value.
+          boundAt: new Date(),
           note: input.note,
         },
       });
@@ -340,7 +363,13 @@ export class IotService {
         lotId: shipment.lotId,
         eventType: 'TRACKING_DEVICE_BOUND',
         actor,
-        businessData: { deviceId: device.id, deviceCode: device.deviceCode },
+        eventTime: binding.boundAt,
+        businessData: {
+          bindingId: binding.id,
+          deviceId: device.id,
+          deviceCode: device.deviceCode,
+          boundAt: binding.boundAt.toISOString(),
+        },
       });
       return binding;
     });
@@ -360,9 +389,10 @@ export class IotService {
       throw new ForbiddenException('Không có quyền tháo thiết bị chuyến hàng');
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'lot', shipment.lotId);
+      const unboundAt = new Date();
       const updated = await tx.shipmentTrackingBinding.updateMany({
         where: { shipmentId, deviceId, status: 'ACTIVE', unboundAt: null },
-        data: { status: 'INACTIVE', unboundAt: new Date() },
+        data: { status: 'INACTIVE', unboundAt },
       });
       if (updated.count !== 1)
         throw new NotFoundException(
@@ -374,7 +404,8 @@ export class IotService {
         lotId: shipment.lotId,
         eventType: 'TRACKING_DEVICE_UNBOUND',
         actor,
-        businessData: { deviceId },
+        eventTime: unboundAt,
+        businessData: { deviceId, unboundAt: unboundAt.toISOString() },
       });
       return { unbound: true };
     });
@@ -394,8 +425,14 @@ export class IotService {
       await lockAggregate(tx, 'lot', shipment.lotId);
       if (actor.organizationId !== shipment.transporterOrgId)
         throw new ForbiddenException('Không có quyền tạo telemetry digest');
-      const periodStart = new Date(input.periodStart);
-      const periodEnd = new Date(input.periodEnd);
+      const periodStart = businessTimestamp(
+        input.periodStart,
+        'Đầu khoảng telemetry',
+      );
+      const periodEnd = businessTimestamp(
+        input.periodEnd,
+        'Cuối khoảng telemetry',
+      );
       this.assertPeriod(periodStart, periodEnd);
       const readings = await tx.shipmentTelemetry.findMany({
         where: { shipmentId, recordedAt: { gte: periodStart, lte: periodEnd } },

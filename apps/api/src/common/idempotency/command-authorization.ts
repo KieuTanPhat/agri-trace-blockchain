@@ -7,6 +7,11 @@ import { isUUID } from 'class-validator';
 import { canonicalSha256 } from '../crypto/rfc8785.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { sessionFamilyWhere } from '../../modules/auth/session-family.js';
+import {
+  CUSTODY_EVENT_SELECT,
+  resolveLotCustodian,
+} from '../../modules/lots/lot-custody.js';
+import { assertAssignedFarm } from '../../modules/auth/compliance-scope.js';
 
 export interface CommandActor {
   sub: string | null;
@@ -84,7 +89,11 @@ export async function authorizeCommand(
   const lot = async (lotId: string) => {
     const found = await db.lot.findUnique({
       where: { id: lotId },
-      include: { shipment: true, harvest: true },
+      include: {
+        shipment: true,
+        harvest: true,
+        traceEvents: CUSTODY_EVENT_SELECT,
+      },
     });
     if (!found) throw new NotFoundException('Không tìm thấy lô hàng');
     return found;
@@ -177,6 +186,7 @@ export async function authorizeCommand(
   )
     throw new UnauthorizedException('Phiên đăng nhập không còn hợp lệ');
 
+  let assignmentId: string | null = null;
   switch (input.operation) {
     case 'CREATE_PRODUCT':
     case 'CREATE_FARM':
@@ -213,6 +223,29 @@ export async function authorizeCommand(
       requireOwner(actor.organizationId, (await lot(id('lotId'))).farmOrgId);
       break;
     }
+    case 'DAMAGE_LOT': {
+      requireRole(actor, ['FARM_STAFF']);
+      requireOwner(actor.organizationId, (await lot(id('lotId'))).farmOrgId);
+      break;
+    }
+    case 'MARK_FOR_SALE':
+    case 'MARK_SOLD': {
+      requireRole(actor, ['RETAILER']);
+      const subject = await lot(id('lotId'));
+      if (!subject.shipment)
+        throw new ForbiddenException('Lô chưa có nhà bán lẻ');
+      requireOwner(actor.organizationId, subject.shipment.retailerOrgId);
+      break;
+    }
+    case 'RECALL_LOT':
+    case 'EXPIRE_LOT': {
+      requireRole(actor, ['FARM_STAFF', 'TRANSPORTER', 'RETAILER']);
+      const custodian = resolveLotCustodian(await lot(id('lotId')));
+      if (!custodian || custodian.role !== actor.role)
+        throw new ForbiddenException('Không xác định được custody phù hợp');
+      requireOwner(actor.organizationId, custodian.organizationId);
+      break;
+    }
     case 'START_SHIPMENT':
     case 'ARRIVE_SHIPMENT':
     case 'RECEIVE_SHIPMENT':
@@ -242,6 +275,35 @@ export async function authorizeCommand(
         ? (await lot(id('lotId'))).farmOrgId
         : (await cycle(id('cycleId'))).farmOrgId;
       requireOwner(actor.organizationId, owner);
+      break;
+    }
+    case 'CREATE_INSPECTION':
+    case 'REVIEW_CERTIFICATE': {
+      requireRole(actor, ['COMPLIANCE_REVIEWER']);
+      let subjectCycleId: string;
+      if (input.operation === 'CREATE_INSPECTION') {
+        subjectCycleId = (await lot(id('lotId'))).harvest.cycleId;
+      } else {
+        const certificate = await db.certificate.findUnique({
+          where: { id: id('id') },
+        });
+        if (
+          !certificate ||
+          Boolean(certificate.lotId) === Boolean(certificate.cycleId)
+        )
+          throw new NotFoundException(
+            'Không tìm thấy chứng nhận có subject hợp lệ',
+          );
+        subjectCycleId = certificate.lotId
+          ? (await lot(certificate.lotId)).harvest.cycleId
+          : certificate.cycleId!;
+      }
+      assignmentId = await assertAssignedFarm(
+        db,
+        actor,
+        (await cycle(subjectCycleId)).farmId,
+        lock,
+      );
       break;
     }
     case 'CREATE_IOT_DEVICE':
@@ -278,5 +340,6 @@ export async function authorizeCommand(
     requesterId: actor.sub,
     role: actor.role,
     organizationId: actor.organizationId,
+    ...(assignmentId ? { assignmentId } : {}),
   });
 }

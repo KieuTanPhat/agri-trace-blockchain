@@ -13,6 +13,7 @@ import {
 } from '../../common/idempotency/command-transaction.js';
 import { quantity } from '../../common/quantity.js';
 import { normalizeExpiryDate } from '../../common/expiry-date.js';
+import { businessTimestamp } from '../../common/timestamp.js';
 import {
   prepareHarvestSensorWindow,
   finalizeHarvestSensorWindow,
@@ -54,10 +55,33 @@ export class LotHarvestService {
           throw new UnprocessableEntityException(
             'Đơn vị thu hoạch không khớp kế hoạch',
           );
+        if (
+          await tx.harvestEvent.findFirst({
+            where: { cycleId, unit: { not: input.unit } },
+            select: { id: true },
+          })
+        )
+          throw new ConflictException(
+            'Lịch sử thu hoạch có đơn vị khác; cần đối soát trước khi ghi tiếp',
+          );
+        const harvestTime = businessTimestamp(
+          input.harvestTime,
+          'Thời điểm thu hoạch',
+        );
+        const expiryDate = input.expiryDate
+          ? normalizeExpiryDate(input.expiryDate)
+          : undefined;
+        if (
+          expiryDate &&
+          expiryDate < normalizeExpiryDate(harvestTime.toISOString())
+        )
+          throw new UnprocessableEntityException(
+            'Ngày hết hạn phải từ ngày thu hoạch',
+          );
         const sensorSnapshot = await prepareHarvestSensorWindow(
           tx,
           cycleId,
-          new Date(input.harvestTime),
+          harvestTime,
           input.finalSensorDigestId,
         );
         const aggregate = await tx.harvestEvent.aggregate({
@@ -78,7 +102,7 @@ export class LotHarvestService {
           data: {
             cycleId,
             finalSensorDigestId: input.finalSensorDigestId,
-            harvestTime: new Date(input.harvestTime),
+            harvestTime,
             quantity: harvestedQuantity,
             unit: input.unit,
             grade: input.grade,
@@ -99,9 +123,7 @@ export class LotHarvestService {
             availableQuantity: harvestedQuantity,
             unit: input.unit,
             grade: input.grade,
-            expiryDate: input.expiryDate
-              ? normalizeExpiryDate(input.expiryDate)
-              : undefined,
+            expiryDate,
           },
         });
         const sensorWindow = await finalizeHarvestSensorWindow(
@@ -143,6 +165,9 @@ export class LotHarvestService {
             quantity: harvestedQuantity.toString(),
             unit: input.unit,
             grade: input.grade ?? null,
+            expiryDate: lot.expiryDate?.toISOString().slice(0, 10) ?? null,
+            qualityNote: input.qualityNote ?? null,
+            harvestArea: input.harvestArea ?? null,
             sensorWindowId: sensorWindow.id,
             sensorEvidenceStatus: sensorWindow.status,
           },

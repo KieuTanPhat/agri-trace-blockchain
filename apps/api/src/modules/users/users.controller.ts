@@ -1,3 +1,11 @@
+import { ApiHeader } from '@nestjs/swagger';
+import { ApiDataResponse } from '../../common/api/openapi.js';
+import { RoleRecordDto } from '../../common/api/record.dto.js';
+import {
+  UserListDto,
+  UserCreatedDto,
+  UserStatusDto,
+} from '../../common/api/response.dto.js';
 import { Req } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
@@ -29,13 +37,20 @@ export class UsersController {
     private readonly service: UsersService,
     private readonly idem: IdempotencyService,
   ) {}
-  @Get() list() {
+  @ApiDataResponse(UserListDto, 200, true)
+  @Get()
+  list() {
     return this.service.list();
   }
-  @Get('roles') roles() {
+  @ApiDataResponse(RoleRecordDto, 200, true)
+  @Get('roles')
+  roles() {
     return this.service.roles();
   }
-  @Post() create(
+  @ApiDataResponse(UserCreatedDto, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @Post()
+  create(
     @Body() input: CreateUserDto,
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
@@ -53,6 +68,7 @@ export class UsersController {
       () => this.service.create(input),
     );
   }
+  @ApiDataResponse(UserStatusDto, 200)
   @Patch(':id/status')
   updateStatus(
     @Param('id', ParseUUIDPipe) id: string,

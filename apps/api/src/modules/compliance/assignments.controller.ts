@@ -1,3 +1,6 @@
+import { ApiDataResponse } from '../../common/api/openapi.js';
+import { ComplianceAssignmentRecordDto } from '../../common/api/record.dto.js';
+import { AssignmentListDto } from '../../common/api/response.dto.js';
 import {
   Body,
   Controller,
@@ -48,12 +51,14 @@ export class ComplianceAssignmentsController {
     private readonly idempotency: IdempotencyService,
   ) {}
 
+  @ApiDataResponse(AssignmentListDto, 200, true)
   @Get()
   @Roles('SYSTEM_ADMIN', 'COMPLIANCE_REVIEWER')
   list(@Req() req: AuthenticatedRequest) {
     return this.service.list(req.user);
   }
 
+  @ApiDataResponse(ComplianceAssignmentRecordDto, 201)
   @Post()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   grant(
@@ -75,6 +80,7 @@ export class ComplianceAssignmentsController {
     );
   }
 
+  @ApiDataResponse(ComplianceAssignmentRecordDto, 201)
   @Post(':id/revoke')
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   revoke(

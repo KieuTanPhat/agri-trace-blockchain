@@ -18,6 +18,7 @@ import {
   lockAggregate,
 } from '../../common/idempotency/command-transaction.js';
 import { assertQuantityReconciled, quantity } from '../../common/quantity.js';
+import { businessTimestamp } from '../../common/timestamp.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import { assignedFarmWhere } from '../auth/compliance-scope.js';
@@ -166,6 +167,17 @@ export class ShipmentsService {
           'Lô đã có chuyến hàng hoặc không còn lượng khả dụng',
         );
       await assertQuantityReconciled(tx, fullLot);
+      const plannedPickupTime = input.plannedPickupTime
+        ? businessTimestamp(input.plannedPickupTime, 'Dự kiến lấy hàng', {
+            allowFuture: true,
+          })
+        : undefined;
+      const expectedArrival = input.expectedArrivalTime
+        ? businessTimestamp(input.expectedArrivalTime, 'Dự kiến đến', {
+            allowFuture: true,
+            notBefore: plannedPickupTime,
+          })
+        : undefined;
       const shipment = await tx.shipment.create({
         data: {
           lotId: fullLot.id,
@@ -175,12 +187,8 @@ export class ShipmentsService {
           destination: input.destination,
           shippedQuantity: fullLot.availableQuantity,
           unit: fullLot.unit,
-          plannedPickupTime: input.plannedPickupTime
-            ? new Date(input.plannedPickupTime)
-            : undefined,
-          expectedArrival: input.expectedArrivalTime
-            ? new Date(input.expectedArrivalTime)
-            : undefined,
+          plannedPickupTime,
+          expectedArrival,
           vehicleRef: input.vehicleRef,
         },
       });
@@ -195,6 +203,11 @@ export class ShipmentsService {
           retailerOrgId: shipment.retailerOrgId,
           quantity: shipment.shippedQuantity.toString(),
           unit: shipment.unit,
+          origin: shipment.origin,
+          destination: shipment.destination,
+          vehicleRef: shipment.vehicleRef,
+          plannedPickupTime: shipment.plannedPickupTime?.toISOString() ?? null,
+          expectedArrival: shipment.expectedArrival?.toISOString() ?? null,
         },
       });
       return shipment;
@@ -213,7 +226,6 @@ export class ShipmentsService {
       'IN_TRANSPORT',
       'SHIPMENT_STARTED',
       actor,
-      { pickupTime: this.time(input) },
     );
   }
 
@@ -229,7 +241,6 @@ export class ShipmentsService {
       'ARRIVED',
       'SHIPMENT_ARRIVED',
       actor,
-      { arrivalTime: this.time(input) },
     );
   }
 
@@ -237,6 +248,15 @@ export class ShipmentsService {
     const shipment = await this.getAndAssertOrg(id, actor, 'retailer');
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'lot', shipment.lotId);
+      const currentShipment = await this.getAndAssertOrg(
+        id,
+        actor,
+        'retailer',
+        tx,
+      );
+      if (currentShipment.status !== 'ARRIVED' || !currentShipment.arrivalTime)
+        throw new ConflictException('Chuyến hàng chưa có mốc đến hợp lệ');
+      const occurredAt = this.time(input, currentShipment.arrivalTime);
       const lot = await tx.lot.findUniqueOrThrow({
         where: { id: shipment.lotId },
       });
@@ -253,7 +273,7 @@ export class ShipmentsService {
         data: {
           status: 'DELIVERED',
           version: { increment: 1 },
-          receivedTime: this.time(input),
+          receivedTime: occurredAt,
           receivedQuantity: received,
           rejectedQuantity: 0,
         },
@@ -278,10 +298,17 @@ export class ShipmentsService {
         lotId: lot.id,
         eventType: 'SHIPMENT_RECEIVED',
         actor,
+        eventTime: occurredAt,
         businessData: {
           receivedQuantity: received.toString(),
           damagedQuantity: damaged.toString(),
           note: input.note ?? null,
+          beforeQuantity: lot.availableQuantity.toString(),
+          afterQuantity: received.toString(),
+          lotVersionBefore: lot.version,
+          lotVersionAfter: lot.version + 1,
+          shipmentVersionBefore: currentShipment.version,
+          shipmentVersionAfter: currentShipment.version + 1,
         },
       });
       if (damaged.greaterThan(0))
@@ -305,15 +332,25 @@ export class ShipmentsService {
     const shipment = await this.getAndAssertOrg(id, actor, 'retailer');
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'lot', shipment.lotId);
+      const currentShipment = await this.getAndAssertOrg(
+        id,
+        actor,
+        'retailer',
+        tx,
+      );
+      if (currentShipment.status !== 'ARRIVED' || !currentShipment.arrivalTime)
+        throw new ConflictException('Chuyến hàng chưa có mốc đến hợp lệ');
+      const occurredAt = this.time(input, currentShipment.arrivalTime);
       const lot = await tx.lot.findUniqueOrThrow({
         where: { id: shipment.lotId },
       });
+      await assertQuantityReconciled(tx, lot);
       const s = await tx.shipment.updateMany({
         where: { id, version: input.version, status: 'ARRIVED' },
         data: {
           status: 'REJECTED',
           version: { increment: 1 },
-          receivedTime: this.time(input),
+          receivedTime: occurredAt,
           rejectedQuantity: lot.availableQuantity,
           rejectReason: input.reason,
         },
@@ -334,7 +371,12 @@ export class ShipmentsService {
         lotId: shipment.lotId,
         eventType: 'SHIPMENT_REJECTED',
         actor,
-        businessData: { reason: input.reason },
+        eventTime: occurredAt,
+        businessData: {
+          reason: input.reason,
+          rejectedQuantity: lot.availableQuantity.toString(),
+          unit: lot.unit,
+        },
       });
       return tx.shipment.findUniqueOrThrow({ where: { id } });
     });
@@ -360,6 +402,13 @@ export class ShipmentsService {
         );
       const expectedLotState =
         currentShipment.status === 'IN_TRANSIT' ? 'IN_TRANSPORT' : 'ARRIVED';
+      const custodyTime =
+        currentShipment.status === 'IN_TRANSIT'
+          ? currentShipment.pickupTime
+          : currentShipment.arrivalTime;
+      if (!custodyTime)
+        throw new ConflictException('Chưa có mốc bàn giao hợp lệ');
+      const occurredAt = this.time(input, custodyTime);
       if (lot.currentState !== expectedLotState)
         throw new ConflictException('Trạng thái lô không khớp chuyến hàng');
       const after = lot.availableQuantity.sub(damaged);
@@ -393,11 +442,17 @@ export class ShipmentsService {
         lotId: lot.id,
         eventType: 'SHIPMENT_DAMAGE_RECORDED',
         actor,
+        eventTime: occurredAt,
         businessData: {
           quantity: damaged.toString(),
           unit: lot.unit,
           reason: input.reason,
           fullDamage: after.isZero(),
+          beforeQuantity: lot.availableQuantity.toString(),
+          afterQuantity: after.toString(),
+          lotStateBefore: lot.currentState,
+          lotStateAfter: lotState,
+          shipmentStateAfter: shipmentState,
           evidenceRef: input.evidenceRef ?? null,
           custodianOrganizationId: actor.organizationId,
           shipmentStateBefore: currentShipment.status,
@@ -433,17 +488,40 @@ export class ShipmentsService {
     toLot: 'IN_TRANSPORT' | 'ARRIVED',
     eventType: string,
     actor: Actor,
-    data: Record<string, unknown>,
   ) {
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'lot', lotId);
-      const lot = await tx.lot.findUniqueOrThrow({ where: { id: lotId } });
+      const currentShipment = await this.getAndAssertOrg(
+        shipmentId,
+        actor,
+        'transporter',
+        tx,
+      );
+      const lot = await tx.lot.findUniqueOrThrow({
+        where: { id: lotId },
+        include: { harvest: { select: { harvestTime: true } } },
+      });
+      if (currentShipment.status !== fromShipment)
+        throw new ConflictException('Trạng thái chuyến hàng đã thay đổi');
+      const previousTime =
+        fromShipment === 'CREATED'
+          ? lot.harvest.harvestTime
+          : currentShipment.pickupTime;
+      if (!previousTime)
+        throw new ConflictException('Chưa có mốc bàn giao trước đó hợp lệ');
+      const occurredAt = this.time(input, previousTime);
       await assertQuantityReconciled(tx, lot);
       if (!lot.availableQuantity.greaterThan(0))
         throw new ConflictException('Lô không còn lượng khả dụng');
       const s = await tx.shipment.updateMany({
         where: { id: shipmentId, version: input.version, status: fromShipment },
-        data: { status: toShipment, version: { increment: 1 }, ...data },
+        data: {
+          status: toShipment,
+          version: { increment: 1 },
+          ...(toShipment === 'IN_TRANSIT'
+            ? { pickupTime: occurredAt }
+            : { arrivalTime: occurredAt }),
+        },
       });
       const l = await tx.lot.updateMany({
         where: { id: lotId, version: input.lotVersion, currentState: fromLot },
@@ -457,8 +535,17 @@ export class ShipmentsService {
         lotId,
         eventType,
         actor,
-        eventTime: this.time(input),
-        businessData: {},
+        eventTime: occurredAt,
+        businessData: {
+          shipmentStateBefore: fromShipment,
+          shipmentStateAfter: toShipment,
+          lotStateBefore: fromLot,
+          lotStateAfter: toLot,
+          lotVersionBefore: lot.version,
+          lotVersionAfter: lot.version + 1,
+          shipmentVersionBefore: currentShipment.version,
+          shipmentVersionAfter: currentShipment.version + 1,
+        },
       });
       return tx.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
     });
@@ -468,12 +555,13 @@ export class ShipmentsService {
     id: string,
     actor: Actor,
     party: 'transporter' | 'retailer',
+    db: Prisma.TransactionClient = this.prisma,
   ) {
     assertBusinessActor(
       actor,
       party === 'transporter' ? TRANSPORT_WRITE_ROLES : RETAIL_WRITE_ROLES,
     );
-    const shipment = await this.prisma.shipment.findUnique({ where: { id } });
+    const shipment = await db.shipment.findUnique({ where: { id } });
     if (!shipment)
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
     const expected =
@@ -515,7 +603,11 @@ export class ShipmentsService {
       );
     return shipment;
   }
-  private time(input: ShipmentTransitionDto) {
-    return input.occurredAt ? new Date(input.occurredAt) : new Date();
+  private time(input: ShipmentTransitionDto, notBefore: Date) {
+    return businessTimestamp(
+      input.occurredAt ?? new Date().toISOString(),
+      'Thời điểm chuyến hàng',
+      { notBefore },
+    );
   }
 }

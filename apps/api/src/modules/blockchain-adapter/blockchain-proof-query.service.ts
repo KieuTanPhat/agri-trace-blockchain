@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { calculateTraceEventHash } from '../trace/public.js';
+import { privateTraceEvidenceMatches } from '../trace/trace-evidence.js';
+import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
+import { getLotEventProofStatus } from '../lots/lot-proof-status.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import type { Actor } from '../trace/trace.service.js';
 
@@ -20,6 +22,10 @@ export class BlockchainProofQueryService {
     if (!event) throw new NotFoundException('Không tìm thấy trace event');
 
     const proof = event.blockchainProof;
+    const sensorMatches = await harvestSensorTraceEvidenceMatches(
+      this.prisma,
+      event,
+    );
     return {
       eventId,
       status: proof
@@ -31,7 +37,11 @@ export class BlockchainProofQueryService {
       dataHash: proof?.dataHash ?? event.dataHash,
       localHashMatches:
         (!proof || proof.dataHash === event.dataHash) &&
-        event.dataHash === calculateTraceEventHash(event),
+        privateTraceEvidenceMatches(event) &&
+        sensorMatches,
+      proofStatus: sensorMatches
+        ? getLotEventProofStatus(event)
+        : 'INTEGRITY_WARNING',
       txId: proof?.txId ?? null,
       channelId:
         proof?.channelId ?? process.env.FABRIC_CHANNEL_NAME ?? 'agritrace',

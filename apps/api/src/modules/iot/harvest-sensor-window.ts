@@ -231,11 +231,28 @@ export async function harvestSensorEvidenceMatches(
       harvest: { select: { cycleId: true, harvestTime: true } },
     },
   });
+  return harvestSensorSnapshotMatches(window);
+}
+
+export type HarvestSensorSnapshot = Prisma.HarvestSensorWindowGetPayload<{
+  include: {
+    readings: { include: { reading: true } };
+    harvest: { select: { cycleId: true; harvestTime: true } };
+  };
+}>;
+
+export function harvestSensorSnapshotMatches(
+  window: HarvestSensorSnapshot | null,
+): boolean {
   if (
     !window?.sealedAt ||
     window.schemaVersion !== 'harvest-sensor-1' ||
     window.harvest.cycleId !== window.cycleId ||
     window.harvest.harvestTime.getTime() !== window.periodEnd.getTime() ||
+    window.periodEnd <= window.periodStart ||
+    window.sealedAt < window.finalizedAt ||
+    !Number.isInteger(window.readingCount) ||
+    window.readingCount < 0 ||
     window.readings.length !== window.readingCount
   )
     return false;
