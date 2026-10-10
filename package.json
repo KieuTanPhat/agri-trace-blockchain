@@ -53,6 +53,9 @@
     "blockchain/gateway"
   ],
   "devDependencies": {
+    "@apidevtools/swagger-parser": "13.1.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "openapi-typescript": "7.13.0"
   }
 }

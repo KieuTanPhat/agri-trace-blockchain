@@ -16,11 +16,16 @@ import {
 import { Transform, Type } from 'class-transformer';
 
 export class ComplianceCorrectionDto {
-  @ApiProperty({ required: false, format: 'uuid' })
+  @ApiProperty({ required: false, nullable: true, format: 'uuid' })
   @IsOptional()
   @IsUUID()
   supersedesId?: string;
-  @ApiProperty({ required: false, minLength: 1, maxLength: 1000 })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    minLength: 1,
+    maxLength: 1000,
+  })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsOptional()
   @IsString()
@@ -36,7 +41,12 @@ export class CreateInspectionDto extends ComplianceCorrectionDto {
   @ApiProperty({ enum: ['PASS', 'FAIL', 'CONDITIONAL'] })
   @IsIn(['PASS', 'FAIL', 'CONDITIONAL'])
   result!: 'PASS' | 'FAIL' | 'CONDITIONAL';
-  @ApiProperty({ type: String, required: false, maxLength: 1000 })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    maxLength: 1000,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(1000)
@@ -44,7 +54,12 @@ export class CreateInspectionDto extends ComplianceCorrectionDto {
   @ApiProperty({ type: String, format: 'date-time' })
   @IsDateString()
   inspectedAt!: string;
-  @ApiProperty({ type: String, required: false, maxLength: 2048 })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    maxLength: 2048,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(2048)
@@ -52,11 +67,21 @@ export class CreateInspectionDto extends ComplianceCorrectionDto {
 }
 
 export class CreateCertificateDto extends ComplianceCorrectionDto {
-  @ApiProperty({ type: String, required: false, format: 'uuid' })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    format: 'uuid',
+  })
   @IsOptional()
   @IsUUID()
   lotId?: string;
-  @ApiProperty({ type: String, required: false, format: 'uuid' })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    format: 'uuid',
+  })
   @IsOptional()
   @IsUUID()
   cycleId?: string;
@@ -72,10 +97,22 @@ export class CreateCertificateDto extends ComplianceCorrectionDto {
   @MinLength(1)
   @MaxLength(255)
   issuer!: string;
-  @ApiProperty({ type: String })
+  @ApiProperty({
+    type: String,
+    description:
+      'YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date',
+    example: '2026-10-13',
+  })
   @IsDateString()
   issueDate!: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    description:
+      'YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date',
+    example: '2026-10-13',
+  })
   @IsOptional()
   @IsDateString()
   expiryDate?: string;
@@ -94,7 +131,7 @@ export class CreateCertificateDto extends ComplianceCorrectionDto {
   @IsString()
   @Matches(/^[a-f0-9]{64}$/)
   documentHash!: string;
-  @ApiProperty({ type: Boolean, required: false })
+  @ApiProperty({ type: Boolean, required: false, nullable: true })
   @IsOptional()
   @IsBoolean()
   isPublic?: boolean;
@@ -110,7 +147,12 @@ export class ReviewCertificateDto {
   @ApiProperty({ enum: ['APPROVED', 'REJECTED'] })
   @IsIn(['APPROVED', 'REJECTED'])
   status!: 'APPROVED' | 'REJECTED';
-  @ApiProperty({ type: String, required: false, maxLength: 1000 })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    maxLength: 1000,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(1000)

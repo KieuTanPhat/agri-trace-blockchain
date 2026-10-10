@@ -24,13 +24,29 @@ export function createOpenApiDocument(app: INestApplication) {
       SESSION_COOKIE_NAME,
     )
     .addApiKey(
-      { type: 'apiKey', name: 'Idempotency-Key', in: 'header' },
-      'idempotency',
+      { type: 'apiKey', name: 'x-device-key', in: 'header' },
+      'deviceKey',
     )
     .build();
   const document = SwaggerModule.createDocument(app, config, {
     extraModels: [ApiErrorEnvelopeDto],
+    operationIdFactory: (controller, method) => `${controller}_${method}`,
   });
+  // OAS 3.0 nullable on an allOf wrapper cannot relax the referenced model's
+  // object type. Model null as a separate branch so validators and typegen agree.
+  for (const schema of Object.values(document.components?.schemas ?? {})) {
+    if ('$ref' in schema) continue;
+    for (const property of Object.values(schema.properties ?? {})) {
+      if ('$ref' in property || !property.nullable || !property.allOf) continue;
+      property.oneOf = [
+        { allOf: property.allOf },
+        { type: 'object', nullable: true, enum: [null] },
+      ];
+      delete property.allOf;
+      delete property.type;
+      delete property.nullable;
+    }
+  }
   for (const path of Object.values(document.paths))
     for (const method of [
       'get',
@@ -48,6 +64,18 @@ export function createOpenApiDocument(app: INestApplication) {
         NonNullable<typeof operation.parameters>[number]
       >();
       for (const parameter of operation.parameters ?? []) {
+        if (
+          !('$ref' in parameter) &&
+          parameter.in === 'header' &&
+          parameter.name.toLowerCase() === 'idempotency-key'
+        ) {
+          parameter.schema = { type: 'string', minLength: 1 };
+          parameter.description =
+            'Required command key: trimmed, nonblank, at most 255 characters after trimming. ' +
+            'Replays the stored result for the same requester/operation/payload after authorization. ' +
+            'Missing/invalid key, changed payload or an in-progress command returns 409. ' +
+            'This header is not an authentication credential.';
+        }
         const key =
           '$ref' in parameter
             ? parameter.$ref

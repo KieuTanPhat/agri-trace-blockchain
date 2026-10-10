@@ -1,0 +1,337 @@
+[
+  {
+    "method": "GET",
+    "path": "/api",
+    "operationId": "AppController_getHello"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/login",
+    "operationId": "AuthController_login"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/logout",
+    "operationId": "AuthController_logout"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "operationId": "AuthController_getProfile"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/refresh",
+    "operationId": "AuthController_refresh"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/register",
+    "operationId": "AuthController_register"
+  },
+  {
+    "method": "GET",
+    "path": "/api/blockchain/events/{eventId}/verify",
+    "operationId": "BlockchainController_verify"
+  },
+  {
+    "method": "GET",
+    "path": "/api/catalog",
+    "operationId": "CatalogController_list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/catalog/farms",
+    "operationId": "CatalogController_farm"
+  },
+  {
+    "method": "POST",
+    "path": "/api/catalog/plots",
+    "operationId": "CatalogController_plot"
+  },
+  {
+    "method": "POST",
+    "path": "/api/catalog/products",
+    "operationId": "CatalogController_product"
+  },
+  {
+    "method": "GET",
+    "path": "/api/certificates",
+    "operationId": "ComplianceController_certificates"
+  },
+  {
+    "method": "POST",
+    "path": "/api/certificates",
+    "operationId": "ComplianceController_createCertificate"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/certificates/{id}/review",
+    "operationId": "ComplianceController_reviewCertificate"
+  },
+  {
+    "method": "GET",
+    "path": "/api/compliance/assignments",
+    "operationId": "ComplianceAssignmentsController_list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/compliance/assignments",
+    "operationId": "ComplianceAssignmentsController_grant"
+  },
+  {
+    "method": "POST",
+    "path": "/api/compliance/assignments/{id}/revoke",
+    "operationId": "ComplianceAssignmentsController_revoke"
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboard",
+    "operationId": "LotsController_dashboard"
+  },
+  {
+    "method": "GET",
+    "path": "/api/health",
+    "operationId": "HealthController_check"
+  },
+  {
+    "method": "GET",
+    "path": "/api/health/live",
+    "operationId": "HealthController_live"
+  },
+  {
+    "method": "GET",
+    "path": "/api/inspections",
+    "operationId": "ComplianceController_inspections"
+  },
+  {
+    "method": "POST",
+    "path": "/api/inspections",
+    "operationId": "ComplianceController_createInspection"
+  },
+  {
+    "method": "POST",
+    "path": "/api/iot/cycles/{cycleId}/digests",
+    "operationId": "IotController_createSensorDigest"
+  },
+  {
+    "method": "POST",
+    "path": "/api/iot/device-readings",
+    "operationId": "IotController_ingestForDevice"
+  },
+  {
+    "method": "GET",
+    "path": "/api/iot/devices",
+    "operationId": "IotController_devices"
+  },
+  {
+    "method": "POST",
+    "path": "/api/iot/devices",
+    "operationId": "IotController_createDevice"
+  },
+  {
+    "method": "POST",
+    "path": "/api/iot/readings",
+    "operationId": "IotController_ingestForUser"
+  },
+  {
+    "method": "POST",
+    "path": "/api/iot/shipments/{shipmentId}/device-telemetry",
+    "operationId": "IotController_ingestTelemetryForDevice"
+  },
+  {
+    "method": "POST",
+    "path": "/api/iot/shipments/{shipmentId}/devices",
+    "operationId": "IotController_bindShipmentDevice"
+  },
+  {
+    "method": "POST",
+    "path": "/api/iot/shipments/{shipmentId}/devices/{deviceId}/unbind",
+    "operationId": "IotController_unbindShipmentDevice"
+  },
+  {
+    "method": "POST",
+    "path": "/api/iot/shipments/{shipmentId}/telemetry",
+    "operationId": "IotController_ingestTelemetryForUser"
+  },
+  {
+    "method": "POST",
+    "path": "/api/iot/shipments/{shipmentId}/telemetry-digests",
+    "operationId": "IotController_createTelemetryDigest"
+  },
+  {
+    "method": "GET",
+    "path": "/api/lots",
+    "operationId": "LotsController_getLots"
+  },
+  {
+    "method": "GET",
+    "path": "/api/lots/{lotId}",
+    "operationId": "LotsController_getLot"
+  },
+  {
+    "method": "POST",
+    "path": "/api/lots/{lotId}/damage",
+    "operationId": "LotCommandsController_damage"
+  },
+  {
+    "method": "POST",
+    "path": "/api/lots/{lotId}/expire",
+    "operationId": "LotCommandsController_expire"
+  },
+  {
+    "method": "POST",
+    "path": "/api/lots/{lotId}/mark-for-sale",
+    "operationId": "LotCommandsController_markForSale"
+  },
+  {
+    "method": "POST",
+    "path": "/api/lots/{lotId}/mark-sold",
+    "operationId": "LotCommandsController_markSold"
+  },
+  {
+    "method": "POST",
+    "path": "/api/lots/{lotId}/recall",
+    "operationId": "LotCommandsController_recall"
+  },
+  {
+    "method": "GET",
+    "path": "/api/organizations",
+    "operationId": "OrganizationsController_list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/organizations",
+    "operationId": "OrganizationsController_create"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/organizations/{id}",
+    "operationId": "OrganizationsController_update"
+  },
+  {
+    "method": "GET",
+    "path": "/api/production-cycles",
+    "operationId": "ProductionCyclesController_list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/production-cycles",
+    "operationId": "ProductionCyclesController_create"
+  },
+  {
+    "method": "POST",
+    "path": "/api/production-cycles/{cycleId}/harvests",
+    "operationId": "LotsController_harvest"
+  },
+  {
+    "method": "GET",
+    "path": "/api/production-cycles/{id}",
+    "operationId": "ProductionCyclesController_get"
+  },
+  {
+    "method": "POST",
+    "path": "/api/production-cycles/{id}/cancel",
+    "operationId": "ProductionCyclesController_cancel"
+  },
+  {
+    "method": "POST",
+    "path": "/api/production-cycles/{id}/care",
+    "operationId": "ProductionCyclesController_care"
+  },
+  {
+    "method": "POST",
+    "path": "/api/production-cycles/{id}/close",
+    "operationId": "ProductionCyclesController_close"
+  },
+  {
+    "method": "POST",
+    "path": "/api/production-cycles/{id}/plant",
+    "operationId": "ProductionCyclesController_plant"
+  },
+  {
+    "method": "POST",
+    "path": "/api/production-cycles/{id}/sensor-readings",
+    "operationId": "ProductionCyclesController_sensor"
+  },
+  {
+    "method": "POST",
+    "path": "/api/production-cycles/{id}/sensor-reconciliations",
+    "operationId": "ProductionCyclesController_reconcileSensor"
+  },
+  {
+    "method": "GET",
+    "path": "/api/public/trace/{token}",
+    "operationId": "PublicTraceController_get"
+  },
+  {
+    "method": "GET",
+    "path": "/api/shipments",
+    "operationId": "ShipmentsController_list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/shipments",
+    "operationId": "ShipmentsController_create"
+  },
+  {
+    "method": "GET",
+    "path": "/api/shipments/{id}",
+    "operationId": "ShipmentsController_get"
+  },
+  {
+    "method": "POST",
+    "path": "/api/shipments/{id}/arrive",
+    "operationId": "ShipmentsController_arrive"
+  },
+  {
+    "method": "POST",
+    "path": "/api/shipments/{id}/damage",
+    "operationId": "ShipmentsController_damage"
+  },
+  {
+    "method": "POST",
+    "path": "/api/shipments/{id}/receive",
+    "operationId": "ShipmentsController_receive"
+  },
+  {
+    "method": "POST",
+    "path": "/api/shipments/{id}/reject",
+    "operationId": "ShipmentsController_reject"
+  },
+  {
+    "method": "POST",
+    "path": "/api/shipments/{id}/start",
+    "operationId": "ShipmentsController_start"
+  },
+  {
+    "method": "GET",
+    "path": "/api/trace/events/{eventId}/proof",
+    "operationId": "TraceController_getProof"
+  },
+  {
+    "method": "GET",
+    "path": "/api/trace/lots/{lotId}",
+    "operationId": "TraceController_getLotHistory"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users",
+    "operationId": "UsersController_list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/users",
+    "operationId": "UsersController_create"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/users/{id}/status",
+    "operationId": "UsersController_updateStatus"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/roles",
+    "operationId": "UsersController_roles"
+  }
+]

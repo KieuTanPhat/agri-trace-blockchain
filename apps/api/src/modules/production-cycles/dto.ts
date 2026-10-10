@@ -17,7 +17,12 @@ export class CreateProductionCycleDto {
   @ApiProperty({ type: String, format: 'uuid' })
   @IsUUID()
   farmId!: string;
-  @ApiProperty({ type: String, required: false, format: 'uuid' })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    format: 'uuid',
+  })
   @IsOptional()
   @IsUUID()
   plotId?: string;
@@ -30,11 +35,25 @@ export class CreateProductionCycleDto {
   @MinLength(1)
   @MaxLength(100)
   cycleCode!: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    description:
+      'YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date',
+    example: '2026-10-13',
+  })
   @IsOptional()
   @IsDateString()
   startDate?: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    description:
+      'YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date',
+    example: '2026-10-13',
+  })
   @IsOptional()
   @IsDateString()
   plannedHarvest?: string;
@@ -54,7 +73,7 @@ export class CreateProductionCycleDto {
   @MinLength(1)
   @MaxLength(30)
   harvestUnit!: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   note?: string;
@@ -82,13 +101,14 @@ export class CareRecordDto extends VersionedCommandDto {
   @ApiProperty({ type: String, format: 'date-time' })
   @IsDateString()
   eventTime!: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   materialName?: string;
   @ApiProperty({
     type: Number,
     required: false,
+    nullable: true,
     minimum: 0,
     exclusiveMinimum: true,
     multipleOf: 0.001,
@@ -98,15 +118,15 @@ export class CareRecordDto extends VersionedCommandDto {
   @IsNumber({ maxDecimalPlaces: 3 })
   @IsPositive()
   quantity?: number;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   unit?: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   method?: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   note?: string;
@@ -144,7 +164,12 @@ export class ReconcileCycleSensorDto extends VersionedCommandDto {
   @ApiProperty({ type: String, format: 'date-time' })
   @IsDateString()
   plantedAt!: string;
-  @ApiProperty({ type: String, required: false, format: 'uuid' })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    format: 'uuid',
+  })
   @IsOptional()
   @IsUUID()
   throughHarvestId?: string;

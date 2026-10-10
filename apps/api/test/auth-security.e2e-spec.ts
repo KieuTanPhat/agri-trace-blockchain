@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { createOpenApiDocument } from '../src/common/api/openapi.js';
 import { hash } from 'bcrypt';
 import { createHash } from 'node:crypto';
 import request from 'supertest';
@@ -150,18 +150,12 @@ describe('Auth security (e2e)', () => {
   });
 
   it('publishes the cookie session contract and recoverable 409 in Swagger', () => {
-    const document = SwaggerModule.createDocument(
-      app,
-      new DocumentBuilder()
-        .addBearerAuth()
-        .addCookieAuth(
-          'agritrace_session',
-          { type: 'apiKey', in: 'cookie' },
-          'agritrace_session',
-        )
-        .build(),
-    );
+    const document = createOpenApiDocument(app);
     expect(document.paths['/api/auth/refresh'].post?.security).toEqual([
+      { agritrace_session: [] },
+    ]);
+    expect(document.paths['/api/auth/logout'].post?.security).toEqual([
+      {},
       { agritrace_session: [] },
     ]);
     expect(document.paths['/api/auth/refresh'].post?.responses).toHaveProperty(
@@ -179,6 +173,14 @@ describe('Auth security (e2e)', () => {
     expect(document.components?.schemas?.LoginDto).toMatchObject({
       required: ['email', 'password'],
     });
+  });
+
+  it('allows logout without session cookies as documented', async () => {
+    await request(app.getHttpServer())
+      .post('/api/auth/logout')
+      .expect(201)
+      .expect({ revoked: true });
+    expect(prisma.refreshSession.findUnique).not.toHaveBeenCalled();
   });
 
   it('sets a HttpOnly refresh cookie without exposing it in JSON', async () => {

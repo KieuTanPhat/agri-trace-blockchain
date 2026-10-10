@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ErrorCode } from '../constants/error-code.js';
 
 class ApiErrorDto {
-  @ApiProperty() code!: string;
+  @ApiProperty({ enum: Object.values(ErrorCode) }) code!: string;
   @ApiProperty({
     oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
   })

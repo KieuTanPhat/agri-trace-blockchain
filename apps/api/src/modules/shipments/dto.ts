@@ -29,15 +29,25 @@ export class CreateShipmentDto {
   @ApiProperty({ type: String })
   @IsString()
   destination!: string;
-  @ApiProperty({ type: String, required: false, format: 'date-time' })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    format: 'date-time',
+  })
   @IsOptional()
   @IsDateString()
   plannedPickupTime?: string;
-  @ApiProperty({ type: String, required: false, format: 'date-time' })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    format: 'date-time',
+  })
   @IsOptional()
   @IsDateString()
   expectedArrivalTime?: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   vehicleRef?: string;
@@ -54,7 +64,12 @@ export class ShipmentTransitionDto {
   @IsInt()
   @Min(0)
   lotVersion!: number;
-  @ApiProperty({ type: String, required: false, format: 'date-time' })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    format: 'date-time',
+  })
   @IsOptional()
   @IsDateString()
   occurredAt?: string;
@@ -71,13 +86,19 @@ export class ReceiveShipmentDto extends ShipmentTransitionDto {
   @IsNumber({ maxDecimalPlaces: 3 })
   @IsPositive()
   receivedQuantity!: number;
-  @ApiProperty({ type: Number, required: false, minimum: 0, multipleOf: 0.001 })
+  @ApiProperty({
+    type: Number,
+    required: false,
+    nullable: true,
+    minimum: 0,
+    multipleOf: 0.001,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
   damagedQuantity?: number;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   note?: string;
@@ -109,7 +130,12 @@ export class DamageShipmentDto extends ShipmentTransitionDto {
   @MinLength(1)
   @MaxLength(1000)
   reason!: string;
-  @ApiProperty({ type: String, required: false, maxLength: 2048 })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    maxLength: 2048,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(2048)

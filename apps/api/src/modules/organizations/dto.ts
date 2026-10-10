@@ -21,14 +21,24 @@ export class CreateOrganizationDto {
 }
 
 export class UpdateOrganizationDto {
-  @ApiProperty({ type: String, required: false, maxLength: 255, minLength: 1 })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    maxLength: 255,
+    minLength: 1,
+  })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(255)
   name?: string;
-  @ApiProperty({ enum: ['ACTIVE', 'INACTIVE'], required: false })
+  @ApiProperty({
+    enum: ['ACTIVE', 'INACTIVE'],
+    required: false,
+    nullable: true,
+  })
   @IsOptional()
   @IsIn(['ACTIVE', 'INACTIVE'])
   status?: 'ACTIVE' | 'INACTIVE';

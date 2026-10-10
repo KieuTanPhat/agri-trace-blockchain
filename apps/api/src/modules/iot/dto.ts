@@ -45,7 +45,7 @@ export class CreateSensorDigestDto {
   @ApiProperty({ type: String, format: 'date-time' })
   @IsDateString()
   periodEnd!: string;
-  @ApiProperty({ type: Boolean, required: false })
+  @ApiProperty({ type: Boolean, required: false, nullable: true })
   @IsOptional()
   @IsBoolean()
   isFinal?: boolean;
@@ -59,6 +59,7 @@ export class IngestShipmentTelemetryDto {
   @ApiProperty({
     type: Number,
     required: false,
+    nullable: true,
     minimum: 0,
     maximum: Number.MAX_SAFE_INTEGER,
   })
@@ -76,32 +77,32 @@ export class IngestShipmentTelemetryDto {
   @Type(() => Number)
   @IsNumber()
   longitude!: number;
-  @ApiProperty({ type: Number, required: false })
+  @ApiProperty({ type: Number, required: false, nullable: true })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   accuracy?: number;
-  @ApiProperty({ type: Number, required: false })
+  @ApiProperty({ type: Number, required: false, nullable: true })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   speed?: number;
-  @ApiProperty({ type: Number, required: false })
+  @ApiProperty({ type: Number, required: false, nullable: true })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   heading?: number;
-  @ApiProperty({ type: Number, required: false })
+  @ApiProperty({ type: Number, required: false, nullable: true })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   temperature?: number;
-  @ApiProperty({ type: Number, required: false })
+  @ApiProperty({ type: Number, required: false, nullable: true })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   humidity?: number;
-  @ApiProperty({ type: Number, required: false })
+  @ApiProperty({ type: Number, required: false, nullable: true })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -118,7 +119,7 @@ export class CreateTelemetryDigestDto {
   @ApiProperty({ type: String, format: 'date-time' })
   @IsDateString()
   periodEnd!: string;
-  @ApiProperty({ type: Boolean, required: false })
+  @ApiProperty({ type: Boolean, required: false, nullable: true })
   @IsOptional()
   @IsBoolean()
   isFinal?: boolean;
@@ -128,7 +129,7 @@ export class BindShipmentDeviceDto {
   @ApiProperty({ type: String, format: 'uuid' })
   @IsUUID()
   deviceId!: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   note?: string;
@@ -138,7 +139,12 @@ export class CreateIotDeviceDto {
   @ApiProperty({ type: String, format: 'uuid' })
   @IsUUID()
   organizationId!: string;
-  @ApiProperty({ type: String, required: false, format: 'uuid' })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    format: 'uuid',
+  })
   @IsOptional()
   @IsUUID()
   cycleId?: string;

@@ -243,9 +243,8 @@ export class ShipmentRecordDto {
   @ApiProperty({ type: String, nullable: true }) rejectReason!: string | null;
   @ApiProperty({ type: String, nullable: true }) vehicleRef!: string | null;
   @ApiProperty({
-    nullable: true,
     oneOf: [
-      { type: 'object', additionalProperties: true },
+      { type: 'object', nullable: true, additionalProperties: true },
       { type: 'array', items: {} },
       { type: 'string' },
       { type: 'number' },
@@ -373,9 +372,8 @@ export class ShipmentTelemetryDigestRecordDto {
   })
   lastLongitude!: string | null;
   @ApiProperty({
-    nullable: true,
     oneOf: [
-      { type: 'object', additionalProperties: true },
+      { type: 'object', nullable: true, additionalProperties: true },
       { type: 'array', items: {} },
       { type: 'string' },
       { type: 'number' },
@@ -384,9 +382,8 @@ export class ShipmentTelemetryDigestRecordDto {
   })
   conditionSummary!: unknown | null;
   @ApiProperty({
-    nullable: true,
     oneOf: [
-      { type: 'object', additionalProperties: true },
+      { type: 'object', nullable: true, additionalProperties: true },
       { type: 'array', items: {} },
       { type: 'string' },
       { type: 'number' },
@@ -422,9 +419,8 @@ export class TraceEventRecordDto {
   @ApiProperty({ type: String, format: 'date-time' }) eventTime!: string;
   @ApiProperty({ type: String, format: 'date-time' }) serverRecordedAt!: string;
   @ApiProperty({
-    nullable: true,
     oneOf: [
-      { type: 'object', additionalProperties: true },
+      { type: 'object', nullable: true, additionalProperties: true },
       { type: 'array', items: {} },
       { type: 'string' },
       { type: 'number' },

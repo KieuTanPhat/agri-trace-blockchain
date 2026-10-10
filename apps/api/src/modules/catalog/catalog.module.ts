@@ -1,4 +1,4 @@
-import { ApiHeader } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { ApiDataResponse } from '../../common/api/openapi.js';
 import {
   ProductRecordDto,
@@ -46,12 +46,17 @@ class ProductDto {
   @MinLength(1)
   @MaxLength(255)
   productName!: string;
-  @ApiProperty({ type: String, required: false, maxLength: 255 })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    maxLength: 255,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   variety?: string;
-  @ApiProperty({ type: String, required: false, maxLength: 30 })
+  @ApiProperty({ type: String, required: false, nullable: true, maxLength: 30 })
   @IsOptional()
   @IsString()
   @MaxLength(30)
@@ -67,7 +72,7 @@ class FarmDto {
   @MinLength(1)
   @MaxLength(255)
   name!: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   location?: string;
@@ -85,6 +90,7 @@ class PlotDto {
   @ApiProperty({
     type: Number,
     required: false,
+    nullable: true,
     minimum: 0,
     exclusiveMinimum: true,
   })
@@ -93,17 +99,18 @@ class PlotDto {
   @IsNumber()
   @IsPositive()
   area?: number;
-  @ApiProperty({ type: String, required: false, maxLength: 30 })
+  @ApiProperty({ type: String, required: false, nullable: true, maxLength: 30 })
   @IsOptional()
   @IsString()
   @MaxLength(30)
   unit?: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   location?: string;
 }
 @Controller('catalog')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('SYSTEM_ADMIN', 'FARM_STAFF')
 class CatalogController {

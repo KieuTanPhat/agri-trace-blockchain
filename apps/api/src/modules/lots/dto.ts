@@ -34,28 +34,45 @@ export class RecordHarvestDto {
   @MinLength(1)
   @MaxLength(30)
   unit!: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   grade?: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   qualityNote?: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   harvestArea?: string;
-  @ApiProperty({ type: String, required: false, format: 'uuid' })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    format: 'uuid',
+  })
   @IsOptional()
   @IsUUID()
   finalSensorDigestId?: string;
-  @ApiProperty({ type: String, required: false, maxLength: 120 })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    maxLength: 120,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(120)
   lotCode?: string;
-  @ApiProperty({ type: String, required: false })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    description:
+      'YYYY-MM-DD or an ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date. Projected responses use YYYY-MM-DD.',
+    example: '2026-10-13',
+  })
   @IsOptional()
   @IsDateString()
   expiryDate?: string;
@@ -71,6 +88,7 @@ export class LotVersionCommandDto {
   @ApiProperty({
     type: Number,
     required: false,
+    nullable: true,
     minimum: 0,
     maximum: 2147483647,
     description: 'Required when the Lot has a Shipment',
@@ -103,7 +121,7 @@ export class DamageLotDto extends LotReasonCommandDto {
   @IsNumber({ maxDecimalPlaces: 3 })
   @IsPositive()
   quantity!: number;
-  @ApiProperty({ required: false, maxLength: 2048 })
+  @ApiProperty({ required: false, nullable: true, maxLength: 2048 })
   @IsOptional()
   @IsString()
   @MaxLength(2048)

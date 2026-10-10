@@ -1,12 +1,13 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { createOpenApiDocument } from '../src/common/api/openapi.js';
 import { Test } from '@nestjs/testing';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomBytes, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { vi } from 'vitest';
+import { responseContract } from './support/response-contract.js';
 import { AppModule } from '../src/app.module.js';
 import { ApiResponseInterceptor } from '../src/common/api/api-response.interceptor.js';
 import { GlobalExceptionFilter } from '../src/common/exception/global-exception.filter.js';
@@ -31,6 +32,7 @@ const prisma = new PrismaClient({
   () => {
     let app: INestApplication;
     let jwt: JwtService;
+    let assertContract: ReturnType<typeof responseContract>;
     let farmId: string;
     let productId: string;
     let farmOrgId: string;
@@ -123,6 +125,7 @@ const prisma = new PrismaClient({
       app.useGlobalFilters(new GlobalExceptionFilter());
       app.useGlobalInterceptors(new ApiResponseInterceptor());
       await app.init();
+      assertContract = responseContract(createOpenApiDocument(app));
       jwt = app.get(JwtService);
       await post(
         '/compliance/assignments',
@@ -149,7 +152,8 @@ const prisma = new PrismaClient({
     function get(path: string, user = 'farm') {
       return request(app.getHttpServer())
         .get('/api' + path)
-        .set('Authorization', bearer(user));
+        .set('Authorization', bearer(user))
+        .expect((response) => assertContract('get', '/api' + path, response));
     }
     function post(
       path: string,
@@ -161,7 +165,8 @@ const prisma = new PrismaClient({
         .post('/api' + path)
         .set('Authorization', bearer(user))
         .set('Idempotency-Key', key)
-        .send(body);
+        .send(body)
+        .expect((response) => assertContract('post', '/api' + path, response));
     }
     async function plantedCycle(quantity = 1) {
       const created = await post('/production-cycles', {
@@ -850,10 +855,7 @@ const prisma = new PrismaClient({
     });
 
     it('documents nullable device sequence strings in generated Swagger', () => {
-      const document = SwaggerModule.createDocument(
-        app,
-        new DocumentBuilder().build(),
-      );
+      const document = createOpenApiDocument(app);
       const response =
         document.paths['/api/shipments/{id}']?.get?.responses?.['200'];
       expect(response).toMatchObject({

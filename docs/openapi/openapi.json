@@ -4,6 +4,16 @@
       "ApiErrorDto": {
         "properties": {
           "code": {
+            "enum": [
+              "VALIDATION_ERROR",
+              "UNAUTHORIZED",
+              "FORBIDDEN",
+              "NOT_FOUND",
+              "CONFLICT",
+              "UNPROCESSABLE_ENTITY",
+              "DATABASE_CONSTRAINT",
+              "INTERNAL_ERROR"
+            ],
             "type": "string"
           },
           "message": {
@@ -285,13 +295,22 @@
             "type": "string"
           },
           "organization": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/AuthOrganizationDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AuthOrganizationDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "organizationId": {
             "format": "uuid",
@@ -326,6 +345,7 @@
             "type": "string"
           },
           "note": {
+            "nullable": true,
             "type": "string"
           }
         },
@@ -512,21 +532,26 @@
             "type": "string"
           },
           "materialName": {
+            "nullable": true,
             "type": "string"
           },
           "method": {
+            "nullable": true,
             "type": "string"
           },
           "note": {
+            "nullable": true,
             "type": "string"
           },
           "quantity": {
             "exclusiveMinimum": true,
             "minimum": 0,
             "multipleOf": 0.001,
+            "nullable": true,
             "type": "number"
           },
           "unit": {
+            "nullable": true,
             "type": "string"
           },
           "version": {
@@ -943,10 +968,12 @@
           "correctionReason": {
             "maxLength": 1000,
             "minLength": 1,
+            "nullable": true,
             "type": "string"
           },
           "cycleId": {
             "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "documentHash": {
@@ -961,12 +988,18 @@
             "type": "string"
           },
           "expiryDate": {
+            "description": "YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date",
+            "example": "2026-10-13",
+            "nullable": true,
             "type": "string"
           },
           "isPublic": {
+            "nullable": true,
             "type": "boolean"
           },
           "issueDate": {
+            "description": "YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date",
+            "example": "2026-10-13",
             "type": "string"
           },
           "issuer": {
@@ -976,10 +1009,12 @@
           },
           "lotId": {
             "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "supersedesId": {
             "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "type": {
@@ -1002,10 +1037,12 @@
           "correctionReason": {
             "maxLength": 1000,
             "minLength": 1,
+            "nullable": true,
             "type": "string"
           },
           "evidenceRef": {
             "maxLength": 2048,
+            "nullable": true,
             "type": "string"
           },
           "inspectedAt": {
@@ -1018,6 +1055,7 @@
           },
           "note": {
             "maxLength": 1000,
+            "nullable": true,
             "type": "string"
           },
           "result": {
@@ -1030,6 +1068,7 @@
           },
           "supersedesId": {
             "format": "uuid",
+            "nullable": true,
             "type": "string"
           }
         },
@@ -1044,6 +1083,7 @@
         "properties": {
           "cycleId": {
             "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "deviceCode": {
@@ -1117,13 +1157,18 @@
             "type": "number"
           },
           "note": {
+            "nullable": true,
             "type": "string"
           },
           "plannedHarvest": {
+            "description": "YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date",
+            "example": "2026-10-13",
+            "nullable": true,
             "type": "string"
           },
           "plotId": {
             "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "productId": {
@@ -1131,6 +1176,9 @@
             "type": "string"
           },
           "startDate": {
+            "description": "YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date",
+            "example": "2026-10-13",
+            "nullable": true,
             "type": "string"
           }
         },
@@ -1146,6 +1194,7 @@
       "CreateSensorDigestDto": {
         "properties": {
           "isFinal": {
+            "nullable": true,
             "type": "boolean"
           },
           "periodEnd": {
@@ -1170,6 +1219,7 @@
           },
           "expectedArrivalTime": {
             "format": "date-time",
+            "nullable": true,
             "type": "string"
           },
           "lotId": {
@@ -1181,6 +1231,7 @@
           },
           "plannedPickupTime": {
             "format": "date-time",
+            "nullable": true,
             "type": "string"
           },
           "retailerOrgId": {
@@ -1192,6 +1243,7 @@
             "type": "string"
           },
           "vehicleRef": {
+            "nullable": true,
             "type": "string"
           }
         },
@@ -1207,6 +1259,7 @@
       "CreateTelemetryDigestDto": {
         "properties": {
           "isFinal": {
+            "nullable": true,
             "type": "boolean"
           },
           "periodEnd": {
@@ -1237,6 +1290,7 @@
           },
           "organizationId": {
             "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "password": {
@@ -1347,13 +1401,22 @@
             "type": "string"
           },
           "plot": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/PlotRecordDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PlotRecordDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "plotId": {
             "format": "uuid",
@@ -1472,13 +1535,22 @@
             "type": "string"
           },
           "plot": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/NamedDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/NamedDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "plotId": {
             "format": "uuid",
@@ -1643,6 +1715,7 @@
         "properties": {
           "evidenceRef": {
             "maxLength": 2048,
+            "nullable": true,
             "type": "string"
           },
           "quantity": {
@@ -1660,6 +1733,7 @@
             "description": "Required when the Lot has a Shipment",
             "maximum": 2147483647,
             "minimum": 0,
+            "nullable": true,
             "type": "number"
           },
           "version": {
@@ -1679,6 +1753,7 @@
         "properties": {
           "evidenceRef": {
             "maxLength": 2048,
+            "nullable": true,
             "type": "string"
           },
           "lotVersion": {
@@ -1687,6 +1762,7 @@
           },
           "occurredAt": {
             "format": "date-time",
+            "nullable": true,
             "type": "string"
           },
           "quantity": {
@@ -1716,13 +1792,22 @@
       "DashboardDto": {
         "properties": {
           "featuredLot": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/InternalLotDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InternalLotDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "stats": {
             "items": {
@@ -1864,13 +1949,22 @@
             "type": "string"
           },
           "cycle": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/CycleOptionDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CycleOptionDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "cycleId": {
             "format": "uuid",
@@ -1933,6 +2027,7 @@
       "FarmDto": {
         "properties": {
           "location": {
+            "nullable": true,
             "type": "string"
           },
           "name": {
@@ -2050,13 +2145,22 @@
             "type": "string"
           },
           "lot": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/HarvestLotDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/HarvestLotDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "qualityNote": {
             "nullable": true,
@@ -2067,13 +2171,22 @@
             "type": "string"
           },
           "sensorWindow": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/HarvestSensorWindowRecordDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/HarvestSensorWindowRecordDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "unit": {
             "type": "string"
@@ -2219,13 +2332,22 @@
             "type": "string"
           },
           "shipment": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/ShipmentRecordDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ShipmentRecordDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "unit": {
             "type": "string"
@@ -2418,9 +2540,11 @@
       "IngestShipmentTelemetryDto": {
         "properties": {
           "accuracy": {
+            "nullable": true,
             "type": "number"
           },
           "battery": {
+            "nullable": true,
             "type": "number"
           },
           "deviceId": {
@@ -2430,12 +2554,15 @@
           "deviceSequence": {
             "maximum": 9007199254740991,
             "minimum": 0,
+            "nullable": true,
             "type": "number"
           },
           "heading": {
+            "nullable": true,
             "type": "number"
           },
           "humidity": {
+            "nullable": true,
             "type": "number"
           },
           "latitude": {
@@ -2449,9 +2576,11 @@
             "type": "string"
           },
           "speed": {
+            "nullable": true,
             "type": "number"
           },
           "temperature": {
+            "nullable": true,
             "type": "number"
           }
         },
@@ -2502,13 +2631,22 @@
             "type": "string"
           },
           "organization": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/OrgDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/OrgDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "recordedByUserId": {
             "format": "uuid",
@@ -2657,13 +2795,22 @@
             "type": "string"
           },
           "custodian": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/CustodianDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CustodianDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "damagedQuantity": {
             "type": "number"
@@ -3228,6 +3375,7 @@
             "description": "Required when the Lot has a Shipment",
             "maximum": 2147483647,
             "minimum": 0,
+            "nullable": true,
             "type": "number"
           },
           "version": {
@@ -3345,6 +3493,7 @@
             "description": "Required when the Lot has a Shipment",
             "maximum": 2147483647,
             "minimum": 0,
+            "nullable": true,
             "type": "number"
           },
           "version": {
@@ -3533,6 +3682,7 @@
           "area": {
             "exclusiveMinimum": true,
             "minimum": 0,
+            "nullable": true,
             "type": "number"
           },
           "farmId": {
@@ -3540,6 +3690,7 @@
             "type": "string"
           },
           "location": {
+            "nullable": true,
             "type": "string"
           },
           "name": {
@@ -3549,6 +3700,7 @@
           },
           "unit": {
             "maxLength": 30,
+            "nullable": true,
             "type": "string"
           }
         },
@@ -3633,6 +3785,7 @@
         "properties": {
           "defaultUnit": {
             "maxLength": 30,
+            "nullable": true,
             "type": "string"
           },
           "productName": {
@@ -3642,6 +3795,7 @@
           },
           "variety": {
             "maxLength": 255,
+            "nullable": true,
             "type": "string"
           }
         },
@@ -3930,13 +4084,22 @@
             "$ref": "#/components/schemas/SensorEvidenceDto"
           },
           "shipment": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/PublicShipmentDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PublicShipmentDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "stateReconciled": {
             "type": "boolean"
@@ -4132,6 +4295,7 @@
           "damagedQuantity": {
             "minimum": 0,
             "multipleOf": 0.001,
+            "nullable": true,
             "type": "number"
           },
           "lotVersion": {
@@ -4139,10 +4303,12 @@
             "type": "number"
           },
           "note": {
+            "nullable": true,
             "type": "string"
           },
           "occurredAt": {
             "format": "date-time",
+            "nullable": true,
             "type": "string"
           },
           "receivedQuantity": {
@@ -4176,6 +4342,7 @@
           },
           "throughHarvestId": {
             "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "version": {
@@ -4208,16 +4375,22 @@
       "RecordHarvestDto": {
         "properties": {
           "expiryDate": {
+            "description": "YYYY-MM-DD or an ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date. Projected responses use YYYY-MM-DD.",
+            "example": "2026-10-13",
+            "nullable": true,
             "type": "string"
           },
           "finalSensorDigestId": {
             "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "grade": {
+            "nullable": true,
             "type": "string"
           },
           "harvestArea": {
+            "nullable": true,
             "type": "string"
           },
           "harvestTime": {
@@ -4226,9 +4399,11 @@
           },
           "lotCode": {
             "maxLength": 120,
+            "nullable": true,
             "type": "string"
           },
           "qualityNote": {
+            "nullable": true,
             "type": "string"
           },
           "quantity": {
@@ -4251,7 +4426,28 @@
         "type": "object"
       },
       "RegisterDto": {
-        "properties": {},
+        "properties": {
+          "email": {
+            "format": "email",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "fullName": {
+            "maxLength": 255,
+            "nullable": true,
+            "type": "string"
+          },
+          "password": {
+            "format": "password",
+            "maxLength": 72,
+            "minLength": 8,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
         "type": "object"
       },
       "RejectShipmentDto": {
@@ -4262,6 +4458,7 @@
           },
           "occurredAt": {
             "format": "date-time",
+            "nullable": true,
             "type": "string"
           },
           "reason": {
@@ -4285,6 +4482,7 @@
         "properties": {
           "reviewNote": {
             "maxLength": 1000,
+            "nullable": true,
             "type": "string"
           },
           "status": {
@@ -4628,10 +4826,10 @@
             "type": "string"
           },
           "conditions": {
-            "nullable": true,
             "oneOf": [
               {
                 "additionalProperties": true,
+                "nullable": true,
                 "type": "object"
               },
               {
@@ -4733,13 +4931,22 @@
             "type": "array"
           },
           "telemetryDigest": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/ShipmentTelemetryDigestRecordDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ShipmentTelemetryDigestRecordDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "trackingBindings": {
             "items": {
@@ -4812,10 +5019,10 @@
             "type": "string"
           },
           "conditions": {
-            "nullable": true,
             "oneOf": [
               {
                 "additionalProperties": true,
+                "nullable": true,
                 "type": "object"
               },
               {
@@ -4911,13 +5118,22 @@
             "type": "string"
           },
           "telemetryDigest": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/ShipmentTelemetryDigestRecordDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ShipmentTelemetryDigestRecordDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "transporter": {
             "$ref": "#/components/schemas/OrgDto"
@@ -4980,10 +5196,10 @@
             "type": "string"
           },
           "conditions": {
-            "nullable": true,
             "oneOf": [
               {
                 "additionalProperties": true,
+                "nullable": true,
                 "type": "object"
               },
               {
@@ -5120,10 +5336,10 @@
       "ShipmentTelemetryDigestRecordDto": {
         "properties": {
           "anomalySummary": {
-            "nullable": true,
             "oneOf": [
               {
                 "additionalProperties": true,
+                "nullable": true,
                 "type": "object"
               },
               {
@@ -5145,10 +5361,10 @@
             "type": "string"
           },
           "conditionSummary": {
-            "nullable": true,
             "oneOf": [
               {
                 "additionalProperties": true,
+                "nullable": true,
                 "type": "object"
               },
               {
@@ -5430,6 +5646,7 @@
           },
           "occurredAt": {
             "format": "date-time",
+            "nullable": true,
             "type": "string"
           },
           "version": {
@@ -5486,28 +5703,46 @@
             "type": "string"
           },
           "blockchainOutbox": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/BlockchainOutboxRecordDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BlockchainOutboxRecordDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "blockchainProof": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/BlockchainProofRecordDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BlockchainProofRecordDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "businessData": {
-            "nullable": true,
             "oneOf": [
               {
                 "additionalProperties": true,
+                "nullable": true,
                 "type": "object"
               },
               {
@@ -5801,6 +6036,7 @@
           "name": {
             "maxLength": 255,
             "minLength": 1,
+            "nullable": true,
             "type": "string"
           },
           "status": {
@@ -5808,6 +6044,7 @@
               "ACTIVE",
               "INACTIVE"
             ],
+            "nullable": true,
             "type": "string"
           }
         },
@@ -5885,13 +6122,22 @@
             "type": "string"
           },
           "organization": {
-            "allOf": [
+            "oneOf": [
               {
-                "$ref": "#/components/schemas/OrgDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/OrgDto"
+                  }
+                ]
+              },
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true,
+                "type": "object"
               }
-            ],
-            "nullable": true,
-            "type": "object"
+            ]
           },
           "role": {
             "$ref": "#/components/schemas/UserRoleDto"
@@ -6056,9 +6302,9 @@
         "scheme": "bearer",
         "type": "http"
       },
-      "idempotency": {
+      "deviceKey": {
         "in": "header",
-        "name": "Idempotency-Key",
+        "name": "x-device-key",
         "type": "apiKey"
       }
     }
@@ -6351,7 +6597,7 @@
     },
     "/api/auth/logout": {
       "post": {
-        "description": "Clears only this family cookie. The selector is intentionally not changed by refresh/logout, so a late response cannot replace or clear a newer login.",
+        "description": "Without session cookies this is a successful no-op. With cookies, clears only this family cookie. The selector is intentionally not changed by refresh/logout, so a late response cannot replace or clear a newer login.",
         "operationId": "AuthController_logout",
         "parameters": [],
         "responses": {
@@ -6467,6 +6713,7 @@
           }
         },
         "security": [
+          {},
           {
             "agritrace_session": []
           }
@@ -7151,8 +7398,17 @@
             "description": "Error envelope from GlobalExceptionFilter"
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "tags": [
           "Catalog"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN",
+          "FARM_STAFF"
         ]
       }
     },
@@ -7161,10 +7417,12 @@
         "operationId": "CatalogController_farm",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -7315,8 +7573,16 @@
             "description": "Error envelope from GlobalExceptionFilter"
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "tags": [
           "Catalog"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       }
     },
@@ -7325,10 +7591,12 @@
         "operationId": "CatalogController_plot",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -7479,8 +7747,16 @@
             "description": "Error envelope from GlobalExceptionFilter"
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "tags": [
           "Catalog"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       }
     },
@@ -7489,10 +7765,12 @@
         "operationId": "CatalogController_product",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -7643,8 +7921,16 @@
             "description": "Error envelope from GlobalExceptionFilter"
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "tags": [
           "Catalog"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       }
     },
@@ -7815,16 +8101,26 @@
         ],
         "tags": [
           "compliance"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN",
+          "FARM_STAFF",
+          "TRANSPORTER",
+          "RETAILER",
+          "AUDITOR",
+          "COMPLIANCE_REVIEWER"
         ]
       },
       "post": {
         "operationId": "ComplianceController_createCertificate",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -7982,6 +8278,9 @@
         ],
         "tags": [
           "compliance"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -7998,10 +8297,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -8159,6 +8460,9 @@
         ],
         "tags": [
           "compliance"
+        ],
+        "x-roles": [
+          "COMPLIANCE_REVIEWER"
         ]
       }
     },
@@ -8312,16 +8616,22 @@
         ],
         "tags": [
           "compliance-assignments"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN",
+          "COMPLIANCE_REVIEWER"
         ]
       },
       "post": {
         "operationId": "ComplianceAssignmentsController_grant",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -8479,6 +8789,9 @@
         ],
         "tags": [
           "compliance-assignments"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       }
     },
@@ -8495,10 +8808,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -8656,6 +8971,9 @@
         ],
         "tags": [
           "compliance-assignments"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       }
     },
@@ -9258,16 +9576,26 @@
         ],
         "tags": [
           "compliance"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN",
+          "FARM_STAFF",
+          "TRANSPORTER",
+          "RETAILER",
+          "AUDITOR",
+          "COMPLIANCE_REVIEWER"
         ]
       },
       "post": {
         "operationId": "ComplianceController_createInspection",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -9425,6 +9753,9 @@
         ],
         "tags": [
           "compliance"
+        ],
+        "x-roles": [
+          "COMPLIANCE_REVIEWER"
         ]
       }
     },
@@ -9441,10 +9772,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -9602,6 +9935,9 @@
         ],
         "tags": [
           "iot"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -9610,10 +9946,12 @@
         "operationId": "IotController_ingestForDevice",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -9772,6 +10110,11 @@
             "description": "Error envelope from GlobalExceptionFilter"
           }
         },
+        "security": [
+          {
+            "deviceKey": []
+          }
+        ],
         "tags": [
           "iot"
         ]
@@ -9927,16 +10270,24 @@
         ],
         "tags": [
           "iot"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN",
+          "FARM_STAFF",
+          "TRANSPORTER",
+          "AUDITOR"
         ]
       },
       "post": {
         "operationId": "IotController_createDevice",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -10094,6 +10445,11 @@
         ],
         "tags": [
           "iot"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN",
+          "FARM_STAFF",
+          "TRANSPORTER"
         ]
       }
     },
@@ -10102,10 +10458,12 @@
         "operationId": "IotController_ingestForUser",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -10263,6 +10621,9 @@
         ],
         "tags": [
           "iot"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -10279,10 +10640,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -10441,6 +10804,11 @@
             "description": "Error envelope from GlobalExceptionFilter"
           }
         },
+        "security": [
+          {
+            "deviceKey": []
+          }
+        ],
         "tags": [
           "iot"
         ]
@@ -10459,10 +10827,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -10620,6 +10990,9 @@
         ],
         "tags": [
           "iot"
+        ],
+        "x-roles": [
+          "TRANSPORTER"
         ]
       }
     },
@@ -10644,10 +11017,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -10795,6 +11170,9 @@
         ],
         "tags": [
           "iot"
+        ],
+        "x-roles": [
+          "TRANSPORTER"
         ]
       }
     },
@@ -10811,10 +11189,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -10972,6 +11352,9 @@
         ],
         "tags": [
           "iot"
+        ],
+        "x-roles": [
+          "TRANSPORTER"
         ]
       }
     },
@@ -10988,10 +11371,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -11149,6 +11534,9 @@
         ],
         "tags": [
           "iot"
+        ],
+        "x-roles": [
+          "TRANSPORTER"
         ]
       }
     },
@@ -11469,10 +11857,12 @@
         "operationId": "LotCommandsController_damage",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -11638,6 +12028,9 @@
         ],
         "tags": [
           "lot-commands"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -11646,10 +12039,12 @@
         "operationId": "LotCommandsController_expire",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -11815,6 +12210,11 @@
         ],
         "tags": [
           "lot-commands"
+        ],
+        "x-roles": [
+          "FARM_STAFF",
+          "TRANSPORTER",
+          "RETAILER"
         ]
       }
     },
@@ -11823,10 +12223,12 @@
         "operationId": "LotCommandsController_markForSale",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -11992,6 +12394,9 @@
         ],
         "tags": [
           "lot-commands"
+        ],
+        "x-roles": [
+          "RETAILER"
         ]
       }
     },
@@ -12000,10 +12405,12 @@
         "operationId": "LotCommandsController_markSold",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -12169,6 +12576,9 @@
         ],
         "tags": [
           "lot-commands"
+        ],
+        "x-roles": [
+          "RETAILER"
         ]
       }
     },
@@ -12177,10 +12587,12 @@
         "operationId": "LotCommandsController_recall",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -12346,6 +12758,11 @@
         ],
         "tags": [
           "lot-commands"
+        ],
+        "x-roles": [
+          "FARM_STAFF",
+          "TRANSPORTER",
+          "RETAILER"
         ]
       }
     },
@@ -12505,10 +12922,12 @@
         "operationId": "OrganizationsController_create",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -12666,6 +13085,9 @@
         ],
         "tags": [
           "organizations"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       }
     },
@@ -12835,6 +13257,9 @@
         ],
         "tags": [
           "organizations"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       }
     },
@@ -12988,16 +13413,26 @@
         ],
         "tags": [
           "production-cycles"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN",
+          "FARM_STAFF",
+          "TRANSPORTER",
+          "RETAILER",
+          "AUDITOR",
+          "COMPLIANCE_REVIEWER"
         ]
       },
       "post": {
         "operationId": "ProductionCyclesController_create",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -13155,6 +13590,9 @@
         ],
         "tags": [
           "production-cycles"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -13171,10 +13609,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "idempotency-key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -13332,6 +13772,9 @@
         ],
         "tags": [
           "lots"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -13491,6 +13934,14 @@
         ],
         "tags": [
           "production-cycles"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN",
+          "FARM_STAFF",
+          "TRANSPORTER",
+          "RETAILER",
+          "AUDITOR",
+          "COMPLIANCE_REVIEWER"
         ]
       }
     },
@@ -13507,10 +13958,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -13668,6 +14121,9 @@
         ],
         "tags": [
           "production-cycles"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -13684,10 +14140,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -13845,6 +14303,9 @@
         ],
         "tags": [
           "production-cycles"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -13861,10 +14322,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -14022,6 +14485,9 @@
         ],
         "tags": [
           "production-cycles"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -14038,10 +14504,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -14199,6 +14667,9 @@
         ],
         "tags": [
           "production-cycles"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -14215,10 +14686,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -14376,6 +14849,9 @@
         ],
         "tags": [
           "production-cycles"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -14392,10 +14868,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -14553,6 +15031,9 @@
         ],
         "tags": [
           "production-cycles"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       }
     },
@@ -14860,16 +15341,26 @@
         ],
         "tags": [
           "shipments"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN",
+          "FARM_STAFF",
+          "TRANSPORTER",
+          "RETAILER",
+          "AUDITOR",
+          "COMPLIANCE_REVIEWER"
         ]
       },
       "post": {
         "operationId": "ShipmentsController_create",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -15027,6 +15518,9 @@
         ],
         "tags": [
           "shipments"
+        ],
+        "x-roles": [
+          "FARM_STAFF"
         ]
       }
     },
@@ -15186,6 +15680,14 @@
         ],
         "tags": [
           "shipments"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN",
+          "FARM_STAFF",
+          "TRANSPORTER",
+          "RETAILER",
+          "AUDITOR",
+          "COMPLIANCE_REVIEWER"
         ]
       }
     },
@@ -15202,10 +15704,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -15363,6 +15867,9 @@
         ],
         "tags": [
           "shipments"
+        ],
+        "x-roles": [
+          "TRANSPORTER"
         ]
       }
     },
@@ -15379,10 +15886,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -15540,6 +16049,10 @@
         ],
         "tags": [
           "shipments"
+        ],
+        "x-roles": [
+          "TRANSPORTER",
+          "RETAILER"
         ]
       }
     },
@@ -15556,10 +16069,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -15717,6 +16232,9 @@
         ],
         "tags": [
           "shipments"
+        ],
+        "x-roles": [
+          "RETAILER"
         ]
       }
     },
@@ -15733,10 +16251,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -15894,6 +16414,9 @@
         ],
         "tags": [
           "shipments"
+        ],
+        "x-roles": [
+          "RETAILER"
         ]
       }
     },
@@ -15910,10 +16433,12 @@
             }
           },
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -16071,6 +16596,9 @@
         ],
         "tags": [
           "shipments"
+        ],
+        "x-roles": [
+          "TRANSPORTER"
         ]
       }
     },
@@ -16545,16 +17073,21 @@
         ],
         "tags": [
           "users"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       },
       "post": {
         "operationId": "UsersController_create",
         "parameters": [
           {
+            "description": "Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -16712,6 +17245,9 @@
         ],
         "tags": [
           "users"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       }
     },
@@ -16881,6 +17417,9 @@
         ],
         "tags": [
           "users"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       }
     },
@@ -17034,6 +17573,9 @@
         ],
         "tags": [
           "users"
+        ],
+        "x-roles": [
+          "SYSTEM_ADMIN"
         ]
       }
     }

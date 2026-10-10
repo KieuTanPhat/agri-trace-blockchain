@@ -46,7 +46,7 @@ export interface paths {
         put?: never;
         /**
          * Revoke all tokens in the selected session family
-         * @description Clears only this family cookie. The selector is intentionally not changed by refresh/logout, so a late response cannot replace or clear a newer login.
+         * @description Without session cookies this is a successful no-op. With cookies, clears only this family cookie. The selector is intentionally not changed by refresh/logout, so a late response cannot replace or clear a newer login.
          */
         post: operations["AuthController_logout"];
         delete?: never;
@@ -960,7 +960,8 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         ApiErrorDto: {
-            code: string;
+            /** @enum {string} */
+            code: "VALIDATION_ERROR" | "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "UNPROCESSABLE_ENTITY" | "DATABASE_CONSTRAINT" | "INTERNAL_ERROR";
             message: string | string[];
         };
         ApiErrorEnvelopeDto: {
@@ -1043,7 +1044,7 @@ export interface components {
             fullName: string;
             /** Format: uuid */
             id: string;
-            organization: components["schemas"]["AuthOrganizationDto"] | null;
+            organization: components["schemas"]["AuthOrganizationDto"] | (never | null);
             /** Format: uuid */
             organizationId: string | null;
             role: components["schemas"]["AuthRoleDto"];
@@ -1053,7 +1054,7 @@ export interface components {
         BindShipmentDeviceDto: {
             /** Format: uuid */
             deviceId: string;
-            note?: string;
+            note?: string | null;
         };
         BlockchainOutboxRecordDto: {
             attemptCount: number;
@@ -1108,11 +1109,11 @@ export interface components {
             careType: string;
             /** Format: date-time */
             eventTime: string;
-            materialName?: string;
-            method?: string;
-            note?: string;
-            quantity?: number;
-            unit?: string;
+            materialName?: string | null;
+            method?: string | null;
+            note?: string | null;
+            quantity?: number | null;
+            unit?: string | null;
             version: number;
         };
         CareRecordRecordDto: {
@@ -1234,37 +1235,45 @@ export interface components {
             revokedAt: string | null;
         };
         CreateCertificateDto: {
-            correctionReason?: string;
+            correctionReason?: string | null;
             /** Format: uuid */
-            cycleId?: string;
+            cycleId?: string | null;
             documentHash: string;
             documentRef: string;
-            expiryDate?: string;
-            isPublic?: boolean;
+            /**
+             * @description YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date
+             * @example 2026-10-13
+             */
+            expiryDate?: string | null;
+            isPublic?: boolean | null;
+            /**
+             * @description YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date
+             * @example 2026-10-13
+             */
             issueDate: string;
             issuer: string;
             /** Format: uuid */
-            lotId?: string;
+            lotId?: string | null;
             /** Format: uuid */
-            supersedesId?: string;
+            supersedesId?: string | null;
             type: string;
         };
         CreateInspectionDto: {
-            correctionReason?: string;
-            evidenceRef?: string;
+            correctionReason?: string | null;
+            evidenceRef?: string | null;
             /** Format: date-time */
             inspectedAt: string;
             /** Format: uuid */
             lotId: string;
-            note?: string;
+            note?: string | null;
             /** @enum {string} */
             result: "PASS" | "FAIL" | "CONDITIONAL";
             /** Format: uuid */
-            supersedesId?: string;
+            supersedesId?: string | null;
         };
         CreateIotDeviceDto: {
             /** Format: uuid */
-            cycleId?: string;
+            cycleId?: string | null;
             deviceCode: string;
             name: string;
             /** Format: uuid */
@@ -1282,16 +1291,24 @@ export interface components {
             farmId: string;
             harvestUnit: string;
             maxHarvestQuantity: number;
-            note?: string;
-            plannedHarvest?: string;
+            note?: string | null;
+            /**
+             * @description YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date
+             * @example 2026-10-13
+             */
+            plannedHarvest?: string | null;
             /** Format: uuid */
-            plotId?: string;
+            plotId?: string | null;
             /** Format: uuid */
             productId: string;
-            startDate?: string;
+            /**
+             * @description YYYY-MM-DD or ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date
+             * @example 2026-10-13
+             */
+            startDate?: string | null;
         };
         CreateSensorDigestDto: {
-            isFinal?: boolean;
+            isFinal?: boolean | null;
             /** Format: date-time */
             periodEnd: string;
             /** Format: date-time */
@@ -1300,20 +1317,20 @@ export interface components {
         CreateShipmentDto: {
             destination: string;
             /** Format: date-time */
-            expectedArrivalTime?: string;
+            expectedArrivalTime?: string | null;
             /** Format: uuid */
             lotId: string;
             origin: string;
             /** Format: date-time */
-            plannedPickupTime?: string;
+            plannedPickupTime?: string | null;
             /** Format: uuid */
             retailerOrgId: string;
             /** Format: uuid */
             transporterOrgId: string;
-            vehicleRef?: string;
+            vehicleRef?: string | null;
         };
         CreateTelemetryDigestDto: {
-            isFinal?: boolean;
+            isFinal?: boolean | null;
             /** Format: date-time */
             periodEnd: string;
             /** Format: date-time */
@@ -1324,7 +1341,7 @@ export interface components {
             email: string;
             fullName: string;
             /** Format: uuid */
-            organizationId?: string;
+            organizationId?: string | null;
             password: string;
             roleCode: string;
         };
@@ -1356,7 +1373,7 @@ export interface components {
             note: string | null;
             /** Format: date-time */
             plannedHarvest: string | null;
-            plot: components["schemas"]["PlotRecordDto"] | null;
+            plot: components["schemas"]["PlotRecordDto"] | (never | null);
             /** Format: uuid */
             plotId: string | null;
             product: components["schemas"]["ProductRecordDto"];
@@ -1389,7 +1406,7 @@ export interface components {
             note: string | null;
             /** Format: date-time */
             plannedHarvest: string | null;
-            plot: components["schemas"]["NamedDto"] | null;
+            plot: components["schemas"]["NamedDto"] | (never | null);
             /** Format: uuid */
             plotId: string | null;
             product: components["schemas"]["ProductOptionDto"];
@@ -1436,24 +1453,24 @@ export interface components {
             startDate: string | null;
         };
         DamageLotDto: {
-            evidenceRef?: string;
+            evidenceRef?: string | null;
             quantity: number;
             reason: string;
             /** @description Required when the Lot has a Shipment */
-            shipmentVersion?: number;
+            shipmentVersion?: number | null;
             version: number;
         };
         DamageShipmentDto: {
-            evidenceRef?: string;
+            evidenceRef?: string | null;
             lotVersion: number;
             /** Format: date-time */
-            occurredAt?: string;
+            occurredAt?: string | null;
             quantity: number;
             reason: string;
             version: number;
         };
         DashboardDto: {
-            featuredLot: components["schemas"]["InternalLotDto"] | null;
+            featuredLot: components["schemas"]["InternalLotDto"] | (never | null);
             stats: components["schemas"]["DashboardStatDto"][];
         };
         DashboardStatDto: {
@@ -1494,7 +1511,7 @@ export interface components {
         DeviceListDto: {
             /** Format: date-time */
             createdAt: string;
-            cycle: components["schemas"]["CycleOptionDto"] | null;
+            cycle: components["schemas"]["CycleOptionDto"] | (never | null);
             /** Format: uuid */
             cycleId: string | null;
             deviceCode: string;
@@ -1513,7 +1530,7 @@ export interface components {
             updatedAt: string;
         };
         FarmDto: {
-            location?: string;
+            location?: string | null;
             name: string;
             /** Format: uuid */
             organizationId: string;
@@ -1552,11 +1569,11 @@ export interface components {
             harvestTime: string;
             /** Format: uuid */
             id: string;
-            lot: components["schemas"]["HarvestLotDto"] | null;
+            lot: components["schemas"]["HarvestLotDto"] | (never | null);
             qualityNote: string | null;
             /** @description Exact decimal serialized as a string */
             quantity: string;
-            sensorWindow: components["schemas"]["HarvestSensorWindowRecordDto"] | null;
+            sensorWindow: components["schemas"]["HarvestSensorWindowRecordDto"] | (never | null);
             unit: string;
         };
         HarvestEventRecordDto: {
@@ -1601,7 +1618,7 @@ export interface components {
             parentLotId: string | null;
             /** Format: uuid */
             productId: string;
-            shipment: components["schemas"]["ShipmentRecordDto"] | null;
+            shipment: components["schemas"]["ShipmentRecordDto"] | (never | null);
             unit: string;
             /** Format: date-time */
             updatedAt: string;
@@ -1655,18 +1672,18 @@ export interface components {
             value: number;
         };
         IngestShipmentTelemetryDto: {
-            accuracy?: number;
-            battery?: number;
+            accuracy?: number | null;
+            battery?: number | null;
             deviceId: string;
-            deviceSequence?: number;
-            heading?: number;
-            humidity?: number;
+            deviceSequence?: number | null;
+            heading?: number | null;
+            humidity?: number | null;
             latitude: number;
             longitude: number;
             /** Format: date-time */
             recordedAt: string;
-            speed?: number;
-            temperature?: number;
+            speed?: number | null;
+            temperature?: number | null;
         };
         InspectionListDto: {
             correctionReason: string | null;
@@ -1683,7 +1700,7 @@ export interface components {
             /** Format: uuid */
             lotId: string;
             note: string | null;
-            organization: components["schemas"]["OrgDto"] | null;
+            organization: components["schemas"]["OrgDto"] | (never | null);
             /** Format: uuid */
             recordedByUserId: string | null;
             /** @enum {string} */
@@ -1718,7 +1735,7 @@ export interface components {
             blockchainProof?: components["schemas"]["LotProofDto"];
             /** @enum {string} */
             currentState: "HARVESTED" | "IN_TRANSPORT" | "ARRIVED" | "RETAIL_RECEIVED" | "FOR_SALE" | "SOLD" | "RECALLED" | "EXPIRED" | "DAMAGED" | "REJECTED";
-            custodian: components["schemas"]["CustodianDto"] | null;
+            custodian: components["schemas"]["CustodianDto"] | (never | null);
             damagedQuantity: number;
             /** Format: date */
             expiryDate: string | null;
@@ -1869,7 +1886,7 @@ export interface components {
         LotReasonCommandDto: {
             reason: string;
             /** @description Required when the Lot has a Shipment */
-            shipmentVersion?: number;
+            shipmentVersion?: number | null;
             version: number;
         };
         LotRecordDto: {
@@ -1903,7 +1920,7 @@ export interface components {
         };
         LotVersionCommandDto: {
             /** @description Required when the Lot has a Shipment */
-            shipmentVersion?: number;
+            shipmentVersion?: number | null;
             version: number;
         };
         MovementDto: {
@@ -1956,12 +1973,12 @@ export interface components {
             version: number;
         };
         PlotDto: {
-            area?: number;
+            area?: number | null;
             /** Format: uuid */
             farmId: string;
-            location?: string;
+            location?: string | null;
             name: string;
-            unit?: string;
+            unit?: string | null;
         };
         PlotRecordDto: {
             /** @description Exact decimal serialized as a string */
@@ -1986,9 +2003,9 @@ export interface components {
             productName: string;
         };
         ProductDto: {
-            defaultUnit?: string;
+            defaultUnit?: string | null;
             productName: string;
-            variety?: string;
+            variety?: string | null;
         };
         ProductionCycleRecordDto: {
             /** Format: date-time */
@@ -2073,7 +2090,7 @@ export interface components {
             proofStatus: "VERIFIED" | "PENDING" | "INTEGRITY_WARNING" | "BLOCKCHAIN_UNAVAILABLE";
             quantityReconciled: boolean;
             sensorEvidence: components["schemas"]["SensorEvidenceDto"];
-            shipment: components["schemas"]["PublicShipmentDto"] | null;
+            shipment: components["schemas"]["PublicShipmentDto"] | (never | null);
             stateReconciled: boolean;
             timeline: components["schemas"]["PublicTimelineDto"][];
             traceToken: string;
@@ -2118,11 +2135,11 @@ export interface components {
             status: "accepted";
         };
         ReceiveShipmentDto: {
-            damagedQuantity?: number;
+            damagedQuantity?: number | null;
             lotVersion: number;
-            note?: string;
+            note?: string | null;
             /** Format: date-time */
-            occurredAt?: string;
+            occurredAt?: string | null;
             receivedQuantity: number;
             version: number;
         };
@@ -2131,7 +2148,7 @@ export interface components {
             plantedAt: string;
             reason: string;
             /** Format: uuid */
-            throughHarvestId?: string;
+            throughHarvestId?: string | null;
             version: number;
         };
         ReconciliationResultDto: {
@@ -2139,28 +2156,38 @@ export interface components {
             reconciliation: components["schemas"]["CycleSensorReconciliationRecordDto"];
         };
         RecordHarvestDto: {
-            expiryDate?: string;
+            /**
+             * @description YYYY-MM-DD or an ISO 8601 timestamp with timezone; normalized to the Vietnam calendar date. Projected responses use YYYY-MM-DD.
+             * @example 2026-10-13
+             */
+            expiryDate?: string | null;
             /** Format: uuid */
-            finalSensorDigestId?: string;
-            grade?: string;
-            harvestArea?: string;
+            finalSensorDigestId?: string | null;
+            grade?: string | null;
+            harvestArea?: string | null;
             /** Format: date-time */
             harvestTime: string;
-            lotCode?: string;
-            qualityNote?: string;
+            lotCode?: string | null;
+            qualityNote?: string | null;
             quantity: number;
             unit: string;
         };
-        RegisterDto: Record<string, never>;
+        RegisterDto: {
+            /** Format: email */
+            email: string;
+            fullName?: string | null;
+            /** Format: password */
+            password: string;
+        };
         RejectShipmentDto: {
             lotVersion: number;
             /** Format: date-time */
-            occurredAt?: string;
+            occurredAt?: string | null;
             reason: string;
             version: number;
         };
         ReviewCertificateDto: {
-            reviewNote?: string;
+            reviewNote?: string | null;
             /** @enum {string} */
             status: "APPROVED" | "REJECTED";
             version: number;
@@ -2267,7 +2294,7 @@ export interface components {
             arrivalTime: string | null;
             conditions: ({
                 [key: string]: unknown;
-            } | unknown[] | string | number | boolean) | null;
+            } | null) | unknown[] | string | number | boolean;
             /** Format: date-time */
             createdAt: string;
             destination: string;
@@ -2298,7 +2325,7 @@ export interface components {
             /** @enum {string} */
             status: "CREATED" | "IN_TRANSIT" | "ARRIVED" | "DELIVERED" | "REJECTED" | "FAILED";
             telemetry: components["schemas"]["ShipmentTelemetryRecordDto"][];
-            telemetryDigest: components["schemas"]["ShipmentTelemetryDigestRecordDto"] | null;
+            telemetryDigest: components["schemas"]["ShipmentTelemetryDigestRecordDto"] | (never | null);
             trackingBindings: components["schemas"]["TrackingBindingDto"][];
             transporter: components["schemas"]["OrganizationRecordDto"];
             /** Format: uuid */
@@ -2315,7 +2342,7 @@ export interface components {
             arrivalTime: string | null;
             conditions: ({
                 [key: string]: unknown;
-            } | unknown[] | string | number | boolean) | null;
+            } | null) | unknown[] | string | number | boolean;
             /** Format: date-time */
             createdAt: string;
             destination: string;
@@ -2345,7 +2372,7 @@ export interface components {
             shippedQuantity: string;
             /** @enum {string} */
             status: "CREATED" | "IN_TRANSIT" | "ARRIVED" | "DELIVERED" | "REJECTED" | "FAILED";
-            telemetryDigest: components["schemas"]["ShipmentTelemetryDigestRecordDto"] | null;
+            telemetryDigest: components["schemas"]["ShipmentTelemetryDigestRecordDto"] | (never | null);
             transporter: components["schemas"]["OrgDto"];
             /** Format: uuid */
             transporterOrgId: string;
@@ -2360,7 +2387,7 @@ export interface components {
             arrivalTime: string | null;
             conditions: ({
                 [key: string]: unknown;
-            } | unknown[] | string | number | boolean) | null;
+            } | null) | unknown[] | string | number | boolean;
             /** Format: date-time */
             createdAt: string;
             destination: string;
@@ -2399,11 +2426,11 @@ export interface components {
         ShipmentTelemetryDigestRecordDto: {
             anomalySummary: ({
                 [key: string]: unknown;
-            } | unknown[] | string | number | boolean) | null;
+            } | null) | unknown[] | string | number | boolean;
             canonicalizationVersion: string;
             conditionSummary: ({
                 [key: string]: unknown;
-            } | unknown[] | string | number | boolean) | null;
+            } | null) | unknown[] | string | number | boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -2492,7 +2519,7 @@ export interface components {
         ShipmentTransitionDto: {
             lotVersion: number;
             /** Format: date-time */
-            occurredAt?: string;
+            occurredAt?: string | null;
             version: number;
         };
         TelemetryAcceptedDto: {
@@ -2509,11 +2536,11 @@ export interface components {
             /** Format: uuid */
             actorUserId: string | null;
             authProofType: string | null;
-            blockchainOutbox: components["schemas"]["BlockchainOutboxRecordDto"] | null;
-            blockchainProof: components["schemas"]["BlockchainProofRecordDto"] | null;
+            blockchainOutbox: components["schemas"]["BlockchainOutboxRecordDto"] | (never | null);
+            blockchainProof: components["schemas"]["BlockchainProofRecordDto"] | (never | null);
             businessData: ({
                 [key: string]: unknown;
-            } | unknown[] | string | number | boolean) | null;
+            } | null) | unknown[] | string | number | boolean;
             canonicalizationVersion: string;
             /** Format: uuid */
             causationEventId: string | null;
@@ -2596,9 +2623,9 @@ export interface components {
             unbound: true;
         };
         UpdateOrganizationDto: {
-            name?: string;
-            /** @enum {string} */
-            status?: "ACTIVE" | "INACTIVE";
+            name?: string | null;
+            /** @enum {string|null} */
+            status?: "ACTIVE" | "INACTIVE" | null;
         };
         UpdateUserStatusDto: {
             /** @enum {string} */
@@ -2623,7 +2650,7 @@ export interface components {
             fullName: string;
             /** Format: uuid */
             id: string;
-            organization: components["schemas"]["OrgDto"] | null;
+            organization: components["schemas"]["OrgDto"] | (never | null);
             role: components["schemas"]["UserRoleDto"];
             /** Format: date-time */
             updatedAt: string;
@@ -3571,6 +3598,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path?: never;
@@ -3693,6 +3721,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path?: never;
@@ -3815,6 +3844,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path?: never;
@@ -4056,6 +4086,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
             };
             path?: never;
@@ -4178,6 +4209,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
             };
             path: {
@@ -4418,6 +4450,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path?: never;
@@ -4540,6 +4573,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -5130,6 +5164,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
             };
             path?: never;
@@ -5252,6 +5287,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
             };
             path: {
@@ -5376,6 +5412,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
                 "X-Device-Key": string;
             };
@@ -5615,6 +5652,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
             };
             path?: never;
@@ -5737,6 +5775,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
             };
             path?: never;
@@ -5859,6 +5898,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
                 "X-Device-Key": string;
             };
@@ -5984,6 +6024,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
             };
             path: {
@@ -6108,6 +6149,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
             };
             path: {
@@ -6229,6 +6271,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
             };
             path: {
@@ -6353,6 +6396,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
             };
             path: {
@@ -6711,6 +6755,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -6835,6 +6880,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -6959,6 +7005,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -7083,6 +7130,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -7207,6 +7255,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -7447,6 +7496,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path?: never;
@@ -7807,6 +7857,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path?: never;
@@ -7929,6 +7980,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "idempotency-key": string;
             };
             path: {
@@ -8171,6 +8223,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -8295,6 +8348,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -8419,6 +8473,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -8543,6 +8598,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -8667,6 +8723,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -8791,6 +8848,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -9149,6 +9207,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path?: never;
@@ -9389,6 +9448,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -9513,6 +9573,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -9637,6 +9698,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -9761,6 +9823,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -9885,6 +9948,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path: {
@@ -10361,6 +10425,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Required command key: trimmed, nonblank, at most 255 characters after trimming. Replays the stored result for the same requester/operation/payload after authorization. Missing/invalid key, changed payload or an in-progress command returns 409. This header is not an authentication credential. */
                 "Idempotency-Key": string;
             };
             path?: never;

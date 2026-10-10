@@ -29,7 +29,12 @@ export class CreateUserDto {
   @ApiProperty({ type: String })
   @IsString()
   roleCode!: string;
-  @ApiProperty({ type: String, required: false, format: 'uuid' })
+  @ApiProperty({
+    type: String,
+    required: false,
+    nullable: true,
+    format: 'uuid',
+  })
   @IsOptional()
   @IsUUID()
   organizationId?: string;

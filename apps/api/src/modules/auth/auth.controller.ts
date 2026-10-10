@@ -137,11 +137,11 @@ export class AuthController {
   }
 
   @Post('logout')
-  @ApiCookieAuth(SESSION_COOKIE_NAME)
   @ApiOperation({
     summary: 'Revoke all tokens in the selected session family',
+    security: [{}, { [SESSION_COOKIE_NAME]: [] }],
     description:
-      'Clears only this family cookie. The selector is intentionally not changed by refresh/logout, so a late response cannot replace or clear a newer login.',
+      'Without session cookies this is a successful no-op. With cookies, clears only this family cookie. The selector is intentionally not changed by refresh/logout, so a late response cannot replace or clear a newer login.',
   })
   @ApiCreatedResponse({ type: AuthLogoutResponseDto })
   @ApiForbiddenResponse({ description: 'Untrusted request origin' })

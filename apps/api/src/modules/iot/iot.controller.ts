@@ -26,7 +26,12 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -117,6 +122,7 @@ export class IotController {
   @ApiHeader({ name: 'X-Device-Key', required: true })
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(DeviceKeyGuard)
+  @ApiSecurity('deviceKey')
   @Post('device-readings')
   ingestForDevice(
     @Body() input: IngestSensorReadingDto,
@@ -226,6 +232,7 @@ export class IotController {
   @ApiHeader({ name: 'X-Device-Key', required: true })
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @UseGuards(DeviceKeyGuard)
+  @ApiSecurity('deviceKey')
   @Post('shipments/:shipmentId/device-telemetry')
   ingestTelemetryForDevice(
     @Param('shipmentId', ParseUUIDPipe) shipmentId: string,
