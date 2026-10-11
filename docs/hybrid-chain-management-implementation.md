@@ -23,6 +23,10 @@ thay nghiệm thu authority của doanh nghiệp thật.
 
 - JWT/session/global role được đọc từ DB; scope được kiểm trước replay và dưới
   khóa trong transaction ghi domain/result journal.
+- Bản sửa đang kiểm chứng của HYB-03 lấy khóa `FOR SHARE` trên tổ chức đích và
+  user nhận grant trước khi kiểm trạng thái. Khóa actor riêng không đủ khi
+  platform admin cấp quyền cho tổ chức khác; FK chỉ lấy key-share nên không
+  chặn cập nhật status. Không đổi schema, API contract hoặc quyền được cấp.
 - Nền tảng cấp ORG_ADMIN/CREATE_CHAIN. Org admin chỉ cấp FARM_STAFF/TRANSPORTER/
   RETAILER của mình, trong membership ACTIVE và capability đã có; không tự cấp
   manager/auditor/reviewer/platform authority. Manager thuộc tổ chức chủ chuỗi.
@@ -142,3 +146,22 @@ Chưa đủ 24 giờ quan sát hoặc hoàn tất A/B/C. Chi tiết gate đang �
 tại [pilot Fabric dev](fabric-dev-pilot-2026-10-11.md). Evidence root-only:
 `/opt/agri-trace-dev/cd/hybrid-fabric-dev-20261011.json` và
 `/opt/agri-trace-dev/shared/fabric/repair-evidence.json`.
+
+## HYB-03 — Cấp quyền đồng thời với khóa đối tác
+
+Kiểm thử PostgreSQL cách ly tại commit `bc9e986` tái hiện hai lỗi: khóa user
+hoặc tổ chức commit được trong lúc command cấp quyền đã kiểm ACTIVE nhưng
+chưa tạo grant/journal. Hai trường hợp khóa trước command đã bị từ chối đúng.
+Không sửa dữ liệu dev/production để kiểm thử tình huống này.
+
+Candidate sửa lấy khóa hàng của tổ chức đích rồi user nhận quyền, trước khóa
+scope và kiểm tra ACTIVE trong service. Khi grant đang chạy, status update
+phải đợi grant cùng journal commit; khi disable commit trước, grant bị từ chối
+và không có grant, audit hoặc command commit. JWT của đối tác đã bị khóa vẫn
+bị từ chối. Bài test quan sát lock wait thực trong `pg_stat_activity`, không
+dùng thời gian sleep làm bằng chứng khóa.
+
+Bốn scenario mới và regression API đang được kiểm chứng; chưa ghi Passed hoặc
+coi candidate đã triển khai dev. Source/log từng lần chạy được giữ riêng trên
+VPS. Phần này chỉ xử lý recipient status race của nền quản lý, không hoàn tất
+scope core, StageAssignment, ShipmentPlan hoặc toàn bộ HYB-03.
