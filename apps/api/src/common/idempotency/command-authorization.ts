@@ -12,6 +12,7 @@ import {
   resolveLotCustodian,
 } from '../../modules/lots/lot-custody.js';
 import { assertAssignedFarm } from '../../modules/auth/compliance-scope.js';
+import { authorizeChainCommand } from '../../modules/supply-chains/chain-policy.js';
 
 export interface CommandActor {
   sub: string | null;
@@ -185,6 +186,9 @@ export async function authorizeCommand(
     }))
   )
     throw new UnauthorizedException('Phiên đăng nhập không còn hợp lệ');
+
+  if (input.operation.startsWith('HYB_'))
+    return authorizeChainCommand(db, input, lock);
 
   let assignmentId: string | null = null;
   switch (input.operation) {

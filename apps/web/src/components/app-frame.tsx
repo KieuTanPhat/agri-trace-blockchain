@@ -26,6 +26,7 @@ import { getAuthorizationScope } from "@/lib/auth-scope";
 
 const navigation = [
   { href: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
+  { href: "/supply-chains", label: "Chuỗi và đối tác", icon: Blocks },
   { href: "/admin", label: "Quản trị", icon: Blocks },
   { href: "/production-cycles", label: "Vụ trồng", icon: LayoutDashboard },
   { href: "/lots", label: "Lô nông sản", icon: Package },

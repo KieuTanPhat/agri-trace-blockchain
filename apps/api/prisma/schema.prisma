@@ -38,6 +38,10 @@ model User {
   sensorReconciliations CycleSensorReconciliation[]
   submittedCertificates Certificate[]
   recordedInspections Inspection[]
+  scopedGrants ScopedRoleGrant[]
+  chainAudits ChainAudit[]
+
+  @@unique([id, organizationId], map: "uq_user_org_scope")
 
   @@map("app_user")
 }
@@ -75,8 +79,119 @@ model Organization {
   shipmentsAsTransporter Shipment[]                @relation("ShipmentTransporter")
   trackingBindings       ShipmentTrackingBinding[]
   traceEvents            TraceEvent[]
+  capabilities           OrganizationCapability[]
+  ownedChains            SupplyChain[]
+  chainMemberships       ChainMembership[]
+  scopedGrants           ScopedRoleGrant[]
 
   @@map("organization")
+}
+
+/// Additive rollout: these grants apply only to the supply-chain management API.
+/// Legacy business endpoints continue to enforce their current core policies.
+model OrganizationCapability {
+  organizationId String @map("organization_id") @db.Uuid
+  code OrganizationType
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revision Int @default(0)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@id([organizationId, code])
+  @@map("organization_capability")
+}
+
+model SupplyChain {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("chain_id") @db.Uuid
+  ownerOrganizationId String @map("owner_organization_id") @db.Uuid
+  name String @db.VarChar(255)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  owner Organization @relation(fields: [ownerOrganizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  memberships ChainMembership[]
+  grants ScopedRoleGrant[]
+  audits ChainAudit[]
+
+  @@index([ownerOrganizationId])
+  @@map("supply_chain")
+}
+
+model ChainMembership {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("membership_id") @db.Uuid
+  chainId String @map("chain_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  status ChainMembershipStatus @default(INVITED)
+  version Int @default(0)
+  invitationRevision Int @default(0) @map("invitation_revision")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  chain SupplyChain @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  grants ScopedRoleGrant[]
+
+  @@unique([chainId, organizationId], map: "uq_chain_membership_org")
+  @@index([organizationId, status])
+  @@map("chain_membership")
+}
+
+model ScopedRoleGrant {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("grant_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  chainId String? @map("chain_id") @db.Uuid
+  scope GrantScope
+  role ScopedRole
+  revision Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  user User @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  chain SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  membership ChainMembership? @relation(fields: [chainId, organizationId], references: [chainId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([userId, revokedAt])
+  @@index([chainId, organizationId])
+  @@unique([userId, organizationId, role], map: "uq_scoped_role_org_active", where: raw("((chain_id IS NULL) AND (revoked_at IS NULL))"))
+  @@unique([userId, organizationId, chainId, role], map: "uq_scoped_role_chain_active", where: raw("((chain_id IS NOT NULL) AND (revoked_at IS NULL))"))
+  @@map("scoped_role_grant")
+}
+
+model ChainAudit {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("audit_id") @db.Uuid
+  chainId String? @map("chain_id") @db.Uuid
+  actorUserId String @map("actor_user_id") @db.Uuid
+  operation String @db.VarChar(80)
+  subjectId String @map("subject_id") @db.Uuid
+  revision Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  chain SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([chainId, createdAt])
+  @@map("chain_audit")
+}
+
+enum ChainMembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum GrantScope {
+  ORGANIZATION
+  CHAIN
+}
+
+enum ScopedRole {
+  ORG_ADMIN
+  CREATE_CHAIN
+  CHAIN_MANAGER
+  FARM_STAFF
+  TRANSPORTER
+  RETAILER
+  AUDITOR
+  COMPLIANCE_REVIEWER
 }
 
 model Farm {

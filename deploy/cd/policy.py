@@ -18,6 +18,12 @@ OPERATIONS = {"deploy", "upgrade", "rollback", "recover", "status", "backup"}
 FIXED_FILES = {"docker-compose.uat.yml", "docker-compose.uat-https.yml", "docker-compose.uat-fabric.yml", "deploy/Caddyfile.uat"}
 MAX_AUTH_HEADER = 16 * 1024
 CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify.mjs", "session-auth.mjs", "entry")
+# Exact, separately reviewed expansion migrations. The parser for arbitrary SQL
+# remains restrictive. See docs/hybrid-chain-management-implementation.md for
+# compatibility boundaries and rollback verification of this particular script.
+REVIEWED_EXPANSIONS = {
+    "20261011140000_chain_management_foundation": "d7383e26ff34ab693dec260d9546d43a0bdd509a3d700048c16b58a15898e60a",
+}
 
 
 class PolicyError(Exception):
@@ -266,5 +272,9 @@ def migrations(applied, candidate, directory, compatible_missing=()):
         require(not applied or name > max(applied), "New migrations must append to history")
         script = (Path(directory) / "apps/api/prisma/migrations" / name / "migration.sql").read_bytes()
         require(sha256(script) == candidate[name], "Migration source checksum mismatch")
-        additive_sql(script.decode("utf-8"))
+        if name in REVIEWED_EXPANSIONS:
+            require(sha256(script.replace(b"\r\n", b"\n")) == REVIEWED_EXPANSIONS[name],
+                    "Reviewed expansion migration was modified")
+        else:
+            additive_sql(script.decode("utf-8"))
     return new
