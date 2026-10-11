@@ -181,3 +181,15 @@ khi một bên có một role, suy ra theo pickup/arrival khi đủ bằng chứ
 lịch sử hoặc tự chuyển custody trong database. Candidate này chưa triển khai
 dev và không đồng nghĩa HYB-AC-24 đã đạt đầy đủ: multi-capability core flow và
 reviewer independence vẫn còn ở các gói sau.
+
+## HYB-02/03/04 — Scope nghiệp vụ đang chuẩn bị
+
+[ADR-002](adr-002-hybrid-business-scope.md) và SQL draft riêng đã chuẩn bị
+ProductionCycle scope gốc, StageAssignment, ShipmentPlan/revisions/acceptance
+và EventChainContext. Profile bắt đầu PREPARING; chưa bật scoped business
+writes. Không thêm vào Prisma migrations hoặc CD checksum allowlist ở bước này.
+
+DB PostgreSQL 18 mới, cách ly đã qua 21 assertion SQL ngày 12/10/2026, giữ
+trigger core. Source baseline để migrate là `5a71e8b`; digest và evidence tại
+ADR. Chưa nghiệm thu API, concurrency, trace/outbox transaction, capability
+core, legacy backfill, privacy/read filters, Web hoặc các gate A còn lại.
