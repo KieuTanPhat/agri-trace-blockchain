@@ -145,6 +145,31 @@ proof cũ. Yêu cầu descriptor `fabric` root-owned trong config dev:
   với dedicated public key hiện có. Giữ `profile=light`, `fabric_enabled=false`;
   runtime switch không làm đổi identity của release manifest cùng SHA.
 
+Công cụ `deploy/fabric-dev.py` chuẩn bị và provision pilot kỹ thuật hai org,
+một Raft orderer, LevelDB và ba CA riêng. Binaries 2.5.16/CA 1.5.22 được kiểm
+SHA-256 từ official release assets; samples pin `5789681b4f4d24e58fa40f19a69f5496892374b6`.
+Công cụ chỉ dùng CA/channel helpers đã cách ly hostname/cổng, không gọi
+`test-network/network.sh` hoặc cleanup toàn host. Host ports chỉ mở loopback,
+peer/chaincode tối đa 512 MiB mỗi container, CA 128 MiB, orderer 256 MiB.
+Mạng/channel lần lượt `agritrace-dev-fabric`/`agritrace-dev`; không mô phỏng
+authority độc lập của đối tác thật.
+
+Đặt GitHub development `CD_DEPLOY_ENABLED=false`, xác nhận không delivery đang
+chạy và dùng source đã review để chuẩn bị/provision bằng root:
+
+```bash
+python3 deploy/fabric-dev.py prepare
+python3 deploy/fabric-dev.py provision
+```
+
+Prepare từ chối database đã có proof và tài nguyên đã tồn tại. Provision giữ
+mạng đã dựng ở trạng thái stopped, cài binding root-owned và signer riêng vào
+config dev light. `prepared.json` giữ checksum; `provisioning.json` tồn tại nếu
+thất bại. Không rerun để reset identity/ledger; quản trị viên đối chiếu phase,
+channel membership/package và khôi phục từ dữ liệu giữ lại. Trước fabric-on,
+lấy snapshot DB/config/ledger nhất quán rồi xác minh baseline. Sau switch và
+smoke/retention test đạt mới bật lại development CD.
+
 ```bash
 python3 deploy/cd/install-target.py fabric-on --environment development
 python3 deploy/cd/install-target.py fabric-off --environment development
