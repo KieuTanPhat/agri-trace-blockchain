@@ -113,7 +113,10 @@ delivery, không cho SSH key tự sửa controller.
 
 Delivery snapshot dừng đúng writers của target, dump PostgreSQL, ghi hashes,
 mã hóa config/identity/ledger tương ứng. Light dev không stop/read Fabric prod.
-Artifact backup tách theo env; mất transport không để artifact dở. App rollback
+Nếu dev đã từng dùng Fabric, backup vẫn chứa ledger/identity khi chạy light;
+controller kiểm network/mount ownership và yêu cầu mạng được giữ lại đã dừng.
+Không bật lại Fabric để tạo snapshot light. Artifact backup tách theo env;
+mất transport không để artifact dở, retry không xóa/ghi đè file đã hoàn tất. App rollback
 không restore DB/ledger và không vượt core rollback floor. Failed readiness hoặc
 interruption giữ journal, dừng writers và yêu cầu recover. Initial dev recovery
 kiểm schema/checksums và volume ownership, không xóa dữ liệu để thử lại.
@@ -150,7 +153,9 @@ python3 deploy/cd/install-target.py fabric-off --environment development
 Fabric-on kiểm container network/mount ownership trước mutation, đối chiếu
 committed/approved packages, bật Worker và kiểm canary/ledger proof. Fabric-off
 dừng Worker trước mạng riêng, giữ DB/ledger/identity và trở về light. Lỗi switch
-giữ `runtime-toggle.json`, dừng writers; admin sửa nguyên nhân và chạy lại switch.
+giữ `runtime-toggle.json`, dừng cả API/Worker của project dev; admin sửa nguyên
+nhân và chạy lại switch. Lỗi cleanup phải được quản trị viên đối chiếu, không
+coi là đã dừng writers thành công.
 CD không deploy đè transition chưa rõ. Fabric-on/off chưa được chứng minh trên
 VPS nếu chưa có network dev; Blockchain CI dùng Fabric riêng trên runner.
 
@@ -175,8 +180,10 @@ giữ. DNS có thể gỡ sau; xóa DNS riêng không trả RAM. Xóa volumes/id
 một retention action explicit khác sau backup đã verify.
 
 Dựng lại từ retained storage: server `enable`, Edge `enable-dev`, GitHub flag
-true; dispatch Dev CD đúng ref/SHA có đủ CI. Nếu current SHA chưa đổi, controller
-khởi động lại app và verify, không bootstrap/reset data. Kiểm marker/canary,
+true; dispatch Dev CD đúng ref/SHA có đủ CI. Controller xác minh volume ownership,
+khởi động release dev đã verified từ dữ liệu giữ lại và kiểm baseline. Cùng SHA
+thì chỉ resume/verify; nếu nhánh đã có SHA mới thì tiếp tục rollout có snapshot
+và migration guards thông thường. Không bootstrap/reset dữ liệu giữ lại. Kiểm marker/canary,
 counts/hash và prod IDs/StartedAt/health trước–sau. Khi chuyển VPS, restore DB
 và Fabric tương ứng theo một kế hoạch riêng, không trộn DB với ledger trống.
 
@@ -192,3 +199,6 @@ Lưu evidence source SHA/digests, profile, DB mounts/counts/hash, Fabric sequenc
 prod identities trước–sau dev delivery/retire, DNS/TLS/auth/Pending, decrypted
 snapshot restore vào tài nguyên riêng, capacity và trạng thái Mốc A/Mốc B.
 Không đưa password, tokens, private keys hoặc private payloads vào báo cáo.
+
+Các lỗi và regression của đợt review được theo dõi tại
+[review và kế hoạch sửa delivery 2026-10-11](plans/dev-production-cd-review-fixes-2026-10-11.md).

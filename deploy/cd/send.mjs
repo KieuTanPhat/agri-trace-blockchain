@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {createReadStream, createWriteStream, writeFileSync, mkdirSync, readFileSync, rmSync, statSync} from 'node:fs';
+import {createReadStream, createWriteStream, writeFileSync, mkdirSync, mkdtempSync, linkSync, readFileSync, rmSync, statSync} from 'node:fs';
 import path from 'node:path';
 import {pipeline} from 'node:stream/promises';
 
@@ -45,10 +45,15 @@ try {
   } else child.stdin.end();
   if(operation==='backup'){
     const filename=path.join(process.env.RUNNER_TEMP,`${prefix}-backup-${value}.cms`);
+    const download=mkdtempSync(path.join(process.env.RUNNER_TEMP,`${prefix}-backup-download-`));
+    const pending=path.join(download,'snapshot.cms');
     try{
-      await Promise.all([completion,pipeline(child.stdout,createWriteStream(filename,{mode:0o600,flags:'wx'}))]);
-      assert.ok(statSync(filename).size>512,'Encrypted snapshot is incomplete');
-    }catch(error){rmSync(filename,{force:true});throw error;}
+      await Promise.all([completion,pipeline(child.stdout,createWriteStream(pending,{mode:0o600,flags:'wx'}))]);
+      assert.ok(statSync(pending).size>512,'Encrypted snapshot is incomplete');
+      // Publish only complete downloads; exclusive link never replaces or
+      // removes a backup saved by an earlier attempt for the same commit.
+      linkSync(pending,filename);
+    }finally{rmSync(download,{recursive:true,force:true});}
   }else{
     const chunks=[];let size=0;
     for await(const chunk of child.stdout){size+=chunk.length;assert.ok(size<1024*1024,'Unexpected CD output size');chunks.push(chunk);}

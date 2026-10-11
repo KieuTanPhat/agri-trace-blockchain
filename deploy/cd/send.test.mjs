@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
+import {existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync, rmSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -19,6 +19,8 @@ from pathlib import Path
 Path(os.environ['CD_TEST_MARKER']).write_text('called')
 command=sys.argv[-1].split()
 if command[0]=='backup':
+ if os.environ.get('CD_TEST_COMPLETE_BACKUP')=='true':
+  sys.stdout.buffer.write(b'x'*1024);sys.exit(0)
  sys.stdout.buffer.write(b'incomplete');sys.exit(1)
 key=Path(sys.argv[sys.argv.index('-i')+1])
 assert stat.S_IMODE(key.stat().st_mode)==0o600
@@ -59,6 +61,30 @@ test('failed backup transport never leaves an incomplete artifact',{skip:process
   assert.equal(result.status,1);
   assert.equal(existsSync(path.join(f.root,`uat-backup-${sha}.cms`)),false);
   assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
+});
+
+test('failed backup retry preserves an already completed backup',{skip:process.platform==='win32'},t=>{
+  const f=fixture(t);
+  const filename=path.join(f.root,`uat-backup-${sha}.cms`);
+  const saved=Buffer.alloc(1024,23);writeFileSync(filename,saved);
+  const result=f.run('backup',sha);
+  assert.equal(result.status,1);
+  assert.deepEqual(readFileSync(filename),saved);
+  assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
+});
+
+test('complete backup is published privately and retry cannot overwrite it',{skip:process.platform==='win32'},t=>{
+  const f=fixture(t);f.env.CD_TEST_COMPLETE_BACKUP='true';
+  const filename=path.join(f.root,`uat-backup-${sha}.cms`);
+  const first=f.run('backup',sha);
+  assert.equal(first.status,0,first.stderr);
+  const saved=readFileSync(filename);
+  assert.equal(saved.length,1024);
+  assert.equal(statSync(filename).mode&0o777,0o600);
+  const retry=f.run('backup',sha);
+  assert.equal(retry.status,1);
+  assert.deepEqual(readFileSync(filename),saved);
+  assert.ok(!readdirSync(f.root).some(name=>name.startsWith('uat-backup-download-')));
 });
 
 test('missing host pin removes the private key before SSH starts',t=>{

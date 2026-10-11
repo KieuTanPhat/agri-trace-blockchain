@@ -6,6 +6,29 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
+from controller import Controller
+
+
+class RetainedDevelopment(Controller):
+    """Bind the real resume method only to this runner's disposable project."""
+    def __init__(self, project, commands, directory):
+        self.target, self.prefix, self.fabric_active = True, "dev", False
+        self.project, self.config = project, {"postgres_volume": project + "_postgres-data"}
+        self.storage = directory
+        self.log = directory / "resume-operations.log"
+        self.commands = commands
+
+    def dc(self, record, *args):
+        return [*self.commands, *args]
+
+    def start(self, record):
+        self.run("retained-app-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "api", "web"))
+
+    def verify(self, record):
+        self.run("retained-api-health", self.dc(record, "exec", "-T", "api", "node", "-e", "fetch('http://api:8080/api/health').then(r=>{if(!r.ok)process.exit(1)})"))
+        marker = self.run("retained-database-marker", self.dc(record, "exec", "-T", "postgres", "psql", "-U", "ci_test", "-d", "ci_test", "-At", "-c", "SELECT id FROM ci_environment_marker"))
+        assert marker.strip().decode() == self.project
+        return {"marker": marker.strip().decode()}
 
 
 def run(*args, data=None):
@@ -71,10 +94,13 @@ def main():
             run(*commands[dev], "down")  # Retire without deleting retained data.
             assert baseline() == before
             run("docker", "volume", "inspect", dev + "_postgres-data")
-            run(*commands[dev], "up", "-d", "--wait", "--wait-timeout", "180", "postgres", "api", "web")
+            # Exercise the installed controller's retained-data resume path,
+            # rather than masking a missing resume with a manual compose up.
+            resumer = RetainedDevelopment(dev, commands[dev], Path(temporary))
+            assert resumer.resume_development({"verified": True}, only_if_stopped=True) == {"marker": dev}
             assert sql(dev, "SELECT id FROM ci_environment_marker").strip().decode() == dev
             assert baseline() == before
-            print(json.dumps({"result": "passed", "scenarios": ["cold-postgres-ready-before-migration", "separate-networks-databases", "light-without-worker", "backup-restore", "dev-retire-recreate", "prod-identities-data-unchanged"]}))
+            print(json.dumps({"result": "passed", "scenarios": ["cold-postgres-ready-before-migration", "separate-networks-databases", "light-without-worker", "backup-restore", "controller-resumes-retired-dev", "prod-identities-data-unchanged"]}))
         finally:
             # Only these literal, run-scoped CI projects may be reset here.
             for dc in commands.values():

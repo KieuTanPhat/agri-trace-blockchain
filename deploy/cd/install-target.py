@@ -10,6 +10,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 from pathlib import Path
 import install as legacy
@@ -163,8 +164,8 @@ def fabric_runtime(environment, operation, config):
                 policy.require(Path(mount["Source"]).resolve().is_relative_to(root), "Fabric mount resolves outside dev")
     marker = controller.storage / "runtime-toggle.json"
     atomic_json(marker, {"operation": operation, "release": record["id"]})
-    controller.stop(record)
     try:
+        controller.stop(record)
         if operation == "fabric-off":
             # Stop the signing writer before its network; retain ledger/identity.
             controller.run("dev-fabric-stop", ["docker", "stop", "--time", "20", *fabric["containers"]])
@@ -203,13 +204,32 @@ def fabric_runtime(environment, operation, config):
         active.save_record(dict(record, chaincode=active.state()["chaincode"]))
         marker.unlink()
         return {"result": "passed", "environment": environment, "runtimeProfile": "fabric" if active.fabric_active else "light"}
-    except Exception:
+    except Exception as error:
+        failures = []
+        try:
+            # Inspect the project labels directly: cleanup must work even if
+            # Compose preflight failed or no Worker was created yet.
+            rows = controller.run("dev-running-writers", ["docker", "ps", "--filter", "label=com.docker.compose.project=" + config["project"],
+                                  "--format", '{{.ID}} {{.Label "com.docker.compose.service"}}']).decode().splitlines()
+            writers = [row.split()[0] for row in rows if len(row.split()) == 2 and row.split()[1] in {"api", "worker"}]
+            policy.require(all(re.fullmatch(r"[a-f0-9]{12,64}", item) for item in writers), "Unexpected writer container ID")
+            if writers:
+                controller.run("dev-writers-stop-after-failure", ["docker", "stop", "--time", "120", *writers], timeout=200)
+        except Exception:
+            failures.append("writers")
         config["fabric_enabled"] = False
-        atomic_json(config_path(environment), config)
-        subprocess.run(["docker", "stop", "--time", "120", config["project"] + "-worker-1"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        controller.run("dev-fabric-stop-after-failure", ["docker", "stop", "--time", "20", *fabric["containers"]])
+        try:
+            atomic_json(config_path(environment), config)
+        except Exception:
+            failures.append("config")
+        try:
+            controller.run("dev-fabric-stop-after-failure", ["docker", "stop", "--time", "20", *fabric["containers"]])
+        except Exception:
+            failures.append("Fabric")
         # Keep the marker and writers stopped. An administrator retries the
         # switch; CD cannot deploy over an unresolved runtime transition.
+        if failures:
+            raise policy.PolicyError("Fabric switch failed; administrator must reconcile cleanup: " + ", ".join(failures)) from error
         raise
 
 
@@ -250,4 +270,8 @@ def main():
 
 
 if __name__ == "__main__":
+    def interrupted(*_):
+        raise policy.PolicyError("Environment administration was interrupted")
+    for number in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(number, interrupted)
     main()
