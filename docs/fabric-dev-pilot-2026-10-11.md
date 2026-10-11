@@ -54,7 +54,9 @@ trên một host chưa kiểm availability khi mất host/orderer.
   đều bằng 0. [Fabric 2.5.16](https://github.com/hyperledger/fabric/blob/v2.5.16/internal/peer/node/start.go#L1198)
   chỉ đọc CpuQuota/CpuPeriod cho CPU. Đã giới hạn ngay hai container riêng của
   dev bằng quota/period 100000/100000; sửa generator và policy để container
-  được tạo lại vẫn có limit. Lượt peer recreate/preservation cuối còn đang kiểm.
+  được tạo lại vẫn có limit. Peer recreate đã kiểm container mới có CPU
+  quota/period 100000/100000 và RAM 512 MiB, giữ nguyên khóa và cả mười dòng
+  receipt đầy đủ so với PostgreSQL snapshot trước sửa.
 
 Lần provision đầu cần operator reconcile các lỗi trên; chưa ghi nhận một lượt
 fresh provision tự động từ đầu đến cuối sau tất cả bản sửa. CA/identity/ledger
@@ -79,8 +81,14 @@ với Fabric bật giữ nguyên 10 event/proof fingerprints, năm bảng quản
 sequence 1. Lượt đầu fail gate roles trước mutation khi chạy probe auth dồn;
 giảm probe dư, không nới throttle, rồi chạy lại đạt.
 
-Preservation production cuối và peer recreate với CPU limit đang được kiểm.
-Chưa ghi nhận đủ 24 giờ quan sát hoặc hoàn tất toàn bộ kiến trúc.
+Đối chiếu production giữ 118 event/proof fingerprints, state và helper bytes;
+15 container ngoài dev giữ IDs/start times/restart counts. Dev health đạt,
+không OOM, khoảng 5,5 GiB RAM host còn khả dụng tại lượt kiểm. Các con số này
+là kiểm chứng tại thời điểm chạy, không thay load/HA/restore gates.
+
+PR [#90](https://github.com/KieuTanPhat/agri-trace-blockchain/pull/90) đưa CPU
+fix và báo cáo vào source; release cuối sau PR này còn chờ CI/CD. Chưa ghi
+nhận đủ 24 giờ quan sát hoặc hoàn tất toàn bộ kiến trúc.
 
 Evidence root-only tại `/opt/agri-trace-dev/cd/hybrid-fabric-dev-20261011.json`;
 snapshot nhất quán DB/config/ledger được mã hóa CMS trong thư mục backups dev.

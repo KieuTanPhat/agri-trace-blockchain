@@ -126,7 +126,8 @@ Release `e1261a0` đã qua push CI và Development CD. Bật/tắt/resume giữ 
 command offline có Pending thật, sau bật lại đủ 10/10 proof. Rollback hai chiều
 với Fabric bật giữ nguyên event/proof fingerprints, năm bảng quản lý và sequence 1.
 Kiểm sâu runtime phát hiện CPU parameter bị Fabric bỏ qua; đã limit container
-hiện có và đang kiểm bản sửa generator/persistent peer config.
+hiện có, sửa generator/persistent peer config và kiểm Docker HostConfig sau
+peer recreate. Khóa và cả mười receipt đầy đủ so với DB snapshot giữ nguyên.
 
 Chưa đủ 24 giờ quan sát hoặc hoàn tất A/B/C. Chi tiết gate đang đạt/còn thiếu
 tại [pilot Fabric dev](fabric-dev-pilot-2026-10-11.md). Evidence root-only:
