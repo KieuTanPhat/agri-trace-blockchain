@@ -199,6 +199,21 @@ describe('Chain management with real PostgreSQL authorization and command journa
       `organizations/${actors.owner.org}/scoped-users`,
     ).expect(200);
     expect(Object.keys(roster.body.data[0]).sort()).toEqual(['fullName', 'id']);
+    await get(
+      'outsider',
+      `organizations/${actors.owner.org}/scoped-grants`,
+    ).expect(404);
+    const grants = await get(
+      'owner',
+      `organizations/${actors.owner.org}/scoped-grants`,
+    ).expect(200);
+    expect(grants.body.data.length).toBeGreaterThan(0);
+    expect(
+      grants.body.data.every(
+        (grant: { organizationId: string }) =>
+          grant.organizationId === actors.owner.org,
+      ),
+    ).toBe(true);
     await post('outsider', `supply-chains/${chainId}/memberships`, {
       organizationId: actors.partner.org,
     }).expect(404);

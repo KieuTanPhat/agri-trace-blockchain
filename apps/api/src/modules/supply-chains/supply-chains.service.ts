@@ -20,18 +20,31 @@ export class SupplyChainsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async users(actor: CommandActor, organizationId: string) {
-    if (
-      actor.role !== 'SYSTEM_ADMIN' &&
-      (actor.organizationId !== organizationId ||
-        !(await organizationGrant(this.prisma, actor, 'ORG_ADMIN')))
-    )
-      throw new NotFoundException('Không tìm thấy tổ chức');
+    await this.organizationAdmin(actor, organizationId);
     return this.prisma.user.findMany({
       where: { organizationId, accountStatus: 'ACTIVE' },
       select: { id: true, fullName: true },
       orderBy: { fullName: 'asc' },
       take: 200,
     });
+  }
+
+  async grants(actor: CommandActor, organizationId: string) {
+    await this.organizationAdmin(actor, organizationId);
+    return this.prisma.scopedRoleGrant.findMany({
+      where: { organizationId, revokedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+  }
+
+  private async organizationAdmin(actor: CommandActor, organizationId: string) {
+    if (
+      actor.role !== 'SYSTEM_ADMIN' &&
+      (actor.organizationId !== organizationId ||
+        !(await organizationGrant(this.prisma, actor, 'ORG_ADMIN')))
+    )
+      throw new NotFoundException('Không tìm thấy tổ chức');
   }
 
   async context(actor: CommandActor) {

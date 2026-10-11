@@ -74,6 +74,15 @@ export class SupplyChainsController {
     return this.service.list(req.user);
   }
 
+  @Get('organizations/:organizationId/scoped-grants')
+  @ApiDataResponse(GrantRecordDto, 200, true)
+  grants(
+    @Req() req: AuthenticatedRequest,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+  ) {
+    return this.service.grants(req.user, organizationId);
+  }
+
   @Get('supply-chains/:chainId')
   @ApiDataResponse(ChainRecordDto)
   get(

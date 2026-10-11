@@ -12,6 +12,7 @@ type Chain = components["schemas"]["ChainRecordDto"];
 type Member = components["schemas"]["MemberRecordDto"];
 type Context = components["schemas"]["ChainContextDto"];
 type ScopedUser = components["schemas"]["ScopedUserDto"];
+type Grant = components["schemas"]["GrantRecordDto"];
 
 const states: Record<string, string> = {
   INVITED: "Được mời",
@@ -57,6 +58,7 @@ function ChainWorkspace({
   const [members, setMembers] = useState<Member[]>([]);
   const [adminOrg, setAdminOrg] = useState(organizationId ?? "");
   const [users, setUsers] = useState<ScopedUser[]>([]);
+  const [grants, setGrants] = useState<Grant[]>([]);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -113,10 +115,17 @@ function ChainWorkspace({
   useEffect(() => {
     let active = true;
     setUsers([]);
+    setGrants([]);
     if (adminOrg && (platformAdmin || orgAdmin))
-      request<ScopedUser[]>(`/organizations/${adminOrg}/scoped-users`)
-        .then((value) => {
-          if (active) setUsers(value);
+      Promise.all([
+        request<ScopedUser[]>(`/organizations/${adminOrg}/scoped-users`),
+        request<Grant[]>(`/organizations/${adminOrg}/scoped-grants`),
+      ])
+        .then(([people, permissions]) => {
+          if (active) {
+            setUsers(people);
+            setGrants(permissions);
+          }
         })
         .catch((cause: Error) => {
           if (active) setError(cause.message);
@@ -337,41 +346,80 @@ function ChainWorkspace({
                   onSaved={refresh}
                 />
               )}
-              {selected && (
-                <DataForm
-                  title="Cấp vai trò trong chuỗi đã chọn"
-                  path={`/organizations/${adminOrg}/scoped-grants`}
-                  extra={{ chainId: selected }}
-                  fields={[
-                    {
-                      name: "userId",
-                      label: "Người thực hiện",
-                      required: true,
-                      options: users.map((u) => ({
-                        value: u.id,
-                        label: u.fullName,
-                      })),
-                    },
-                    {
-                      name: "role",
-                      label: "Vai trò",
-                      required: true,
-                      options: (platformAdmin
-                        ? [
-                            "CHAIN_MANAGER",
-                            "FARM_STAFF",
-                            "TRANSPORTER",
-                            "RETAILER",
-                            "AUDITOR",
-                            "COMPLIANCE_REVIEWER",
-                          ]
-                        : ["FARM_STAFF", "TRANSPORTER", "RETAILER"]
-                      ).map((value) => ({ value, label: roleLabels[value] })),
-                    },
-                  ]}
-                  onSaved={refresh}
-                />
-              )}
+              {selected &&
+                members.some(
+                  (member) =>
+                    member.organizationId === adminOrg &&
+                    member.status === "ACTIVE",
+                ) && (
+                  <DataForm
+                    title="Cấp vai trò trong chuỗi đã chọn"
+                    path={`/organizations/${adminOrg}/scoped-grants`}
+                    extra={{ chainId: selected }}
+                    fields={[
+                      {
+                        name: "userId",
+                        label: "Người thực hiện",
+                        required: true,
+                        options: users.map((u) => ({
+                          value: u.id,
+                          label: u.fullName,
+                        })),
+                      },
+                      {
+                        name: "role",
+                        label: "Vai trò",
+                        required: true,
+                        options: (platformAdmin
+                          ? [
+                              "CHAIN_MANAGER",
+                              "FARM_STAFF",
+                              "TRANSPORTER",
+                              "RETAILER",
+                              "AUDITOR",
+                              "COMPLIANCE_REVIEWER",
+                            ]
+                          : ["FARM_STAFF", "TRANSPORTER", "RETAILER"]
+                        ).map((value) => ({ value, label: roleLabels[value] })),
+                      },
+                    ]}
+                    onSaved={refresh}
+                  />
+                )}
+              <section className="panel">
+                <h3>Quyền đang có hiệu lực</h3>
+                {grants
+                  .filter(
+                    (grant) => !grant.chainId || grant.chainId === selected,
+                  )
+                  .map((grant) => (
+                    <div className="grid" key={`${grant.id}:${grant.revision}`}>
+                      <p>
+                        {users.find((person) => person.id === grant.userId)
+                          ?.fullName ?? grant.userId}{" "}
+                        — {roleLabels[grant.role]} (
+                        {grant.chainId ? "chuỗi đã chọn" : "tổ chức"})
+                      </p>
+                      {(platformAdmin ||
+                        ["FARM_STAFF", "TRANSPORTER", "RETAILER"].includes(
+                          grant.role,
+                        )) && (
+                        <DataForm
+                          title="Thu hồi quyền"
+                          path={`/organizations/${adminOrg}/scoped-grants/${grant.id}/revoke`}
+                          fields={[]}
+                          extra={{
+                            version: grant.revision,
+                            ...(grant.chainId
+                              ? { chainId: grant.chainId }
+                              : {}),
+                          }}
+                          onSaved={refresh}
+                        />
+                      )}
+                    </div>
+                  ))}
+              </section>
             </div>
           )}
         </section>

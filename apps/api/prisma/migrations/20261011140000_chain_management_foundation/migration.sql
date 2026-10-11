@@ -9,7 +9,7 @@ CREATE TYPE "ScopedRole" AS ENUM ('ORG_ADMIN', 'CREATE_CHAIN', 'CHAIN_MANAGER', 
 CREATE UNIQUE INDEX uq_user_org_scope ON app_user (user_id, organization_id);
 
 CREATE TABLE organization_capability (
-  organization_id uuid NOT NULL REFERENCES organization ON UPDATE NO ACTION ON DELETE RESTRICT,
+  organization_id uuid NOT NULL REFERENCES organization ON UPDATE NO ACTION ON DELETE CASCADE,
   code organization_type NOT NULL,
   created_at timestamptz(6) NOT NULL DEFAULT now(),
   revoked_at timestamptz(6),

@@ -22,7 +22,7 @@ CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify.mjs", "s
 # remains restrictive. See docs/hybrid-chain-management-implementation.md for
 # compatibility boundaries and rollback verification of this particular script.
 REVIEWED_EXPANSIONS = {
-    "20261011140000_chain_management_foundation": "d7383e26ff34ab693dec260d9546d43a0bdd509a3d700048c16b58a15898e60a",
+    "20261011140000_chain_management_foundation": "9beb5342bb4dbb7eae9f221d6fe1b6dbfd648bae7ba46cb3e580a6e69e26ac28",
 }
 
 

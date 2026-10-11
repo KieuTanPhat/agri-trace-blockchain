@@ -33,20 +33,25 @@ thay nghiệm thu authority của doanh nghiệp thật.
 - Composite user/org và membership/chain FK; CHECK scope kind; partial uniqueness
   riêng với chainId NULL. Audit append-only, grant đã thu hồi không sửa/xóa.
 - Partner chỉ xem membership mình; manager xem danh sách điều phối. Roster chỉ
-  trả id/fullName cho org admin cùng org hoặc platform admin.
+  trả id/fullName cho org admin cùng org hoặc platform admin. Cùng policy này
+  bảo vệ danh sách active grants; UI cho quản trị viên thu hồi bằng version.
 - Web bỏ state khi đổi account, bỏ response trễ khi đổi chain; no-store API và
   Idempotency-Key giữ nguyên khi retry cùng thao tác.
 
 ## Review migration và rollback
 
 `20261011140000_chain_management_foundation` có LF SHA-256
-`d7383e26ff34ab693dec260d9546d43a0bdd509a3d700048c16b58a15898e60a`.
+`9beb5342bb4dbb7eae9f221d6fe1b6dbfd648bae7ba46cb3e580a6e69e26ac28`.
 
-Migration có transaction, enums, sáu bảng mới, unique index user/org và triggers.
+Migration có transaction, enums, năm bảng mới, unique index user/org và triggers.
 Không drop/rename/chuyển kiểu cột core. Unique index chứa primary user ID nên
 không siết thêm dữ liệu user hiện có. FK mới chỉ tác động khi có dữ liệu chuỗi;
 lịch sử grant giữ org của user. Chuyển user sang pháp nhân khác cần tài khoản mới
 hoặc migration riêng, không update org để bỏ lịch sử.
+
+Capability phụ thuộc tổ chức và được xóa cùng tổ chức chưa có lịch sử chuỗi;
+membership, grant và audit vẫn giữ các ràng buộc bảo toàn lịch sử. CI phát hiện
+FK capability RESTRICT làm hỏng cleanup auth concurrency cũ; đã sửa thành CASCADE.
 
 Trigger trên bảng core chỉ là AFTER INSERT Organization, thêm primary capability
 vào bảng mới. Lock Organization trong backfill ngăn INSERT rơi giữa SELECT và
@@ -69,5 +74,10 @@ hiện transaction quản lý vượt 5 giây qua SSH; dùng giới hạn riêng
 không bỏ khóa hoặc bớt kiểm quyền. Scenario E2E nhiều request có timeout riêng
 cho kết nối DB từ xa; CI Linux kiểm trên PostgreSQL gần runner.
 
-E2E cuối, CI Linux, migration từ DB trống/copy, rollout, browser và rollback sẽ
-được ghi sau khi chạy. Windows skips/lỗi nền tảng không tính là Passed.
+CI Linux đầu đã qua 6/6 E2E chuỗi, 41 core workflow tests; phát hiện 14 auth
+concurrency tests lỗi cleanup do FK capability mới. Bản sửa CASCADE cần chạy
+lại toàn suite. E2E từ Windows qua SSH đạt 5/6; bài giữ khóa để quan sát thu hồi
+vượt transaction timeout, trong khi cùng bài đạt trên Linux DB gần runner.
+
+CI cuối, migration từ DB trống/copy, rollout, browser và rollback sẽ được ghi
+sau khi chạy. Windows skips/lỗi nền tảng không tính là Passed.
