@@ -151,6 +151,10 @@ SHA-256 từ official release assets; samples pin `5789681b4f4d24e58fa40f19a69f5
 Công cụ chỉ dùng CA/channel helpers đã cách ly hostname/cổng, không gọi
 `test-network/network.sh` hoặc cleanup toàn host. Host ports chỉ mở loopback,
 peer/chaincode tối đa 512 MiB mỗi container, CA 128 MiB, orderer 256 MiB.
+Chaincode CPU dùng `CpuQuota=100000`/`CpuPeriod=100000` (một CPU). Fabric
+2.5.16 không đọc `NanoCpus` trong hostConfig; chỉ đặt biến đó không tạo limit.
+Sau peer recreate kiểm Docker HostConfig của chaincode mới, không suy ra CPU
+limit của chaincode từ limit trên peer.
 Mạng/channel lần lượt `agritrace-dev-fabric`/`agritrace-dev`; không mô phỏng
 authority độc lập của đối tác thật.
 
@@ -194,7 +198,8 @@ dead-letter hoặc hết thời gian vẫn chặn release. Một canary đã con
 đồng nghĩa mọi aggregate khác đã drain.
 
 Pilot VPS và các lỗi/sửa trong lần dựng đầu được ghi tại
-[implementation record](hybrid-chain-management-implementation.md). Blockchain
+[implementation record](hybrid-chain-management-implementation.md) và
+[pilot ledger dev](fabric-dev-pilot-2026-10-11.md). Blockchain
 CI dùng Fabric riêng trên runner; không thay bằng mock cho bằng chứng ledger.
 
 ## Suspend, retire và dựng lại dev

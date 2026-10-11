@@ -13,6 +13,8 @@ nghiệm thu còn lại.
 
 Đang triển khai nền quản lý chủ chuỗi/đối tác trên dev;
 [phạm vi và kiểm chứng](docs/hybrid-chain-management-implementation.md).
+Mạng Fabric dev riêng và các gate đang kiểm nằm trong
+[báo cáo pilot](docs/fabric-dev-pilot-2026-10-11.md).
 
 ```text
 apps/

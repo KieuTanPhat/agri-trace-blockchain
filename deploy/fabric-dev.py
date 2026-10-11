@@ -81,7 +81,9 @@ def validate_model(model):
         if "fabric-peer" in service["image"]:
             env = service["environment"]
             policy.require(env["CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE"] == "agritrace-dev-fabric" and
-                           env["CORE_VM_DOCKER_HOSTCONFIG_MEMORY"] == "536870912", "Unbounded or unowned chaincode runtime")
+                           env["CORE_VM_DOCKER_HOSTCONFIG_MEMORY"] == "536870912" and
+                           env.get("CORE_VM_DOCKER_HOSTCONFIG_CPUQUOTA") == "100000" and
+                           env.get("CORE_VM_DOCKER_HOSTCONFIG_CPUPERIOD") == "100000", "Unbounded or unowned chaincode runtime")
     policy.require(len(ports) == 13 and len(set(ports)) == 13, "Unexpected published ports")
 
 
@@ -149,7 +151,9 @@ def prepare(c):
             # Forward SIGTERM to the CA, keeping stop/backup bounded.
             service["command"][2] = "exec " + service["command"][2]
         if "fabric-peer" in service["image"]:
-            service["environment"].update(CORE_PEER_NETWORKID="agritrace-dev", CORE_VM_DOCKER_HOSTCONFIG_MEMORY="536870912", CORE_VM_DOCKER_HOSTCONFIG_NANOCPUS="1000000000")
+            # Fabric 2.5.16 reads CpuQuota/CpuPeriod, not Docker's NanoCpus.
+            service["environment"].update(CORE_PEER_NETWORKID="agritrace-dev", CORE_VM_DOCKER_HOSTCONFIG_MEMORY="536870912",
+                                          CORE_VM_DOCKER_HOSTCONFIG_CPUQUOTA="100000", CORE_VM_DOCKER_HOSTCONFIG_CPUPERIOD="100000")
         if "fabric-peer" in service["image"] or "fabric-orderer" in service["image"]:
             parent = working / "runtime" / name / "hyperledger"
             parent.mkdir(parents=True, mode=0o700)
