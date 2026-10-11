@@ -9,15 +9,15 @@ services:
       DD_API_KEY: ${DD_API_KEY:?Set the private Datadog API key}
       DD_SITE: us5.datadoghq.com
       DD_HOSTNAME: agritrace-uat
-      DD_ENV: uat
+      DD_ENV: infrastructure
       DD_SERVICE: agritrace
       DD_TAGS: "project:agritrace domain:agritrace.dev"
       DD_LOGS_ENABLED: "true"
       DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
       DD_CONTAINER_EXCLUDE_LOGS: "name:.*"
-      DD_CONTAINER_INCLUDE_LOGS: "name:^agri-trace-uat-(api|worker|web|proxy)-1$"
+      DD_CONTAINER_INCLUDE_LOGS: "name:^(agri-trace-uat|agritrace-dev|agritrace-prod|agritrace-edge)-(api|worker|web|proxy)-1$"
       DD_CONTAINER_EXCLUDE_METRICS: "name:.*"
-      DD_CONTAINER_INCLUDE_METRICS: "name:^agri-trace-uat-(api|worker|web|proxy)-1$"
+      DD_CONTAINER_INCLUDE_METRICS: "name:^(agri-trace-uat|agritrace-dev|agritrace-prod|agritrace-edge)-(api|worker|web|proxy)-1$"
       DD_APM_ENABLED: "false"
       DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED: "false"
       DD_ORCHESTRATOR_EXPLORER_ENABLED: "false"

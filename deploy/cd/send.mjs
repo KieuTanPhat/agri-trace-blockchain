@@ -6,17 +6,22 @@ import path from 'node:path';
 import {pipeline} from 'node:stream/promises';
 
 const [operation, value, archive] = process.argv.slice(2);
+const targetEnvironment = process.env.CD_ENVIRONMENT;
+if (targetEnvironment && !['development','production'].includes(targetEnvironment)) throw new Error('Unknown CD environment');
+const prefix = targetEnvironment === 'development' ? 'dev' : targetEnvironment === 'production' ? 'prod' : 'uat';
+const setting = name => targetEnvironment ? process.env[`CD_${name}`] : process.env[`UAT_${name}`];
 const temp = path.join(process.env.RUNNER_TEMP, 'agri-cd-ssh');
 const key = path.join(temp,'key');
 mkdirSync(temp,{recursive:true,mode:0o700});
 try {
-  assert.ok(typeof process.env.UAT_SSH_PRIVATE_KEY==='string'&&process.env.UAT_SSH_PRIVATE_KEY.trim(),'CD SSH private key is unavailable');
-  assert.ok(typeof process.env.UAT_KNOWN_HOSTS==='string'&&process.env.UAT_KNOWN_HOSTS.trim(),'CD SSH host pin is unavailable');
-  writeFileSync(key,process.env.UAT_SSH_PRIVATE_KEY.trim()+'\n',{mode:0o600});
-  writeFileSync(path.join(temp,'known_hosts'),process.env.UAT_KNOWN_HOSTS.trim()+'\n',{mode:0o600});
+  assert.ok(typeof setting('SSH_PRIVATE_KEY')==='string'&&setting('SSH_PRIVATE_KEY').trim(),'CD SSH private key is unavailable');
+  assert.ok(typeof setting('KNOWN_HOSTS')==='string'&&setting('KNOWN_HOSTS').trim(),'CD SSH host pin is unavailable');
+  writeFileSync(key,setting('SSH_PRIVATE_KEY').trim()+'\n',{mode:0o600});
+  writeFileSync(path.join(temp,'known_hosts'),setting('KNOWN_HOSTS').trim()+'\n',{mode:0o600});
   assert.ok(['deploy','upgrade','rollback','recover','status','backup'].includes(operation));
-  assert.match(process.env.UAT_HOST,/^\d{1,3}(?:\.\d{1,3}){3}$/);
-  assert.match(process.env.UAT_USER,/^[a-z][a-z0-9-]*$/);
+  assert.match(setting('HOST'),/^\d{1,3}(?:\.\d{1,3}){3}$/);
+  assert.match(setting('USER'),/^[a-z][a-z0-9-]*$/);
+  if(targetEnvironment)assert.equal(setting('USER'),`agri-cd-${prefix}`,'SSH identity does not match environment');
   let command = operation;
   if (!['status','recover'].includes(operation)) {assert.match(value,/^[a-f0-9]{40}$/);command += ` ${value}`;}
   if (['deploy','upgrade'].includes(operation)) {
@@ -31,7 +36,7 @@ try {
   }
   const child = spawn('ssh',['-T','-i',key,'-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes',
     '-o',`UserKnownHostsFile=${path.join(temp,'known_hosts')}`,'-o','ConnectTimeout=15','-o','ServerAliveInterval=15',
-    '-o','ServerAliveCountMax=4',`${process.env.UAT_USER}@${process.env.UAT_HOST}`,command],{stdio:['pipe','pipe','inherit']});
+    '-o','ServerAliveCountMax=4',`${setting('USER')}@${setting('HOST')}`,command],{stdio:['pipe','pipe','inherit']});
   const completion = new Promise((resolve,reject)=>{child.on('error',()=>reject(new Error('SSH could not start')));child.on('close',code=>code===0?resolve():reject(new Error(`CD ${operation} failed (SSH exit ${code}); see server evidence`)));});
   completion.catch(()=>{});
   if(['deploy','upgrade'].includes(operation)){
@@ -39,7 +44,7 @@ try {
     await pipeline(createReadStream(archive),child.stdin);
   } else child.stdin.end();
   if(operation==='backup'){
-    const filename=path.join(process.env.RUNNER_TEMP,`uat-backup-${value}.cms`);
+    const filename=path.join(process.env.RUNNER_TEMP,`${prefix}-backup-${value}.cms`);
     try{
       await Promise.all([completion,pipeline(child.stdout,createWriteStream(filename,{mode:0o600,flags:'wx'}))]);
       assert.ok(statSync(filename).size>512,'Encrypted snapshot is incomplete');

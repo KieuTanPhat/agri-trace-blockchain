@@ -3,9 +3,10 @@ import {pathToFileURL} from 'node:url';
 
 export const requiredWorkflows = ['application-ci.yml', 'blockchain-ci.yml', 'dependency-audit.yml'];
 
-export function evaluate(runs, sha, mainSha) {
-  if (mainSha !== sha) return {status: 'stale'};
-  const selected = requiredWorkflows.map(file => runs.filter(run => run.head_sha === sha && run.head_branch === 'main' &&
+export function evaluate(runs, sha, branchSha, branch = 'main') {
+  if (!['main', 'dev'].includes(branch)) throw new Error('Unknown deployable branch');
+  if (branchSha !== sha) return {status: 'stale'};
+  const selected = requiredWorkflows.map(file => runs.filter(run => run.head_sha === sha && run.head_branch === branch &&
     run.event === 'push' && run.path === `.github/workflows/${file}`).sort((a,b) => b.id - a.id)[0]);
   if (selected.some(run => run?.status === 'completed' && run.conclusion !== 'success')) return {status: 'failed'};
   if (selected.some(run => !run || run.status !== 'completed')) return {status: 'pending'};
@@ -23,12 +24,13 @@ export async function github(route) {
 
 async function main() {
   const sha = process.env.GITHUB_SHA;
-  if (!/^[a-f0-9]{40}$/.test(sha ?? '') || process.env.GITHUB_REF !== 'refs/heads/main') throw new Error('CD only accepts main commits');
+  const branchName = process.env.CD_BRANCH ?? 'main';
+  if (!['main', 'dev'].includes(branchName) || !/^[a-f0-9]{40}$/.test(sha ?? '') || process.env.GITHUB_REF !== `refs/heads/${branchName}`) throw new Error('CD branch/commit mismatch');
   const deadline = Date.now() + 55 * 60_000;
   let previous;
   while (Date.now() < deadline) {
-    const [branch, data] = await Promise.all([github('git/ref/heads/main'), github(`actions/runs?head_sha=${sha}&event=push&per_page=100`)]);
-    const result = evaluate(data.workflow_runs, sha, branch.object.sha);
+    const [branch, data] = await Promise.all([github(`git/ref/heads/${branchName}`), github(`actions/runs?head_sha=${sha}&event=push&per_page=100`)]);
+    const result = evaluate(data.workflow_runs, sha, branch.object.sha, branchName);
     if (result.status !== previous) console.log(JSON.stringify(result));
     previous = result.status;
     if (result.status === 'stale' || result.status === 'success') {

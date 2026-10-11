@@ -1,0 +1,33 @@
+{
+    admin unix//tmp/caddy-admin.sock
+}
+
+(application) {
+    encode gzip
+    @docs path /api/docs /api/docs/* /api/docs-json /api/docs-yaml
+    handle @docs {
+        respond "Not found" 404
+    }
+    @api path /api /api/*
+    handle @api {
+        reverse_proxy {args[0]}:8080 {
+            header_up X-Forwarded-For {http.request.remote.host}
+        }
+    }
+    handle {
+        reverse_proxy {args[1]}:3000
+    }
+}
+
+agritrace.dev, www.agritrace.dev {
+    import application prod-api prod-web
+}
+
+# Preserve the existing legacy QR origin only on the production route.
+http://13.140.170.166 {
+    import application prod-api prod-web
+}
+
+nongtrace.site, www.nongtrace.site {
+    import application dev-api dev-web
+}

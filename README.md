@@ -68,7 +68,21 @@ Fabric hoặc Worker tạm dừng; các sự kiện chờ được giữ trong
 `blockchain_outbox`. Worker health chỉ mở trong Docker network tại
 `http://worker:8081/health/ready`.
 
-## UAT agritrace.dev
+## Triển khai dev và production
+
+`dev` triển khai bản test tại `nongtrace.site`; `main` là nguồn của target
+production tại `agritrace.dev`. CI dùng cùng bộ checks trên cả hai nhánh.
+Hai target có database, secrets, SSH key, release state và Docker networks
+riêng; dùng chung Edge Caddy trên VPS. Dev mặc định chạy Web/API/PostgreSQL,
+giữ outbox Pending khi Worker/Fabric tắt. Fabric dev chỉ bật sau khi provision
+mạng riêng và kiểm tương thích với dữ liệu dev đang giữ.
+
+Lệnh cài đặt, bật/tắt Fabric, suspend/retire và dựng lại dev nằm trong
+[runbook dev/production](docs/dev-production-runbook.md). Target production
+adopt dữ liệu/Fabric hiện có; việc cấu hình target không thay thế nghiệm thu
+release và thiết kế Fabric production theo AGT-005/029/030/031.
+
+## Hệ thống hiện có tại agritrace.dev
 
 UAT hiện dùng [https://agritrace.dev](https://agritrace.dev).
 Chuyển origin và giám sát Datadog theo [runbook hiện hành](docs/agritrace-cutover-runbook.md).
@@ -128,7 +142,7 @@ Web chạy ESLint cho React/TypeScript/accessibility và Oxlint cho các rule Ne
 `npm run build --workspace apps/web` chạy cả hai trước khi biên dịch; `check`
 còn kiểm tra hợp đồng lint và xác nhận build bị chặn khi có warning hoặc lỗi.
 
-PR chọn job theo phạm vi thay đổi; mọi push lên `main` chạy đầy đủ để CD dùng
+PR chọn job theo phạm vi thay đổi; mọi push lên `main`/`dev` chạy đầy đủ để CD dùng
 bằng chứng của đúng SHA. Xem [chính sách CI](docs/ci.md) và
 [báo cáo kiểm tra CI/clean code](docs/ci-clean-code-audit-2026-10-09.md).
 

@@ -46,7 +46,7 @@ defaults:
 jobs:
   gate:
     name: Exact commit CI gate
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && vars.UAT_DEPLOY_ENABLED != 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:

@@ -12,6 +12,11 @@ const config = {
   HTTP_PORT: '80', HTTPS_PORT: '443', HTTP_BIND: '0.0.0.0', HTTPS_BIND: '0.0.0.0', UAT_ACCOUNTS_FILE: './test-accounts.json',
 };
 
+test('an explicitly empty alias list is valid', () => {
+  assert.doesNotThrow(() => validateConfig({...config, PUBLIC_ALIAS_ORIGINS: '',
+    CADDY_SITE_ADDRESS: caddySiteAddress(config.PUBLIC_ORIGIN), CORS_ORIGINS: config.PUBLIC_ORIGIN}));
+});
+
 test('HTTPS alias configuration keeps the primary domain, www, and legacy IP', () => {
   assert.equal(caddySiteAddress(config.PUBLIC_ORIGIN, aliases), config.CADDY_SITE_ADDRESS);
   assert.equal(validateConfig(config), config);
