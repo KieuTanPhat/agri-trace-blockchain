@@ -165,3 +165,19 @@ Bốn scenario mới và regression API đang được kiểm chứng; chưa ghi
 coi candidate đã triển khai dev. Source/log từng lần chạy được giữ riêng trên
 VPS. Phần này chỉ xử lý recipient status race của nền quản lý, không hoàn tất
 scope core, StageAssignment, ShipmentPlan hoặc toàn bộ HYB-03.
+
+## HYB-AC-24 — Custody khi cùng doanh nghiệp làm nhiều công đoạn
+
+Candidate tiếp theo sửa `resolveLotCustodian` ở trạng thái FAILED: organization
+ID không đủ phân biệt FARM_STAFF, TRANSPORTER và RETAILER nếu cùng doanh nghiệp
+đảm nhiệm các bên. So sánh cả role lẫn organization giữa bằng chứng thời điểm
+và công đoạn trước lỗi; organization-only chỉ suy ra role nếu bên đó có đúng
+một công đoạn. Metadata chỉ đến tổ chức ngoài các bên hoặc mâu thuẫn công đoạn
+trả custody chưa xác định, không mở command ghi.
+
+Kiểm thử trước sửa tái hiện ba lỗi; các bài mới giữ cả legacy organization-only
+khi một bên có một role, suy ra theo pickup/arrival khi đủ bằng chứng, cùng org
+ở các trạng thái bình thường và sau full damage. Không thay payload/hash/proof
+lịch sử hoặc tự chuyển custody trong database. Candidate này chưa triển khai
+dev và không đồng nghĩa HYB-AC-24 đã đạt đầy đủ: multi-capability core flow và
+reviewer independence vẫn còn ở các gói sau.

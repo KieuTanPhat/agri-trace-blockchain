@@ -73,21 +73,26 @@ export function resolveLotCustodian(lot: CustodyContext): LotCustodian | null {
             ? retailer
             : null;
     const org = data.custodianOrganizationId ?? event.actorOrganizationId;
-    const candidate = [farm, transporter, retailer].find(
+    const matchingParties = [farm, transporter, retailer].filter(
       (item) => item.organizationId === org,
     );
-    if (
-      indicated &&
-      candidate &&
-      indicated.organizationId !== candidate.organizationId
-    )
-      return null;
-    if (indicated ?? candidate) candidates.push((indicated ?? candidate)!);
+    if (!matchingParties.length) return null;
+    if (indicated) {
+      if (indicated.organizationId !== org) return null;
+      candidates.push(indicated);
+    } else if (matchingParties.length === 1) {
+      // Legacy evidence can name just the organization. It proves a stage only
+      // when that organization has exactly one role in this shipment. Otherwise
+      // retain independently established timing/stage evidence, if any.
+      candidates.push(matchingParties[0]);
+    }
   }
   if (
     !candidates.length ||
     candidates.some(
-      (item) => item.organizationId !== candidates[0].organizationId,
+      (item) =>
+        item.organizationId !== candidates[0].organizationId ||
+        item.role !== candidates[0].role,
     )
   )
     return null;
