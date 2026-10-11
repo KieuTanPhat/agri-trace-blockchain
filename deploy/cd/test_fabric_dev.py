@@ -65,6 +65,11 @@ class IsolatedDevFabric(unittest.TestCase):
         changed = dev.transform(text, {"org1adminpw": "org-secret", "adminpw": "ca-secret"})
         self.assertEqual(changed, 'agritrace-dev-peer${ORG} agritrace-dev-peer1 agritrace-dev-orderer agritrace-dev-fabric 27051:27051 37054:37054 hyperledger/fabric-ca:1.5.22 org-secret ca-secret')
 
+    def test_compose_bare_and_quoted_ports_bind_only_loopback(self):
+        text = 'ports:\n  - 7051:7051\n  - "17054:17054"\nnetworks:\n  - test\n'
+        changed = dev.transform(text, {})
+        self.assertEqual(changed, 'ports:\n  - "127.0.0.1:27051:27051"\n  - "127.0.0.1:37054:37054"\nnetworks:\n  - test\n')
+
     def test_descriptor_is_accepted_by_existing_target_policy(self):
         with patch.object(dev, "ROOT", PurePosixPath("/opt/agri-trace-dev/shared/fabric")):
             binding = dev.descriptor()

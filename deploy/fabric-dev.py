@@ -47,6 +47,8 @@ def transform(text, credentials):
     text = text.replace("example.com", "agritrace-dev.local").replace("fabric_test", "agritrace-dev-fabric")
     text = re.sub(r"(?<![0-9])(?:" + "|".join(map(str, PORTS)) + r")(?![0-9])",
                   lambda m: str(PORTS[int(m[0])]), text)
+    text = re.sub(r'(?m)^(\s*-\s*)"?([0-9]+):([0-9]+)"?\s*$',
+                  lambda m: m[1] + '"127.0.0.1:' + m[2] + ':' + m[3] + '"', text)
     text = re.sub(r"hyperledger/(fabric-(?:peer|orderer|ca)):latest",
                   lambda m: "hyperledger/" + m[1] + (":1.5.22" if m[1] == "fabric-ca" else ":2.5.16"), text)
     for old, value in credentials.items():
@@ -65,7 +67,7 @@ def validate_model(model):
         policy.require(service["image"] in {"hyperledger/fabric-peer:2.5.16", "hyperledger/fabric-orderer:2.5.16", "hyperledger/fabric-ca:1.5.22"}, "Unpinned image")
         policy.require(0 < service.get("mem_limit", 0) <= 512 * 1048576 and 0 < service.get("cpus", 0) <= 1, "Missing resource limit")
         for port in service.get("ports", []):
-            policy.require(port["host_ip"] == "127.0.0.1" and int(port["published"]) in PORTS.values(), "Public or conflicting host binding")
+            policy.require(port.get("host_ip") == "127.0.0.1" and int(port["published"]) in PORTS.values(), "Public or conflicting host binding")
             ports.append(int(port["published"]))
         for mount in service.get("volumes", []):
             if mount["type"] == "bind" and mount["source"] != "/var/run/docker.sock":
