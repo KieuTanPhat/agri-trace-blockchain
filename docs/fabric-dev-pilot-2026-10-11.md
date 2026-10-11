@@ -4,8 +4,10 @@
 
 Người dùng xác nhận chưa có doanh nghiệp đối tác; dùng Fabric dev trước.
 PR [#88](https://github.com/KieuTanPhat/agri-trace-blockchain/pull/88) đã merge
-và [Development CD](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/38150410345)
-triển khai release `e1261a0203029b89745b6ab8212221fe04170a78` tại
+và triển khai release `e1261a0203029b89745b6ab8212221fe04170a78`.
+PR [#90](https://github.com/KieuTanPhat/agri-trace-blockchain/pull/90) tiếp tục
+sửa giới hạn CPU; [Development CD](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/38154437965)
+đã triển khai release `1e009831260254444389b49d6a58170c1b003950` tại
 `https://nongtrace.site`. Nền quản lý chủ chuỗi/đối tác từ PR #87 được giữ lại.
 
 Pilot dùng core writer hiện có trên channel dev riêng. Scoped grants hiện chỉ
@@ -86,12 +88,22 @@ giảm probe dư, không nới throttle, rồi chạy lại đạt.
 không OOM, khoảng 5,5 GiB RAM host còn khả dụng tại lượt kiểm. Các con số này
 là kiểm chứng tại thời điểm chạy, không thay load/HA/restore gates.
 
-PR [#90](https://github.com/KieuTanPhat/agri-trace-blockchain/pull/90) đưa CPU
-fix và báo cáo vào source; release cuối sau PR này còn chờ CI/CD. Chưa ghi
-nhận đủ 24 giờ quan sát hoặc hoàn tất toàn bộ kiến trúc.
+Release `1e009831` đã đạt
+[Application CI](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/38154437685),
+[Blockchain CI](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/38154437728),
+[Dependency Audit](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/38154437675)
+và Development CD của đúng SHA. Lượt kiểm độc lập lúc 23:26 ngày 11/10/2026
+(UTC+7) đạt 11/11 event/proof, không Pending, giữ cả mười receipt cũ, khóa dev,
+sequence 1, giới hạn CPU/RAM và production baseline. QR cũ vẫn hiển thị
+timeline đã xác minh và receipt khớp trên browser.
+
+Cửa sổ quan sát của release mới bắt đầu từ lượt này; lịch sử các cửa sổ trước
+được giữ. Chưa đủ 24 giờ quan sát hoặc hoàn tất toàn bộ kiến trúc. Tài liệu
+có thể được merge sau đó mà không thay source/image của ứng dụng đang chạy.
 
 Evidence root-only tại `/opt/agri-trace-dev/cd/hybrid-fabric-dev-20261011.json`;
-snapshot nhất quán DB/config/ledger được mã hóa CMS trong thư mục backups dev.
+key `finalCandidateDelivery` lưu SHA, CI/CD run IDs và lượt kiểm sau delivery.
+Snapshot nhất quán DB/config/ledger được mã hóa CMS trong thư mục backups dev.
 Không đưa accounts, CA enrollment secrets hoặc private key vào báo cáo.
 
 ## Công việc còn lại
