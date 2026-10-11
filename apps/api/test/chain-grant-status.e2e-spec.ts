@@ -255,6 +255,9 @@ describe('Grant issuance versus recipient disable with real PostgreSQL locks', (
     'rejects issuance when %s disable committed first without a grant or audit',
     async (subject) => {
       const target = await recipient();
+      const auditsBefore = await prisma.chainAudit.count({
+        where: { actorUserId: adminId, operation: 'GRANT_ROLE' },
+      });
       await disable(target, subject, `disable-first-${randomUUID()}`);
       await grant(target).expect(403);
       expect(
@@ -263,7 +266,21 @@ describe('Grant issuance versus recipient disable with real PostgreSQL locks', (
         }),
       ).toBe(0);
       expect(
-        await prisma.chainAudit.count({ where: { subjectId: target.user.id } }),
+        await prisma.chainAudit.count({
+          where: { actorUserId: adminId, operation: 'GRANT_ROLE' },
+        }),
+      ).toBe(auditsBefore);
+      expect(
+        await prisma.commandCommit.count({
+          where: {
+            requesterId: adminId,
+            operation: 'HYB_GRANT_ROLE',
+            resourceIds: {
+              path: ['requested', 'userId'],
+              equals: target.user.id,
+            },
+          },
+        }),
       ).toBe(0);
     },
     30000,

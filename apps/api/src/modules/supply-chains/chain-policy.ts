@@ -86,6 +86,21 @@ export async function authorizeChainCommand(
     ].includes(input.operation)
       ? String(payload.organizationId)
       : actor.organizationId;
+    if (
+      ['HYB_GRANT_ROLE', 'HYB_REVOKE_ROLE', 'HYB_SET_CAPABILITY'].includes(
+        input.operation,
+      )
+    ) {
+      // The platform caller can belong to a different org (or no org). Its
+      // actor locks alone do not serialize a recipient status UPDATE. Lock
+      // the target org/user before reading their current status in the service;
+      // FOR SHARE also conflicts with non-key status updates, unlike FK locks.
+      await db.$queryRaw`SELECT organization_id FROM organization WHERE organization_id = ${orgId}::uuid FOR SHARE`;
+      if (input.operation === 'HYB_GRANT_ROLE') {
+        const userId = String(payload.userId);
+        await db.$queryRaw`SELECT user_id FROM app_user WHERE user_id = ${userId}::uuid FOR SHARE`;
+      }
+    }
     await lockChainScope(db, `org:${orgId ?? actor.sub!}`);
     if (chainId) await lockChainScope(db, chainId);
   }
