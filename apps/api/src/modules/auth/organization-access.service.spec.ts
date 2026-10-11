@@ -87,6 +87,25 @@ describe('OrganizationAccessService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it.each(['SYSTEM_ADMIN', 'AUDITOR', 'TRANSPORTER', 'RETAILER'])(
+    'rejects %s before a farm business write',
+    async (role) => {
+      prisma.farm.findUnique.mockClear();
+      await expect(service.assertFarmWriteAccess(actor(role), 'farm-id'))
+        .rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.farm.findUnique).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects a foreign organization before a cycle write', async () => {
+    prisma.productionCycle.findUnique.mockResolvedValue({
+      id: 'cycle-id',
+      farm: { organizationId: 'farm-org-id' },
+    });
+    await expect(service.assertProductionCycleWriteAccess(actor('FARM_STAFF', 'other'), 'cycle-id'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('allows a retailer participating in a shipment', async () => {
     prisma.shipment.findUnique.mockResolvedValue({
       id: 'shipment-id',

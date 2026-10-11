@@ -5,6 +5,7 @@ export type Role =
   | "TRANSPORTER"
   | "RETAILER"
   | "AUDITOR"
+  | "CERTIFICATE_REVIEWER"
   | "SYSTEM_ACTOR";
 
 export type ProductionCycleState =

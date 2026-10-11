@@ -46,13 +46,21 @@ export class UsersService {
         'Tài khoản nghiệp vụ phải thuộc một tổ chức',
       );
     }
-    if (
-      input.organizationId &&
-      !(await this.prisma.organization.findUnique({
+    if (input.organizationId) {
+      const organization = await this.prisma.organization.findUnique({
         where: { id: input.organizationId },
-      }))
-    ) {
-      throw new UnprocessableEntityException('Organization does not exist');
+      });
+      if (!organization) {
+        throw new UnprocessableEntityException('Organization does not exist');
+      }
+      if (
+        role.code === 'CERTIFICATE_REVIEWER' &&
+        (organization.type !== 'AUDITOR' || organization.status !== 'ACTIVE')
+      ) {
+        throw new UnprocessableEntityException(
+          'Người kiểm tra hồ sơ phải thuộc tổ chức kiểm tra đang hoạt động',
+        );
+      }
     }
     return this.prisma.user.create({
       data: {

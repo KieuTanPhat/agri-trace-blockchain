@@ -64,6 +64,16 @@ async function main() {
     create: { code: 'AUDITOR', name: 'Thanh tra viên' },
   });
 
+  await prisma.role.upsert({
+    where: { code: 'CERTIFICATE_REVIEWER' },
+    update: { name: 'Người kiểm tra hồ sơ chứng chỉ' },
+    create: {
+      code: 'CERTIFICATE_REVIEWER',
+      name: 'Người kiểm tra hồ sơ chứng chỉ',
+      description: 'Duyệt hoặc từ chối chứng chỉ do trang trại gửi',
+    },
+  });
+
   const farmOrganization =
     (await prisma.organization.findFirst({
       where: {

@@ -38,13 +38,14 @@ const prisma = new PrismaClient({
 
     beforeAll(async () => {
       await prisma.$queryRaw`SELECT 1`;
-      const organization = async (type: 'FARM' | 'TRANSPORTER' | 'RETAILER') =>
+      const organization = async (type: 'FARM' | 'TRANSPORTER' | 'RETAILER' | 'AUDITOR') =>
         prisma.organization.create({
           data: { name: `Workflow ${type} ${randomUUID()}`, type },
         });
       const farmOrg = await organization('FARM');
       const transporter = await organization('TRANSPORTER');
       const retailer = await organization('RETAILER');
+      const reviewerOrg = await organization('AUDITOR');
       const foreignFarm = await organization('FARM');
       farmOrgId = farmOrg.id;
       transporterOrgId = transporter.id;
@@ -66,6 +67,7 @@ const prisma = new PrismaClient({
         ['retailer', 'RETAILER', retailer.id],
         ['admin', 'SYSTEM_ADMIN', null],
         ['auditor', 'AUDITOR', null],
+        ['reviewer', 'CERTIFICATE_REVIEWER', reviewerOrg.id],
         ['unscoped', 'FARM_STAFF', null],
       ] as const) {
         const role = await prisma.role.upsert({
@@ -188,6 +190,117 @@ const prisma = new PrismaClient({
       ).expect(201);
       return { ...fixture, shipment };
     }
+
+    it('denies business writes by admin, auditor and foreign organizations without side effects', async () => {
+      const { cycle, lot } = await harvestedLot();
+      const shipment = (await post('/shipments', {
+        lotId: lot.id,
+        transporterOrgId,
+        retailerOrgId,
+        origin: 'Farm',
+        destination: 'Retailer',
+      }).expect(201)).body.data;
+      const before = {
+        cycles: await prisma.productionCycle.count(),
+        harvests: await prisma.harvestEvent.count({ where: { cycleId: cycle.id } }),
+        shipments: await prisma.shipment.count({ where: { lotId: lot.id } }),
+        inspections: await prisma.inspection.count({ where: { lotId: lot.id } }),
+        certificates: await prisma.certificate.count({ where: { lotId: lot.id } }),
+        events: await prisma.traceEvent.count(),
+        outbox: await prisma.blockchainOutbox.count(),
+        lot: await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } }),
+      };
+      const newCycle = {
+        farmId,
+        productId,
+        cycleCode: 'DENIED-' + randomUUID(),
+        maxHarvestQuantity: 1,
+        harvestUnit: 'kg',
+      };
+      for (const actor of ['admin', 'auditor', 'foreign']) {
+        await post('/production-cycles', newCycle, actor).expect(403);
+        await post(`/production-cycles/${cycle.id}/plant`, {
+          version: 1,
+          plantedAt: '2026-09-25T00:00:00.000Z',
+        }, actor).expect(403);
+        await post(`/production-cycles/${cycle.id}/care`, {
+          version: 1,
+          careType: 'WATERING',
+          eventTime: '2026-09-25T00:00:00.000Z',
+        }, actor).expect(403);
+        await post(`/production-cycles/${cycle.id}/sensor-readings`, {
+          deviceId: randomUUID(),
+          sensorType: 'TEMPERATURE',
+          value: 25,
+          unit: 'C',
+          recordedAt: '2026-09-25T00:00:00.000Z',
+        }, actor).expect(403);
+        await post(`/production-cycles/${cycle.id}/close`, { version: 1 }, actor).expect(403);
+        await post(`/production-cycles/${cycle.id}/cancel`, {
+          version: 1,
+          reason: 'Not authorized',
+        }, actor).expect(403);
+        await post(`/production-cycles/${cycle.id}/harvests`, {
+          quantity: 0.1,
+          unit: 'kg',
+          harvestTime: '2026-09-26T00:00:00.000Z',
+        }, actor).expect(403);
+        await post('/shipments', {
+          lotId: lot.id,
+          transporterOrgId,
+          retailerOrgId,
+          origin: 'Farm',
+          destination: 'Retailer',
+        }, actor).expect(403);
+        await post(`/shipments/${shipment.id}/start`, {
+          version: 0,
+          lotVersion: 0,
+        }, actor).expect(403);
+        await post(`/shipments/${shipment.id}/arrive`, {
+          version: 0,
+          lotVersion: 0,
+        }, actor).expect(403);
+        await post(`/shipments/${shipment.id}/damage`, {
+          version: 0,
+          lotVersion: 0,
+          quantity: 0.1,
+          reason: 'Not authorized',
+        }, actor).expect(403);
+        await post(`/shipments/${shipment.id}/receive`, {
+          version: 0,
+          lotVersion: 0,
+          receivedQuantity: 0.5,
+        }, actor).expect(403);
+        await post(`/shipments/${shipment.id}/reject`, {
+          version: 0,
+          lotVersion: 0,
+          reason: 'Not authorized',
+        }, actor).expect(403);
+        await post('/inspections', {
+          lotId: lot.id,
+          result: 'PASS',
+          inspectedAt: new Date().toISOString(),
+        }, actor).expect(403);
+        await post('/certificates', {
+          lotId: lot.id,
+          type: 'VietGAP',
+          issuer: 'Test issuer',
+          issueDate: '2026-09-26',
+          documentRef: 'private-reference',
+          documentHash: 'a'.repeat(64),
+        }, actor).expect(403);
+      }
+      expect(await prisma.productionCycle.count()).toBe(before.cycles);
+      expect(await prisma.harvestEvent.count({ where: { cycleId: cycle.id } })).toBe(before.harvests);
+      expect(await prisma.shipment.count({ where: { lotId: lot.id } })).toBe(before.shipments);
+      expect(await prisma.inspection.count({ where: { lotId: lot.id } })).toBe(before.inspections);
+      expect(await prisma.certificate.count({ where: { lotId: lot.id } })).toBe(before.certificates);
+      expect(await prisma.traceEvent.count()).toBe(before.events);
+      expect(await prisma.blockchainOutbox.count()).toBe(before.outbox);
+      const afterLot = await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } });
+      expect(afterLot.availableQuantity.equals(before.lot.availableQuantity)).toBe(true);
+      expect(afterLot.version).toBe(before.lot.version);
+    });
 
     it('keeps a linear hash chain when business timestamps are backdated or tied', async () => {
       const db = prisma as unknown as PrismaService;
@@ -749,12 +862,12 @@ const prisma = new PrismaClient({
         .set('Idempotency-Key', randomUUID())
         .send({ status: 'APPROVED' })
         .expect(403);
-      // Pre-approved evidence is a database fixture, not an invented reviewer role.
-      // AGT-026 must decide an authorized actor before the HTTP review path opens.
-      await prisma.certificate.update({
-        where: { id: certificate.id },
-        data: { status: 'APPROVED' },
-      });
+      await request(app.getHttpServer())
+        .patch(`/api/certificates/${certificate.id}/review`)
+        .set('Authorization', bearer('reviewer'))
+        .set('Idempotency-Key', randomUUID())
+        .send({ status: 'APPROVED' })
+        .expect(200);
       const approved = await request(app.getHttpServer())
         .get(tracePath)
         .expect(200);

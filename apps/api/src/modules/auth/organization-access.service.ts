@@ -29,6 +29,13 @@ export class OrganizationAccessService {
     return farm;
   }
 
+  async assertFarmWriteAccess(actor: Actor, farmId: string) {
+    if (actor.role !== 'FARM_STAFF' || !actor.organizationId) {
+      throw new ForbiddenException('Chỉ nhân viên nông trại được ghi nghiệp vụ');
+    }
+    return this.assertFarmAccess(actor, farmId);
+  }
+
   async assertProductionCycleAccess(actor: Actor, cycleId: string) {
     const cycle = await this.prisma.productionCycle.findUnique({
       where: { id: cycleId },
@@ -52,6 +59,13 @@ export class OrganizationAccessService {
     );
 
     return cycle;
+  }
+
+  async assertProductionCycleWriteAccess(actor: Actor, cycleId: string) {
+    if (actor.role !== 'FARM_STAFF' || !actor.organizationId) {
+      throw new ForbiddenException('Chỉ nhân viên nông trại được ghi nghiệp vụ');
+    }
+    return this.assertProductionCycleAccess(actor, cycleId);
   }
 
   async assertLotAccess(actor: Actor, lotId: string) {
