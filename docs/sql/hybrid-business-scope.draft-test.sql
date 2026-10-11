@@ -54,10 +54,18 @@ BEGIN
   INSERT INTO farm(organization_id,name) VALUES (pg_temp.fixture('producer'),'Schema farm') RETURNING farm_id INTO v_farm;
   INSERT INTO product(product_name,default_unit) VALUES ('Schema crop','kg') RETURNING product_id INTO v_product;
   INSERT INTO scope_fixture VALUES ('farm',v_farm),('product',v_product);
+  INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id)
+    VALUES ('legacy-before-cutover',v_product,v_farm,pg_temp.fixture('producer')) RETURNING cycle_id INTO v_cycle;
+  INSERT INTO scope_fixture VALUES ('legacy_cycle',v_cycle);
   PERFORM pg_temp.reject('profile-preparing-denies-cycle',format(
     'INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id,chain_id) VALUES (%L,%L,%L,%L,%L)',
     'blocked',v_product,v_farm,pg_temp.fixture('producer'),pg_temp.fixture('chain_a')),'Hybrid business profile not active');
   UPDATE chain_business_profile SET state='ACTIVE',version=1;
+  PERFORM pg_temp.reject('omitting-chain-cannot-bypass-cutover',format(
+    'INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id) VALUES (%L,%L,%L,%L)',
+    'legacy-after-cutover',v_product,v_farm,pg_temp.fixture('producer')),'Chain scope required after cutover');
+  PERFORM pg_temp.reject('unresolved-legacy-write-denied',format(
+    'UPDATE production_cycle SET note=%L WHERE cycle_id=%L','bypass',pg_temp.fixture('legacy_cycle')),'Unresolved legacy cycle blocks writes');
   INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id,chain_id)
     VALUES ('scoped',v_product,v_farm,pg_temp.fixture('producer'),pg_temp.fixture('chain_a')) RETURNING cycle_id INTO v_cycle;
   INSERT INTO scope_fixture VALUES ('cycle',v_cycle);
@@ -172,6 +180,29 @@ BEGIN
     pg_temp.fixture('lot'),pg_temp.fixture('transporter'),pg_temp.fixture('retailer'),'farm','shop-v2','kg'),'unique constraint');
   PERFORM pg_temp.reject('created-shipment-route-immutable',format(
     'UPDATE shipment SET destination=%L WHERE shipment_id=%L','forged',pg_temp.fixture('shipment')),'Shipment assignment, route');
+END;
+$$;
+
+DO $$
+DECLARE v_org uuid; v_farm uuid; v_member uuid;
+BEGIN
+  INSERT INTO organization(name,type) VALUES ('Late partner','FARM') RETURNING organization_id INTO v_org;
+  INSERT INTO chain_membership(chain_id,organization_id) VALUES (pg_temp.fixture('chain_a'),v_org) RETURNING membership_id INTO v_member;
+  PERFORM pg_temp.check('invitation-does-not-cutover-org',NOT EXISTS(SELECT 1 FROM organization_business_scope WHERE organization_id=v_org));
+  UPDATE chain_membership SET status='ACTIVE',version=1 WHERE membership_id=v_member;
+  PERFORM pg_temp.check('late-acceptance-records-cutover',EXISTS(SELECT 1 FROM organization_business_scope WHERE organization_id=v_org));
+  UPDATE chain_membership SET status='REVOKED',version=2 WHERE membership_id=v_member;
+  PERFORM pg_temp.check('revocation-retains-cutover',EXISTS(SELECT 1 FROM organization_business_scope WHERE organization_id=v_org));
+  INSERT INTO farm(organization_id,name) VALUES (v_org,'Late partner farm') RETURNING farm_id INTO v_farm;
+  PERFORM pg_temp.reject('revoked-member-cannot-use-legacy-create',format(
+    'INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id) VALUES (%L,%L,%L,%L)',
+    'legacy-bypass',pg_temp.fixture('product'),v_farm,v_org),'Chain scope required after cutover');
+  PERFORM pg_temp.reject('cutover-marker-immutable',format('DELETE FROM organization_business_scope WHERE organization_id=%L',v_org),'immutable');
+  UPDATE chain_business_profile SET state='SUSPENDED',version=2 WHERE chain_id=pg_temp.fixture('chain_a');
+  PERFORM pg_temp.check('profile-suspension-retains-cutover',EXISTS(SELECT 1 FROM organization_business_scope WHERE organization_id=v_org));
+  PERFORM pg_temp.reject('suspended-profile-denies-scoped-cycle',format(
+    'INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id,chain_id) VALUES (%L,%L,%L,%L,%L)',
+    'suspended',pg_temp.fixture('product'),pg_temp.fixture('farm'),pg_temp.fixture('producer'),pg_temp.fixture('chain_a')),'Hybrid business profile not active');
 END;
 $$;
 

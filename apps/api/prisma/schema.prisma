@@ -40,6 +40,7 @@ model User {
   recordedInspections Inspection[]
   scopedGrants ScopedRoleGrant[]
   chainAudits ChainAudit[]
+  shipmentPlanAcceptances ShipmentPlanAcceptance[]
 
   @@unique([id, organizationId], map: "uq_user_org_scope")
 
@@ -83,6 +84,12 @@ model Organization {
   ownedChains            SupplyChain[]
   chainMemberships       ChainMembership[]
   scopedGrants           ScopedRoleGrant[]
+  stageAssignments       StageAssignment[]
+  businessScope          OrganizationBusinessScope?
+  planProducerRevisions  ShipmentPlanRevision[] @relation("PlanProducer")
+  planTransportRevisions ShipmentPlanRevision[] @relation("PlanTransporter")
+  planRetailRevisions    ShipmentPlanRevision[] @relation("PlanRetailer")
+  shipmentPlanAcceptances ShipmentPlanAcceptance[]
 
   @@map("organization")
 }
@@ -111,6 +118,11 @@ model SupplyChain {
   memberships ChainMembership[]
   grants ScopedRoleGrant[]
   audits ChainAudit[]
+  businessProfile ChainBusinessProfile?
+  cycles ProductionCycle[]
+  assignments StageAssignment[]
+  shipmentPlans ShipmentPlan[]
+  eventContexts EventChainContext[]
 
   @@index([ownerOrganizationId])
   @@map("supply_chain")
@@ -128,6 +140,7 @@ model ChainMembership {
   chain SupplyChain @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   grants ScopedRoleGrant[]
+  assignments StageAssignment[]
 
   @@unique([chainId, organizationId], map: "uq_chain_membership_org")
   @@index([organizationId, status])
@@ -148,6 +161,7 @@ model ScopedRoleGrant {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   chain SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   membership ChainMembership? @relation(fields: [chainId, organizationId], references: [chainId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  planAcceptances ShipmentPlanAcceptance[]
 
   @@index([userId, revokedAt])
   @@index([chainId, organizationId])
@@ -192,6 +206,153 @@ enum ScopedRole {
   RETAILER
   AUDITOR
   COMPLIANCE_REVIEWER
+}
+
+// Candidate models; docs/sql draft must be applied to isolated DBs explicitly.
+// No deployable migration or CD checksum exception has been added.
+enum ChainBusinessProfileState {
+  PREPARING
+  ACTIVE
+  SUSPENDED
+  @@map("hybrid_business_profile_state")
+}
+enum BusinessStage {
+  PRODUCTION
+  TRANSPORT
+  RETAIL
+  @@map("hybrid_stage")
+}
+enum StageAssignmentState {
+  PROPOSED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  @@map("hybrid_assignment_state")
+}
+enum ShipmentPlanState {
+  DRAFT
+  FINALIZED
+  CANCELLED
+  @@map("hybrid_shipment_plan_state")
+}
+enum ShipmentPlanParty {
+  PRODUCER
+  TRANSPORTER
+  RETAILER
+  @@map("hybrid_plan_party")
+}
+
+model ChainBusinessProfile {
+  chainId String @id @map("chain_id") @db.Uuid
+  state ChainBusinessProfileState @default(PREPARING)
+  scopeVersion Int @default(1) @map("scope_version")
+  version Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  chain SupplyChain @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  @@map("chain_business_profile")
+}
+
+model OrganizationBusinessScope {
+  organizationId String @id @map("organization_id") @db.Uuid
+  scopeVersion Int @default(1) @map("scope_version")
+  activatedAt DateTime @default(now()) @map("activated_at") @db.Timestamptz(6)
+  organization Organization @relation(fields: [organizationId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  @@map("organization_business_scope")
+}
+
+model StageAssignment {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("assignment_id") @db.Uuid
+  chainId String @map("chain_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  stage BusinessStage
+  cycleId String? @map("cycle_id") @db.Uuid
+  lotId String? @map("lot_id") @db.Uuid
+  shipmentId String? @map("shipment_id") @db.Uuid
+  status StageAssignmentState @default(PROPOSED)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  chain SupplyChain @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  membership ChainMembership @relation(fields: [chainId, organizationId], references: [chainId, organizationId], onUpdate: NoAction, onDelete: Restrict)
+  cycle ProductionCycle? @relation(fields: [cycleId, chainId], references: [id, chainId], onUpdate: NoAction, onDelete: Restrict)
+  lot Lot? @relation(fields: [lotId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  shipment Shipment? @relation(fields: [shipmentId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  @@unique([chainId, cycleId, stage], map: "uq_stage_cycle_active", where: raw("(status IN ('PROPOSED', 'ACCEPTED'))"))
+  @@unique([chainId, lotId, stage], map: "uq_stage_lot_active", where: raw("(status IN ('PROPOSED', 'ACCEPTED'))"))
+  @@unique([chainId, shipmentId, stage], map: "uq_stage_shipment_active", where: raw("(status IN ('PROPOSED', 'ACCEPTED'))"))
+  @@index([chainId, organizationId, stage, status], map: "ix_stage_actor_scope")
+  @@map("stage_assignment")
+}
+
+model ShipmentPlan {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("plan_id") @db.Uuid
+  chainId String @map("chain_id") @db.Uuid
+  lotId String @map("lot_id") @db.Uuid
+  currentRevision Int @default(0) @map("current_revision")
+  version Int @default(0)
+  status ShipmentPlanState @default(DRAFT)
+  shipmentId String? @unique @map("shipment_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  chain SupplyChain @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  lot Lot @relation(fields: [lotId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  shipment Shipment? @relation(fields: [shipmentId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  current ShipmentPlanRevision @relation("PlanCurrent", fields: [id, currentRevision], references: [planId, revision], onUpdate: NoAction, onDelete: Restrict, map: "fk_plan_current_revision")
+  revisions ShipmentPlanRevision[] @relation("PlanHistory")
+  @@index([chainId, lotId, status], map: "ix_plan_chain_lot")
+  @@map("shipment_plan")
+}
+
+model ShipmentPlanRevision {
+  planId String @map("plan_id") @db.Uuid
+  revision Int
+  producerOrgId String @map("producer_org_id") @db.Uuid
+  transporterOrgId String @map("transporter_org_id") @db.Uuid
+  retailerOrgId String @map("retailer_org_id") @db.Uuid
+  quantity Decimal @db.Decimal(14,3)
+  unit String @db.VarChar(30)
+  origin String
+  destination String
+  vehicleRef String? @map("vehicle_ref")
+  plannedPickupTime DateTime? @map("planned_pickup_time") @db.Timestamptz(6)
+  expectedArrivalTime DateTime? @map("expected_arrival_time") @db.Timestamptz(6)
+  payloadDigest String @map("payload_digest") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan ShipmentPlan @relation("PlanHistory", fields: [planId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  currentFor ShipmentPlan[] @relation("PlanCurrent")
+  producer Organization @relation("PlanProducer", fields: [producerOrgId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  transporter Organization @relation("PlanTransporter", fields: [transporterOrgId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  retailer Organization @relation("PlanRetailer", fields: [retailerOrgId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  acceptances ShipmentPlanAcceptance[]
+  @@id([planId, revision])
+  @@map("shipment_plan_revision")
+}
+
+model ShipmentPlanAcceptance {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("acceptance_id") @db.Uuid
+  planId String @map("plan_id") @db.Uuid
+  revision Int
+  party ShipmentPlanParty
+  organizationId String @map("organization_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  grantId String @map("grant_id") @db.Uuid
+  grantRevision Int @map("grant_revision")
+  acceptedAt DateTime @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  planRevision ShipmentPlanRevision @relation(fields: [planId, revision], references: [planId, revision], onUpdate: NoAction, onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  user User @relation(fields: [userId, organizationId], references: [id, organizationId], onUpdate: NoAction, onDelete: Restrict)
+  grant ScopedRoleGrant @relation(fields: [grantId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  @@unique([planId, revision, party])
+  @@map("shipment_plan_acceptance")
+}
+
+model EventChainContext {
+  eventId String @id @map("event_id") @db.Uuid
+  chainId String @map("chain_id") @db.Uuid
+  scopeVersion Int @default(1) @map("scope_version")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  event TraceEvent @relation(fields: [eventId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  chain SupplyChain @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  @@map("event_chain_context")
 }
 
 model Farm {
@@ -252,6 +413,7 @@ model ProductionCycle {
   productId          String               @map("product_id") @db.Uuid
   farmId             String               @map("farm_id") @db.Uuid
   farmOrgId          String               @map("farm_org_id") @db.Uuid
+  chainId            String?              @map("chain_id") @db.Uuid
   plotId             String?              @map("plot_id") @db.Uuid
   startDate          DateTime?            @map("start_date") @db.Date
   plannedHarvest     DateTime?            @map("planned_harvest") @db.Date
@@ -273,11 +435,15 @@ model ProductionCycle {
   sensorDigests      SensorDigest[]
   sensorReadings     SensorReading[]
   traceEvents        TraceEvent[]
+  chain              SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  assignments        StageAssignment[]
 
   harvestSensorWindows HarvestSensorWindow[]
   sensorReconciliations CycleSensorReconciliation[]
 
   @@unique([farmId, cycleCode], map: "uq_production_cycle_farm_code")
+  @@unique([id, chainId], map: "uq_cycle_chain_scope")
+  @@index([chainId], map: "ix_cycle_chain_scope")
   @@index([farmOrgId], map: "ix_production_cycle_farm_org")
   @@index([productId], map: "ix_production_cycle_product")
   @@index([currentState], map: "ix_production_cycle_state")
@@ -415,6 +581,8 @@ model Lot {
   product           Product            @relation(fields: [productId], references: [id], onUpdate: NoAction)
   quantityMovements QuantityMovement[]
   shipment          Shipment?
+  stageAssignments  StageAssignment[]
+  shipmentPlans     ShipmentPlan[]
   traceEvents       TraceEvent[]
   traceQr           TraceQr?
 
@@ -448,6 +616,8 @@ model Shipment {
   createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime                  @default(now()) @map("updated_at") @db.Timestamptz(6)
   lot               Lot                       @relation(fields: [lotId], references: [id], onUpdate: NoAction)
+  stageAssignments  StageAssignment[]
+  shipmentPlan      ShipmentPlan?
   retailer          Organization              @relation("ShipmentRetailer", fields: [retailerOrgId], references: [id], onUpdate: NoAction)
   transporter       Organization              @relation("ShipmentTransporter", fields: [transporterOrgId], references: [id], onUpdate: NoAction)
   telemetry         ShipmentTelemetry[]
@@ -545,6 +715,7 @@ model ShipmentTelemetryDigest {
 }
 
 model TraceEvent {
+  chainContext EventChainContext?
   id                      String             @id @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
   entityType              String             @map("entity_type") @db.VarChar(50)
   entityId                String             @map("entity_id") @db.Uuid

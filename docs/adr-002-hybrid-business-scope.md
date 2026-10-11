@@ -17,6 +17,10 @@ Các quyết định triển khai:
   replay/assignment/DB/Web gates của A đạt. Core vẫn phải kiểm quyền server;
   frontend flag không là nguồn quyền. Rollback sau khi có scoped data phải
   hiểu scope, không quay về image chỉ có global role.
+- OrganizationBusinessScope ghi mốc cutover bất biến khi profile được bật hoặc
+  khi tổ chức nhận membership ACTIVE trong profile đang bật. Thu hồi membership
+  và tạm ngừng profile không xóa mốc này. Tạo Cycle sau cutover bắt buộc chainId;
+  Cycle legacy chưa resolve scope bị chặn ghi đến khi backfill được review.
 - Production assignment được tạo ACCEPTED cùng cycle bởi user FARM_STAFF
   được cấp quyền trong chain, đúng tổ chức sở hữu Farm. Không tạo quyền canh
   tác trên Farm của pháp nhân khác hoặc cấp role chỉ vì có capability.
@@ -67,3 +71,19 @@ Không tắt trigger/constraint core để tạo fixture. SQL tests ở
 [draft-test.sql](sql/hybrid-business-scope.draft-test.sql) dùng dữ liệu tổng hợp.
 Chỉ chạy hai file SQL theo thứ tự trên TEST_DATABASE_URL riêng đã áp dụng
 migrations hiện hành; tuyệt đối không trỏ đến DB dùng chung.
+
+Lượt bổ sung lúc 00:47 ngày 12/10 đã qua 30 assertion, thêm late membership,
+marker bất biến, bỏ chainId/thu hồi/tạm ngừng không khôi phục đường ghi legacy,
+và chặn ghi root legacy chưa mapping. Draft digest hiện tại:
+`49e53ed42c56d69ddc1d26a7cc2f4e78ae28e92aa6a6f79f011cf971254b99e6`;
+scenario digest: `26e6223806b173c7fa5ad11d38fda7e7f0104d9b14335de846af92e0a99239c3`.
+Evidence: `/opt/agri-trace-admin/hybrid-scope-draft/49e53ed42c56d69d-1791740828300966564`.
+Lượt trước phát hiện trigger dùng chung đọc trường `state` của membership;
+đã tách nhánh theo bảng rồi chạy hồi quy. Thư mục lỗi và các evidence trước
+được giữ. Không sửa database ứng dụng để làm bài kiểm tra đạt.
+
+Prisma candidate đã có các models/relations tương ứng; generate 7.10.0 và
+typecheck API đạt. Chưa chạy app bằng models mới trên database dùng chung:
+migrations hiện hành chưa chứa expansion, nên chỉ dùng DB cách ly đã áp dụng
+draft. ORM/SQL alignment, API/read/write/replay/concurrency, Swagger/Web và
+rehearsal toàn bộ còn là gate trước promotion/rollout.

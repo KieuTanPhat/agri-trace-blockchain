@@ -16,6 +16,16 @@ CREATE TABLE chain_business_profile (
   created_at timestamptz(6) NOT NULL DEFAULT now()
 );
 
+-- Persist the cutover across membership revoke/profile suspension. A caller
+-- cannot regain the legacy create path by omitting chainId after cutover.
+CREATE TABLE organization_business_scope (
+  organization_id uuid PRIMARY KEY REFERENCES organization ON UPDATE NO ACTION ON DELETE RESTRICT,
+  scope_version integer NOT NULL DEFAULT 1 CHECK (scope_version = 1),
+  activated_at timestamptz(6) NOT NULL DEFAULT now()
+);
+CREATE TRIGGER trg_hybrid_org_cutover_immutable BEFORE UPDATE OR DELETE ON organization_business_scope
+  FOR EACH ROW EXECUTE FUNCTION protect_command_commit();
+
 ALTER TABLE production_cycle ADD COLUMN chain_id uuid REFERENCES supply_chain ON UPDATE NO ACTION ON DELETE RESTRICT;
 CREATE UNIQUE INDEX uq_cycle_chain_scope ON production_cycle (cycle_id, chain_id);
 CREATE INDEX ix_cycle_chain_scope ON production_cycle (chain_id);
@@ -124,7 +134,11 @@ BEGIN
   IF TG_OP = 'UPDATE' AND NEW.chain_id IS DISTINCT FROM OLD.chain_id THEN
     RAISE EXCEPTION 'Cycle scope immutable; legacy mapping requires reviewed cutover';
   END IF;
-  IF TG_OP = 'INSERT' AND NEW.chain_id IS NOT NULL THEN
+  IF NEW.chain_id IS NULL AND EXISTS (SELECT 1 FROM organization_business_scope WHERE organization_id = NEW.farm_org_id) THEN
+    IF TG_OP = 'INSERT' THEN RAISE EXCEPTION 'Chain scope required after cutover'; END IF;
+    RAISE EXCEPTION 'Unresolved legacy cycle blocks writes after cutover';
+  END IF;
+  IF NEW.chain_id IS NOT NULL THEN
     PERFORM fn_hybrid_participant(NEW.chain_id, NEW.farm_org_id, 'FARM');
   END IF;
   RETURN NEW;
@@ -347,6 +361,31 @@ END;
 $$;
 CREATE TRIGGER trg_hybrid_profile_state BEFORE INSERT OR UPDATE OR DELETE ON chain_business_profile
   FOR EACH ROW EXECUTE FUNCTION fn_hybrid_profile_state();
+
+CREATE FUNCTION fn_hybrid_record_org_cutover() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'chain_business_profile' THEN
+    IF NEW.state = 'ACTIVE' THEN
+      INSERT INTO organization_business_scope(organization_id)
+        SELECT organization_id FROM chain_membership WHERE chain_id = NEW.chain_id AND status = 'ACTIVE'
+        ON CONFLICT (organization_id) DO NOTHING;
+    END IF;
+  ELSIF TG_TABLE_NAME = 'chain_membership' THEN
+    IF NEW.status = 'ACTIVE'
+      AND EXISTS (SELECT 1 FROM chain_business_profile WHERE chain_id = NEW.chain_id AND state = 'ACTIVE') THEN
+      INSERT INTO organization_business_scope(organization_id) VALUES (NEW.organization_id)
+        ON CONFLICT (organization_id) DO NOTHING;
+    END IF;
+  ELSE
+    RAISE EXCEPTION 'Unexpected cutover trigger table';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER trg_hybrid_profile_cutover AFTER UPDATE ON chain_business_profile
+  FOR EACH ROW EXECUTE FUNCTION fn_hybrid_record_org_cutover();
+CREATE TRIGGER trg_hybrid_membership_cutover AFTER INSERT OR UPDATE ON chain_membership
+  FOR EACH ROW EXECUTE FUNCTION fn_hybrid_record_org_cutover();
 
 -- Still a draft: dedicated DB scenarios, Prisma, service locking/read/write,
 -- capability changes to existing Farm/Shipment triggers, cutover and Web gates
