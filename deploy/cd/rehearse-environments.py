@@ -41,6 +41,12 @@ def main():
                 assert all(not service.get("ports") for service in model["services"].values())
                 assert "proxy" not in model["services"]
                 run(*dc, "up", "-d", "--wait", "--wait-timeout", "120", "postgres")
+                # A fresh volume must accept a query after --wait, before any migration.
+                # Unix-socket readiness can catch initdb's temporary server during shutdown.
+                ready = run(*dc, "exec", "-T", "-e", "PGPASSWORD=" + values["POSTGRES_PASSWORD"],
+                    "postgres", "psql", "-h", "127.0.0.1", "-U", "ci_test", "-d", "ci_test", "-At", "-c",
+                    "SELECT 1, to_regclass('public._prisma_migrations') IS NOT NULL")
+                assert ready.strip() == b"1|f", "Fresh PostgreSQL was not ready before migration"
                 run(*dc, "run", "--rm", "--no-deps", "migrate")
                 run(*dc, "up", "-d", "--wait", "--wait-timeout", "180", "api", "web")
                 run(*dc, "exec", "-T", "api", "node", "-e", "fetch('http://api:8080/api/health').then(r=>{if(!r.ok)process.exit(1)})")
@@ -68,7 +74,7 @@ def main():
             run(*commands[dev], "up", "-d", "--wait", "--wait-timeout", "180", "postgres", "api", "web")
             assert sql(dev, "SELECT id FROM ci_environment_marker").strip().decode() == dev
             assert baseline() == before
-            print(json.dumps({"result": "passed", "scenarios": ["separate-networks-databases", "light-without-worker", "backup-restore", "dev-retire-recreate", "prod-identities-data-unchanged"]}))
+            print(json.dumps({"result": "passed", "scenarios": ["cold-postgres-ready-before-migration", "separate-networks-databases", "light-without-worker", "backup-restore", "dev-retire-recreate", "prod-identities-data-unchanged"]}))
         finally:
             # Only these literal, run-scoped CI projects may be reset here.
             for dc in commands.values():

@@ -27,6 +27,10 @@ thêm 2 GiB. Đây là admission guard, không thay thế phép đo tải thực
 Dev có giới hạn PostgreSQL 384 MiB, API 384 MiB, Web 512 MiB; Worker khi bật
 512 MiB. Kiểm OOM/restarts và độ trễ prod khi tăng tải.
 
+Healthcheck PostgreSQL chờ kết nối TCP trên `127.0.0.1`, tránh nhận nhầm server
+tạm chỉ mở Unix socket trong lúc tạo volume mới. CI tạo hai database trống và
+chạy query ngay sau `compose up --wait`, trước migration, để kiểm tra bước này.
+
 ## Cài đặt một lần bởi quản trị viên
 
 Đọc inventory live, giữ snapshot và restore evidence trước cutover. Dùng source
@@ -60,6 +64,9 @@ password bị khóa, không shell/port forwarding; sudo chỉ gọi wrapper củ
    `CD_HOST`, `CD_USER`, `CD_KNOWN_HOSTS`, `CD_PROJECT`, `CD_PROFILE`,
    `CD_DEPLOY_ENABLED`. Dev profile `light`; prod profile `fabric` và project
    `agri-trace-uat` cho adoption. Host key pins phải được đối chiếu bằng admin.
+   Caller phải forward rõ secret `CD_SSH_PRIVATE_KEY` tới reusable workflow;
+   job có environment lấy giá trị của đúng environment. Không dùng `inherit`
+   để đưa các khóa UAT hoặc credentials không liên quan vào workflow dev.
 5. Đặt repo var `UAT_DEPLOY_ENABLED=false` và legacy server config `enabled=false`
    trước chuyển proxy. Giữ controller cũ để phục hồi trong maintenance, nhưng
    không cho hai CD paths cùng điều khiển app project. Recover journal cũ trước
