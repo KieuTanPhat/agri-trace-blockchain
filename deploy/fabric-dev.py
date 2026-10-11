@@ -143,6 +143,9 @@ def prepare(c):
         service["cpus"] = 1.0
         service["restart"] = "unless-stopped"
         service["labels"]["agritrace.environment"] = "development"
+        if "fabric-ca" in service["image"]:
+            # Forward SIGTERM to the CA, keeping stop/backup bounded.
+            service["command"][2] = "exec " + service["command"][2]
         if "fabric-peer" in service["image"]:
             service["environment"].update(CORE_PEER_NETWORKID="agritrace-dev", CORE_VM_DOCKER_HOSTCONFIG_MEMORY="536870912", CORE_VM_DOCKER_HOSTCONFIG_NANOCPUS="1000000000")
     validate_model(model)
