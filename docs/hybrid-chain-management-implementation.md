@@ -103,3 +103,25 @@ tám trace/outbox Pending, không proof, containers healthy, không OOM; CD dev
 Chưa hoàn thành gate A/B/C hoặc thời gian quan sát 24 giờ sau candidate cuối.
 Mạng Fabric dev riêng là bước tiếp theo; dựng mạng không mở scoped business
 commands hoặc quyền tự quản của một doanh nghiệp chưa tham gia.
+
+## Pilot Fabric dev đang kiểm chứng
+
+Đã provision CA/peer/orderer riêng, channel `agritrace-dev`, sequence 1,
+package từ release `c07f625`. Lần dựng đầu phát hiện: cổng chưa bind loopback,
+helper orderer động lệch hostname/path, endpoint IP không khớp TLS DNS SAN và
+image tạo volume ẩn ngoài danh mục. Đã sửa generator, giữ CA/MSP/ledger đang có,
+cấp lại TLS orderer đúng hostname và quản lý explicit mounts.
+
+Một chẩn đoán operator đã in nhầm enrollment secret của identity test; đã đổi
+14 enrollment secrets bằng CA admin. Không xuất private key; credential không
+được ghi vào báo cáo. Chẩn đoán tiếp theo che mọi secret trước khi xuất.
+
+Lần bật đầu ghi 7/8 events rồi bị gate chặn: canary confirm trước một aggregate
+còn Pending. Fabric-off phát hiện QR so receipt với default channel thay vì
+channel dev. Đã đưa API về light bằng context đọc đúng channel, giữ bảy proof
+và event cuối Pending. Bản sửa đợi backlog và sinh ledger context đang được
+kiểm CI trước delivery. Không sửa event/hash/proof để vượt gate.
+
+Chưa ghi nhận switch/drain/retention cuối hoặc đủ 24 giờ quan sát. Evidence
+root-only: `/opt/agri-trace-dev/cd/hybrid-fabric-dev-20261011.json` và
+`/opt/agri-trace-dev/shared/fabric/repair-evidence.json`.

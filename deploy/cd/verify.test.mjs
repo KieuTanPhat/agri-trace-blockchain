@@ -8,13 +8,15 @@ import test from 'node:test';
 async function verify({legacy = false, canary = null, requireSessionFamily = false,
   legacyQrLotIds = [], qrLegacy = false, qrWarning = false, timelineWarning = false,
   quantityMismatch = false, sensorOverrides = {}, profile = 'fabric', pending = false,
-  environment, canaryCatalog} = {}) {
+  environment, canaryCatalog, delayedDrain = 0, neverDrain = false, deadLetter = false} = {}) {
   const accounts = ['SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR']
     .map(role => ({role, email: `${role}@test.invalid`, password: 'synthetic-private-password'}));
   const sessions = new Map();
   const output = [];
   const errors = [];
   const calls = [];
+  let drainQueries=0;
+  let simulatedTime=0;
   const runtime = {env: {DATABASE_URL: 'postgresql://unused'}, exitCode: 0};
   const event = {event_id: 'event-1', entity_type: 'PRODUCTION_CYCLE', entity_id: 'cycle-1',
     data_hash: 'a'.repeat(64), previous_event_hash: null, immutable_row: '{"event_id":"event-1"}',
@@ -85,6 +87,7 @@ async function verify({legacy = false, canary = null, requireSessionFamily = fal
     async connect() {}
     async end() {}
     async query(sql) {
+      if(sql.includes('AS incomplete'))return {rows:[{total:1,incomplete:neverDrain||drainQueries++<delayedDrain?1:0,dead_letter:deadLetter?1:0}]};
       if (sql.includes('WHERE e.entity_id=$1')) return {rows: [event]};
       if (sql.includes('to_jsonb(e)')) return {rows: [event]};
       if (sql.includes('SELECT lot_id,trace_token')) return {rows: [{lot_id: 'lot-1', trace_token: 'token-1'}]};
@@ -102,7 +105,9 @@ async function verify({legacy = false, canary = null, requireSessionFamily = fal
       async queryEntityHistory() { return clone([{eventId: event.event_id}]); }
     }};
   const context = createContext({fetch, process: runtime, AbortSignal,
-    console: {log: value => output.push(value), error: value => errors.push(value)}, setTimeout});
+    console: {log: value => output.push(value), error: value => errors.push(value)},
+    Date:class extends Date{static now(){return simulatedTime;}},
+    setTimeout:(callback,delay)=>{simulatedTime+=delay;queueMicrotask(callback);}});
   clone = runInContext('value => JSON.parse(JSON.stringify(value))', context);
   const source = ['session-auth.mjs', 'verify.mjs'].map(name => readFileSync(new URL(name, import.meta.url), 'utf8')).join('\n');
   const script = new SourceTextModule(source, {context});
@@ -114,7 +119,7 @@ async function verify({legacy = false, canary = null, requireSessionFamily = fal
     }, {context});
   });
   await script.evaluate();
-  return {runtime, output, errors, calls, closed};
+  return {runtime, output, errors, calls, closed, drainQueries};
 }
 
 test('historical baseline completes roles, refresh/logout, ledger and QR verification', async () => {
@@ -132,6 +137,22 @@ test('current family sessions survive the logout test for subsequent proof verif
   assert.equal(evidence.verifiedQR, 1);
   assert.equal(result.closed, true);
   assert.equal(result.calls.filter(path => path === '/api/auth/login').length, 5);
+});
+
+test('a confirmed canary waits for a different aggregate backlog before the ledger snapshot', async () => {
+  const result=await verify({canary:'b'.repeat(40),delayedDrain:2});
+  assert.equal(result.runtime.exitCode,0,result.errors.join('\n'));
+  assert.equal(result.drainQueries,3);
+  assert.equal(JSON.parse(result.output[0]).directLedgerEvents,1);
+});
+
+test('undrained backlog and dead-letter remain failed release gates', async () => {
+  for(const options of [{neverDrain:true},{deadLetter:true}]){
+    const result=await verify(options);
+    assert.equal(result.runtime.exitCode,1);
+    assert.match(result.errors[0],/outbox-drain/);
+    assert.equal(result.closed,true);
+  }
 });
 
 test('a candidate returning legacy JSON credentials is rejected before canary writes', async () => {

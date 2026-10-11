@@ -154,6 +154,11 @@ peer/chaincode tối đa 512 MiB mỗi container, CA 128 MiB, orderer 256 MiB.
 Mạng/channel lần lượt `agritrace-dev-fabric`/`agritrace-dev`; không mô phỏng
 authority độc lập của đối tác thật.
 
+Peer/orderer có explicit mounts cho cả `/var/hyperledger` và
+`/etc/hyperledger/fabric`, tránh volume ẩn ngoài danh mục backup. Endpoint admin
+dùng `localhost` khớp DNS SAN của cert, không tắt TLS verification. Helpers
+orderer động cũng dùng hostname đã cách ly; topology này chỉ dùng một Raft node.
+
 Đặt GitHub development `CD_DEPLOY_ENABLED=false`, xác nhận không delivery đang
 chạy và dùng source đã review để chuẩn bị/provision bằng root:
 
@@ -181,8 +186,16 @@ dừng Worker trước mạng riêng, giữ DB/ledger/identity và trở về li
 giữ `runtime-toggle.json`, dừng cả API/Worker của project dev; admin sửa nguyên
 nhân và chạy lại switch. Lỗi cleanup phải được quản trị viên đối chiếu, không
 coi là đã dừng writers thành công.
-CD không deploy đè transition chưa rõ. Fabric-on/off chưa được chứng minh trên
-VPS nếu chưa có network dev; Blockchain CI dùng Fabric riêng trên runner.
+CD không deploy đè transition chưa rõ. API nhận channel đọc từ binding qua
+overlay `ledger-context.json`, kể cả light mode sau khi đã có proof. Overlay
+chỉ có metadata channel; không cấp signer cho API. Release verifier đợi backlog
+được ghi trước khi chụp proof snapshot, có giới hạn 180 giây/10.000 events;
+dead-letter hoặc hết thời gian vẫn chặn release. Một canary đã confirm không
+đồng nghĩa mọi aggregate khác đã drain.
+
+Pilot VPS và các lỗi/sửa trong lần dựng đầu được ghi tại
+[implementation record](hybrid-chain-management-implementation.md). Blockchain
+CI dùng Fabric riêng trên runner; không thay bằng mock cho bằng chứng ledger.
 
 ## Suspend, retire và dựng lại dev
 

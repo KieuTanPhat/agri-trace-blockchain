@@ -111,6 +111,27 @@ try {
     }while(!confirmed&&Date.now()<deadline);
     assert.ok(confirmed,fabricEnabled?'Canary proof did not confirm':'Light canary must have a real Pending outbox without a proof');
   }
+  if(fabricEnabled){
+    // A confirmed canary can overtake another aggregate's Pending predecessor.
+    // Wait for the retained backlog too before taking the proof snapshot.
+    phase='outbox-drain';
+    const deadline=Date.now()+180000;
+    let incomplete;
+    do{
+      const result=await db.query(`SELECT count(*)::int AS total,
+        count(*) FILTER (WHERE o.status IS DISTINCT FROM 'COMPLETED'
+          OR p.transaction_status IS DISTINCT FROM 'CONFIRMED')::int AS incomplete,
+        count(*) FILTER (WHERE o.status='DEAD_LETTER')::int AS dead_letter
+        FROM trace_event e LEFT JOIN blockchain_outbox o USING(event_id)
+        LEFT JOIN blockchain_proof p USING(event_id)`);
+      const progress=result.rows[0];
+      assert.ok(progress.total<=10000,'Verification event budget exceeded');
+      assert.equal(progress.dead_letter,0,'Dead-letter events require reconciliation');
+      incomplete=progress.incomplete;
+      if(incomplete>0)await new Promise(resolve=>setTimeout(resolve,2000));
+    }while(incomplete>0&&Date.now()<deadline);
+    assert.equal(incomplete,0,'Retained outbox did not drain within the verification window');
+  }
   phase='database-and-ledger';
   await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
   const events=(await db.query(`SELECT e.event_id,e.entity_type,e.entity_id,e.data_hash,e.previous_event_hash,
