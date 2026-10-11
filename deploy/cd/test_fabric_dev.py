@@ -70,6 +70,10 @@ class IsolatedDevFabric(unittest.TestCase):
         changed = dev.transform(text, {})
         self.assertEqual(changed, 'ports:\n  - "127.0.0.1:27051:27051"\n  - "127.0.0.1:37054:37054"\nnetworks:\n  - test\n')
 
+    def test_orderer_loop_uses_same_isolated_hostname_as_raft_compose(self):
+        text = 'for ORDERER in orderer orderer2 orderer3 orderer4; do\n/organizations/orderers/${ORDERER}.example.com/tls --csr.hosts ${ORDERER}.example.com\norderer.example.com:7050'
+        self.assertEqual(dev.transform(text, {}), 'for ORDERER in orderer; do\n/organizations/orderers/agritrace-dev-${ORDERER}/tls --csr.hosts agritrace-dev-${ORDERER}\nagritrace-dev-orderer:27050')
+
     def test_descriptor_is_accepted_by_existing_target_policy(self):
         with patch.object(dev, "ROOT", PurePosixPath("/opt/agri-trace-dev/shared/fabric")):
             binding = dev.descriptor()

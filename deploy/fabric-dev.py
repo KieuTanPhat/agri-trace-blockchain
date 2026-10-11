@@ -41,6 +41,8 @@ FILES = ("configtx/configtx.yaml", "scripts/utils.sh", "scripts/envVar.sh", "scr
 
 
 def transform(text, credentials):
+    text = text.replace("${ORDERER}.example.com", "agritrace-dev-${ORDERER}")
+    text = text.replace("for ORDERER in orderer orderer2 orderer3 orderer4; do", "for ORDERER in orderer; do")
     for old, new in HOSTS.items():
         text = text.replace(old, new)
     text = text.replace("peer0.org${ORG}.example.com", "agritrace-dev-peer${ORG}")
@@ -194,9 +196,34 @@ def provision(c):
         c.run("dev-fabric-org-enroll", ["bash", "-c", 'cd -- "$1"; set -e; source scripts/utils.sh; source organizations/fabric-ca/registerEnroll.sh; createOrg1; createOrg2; createOrderer', "bash", str(network)], env=env)
         c.run("dev-fabric-peer-start", [*compose, "up", "-d", "agritrace-dev-orderer", "agritrace-dev-peer1", "agritrace-dev-peer2"])
         c.run("dev-fabric-channel", ["bash", "-c", 'cd -- "$1"; exec bash scripts/createChannel.sh agritrace-dev 2 20 false 0', "bash", str(network)], env=env)
-        bound = dict(c.config, fabric=descriptor(), fabric_enabled=True)
-        active = Controller(bound)
-        record = c.record(c.state()["current"])
+        return finish_provision(c)
+    except Exception:
+        stop_owned()
+        raise
+
+
+def stop_owned():
+    # Only catalogued dev containers; preserve every identity and ledger.
+    for name in HOSTS.values():
+        inspected = subprocess.run(["docker", "inspect", name], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        if inspected.returncode == 0:
+            metadata = json.loads(inspected.stdout)[0]
+            if metadata["Config"].get("Labels", {}).get("agritrace.environment") == "development" and "agritrace-dev-fabric" in metadata["NetworkSettings"]["Networks"]:
+                subprocess.run(["docker", "stop", "--time", "20", metadata["Id"]], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def finish_provision(c):
+    """Finish after both peers joined; also callable after administrator repair.
+
+    This does not regenerate any CA or node identity. A partial package/commit
+    or relayer enrollment still requires explicit reconciliation before reuse.
+    """
+    bound = dict(c.config, fabric=descriptor(), fabric_enabled=True)
+    active = Controller(bound)
+    record = c.record(c.state()["current"])
+    network = ROOT / "working/test-network"
+    env = dict(os.environ, PATH=str(ROOT / "working/bin") + ":" + os.environ["PATH"], FABRIC_CFG_PATH=str(ROOT / "working/config"))
+    try:
         package = active.storage / "records" / record["id"] / "chaincode.tgz"
         active.peer("dev-fabric-package", 1, "package", str(package), "--path", str(Path(record["directory"]) / "blockchain/chaincode"), "--lang", "node", "--label", "agritrace-" + record["sha"])
         package_id = active.peer("dev-fabric-package-id", 1, "calculatepackageid", str(package)).decode().strip()
@@ -238,13 +265,7 @@ def provision(c):
         (ROOT / "provisioning.json").unlink()
         return {"result": "provisioned-stopped", "source": record["sha"], "channel": "agritrace-dev", "sequence": 1}
     except Exception:
-        # Only catalogued dev containers; preserve every identity and ledger.
-        for name in HOSTS.values():
-            inspected = subprocess.run(["docker", "inspect", name], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-            if inspected.returncode == 0:
-                metadata = json.loads(inspected.stdout)[0]
-                if metadata["Config"].get("Labels", {}).get("agritrace.environment") == "development" and "agritrace-dev-fabric" in metadata["NetworkSettings"]["Networks"]:
-                    subprocess.run(["docker", "stop", "--time", "20", metadata["Id"]], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        stop_owned()
         raise
 
 
