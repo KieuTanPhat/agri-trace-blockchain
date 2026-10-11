@@ -36,6 +36,12 @@ jobs:
         run: node scripts/ci/changes.mjs
       - name: Check CI selection and gates before conditional jobs
         run: node --test scripts/ci/ci.test.mjs
+      - name: Validate workflow syntax and GitHub expression contexts
+        run: |
+          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/actionlint.tar.gz" https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -shellcheck='' -pyflakes=''
       - name: Check CD policy, failure recovery and exact-commit gate
         run: |
           python3 -m unittest discover -s deploy/cd -p 'test_*.py' -v

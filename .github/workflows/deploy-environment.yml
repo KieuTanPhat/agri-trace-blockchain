@@ -74,8 +74,9 @@ jobs:
       PUBLIC_ORIGIN: ${{ vars.CD_PUBLIC_ORIGIN }}
       CD_PROJECT: ${{ vars.CD_PROJECT }}
       CD_PROFILE: ${{ vars.CD_PROFILE }}
-      DOCKER_CONFIG: ${{ runner.temp }}/ghcr-config
     steps:
+      - name: Use temporary registry credentials
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/ghcr-config" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {persist-credentials: false}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
