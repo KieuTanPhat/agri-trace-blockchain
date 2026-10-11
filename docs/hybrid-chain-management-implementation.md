@@ -2,7 +2,9 @@
 
 ## Phạm vi và trạng thái
 
-Đang triển khai lên `dev` theo [plan Hybrid Fabric](plans/hybrid-fabric-chain-owner-plan-2026-10-11.md).
+Nền quản lý đã triển khai lên `dev` theo [plan Hybrid Fabric](plans/hybrid-fabric-chain-owner-plan-2026-10-11.md),
+PR [#87](https://github.com/KieuTanPhat/agri-trace-blockchain/pull/87),
+release `c07f625dad9e91525d24651dc53da7f4c28bd668`.
 Lát cắt đầu có capability, quyền theo phạm vi, bootstrap chuỗi/chủ chuỗi,
 mời/accept/tạm ngừng/thu hồi/mời lại thành viên, audit, Swagger và Web tại
 `/supply-chains`. Chưa nghiệm thu toàn bộ bản A/B/C.
@@ -66,7 +68,7 @@ Controller ghi compatible_migrations khi rollout đạt; app core cũ bỏ qua b
 Trước rollout lấy snapshot; sau rollout/rollback đối chiếu mọi event/proof
 fingerprint, QR, core workflow, counts, health và production preservation.
 
-## Kiểm chứng đang theo dõi
+## Kiểm chứng nền quản lý đã đạt
 
 Lint/typecheck API/Web và 91 unit tests API đã đạt. E2E đầu phát hiện fixture
 schema lệch khi migration còn được bổ sung; đã dựng lại DB trống. Tiếp đó phát
@@ -75,9 +77,51 @@ không bỏ khóa hoặc bớt kiểm quyền. Scenario E2E nhiều request có 
 cho kết nối DB từ xa; CI Linux kiểm trên PostgreSQL gần runner.
 
 CI Linux đầu đã qua 6/6 E2E chuỗi, 41 core workflow tests; phát hiện 14 auth
-concurrency tests lỗi cleanup do FK capability mới. Bản sửa CASCADE cần chạy
+concurrency tests lỗi cleanup do FK capability mới. Bản sửa CASCADE đã chạy
 lại toàn suite. E2E từ Windows qua SSH đạt 5/6; bài giữ khóa để quan sát thu hồi
 vượt transaction timeout, trong khi cùng bài đạt trên Linux DB gần runner.
 
-CI cuối, migration từ DB trống/copy, rollout, browser và rollback sẽ được ghi
-sau khi chạy. Windows skips/lỗi nền tảng không tính là Passed.
+Candidate `649e18437da9c9a109cd19a321f6a1595d463d78` qua Application CI,
+Blockchain CI và Dependency Audit. API có 91 unit tests và 108 E2E tests;
+Linux gần database kiểm cả race/revoke. Migration 15 chạy từ DB trống và bản
+copy dev cách ly; toàn bộ counts và bảy event fingerprints trước migration giữ
+nguyên. Windows skips/lỗi nền tảng không tính là Passed.
+
+Push CI của merge SHA và [Development CD](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/38144816746)
+đều đạt. Live smoke trên `nongtrace.site` kiểm bootstrap/create replay, outsider,
+grant chéo org, owner không accept thay, partner accept/replay, membership
+projection, grant/revoke, suspend/reinvite và không hồi sinh quyền. QR cũ còn
+tra cứu được, hiển thị Pending khi Fabric tắt. Browser kiểm route guard và QR
+công khai; chưa ghi nhận nghiệm thu UI quản lý đã đăng nhập.
+
+Rollback hai chiều `c07f625 → 298758e → c07f625` đạt. Hash dữ liệu của cả năm
+bảng quản lý giữ nguyên; 118 event/proof fingerprints production, container
+IDs/start times/restarts, state và helper bytes production giữ nguyên. Dev có
+tám trace/outbox Pending, không proof, containers healthy, không OOM; CD dev
+đã bật lại. Evidence root-only: `/opt/agri-trace-dev/cd/hybrid-foundation-20261011.json`.
+
+Chưa hoàn thành gate A/B/C hoặc thời gian quan sát 24 giờ sau candidate cuối.
+Mạng Fabric dev riêng là bước tiếp theo; dựng mạng không mở scoped business
+commands hoặc quyền tự quản của một doanh nghiệp chưa tham gia.
+
+## Pilot Fabric dev đang kiểm chứng
+
+Đã provision CA/peer/orderer riêng, channel `agritrace-dev`, sequence 1,
+package từ release `c07f625`. Lần dựng đầu phát hiện: cổng chưa bind loopback,
+helper orderer động lệch hostname/path, endpoint IP không khớp TLS DNS SAN và
+image tạo volume ẩn ngoài danh mục. Đã sửa generator, giữ CA/MSP/ledger đang có,
+cấp lại TLS orderer đúng hostname và quản lý explicit mounts.
+
+Một chẩn đoán operator đã in nhầm enrollment secret của identity test; đã đổi
+14 enrollment secrets bằng CA admin. Không xuất private key; credential không
+được ghi vào báo cáo. Chẩn đoán tiếp theo che mọi secret trước khi xuất.
+
+Lần bật đầu ghi 7/8 events rồi bị gate chặn: canary confirm trước một aggregate
+còn Pending. Fabric-off phát hiện QR so receipt với default channel thay vì
+channel dev. Đã đưa API về light bằng context đọc đúng channel, giữ bảy proof
+và event cuối Pending. Bản sửa đợi backlog và sinh ledger context đang được
+kiểm CI trước delivery. Không sửa event/hash/proof để vượt gate.
+
+Chưa ghi nhận switch/drain/retention cuối hoặc đủ 24 giờ quan sát. Evidence
+root-only: `/opt/agri-trace-dev/cd/hybrid-fabric-dev-20261011.json` và
+`/opt/agri-trace-dev/shared/fabric/repair-evidence.json`.

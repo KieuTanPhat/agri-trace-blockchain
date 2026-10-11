@@ -111,6 +111,14 @@ class LightweightController(unittest.TestCase):
         for _, args in calls:
             self.assertEqual(args[args.index("--project-name") + 1], "agritrace-dev")
 
+    def test_light_api_keeps_retained_channel_without_signer_or_worker(self):
+        self.controller.fabric = {"channel": "agritrace-dev"}
+        args = self.controller.dc(self.record, "config")
+        context = self.controller.storage / "records" / self.record["id"] / "ledger-context.json"
+        self.assertIn(str(context), args)
+        self.assertEqual(json.loads(context.read_text()), {"services": {"api": {"environment": {"FABRIC_CHANNEL_NAME": "agritrace-dev"}}}})
+        self.assertNotIn("--profile", args)
+
     def test_light_backup_never_stops_or_reads_any_fabric_volume(self):
         calls = []
         def run(label, args, output=None, **kwargs):

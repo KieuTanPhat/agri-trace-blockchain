@@ -138,7 +138,7 @@ class EnvironmentRecovery(unittest.TestCase):
     def retained_fabric(self):
         root = self.base / "shared/fabric"
         root.mkdir(parents=True)
-        self.controller.fabric = {"root": str(root), "network": "agritrace-dev-fabric", "containers": ["agritrace-dev-peer1"],
+        self.controller.fabric = {"root": str(root), "network": "agritrace-dev-fabric", "channel": "agritrace-dev", "containers": ["agritrace-dev-peer1"],
                                   "volumes": ["agritrace-dev-ledger1"], "backup_paths": [str(root)]}
         self.config["fabric"] = self.controller.fabric
         self.fabric_metadata = {"State": {"Running": False, "Status": "exited"},

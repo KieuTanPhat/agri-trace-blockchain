@@ -132,6 +132,13 @@ class Controller:
             if self.fabric_active:
                 compose_files += ["-f", str(root / "docker-compose.app-fabric.yml")]
             compose_files += ["-f", str(self.storage / "records" / record["id"] / "images.json")]
+            if self.fabric:
+                # API verifies cached receipts without a signing identity. Its
+                # read context must survive Fabric-off and match the retained
+                # ledger, including releases predating the separate dev channel.
+                context = self.storage / "records" / record["id"] / "ledger-context.json"
+                atomic_json(context, {"services": {"api": {"environment": {"FABRIC_CHANNEL_NAME": self.fabric["channel"]}}}})
+                compose_files += ["-f", str(context)]
             return ["docker", "compose", "--project-name", self.project, "--env-file", self.config["env"],
                     "--env-file", str(self.storage / "records" / record["id"] / "origin.env"), *compose_files,
                     *(["--profile", "fabric"] if self.fabric_active else []), *args]
@@ -250,6 +257,8 @@ class Controller:
         api = services["api"]["environment"]
         require(api["FABRIC_ENABLED"] == "false" and api["JWT_SECRET"] == self.environment["JWT_SECRET"] and
                 api["CORS_ORIGIN"] == self.environment["CORS_ORIGINS"] and api["PUBLIC_TRACE_BASE_URL"] == origin + "/trace", "API environment changed")
+        if self.fabric:
+            require(api.get("FABRIC_CHANNEL_NAME") == self.fabric["channel"], "API receipt channel differs from its retained ledger")
         require(services["web"]["environment"].get("API_INTERNAL_BASE_URL") == "http://api:8080/api", "SSR API boundary changed")
         for name in ("api", "web"):
             require(services[name]["networks"]["ingress"].get("aliases", []) == [self.prefix + "-" + name], "Ingress alias changed")
