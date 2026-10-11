@@ -27,6 +27,10 @@ thêm 2 GiB. Đây là admission guard, không thay thế phép đo tải thực
 Dev có giới hạn PostgreSQL 384 MiB, API 384 MiB, Web 512 MiB; Worker khi bật
 512 MiB. Kiểm OOM/restarts và độ trễ prod khi tăng tải.
 
+Healthcheck PostgreSQL chờ kết nối TCP trên `127.0.0.1`, tránh nhận nhầm server
+tạm chỉ mở Unix socket trong lúc tạo volume mới. CI tạo hai database trống và
+chạy query ngay sau `compose up --wait`, trước migration, để kiểm tra bước này.
+
 ## Cài đặt một lần bởi quản trị viên
 
 Đọc inventory live, giữ snapshot và restore evidence trước cutover. Dùng source

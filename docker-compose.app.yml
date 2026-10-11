@@ -20,7 +20,8 @@ services:
     volumes: [postgres-data:/var/lib/postgresql]
     networks: [default]
     healthcheck:
-      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      # initdb's temporary server only accepts Unix sockets; wait for the final TCP server.
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 5s
       timeout: 5s
       retries: 12
