@@ -1,5 +1,5 @@
 site: us5.datadoghq.com
-env: uat
+env: infrastructure
 hostname: agritrace-uat
 logs_enabled: true
 logs_config:

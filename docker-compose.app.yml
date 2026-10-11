@@ -1,0 +1,124 @@
+# Application projects never own the shared public proxy or its certificates.
+x-logs: &logs
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+x-api: &api
+  image: ${API_IMAGE:?Set immutable API_IMAGE}
+  init: true
+  logging: *logs
+x-database: &database
+  DATABASE_URL: postgresql://${POSTGRES_USER:?Set POSTGRES_USER}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB}?schema=public
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:?Set pinned PostgreSQL image}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes: [postgres-data:/var/lib/postgresql]
+    networks: [default]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    mem_limit: ${POSTGRES_MEMORY:-384m}
+    cpus: 1.0
+    labels: {com.datadoghq.tags.env: "${DEPLOY_ENV:?Set DEPLOY_ENV}", com.datadoghq.tags.service: agritrace-postgres}
+    logging: *logs
+
+  migrate:
+    <<: *api
+    profiles: [tools]
+    restart: "no"
+    environment: *database
+    command: [npm, run, db:migrate, --workspace, apps/api]
+    networks: [default]
+    mem_limit: 768m
+
+  api:
+    <<: *api
+    restart: unless-stopped
+    environment:
+      <<: *database
+      NODE_ENV: production
+      PORT: "8080"
+      TRUST_PROXY_HOPS: "1"
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      JWT_EXPIRES_IN: 1h
+      JWT_REFRESH_EXPIRES_DAYS: "7"
+      IOT_INGEST_API_KEY: ${IOT_INGEST_API_KEY:?Set IOT_INGEST_API_KEY}
+      CORS_ORIGIN: ${CORS_ORIGINS:?Set CORS_ORIGINS}
+      PUBLIC_TRACE_BASE_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN}/trace
+      FABRIC_ENABLED: "false"
+      NODE_OPTIONS: --max-old-space-size=${API_HEAP_MB:-256}
+    command: [node, apps/api/dist/main.js]
+    depends_on: {postgres: {condition: service_healthy}}
+    networks:
+      default: {}
+      ingress: {aliases: ["${UPSTREAM_PREFIX:?Set UPSTREAM_PREFIX}-api"]}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8080/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    stop_grace_period: 30s
+    mem_limit: ${API_MEMORY:-384m}
+    cpus: 1.0
+    labels: {com.datadoghq.tags.env: "${DEPLOY_ENV}", com.datadoghq.tags.service: agritrace-api}
+
+  worker:
+    <<: *api
+    profiles: [fabric]
+    restart: unless-stopped
+    environment:
+      <<: *database
+      NODE_ENV: production
+      WORKER_HEALTH_PORT: "8081"
+      FABRIC_ENABLED: "false"
+      NODE_OPTIONS: --max-old-space-size=320
+    command: [node, apps/api/dist/worker-main.js]
+    depends_on: {api: {condition: service_healthy}}
+    networks: [default]
+    stop_grace_period: 120s
+    mem_limit: 512m
+    cpus: 0.5
+    labels: {com.datadoghq.tags.env: "${DEPLOY_ENV}", com.datadoghq.tags.service: agritrace-worker}
+
+  web:
+    image: ${WEB_IMAGE:?Set immutable WEB_IMAGE}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+      API_INTERNAL_BASE_URL: http://api:8080/api
+      NODE_OPTIONS: --max-old-space-size=${WEB_HEAP_MB:-320}
+    depends_on: {api: {condition: service_healthy}}
+    networks:
+      default: {}
+      ingress: {aliases: ["${UPSTREAM_PREFIX}-web"]}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/login').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    mem_limit: ${WEB_MEMORY:-512m}
+    cpus: 1.0
+    labels: {com.datadoghq.tags.env: "${DEPLOY_ENV}", com.datadoghq.tags.service: agritrace-web}
+    logging: *logs
+
+networks:
+  default: {}
+  ingress:
+    external: true
+    name: ${INGRESS_NETWORK:?Provision ingress network}
+volumes:
+  postgres-data:
+    # Explicit name is reviewed during adoption, never derived from branch input.
+    name: ${POSTGRES_VOLUME:?Set environment-owned POSTGRES_VOLUME}

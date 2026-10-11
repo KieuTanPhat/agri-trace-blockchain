@@ -1,0 +1,147 @@
+name: Deploy environment
+on:
+  workflow_call:
+    inputs:
+      environment: {type: string, required: true}
+      operation: {type: string, default: deploy}
+      rollback_sha: {type: string, default: ''}
+      expected_sequence: {type: string, default: ''}
+
+permissions: {contents: read}
+defaults:
+  run: {shell: bash}
+
+jobs:
+  gate:
+    name: Exact environment CI gate
+    if: (inputs.environment == 'development' && github.ref == 'refs/heads/dev') || (inputs.environment == 'production' && github.ref == 'refs/heads/main')
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions: {contents: read, actions: read}
+    env:
+      CD_BRANCH: ${{ inputs.environment == 'development' && 'dev' || 'main' }}
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      current: ${{ steps.gate.outputs.current }}
+      operation: ${{ steps.input.outputs.operation }}
+      target: ${{ steps.input.outputs.target }}
+      prefix: ${{ steps.input.outputs.prefix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: {node-version: '22.22.3'}
+      - id: input
+        name: Validate environment operation and deployment switch
+        env:
+          OPERATION: ${{ inputs.operation }}
+          TARGET_SHA: ${{ inputs.rollback_sha }}
+          EXPECTED_SEQUENCE: ${{ inputs.expected_sequence }}
+          CD_DEPLOY_ENABLED: ${{ vars.CD_DEPLOY_ENABLED }}
+        run: |
+          case "$OPERATION" in deploy|upgrade|rollback|recover) ;; *) exit 1 ;; esac
+          if [[ "$CD_DEPLOY_ENABLED" != true ]]; then
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+            echo 'Deployment is disabled; CI remains active.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          target="$GITHUB_SHA"
+          if [[ "$OPERATION" == rollback ]]; then [[ "$TARGET_SHA" =~ ^[a-f0-9]{40}$ ]]; target="$TARGET_SHA"; fi
+          if [[ "$OPERATION" == upgrade ]]; then [[ "$EXPECTED_SEQUENCE" =~ ^[1-9][0-9]{0,8}$ ]]; fi
+          echo 'enabled=true' >> "$GITHUB_OUTPUT"
+          echo "operation=$OPERATION" >> "$GITHUB_OUTPUT"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+          echo "prefix=$([[ "$CD_BRANCH" == dev ]] && echo dev || echo prod)" >> "$GITHUB_OUTPUT"
+      - id: gate
+        if: steps.input.outputs.enabled == 'true'
+        name: Require three successful push workflows for this branch and SHA
+        env: {OPERATION: '${{ steps.input.outputs.operation }}'}
+        run: |
+          if [[ "$OPERATION" == rollback || "$OPERATION" == recover ]]; then echo 'current=true' >> "$GITHUB_OUTPUT"; else node deploy/cd/gate.mjs; fi
+
+  publish:
+    name: Publish immutable environment images
+    needs: gate
+    if: needs.gate.outputs.current == 'true' && (needs.gate.outputs.operation == 'deploy' || needs.gate.outputs.operation == 'upgrade')
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions: {contents: read, packages: write}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CD_ENVIRONMENT: ${{ inputs.environment }}
+      PUBLIC_ORIGIN: ${{ vars.CD_PUBLIC_ORIGIN }}
+      CD_PROJECT: ${{ vars.CD_PROJECT }}
+      CD_PROFILE: ${{ vars.CD_PROFILE }}
+      DOCKER_CONFIG: ${{ runner.temp }}/ghcr-config
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: {node-version: '22.22.3', cache: npm, cache-dependency-path: package-lock.json}
+      - run: npm install --global npm@12.1.0
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build --workspace blockchain/chaincode
+      - run: node deploy/cd/publish.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ needs.gate.outputs.prefix }}-bundle-${{ github.sha }}
+          path: ${{ runner.temp }}/${{ needs.gate.outputs.prefix }}-release.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove registry credentials
+        if: always()
+        run: rm -rf -- "$DOCKER_CONFIG"
+
+  deliver:
+    name: Deliver and verify environment
+    needs: [gate, publish]
+    if: always() && needs.gate.result == 'success' && needs.gate.outputs.current == 'true' && (needs.publish.result == 'success' || needs.gate.outputs.operation == 'rollback' || needs.gate.outputs.operation == 'recover')
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.CD_PUBLIC_ORIGIN }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions: {contents: read, actions: read, packages: read}
+    env:
+      CD_ENVIRONMENT: ${{ inputs.environment }}
+      CD_BRANCH: ${{ inputs.environment == 'development' && 'dev' || 'main' }}
+      CD_HOST: ${{ vars.CD_HOST }}
+      CD_USER: ${{ vars.CD_USER }}
+      CD_KNOWN_HOSTS: ${{ vars.CD_KNOWN_HOSTS }}
+      CD_SSH_PRIVATE_KEY: ${{ secrets.CD_SSH_PRIVATE_KEY }}
+      EXPECTED_SEQUENCE: ${{ inputs.expected_sequence }}
+      OPERATION: ${{ needs.gate.outputs.operation }}
+      TARGET_SHA: ${{ needs.gate.outputs.target }}
+      GH_TOKEN: ${{ github.token }}
+      REGISTRY_USERNAME: ${{ github.actor }}
+      RELEASE_PREFIX: ${{ needs.gate.outputs.prefix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: {node-version: '22.22.3'}
+      - if: env.OPERATION == 'deploy' || env.OPERATION == 'upgrade'
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$RELEASE_PREFIX-bundle-$GITHUB_SHA" --dir "$RUNNER_TEMP/bundle"
+      - name: Recheck branch HEAD immediately before delivery
+        if: env.OPERATION == 'deploy' || env.OPERATION == 'upgrade'
+        run: test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$CD_BRANCH" --jq .object.sha)" = "$GITHUB_SHA"
+      - run: node deploy/cd/send.mjs "$OPERATION" "$TARGET_SHA" "$RUNNER_TEMP/bundle/$RELEASE_PREFIX-release.tar.gz"
+      - if: always()
+        run: node deploy/cd/send.mjs status
+      - name: Retrieve encrypted recovery snapshot
+        if: always() && env.OPERATION != 'recover'
+        run: node deploy/cd/send.mjs backup "$TARGET_SHA"
+      - name: Store encrypted off-VPS snapshot
+        if: always() && env.OPERATION != 'recover'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ needs.gate.outputs.prefix }}-encrypted-backup-${{ needs.gate.outputs.target }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/${{ needs.gate.outputs.prefix }}-backup-${{ needs.gate.outputs.target }}.cms
+          if-no-files-found: error
+          retention-days: 30
+      - if: always()
+        run: |
+          echo "Environment: $CD_ENVIRONMENT; operation: $OPERATION; source: $TARGET_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Recovery requires the separately held private backup key.' >> "$GITHUB_STEP_SUMMARY"

@@ -2,9 +2,9 @@ name: Application CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   merge_group:
   workflow_dispatch:
 
@@ -39,7 +39,7 @@ jobs:
       - name: Check CD policy, failure recovery and exact-commit gate
         run: |
           python3 -m unittest discover -s deploy/cd -p 'test_*.py' -v
-          node --test deploy/cd/gate.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs
+          node --test deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs
           node --experimental-vm-modules --test deploy/cd/verify.test.mjs
 
   api:
@@ -123,7 +123,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.containers == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 50
     env:
       COMPOSE_PROJECT_NAME: agri-trace-ci
       FABRIC_ENABLED: 'false'
@@ -240,6 +240,8 @@ jobs:
       - name: Stop disposable application stack
         if: always()
         run: docker compose down --volumes --remove-orphans
+      - name: Rehearse two independent app projects and dev retirement
+        run: python3 deploy/cd/rehearse-environments.py
 
   gate:
     name: Application gate

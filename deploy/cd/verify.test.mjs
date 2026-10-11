@@ -7,7 +7,8 @@ import test from 'node:test';
 // A revoked family also invalidates its access JWT, matching the current API.
 async function verify({legacy = false, canary = null, requireSessionFamily = false,
   legacyQrLotIds = [], qrLegacy = false, qrWarning = false, timelineWarning = false,
-  quantityMismatch = false, sensorOverrides = {}} = {}) {
+  quantityMismatch = false, sensorOverrides = {}, profile = 'fabric', pending = false,
+  environment, canaryCatalog} = {}) {
   const accounts = ['SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR']
     .map(role => ({role, email: `${role}@test.invalid`, password: 'synthetic-private-password'}));
   const sessions = new Map();
@@ -18,6 +19,7 @@ async function verify({legacy = false, canary = null, requireSessionFamily = fal
   const event = {event_id: 'event-1', entity_type: 'PRODUCTION_CYCLE', entity_id: 'cycle-1',
     data_hash: 'a'.repeat(64), previous_event_hash: null, immutable_row: '{"event_id":"event-1"}',
     tx_id: 'tx-1', proof_hash: 'a'.repeat(64), channel_id: 'agritrace', transaction_status: 'CONFIRMED', status: 'COMPLETED'};
+  if(pending)Object.assign(event,{tx_id:null,proof_hash:null,channel_id:null,transaction_status:null,status:'PENDING'});
   const reply = (data, status = 200, cookies = []) => {
     const headers = new Headers({'content-type': 'application/json'});
     for (const cookie of cookies) headers.append('set-cookie', cookie);
@@ -65,18 +67,18 @@ async function verify({legacy = false, canary = null, requireSessionFamily = fal
       if (pathname === '/api/auth/me') return reply({role: {code: session.role}});
       if (pathname === '/api/organizations') return reply({}, 403);
       if (pathname === '/api/production-cycles') return reply({id: 'cycle-1'}, 201);
-      return reply({localHashMatches: true, status: 'CONFIRMED', deliveryStatus: 'COMPLETED', txId: event.tx_id});
+      return reply({localHashMatches: true, status: pending?'PENDING':'CONFIRMED', deliveryStatus: event.status, txId: event.tx_id});
     }
     if (pathname === '/health/ready') return new Response(JSON.stringify({runtime: {enabled: true, running: true, lastError: null}, backlog: {deadLetter: 0}}));
     if (pathname === '/manifest.webmanifest') return new Response(JSON.stringify({start_url: '/', icons: [{}]}));
     if (pathname === '/api/docs') return reply({}, 404);
     if (pathname === '/api/public/trace/token-1') return reply({lotId: 'lot-1',
-      proofStatus: qrLegacy || qrWarning ? 'INTEGRITY_WARNING' : 'VERIFIED',
+      proofStatus: qrLegacy || qrWarning ? 'INTEGRITY_WARNING' : pending?'PENDING':'VERIFIED',
       warnings: qrLegacy ? ['LEGACY_UNVERIFIED'] : [],
       quantityReconciled: !quantityMismatch, stateReconciled: true,
       sensorEvidence: {status: qrLegacy ? 'LEGACY_UNVERIFIED' : 'FINALIZED', readingCount: 0, digestHash: null,
         periodStart: null, periodEnd: null, finalizedAt: null, ...sensorOverrides},
-      timeline: [{proofStatus: timelineWarning ? 'INTEGRITY_WARNING' : 'VERIFIED'}]});
+      timeline: [{proofStatus: timelineWarning ? 'INTEGRITY_WARNING' : pending?'PENDING':'VERIFIED'}]});
     return reply({});
   };
   const db = {Client: class {
@@ -105,7 +107,7 @@ async function verify({legacy = false, canary = null, requireSessionFamily = fal
   const source = ['session-auth.mjs', 'verify.mjs'].map(name => readFileSync(new URL(name, import.meta.url), 'utf8')).join('\n');
   const script = new SourceTextModule(source, {context});
   await script.link(async specifier => {
-    const exports = specifier === 'node:fs' ? {readFileSync: () => JSON.stringify({origin: 'https://agritrace.dev', accounts, canary, requireSessionFamily, legacyQrLotIds})} :
+    const exports = specifier === 'node:fs' ? {readFileSync: () => JSON.stringify({origin: 'https://agritrace.dev', accounts, canary, requireSessionFamily, legacyQrLotIds,profile,environment,canaryCatalog})} :
       specifier === 'pg' ? {default: db} : specifier.includes('blockchain/gateway/') ? gateway : await import(specifier);
     return new SyntheticModule(Object.keys(exports), function () {
       for (const [name, value] of Object.entries(exports)) this.setExport(name, value);
@@ -172,4 +174,21 @@ test('a legacy lot cannot silently become fully verified or disappear from the Q
     assert.equal(result.runtime.exitCode, 1);
     assert.equal(result.output.length, 0);
   }
+});
+
+test('light dev validates a real Pending canary without contacting Worker or Fabric', async () => {
+  const result=await verify({profile:'light',pending:true,environment:'development',canary:'b'.repeat(40),
+    canaryCatalog:{farmId:'farm-dev',plotId:'plot-dev',productId:'product-dev'}});
+  assert.equal(result.runtime.exitCode,0,result.errors.join('\n'));
+  const evidence=JSON.parse(result.output[0]);
+  assert.equal(evidence.pendingEvents,1);
+  assert.equal(evidence.directLedgerEvents,0);
+  assert.equal(evidence.fabricVerification,'not-evaluated-disabled');
+  assert.equal(evidence.verifiedQR,0);
+  assert.equal(result.closed,false);
+  assert.ok(!result.calls.includes('/health/ready'));
+});
+
+test('light mode cannot waive production blockchain verification', async () => {
+  await assert.rejects(()=>verify({profile:'light',environment:'production'}),/only for development/);
 });

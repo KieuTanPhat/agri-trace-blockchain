@@ -1,0 +1,28 @@
+name: agritrace-edge
+services:
+  proxy:
+    image: ${CADDY_IMAGE:?Set reviewed Caddy digest}
+    restart: unless-stopped
+    ports: ["0.0.0.0:80:80", "0.0.0.0:443:443"]
+    volumes:
+      # Mount the directory so an atomic config replacement is visible on reload.
+      - type: bind
+        source: ${EDGE_CONFIG_DIRECTORY:?Set root-owned Edge config directory}
+        target: /etc/caddy
+        read_only: true
+        bind: {create_host_path: false}
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [development, production]
+    mem_limit: 128m
+    cpus: 0.25
+    labels: {com.datadoghq.tags.env: infrastructure, com.datadoghq.tags.service: agritrace-edge}
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+networks:
+  development: {external: true, name: agritrace-dev-ingress}
+  production: {external: true, name: agritrace-prod-ingress}
+volumes:
+  caddy-data: {external: true, name: "${EDGE_DATA_VOLUME:?Set existing certificate volume}"}
+  caddy-config: {external: true, name: "${EDGE_STATE_VOLUME:?Set existing Caddy state volume}"}

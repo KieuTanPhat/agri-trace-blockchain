@@ -6,10 +6,10 @@ import json
 import subprocess
 import tarfile
 from pathlib import Path
-from policy import CONTROLLER_FILES, SHA, allowed_file, fingerprint, require, sha256, validate_manifest
+from policy import CONTROLLER_FILES, FIXED_FILES, SHA, allowed_file, fingerprint, require, sha256, targets, validate_manifest
 
 
-def package(sha, api, web, repository, origin, dist, output):
+def package(sha, api, web, repository, origin, dist, output, target=None):
     require(bool(SHA.fullmatch(sha)), "Invalid commit SHA")
     files = {}
     controller = {}
@@ -18,7 +18,8 @@ def package(sha, api, web, repository, origin, dist, output):
         for member in source:
             if member.name in {f"deploy/cd/{name}" for name in CONTROLLER_FILES}:
                 controller[member.name.split("/")[-1]] = sha256(source.extractfile(member).read())
-            if member.isfile() and allowed_file(member.name) and not "/dist/" in member.name:
+            excluded = FIXED_FILES if target else targets.APP_FILES
+            if member.isfile() and allowed_file(member.name) and member.name not in excluded and not "/dist/" in member.name:
                 files[member.name] = source.extractfile(member).read()
     for file in Path(dist).rglob("*"):
         if file.is_file():
@@ -29,7 +30,9 @@ def package(sha, api, web, repository, origin, dist, output):
     manifest = {"format": 1, "sha": sha, "repository": repository, "origin": origin,
                 "api": api, "web": web, "files": hashes, "chaincode": fingerprint(hashes), "controller": controller,
                 "migrations": {name.split("/")[-2]: digest for name, digest in hashes.items() if name.endswith("/migration.sql")}}
-    validate_manifest(manifest, sha, repository, origin)
+    if target:
+        manifest.update({name: target[name] for name in ("environment", "branch", "project", "profile")}, format=2)
+    validate_manifest(manifest, sha, repository, origin, target)
     files["cd-manifest.json"] = (json.dumps(manifest, sort_keys=True, indent=2) + "\n").encode()
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(output, "w:gz", compresslevel=6) as archive:
@@ -46,4 +49,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     for name in ("sha", "api", "web", "repository", "origin", "dist", "output"):
         parser.add_argument("--" + name, required=True)
-    package(**vars(parser.parse_args()))
+    parser.add_argument("--environment", choices=targets.TARGETS)
+    parser.add_argument("--project")
+    parser.add_argument("--profile", choices=("light", "fabric"))
+    arguments = vars(parser.parse_args())
+    environment = arguments.pop("environment")
+    project, profile = arguments.pop("project"), arguments.pop("profile")
+    target = None
+    if environment:
+        target = dict(targets.TARGETS[environment], environment=environment, project=project, profile=profile)
+    else:
+        require(project is None and profile is None, "Environment is required for target options")
+    package(**arguments, target=target)

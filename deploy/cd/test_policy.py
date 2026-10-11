@@ -4,7 +4,7 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
-from policy import PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth, valid_public_origin, https_origins
+from policy import CONTROLLER_FILES, PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth, valid_public_origin, https_origins
 
 SHA = "a" * 40
 REPO = "KieuTanPhat/agri-trace-blockchain"
@@ -20,7 +20,7 @@ def bundle(directory, extra=None, mutate=None):
     manifest = {"format": 1, "sha": SHA, "repository": REPO, "origin": ORIGIN, "files": hashes, "chaincode": fingerprint(hashes),
                 "migrations": {"20260101000000_init": hashes["apps/api/prisma/migrations/20260101000000_init/migration.sql"]},
                 "api": f"ghcr.io/{REPO.lower()}/api@sha256:{'0' * 64}", "web": f"ghcr.io/{REPO.lower()}/web@sha256:{'1' * 64}"}
-    manifest["controller"] = {name: "0" * 64 for name in ("controller.py", "policy.py", "verify.mjs", "session-auth.mjs", "entry")}
+    manifest["controller"] = {name: "0" * 64 for name in CONTROLLER_FILES}
     if mutate:
         mutate(manifest)
     files["cd-manifest.json"] = json.dumps(manifest).encode()

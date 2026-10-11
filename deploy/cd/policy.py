@@ -1,5 +1,6 @@
 """Fail-closed release policies. No Docker or network side effects."""
 import hashlib
+import importlib.util
 import ipaddress
 import json
 import re
@@ -7,12 +8,16 @@ import tarfile
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
+_spec = importlib.util.spec_from_file_location("cd_targets", Path(__file__).with_name("targets.py"))
+targets = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(targets)
+
 SHA = re.compile(r"^[a-f0-9]{40}$")
 DIGEST = re.compile(r"^[a-f0-9]{64}$")
 OPERATIONS = {"deploy", "upgrade", "rollback", "recover", "status", "backup"}
 FIXED_FILES = {"docker-compose.uat.yml", "docker-compose.uat-https.yml", "docker-compose.uat-fabric.yml", "deploy/Caddyfile.uat"}
 MAX_AUTH_HEADER = 16 * 1024
-CONTROLLER_FILES = ("controller.py", "policy.py", "verify.mjs", "session-auth.mjs", "entry")
+CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify.mjs", "session-auth.mjs", "entry")
 
 
 class PolicyError(Exception):
@@ -45,13 +50,14 @@ def approved_package(approved):
     return value
 
 
-def ci_gate(runs, sha, main_sha):
-    require(sha == main_sha, "Candidate is no longer latest main")
+def ci_gate(runs, sha, branch_sha, branch="main"):
+    require(branch in {"main", "dev"}, "Unknown deployable branch")
+    require(sha == branch_sha, "Candidate is no longer latest branch HEAD")
     for filename in ("application-ci.yml", "blockchain-ci.yml", "dependency-audit.yml"):
-        selected = sorted((run for run in runs if run.get("head_sha") == sha and run.get("head_branch") == "main" and
+        selected = sorted((run for run in runs if run.get("head_sha") == sha and run.get("head_branch") == branch and
                            run.get("event") == "push" and run.get("path") == f".github/workflows/{filename}"), key=lambda run: run["id"], reverse=True)
         require(bool(selected) and selected[0].get("status") == "completed" and selected[0].get("conclusion") == "success",
-                "Server requires three successful exact-main-push CI runs")
+                "Server requires three successful exact-branch-push CI runs")
 
 
 def command(value):
@@ -109,7 +115,7 @@ def https_origins(origin):
 
 
 def allowed_file(name):
-    if name in FIXED_FILES:
+    if name in FIXED_FILES | targets.APP_FILES:
         return True
     if re.fullmatch(r"apps/api/prisma/migrations/[a-zA-Z0-9_-]+/migration.sql", name):
         return True
@@ -127,12 +133,20 @@ def fingerprint(files):
     return sha256(json.dumps(selected, sort_keys=True, separators=(",", ":")).encode())
 
 
-def validate_manifest(manifest, sha, repository, origin):
-    require(manifest.get("format") == 1 and manifest.get("sha") == sha, "Manifest commit mismatch")
+def validate_manifest(manifest, sha, repository, origin, target=None):
+    require(manifest.get("format") == (2 if target else 1) and manifest.get("sha") == sha, "Manifest commit/format mismatch")
     require(manifest.get("repository") == repository and manifest.get("origin") == origin, "Manifest deployment target mismatch")
     require(valid_public_origin(origin), "Invalid public deployment origin")
     require(isinstance(manifest.get("files"), dict) and 3 <= len(manifest["files"]) <= 1000, "Invalid manifest file list")
-    require(FIXED_FILES <= manifest["files"].keys(), "Missing deployment configuration")
+    if target:
+        targets.validate_target(target, require)
+        for name in ("environment", "branch", "project", "profile"):
+            require(manifest.get(name) == target[name], "Manifest environment binding mismatch")
+        required = targets.APP_FILES
+        require(not FIXED_FILES.intersection(manifest["files"]), "Legacy proxy configuration is not an app delivery")
+    else:
+        required = FIXED_FILES
+    require(required <= manifest["files"].keys(), "Missing deployment configuration")
     for name, digest in manifest["files"].items():
         require(allowed_file(name) and isinstance(digest, str) and bool(DIGEST.fullmatch(digest)), "Invalid release file")
     require(manifest.get("chaincode") == fingerprint(manifest["files"]), "Chaincode fingerprint mismatch")
@@ -147,7 +161,7 @@ def validate_manifest(manifest, sha, repository, origin):
     return manifest
 
 
-def extract(archive, destination, sha, repository, origin):
+def extract(archive, destination, sha, repository, origin, target=None):
     """Extract only validated regular files; never tarfile.extractall."""
     destination = Path(destination)
     require(not destination.exists(), "Release directory already exists")
@@ -164,7 +178,7 @@ def extract(archive, destination, sha, repository, origin):
             names.add(name)
         require("cd-manifest.json" in names, "Release manifest is missing")
         raw = tar.extractfile("cd-manifest.json").read()
-        manifest = validate_manifest(json.loads(raw), sha, repository, origin)
+        manifest = validate_manifest(json.loads(raw), sha, repository, origin, target)
         require(names == set(manifest["files"]) | {"cd-manifest.json"}, "Archive differs from manifest")
         # Validate everything before creating a release directory.
         contents = {}

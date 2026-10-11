@@ -47,7 +47,7 @@ export function validateConfig(config) {
   if (!config.CORS_ORIGINS?.split(',').includes(config.PUBLIC_ORIGIN)) {
     throw new Error('CORS_ORIGINS must include PUBLIC_ORIGIN');
   }
-  if (config.PUBLIC_ALIAS_ORIGINS?.split(',').some(alias => !config.CORS_ORIGINS.split(',').includes(alias))) {
+  if (config.PUBLIC_ALIAS_ORIGINS && config.PUBLIC_ALIAS_ORIGINS.split(',').some(alias => !config.CORS_ORIGINS.split(',').includes(alias))) {
     throw new Error('CORS_ORIGINS must include every HTTPS alias');
   }
   if (!/^uat-[a-zA-Z0-9_.-]+$/.test(config.RELEASE_TAG ?? '') || config.RELEASE_TAG.includes('review-required')) {
