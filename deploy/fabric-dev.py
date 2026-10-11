@@ -68,6 +68,8 @@ def validate_model(model):
         policy.require(service["container_name"] == name and set(service["networks"]) == {"test"}, "Unexpected service binding")
         policy.require(service["image"] in {"hyperledger/fabric-peer:2.5.16", "hyperledger/fabric-orderer:2.5.16", "hyperledger/fabric-ca:1.5.22"}, "Unpinned image")
         policy.require(0 < service.get("mem_limit", 0) <= 512 * 1048576 and 0 < service.get("cpus", 0) <= 1, "Missing resource limit")
+        if "fabric-peer" in service["image"] or "fabric-orderer" in service["image"]:
+            policy.require({"/var/hyperledger", "/etc/hyperledger/fabric"}.issubset({m["target"] for m in service.get("volumes", [])}), "Image-declared volumes need explicit owned mounts")
         for port in service.get("ports", []):
             policy.require(port.get("host_ip") == "127.0.0.1" and int(port["published"]) in PORTS.values(), "Public or conflicting host binding")
             ports.append(int(port["published"]))
@@ -148,6 +150,14 @@ def prepare(c):
             service["command"][2] = "exec " + service["command"][2]
         if "fabric-peer" in service["image"]:
             service["environment"].update(CORE_PEER_NETWORKID="agritrace-dev", CORE_VM_DOCKER_HOSTCONFIG_MEMORY="536870912", CORE_VM_DOCKER_HOSTCONFIG_NANOCPUS="1000000000")
+        if "fabric-peer" in service["image"] or "fabric-orderer" in service["image"]:
+            parent = working / "runtime" / name / "hyperledger"
+            parent.mkdir(parents=True, mode=0o700)
+            service["volumes"].append({"type": "bind", "source": str(parent), "target": "/var/hyperledger", "bind": {"create_host_path": False}})
+        if "fabric-orderer" in service["image"]:
+            configuration = working / "runtime" / name / "config"
+            shutil.copytree(working / "config", configuration)
+            service["volumes"].append({"type": "bind", "source": str(configuration), "target": "/etc/hyperledger/fabric", "read_only": True, "bind": {"create_host_path": False}})
     validate_model(model)
     absent_resources()
     atomic_json(ROOT / "compose.json", model)
@@ -249,6 +259,7 @@ def finish_provision(c):
         # The mounted public TLS root must be readable by the unprivileged Worker.
         Path(descriptor()["peers"]["1"]["tls"]).chmod(0o644)
         active.run("dev-fabric-retain-stopped", ["docker", "stop", "--time", "20", *bound["fabric"]["containers"]])
+        active.retained_fabric_snapshot_ready()
         atomic_json(ROOT / "provisioned.json", {"source": record["sha"], "samples": SAMPLES, "definition": definition, "binding": descriptor(), "result": "provisioned-stopped"})
         # Configuration is installed only after the complete network is retained.
         additions = {"FABRIC_CHANNEL_NAME": "agritrace-dev", "FABRIC_CHAINCODE_NAME": "agritrace", "FABRIC_MSP_ID": "Org1MSP",
