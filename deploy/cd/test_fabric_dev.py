@@ -79,6 +79,7 @@ class IsolatedDevFabric(unittest.TestCase):
             binding = dev.descriptor()
             dev.policy.targets.validate_fabric({"environment": "development", "base": "/opt/agri-trace-dev", "fabric": binding}, dev.policy.require)
             self.assertTrue(all(n.startswith("agritrace-dev-") for n in binding["containers"] + binding["volumes"]))
+            self.assertTrue(all(p["address"].startswith("localhost:") for p in binding["peers"].values()))
 
     def test_existing_resource_blocks_without_any_cleanup(self):
         calls = []

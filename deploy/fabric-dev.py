@@ -164,13 +164,13 @@ def descriptor():
     peers = {}
     for org in (1, 2):
         base = organizations / f"peerOrganizations/org{org}.agritrace-dev.local"
-        peers[str(org)] = {"address": f"127.0.0.1:{27051 if org == 1 else 29051}", "msp_id": f"Org{org}MSP", "hostname": f"agritrace-dev-peer{org}",
+        peers[str(org)] = {"address": f"localhost:{27051 if org == 1 else 29051}", "msp_id": f"Org{org}MSP", "hostname": f"agritrace-dev-peer{org}",
                            "msp": str(base / f"users/Admin@org{org}.agritrace-dev.local/msp"),
                            "tls": str(base / f"peers/agritrace-dev-peer{org}/tls/ca.crt")}
     return {"network": "agritrace-dev-fabric", "root": str(ROOT), "channel": "agritrace-dev", "chaincode": "agritrace",
             "containers": list(HOSTS.values()), "volumes": ["agritrace-dev-ledger-orderer", "agritrace-dev-ledger-peer1", "agritrace-dev-ledger-peer2"],
             "peer_binary": str(working / "bin/peer"), "config_path": str(working / "config"), "peers": peers,
-            "orderer": {"address": "127.0.0.1:27050", "hostname": "agritrace-dev-orderer",
+            "orderer": {"address": "localhost:27050", "hostname": "agritrace-dev-orderer",
                         "tls": str(organizations / "ordererOrganizations/agritrace-dev.local/orderers/agritrace-dev-orderer/tls/ca.crt")},
             "backup_paths": [str(working), str(ROOT / "identities"), str(ROOT / "compose.json"), str(ROOT / "ca-secrets.json"), str(ROOT / "provisioned.json")]}
 
