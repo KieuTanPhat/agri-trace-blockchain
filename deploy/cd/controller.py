@@ -435,9 +435,15 @@ class Controller:
                      "-U", self.environment["POSTGRES_USER"], "-d", self.environment["POSTGRES_DB"]), output=output)
         stopped = False
         try:
-            if self.fabric_active:
-                stopped = True
-                self.run("fabric-stop-for-snapshot", ["docker", "stop", "--time", "20", *self.fabric["containers"]], timeout=180)
+            if self.fabric:
+                if self.fabric_active:
+                    stopped = True
+                    self.run("fabric-stop-for-snapshot", ["docker", "stop", "--time", "20", *self.fabric["containers"]], timeout=180)
+                else:
+                    # A light runtime can still have confirmed proofs from an
+                    # earlier Fabric session. Retain their ledger and identity
+                    # in the same snapshot, without waking the signing network.
+                    self.retained_fabric_snapshot_ready()
                 for volume in self.fabric["volumes"]:
                     mount = self.run("ledger-volume-path", ["docker", "volume", "inspect", "--format", "{{.Mountpoint}}", volume]).decode().strip()
                     require(mount == f"/var/lib/docker/volumes/{volume}/_data", "Unexpected ledger volume path")
@@ -466,6 +472,22 @@ class Controller:
                 self.resume_fabric()
                 self.phase = phase
         return str(directory)
+
+    def retained_fabric_snapshot_ready(self):
+        require(self.prefix == "dev", "Only development can retain inactive Fabric")
+        root = Path(self.fabric["root"]).resolve(strict=True)
+        require(root.is_relative_to(self.base / "shared/fabric"), "Fabric root resolves outside dev")
+        for path in self.fabric["backup_paths"]:
+            require(Path(path).resolve(strict=True).is_relative_to(root), "Fabric backup path resolves outside dev")
+        for name in self.fabric["containers"]:
+            metadata = json.loads(self.run("retained-fabric-container", ["docker", "inspect", name]))[0]
+            require(not metadata["State"]["Running"] and metadata["State"]["Status"] != "restarting", "Retained Fabric must remain stopped during light backup")
+            require(self.fabric["network"] in metadata["NetworkSettings"]["Networks"], "Retained Fabric network mismatch")
+            for mount in metadata.get("Mounts", []):
+                if mount["Type"] == "volume":
+                    require(mount["Name"] in self.fabric["volumes"], "Uncatalogued retained Fabric volume")
+                elif mount["Source"] != "/var/run/docker.sock":
+                    require(Path(mount["Source"]).resolve().is_relative_to(root), "Fabric mount resolves outside dev")
 
     def resume_fabric(self):
         if not self.fabric_active:
@@ -557,7 +579,11 @@ class Controller:
 
     def restore_definition(self, state, previous):
         if not self.fabric_active:
-            return state["chaincode"]
+            known = state["chaincode"]
+            if self.fabric:
+                require(known["fingerprint"] == previous["manifest"]["chaincode"], "Retained dev ledger requires a compatible recovery release")
+                return known
+            return dict(known, fingerprint=previous["manifest"]["chaincode"])
         actual = self.definition()
         known = state["chaincode"]
         # A crash after switch() can leave the candidate in state while the
@@ -613,6 +639,21 @@ class Controller:
         self.switch(target_record, updated)
         return updated, evidence
 
+    def resume_development(self, record, only_if_stopped=False):
+        require(self.target and self.prefix == "dev" and record.get("verified"), "Only a verified development release can resume retained data")
+        if only_if_stopped:
+            running = set(self.run("retained-dev-runtime", self.dc(record, "ps", "--services", "--status", "running")).decode().split())
+            required = {"postgres", "api", "web"} | ({"worker"} if self.fabric_active else set())
+            if required <= running:
+                return None
+        retained = json.loads(self.run("retained-dev-volume", ["docker", "volume", "inspect", self.config["postgres_volume"]]))[0]
+        require((retained.get("Labels") or {}).get("com.docker.compose.project") == self.project, "Retained dev volume ownership changed")
+        with self.stop_on_failure(record):
+            self.run("retained-dev-postgres", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "120", "postgres"), timeout=180)
+            self.resume_fabric()
+            self.start(record)
+            return self.verify(record)
+
     def rollout(self, candidate, state, expected_sequence=None):
         old = self.record(state["current"])
         # Only an administrator's reviewed cutover may establish this catalog.
@@ -620,13 +661,17 @@ class Controller:
         candidate["legacyQrLotIds"] = list(old.get("legacyQrLotIds", []))
         require(not (self.storage / "journal.json").exists(), "Interrupted deployment needs recover before a new rollout")
         self.preflight(candidate)
-        new_migrations = policy.migrations(self.applied(old), candidate["manifest"]["migrations"], candidate["directory"])
         if expected_sequence is None and (self.fabric_active or self.fabric):
             require(candidate["manifest"]["chaincode"] == state["chaincode"]["fingerprint"], "Chaincode changed; dispatch upgrade with expected sequence")
         elif expected_sequence is not None:
             require(self.fabric_active, "Fabric upgrades require an active, separate Fabric binding")
+        # Retirement removes containers, but the verified release and its data
+        # remain. Resume that baseline even when the branch has advanced.
+        before = self.resume_development(old, only_if_stopped=True) if self.target and self.prefix == "dev" else None
+        new_migrations = policy.migrations(self.applied(old), candidate["manifest"]["migrations"], candidate["directory"])
+        if expected_sequence is not None:
             require(self.definition()["sequence"] == expected_sequence, "Expected chaincode sequence mismatch")
-        before = self.verify(old)
+        before = before or self.verify(old)
         self.journal(old, candidate, "snapshot", before)
         chaincode = state["chaincode"]
         if not self.fabric_active and not self.fabric:
@@ -856,14 +901,8 @@ class Controller:
                 # release without re-running bootstrap or migrations.
                 if self.target and self.prefix == "dev":
                     self.preflight(record)
-                    retained = json.loads(self.run("retained-dev-volume", ["docker", "volume", "inspect", self.config["postgres_volume"]]))[0]
-                    require((retained.get("Labels") or {}).get("com.docker.compose.project") == self.project, "Retained dev volume ownership changed")
                     self.registry(record, auth)
-                    with self.stop_on_failure(record):
-                        self.run("retained-dev-postgres", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "120", "postgres"), timeout=180)
-                        self.resume_fabric()
-                        self.start(record)
-                        evidence = self.verify(record)
+                    evidence = self.resume_development(record)
                 else:
                     evidence = self.verify(record)
                 return {"result": "unchanged", "release": release, "counts": evidence["counts"]}
