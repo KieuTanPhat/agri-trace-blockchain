@@ -17,7 +17,8 @@ def model(root):
         services[name] = {"container_name": name, "image": "hyperledger/fabric-peer:2.5.16" if peer else
                           "hyperledger/fabric-ca:1.5.22" if "ca" in name else "hyperledger/fabric-orderer:2.5.16",
                           "mem_limit": 128 * 1048576, "cpus": 1, "networks": {"test": {}},
-                          "environment": {"CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE": "agritrace-dev-fabric", "CORE_VM_DOCKER_HOSTCONFIG_MEMORY": "536870912"},
+                          "environment": {"CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE": "agritrace-dev-fabric", "CORE_VM_DOCKER_HOSTCONFIG_MEMORY": "536870912",
+                                          "CORE_VM_DOCKER_HOSTCONFIG_CPUQUOTA": "100000", "CORE_VM_DOCKER_HOSTCONFIG_CPUPERIOD": "100000"},
                           "volumes": [{"type": "bind", "source": str(root / "own-msp"), "target": "/etc/hyperledger/fabric"},
                                       {"type": "bind", "source": str(root / "own-state"), "target": "/var/hyperledger"}]}
     services["agritrace-dev-peer1"]["ports"] = [{"host_ip": "127.0.0.1", "published": str(p)} for p in list(dev.PORTS.values())[:13]]
@@ -46,6 +47,10 @@ class IsolatedDevFabric(unittest.TestCase):
             lambda m: m["services"]["agritrace-dev-peer1"].update(mem_limit=0),
             lambda m: m["services"]["agritrace-dev-peer1"].update(image="hyperledger/fabric-peer:latest"),
             lambda m: m["services"]["agritrace-dev-peer1"]["environment"].update(CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE="fabric_test"),
+            lambda m: m["services"]["agritrace-dev-peer1"]["environment"].update(CORE_VM_DOCKER_HOSTCONFIG_CPUQUOTA="0"),
+            lambda m: m["services"]["agritrace-dev-peer1"]["environment"].update(CORE_VM_DOCKER_HOSTCONFIG_CPUPERIOD="0"),
+            lambda m: m["services"]["agritrace-dev-peer1"]["environment"].update(CORE_VM_DOCKER_HOSTCONFIG_CPUQUOTA="200000"),
+            lambda m: m["services"]["agritrace-dev-peer1"]["environment"].pop("CORE_VM_DOCKER_HOSTCONFIG_CPUQUOTA"),
             lambda m: m["services"]["agritrace-dev-peer1"]["volumes"].pop(),
         ]
         for mutate in mutations:

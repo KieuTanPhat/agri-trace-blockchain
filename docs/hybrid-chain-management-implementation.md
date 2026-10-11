@@ -15,7 +15,7 @@ Nhiều capability chưa mở thêm quyền trên endpoint core. Không tự gá
 cycles hoặc sửa event/hash/QR/proof. StageAssignment, ShipmentPlan, tích hợp scope
 trên mọi read/write, backfill manifest, ledger router và signer là các gói tiếp theo.
 
-Dev vẫn light mode, chưa dùng identity Fabric production. Người dùng xác nhận
+Dev đã có pilot Fabric riêng, không dùng identity Fabric production. Người dùng xác nhận
 chưa có đối tác pilot; sẽ dùng mạng Fabric dev cách ly. Pilot kỹ thuật không
 thay nghiệm thu authority của doanh nghiệp thật.
 
@@ -96,7 +96,7 @@ công khai; chưa ghi nhận nghiệm thu UI quản lý đã đăng nhập.
 
 Rollback hai chiều `c07f625 → 298758e → c07f625` đạt. Hash dữ liệu của cả năm
 bảng quản lý giữ nguyên; 118 event/proof fingerprints production, container
-IDs/start times/restarts, state và helper bytes production giữ nguyên. Dev có
+IDs/start times/restarts, state và helper bytes production giữ nguyên. Khi kết thúc rehearsal nền quản lý trước khi dựng Fabric, dev có
 tám trace/outbox Pending, không proof, containers healthy, không OOM; CD dev
 đã bật lại. Evidence root-only: `/opt/agri-trace-dev/cd/hybrid-foundation-20261011.json`.
 
@@ -122,6 +122,13 @@ channel dev. Đã đưa API về light bằng context đọc đúng channel, gi�
 và event cuối Pending. Bản sửa đợi backlog và sinh ledger context đang được
 kiểm CI trước delivery. Không sửa event/hash/proof để vượt gate.
 
-Chưa ghi nhận switch/drain/retention cuối hoặc đủ 24 giờ quan sát. Evidence
-root-only: `/opt/agri-trace-dev/cd/hybrid-fabric-dev-20261011.json` và
+Release `e1261a0` đã qua push CI và Development CD. Bật/tắt/resume giữ dữ liệu;
+command offline có Pending thật, sau bật lại đủ 10/10 proof. Rollback hai chiều
+với Fabric bật giữ nguyên event/proof fingerprints, năm bảng quản lý và sequence 1.
+Kiểm sâu runtime phát hiện CPU parameter bị Fabric bỏ qua; đã limit container
+hiện có và đang kiểm bản sửa generator/persistent peer config.
+
+Chưa đủ 24 giờ quan sát hoặc hoàn tất A/B/C. Chi tiết gate đang đạt/còn thiếu
+tại [pilot Fabric dev](fabric-dev-pilot-2026-10-11.md). Evidence root-only:
+`/opt/agri-trace-dev/cd/hybrid-fabric-dev-20261011.json` và
 `/opt/agri-trace-dev/shared/fabric/repair-evidence.json`.
