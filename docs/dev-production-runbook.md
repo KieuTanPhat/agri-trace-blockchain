@@ -60,6 +60,9 @@ password bị khóa, không shell/port forwarding; sudo chỉ gọi wrapper củ
    `CD_HOST`, `CD_USER`, `CD_KNOWN_HOSTS`, `CD_PROJECT`, `CD_PROFILE`,
    `CD_DEPLOY_ENABLED`. Dev profile `light`; prod profile `fabric` và project
    `agri-trace-uat` cho adoption. Host key pins phải được đối chiếu bằng admin.
+   Caller phải forward rõ secret `CD_SSH_PRIVATE_KEY` tới reusable workflow;
+   job có environment lấy giá trị của đúng environment. Không dùng `inherit`
+   để đưa các khóa UAT hoặc credentials không liên quan vào workflow dev.
 5. Đặt repo var `UAT_DEPLOY_ENABLED=false` và legacy server config `enabled=false`
    trước chuyển proxy. Giữ controller cũ để phục hồi trong maintenance, nhưng
    không cho hai CD paths cùng điều khiển app project. Recover journal cũ trước
