@@ -11,6 +11,9 @@ nghiệm thu còn lại.
 
 ## Cấu trúc
 
+Đang triển khai nền quản lý chủ chuỗi/đối tác trên dev;
+[phạm vi và kiểm chứng](docs/hybrid-chain-management-implementation.md).
+
 ```text
 apps/
   api/                 NestJS API + dedicated blockchain worker entrypoint

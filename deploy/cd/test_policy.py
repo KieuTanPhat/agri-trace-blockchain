@@ -43,6 +43,28 @@ def bundle(directory, extra=None, mutate=None):
 
 
 class Policies(unittest.TestCase):
+    def test_reviewed_chain_expansion_is_exact_and_does_not_widen_the_parser(self):
+        name = "20261011140000_chain_management_foundation"
+        source = Path(__file__).resolve().parents[2] / "apps/api/prisma/migrations" / name / "migration.sql"
+        script = source.read_bytes().replace(b"\r\n", b"\n")
+        with self.assertRaises(PolicyError):
+            additive_sql(script.decode())
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "apps/api/prisma/migrations" / name / "migration.sql"
+            target.parent.mkdir(parents=True)
+            for variant in (script, script.replace(b"\n", b"\r\n")):
+                target.write_bytes(variant)
+                self.assertEqual(migrations({}, {name: sha256(variant)}, directory), [name])
+            changed = script + b"DELETE FROM trace_event;\n"
+            target.write_bytes(changed)
+            with self.assertRaisesRegex(PolicyError, "Reviewed expansion migration was modified"):
+                migrations({}, {name: sha256(changed)}, directory)
+            unknown = target.parent.with_name(name + "_unreviewed") / "migration.sql"
+            unknown.parent.mkdir()
+            unknown.write_bytes(script)
+            with self.assertRaises(PolicyError):
+                migrations({}, {unknown.parent.name: sha256(script)}, directory)
+
     def test_historical_platform_line_endings_match_without_accepting_sql_changes(self):
         name = "20260101_init"
         lf = b'CREATE TABLE "example" ("id" INTEGER);\n-- original history\n'

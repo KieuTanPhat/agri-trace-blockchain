@@ -17,6 +17,7 @@ import { IotModule } from './modules/iot/iot.module.js';
 import { BlockchainAdapterModule } from './modules/blockchain-adapter/blockchain-adapter.module.js';
 import { HealthModule } from './health/health.module.js';
 import { ComplianceModule } from './modules/compliance/compliance.module.js';
+import { SupplyChainsModule } from './modules/supply-chains/supply-chains.module.js';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ComplianceModule } from './modules/compliance/compliance.module.js';
     TraceModule,
     IotModule,
     ComplianceModule,
+    SupplyChainsModule,
     BlockchainAdapterModule,
     HealthModule,
   ],
