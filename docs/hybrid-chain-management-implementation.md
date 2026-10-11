@@ -101,8 +101,8 @@ tám trace/outbox Pending, không proof, containers healthy, không OOM; CD dev
 đã bật lại. Evidence root-only: `/opt/agri-trace-dev/cd/hybrid-foundation-20261011.json`.
 
 Chưa hoàn thành gate A/B/C hoặc thời gian quan sát 24 giờ sau candidate cuối.
-Mạng Fabric dev riêng là bước tiếp theo; dựng mạng không mở scoped business
-commands hoặc quyền tự quản của một doanh nghiệp chưa tham gia.
+Mạng Fabric dev riêng đã triển khai theo phần pilot bên dưới; dựng mạng không
+mở scoped business commands hoặc quyền tự quản của doanh nghiệp chưa tham gia.
 
 ## Pilot Fabric dev đang kiểm chứng
 
@@ -119,8 +119,8 @@ Một chẩn đoán operator đã in nhầm enrollment secret của identity tes
 Lần bật đầu ghi 7/8 events rồi bị gate chặn: canary confirm trước một aggregate
 còn Pending. Fabric-off phát hiện QR so receipt với default channel thay vì
 channel dev. Đã đưa API về light bằng context đọc đúng channel, giữ bảy proof
-và event cuối Pending. Bản sửa đợi backlog và sinh ledger context đang được
-kiểm CI trước delivery. Không sửa event/hash/proof để vượt gate.
+và event cuối Pending. Bản sửa đợi backlog và sinh ledger context đã triển khai
+qua PR #88 sau CI/CD. Không sửa event/hash/proof để vượt gate.
 
 Release `e1261a0` đã qua push CI và Development CD. Bật/tắt/resume giữ dữ liệu;
 command offline có Pending thật, sau bật lại đủ 10/10 proof. Rollback hai chiều
@@ -128,6 +128,15 @@ với Fabric bật giữ nguyên event/proof fingerprints, năm bảng quản l�
 Kiểm sâu runtime phát hiện CPU parameter bị Fabric bỏ qua; đã limit container
 hiện có, sửa generator/persistent peer config và kiểm Docker HostConfig sau
 peer recreate. Khóa và cả mười receipt đầy đủ so với DB snapshot giữ nguyên.
+
+PR #90 đã qua CI/CD của merge SHA và triển khai dev release
+`1e009831260254444389b49d6a58170c1b003950`;
+[Development CD](https://github.com/KieuTanPhat/agri-trace-blockchain/actions/runs/38154437965)
+đạt. Lượt kiểm độc lập lúc 23:26 ngày 11/10/2026 (UTC+7) xác nhận 11/11 proof,
+không Pending; mười receipt cũ, khóa, sequence 1, giới hạn CPU/RAM, 118
+fingerprints production và 15 container ngoài dev giữ nguyên. Đây là candidate
+mới để theo dõi 24 giờ; không cộng thời gian quan sát của release trước để
+tuyên bố đạt gate.
 
 Chưa đủ 24 giờ quan sát hoặc hoàn tất A/B/C. Chi tiết gate đang đạt/còn thiếu
 tại [pilot Fabric dev](fabric-dev-pilot-2026-10-11.md). Evidence root-only:
