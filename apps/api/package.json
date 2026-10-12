@@ -19,6 +19,7 @@
     "lint": "oxlint --max-warnings 0 src/ test/",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "db:check:alignment": "node scripts/check-schema-alignment.mjs",
     "db:seed": "prisma db seed",
     "db:provision-compliance-role": "node scripts/provision-compliance-role.mjs",
     "typecheck": "tsc --noEmit",

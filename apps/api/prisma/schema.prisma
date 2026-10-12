@@ -277,9 +277,9 @@ model StageAssignment {
   cycle ProductionCycle? @relation(fields: [cycleId, chainId], references: [id, chainId], onUpdate: NoAction, onDelete: Restrict)
   lot Lot? @relation(fields: [lotId], references: [id], onUpdate: NoAction, onDelete: Restrict)
   shipment Shipment? @relation(fields: [shipmentId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  @@unique([chainId, cycleId, stage], map: "uq_stage_cycle_active", where: raw("(status IN ('PROPOSED', 'ACCEPTED'))"))
-  @@unique([chainId, lotId, stage], map: "uq_stage_lot_active", where: raw("(status IN ('PROPOSED', 'ACCEPTED'))"))
-  @@unique([chainId, shipmentId, stage], map: "uq_stage_shipment_active", where: raw("(status IN ('PROPOSED', 'ACCEPTED'))"))
+  @@unique([chainId, cycleId, stage], map: "uq_stage_cycle_active", where: raw("(status = ANY (ARRAY['PROPOSED'::hybrid_assignment_state, 'ACCEPTED'::hybrid_assignment_state]))"))
+  @@unique([chainId, lotId, stage], map: "uq_stage_lot_active", where: raw("(status = ANY (ARRAY['PROPOSED'::hybrid_assignment_state, 'ACCEPTED'::hybrid_assignment_state]))"))
+  @@unique([chainId, shipmentId, stage], map: "uq_stage_shipment_active", where: raw("(status = ANY (ARRAY['PROPOSED'::hybrid_assignment_state, 'ACCEPTED'::hybrid_assignment_state]))"))
   @@index([chainId, organizationId, stage, status], map: "ix_stage_actor_scope")
   @@map("stage_assignment")
 }
@@ -528,6 +528,8 @@ model SensorDigest {
   harvestEvent            HarvestEvent?
   cycle                   ProductionCycle @relation(fields: [cycleId], references: [id], onUpdate: NoAction)
 
+  @@unique([cycleId, periodStart, periodEnd], map: "uq_sensor_digest_window")
+  @@unique([cycleId], map: "ux_sensor_digest_final_cycle", where: raw("(is_final = true)"))
   @@index([cycleId, periodStart, periodEnd], map: "ix_sensor_digest_cycle_period")
   @@index([digestHash], map: "ix_sensor_digest_hash")
   @@map("sensor_digest")
@@ -730,8 +732,9 @@ model TraceEvent {
   eventTime               DateTime           @map("event_time") @db.Timestamptz(6)
   serverRecordedAt        DateTime           @default(now()) @map("server_recorded_at") @db.Timestamptz(6)
   businessData            Json               @map("business_data")
-  schemaVersion           String             @default("2.0.0") @map("schema_version") @db.VarChar(50)
-  canonicalizationVersion String             @default("RFC8785") @map("canonicalization_version") @db.VarChar(50)
+  // Migration defaults remain legacy; TraceService explicitly writes v2/RFC8785.
+  schemaVersion           String             @default("trace-event-1") @map("schema_version") @db.VarChar(50)
+  canonicalizationVersion String             @default("RFC8785-JCS-v1") @map("canonicalization_version") @db.VarChar(50)
   dataHash                String             @map("data_hash") @db.VarChar(64)
   previousEventHash       String?            @map("previous_event_hash") @db.VarChar(64)
   supersedesEventId       String?            @map("supersedes_event_id") @db.Uuid
@@ -922,7 +925,7 @@ model CommandCommit {
   responseStatus Int @map("response_status")
   responseBody Json @map("response_body")
   committedAt DateTime @default(now()) @map("committed_at") @db.Timestamptz(6)
-  idempotencyRecord IdempotencyRecord @relation(fields: [idempotencyRecordId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  idempotencyRecord IdempotencyRecord @relation(fields: [idempotencyRecordId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([requesterId, committedAt], map: "ix_command_commit_requester_time")
   @@map("command_commit")
@@ -934,8 +937,8 @@ model ComplianceAssignment {
   farmId String @map("farm_id") @db.Uuid
   grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(6)
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
-  reviewer User @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  farm Farm @relation(fields: [farmId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reviewer User @relation(fields: [reviewerUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   audits ComplianceAssignmentAudit[]
 
   @@unique([reviewerUserId, farmId], map: "ux_compliance_assignment_active", where: raw("(revoked_at IS NULL)"))
@@ -950,8 +953,8 @@ model ComplianceAssignmentAudit {
   actorUserId String @map("actor_user_id") @db.Uuid
   reason String
   recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
-  assignment ComplianceAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  actor User @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  assignment ComplianceAssignment @relation(fields: [assignmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([assignmentId, recordedAt], map: "ix_compliance_assignment_audit_time")
   @@map("compliance_assignment_audit")
@@ -971,9 +974,9 @@ model HarvestSensorWindow {
   finalizedAt DateTime @default(now()) @map("finalized_at") @db.Timestamptz(6)
   sealedAt DateTime? @map("sealed_at") @db.Timestamptz(6)
   reconciliationId String? @map("reconciliation_id") @db.Uuid
-  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  harvest HarvestEvent @relation(fields: [harvestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  reconciliation CycleSensorReconciliation? @relation(fields: [reconciliationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  harvest HarvestEvent @relation(fields: [harvestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reconciliation CycleSensorReconciliation? @relation(fields: [reconciliationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   readings HarvestSensorMembership[]
 
   @@unique([cycleId, periodEnd], map: "uq_harvest_sensor_window_cutoff")
@@ -984,8 +987,8 @@ model HarvestSensorWindow {
 model HarvestSensorMembership {
   windowId String @map("window_id") @db.Uuid
   readingId String @unique @map("reading_id") @db.Uuid
-  window HarvestSensorWindow @relation(fields: [windowId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  reading SensorReading @relation(fields: [readingId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  window HarvestSensorWindow @relation(fields: [windowId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reading SensorReading @relation(fields: [readingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([windowId, readingId])
   @@map("harvest_sensor_membership")
@@ -995,8 +998,8 @@ model LateSensorReading {
   readingId String @id @map("reading_id") @db.Uuid
   closedHarvestId String @map("closed_harvest_id") @db.Uuid
   detectedAt DateTime @default(now()) @map("detected_at") @db.Timestamptz(6)
-  reading SensorReading @relation(fields: [readingId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  closedHarvest HarvestEvent @relation(fields: [closedHarvestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reading SensorReading @relation(fields: [readingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  closedHarvest HarvestEvent @relation(fields: [closedHarvestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("late_sensor_reading")
 }
@@ -1011,9 +1014,9 @@ model CycleSensorReconciliation {
   recordedById String @map("recorded_by_id") @db.Uuid
   reason String
   recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
-  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  throughHarvest HarvestEvent? @relation(fields: [throughHarvestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  recordedBy User @relation(fields: [recordedById], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  throughHarvest HarvestEvent? @relation(fields: [throughHarvestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recordedBy User @relation(fields: [recordedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   windows HarvestSensorWindow[]
 
   @@unique([cycleId, revision], map: "uq_cycle_sensor_reconciliation_revision")
