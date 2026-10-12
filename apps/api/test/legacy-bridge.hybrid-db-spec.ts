@@ -326,6 +326,27 @@ describe('Legacy replay authority witnesses', () => {
               .authorityRevision,
           ).toBe(0);
           expect((await idem.inspectCommand(input)).status).toBe('COMMITTED');
+          await tx.$executeRawUnsafe('SAVEPOINT forged_device_epoch');
+          let rejected = false;
+          try {
+            await tx.iotDevice.update({
+              where: { id: device.id },
+              data: { authorityRevision: 100 },
+            });
+          } catch (error) {
+            rejected = String(error).includes(
+              'Device authority revision is managed',
+            );
+            await tx.$executeRawUnsafe(
+              'ROLLBACK TO SAVEPOINT forged_device_epoch',
+            );
+          }
+          await tx.$executeRawUnsafe('RELEASE SAVEPOINT forged_device_epoch');
+          expect(rejected).toBe(true);
+          expect(
+            (await tx.iotDevice.findUniqueOrThrow({ where: { id: device.id } }))
+              .authorityRevision,
+          ).toBe(0);
           if (binding) {
             await tx.shipmentTrackingBinding.update({
               where: { id: binding.id },
@@ -455,7 +476,11 @@ describe('Legacy replay authority witnesses', () => {
         const before = await positiveJournal(tx, input, { id: randomUUID() });
         await tx.chainBusinessProfile.update({
           where: { chainId: f.chain.id },
-          data: { version: { increment: 1 } },
+          data: { state: 'SUSPENDED', version: { increment: 1 } },
+        });
+        await tx.chainBusinessProfile.update({
+          where: { chainId: f.chain.id },
+          data: { state: 'ACTIVE', version: { increment: 1 } },
         });
         await expect(
           inspection(tx).inspectCommand(input),

@@ -48,3 +48,10 @@ epoch/binding, cycle-bound device creation/unknown outcome và scoped journal.
 Local typed check gồm mọi hybrid spec, lint và Swagger generate 96 operations
 đạt; chưa gọi các regression mới là pass. Manifest mới chỉ production/isolated;
 runtime production từ chối isolated pins, môi trường dev đã bỏ.
+
+Lượt local `1b6b3d9`: 135 unit/31 SQL/diff zero + sáu guards/ORM đạt;
+94/95 policy cases đạt. Case còn lại tạo transition ACTIVE → ACTIVE/version+1
+không hợp lệ theo DB guard, trước assertion bridge. Sửa fixture sang suspend rồi
+reactivate đúng state machine, giữ yêu cầu scoped journal không bridge thành
+legacy. Container không OOM/restart, cleanup hoàn tất; chưa chạy legacy E2E ở
+lượt thất bại này. Bổ sung negative direct SQL không cho giả authority revision.
