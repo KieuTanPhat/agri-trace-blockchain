@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomUUID } from 'node:crypto';
 import {
@@ -17,6 +21,14 @@ import {
   scopedLotReadWhere,
   scopedShipmentReadWhere,
 } from '../src/modules/supply-chains/business-read-scope.js';
+import {
+  acceptShipmentPlan,
+  authorizePlanAcceptance,
+  cancelShipmentPlan,
+  createShipmentPlan,
+  reviseShipmentPlan,
+  shipmentPlanDigest,
+} from '../src/modules/supply-chains/shipment-plan.commands.js';
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -59,6 +71,7 @@ async function isolated(run: (tx: Prisma.TransactionClient) => Promise<void>) {
     await db.$transaction(
       async (tx) => {
         await run(tx);
+        await tx.$executeRaw`SET CONSTRAINTS ALL IMMEDIATE`;
         throw rollback;
       },
       { timeout: 20000 },
@@ -86,6 +99,32 @@ const authority = (
     { chainId: chain, role, subject: { kind: 'cycle', id } },
     true,
   );
+
+async function freshPlan(db: Prisma.TransactionClient) {
+  const harvest = await db.harvestEvent.create({
+    data: { cycleId, harvestTime: new Date(), quantity: '5', unit: 'kg' },
+  });
+  const lot = await db.lot.create({
+    data: {
+      lotCode: randomUUID(),
+      harvestId: harvest.id,
+      productId,
+      farmOrgId: producer.organizationId!,
+      initialQuantity: '5',
+      availableQuantity: '5',
+      unit: 'kg',
+    },
+  });
+  const input = {
+    transporterOrgId: transporter.organizationId!,
+    retailerOrgId: retailer.organizationId!,
+    quantity: '5.000',
+    unit: 'kg',
+    origin: 'farm',
+    destination: 'shop',
+  };
+  return { lot, input };
+}
 
 describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint acceptance)', () => {
   beforeAll(async () => {
@@ -670,5 +709,302 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       expect(await tx.lot.count({ where: scopedLotReadWhere(retailer) })).toBe(
         0,
       );
+    }));
+
+  it('creates an immutable draft revision without reserving stock or creating a Shipment', () =>
+    isolated(async (tx) => {
+      const { lot, input } = await freshPlan(tx);
+      const beforeEvents = await tx.traceEvent.count();
+      const plan = await createShipmentPlan(
+        tx,
+        producer,
+        chainId,
+        lot.id,
+        input,
+      );
+      expect(plan.currentRevision).toBe(0);
+      expect(plan.current.payloadDigest).toBe(
+        shipmentPlanDigest(chainId, lot.id, 0, plan.current),
+      );
+      expect(plan.current.quantity.toFixed(3)).toBe('5.000');
+      expect(
+        (
+          await tx.lot.findUniqueOrThrow({ where: { id: lot.id } })
+        ).availableQuantity.toFixed(3),
+      ).toBe('5.000');
+      expect(await tx.shipment.count({ where: { lotId: lot.id } })).toBe(0);
+      expect(await tx.traceEvent.count()).toBe(beforeEvents);
+      expect(
+        await tx.chainAudit.count({
+          where: { subjectId: plan.id, operation: 'CREATE_SHIPMENT_PLAN' },
+        }),
+      ).toBe(1);
+    }));
+
+  it('rejects partner proposal and incorrect quantity without a partial plan or audit', () =>
+    isolated(async (tx) => {
+      const { lot, input } = await freshPlan(tx);
+      const before = await tx.chainAudit.count();
+      await expect(
+        createShipmentPlan(tx, transporter, chainId, lot.id, input),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        createShipmentPlan(tx, producer, chainId, lot.id, {
+          ...input,
+          quantity: '4',
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(await tx.shipmentPlan.count({ where: { lotId: lot.id } })).toBe(0);
+      expect(await tx.chainAudit.count()).toBe(before);
+    }));
+
+  it('requires each organization to accept its own party and exact immutable payload', () =>
+    isolated(async (tx) => {
+      const { lot, input } = await freshPlan(tx);
+      const plan = await createShipmentPlan(
+        tx,
+        producer,
+        chainId,
+        lot.id,
+        input,
+      );
+      await expect(
+        acceptShipmentPlan(
+          tx,
+          producer,
+          plan.id,
+          'TRANSPORTER',
+          0,
+          plan.current.payloadDigest,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        acceptShipmentPlan(
+          tx,
+          transporter,
+          plan.id,
+          'TRANSPORTER',
+          0,
+          'f'.repeat(64),
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+      for (const [party, actor] of [
+        ['PRODUCER', producer],
+        ['TRANSPORTER', transporter],
+        ['RETAILER', retailer],
+      ] as const) {
+        const before = await authorizePlanAcceptance(
+          tx,
+          actor,
+          plan.id,
+          party,
+          0,
+          plan.current.payloadDigest,
+        );
+        const accepted = await acceptShipmentPlan(
+          tx,
+          actor,
+          plan.id,
+          party,
+          0,
+          plan.current.payloadDigest,
+        );
+        expect(accepted.userId).toBe(actor.sub);
+        expect(accepted.organizationId).toBe(actor.organizationId);
+        expect(
+          (
+            await authorizePlanAcceptance(
+              tx,
+              actor,
+              plan.id,
+              party,
+              0,
+              plan.current.payloadDigest,
+            )
+          ).scope,
+        ).toBe(before.scope);
+      }
+      expect(
+        await tx.shipmentPlanAcceptance.count({ where: { planId: plan.id } }),
+      ).toBe(3);
+      await expect(
+        acceptShipmentPlan(
+          tx,
+          producer,
+          plan.id,
+          'PRODUCER',
+          0,
+          plan.current.payloadDigest,
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+    }));
+
+  it('retains old consent and requires new consent after revision, with stale version protection', () =>
+    isolated(async (tx) => {
+      const { lot, input } = await freshPlan(tx);
+      const plan = await createShipmentPlan(
+        tx,
+        producer,
+        chainId,
+        lot.id,
+        input,
+      );
+      const old = await acceptShipmentPlan(
+        tx,
+        producer,
+        plan.id,
+        'PRODUCER',
+        0,
+        plan.current.payloadDigest,
+      );
+      const next = await reviseShipmentPlan(tx, producer, plan.id, 0, {
+        ...input,
+        destination: 'new-shop',
+      });
+      expect(next.version).toBe(1);
+      expect(next.currentRevision).toBe(1);
+      expect(next.current.payloadDigest).not.toBe(plan.current.payloadDigest);
+      expect(
+        await tx.shipmentPlanAcceptance.findUnique({ where: { id: old.id } }),
+      ).not.toBeNull();
+      await expect(
+        acceptShipmentPlan(
+          tx,
+          producer,
+          plan.id,
+          'PRODUCER',
+          0,
+          plan.current.payloadDigest,
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+      await expect(
+        reviseShipmentPlan(tx, producer, plan.id, 0, input),
+      ).rejects.toBeInstanceOf(ConflictException);
+      await acceptShipmentPlan(
+        tx,
+        producer,
+        plan.id,
+        'PRODUCER',
+        1,
+        next.current.payloadDigest,
+      );
+      expect(
+        await tx.shipmentPlanRevision.count({ where: { planId: plan.id } }),
+      ).toBe(2);
+      expect(
+        await tx.shipmentPlanAcceptance.count({ where: { planId: plan.id } }),
+      ).toBe(2);
+    }));
+
+  it('does not authorize consent through an old revoked org admin grant', () =>
+    isolated(async (tx) => {
+      const { lot, input } = await freshPlan(tx);
+      const plan = await createShipmentPlan(
+        tx,
+        producer,
+        chainId,
+        lot.id,
+        input,
+      );
+      const before = await authorizePlanAcceptance(
+        tx,
+        producer,
+        plan.id,
+        'PRODUCER',
+        0,
+        plan.current.payloadDigest,
+      );
+      const consent = await acceptShipmentPlan(
+        tx,
+        producer,
+        plan.id,
+        'PRODUCER',
+        0,
+        plan.current.payloadDigest,
+      );
+      await tx.scopedRoleGrant.update({
+        where: { id: before.grant.id },
+        data: { revokedAt: new Date(), revision: { increment: 1 } },
+      });
+      await expect(
+        authorizePlanAcceptance(
+          tx,
+          producer,
+          plan.id,
+          'PRODUCER',
+          0,
+          plan.current.payloadDigest,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      const replacement = await tx.scopedRoleGrant.create({
+        data: {
+          userId: producer.sub!,
+          organizationId: producer.organizationId!,
+          scope: 'ORGANIZATION',
+          role: 'ORG_ADMIN',
+        },
+      });
+      expect(
+        (
+          await authorizePlanAcceptance(
+            tx,
+            producer,
+            plan.id,
+            'PRODUCER',
+            0,
+            plan.current.payloadDigest,
+          )
+        ).scope,
+      ).not.toBe(before.scope);
+      expect(
+        (
+          await tx.shipmentPlanAcceptance.findUniqueOrThrow({
+            where: { id: consent.id },
+          })
+        ).grantId,
+      ).not.toBe(replacement.id);
+    }));
+
+  it('cancels a draft while retaining revision and acceptance history', () =>
+    isolated(async (tx) => {
+      const { lot, input } = await freshPlan(tx);
+      const plan = await createShipmentPlan(
+        tx,
+        producer,
+        chainId,
+        lot.id,
+        input,
+      );
+      await acceptShipmentPlan(
+        tx,
+        producer,
+        plan.id,
+        'PRODUCER',
+        0,
+        plan.current.payloadDigest,
+      );
+      expect((await cancelShipmentPlan(tx, producer, plan.id, 0)).status).toBe(
+        'CANCELLED',
+      );
+      expect(
+        await tx.shipmentPlanRevision.count({ where: { planId: plan.id } }),
+      ).toBe(1);
+      expect(
+        await tx.shipmentPlanAcceptance.count({ where: { planId: plan.id } }),
+      ).toBe(1);
+      await expect(
+        reviseShipmentPlan(tx, producer, plan.id, 1, input),
+      ).rejects.toBeInstanceOf(ConflictException);
+      await expect(
+        acceptShipmentPlan(
+          tx,
+          retailer,
+          plan.id,
+          'RETAILER',
+          0,
+          plan.current.payloadDigest,
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(await tx.shipment.count({ where: { lotId: lot.id } })).toBe(0);
     }));
 });

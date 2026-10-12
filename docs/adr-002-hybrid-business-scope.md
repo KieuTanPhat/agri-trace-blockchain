@@ -118,3 +118,12 @@ Read-scope candidate bổ sung SQL predicates cho Cycle/Lot/Shipment: cùng Farm
 không đủ quyền trên chain khác; Cycle cha không tự mở sibling Lots; owner chỉ
 có projection riêng. Kiểm list/direct ID/count/nested relation đang chuẩn bị,
 chưa nối bộ lọc vào endpoint hoặc tính HYB-AC-03 Passed.
+
+Commands nháp ShipmentPlan đang chuẩn bị trong transaction: create/revise,
+accept theo party/revision/digest và cancel, có audit cùng commit. Khóa toàn
+bộ tổ chức liên quan theo thứ tự trước chain/plan/Lot. Draft không giữ stock;
+quantity/unit phải khớp toàn bộ lượng khả dụng; không tạo Shipment, trace hoặc
+outbox vật lý. Finalize cùng Shipment/assignments/trace/outbox, command replay
+integration, API/Swagger/Web và capability core guards còn phải triển khai.
+Các tests rollback chủ động cũng ép deferred constraints kiểm trước rollback;
+không lấy transaction rollback làm bằng chứng deferred FK đã hợp lệ khi commit.
