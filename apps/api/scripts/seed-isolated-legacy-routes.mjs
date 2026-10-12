@@ -7,7 +7,7 @@ import { fixtureRoutePayload } from '../test/support/ledger-route-fixture.ts';
 if (
   process.env.NODE_ENV !== 'test' ||
   process.env.HYBRID_DRAFT_TESTS !== '1' ||
-  !process.env.TEST_DATABASE_URL
+  !/@127\.0\.0\.1:25488\/scope_test$/.test(process.env.TEST_DATABASE_URL ?? '')
 )
   throw new Error(
     'Legacy route seed requires an explicit isolated test database',

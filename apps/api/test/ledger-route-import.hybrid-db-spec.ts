@@ -101,7 +101,7 @@ async function prepared(scenario: string, pending = false, onlyLast = false) {
     where: { cycleCode: `legacy-route-${scenario}` },
   });
   const events = await db.traceEvent.findMany({
-    where: { cycleId: cycle.id },
+    where: { cycleId: cycle.id, legacyRouteRequirement: { isNot: null } },
     orderBy: { eventTime: 'asc' },
   });
   expect(events).toHaveLength(2);

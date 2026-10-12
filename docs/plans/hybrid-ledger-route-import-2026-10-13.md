@@ -131,3 +131,10 @@ Profile seed ACTIVE bị update ACTIVE → ACTIVE, guard chặn đúng. Sửa UP
 hai chain fixture và ORM cutover count chỉ membership của chain fixture; giữ số
 assertion/expected 31/4, không đổi state-machine guard. Cleanup verified, chưa
 chạy đến 132 policy/DB.
+
+Lượt `ee10a68` đạt 130/132 policy/DB; hai lỗi fixture còn lại: shared canonical
+HISTORICAL definition được register lần hai, và selection của legacy fixture lấy
+thêm event mới mà case sealed guard đã tạo. Register fixture dùng insert/no-op
+cho cùng digest; selection dựa sealed requirement, không timestamp hoặc hạ số
+expected. Seed được chặn thêm bằng loopback/database test cố định. OOM false,
+restart0; cleanup verified. Chưa chạy legacy E2E ở lượt fail này.

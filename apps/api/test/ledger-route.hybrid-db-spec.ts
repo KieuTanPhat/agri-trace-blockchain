@@ -81,7 +81,12 @@ async function register(
       ? randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '')
       : ledgerRouteDigest(payload),
   };
-  await db.ledgerRouteDefinition.create({ data: route });
+  // Canonical HISTORICAL metadata has no random writer authority. Another
+  // suite may already have registered the same immutable definition.
+  await db.ledgerRouteDefinition.createMany({
+    data: [route],
+    skipDuplicates: true,
+  });
   process.env.LEDGER_ROUTE_PINS = JSON.stringify([route.digest]);
   process.env.LEDGER_ACTIVE_ROUTE_DIGEST = route.digest;
   return route;
