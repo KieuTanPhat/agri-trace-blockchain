@@ -215,3 +215,24 @@ membership, đúng grant/capability/assignment; không lấy global role làm qu
 công đoạn. Kiểm PostgreSQL riêng có config `vitest.config.hybrid.ts` và bắt buộc
 `HYBRID_DRAFT_TESTS=1` trên DB có SQL draft/fixtures. Chưa nối policy vào endpoint
 core hoặc mở profile trên dev; schema candidate chưa là migration triển khai.
+
+## Candidate core/Web — chưa triển khai dev
+
+Nhánh `feature/hybrid-chain-business-scope` đã nối scope policy vào core
+commands, read filters, actor suy ra từ current grant, ShipmentPlan API và Web.
+Candidate `187ef0e` qua 47 PostgreSQL tests gồm năm representative HTTP scenarios,
+30 SQL assertions, ORM và 105 unit; Web `30ecccf` qua 152 tests, contract 89 ops.
+Lượt 50 DB tests sau đó có 49 đạt, một lỗi fixture certificate đã sửa; giữ log,
+không tính 112 E2E đạt vì lượt đó chưa chạy tới suite này. `28b90dd` đang chạy
+52 DB tests và 112 legacy E2E riêng trước khi kết luận.
+
+Private reads legacy chưa resolve bị chặn sau org cutover; sensor reconciliation
+scoped yêu cầu reviewer độc lập, current grant/capability và Farm assignment.
+Manifest/inventory chỉ đọc chuẩn bị tại
+[legacy rehearsal](hybrid-legacy-scope-rehearsal.md). Apply/provenance/journal
+bridge, official migration/checksum review, Web revoke/tab/mobile, rehearsal
+và release gates còn thiếu. Không coi core representative tests là hoàn tất A.
+
+Monitor 10:26 ngày 12/10 giữ 13/13 proof, Pending 0, 118 fingerprints production
+và 15 container ngoài dev; release vẫn `2d08e8e`. Gate 24h vẫn chưa đạt do gap
+đã ghi nhận, không xóa lịch sử hoặc suy ra healthy trong khoảng trống.

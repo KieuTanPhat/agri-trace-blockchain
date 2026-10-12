@@ -197,3 +197,13 @@ admin không có business authority mặc định. Root legacy chưa resolve sau
 cutover bị đóng private read/write, kể cả platform private reads. Public QR
 giữ policy projection riêng; không sửa dữ liệu/hash/proof lịch sử. Bổ sung hai
 HTTP scenarios, đang kiểm lại DB và toàn bộ legacy E2E trước promotion.
+
+Lượt `28b90dd` lúc 10:38 có 51/52 tests đạt: legacy unresolved barrier và
+independent sensor reviewer đều đạt; IoT list trả 500 do truy vấn relation
+`trackingBindings` nhưng Prisma khai báo một `trackingBinding`. DB chỉ unique
+device trên binding ACTIVE, lịch sử unbound có nhiều dòng, nên sửa relation
+Prisma thành danh sách theo mô hình DB, không nới active uniqueness. Giữ failure
+evidence `/opt/agri-trace-admin/hybrid-scope-draft/fce7466263ece890-1791775747429213289`.
+112 legacy chưa chạy ở lượt lỗi này. Bổ sung shared-device nested cycle privacy,
+inventory DB read-only và chín manifest negative/positive unit cases; 114 unit
+đạt tại local. Candidate mới phải qua DB/HTTP và legacy regression trước rollout.

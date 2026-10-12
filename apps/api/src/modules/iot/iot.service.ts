@@ -60,7 +60,19 @@ export class IotService {
           {
             AND: [
               legacy ?? {},
-              { OR: [{ cycleId: null }, { cycle: { is: { chainId: null } } }] },
+              {
+                OR: [
+                  { cycleId: null },
+                  {
+                    cycle: {
+                      is: {
+                        chainId: null,
+                        organization: { businessScope: { is: null } },
+                      },
+                    },
+                  },
+                ],
+              },
               {
                 trackingBindings: {
                   none: {

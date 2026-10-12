@@ -46,6 +46,9 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { commandTransaction } from '../src/common/idempotency/command-transaction.js';
+import { inventoryLegacyScope } from '../src/modules/supply-chains/legacy-scope-inventory.js';
+import { validateLegacyScopeManifest } from '../src/modules/supply-chains/legacy-scope-manifest.js';
+import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -1744,6 +1747,49 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
     expect(calls).toBe(1);
   });
 
+  it('produces a read-only legacy inventory without private payloads and validates the exact independent manifest pin', async () => {
+    const inventory = await db.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+        return inventoryLegacyScope(tx);
+      },
+      { isolationLevel: 'RepeatableRead', timeout: 20000 },
+    );
+    const legacy = await db.productionCycle.findFirstOrThrow({
+      where: { cycleCode: 'legacy-before-cutover' },
+    });
+    expect(inventory.roots.map((root) => root.cycleId)).toContain(legacy.id);
+    expect(JSON.stringify(inventory)).not.toContain(legacy.cycleCode);
+    const manifest = {
+      schema: 'agritrace-legacy-scope-manifest-1',
+      id: randomUUID(),
+      sourceSha: 'a'.repeat(40),
+      environment: 'isolated',
+      inventoryDigest: inventory.digest,
+      operatorId: randomUUID(),
+      reviewerId: randomUUID(),
+      reviewEvidenceDigest: 'b'.repeat(64),
+      entries: inventory.roots.map((root) => ({
+        cycleId: root.cycleId,
+        producerOrgId: root.producerOrgId,
+        expectedVersion: root.version,
+        inventoryDigest: root.inventoryDigest,
+        chainId: null,
+        decision: 'UNRESOLVED',
+      })),
+    };
+    const result = validateLegacyScopeManifest(
+      manifest,
+      inventory,
+      canonicalSha256(manifest),
+      { environment: 'isolated', sourceSha: manifest.sourceSha },
+    );
+    expect(result.activeUnresolved).toContain(legacy.id);
+    expect(
+      await db.productionCycle.findUnique({ where: { id: legacy.id } }),
+    ).toEqual(legacy);
+  });
+
   describe('HTTP scope and command contracts on the isolated draft database', () => {
     let app: INestApplication;
     let producerToken: string;
@@ -2133,6 +2179,78 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
           await get('/production-cycles', producerToken).expect(200)
         ).body.data.some((row: { id: string }) => row.id === hidden.cycle.id),
       ).toBe(false);
+    });
+
+    it('prunes another chain cycle from a device shared with a visible Shipment', async () => {
+      const device = await db.$transaction(
+        async (tx) => {
+          await tx.organizationCapability.upsert({
+            where: {
+              organizationId_code: {
+                organizationId: transporter.organizationId!,
+                code: 'FARM',
+              },
+            },
+            create: {
+              organizationId: transporter.organizationId!,
+              code: 'FARM',
+            },
+            update: {},
+          });
+          const farm = await tx.farm.create({
+            data: {
+              organizationId: transporter.organizationId!,
+              name: 'Transporter own farm',
+            },
+          });
+          const cycle = await tx.productionCycle.create({
+            data: {
+              farmId: farm.id,
+              farmOrgId: transporter.organizationId!,
+              productId,
+              chainId: otherChainId,
+              cycleCode: randomUUID(),
+            },
+          });
+          const device = await tx.iotDevice.create({
+            data: {
+              organizationId: transporter.organizationId!,
+              cycleId: cycle.id,
+              deviceCode: randomUUID(),
+              name: 'Shared tracking device',
+              type: 'temperature',
+            },
+          });
+          await tx.shipmentTrackingBinding.create({
+            data: {
+              shipmentId,
+              deviceId: device.id,
+              transporterOrgId: transporter.organizationId!,
+            },
+          });
+          return device;
+        },
+        { timeout: 20000 },
+      );
+      const shipment = await get(
+        `/shipments/${shipmentId}`,
+        transporterToken,
+      ).expect(200);
+      const binding = shipment.body.data.trackingBindings.find(
+        (row: { deviceId: string }) => row.deviceId === device.id,
+      );
+      expect(binding.device.id).toBe(device.id);
+      expect(binding.device.cycleId).toBeNull();
+      const devices = await get('/iot/devices', transporterToken).expect(200);
+      const shared = devices.body.data.find(
+        (row: { id: string }) => row.id === device.id,
+      );
+      expect(shared.cycleId).toBeNull();
+      expect(shared.cycle).toBeNull();
+      await get(
+        `/production-cycles/${device.cycleId}`,
+        transporterToken,
+      ).expect(404);
     });
 
     it('rejects producer organization self-review across users despite AUDITOR capability and assignment', async () => {

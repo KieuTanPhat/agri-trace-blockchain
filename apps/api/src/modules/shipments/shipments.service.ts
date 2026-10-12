@@ -25,7 +25,10 @@ import { OrganizationAccessService } from '../auth/organization-access.service.j
 import { assignedFarmWhere } from '../auth/compliance-scope.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
-import { legacyOrScopedShipment } from '../supply-chains/business-read-scope.js';
+import {
+  legacyOrScopedShipment,
+  legacyOrScopedCycle,
+} from '../supply-chains/business-read-scope.js';
 import type {
   CreateShipmentDto,
   DamageShipmentDto,
@@ -106,22 +109,42 @@ export class ShipmentsService {
     });
     if (!shipment)
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
-    if (
-      !['SYSTEM_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER'].includes(
-        actor.role,
-      ) &&
-      (!actor.organizationId ||
-        ![
-          shipment.lot.farmOrgId,
-          shipment.transporterOrgId,
-          shipment.retailerOrgId,
-        ].includes(actor.organizationId))
-    )
-      throw new ForbiddenException(
-        'Tổ chức hiện tại không có quyền xem chuyến hàng',
-      );
+    const ids = shipment.trackingBindings.flatMap((binding) =>
+      binding.device.cycleId ? [binding.device.cycleId] : [],
+    );
+    const visibleCycles = ids.length
+      ? await this.prisma.productionCycle.findMany({
+          where: {
+            AND: [
+              { id: { in: ids } },
+              legacyOrScopedCycle(
+                actor,
+                ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)
+                  ? {}
+                  : {
+                      farmOrgId:
+                        actor.organizationId ??
+                        '00000000-0000-0000-0000-000000000000',
+                    },
+              ),
+            ],
+          },
+          select: { id: true },
+        })
+      : [];
+    const visible = new Set(visibleCycles.map((cycle) => cycle.id));
     return {
       ...shipment,
+      trackingBindings: shipment.trackingBindings.map((binding) => ({
+        ...binding,
+        device: {
+          ...binding.device,
+          cycleId:
+            binding.device.cycleId && visible.has(binding.device.cycleId)
+              ? binding.device.cycleId
+              : null,
+        },
+      })),
       telemetry: shipment.telemetry.map((reading) => ({
         ...reading,
         deviceSequence: reading.deviceSequence?.toString() ?? null,
