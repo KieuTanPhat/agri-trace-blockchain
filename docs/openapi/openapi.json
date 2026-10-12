@@ -3446,6 +3446,9 @@
             "format": "uuid",
             "type": "string"
           },
+          "chainName": {
+            "type": "string"
+          },
           "key": {
             "type": "string"
           },
@@ -3467,11 +3470,16 @@
           "subjectId": {
             "description": "Mã đối tượng công đoạn hoặc chuỗi cần review",
             "type": "string"
+          },
+          "subjectLabel": {
+            "type": "string"
           }
         },
         "required": [
           "key",
           "chainId",
+          "chainName",
+          "subjectLabel",
           "stage",
           "manifestDigest",
           "planDigest",

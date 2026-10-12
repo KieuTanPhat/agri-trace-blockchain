@@ -105,6 +105,20 @@ Lượt alignment/replay trước `4a40fac` đạt 130 unit/30 SQL/zero-drift v�
 guards, nhưng 57/59 DB do TraceService chưa ghi version vào row. Đã thêm explicit
 version vào row và assertion unit; giữ failure, chưa tính candidate mới Passed.
 
+`4cb87df` tiếp tục đạt 130 API unit và zero-drift/sáu unique guards khi có cả
+legacy draft, nhưng SQL scenarios dừng vì guard trả thông điệp lỗi khác baseline
+(`omitting-chain-cannot-bypass-cutover`). Đã giữ nguyên thông điệp INSERT/UPDATE
+của guard gốc; không sửa assertion hoặc nới invariant. Job terminal và
+container/network đã dọn. Evidence lỗi:
+`/opt/agri-trace-admin/hybrid-scope-draft/fce7466263ece890-1791802941417938654`.
+
+Web candidate thêm `/supply-chains/legacy/:manifestId` để từng tổ chức xác nhận
+công đoạn và owner review. Response chỉ có tên chuỗi/subject và digest đã review,
+không có grant/user IDs. Account/access revision/manifest đổi sẽ bỏ response cũ;
+refresh cùng scope giữ retry key chưa rõ kết quả. Pin withdrawal đổi UI access
+revision, không đổi business command fingerprint. Local Web đạt 173 tests và
+lint/typecheck; browser/mobile còn phải kiểm với API thật trên DB cách ly.
+
 Gate tiếp theo: full PostgreSQL/HTTP/legacy regressions, participant/concurrency
 coverage, paused writer/Worker snapshot và independent pin deployment, DB mới/
 copy rehearsal, restore, migration/checksum/compatible rollback, browser/mobile

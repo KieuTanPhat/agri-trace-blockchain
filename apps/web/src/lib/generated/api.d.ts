@@ -2302,6 +2302,7 @@ export interface components {
         LegacyProposalDto: {
             /** Format: uuid */
             chainId: string;
+            chainName: string;
             key: string;
             manifestDigest: string;
             planDigest: string;
@@ -2309,6 +2310,7 @@ export interface components {
             stage: "PRODUCTION" | "TRANSPORT" | "RETAIL" | "REVIEW";
             /** @description Mã đối tượng công đoạn hoặc chuỗi cần review */
             subjectId: string;
+            subjectLabel: string;
         };
         LegacyRegistrationResultDto: {
             digest: string;

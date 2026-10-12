@@ -15,6 +15,7 @@ import {
   organizationGrant,
 } from './chain-policy.js';
 import type { ChangeMemberDto, GrantRoleDto } from './dto.js';
+import { legacyScopePins } from './legacy-scope-pins.js';
 
 @Injectable()
 export class SupplyChainsService {
@@ -155,6 +156,14 @@ export class SupplyChainsService {
         .sort(),
       assignments,
       reviewAssignments,
+      legacyPins: legacyScopePins()
+        .filter((pin) =>
+          pin.manifest.entries.some((entry) =>
+            memberships.some((member) => member.chainId === entry.chainId),
+          ),
+        )
+        .map((pin) => [pin.manifest.id, pin.digest, pin.plan.digest])
+        .sort(),
     });
     return {
       accessRevision,

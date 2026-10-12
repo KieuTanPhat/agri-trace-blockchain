@@ -54,6 +54,8 @@ class LegacyApplyResultDto extends LegacyResultDto {
 class LegacyProposalDto {
   @ApiProperty({ type: String }) key!: string;
   @ApiProperty({ type: String, format: 'uuid' }) chainId!: string;
+  @ApiProperty({ type: String }) chainName!: string;
+  @ApiProperty({ type: String }) subjectLabel!: string;
   @ApiProperty({ enum: ['PRODUCTION', 'TRANSPORT', 'RETAIL', 'REVIEW'] })
   stage!: string;
   @ApiProperty({ type: String }) manifestDigest!: string;
@@ -141,8 +143,37 @@ export class LegacyScopeController {
           operation: 'SCOPE_CONFIRM_LEGACY_ASSIGNMENT',
           payload: { manifestId, proposalKey: p.key },
         });
+        const chain = await this.db.supplyChain.findUniqueOrThrow({
+          where: { id: p.chainId },
+          select: { name: true },
+        });
+        const proposal = pin.plan.proposals.find((item) => item.key === p.key);
+        let subjectLabel = chain.name;
+        if (proposal?.subject.kind === 'cycle')
+          subjectLabel = (
+            await this.db.productionCycle.findUniqueOrThrow({
+              where: { id: p.subjectId },
+              select: { cycleCode: true },
+            })
+          ).cycleCode;
+        else if (proposal?.subject.kind === 'lot')
+          subjectLabel = (
+            await this.db.lot.findUniqueOrThrow({
+              where: { id: p.subjectId },
+              select: { lotCode: true },
+            })
+          ).lotCode;
+        else if (proposal?.subject.kind === 'shipment')
+          subjectLabel = (
+            await this.db.shipment.findUniqueOrThrow({
+              where: { id: p.subjectId },
+              select: { lot: { select: { lotCode: true } } },
+            })
+          ).lot.lotCode;
         visible.push({
           ...p,
+          chainName: chain.name,
+          subjectLabel,
           manifestDigest: pin.digest,
           planDigest: pin.plan.digest,
         });
