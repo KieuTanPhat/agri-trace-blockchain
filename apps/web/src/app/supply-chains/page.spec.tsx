@@ -1,16 +1,18 @@
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthUser } from "@/lib/types";
 import SupplyChainsPage from "./page";
 
 const api = vi.hoisted(() => ({ request: vi.fn(), getOrganizations: vi.fn() }));
 let user: AuthUser;
+afterEach(cleanup);
 vi.mock("@/lib/api-client", () => api);
 vi.mock("@/lib/auth-store", () => ({ useAuth: () => ({ user }) }));
 
@@ -38,6 +40,66 @@ beforeEach(() => {
 });
 
 describe("Chain workspace scope isolation", () => {
+  it("keeps one profile and one shipment workspace through repeated permission refreshes", async () => {
+    api.request.mockImplementation((path: string) => {
+      if (path === "/chain-permissions")
+        return Promise.resolve({
+          grants: [{ scope: "CHAIN", chainId: "one", role: "CHAIN_MANAGER" }],
+          memberships: [
+            { chainId: "one", organizationId: "owner-org", status: "ACTIVE" },
+          ],
+          capabilities: [],
+          businessChains: ["one"],
+        });
+      if (path === "/supply-chains")
+        return Promise.resolve([
+          {
+            id: "one",
+            name: "Chuỗi đang hoạt động",
+            ownerOrganizationId: "owner-org",
+          },
+        ]);
+      if (path.endsWith("/business-profile"))
+        return Promise.resolve({
+          state: "ACTIVE",
+          version: 1,
+          scopeVersion: 1,
+          chainId: "one",
+        });
+      if (path.endsWith("/memberships") || path.includes("/shipment-plans"))
+        return Promise.resolve([]);
+      throw new Error(path);
+    });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      render(<SupplyChainsPage />);
+      await screen.findByRole("option", { name: "Chuỗi đang hoạt động" });
+      fireEvent.change(screen.getByLabelText("Chọn chuỗi"), {
+        target: { value: "one" },
+      });
+      for (let refresh = 0; refresh < 3; refresh++) {
+        await screen.findByText("Đang hoạt động");
+        expect(
+          screen.getAllByRole("region", { name: "Trạng thái nghiệp vụ chuỗi" }),
+        ).toHaveLength(1);
+        expect(
+          screen.getAllByRole("region", { name: "Kế hoạch vận chuyển" }),
+        ).toHaveLength(1);
+        if (refresh < 2)
+          fireEvent.click(
+            screen.getByRole("button", { name: "Tải lại quyền và dữ liệu" }),
+          );
+      }
+      expect(
+        errors.mock.calls
+          .flat()
+          .some((item) => String(item).includes("same key")),
+      ).toBe(false);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
   it("discards a slow membership response after selecting another chain", async () => {
     const slow = deferred<unknown[]>();
     api.request.mockImplementation((path: string) => {

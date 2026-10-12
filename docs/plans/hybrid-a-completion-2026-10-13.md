@@ -55,3 +55,38 @@ không hợp lệ theo DB guard, trước assertion bridge. Sửa fixture sang s
 reactivate đúng state machine, giữ yêu cầu scoped journal không bridge thành
 legacy. Container không OOM/restart, cleanup hoàn tất; chưa chạy legacy E2E ở
 lượt thất bại này. Bổ sung negative direct SQL không cho giả authority revision.
+
+## Evidence tiếp theo — fd01aca
+
+Local PostgreSQL 18 hoàn tất UTC 18:29:54 ngày 12/10 (01:29:54 ngày 13/10 VN):
+135 API unit, 31 SQL scenarios, full Prisma diff zero + sáu unique guards,
+ORM, 95 policy/HTTP/DB (26 HTTP groups), 112 legacy E2E. Database 384 MiB/1 CPU;
+không dùng tài nguyên production hoặc PostgreSQL 16 của người dùng. Container,
+network, port và WSL keeper đều cleanup verified. Test profile đã sửa fixture
+transition, không nới assertion hoặc trigger. Các lỗi trước không có bằng chứng OOM.
+
+Receipt local: `.codex/evidence/hybrid-local/agritrace-hybrid-local-fd01aca4-1791829634964587300`.
+Suite bridge mới đã đạt trên SHA đầy đủ
+`fd01aca4a36c3b3cc4afe7101262085682603599`; chưa suy ra route/migration/Fabric B/C.
+
+Browser dùng Chromium thật + Next production build + Nest API + PostgreSQL 18
+cách ly, không mock API. Hai lượt đầu lỗi harness: nhãn bắt buộc có `*` và accessible
+name của select có text options; sửa locator theo nhãn/role. Lượt tiếp theo đã qua
+real commit/lost response/reload/hai tab/one journal, đang đối chiếu activation
+refresh với DB; chưa ghi toàn bộ browser suite là pass. Giữ failures và cleanup.
+
+Production cleanup release vẫn `prod-8ae13542aee92b47d7ed64a0d83d560dbb517dc3`.
+Observation UTC 18:38:35: 60 ledger events, Pending 0, QR 2 verified + 6 legacy,
+118 fingerprints cũ giữ nguyên (120 hiện tại), 209 identity files giữ nguyên,
+không dev containers. Window elapsed 0,913 giờ, gap 3.286,744 giây; chưa nghiệm thu
+24h, không suy healthy trong gap. API/Web 768 MiB/1 CPU, Worker 512 MiB/0,5 CPU
+là budgets production thực tế; không áp nhầm quota chaincode pilot đã retire.
+
+Browser tiếp theo xác nhận activation HTTP 201 và DB ACTIVE. Access revision mới
+đúng là làm remount private workspace và bỏ selection cũ; harness cần tải quyền rồi
+chọn lại chain. Sau đó phát hiện lỗi source thật: BusinessProfilePanel và
+ShipmentPlansPanel dùng trùng React key, tạo ba panel profile qua refresh. Regression
+DOM tái hiện trước sửa (expected 1/actual 3); thêm prefix riêng cho mỗi panel và
+cleanup fixture. Web 207 unit/DOM, 84 lint contract, bốn optimizer, lint/type/build
+đạt sau sửa. Browser đầy đủ còn phải chạy lại trên checkpoint mới; không giảm
+strict locator để che nhiều panel và không thay permission remount semantics.

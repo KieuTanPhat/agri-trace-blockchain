@@ -220,7 +220,7 @@ function ChainWorkspace({
       </section>
       {chain && !platformAdmin && (
         <BusinessProfilePanel
-          key={`${selected}:${revision}`}
+          key={`profile:${selected}:${revision}`}
           chainId={selected}
           canActivate={Boolean(
             manager &&
@@ -457,7 +457,7 @@ function ChainWorkspace({
       )}
       {selected && context?.businessChains?.includes(selected) && (
         <ShipmentPlansPanel
-          key={`${selected}:${revision}`}
+          key={`plans:${selected}:${revision}`}
           chainId={selected}
           organizationId={organizationId}
           manager={Boolean(manager)}
