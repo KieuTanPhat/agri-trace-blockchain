@@ -188,7 +188,7 @@ describe('Independent legacy scope manifest validation', () => {
         manifest,
         inventory,
         canonicalSha256(manifest),
-        { ...expected, environment: 'dev' },
+        { ...expected, environment: 'production' },
       ),
     ).toThrow('environment or source');
   });

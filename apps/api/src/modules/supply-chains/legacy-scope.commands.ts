@@ -10,6 +10,7 @@ import type {
 } from '../../common/idempotency/command-authorization.js';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import { lockChainScope } from './chain-policy.js';
+import { captureLegacyReplayActors } from './legacy-replay-authority.js';
 import { inventoryLegacyScope } from './legacy-scope-inventory.js';
 import { validateLegacyScopeManifest } from './legacy-scope-manifest.js';
 import { planLegacyScopeAssignments } from './legacy-scope-plan.js';
@@ -83,10 +84,23 @@ export async function lockLegacyScope(
   const consents = await db.legacyScopeConsent.findMany({
     where: { manifestId: pin.manifest.id },
   });
+  const replayActors = await db.scopedRoleGrant.findMany({
+    where: {
+      chainId: { in: [...new Set(pin.plan.proposals.map((p) => p.chainId))] },
+      revokedAt: null,
+    },
+    select: { userId: true, organizationId: true },
+    take: 10001,
+  });
+  if (replayActors.length > 10000)
+    throw new ConflictException(
+      'Legacy authority snapshot cần phân trang có review',
+    );
   const orgs = [
     ...new Set([
       ...pin.plan.proposals.map((p) => p.organizationId),
       ...pin.manifest.entries.map((entry) => entry.producerOrgId),
+      ...replayActors.map((g) => g.organizationId),
       ...(actor.organizationId ? [actor.organizationId] : []),
     ]),
   ].sort();
@@ -95,6 +109,7 @@ export async function lockLegacyScope(
       actor.sub!,
       pin.manifest.reviewerId,
       ...consents.map((c) => c.userId),
+      ...replayActors.map((g) => g.userId),
     ]),
   ].sort();
   for (const org of orgs)
@@ -286,7 +301,7 @@ export async function authorizeLegacyScopeCommand(
 export async function lockLegacySnapshot(db: Prisma.TransactionClient) {
   await db.$executeRawUnsafe(`LOCK TABLE production_cycle, care_record, harvest_event, lot, shipment,
     sensor_reading, sensor_digest, iot_device, harvest_sensor_window, harvest_sensor_membership,
-    late_sensor_reading, cycle_sensor_reconciliation, certificate, inspection, quantity_movement,
+    late_sensor_reading, cycle_sensor_reconciliation, certificate, inspection, compliance_assignment, quantity_movement,
     shipment_tracking_binding, shipment_telemetry, shipment_telemetry_digest, trace_qr,
     trace_event, blockchain_outbox, blockchain_proof IN SHARE ROW EXCLUSIVE MODE`);
 }
@@ -497,13 +512,9 @@ export async function applyLegacyScopeRoot(
     )
       throw new ConflictException('Actor grant không còn sẵn sàng');
   }
-  const actorGrants = grants.map((g) => ({
-    userId: g.userId,
-    organizationId: g.organizationId,
-    role: g.role,
-    grantId: g.id,
-    grantRevision: g.revision,
-  }));
+  const actorGrants = entry.chainId
+    ? await captureLegacyReplayActors(db, entry.chainId, cycleId, grants)
+    : [];
   const checkpointDigest = canonicalSha256({
     schema: 'agritrace-legacy-checkpoint-1',
     manifestDigest: pin.digest,

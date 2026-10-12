@@ -31,7 +31,7 @@ export function buildLegacyScopeAssignmentPlan(
   manifest: LegacyScopeManifest,
   inventory: LegacyScopeInventory,
   pin: string,
-  expected: { environment: 'isolated' | 'dev'; sourceSha: string },
+  expected: { environment: 'isolated' | 'production'; sourceSha: string },
   roots: LegacyPlanningRoot[],
 ) {
   const checked = validateLegacyScopeManifest(
@@ -158,7 +158,7 @@ export async function planLegacyScopeAssignments(
   manifest: LegacyScopeManifest,
   inventory: LegacyScopeInventory,
   pin: string,
-  expected: { environment: 'isolated' | 'dev'; sourceSha: string },
+  expected: { environment: 'isolated' | 'production'; sourceSha: string },
 ) {
   validateLegacyScopeManifest(manifest, inventory, pin, expected);
   await preflightLegacyScope(db, manifest);

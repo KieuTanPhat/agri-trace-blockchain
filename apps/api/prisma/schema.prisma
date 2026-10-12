@@ -486,6 +486,7 @@ model IotDevice {
   name                     String                    @db.VarChar(255)
   type                     String                    @db.VarChar(100)
   status                   DeviceStatus              @default(ACTIVE)
+  authorityRevision        Int                       @default(0) @map("authority_revision")
   lastSeenAt               DateTime?                 @map("last_seen_at") @db.Timestamptz(6)
   createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime                  @default(now()) @map("updated_at") @db.Timestamptz(6)

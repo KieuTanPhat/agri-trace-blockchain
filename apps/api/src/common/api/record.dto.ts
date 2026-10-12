@@ -124,6 +124,7 @@ export class IotDeviceRecordDto {
   @ApiProperty({ type: String }) name!: string;
   @ApiProperty({ type: String }) type!: string;
   @ApiProperty({ enum: Enums.DeviceStatus }) status!: Enums.DeviceStatus;
+  @ApiProperty({ type: Number, minimum: 0 }) authorityRevision!: number;
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   lastSeenAt!: string | null;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;

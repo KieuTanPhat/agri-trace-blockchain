@@ -325,7 +325,7 @@ export class IdempotencyService {
       input.authorizationScope &&
       record.authorizationScope !== input.authorizationScope
     ) {
-      if (input.actor) {
+      if (input.actor !== undefined) {
         const journal = await ensureLegacyCommandBridge(
           this.prisma,
           {

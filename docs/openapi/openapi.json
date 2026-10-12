@@ -2209,6 +2209,10 @@
       },
       "DeviceListDto": {
         "properties": {
+          "authorityRevision": {
+            "minimum": 0,
+            "type": "number"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -2272,6 +2276,7 @@
           "name",
           "type",
           "status",
+          "authorityRevision",
           "lastSeenAt",
           "createdAt",
           "updatedAt",
@@ -3453,6 +3458,10 @@
       },
       "IotDeviceRecordDto": {
         "properties": {
+          "authorityRevision": {
+            "minimum": 0,
+            "type": "number"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -3504,6 +3513,7 @@
           "name",
           "type",
           "status",
+          "authorityRevision",
           "lastSeenAt",
           "createdAt",
           "updatedAt"

@@ -131,7 +131,7 @@ export async function authorizeCommand(
       )
     )
       throw new ForbiddenException('Command yêu cầu đăng nhập');
-    const found = await device();
+    let found = await device();
     if (input.requesterId !== `device:${String(payload.deviceId)}`)
       throw new ForbiddenException('Device requester không hợp lệ');
     if (lock) {
@@ -150,6 +150,16 @@ export async function authorizeCommand(
       subject,
       lock,
     );
+    if (lock) {
+      await db.$queryRaw`SELECT device_id FROM iot_device WHERE device_id=${found.id}::uuid FOR SHARE`;
+      const current = await device();
+      if (
+        current.id !== found.id ||
+        current.organizationId !== found.organizationId
+      )
+        throw new ForbiddenException('Phạm vi thiết bị đã thay đổi');
+      found = current;
+    }
     if (input.operation === 'INGEST_SENSOR_READING') {
       const subject = await cycle(id('cycleId'));
       if (
@@ -160,6 +170,8 @@ export async function authorizeCommand(
     } else {
       const subject = await shipment(id('shipmentId'));
       requireOwner(found.organizationId, subject.transporterOrgId);
+      if (lock)
+        await db.$queryRaw`SELECT binding_id FROM shipment_tracking_binding WHERE shipment_id=${subject.id}::uuid AND device_id=${found.id}::uuid AND status='ACTIVE' AND unbound_at IS NULL FOR SHARE`;
       const binding = await db.shipmentTrackingBinding.findFirst({
         where: {
           shipmentId: subject.id,
@@ -177,6 +189,9 @@ export async function authorizeCommand(
       requesterId: input.requesterId,
       deviceId: found.id,
       organizationId: found.organizationId,
+      ...(deviceScope || found.authorityRevision > 0
+        ? { authorityRevision: found.authorityRevision }
+        : {}),
       ...(deviceScope ? { protocol: 'scoped-device-v1', deviceScope } : {}),
     });
   }

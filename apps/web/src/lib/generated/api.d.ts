@@ -2001,6 +2001,7 @@ export interface components {
             version: number;
         };
         DeviceListDto: {
+            authorityRevision: number;
             /** Format: date-time */
             createdAt: string;
             cycle: components["schemas"]["CycleOptionDto"] | null;
@@ -2339,6 +2340,7 @@ export interface components {
             organizationId: string;
         };
         IotDeviceRecordDto: {
+            authorityRevision: number;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */

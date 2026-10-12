@@ -9,6 +9,7 @@ import {
 import { assertLegacyScopeProvenance } from '../../modules/supply-chains/legacy-scope-pins.js';
 import { businessRoot } from '../../modules/supply-chains/business-policy.js';
 import { legacyCreationReplayRoot } from '../../modules/supply-chains/legacy-creation-replay.js';
+import type { LegacyReplayActor } from '../../modules/supply-chains/legacy-replay-authority.js';
 
 export async function replayRoot(
   db: Parameters<typeof businessRoot>[0],
@@ -34,6 +35,7 @@ export async function replayRoot(
       'CREATE_SENSOR_DIGEST',
       'RECONCILE_CYCLE_SENSOR',
       'INGEST_SENSOR_READING',
+      'CREATE_IOT_DEVICE',
     ].includes(operation)
   )
     return businessRoot(db, {
@@ -123,8 +125,7 @@ export async function ensureLegacyCommandBridgeInTransaction(
   const scope = await authorizeCommand(tx, input, true);
   if (
     scope !== input.authorizationScope ||
-    !input.actor ||
-    !input.businessActor
+    (input.actor && !input.businessActor)
   )
     throw new ConflictException('Legacy replay scope đã thay đổi');
   const record = await tx.idempotencyRecord.findUniqueOrThrow({
@@ -146,9 +147,11 @@ export async function ensureLegacyCommandBridgeInTransaction(
       'Legacy command thiếu journal khớp; cần đối soát',
     );
   const actorScope = journal.actorScope as Record<string, unknown>;
+  const role = input.businessActor?.role ?? 'IOT_DEVICE';
   if (
-    actorScope.organizationId !== input.businessActor.organizationId ||
-    actorScope.role !== input.businessActor.role
+    actorScope.role !== role ||
+    (input.businessActor &&
+      actorScope.organizationId !== input.businessActor.organizationId)
   )
     throw new ConflictException(
       'Legacy journal actor không khớp vai trò thực hiện',
@@ -161,41 +164,116 @@ export async function ensureLegacyCommandBridgeInTransaction(
   if (!mapping?.chainId || mapping.chainId !== root.cycle.chainId)
     throw new ConflictException('Legacy replay chưa có cutover provenance');
   await assertLegacyScopeProvenance(tx, root.cycle.id);
-  const grant = await tx.scopedRoleGrant.findFirst({
-    where: {
-      chainId: mapping.chainId,
-      userId: input.actor.sub!,
-      organizationId: input.actor.organizationId!,
-      role: input.businessActor.role as
-        'FARM_STAFF' | 'TRANSPORTER' | 'RETAILER',
-      scope: 'CHAIN',
-      revokedAt: null,
-    },
-  });
-  const snapshot = mapping.checkpoint.actorGrants as Array<{
-    userId: string;
-    grantId: string;
-    grantRevision: number;
-    role: string;
-  }>;
-  if (
-    !grant ||
-    !snapshot.some(
+  const snapshot = mapping.checkpoint.actorGrants as LegacyReplayActor[];
+  let legacyScope: string;
+  const protocolVersion =
+    role === 'IOT_DEVICE' || role === 'COMPLIANCE_REVIEWER' ? 2 : 1;
+  if (!input.actor) {
+    const payload = input.payload as Record<string, unknown>;
+    const witness = snapshot.find(
       (g) =>
+        g.role === 'IOT_DEVICE' &&
         g.userId === input.requesterId &&
-        g.grantId === grant.id &&
-        g.grantRevision === grant.revision &&
-        g.role === input.businessActor!.role,
+        (input.operation === 'INGEST_SENSOR_READING'
+          ? g.bindingId === null
+          : Boolean(g.bindingId)),
+    );
+    const device = witness?.deviceId
+      ? await tx.iotDevice.findUnique({ where: { id: witness.deviceId } })
+      : null;
+    if (
+      !device ||
+      device.status !== 'ACTIVE' ||
+      device.organizationId !== witness?.organizationId ||
+      device.authorityRevision !== witness.authorityRevision ||
+      ![device.id, device.deviceCode].includes(String(payload.deviceId))
     )
-  )
-    throw new ConflictException('Grant mới không hồi sinh legacy replay');
+      throw new ConflictException(
+        'Device mới hoặc epoch mới không hồi sinh legacy replay',
+      );
+    if (input.operation === 'INGEST_SHIPMENT_TELEMETRY') {
+      const binding = await tx.shipmentTrackingBinding.findFirst({
+        where: {
+          shipmentId: root.shipmentId!,
+          deviceId: device.id,
+          status: 'ACTIVE',
+          unboundAt: null,
+        },
+      });
+      if (!binding || binding.id !== witness.bindingId)
+        throw new ConflictException('Binding mới không hồi sinh legacy replay');
+    } else if (
+      input.operation !== 'INGEST_SENSOR_READING' ||
+      witness.bindingId !== null ||
+      device.cycleId !== root.cycle.id
+    )
+      throw new ConflictException(
+        'Device legacy replay thiếu root/binding hợp lệ',
+      );
+    legacyScope = canonicalSha256({
+      requesterId: input.requesterId,
+      deviceId: device.id,
+      organizationId: device.organizationId,
+      ...(device.authorityRevision > 0
+        ? { authorityRevision: device.authorityRevision }
+        : {}),
+    });
+  } else {
+    const grant = await tx.scopedRoleGrant.findFirst({
+      where: {
+        chainId: mapping.chainId,
+        userId: input.actor.sub!,
+        organizationId: input.actor.organizationId!,
+        role: role as
+          'FARM_STAFF' | 'TRANSPORTER' | 'RETAILER' | 'COMPLIANCE_REVIEWER',
+        scope: 'CHAIN',
+        revokedAt: null,
+      },
+    });
+    const witness = grant
+      ? snapshot.find(
+          (g) =>
+            g.userId === input.requesterId &&
+            g.grantId === grant.id &&
+            g.grantRevision === grant.revision &&
+            g.role === role,
+        )
+      : null;
+    if (!grant || !witness)
+      throw new ConflictException('Grant mới không hồi sinh legacy replay');
+    let assignmentId: string | undefined;
+    if (role === 'COMPLIANCE_REVIEWER') {
+      const assignment = await tx.complianceAssignment.findFirst({
+        where: {
+          reviewerUserId: input.requesterId,
+          farmId: root.cycle.farmId,
+          revokedAt: null,
+        },
+      });
+      if (!assignment || assignment.id !== witness.reviewerAssignmentId)
+        throw new ConflictException(
+          'Reviewer assignment mới không hồi sinh legacy replay',
+        );
+      assignmentId = assignment.id;
+    }
+    legacyScope = canonicalSha256({
+      requesterId: input.requesterId,
+      role,
+      organizationId: input.actor.organizationId,
+      ...(assignmentId ? { assignmentId } : {}),
+    });
+  }
+  if (journal.authorizationScope !== legacyScope)
+    throw new ConflictException(
+      'Bridge chỉ nhận journal thuộc original legacy authority',
+    );
   const journalDigest = canonicalSha256(JSON.parse(JSON.stringify(journal)));
   const previous = await tx.legacyCommandBridge.findUnique({
     where: { commandCommitId: journal.id },
   });
   if (
     previous &&
-    (previous.protocolVersion !== 1 ||
+    (previous.protocolVersion !== protocolVersion ||
       previous.targetScope !== scope ||
       previous.journalDigest !== journalDigest ||
       previous.manifestId !== mapping.manifestId ||
@@ -208,6 +286,7 @@ export async function ensureLegacyCommandBridgeInTransaction(
     await tx.legacyCommandBridge.create({
       data: {
         commandCommitId: journal.id,
+        protocolVersion,
         manifestId: mapping.manifestId,
         cycleId: root.cycle.id,
         targetScope: scope,

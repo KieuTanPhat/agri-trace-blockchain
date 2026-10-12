@@ -55,7 +55,7 @@ CREATE TABLE legacy_command_bridge (
   command_commit_id uuid PRIMARY KEY REFERENCES command_commit ON DELETE RESTRICT ON UPDATE NO ACTION,
   manifest_id uuid NOT NULL REFERENCES legacy_scope_manifest ON DELETE RESTRICT ON UPDATE NO ACTION,
   cycle_id uuid NOT NULL REFERENCES legacy_scope_mapping ON DELETE RESTRICT ON UPDATE NO ACTION,
-  protocol_version integer NOT NULL DEFAULT 1 CHECK (protocol_version=1),
+  protocol_version integer NOT NULL DEFAULT 1 CHECK (protocol_version IN(1,2)),
   target_scope varchar(64) NOT NULL CHECK (target_scope ~ '^[a-f0-9]{64}$'),
   journal_digest varchar(64) NOT NULL CHECK (journal_digest ~ '^[a-f0-9]{64}$'),
   created_at timestamptz(6) NOT NULL DEFAULT now()
@@ -285,7 +285,26 @@ BEGIN
   SELECT * INTO STRICT j FROM command_commit WHERE command_commit_id=NEW.command_commit_id;
   IF m.manifest_id<>NEW.manifest_id OR m.chain_id IS NULL OR NEW.target_scope=j.authorization_scope
     OR NOT EXISTS(SELECT 1 FROM chain_business_profile WHERE chain_id=m.chain_id AND state='ACTIVE')
-    OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(checkpoint.actor_grants) g WHERE g->>'userId'=j.requester_id)
+    OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(checkpoint.actor_grants) g
+      WHERE g->>'userId'=j.requester_id AND g->>'role'=j.actor_scope->>'role'
+        AND ((NEW.protocol_version=1 AND g->>'role' IN('FARM_STAFF','TRANSPORTER','RETAILER'))
+          OR (NEW.protocol_version=2 AND g->>'role' IN('COMPLIANCE_REVIEWER','IOT_DEVICE')))
+        AND ((g->>'role'='IOT_DEVICE' AND EXISTS(SELECT 1 FROM iot_device d WHERE d.device_id::text=g->>'deviceId'
+          AND d.organization_id::text=g->>'organizationId' AND d.status='ACTIVE'
+          AND d.authority_revision=(g->>'authorityRevision')::integer
+          AND ((g->>'bindingId' IS NULL AND d.cycle_id=m.cycle_id) OR EXISTS(
+            SELECT 1 FROM shipment_tracking_binding b JOIN shipment s USING(shipment_id) JOIN lot l USING(lot_id) JOIN harvest_event h USING(harvest_id)
+            WHERE b.binding_id::text=g->>'bindingId' AND b.device_id=d.device_id AND b.status='ACTIVE' AND b.unbound_at IS NULL
+              AND h.cycle_id=m.cycle_id AND b.transporter_org_id=d.organization_id))))
+          OR (g->>'role'<>'IOT_DEVICE' AND g->>'organizationId'=j.actor_scope->>'organizationId'
+            AND EXISTS(SELECT 1 FROM scoped_role_grant r JOIN chain_membership n USING(chain_id,organization_id)
+              JOIN app_user u ON u.user_id=r.user_id JOIN organization o ON o.organization_id=r.organization_id
+              WHERE r.grant_id::text=g->>'grantId' AND r.revision=(g->>'grantRevision')::integer AND r.revoked_at IS NULL
+                AND r.user_id::text=j.requester_id AND r.role::text=g->>'role' AND r.chain_id=m.chain_id
+                AND u.account_status='ACTIVE' AND o.status='ACTIVE' AND n.status='ACTIVE')
+            AND (g->>'role'<>'COMPLIANCE_REVIEWER' OR EXISTS(SELECT 1 FROM compliance_assignment a JOIN production_cycle c USING(farm_id)
+              WHERE a.assignment_id::text=g->>'reviewerAssignmentId' AND a.reviewer_user_id::text=j.requester_id
+                AND a.revoked_at IS NULL AND c.cycle_id=m.cycle_id AND c.farm_org_id::text<>g->>'organizationId')))))
     THEN RAISE EXCEPTION 'Legacy journal bridge lacks mapped current actor'; END IF;
   RETURN NEW;
 END;

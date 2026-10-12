@@ -1,6 +1,22 @@
 -- HYB-02/03/04 candidate. ISOLATED DATABASE ONLY; not a deployable migration.
 -- The capability/authorization/core/Web and legacy cutover gates are separate.
 BEGIN;
+-- Identity/scope revocation must remain distinguishable after reactivation.
+-- Telemetry lastSeenAt updates do not create a new authorization epoch.
+ALTER TABLE iot_device ADD COLUMN authority_revision integer NOT NULL DEFAULT 0 CHECK(authority_revision>=0);
+CREATE FUNCTION fn_hybrid_device_authority_revision() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF (NEW.organization_id,NEW.cycle_id,NEW.device_code,NEW.status)
+    IS DISTINCT FROM (OLD.organization_id,OLD.cycle_id,OLD.device_code,OLD.status) THEN
+    NEW.authority_revision:=OLD.authority_revision+1;
+  ELSIF NEW.authority_revision<>OLD.authority_revision THEN
+    RAISE EXCEPTION 'Device authority revision is managed by identity transitions';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER trg_hybrid_device_authority_revision BEFORE UPDATE ON iot_device
+  FOR EACH ROW EXECUTE FUNCTION fn_hybrid_device_authority_revision();
 
 CREATE TYPE hybrid_business_profile_state AS ENUM ('PREPARING', 'ACTIVE', 'SUSPENDED');
 CREATE TYPE hybrid_stage AS ENUM ('PRODUCTION', 'TRANSPORT', 'RETAIL');

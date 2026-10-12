@@ -201,11 +201,15 @@ export async function authorizeCoreBusinessCommand(
     const value = data.deviceId;
     if (typeof value !== 'string')
       throw new ForbiddenException('Thiếu thiết bị');
-    const device = await db.iotDevice.findFirst({
+    let device = await db.iotDevice.findFirst({
       where: isUUID(value)
         ? { OR: [{ id: value }, { deviceCode: value }] }
         : { deviceCode: value },
     });
+    if (lock && device) {
+      await db.$queryRaw`SELECT device_id FROM iot_device WHERE device_id=${device.id}::uuid FOR SHARE`;
+      device = await db.iotDevice.findUnique({ where: { id: device.id } });
+    }
     if (
       !device ||
       device.status !== 'ACTIVE' ||
@@ -214,6 +218,8 @@ export async function authorizeCoreBusinessCommand(
         device.cycleId !== root.cycle.id)
     )
       throw new ForbiddenException('Thiết bị không thuộc scope command');
+    if (lock && operation === 'INGEST_SHIPMENT_TELEMETRY')
+      await db.$queryRaw`SELECT binding_id FROM shipment_tracking_binding WHERE shipment_id=${root.shipmentId}::uuid AND device_id=${device.id}::uuid AND status='ACTIVE' AND unbound_at IS NULL FOR SHARE`;
     if (
       operation === 'INGEST_SHIPMENT_TELEMETRY' &&
       !(await db.shipmentTrackingBinding.findFirst({

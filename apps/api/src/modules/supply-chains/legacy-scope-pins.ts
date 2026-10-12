@@ -36,10 +36,13 @@ export function legacyScopePins(): LegacyScopePin[] {
     )
       throw new Error();
     const seen = new Set<string>();
+    const environment =
+      process.env.NODE_ENV === 'test' ? 'isolated' : 'production';
     for (const pin of data.pins) {
       const { digest: planDigest, ...planBody } = pin.plan;
       if (
         !/^[a-f0-9]{64}$/.test(pin.digest) ||
+        pin.manifest.environment !== environment ||
         canonicalSha256(pin.manifest) !== pin.digest ||
         canonicalSha256(planBody) !== planDigest ||
         pin.plan.manifestDigest !== pin.digest ||

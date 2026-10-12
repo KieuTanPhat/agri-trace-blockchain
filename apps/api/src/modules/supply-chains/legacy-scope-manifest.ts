@@ -21,7 +21,7 @@ export interface LegacyScopeManifest {
     'agritrace-legacy-scope-manifest-1' | 'agritrace-legacy-scope-manifest-2';
   id: string;
   sourceSha: string;
-  environment: 'isolated' | 'dev';
+  environment: 'isolated' | 'production';
   inventoryDigest: string;
   operatorId: string;
   reviewerId: string;
@@ -72,7 +72,7 @@ export function validateLegacyScopeManifest(
   value: unknown,
   inventory: LegacyScopeInventory,
   pinnedDigest: string,
-  expected: { environment: 'isolated' | 'dev'; sourceSha: string },
+  expected: { environment: 'isolated' | 'production'; sourceSha: string },
 ) {
   hash(pinnedDigest);
   const version = (value as { schema?: unknown } | null)?.schema;
@@ -96,6 +96,7 @@ export function validateLegacyScopeManifest(
   )
     fail('schema');
   if (
+    !['isolated', 'production'].includes(String(data.environment)) ||
     data.environment !== expected.environment ||
     data.sourceSha !== expected.sourceSha ||
     typeof data.sourceSha !== 'string' ||
