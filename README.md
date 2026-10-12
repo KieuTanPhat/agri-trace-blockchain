@@ -90,23 +90,28 @@ ghi phạm vi, snapshot/retirement evidence và các gate Hybrid còn thiếu.
 
 ## Hệ thống hiện có tại agritrace.dev
 
-UAT hiện dùng [https://agritrace.dev](https://agritrace.dev).
-Chuyển origin và giám sát Datadog theo [runbook hiện hành](docs/agritrace-cutover-runbook.md).
-Source/image digests, CI/CD, rollback và backup evidence nằm trong
-[báo cáo chuyển miền và Datadog](docs/agritrace-cutover-status.md);
-vận hành theo [CD runbook](docs/contabo-cd-runbook.md).
-Evidence của lần HTTPS trước nằm trong
-[báo cáo lịch sử](docs/nongtrace-uat-deployment-status.md).
+Production dùng [https://agritrace.dev](https://agritrace.dev); release và hậu kiểm
+hiện hành nằm trong [receipt production-only](docs/production-only-deployment-2026-10-13.md)
+và [runbook production](docs/production-runbook.md). Tên Compose/PGDATA `uat`
+được giữ để bảo toàn dữ liệu, không biểu thị deployment UAT/dev riêng.
+[Báo cáo chuyển miền và Datadog](docs/agritrace-cutover-status.md) cùng
+[receipt HTTPS cũ](docs/nongtrace-uat-deployment-status.md) là lịch sử triển khai.
 
 Rà soát code/quyền sau triển khai: [kế hoạch và kết quả audit](docs/nongtrace-uat-code-audit.md).
 Admin quản trị identity/masterdata; Auditor chỉ đọc. Core thêm
 COMPLIANCE_REVIEWER trong tổ chức AUDITOR, chỉ ghi inspection/review chứng nhận
-cho Farm được Admin phân công. SQL và provision role đã hoàn tất trên UAT;
+cho Farm được Admin phân công. SQL và provision role đã hoàn tất trên hệ thống hiện có;
 Admin/owner còn cần phân công Reviewer và nghiệm thu nghiệp vụ đầy đủ. Xem
 báo cáo cutover và implementation record ở đầu tài liệu.
 
 Module lots tách `LotHarvestService` (transaction + outbox), `LotQueryService`
 (query), presenter (projection), action policy (role/org/state) và proof status.
+
+Hybrid A → B → C tiếp tục theo [kế hoạch hoàn thiện A](docs/plans/hybrid-a-completion-2026-10-13.md),
+[ADR route lịch sử](docs/adr-003-hybrid-historical-ledger-route.md) và
+[controlled import plan](docs/plans/hybrid-ledger-route-import-2026-10-13.md).
+Candidate business scope/route SQL chưa là migration production. Evidence local
+không thay exact SHA CI, backup/restore, compatible rollback hoặc rollout gates.
 
 ## Kiểm tra toàn bộ
 

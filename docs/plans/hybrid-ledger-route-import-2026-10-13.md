@@ -92,7 +92,7 @@ Không chạy draft trên DB dùng chung; không tái tạo deployment dev/nongt
   entry tương tự. Withdraw pin giữ backlog nguyên attempt/lease và proof reader
   trả trạng thái chưa xác minh.
 
-## Candidate đã triển khai, chưa có DB receipt
+## Candidate implementation và các lượt kiểm chứng
 
 Schema/SQL candidate thêm sealed requirements, immutable import registry và FK
 sidecar. API/reader xác minh canonical artifact + independent pins + entry;
@@ -138,3 +138,11 @@ thêm event mới mà case sealed guard đã tạo. Register fixture dùng inser
 cho cùng digest; selection dựa sealed requirement, không timestamp hoặc hạ số
 expected. Seed được chặn thêm bằng loopback/database test cố định. OOM false,
 restart0; cleanup verified. Chưa chạy legacy E2E ở lượt fail này.
+
+Lượt `cab1cf5b5da8e0373646e64a5a0640f06ab9f1ac` hoàn tất UTC20:07:10
+ngày12/10: 147 API unit, 31 SQL, full Prisma diff zero + sáu unique guards,
+ORM, 132 policy/DB (26 HTTP groups), 112 legacy E2E. Receipt
+`.codex/evidence/hybrid-local/agritrace-hybrid-local-cab1cf5b-1791835463921622800`.
+Container/network/port/keeper cleanup verified; không dùng DB hoặc tài nguyên
+production. Đây là acceptance của candidate import/scope/route trên PG18,
+chưa là official migration, rollback image hoặc Fabric acceptance.

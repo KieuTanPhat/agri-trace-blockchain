@@ -41,7 +41,7 @@ export function classifyChanges(files, force = false) {
 }
 
 export function changedFiles(eventName, event, sha) {
-  // Every main/dev push is a potential CD candidate. Its exact SHA must pass the
+  // Every main push is a potential CD candidate. Its exact SHA must pass the
   // full pipeline, even when a documentation commit follows unverified code.
   // Only PRs use path selection; dispatches and merge queues also run in full.
   if (eventName !== 'pull_request') return null;

@@ -126,3 +126,11 @@ chọn lại chain ACTIVE và action manager không xuất hiện. Lượt trư�
 quá sớm trong access revision remount đã fail và được giữ evidence. Không sửa
 semantics remount. Mobile là Chromium/iPhone13 viewport + touch emulation;
 chưa phải thiết bị iOS/Safari thật. Browser harness local còn cần đưa vào CI.
+
+Controlled import `cab1cf5b5da8e0373646e64a5a0640f06ab9f1ac` đã đạt
+147 unit/31 SQL/diff zero + sáu guards/ORM/132 policy-DB/112 legacy E2E,
+cleanup verified UTC20:07:10 ngày12/10. Chi tiết và failure classification tại
+controlled import plan. Browser harness đang được đưa vào `scripts/ci`, pin
+Playwright 1.62.1 và mở rộng hai nhóm: lời mời/current membership, ba party
+consent/revoke-regrant/revision mới/atomic finalize. Các nhóm mới chưa pass.
+Không tính tổng số tests thành tỷ lệ hoàn thành A hoặc toàn bộ A → B → C.
