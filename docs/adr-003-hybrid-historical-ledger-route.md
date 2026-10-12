@@ -126,3 +126,12 @@ cases không chạy: fixture route đã commit event không có cycle/lot, nên 
 inventory chặn đúng event không rõ root. Đây là lỗi cô lập fixture, không phải
 RAM (OOM false, restart zero). Đổi fixture sang cycle có thật trong chuỗi ACTIVE
 riêng, không nới inventory hoặc xóa immutable history. Cleanup lượt fail verified.
+
+Checkpoint `8e315af05821eb4f5920040492cf390f87402c70` đã qua 140 API unit,
+31 SQL, full Prisma diff zero + sáu unique guards, ORM, 114 policy/DB (26 HTTP
+groups) và 112 legacy E2E trên PostgreSQL 18 local 384 MiB/1 CPU. Container,
+network, port và WSL keeper cleanup verified. Receipt:
+`.codex/evidence/hybrid-local/agritrace-hybrid-local-8e315af0-1791833575978953500`.
+19 route cases đã đạt cùng các legacy suites; không dùng mock adapter này làm
+Fabric commit acceptance. Controlled import, browser, migration/restore và CI
+exact SHA vẫn phải nghiệm thu riêng trước promotion.

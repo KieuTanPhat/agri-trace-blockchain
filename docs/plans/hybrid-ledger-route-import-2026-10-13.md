@@ -67,3 +67,27 @@ không log payload hoặc gọi bản copy đó là đã loại mọi PII. Có r
 CI chạy exact SHA và harness trong repo; local helper chỉ là evidence bổ sung.
 Production writer pause/backup/import/canary/rollback/observation theo runbook.
 Không chạy draft trên DB dùng chung; không tái tạo deployment dev/nongtrace.site.
+
+## Quyết định chi tiết cho implementation
+
+- Batch tối đa 1.000 event, definitions tối đa 256; inventory dùng selection ID
+  rõ ràng và sort ổn định. Không dùng timestamp để nhận diện legacy. Requirement
+  được seal sau snapshot migration: reject cả insert mới, update và delete.
+- `LEDGER_ROUTE_IMPORT_PINS` giữ digest/environment/source SHA của từng artifact;
+  reader giữ pins của release cũ sau nâng cấp. `LEDGER_ROUTE_IMPORT_ENABLED=true`
+  chỉ bật cho operator apply, không là quyền API. Môi trường production từ chối
+  artifact isolated; không có giá trị default ngầm.
+- Pending dùng descriptor `agritrace-ledger-writer-snapshot/1`, release SHA,
+  environment, definition digest và trạng thái paused, được pin riêng qua
+  `LEDGER_PAUSED_WRITER_PINS`. Descriptor trong DB/artifact tự nó không là pin.
+  Route WRITE phải có protocol 3.0.0 và authority đầy đủ đã review.
+- Khóa theo thứ tự trace event → outbox → proof → route registries. Chặn mọi
+  PROCESSING chưa đối soát, kể cả lease hết hạn; không tự xóa lease để import.
+- Batch atomic: artifact đã commit phải có đủ mọi sidecar cùng provenance.
+  Rerun artifact đó kiểm immutable event/hash/mapping, trả no-op dù Worker đã
+  tiếp tục cập nhật proof/outbox hợp lệ. Snapshot full row chỉ dùng trước apply
+  lần đầu; artifact mới đụng mapping cũ bị reject. Không đổi provenance cũ.
+- Worker lọc artifact đã pin trước claim và kiểm entry event/hash/definition;
+  predecessor phải có provenance hợp lệ. Reader kiểm canonical artifact và
+  entry tương tự. Withdraw pin giữ backlog nguyên attempt/lease và proof reader
+  trả trạng thái chưa xác minh.

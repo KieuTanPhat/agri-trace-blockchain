@@ -90,3 +90,39 @@ DOM tái hiện trước sửa (expected 1/actual 3); thêm prefix riêng cho m�
 cleanup fixture. Web 207 unit/DOM, 84 lint contract, bốn optimizer, lint/type/build
 đạt sau sửa. Browser đầy đủ còn phải chạy lại trên checkpoint mới; không giảm
 strict locator để che nhiều panel và không thay permission remount semantics.
+
+## Route checkpoint — 8e315af
+
+`8e315af05821eb4f5920040492cf390f87402c70` hoàn tất local PG18 gate:
+140 API unit, 31 SQL, full Prisma diff zero + sáu guards, ORM, 114 policy/DB
+(26 HTTP groups) và 112 legacy E2E. Cleanup container/network/port/keeper verified.
+19 route cases kiểm immutable destination, pre-claim hold, predecessor ordering,
+concurrent Worker, simulated response loss/duplicate và receipt sai channel.
+Các failures trước được giữ: sai role SYSTEM assertion và orphan fixture gây
+legacy inventory reject; không có OOM/restart, không nới assertions hoặc guards.
+Receipt `.codex/evidence/hybrid-local/agritrace-hybrid-local-8e315af0-1791833575978953500`.
+
+Theo [controlled import plan](hybrid-ledger-route-import-2026-10-13.md), còn phải
+nghiệm thu import provenance và copy/restore trước official migration. Các suite
+dùng adapter mock không thay Fabric acceptance. Browser thật đang chạy riêng,
+không chạy trùng DB job hoặc dùng production làm môi trường test.
+
+Browser `8e315af` lượt đầu đạt năm nhóm với Chromium 151.0.7922.34, Next build
+thật, Nest API và PG18; cleanup mọi process/container/network/port/keeper verified.
+Receipt `.codex/evidence/hybrid-local/agritrace-hybrid-local-browser-8e315af0-1791833772558083900`.
+Visual review phát hiện ảnh mobile thu hồi quyền chụp lúc workspace đang reload;
+tăng điều kiện nghiệm thu: chờ permissions server đã bỏ grant, tải xong, chọn lại
+chain và thấy ACTIVE trước khi kiểm action đã mất. Lượt bổ sung phải đạt trước
+chốt mobile gate; không chỉ dựa việc nút biến mất trong loading.
+
+Production observation UTC19:35:46 ngày12/10 (02:35:46 ngày13/10 VN) đạt:
+60 ledger/Pending0, QR2+6, 118 old fingerprints/current120, 209 identities và
+release8ae/sequence3 giữ nguyên, không dev runtime. Elapsed1,866h/gap3431,151s;
+chưa đủ window, không suy healthy trong khoảng trống.
+
+Lượt mobile bổ sung `agritrace-hybrid-local-browser-8e315af0-1791834119963787000`
+đã đạt đủ năm nhóm, bao gồm permissions sau revoke, reload context hoàn tất,
+chọn lại chain ACTIVE và action manager không xuất hiện. Lượt trước chọn chain
+quá sớm trong access revision remount đã fail và được giữ evidence. Không sửa
+semantics remount. Mobile là Chromium/iPhone13 viewport + touch emulation;
+chưa phải thiết bị iOS/Safari thật. Browser harness local còn cần đưa vào CI.
