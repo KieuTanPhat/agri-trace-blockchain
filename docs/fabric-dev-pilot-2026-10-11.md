@@ -108,6 +108,14 @@ Không đưa accounts, CA enrollment secrets hoặc private key vào báo cáo.
 
 ## Công việc còn lại
 
+PR #92/#93 đã triển khai lần lượt `ced997c` và `2d08e8e` qua CI/CD đúng SHA.
+Release ứng dụng hiện tại là `dev-2d08e8ec003157de45a53ddd9b9df537e589acd5`;
+chaincode vẫn sequence 1, package `c07f625`. Monitor lúc 00:54 và 08:34 ngày
+12/10/2026 đạt 13/13 proof, Pending 0; giữ receipt, identities, CPU/RAM và
+production baseline. Cửa sổ hiện tại bắt đầu 00:54, nhưng gap 27.612 giây giữa
+hai lượt không được suy ra healthy. Gate quan sát 24 giờ chưa đạt; evidence
+giữ đủ lịch sử các cửa sổ và failures. Schema/policy nhánh bản A chưa triển khai.
+
 StageAssignment/ShipmentPlan, scope trên core read/write/replay và backfill
 manifest còn thiếu. Sau bản A mới mở protocol/binding/ledger registry/router
 của B và chữ ký/handover của C theo các dependency trong plan. Self-managed

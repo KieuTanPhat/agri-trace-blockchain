@@ -85,5 +85,27 @@ Lượt trước phát hiện trigger dùng chung đọc trường `state` của
 Prisma candidate đã có các models/relations tương ứng; generate 7.10.0 và
 typecheck API đạt. Chưa chạy app bằng models mới trên database dùng chung:
 migrations hiện hành chưa chứa expansion, nên chỉ dùng DB cách ly đã áp dụng
-draft. ORM/SQL alignment, API/read/write/replay/concurrency, Swagger/Web và
+draft. API/read/write/replay/concurrency, Swagger/Web và
 rehearsal toàn bộ còn là gate trước promotion/rollout.
+
+Candidate `be9d6e850faa631a73dfd512d111d5aa80dee046` đã qua 30 SQL assertions,
+ORM/SQL alignment (deferred revision create và consent relations), typecheck
+và 112 E2E legacy trên PostgreSQL 18 cách ly. Kết quả terminal hoàn tất
+`2026-10-11T17:59:28Z` tại
+`/opt/agri-trace-admin/hybrid-scope-draft/49e53ed42c56d69d-1791741265281260392`.
+SSH điều khiển timeout 600 giây; đã phục hồi kết quả từ result.json và log,
+xác nhận không còn container/network test. Không tính timeout riêng là Passed
+hoặc xóa evidence các lần lỗi trước. Đây chưa là scoped API workflow acceptance.
+
+Candidate policy dùng scope fingerprint riêng `chain-business-v1`, chỉ gồm
+grant/capability/membership/profile và assignment thực sự của command. Role
+khác được cấp không làm thay scope hợp lệ; revoke và grant mới không hồi sinh
+scope cũ. Role dùng ghi trace sẽ được server suy ra, giữ nguyên actor đã xác
+thực để kiểm JWT/session. Policy riêng chưa nối vào core; không dùng nó thay
+SQL read filters, lifecycle/quantity/custody hoặc correction-chain self-review.
+
+Chạy policy tests riêng sau migrations hiện hành, SQL draft và SQL fixtures:
+`HYBRID_DRAFT_TESTS=1 npm run test:hybrid:db --workspace apps/api`, với
+`TEST_DATABASE_URL` trỏ DB mới dùng riêng. Không dùng lệnh này trên dev/prod.
+Suite chuẩn không tự apply draft hoặc chạy các tests này. Config riêng chặn
+thiếu opt-in/database URL; fixtures cũng phải khớp trước mutation đầu tiên.

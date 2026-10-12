@@ -23,7 +23,7 @@ thay nghiệm thu authority của doanh nghiệp thật.
 
 - JWT/session/global role được đọc từ DB; scope được kiểm trước replay và dưới
   khóa trong transaction ghi domain/result journal.
-- Bản sửa đang kiểm chứng của HYB-03 lấy khóa `FOR SHARE` trên tổ chức đích và
+- Bản sửa HYB-03 đã triển khai qua PR #92 lấy khóa `FOR SHARE` trên tổ chức đích và
   user nhận grant trước khi kiểm trạng thái. Khóa actor riêng không đủ khi
   platform admin cấp quyền cho tổ chức khác; FK chỉ lấy key-share nên không
   chặn cập nhật status. Không đổi schema, API contract hoặc quyền được cấp.
@@ -161,9 +161,13 @@ và không có grant, audit hoặc command commit. JWT của đối tác đã b�
 bị từ chối. Bài test quan sát lock wait thực trong `pg_stat_activity`, không
 dùng thời gian sleep làm bằng chứng khóa.
 
-Bốn scenario mới và regression API đang được kiểm chứng; chưa ghi Passed hoặc
-coi candidate đã triển khai dev. Source/log từng lần chạy được giữ riêng trên
-VPS. Phần này chỉ xử lý recipient status race của nền quản lý, không hoàn tất
+PR [#92](https://github.com/KieuTanPhat/agri-trace-blockchain/pull/92) đã merge và
+triển khai dev `ced997c`. Bốn scenario PostgreSQL và 112 E2E đạt; lần đầu full
+suite có một timeout dưới CPU quota đã giữ log, sau đó chạy lại PostgreSQL 18
+với test timeout 30 giây, không đổi transaction/auth checks. CI của head/merge
+và Development CD `38159122815` đạt. Kiểm độc lập đạt 12/12 proof, Pending 0.
+Source/log từng lần chạy được giữ riêng trên VPS. Phần này chỉ xử lý recipient
+status race của nền quản lý, không hoàn tất
 scope core, StageAssignment, ShipmentPlan hoặc toàn bộ HYB-03.
 
 ## HYB-AC-24 — Custody khi cùng doanh nghiệp làm nhiều công đoạn
@@ -178,9 +182,18 @@ trả custody chưa xác định, không mở command ghi.
 Kiểm thử trước sửa tái hiện ba lỗi; các bài mới giữ cả legacy organization-only
 khi một bên có một role, suy ra theo pickup/arrival khi đủ bằng chứng, cùng org
 ở các trạng thái bình thường và sau full damage. Không thay payload/hash/proof
-lịch sử hoặc tự chuyển custody trong database. Candidate này chưa triển khai
-dev và không đồng nghĩa HYB-AC-24 đã đạt đầy đủ: multi-capability core flow và
+lịch sử hoặc tự chuyển custody trong database. PR
+[#93](https://github.com/KieuTanPhat/agri-trace-blockchain/pull/93) đã triển khai
+dev `2d08e8ec003157de45a53ddd9b9df537e589acd5`, qua head/merge CI và Development
+CD `38160510032`. API 105 unit tests, bốn race scenario và toàn bộ 112 E2E đạt.
+Kiểm độc lập lúc 00:54 ngày 12/10 đạt 13/13 proof, Pending 0, giữ đủ 12 receipt
+trước đó. Đây không đồng nghĩa HYB-AC-24 đã đạt đầy đủ: multi-capability core flow và
 reviewer independence vẫn còn ở các gói sau.
+
+Lượt monitor 08:34 ngày 12/10 giữ 13/13 proof, Pending 0, identity/runtime,
+118 fingerprints production và 15 container ngoài dev. Khoảng trống giữa các
+lượt là 27.612 giây, không tính là bằng chứng healthy liên tục; gate 24 giờ
+chưa đạt. Evidence hiện tại và các cửa sổ trước vẫn được giữ.
 
 ## HYB-02/03/04 — Scope nghiệp vụ đang chuẩn bị
 
@@ -189,7 +202,16 @@ ProductionCycle scope gốc, StageAssignment, ShipmentPlan/revisions/acceptance
 và EventChainContext. Profile bắt đầu PREPARING; chưa bật scoped business
 writes. Không thêm vào Prisma migrations hoặc CD checksum allowlist ở bước này.
 
-DB PostgreSQL 18 mới, cách ly đã qua 21 assertion SQL ngày 12/10/2026, giữ
-trigger core. Source baseline để migrate là `5a71e8b`; digest và evidence tại
-ADR. Chưa nghiệm thu API, concurrency, trace/outbox transaction, capability
+DB PostgreSQL 18 mới, cách ly đã qua 30 assertion SQL ngày 12/10/2026, giữ
+trigger core. Candidate `be9d6e8` còn qua Prisma/SQL alignment và 112 E2E legacy;
+kết quả terminal/log được đối chiếu sau SSH control timeout, tài nguyên test đã
+dọn đúng label. Digest và evidence tại ADR. Chưa nghiệm thu API, concurrency,
+trace/outbox transaction, capability
 core, legacy backfill, privacy/read filters, Web hoặc các gate A còn lại.
+
+Policy nghiệp vụ tiếp theo được chuẩn bị riêng trên nhánh
+`feature/hybrid-chain-business-scope`: resolve chain từ resource, kiểm profile,
+membership, đúng grant/capability/assignment; không lấy global role làm quyền
+công đoạn. Kiểm PostgreSQL riêng có config `vitest.config.hybrid.ts` và bắt buộc
+`HYBRID_DRAFT_TESTS=1` trên DB có SQL draft/fixtures. Chưa nối policy vào endpoint
+core hoặc mở profile trên dev; schema candidate chưa là migration triển khai.
