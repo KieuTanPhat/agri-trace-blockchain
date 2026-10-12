@@ -109,3 +109,12 @@ Chạy policy tests riêng sau migrations hiện hành, SQL draft và SQL fixtur
 `TEST_DATABASE_URL` trỏ DB mới dùng riêng. Không dùng lệnh này trên dev/prod.
 Suite chuẩn không tự apply draft hoặc chạy các tests này. Config riêng chặn
 thiếu opt-in/database URL; fixtures cũng phải khớp trước mutation đầu tiên.
+
+Policy candidate `b1c8fd7` đã qua 19 PostgreSQL tests, 30 SQL assertions và ORM
+alignment; gồm quan sát lock wait thực khi revoke chờ command, rồi quyền cũ
+bị chặn. Evidence:
+`/opt/agri-trace-admin/hybrid-scope-draft/49e53ed42c56d69d-1791769553219122076`.
+Read-scope candidate bổ sung SQL predicates cho Cycle/Lot/Shipment: cùng Farm
+không đủ quyền trên chain khác; Cycle cha không tự mở sibling Lots; owner chỉ
+có projection riêng. Kiểm list/direct ID/count/nested relation đang chuẩn bị,
+chưa nối bộ lọc vào endpoint hoặc tính HYB-AC-03 Passed.

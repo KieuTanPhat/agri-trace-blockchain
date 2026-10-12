@@ -12,6 +12,11 @@ import {
   businessRoot,
 } from '../src/modules/supply-chains/business-policy.js';
 import { lockChainScope } from '../src/modules/supply-chains/chain-policy.js';
+import {
+  scopedCycleReadWhere,
+  scopedLotReadWhere,
+  scopedShipmentReadWhere,
+} from '../src/modules/supply-chains/business-read-scope.js';
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -493,4 +498,177 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it('filters list, direct ID and count across chains that share a Farm', () =>
+    isolated(async (tx) => {
+      const other = await tx.productionCycle.create({
+        data: {
+          cycleCode: randomUUID(),
+          productId,
+          farmId,
+          farmOrgId: producer.organizationId!,
+          chainId: otherChainId,
+        },
+      });
+      await tx.stageAssignment.create({
+        data: {
+          chainId: otherChainId,
+          organizationId: producer.organizationId!,
+          stage: 'PRODUCTION',
+          cycleId: other.id,
+          status: 'ACCEPTED',
+        },
+      });
+      for (const actor of [producer, reviewer]) {
+        const where = scopedCycleReadWhere(actor);
+        const rows = await tx.productionCycle.findMany({
+          where,
+          select: { id: true },
+        });
+        expect(rows.map((row) => row.id)).toEqual([cycleId]);
+        expect(
+          await tx.productionCycle.findFirst({
+            where: { AND: [where, { id: other.id }] },
+          }),
+        ).toBeNull();
+        expect(
+          await tx.productionCycle.count({
+            where: { AND: [where, { chainId: otherChainId }] },
+          }),
+        ).toBe(0);
+      }
+    }));
+
+  it('filters sibling Lots independently even when a parent cycle is visible', () =>
+    isolated(async (tx) => {
+      const harvest = await tx.harvestEvent.create({
+        data: { cycleId, harvestTime: new Date(), quantity: '2', unit: 'kg' },
+      });
+      const sibling = await tx.lot.create({
+        data: {
+          lotCode: randomUUID(),
+          harvestId: harvest.id,
+          productId,
+          farmOrgId: producer.organizationId!,
+          initialQuantity: '2',
+          availableQuantity: '2',
+          unit: 'kg',
+        },
+      });
+      for (const actor of [transporter, retailer]) {
+        const cycle = await tx.productionCycle.findFirstOrThrow({
+          where: { AND: [scopedCycleReadWhere(actor), { id: cycleId }] },
+          include: {
+            harvestEvents: {
+              where: { lot: { is: scopedLotReadWhere(actor) } },
+              include: { lot: true },
+            },
+          },
+        });
+        expect(cycle.harvestEvents.map((h) => h.lot!.id)).toEqual([lotId]);
+        expect(
+          await tx.lot.findFirst({
+            where: { AND: [scopedLotReadWhere(actor), { id: sibling.id }] },
+          }),
+        ).toBeNull();
+        expect(await tx.lot.count({ where: scopedLotReadWhere(actor) })).toBe(
+          1,
+        );
+        expect(
+          await tx.shipment.count({ where: scopedShipmentReadWhere(actor) }),
+        ).toBe(1);
+      }
+    }));
+
+  it('does not expose raw business records through owner, org admin or global admin authority', () =>
+    isolated(async (tx) => {
+      const template = await tx.user.findUniqueOrThrow({
+        where: { id: producer.sub! },
+      });
+      const user = await tx.user.create({
+        data: {
+          organizationId: producer.organizationId,
+          roleId: template.roleId,
+          email: `${randomUUID()}@example.test`,
+          fullName: 'Manager only',
+          passwordHash: 'unused-synthetic-hash',
+        },
+      });
+      const manager = { ...producer, sub: user.id };
+      await grant(tx, manager, 'CHAIN_MANAGER');
+      await tx.scopedRoleGrant.create({
+        data: {
+          userId: user.id,
+          organizationId: producer.organizationId!,
+          scope: 'ORGANIZATION',
+          role: 'ORG_ADMIN',
+        },
+      });
+      for (const actor of [manager, { ...producer, role: 'SYSTEM_ADMIN' }]) {
+        expect(
+          await tx.productionCycle.count({
+            where: scopedCycleReadWhere(actor),
+          }),
+        ).toBe(0);
+        expect(await tx.lot.count({ where: scopedLotReadWhere(actor) })).toBe(
+          0,
+        );
+        expect(
+          await tx.shipment.count({ where: scopedShipmentReadWhere(actor) }),
+        ).toBe(0);
+      }
+    }));
+
+  it('removes read visibility immediately when the relevant grant is revoked', () =>
+    isolated(async (tx) => {
+      expect(
+        await tx.lot.count({ where: scopedLotReadWhere(transporter) }),
+      ).toBe(1);
+      const g = await tx.scopedRoleGrant.findFirstOrThrow({
+        where: {
+          userId: transporter.sub!,
+          chainId,
+          role: 'TRANSPORTER',
+          revokedAt: null,
+        },
+      });
+      await tx.scopedRoleGrant.update({
+        where: { id: g.id },
+        data: { revokedAt: new Date(), revision: { increment: 1 } },
+      });
+      expect(
+        await tx.lot.count({ where: scopedLotReadWhere(transporter) }),
+      ).toBe(0);
+      expect(
+        await tx.productionCycle.count({
+          where: scopedCycleReadWhere(transporter),
+        }),
+      ).toBe(0);
+    }));
+
+  it('removes read visibility when membership or profile is suspended', () =>
+    isolated(async (tx) => {
+      await tx.chainMembership.update({
+        where: {
+          chainId_organizationId: {
+            chainId,
+            organizationId: transporter.organizationId!,
+          },
+        },
+        data: { status: 'SUSPENDED', version: { increment: 1 } },
+      });
+      expect(
+        await tx.lot.count({ where: scopedLotReadWhere(transporter) }),
+      ).toBe(0);
+      expect(await tx.lot.count({ where: scopedLotReadWhere(retailer) })).toBe(
+        1,
+      );
+      await tx.chainBusinessProfile.update({
+        where: { chainId },
+        data: { state: 'SUSPENDED', version: { increment: 1 } },
+      });
+      expect(await tx.lot.count({ where: scopedLotReadWhere(retailer) })).toBe(
+        0,
+      );
+    }));
 });
