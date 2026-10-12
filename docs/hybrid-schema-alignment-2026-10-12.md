@@ -35,6 +35,15 @@ Evidence baseline root-private:
 Job đã terminal và xác nhận container/network test được dọn. Source archive
 SHA-256 `7010a9fe1b69148dda8926e00eb36925da0e06c31b9a7d443dc59cfca90ecb91`.
 
-Candidate alignment đã qua Prisma validate local. Zero-drift và các suite
-hồi quy của SHA mới phải được kiểm riêng; tại lúc viết đoạn này chưa chạy.
-Giữ failure baseline và mọi observation gaps trước đó.
+Candidate `a4b48e3e485d5902ddad38f93e00cddc9ff4f1d1` đã qua Prisma validate
+local và full schema diff exit **0** trên PostgreSQL 18 mới với 15 migration
+và draft. Không execute SQL diff. Catalog giữ hai unique sensor guards và ba
+assignment guards; container/network test đã dọn. Evidence:
+`/opt/agri-trace-admin/hybrid-alignment-jobs/agritrace-hybrid-alignment-1791800727140045540`.
+
+Candidate tiếp theo kiểm replay quyền hiện hành dưới transaction lock, cùng
+giao thức với write. Bài PostgreSQL quan sát revoke chờ lock thật trên
+`pg_stat_activity`; replay không gọi lại command. Local typecheck đạt; suite
+PostgreSQL/HTTP/legacy của SHA mới còn phải chạy. Giữ failure baseline và
+mọi observation gaps trước đó. Zero-drift không thay nghiệm thu backfill,
+journal bridge, migration promotion hoặc các gate A/B/C.

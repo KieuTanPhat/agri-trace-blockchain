@@ -52,8 +52,16 @@ export class IdempotencyService {
       { ...input, authorizationScope: scope },
       command,
       async () => {
-        if ((await authorizeCommand(this.prisma, input)) !== scope)
-          throw new ConflictException('Phạm vi command đã thay đổi');
+        // Replay is a disclosure of the original private response. Use the
+        // same locks as a write so revoke/disable cannot race its authority
+        // check. No command is executed in this read-only authorization path.
+        await this.prisma.$transaction(
+          async (tx) => {
+            if ((await authorizeCommand(tx, input, true)) !== scope)
+              throw new ConflictException('Phạm vi command đã thay đổi');
+          },
+          { maxWait: 5000, timeout: 20000 },
+        );
       },
       input,
     );
