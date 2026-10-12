@@ -59,13 +59,13 @@ test('missing registry username fails before SSH and removes temporary key',{ski
 test('failed backup transport never leaves an incomplete artifact',{skip:process.platform==='win32'},t=>{
   const f=fixture(t);const result=f.run('backup',sha);
   assert.equal(result.status,1);
-  assert.equal(existsSync(path.join(f.root,`uat-backup-${sha}.cms`)),false);
+  assert.equal(existsSync(path.join(f.root,`prod-backup-${sha}.cms`)),false);
   assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
 });
 
 test('failed backup retry preserves an already completed backup',{skip:process.platform==='win32'},t=>{
   const f=fixture(t);
-  const filename=path.join(f.root,`uat-backup-${sha}.cms`);
+  const filename=path.join(f.root,`prod-backup-${sha}.cms`);
   const saved=Buffer.alloc(1024,23);writeFileSync(filename,saved);
   const result=f.run('backup',sha);
   assert.equal(result.status,1);
@@ -75,7 +75,7 @@ test('failed backup retry preserves an already completed backup',{skip:process.p
 
 test('complete backup is published privately and retry cannot overwrite it',{skip:process.platform==='win32'},t=>{
   const f=fixture(t);f.env.CD_TEST_COMPLETE_BACKUP='true';
-  const filename=path.join(f.root,`uat-backup-${sha}.cms`);
+  const filename=path.join(f.root,`prod-backup-${sha}.cms`);
   const first=f.run('backup',sha);
   assert.equal(first.status,0,first.stderr);
   const saved=readFileSync(filename);
@@ -84,7 +84,7 @@ test('complete backup is published privately and retry cannot overwrite it',{ski
   const retry=f.run('backup',sha);
   assert.equal(retry.status,1);
   assert.deepEqual(readFileSync(filename),saved);
-  assert.ok(!readdirSync(f.root).some(name=>name.startsWith('uat-backup-download-')));
+  assert.ok(!readdirSync(f.root).some(name=>name.startsWith('prod-backup-download-')));
 });
 
 test('missing host pin removes the private key before SSH starts',t=>{

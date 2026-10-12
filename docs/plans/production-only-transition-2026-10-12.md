@@ -115,3 +115,11 @@ PostgreSQL của job bị hủy đã gỡ sau kiểm đúng label; không có de
 đang chạy trên VPS. CI source-only trên nhánh dev cũng cần được bỏ trigger tại
 đầu nhánh dev, vì file workflow lịch sử trên nhánh đó có thể tự chạy khi push;
 commit cleanup dev giữ nguyên app/schema và history, không deploy từ dev.
+
+Linux local deployment suite trên cây main dự kiến đạt 73/73. Linux Node
+transport phát hiện fixture còn kỳ vọng prefix `uat-backup` sau khi sender đổi
+sang `prod-backup`; đã sửa cả các negative assertions, giữ kiểm 0600, download
+hoàn chỉnh và retry không overwrite. Không tính kết quả Windows skip transport
+thay cho kiểm Linux. Test CI actual-Git trên bản sao archive bên trong worktree
+Windows cần Git Windows; Linux không đọc được `.git` có đường dẫn `C:/...`.
+Đây là khác biệt harness, không phải nới gate CI trên GitHub runner.
