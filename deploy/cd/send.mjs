@@ -7,9 +7,9 @@ import {pipeline} from 'node:stream/promises';
 
 const [operation, value, archive] = process.argv.slice(2);
 const targetEnvironment = process.env.CD_ENVIRONMENT;
-if (targetEnvironment && !['development','production'].includes(targetEnvironment)) throw new Error('Unknown CD environment');
-const prefix = targetEnvironment === 'development' ? 'dev' : targetEnvironment === 'production' ? 'prod' : 'uat';
-const setting = name => targetEnvironment ? process.env[`CD_${name}`] : process.env[`UAT_${name}`];
+if (targetEnvironment !== 'production') throw new Error('Only production delivery is supported');
+const prefix = 'prod';
+const setting = name => process.env[`CD_${name}`];
 const temp = path.join(process.env.RUNNER_TEMP, 'agri-cd-ssh');
 const key = path.join(temp,'key');
 mkdirSync(temp,{recursive:true,mode:0o700});

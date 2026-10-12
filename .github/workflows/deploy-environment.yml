@@ -1,10 +1,9 @@
-name: Deploy environment
+name: Deploy production
 on:
   workflow_call:
     secrets:
       CD_SSH_PRIVATE_KEY: {required: true}
     inputs:
-      environment: {type: string, required: true}
       operation: {type: string, default: deploy}
       rollback_sha: {type: string, default: ''}
       expected_sequence: {type: string, default: ''}
@@ -15,14 +14,14 @@ defaults:
 
 jobs:
   gate:
-    name: Exact environment CI gate
-    if: (inputs.environment == 'development' && github.ref == 'refs/heads/dev') || (inputs.environment == 'production' && github.ref == 'refs/heads/main')
-    environment: ${{ inputs.environment }}
+    name: Exact production CI gate
+    if: github.ref == 'refs/heads/main'
+    environment: production
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions: {contents: read, actions: read}
     env:
-      CD_BRANCH: ${{ inputs.environment == 'development' && 'dev' || 'main' }}
+      CD_BRANCH: main
       GH_TOKEN: ${{ github.token }}
     outputs:
       current: ${{ steps.gate.outputs.current }}
@@ -54,7 +53,7 @@ jobs:
           echo 'enabled=true' >> "$GITHUB_OUTPUT"
           echo "operation=$OPERATION" >> "$GITHUB_OUTPUT"
           echo "target=$target" >> "$GITHUB_OUTPUT"
-          echo "prefix=$([[ "$CD_BRANCH" == dev ]] && echo dev || echo prod)" >> "$GITHUB_OUTPUT"
+          echo 'prefix=prod' >> "$GITHUB_OUTPUT"
       - id: gate
         if: steps.input.outputs.enabled == 'true'
         name: Require three successful push workflows for this branch and SHA
@@ -66,13 +65,13 @@ jobs:
     name: Publish immutable environment images
     needs: gate
     if: needs.gate.outputs.current == 'true' && (needs.gate.outputs.operation == 'deploy' || needs.gate.outputs.operation == 'upgrade')
-    environment: ${{ inputs.environment }}
+    environment: production
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     permissions: {contents: read, packages: write}
     env:
       GH_TOKEN: ${{ github.token }}
-      CD_ENVIRONMENT: ${{ inputs.environment }}
+      CD_ENVIRONMENT: production
       PUBLIC_ORIGIN: ${{ vars.CD_PUBLIC_ORIGIN }}
       CD_PROJECT: ${{ vars.CD_PROJECT }}
       CD_PROFILE: ${{ vars.CD_PROFILE }}
@@ -102,14 +101,14 @@ jobs:
     needs: [gate, publish]
     if: always() && needs.gate.result == 'success' && needs.gate.outputs.current == 'true' && (needs.publish.result == 'success' || needs.gate.outputs.operation == 'rollback' || needs.gate.outputs.operation == 'recover')
     environment:
-      name: ${{ inputs.environment }}
+      name: production
       url: ${{ vars.CD_PUBLIC_ORIGIN }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     permissions: {contents: read, actions: read, packages: read}
     env:
-      CD_ENVIRONMENT: ${{ inputs.environment }}
-      CD_BRANCH: ${{ inputs.environment == 'development' && 'dev' || 'main' }}
+      CD_ENVIRONMENT: production
+      CD_BRANCH: main
       CD_HOST: ${{ vars.CD_HOST }}
       CD_USER: ${{ vars.CD_USER }}
       CD_KNOWN_HOSTS: ${{ vars.CD_KNOWN_HOSTS }}

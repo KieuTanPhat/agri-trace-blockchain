@@ -197,19 +197,11 @@ test('a legacy lot cannot silently become fully verified or disappear from the Q
   }
 });
 
-test('light dev validates a real Pending canary without contacting Worker or Fabric', async () => {
-  const result=await verify({profile:'light',pending:true,environment:'development',canary:'b'.repeat(40),
-    canaryCatalog:{farmId:'farm-dev',plotId:'plot-dev',productId:'product-dev'}});
-  assert.equal(result.runtime.exitCode,0,result.errors.join('\n'));
-  const evidence=JSON.parse(result.output[0]);
-  assert.equal(evidence.pendingEvents,1);
-  assert.equal(evidence.directLedgerEvents,0);
-  assert.equal(evidence.fabricVerification,'not-evaluated-disabled');
-  assert.equal(evidence.verifiedQR,0);
-  assert.equal(result.closed,false);
-  assert.ok(!result.calls.includes('/health/ready'));
+test('retired development verification is rejected before any runtime request', async () => {
+  await assert.rejects(()=>verify({profile:'fabric',environment:'development'}),/Only production/);
 });
 
 test('light mode cannot waive production blockchain verification', async () => {
-  await assert.rejects(()=>verify({profile:'light',environment:'production'}),/only for development/);
+  for(const environment of ['production','development'])
+    await assert.rejects(()=>verify({profile:'light',environment}),/requires Fabric/);
 });

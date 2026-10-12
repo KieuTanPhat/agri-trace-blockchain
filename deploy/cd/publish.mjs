@@ -6,7 +6,6 @@ import {github} from './gate.mjs';
 
 export function deploymentTarget(env) {
   const targets = {
-    development: {branch:'dev',origin:'https://nongtrace.site',prefix:'dev',project:'agritrace-dev',profile:'light'},
     production: {branch:'main',origin:'https://agritrace.dev',prefix:'prod',project:'agritrace-prod',profile:'fabric'},
   };
   const target=targets[env.CD_ENVIRONMENT];
@@ -15,7 +14,7 @@ export function deploymentTarget(env) {
   assert.equal(env.PUBLIC_ORIGIN,target.origin,'Deployment origin mismatch');
   const project=env.CD_PROJECT||target.project,profile=env.CD_PROFILE||target.profile;
   assert.ok(project===target.project||(env.CD_ENVIRONMENT==='production'&&project==='agri-trace-uat'),'Deployment project mismatch');
-  assert.ok(['light','fabric'].includes(profile)&&(env.CD_ENVIRONMENT!=='production'||profile==='fabric'),'Deployment profile mismatch');
+  assert.equal(profile,'fabric','Deployment profile mismatch');
   assert.match(env.GITHUB_SHA,/^[a-f0-9]{40}$/);
   return {...target,project,profile,environment:env.CD_ENVIRONMENT};
 }

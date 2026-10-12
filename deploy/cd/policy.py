@@ -57,7 +57,7 @@ def approved_package(approved):
 
 
 def ci_gate(runs, sha, branch_sha, branch="main"):
-    require(branch in {"main", "dev"}, "Unknown deployable branch")
+    require(branch == "main", "Only main is deployable")
     require(sha == branch_sha, "Candidate is no longer latest branch HEAD")
     for filename in ("application-ci.yml", "blockchain-ci.yml", "dependency-audit.yml"):
         selected = sorted((run for run in runs if run.get("head_sha") == sha and run.get("head_branch") == branch and
