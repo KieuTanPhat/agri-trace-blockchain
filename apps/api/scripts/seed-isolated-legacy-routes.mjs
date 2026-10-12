@@ -104,6 +104,8 @@ try {
               eventId: payload.id,
               status: pending ? 'PENDING' : 'COMPLETED',
               attemptCount: pending ? 0 : 1,
+              completedAt: pending ? null : payload.eventTime,
+              nextAttemptAt: pending ? payload.eventTime : null,
             },
           });
           if (!pending)

@@ -119,3 +119,8 @@ concurrent apply, batch resume và relay progress/rerun. Seed 28 synthetic event
 bằng writer schema cũ trước khi cài route guards, không disable trigger. Local
 typed check/lint và 147 unit đạt trước DB; chưa ghi 132 policy/DB là pass. Draft
 không chạy trên DB dùng chung hoặc production; official migration còn gate.
+
+Lượt `546be97` đạt 147 unit/type/lint, dừng trước route SQL vì seed tạo outbox
+COMPLETED thiếu completedAt; existing completed-state guard chặn đúng. Sửa fixture
+ghi completedAt/nextAttemptAt theo lifecycle, không đổi guard. OOM false/restart0,
+cleanup container/network/port/keeper verified. Chưa có DB import acceptance.
