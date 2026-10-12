@@ -2862,7 +2862,7 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       expect(status.body.data).toMatchObject({ status: 'COMMITTED' });
       expect(
         await db.chainAudit.count({
-          where: { chainId: id, action: 'ACTIVATE_BUSINESS_PROFILE' },
+          where: { chainId: id, operation: 'ACTIVATE_BUSINESS_PROFILE' },
         }),
       ).toBe(1);
       const manager = await db.scopedRoleGrant.findFirstOrThrow({
@@ -2927,7 +2927,7 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       ).toMatchObject({ state: 'PREPARING', version: 0 });
       expect(
         await db.chainAudit.count({
-          where: { chainId: id, action: 'ACTIVATE_BUSINESS_PROFILE' },
+          where: { chainId: id, operation: 'ACTIVATE_BUSINESS_PROFILE' },
         }),
       ).toBe(0);
     });
@@ -2947,7 +2947,7 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       ).toMatchObject({ state: 'ACTIVE', version: 1 });
       expect(
         await db.chainAudit.count({
-          where: { chainId: id, action: 'ACTIVATE_BUSINESS_PROFILE' },
+          where: { chainId: id, operation: 'ACTIVATE_BUSINESS_PROFILE' },
         }),
       ).toBe(1);
     });

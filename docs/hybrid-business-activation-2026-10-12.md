@@ -50,3 +50,18 @@ Cleanup phải kiểm ownership, port/process/container/network và giữ logs f
 3 HTTP activation scenarios, dự kiến 89 policy tests/26 HTTP groups; SQL 31
 assertions, alignment zero + 6 unique guards, ORM và 112 legacy E2E. Số dự kiến
 không là nghiệm thu. Chỉ gắn kết quả vào đúng SHA đã chạy; A/B/C vẫn chưa hoàn tất.
+
+Hai local attempts của `2c13770` chưa chạy đến policy DB: lần đầu schema engine
+lỗi khi database đã dừng sạch, không OOM; lần sau phát hiện quote lỗi trong helper
+smoke. Bổ sung foreground WSL keeper có deadline/cleanup vì systemd services
+không bảo đảm giữ WSL instance sống giữa các lệnh Windows dài; smoke tách thành
+file JS để tránh sai quote. Giữ logs cả hai attempts. Audit test phát hiện dùng
+`ChainAudit.action` trong ba assertion mới, model thực dùng `operation`; đã sửa
+fixture và kiểm TypeScript riêng cho toàn bộ hybrid DB spec. Không giảm assertions.
+
+CD 38278770033 thất bại trước journal/stop writers vì legacy Compose hard-code
+Fabric binding trong overlay, shared env thiếu năm biến worker của app Compose.
+Đã adopt đúng values từ current Worker, đối chiếu trusted channel/chaincode/MSP/
+TLS hostname/endpoint descriptor, giữ nguyên private bytes có sẵn và runtime.
+Preflight Compose/signer đạt lúc 17:06:11 UTC, dispatch lại cùng `main@8ae1354`.
+Failure và thiếu snapshot của lần preflight được giữ; không tính là rollout pass.
