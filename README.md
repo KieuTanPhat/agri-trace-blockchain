@@ -15,6 +15,10 @@ nghiệm thu còn lại.
 [phạm vi và kiểm chứng](docs/hybrid-chain-management-implementation.md).
 Mạng Fabric dev riêng và các gate đang kiểm nằm trong
 [báo cáo pilot](docs/fabric-dev-pilot-2026-10-11.md).
+Candidate controlled legacy apply, consent và journal bridge được mô tả tại
+[implementation legacy scope](docs/hybrid-legacy-scope-implementation-2026-10-12.md);
+[quyết định tiếp tục A → B → C](docs/plans/hybrid-recovery-and-completion-plan-2026-10-12.md)
+ghi phương án sửa có cấu trúc, review test và các gate còn thiếu.
 
 ```text
 apps/

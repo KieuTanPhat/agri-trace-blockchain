@@ -389,6 +389,27 @@ export async function applyLegacyScopeRoot(
   )
     throw new ConflictException('Root inventory đã đổi; cần review/pin mới');
   const proposals = pin.plan.proposals.filter((p) => p.cycleId === cycleId);
+  if (entry.chainId) {
+    const required = [
+      ...Object.entries(legacyReviewKeys(pin))
+        .filter(([, chainId]) => chainId === entry.chainId)
+        .map(([key]) => key),
+      ...proposals.map((p) => p.key),
+    ];
+    const current = await db.$queryRaw<
+      Array<{ proposalKey: string; valid: boolean }>
+    >`
+      SELECT c.proposal_key AS "proposalKey", fn_hybrid_legacy_consent_current(c) AS valid
+      FROM legacy_scope_consent c WHERE manifest_id=${manifestId}::uuid
+      AND proposal_key IN(SELECT jsonb_array_elements_text(${JSON.stringify(required)}::jsonb))`;
+    const valid = new Set(
+      current.filter((c) => c.valid).map((c) => c.proposalKey),
+    );
+    if (required.some((key) => !valid.has(key)))
+      throw new ConflictException(
+        'Thiếu xác nhận hiện hành của chủ chuỗi hoặc bên thực hiện',
+      );
+  }
   const grants = entry.chainId
     ? await db.scopedRoleGrant.findMany({
         where: {
