@@ -628,7 +628,7 @@ describe('Legacy history preservation on isolated PostgreSQL', () => {
           'RELEASE SAVEPOINT incomplete_legacy_activation',
         );
         expect(guardMessage).toContain(
-          'Legacy mapping incomplete before activation',
+          'Active unresolved legacy root blocks activation',
         );
         await applyLegacyScopeRoot(
           tx,

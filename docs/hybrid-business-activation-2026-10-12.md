@@ -81,3 +81,10 @@ và Compose recreate cả PostgreSQL/API/Worker/Web như kế hoạch; PostgreSQ
 binding/package/sequence/history/keys và chỉ cho phép những lifecycle changes
 được rollout/snapshot tạo có chủ ý; không dùng baseline startedAt của runtime
 cũ để kết luận lỗi dữ liệu. Receipt hậu triển khai chưa hoàn tất ở checkpoint này.
+
+`32fe811` đạt 84/89 policy cases, còn 5 failed và không skip. Bốn supersession
+fail vì candidate SQL dùng `digest()` nhưng không khai báo extension pgcrypto;
+đây là lỗi dependency thật. Thay bằng SHA-256 built-in PostgreSQL với cùng byte
+input/hex output, không thêm extension hay đổi digest/provenance. Case còn lại
+đã reject activation đúng nhưng kỳ vọng message của gate cũ; cập nhật message
+chính xác của active-root guard mới, giữ việc reject và kiểm mọi history/audit.

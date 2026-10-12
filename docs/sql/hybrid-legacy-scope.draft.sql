@@ -88,7 +88,8 @@ BEGIN
   IF EXISTS(WITH RECURSIVE successors(id) AS (
     SELECT NEW.to_manifest_id UNION SELECT s.to_manifest_id FROM legacy_scope_supersession s JOIN successors r ON s.from_manifest_id=r.id WHERE s.cycle_id=NEW.cycle_id)
     SELECT 1 FROM successors WHERE id=NEW.from_manifest_id) THEN RAISE EXCEPTION 'Legacy supersession cannot cycle'; END IF;
-  old_hash:=encode(digest(convert_to('{"cycleId":"'||NEW.cycle_id::text||'","manifestId":"'||NEW.from_manifest_id::text||'"}','UTF8'),'sha256'),'hex');
+  -- PostgreSQL's built-in SHA-256 avoids an undeclared pgcrypto dependency.
+  old_hash:=encode(sha256(convert_to('{"cycleId":"'||NEW.cycle_id::text||'","manifestId":"'||NEW.from_manifest_id::text||'"}','UTF8')),'hex');
   IF EXISTS(SELECT 1 FROM idempotency_record r WHERE r.operation='SCOPE_APPLY_LEGACY_ROOT' AND r.request_hash=old_hash
     AND NOT EXISTS(SELECT 1 FROM command_commit j WHERE j.idempotency_record_id=r.idempotency_record_id)
     AND (r.status<>'FAILED' OR r.response_status IS NULL OR r.response_status<400))
