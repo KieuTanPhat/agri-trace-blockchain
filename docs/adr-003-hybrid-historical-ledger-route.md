@@ -120,3 +120,9 @@ Sửa fixture role, thêm precondition private evidence hợp lệ và fail-fast
 thoát trước relay gate; giữ assertions và timeout nghiệp vụ. Container 384 MiB/1 CPU
 không OOM/restart; cleanup container/network/port/keeper verified. Chưa chạy legacy
 E2E ở lượt fail, chưa gọi toàn suite hoặc Fabric gate là pass.
+
+Lượt `5639ed3` đạt cả 19 route cases nhưng làm 24 legacy cases thất bại và 10
+cases không chạy: fixture route đã commit event không có cycle/lot, nên legacy
+inventory chặn đúng event không rõ root. Đây là lỗi cô lập fixture, không phải
+RAM (OOM false, restart zero). Đổi fixture sang cycle có thật trong chuỗi ACTIVE
+riêng, không nới inventory hoặc xóa immutable history. Cleanup lượt fail verified.

@@ -22,6 +22,48 @@ const access = {
   assertTraceEventAccess: vi.fn().mockResolvedValue(undefined),
 } as unknown as OrganizationAccessService;
 const trace = new TraceService(db as unknown as PrismaService, access);
+let rootFixture: {
+  chainId: string;
+  farmOrgId: string;
+  farmId: string;
+  productId: string;
+};
+
+beforeAll(async () => {
+  rootFixture = await db.$transaction(async (tx) => {
+    const organization = await tx.organization.create({
+      data: { name: `Route rehearsal ${randomUUID()}`, type: 'FARM' },
+    });
+    const chain = await tx.supplyChain.create({
+      data: { name: randomUUID(), ownerOrganizationId: organization.id },
+    });
+    await tx.chainMembership.create({
+      data: {
+        chainId: chain.id,
+        organizationId: organization.id,
+        status: 'ACTIVE',
+      },
+    });
+    await tx.chainBusinessProfile.create({ data: { chainId: chain.id } });
+    await tx.chainBusinessProfile.update({
+      where: { chainId: chain.id },
+      data: { state: 'ACTIVE', version: 1 },
+    });
+    const farm = await tx.farm.create({
+      data: { organizationId: organization.id, name: 'Synthetic route farm' },
+    });
+    const product = await tx.product.create({
+      data: { productName: randomUUID(), defaultUnit: 'kg' },
+    });
+    return {
+      chainId: chain.id,
+      farmOrgId: organization.id,
+      farmId: farm.id,
+      productId: product.id,
+    };
+  });
+});
+
 afterAll(() => db.$disconnect());
 
 async function register(
@@ -45,15 +87,22 @@ async function register(
   return route;
 }
 async function event(entityId = randomUUID()) {
-  const result = await db.$transaction((tx) =>
-    trace.createInTransaction(tx, {
-      entityType: 'LOT',
+  // Committed relay tests need real roots in their own scoped chain. Orphan
+  // synthetic events would correctly block another suite's legacy inventory.
+  const result = await db.$transaction(async (tx) => {
+    if (!(await tx.productionCycle.findUnique({ where: { id: entityId } })))
+      await tx.productionCycle.create({
+        data: { id: entityId, cycleCode: randomUUID(), ...rootFixture },
+      });
+    return trace.createInTransaction(tx, {
+      entityType: 'PRODUCTION_CYCLE',
       entityId,
+      cycleId: entityId,
       eventType: 'ROUTE_REHEARSAL',
       actor: { sub: null, organizationId: null, role: 'SYSTEM_ACTOR' },
       businessData: { synthetic: true },
-    }),
-  );
+    });
+  });
   expect(privateTraceEvidenceMatches(result)).toBe(true);
   return result;
 }
@@ -324,6 +373,7 @@ describe('Logical ledger routes on PostgreSQL 18', () => {
         data: {
           entityType: first.entityType,
           entityId: first.entityId,
+          cycleId: first.cycleId,
           eventType: 'ROUTE_REHEARSAL',
           actorRole: 'SYSTEM',
           eventTime: new Date(),
