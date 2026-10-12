@@ -156,6 +156,7 @@ export async function ensureLegacyCommandBridgeInTransaction(
   const root = await replayRoot(tx, input);
   const mapping = await tx.legacyScopeMapping.findUnique({
     where: { cycleId: root.cycle.id },
+    include: { checkpoint: true },
   });
   if (!mapping?.chainId || mapping.chainId !== root.cycle.chainId)
     throw new ConflictException('Legacy replay chưa có cutover provenance');
@@ -171,7 +172,7 @@ export async function ensureLegacyCommandBridgeInTransaction(
       revokedAt: null,
     },
   });
-  const snapshot = mapping.actorGrants as Array<{
+  const snapshot = mapping.checkpoint.actorGrants as Array<{
     userId: string;
     grantId: string;
     grantRevision: number;

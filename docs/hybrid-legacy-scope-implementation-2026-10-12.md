@@ -23,9 +23,20 @@ dirty có sẵn khi nhận bàn giao được giữ riêng, không dùng để t
   và org cutover marker commit nguyên tử. Checkpoint giữ actor grants và digest.
   Update một lần nullable chainId giữ nguyên mọi field/version/timestamp khác;
   PostgreSQL microsecond timestamp được giữ bằng INSERT SELECT và trigger.
+- Checkpoint `(manifestId, cycleId)` giữ quyết định và digest bất biến; chỉ MAP
+  có final mapping duy nhất/non-null chainId, tham chiếu đúng checkpoint. Apply
+  UNRESOLVED giữ checkpoint/cutover marker, không khóa vĩnh viễn final mapping.
 - Apply kiểm inventory trước/sau; rerun root trả checkpoint cũ. Thay lịch sử
   đã review yêu cầu manifest/review/pin mới. Missing/stale consent trả conflict
   trước mutation; DB trigger tiếp tục bảo vệ cả đường SQL trực tiếp.
+- Manifest v1 vẫn đọc được. V2 thêm `supersedes: [{manifestId, manifestDigest,
+  cycleId}]` canonical/sorted; pin ngoài DB bao toàn bộ artifact. Register kiểm
+  pin trước, root còn unmapped, current review và unknown old apply. Replacement
+  MAP giữ nguyên chain đã review; root đã MAP không remap. Supersession append-only
+  theo từng root, serialize với apply; checkpoint/consent/journal cũ giữ nguyên.
+  Fresh apply/proposal đã superseded bị chặn; positive journal với key/payload
+  gốc vẫn reconcile bằng quyền hiện hành. Unknown thiếu journal không được né
+  bằng manifest/key mới, kể cả record hết hạn.
 - Mọi root MAP của target phải có provenance trước activation. Active unresolved
   root của participant chặn activation. Cutover marker không sửa/xóa được;
   membership revoke/profile suspend không mở lại đường legacy của root/party.
@@ -95,7 +106,7 @@ Table SHARE ROW EXCLUSIVE giữ snapshot lúc register/apply chặn writer/worke
 ## Review test và giới hạn evidence
 
 Fixture mới ở `test/support/legacy-scope-fixture.ts` tạo ba party chưa cutover,
-owner có membership ACTIVE, hai cycle, ba harvest/Lot/Shipment/QR, sáu trace/
+owner có membership ACTIVE, hai cycle đã PLANTED trước harvest, ba harvest/Lot/Shipment/QR, sáu trace/
 outbox và ba **synthetic** proof rows. Proof rows này chỉ kiểm preservation;
 không phải Fabric commit hoặc authority của doanh nghiệp thật.
 

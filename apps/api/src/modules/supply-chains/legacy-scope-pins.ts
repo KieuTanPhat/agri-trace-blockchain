@@ -76,7 +76,7 @@ export function trustedLegacyCycleWhere(): Prisma.ProductionCycleWhereInput {
             legacyScopeMapping: {
               is: {
                 manifestId: pin.manifest.id,
-                chainId: entry.chainId,
+                chainId: entry.chainId!,
                 manifest: {
                   is: {
                     digest: pin.digest,
@@ -102,10 +102,31 @@ export async function assertLegacyScopeProvenance(
 ) {
   const mapping = await db.legacyScopeMapping.findUnique({
     where: { cycleId },
-    include: { manifest: true, cycle: { select: { chainId: true } } },
+    include: { cycle: { select: { chainId: true } } },
   });
   if (!mapping) return;
-  const pin = requireLegacyScopePin(mapping.manifestId);
+  const checkpoint = await assertLegacyScopeCheckpoint(
+    db,
+    mapping.manifestId,
+    cycleId,
+  );
+  if (
+    mapping.chainId !== checkpoint.chainId ||
+    mapping.cycle.chainId !== mapping.chainId
+  )
+    throw new ForbiddenException('Provenance legacy không khớp root hiện hành');
+}
+
+export async function assertLegacyScopeCheckpoint(
+  db: Prisma.TransactionClient,
+  manifestId: string,
+  cycleId: string,
+) {
+  const saved = await db.legacyScopeCheckpoint.findUniqueOrThrow({
+    where: { manifestId_cycleId: { manifestId, cycleId } },
+    include: { manifest: true },
+  });
+  const pin = requireLegacyScopePin(manifestId);
   const entry = pin.manifest.entries.find((item) => item.cycleId === cycleId);
   const checkpoint = entry
     ? canonicalSha256({
@@ -115,19 +136,19 @@ export async function assertLegacyScopeProvenance(
         proposalKeys: pin.plan.proposals
           .filter((p) => p.cycleId === cycleId)
           .map((p) => p.key),
-        actorGrants: mapping.actorGrants,
+        actorGrants: saved.actorGrants,
       })
     : null;
   if (
     !entry ||
-    mapping.checkpointDigest !== checkpoint ||
-    entry.chainId !== mapping.chainId ||
-    mapping.cycle.chainId !== entry.chainId ||
-    mapping.manifest.digest !== pin.digest ||
-    canonicalSha256(mapping.manifest.document) !== pin.digest ||
-    canonicalSha256(mapping.manifest.plan) !== canonicalSha256(pin.plan)
+    saved.checkpointDigest !== checkpoint ||
+    entry.chainId !== saved.chainId ||
+    saved.manifest.digest !== pin.digest ||
+    canonicalSha256(saved.manifest.document) !== pin.digest ||
+    canonicalSha256(saved.manifest.plan) !== canonicalSha256(pin.plan)
   )
     throw new ForbiddenException(
       'Provenance legacy không khớp manifest đã review',
     );
+  return saved;
 }

@@ -47,6 +47,53 @@ function fixture() {
 }
 
 describe('Independent legacy scope manifest validation', () => {
+  it('accepts a versioned root-specific supersession only in the independently pinned new artifact', () => {
+    const { manifest, inventory } = fixture();
+    manifest.schema = 'agritrace-legacy-scope-manifest-2';
+    manifest.supersedes = [
+      {
+        manifestId: randomUUID(),
+        manifestDigest: 'd'.repeat(64),
+        cycleId: manifest.entries[0].cycleId,
+      },
+    ];
+    const pin = canonicalSha256(manifest);
+    expect(
+      validateLegacyScopeManifest(manifest, inventory, pin, expected).digest,
+    ).toBe(pin);
+    manifest.supersedes[0].manifestDigest = 'e'.repeat(64);
+    expect(() =>
+      validateLegacyScopeManifest(manifest, inventory, pin, expected),
+    ).toThrow('pin mismatch');
+  });
+  it.each(['duplicate', 'self', 'foreign-root', 'v1-field'] as const)(
+    'rejects %s supersession metadata before DB registration',
+    (bad) => {
+      const { manifest, inventory } = fixture();
+      manifest.schema = 'agritrace-legacy-scope-manifest-2';
+      manifest.supersedes = [
+        {
+          manifestId: randomUUID(),
+          manifestDigest: 'd'.repeat(64),
+          cycleId: manifest.entries[0].cycleId,
+        },
+      ];
+      if (bad === 'duplicate')
+        manifest.supersedes.push({ ...manifest.supersedes[0] });
+      if (bad === 'self') manifest.supersedes[0].manifestId = manifest.id;
+      if (bad === 'foreign-root') manifest.supersedes[0].cycleId = randomUUID();
+      if (bad === 'v1-field')
+        manifest.schema = 'agritrace-legacy-scope-manifest-1';
+      expect(() =>
+        validateLegacyScopeManifest(
+          manifest,
+          inventory,
+          canonicalSha256(manifest),
+          expected,
+        ),
+      ).toThrow();
+    },
+  );
   it('keeps unresolved decisions explicit and blocks active roots from cutover', () => {
     const { manifest, inventory, pin } = fixture();
     const result = validateLegacyScopeManifest(

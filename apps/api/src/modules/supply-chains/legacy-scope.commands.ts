@@ -16,8 +16,14 @@ import { planLegacyScopeAssignments } from './legacy-scope-plan.js';
 import {
   requireLegacyScopePin,
   assertLegacyScopeProvenance,
+  assertLegacyScopeCheckpoint,
   type LegacyScopePin,
 } from './legacy-scope-pins.js';
+import {
+  hasLegacyCommittedReplay,
+  legacyRootSuperseded,
+  planLegacySupersessions,
+} from './legacy-scope-supersession.js';
 
 export const LEGACY_SCOPE_OPERATIONS = [
   'SCOPE_REGISTER_LEGACY_MANIFEST',
@@ -71,6 +77,9 @@ export async function lockLegacyScope(
   pin: LegacyScopePin,
   actor: CommandActor,
 ) {
+  // The same lock orders reviewed replacement, consent and apply. No obsolete
+  // apply can begin between replacement validation and its commit.
+  await lockChainScope(db, 'legacy-scope-review');
   const consents = await db.legacyScopeConsent.findMany({
     where: { manifestId: pin.manifest.id },
   });
@@ -147,14 +156,31 @@ export async function authorizeLegacyScopeCommand(
         (item) => item.cycleId === data.cycleId,
       );
       if (!entry) throw new NotFoundException('Root ngoài manifest');
+      if (
+        (await legacyRootSuperseded(db, pin.manifest.id, entry.cycleId)) &&
+        !(await hasLegacyCommittedReplay(db, input))
+      )
+        throw new ConflictException(
+          'Root review đã được thay thế; không thực hiện apply cũ',
+        );
+      const checkpoint = await db.legacyScopeCheckpoint.findUnique({
+        where: {
+          manifestId_cycleId: {
+            manifestId: pin.manifest.id,
+            cycleId: entry.cycleId,
+          },
+        },
+      });
+      if (checkpoint)
+        await assertLegacyScopeCheckpoint(db, pin.manifest.id, entry.cycleId);
       const previous = await db.legacyScopeMapping.findUnique({
         where: { cycleId: entry.cycleId },
       });
       if (previous) {
-        if (previous.manifestId !== pin.manifest.id)
+        if (previous.manifestId !== pin.manifest.id && !checkpoint)
           throw new ConflictException('Root đã có provenance khác');
         await assertLegacyScopeProvenance(db, entry.cycleId);
-      } else if (entry.chainId) {
+      } else if (!checkpoint && entry.chainId) {
         const profile = await db.chainBusinessProfile.findUnique({
           where: { chainId: entry.chainId },
         });
@@ -175,6 +201,22 @@ export async function authorizeLegacyScopeCommand(
     (reviewChain && actor.sub !== pin.manifest.reviewerId)
   )
     throw new ForbiddenException('Sai bên hoặc proposal');
+  const currentRoots = proposal
+    ? [proposal.cycleId]
+    : pin.manifest.entries
+        .filter((e) => e.chainId === chainId)
+        .map((e) => e.cycleId);
+  if (
+    (
+      await Promise.all(
+        currentRoots.map((cycleId) =>
+          legacyRootSuperseded(db, pin.manifest.id, cycleId),
+        ),
+      )
+    ).every(Boolean) &&
+    !(await hasLegacyCommittedReplay(db, input))
+  )
+    throw new ForbiddenException('Proposal review đã được thay thế');
   const [profile, membership, permission] = await Promise.all([
     db.chainBusinessProfile.findUnique({
       where: { chainId },
@@ -202,25 +244,8 @@ export async function authorizeLegacyScopeCommand(
   // A completed consent remains reconcilable after activation with its
   // original key/payload and current authority. Fresh consent still requires
   // PREPARING; GET projections do not supply a key and therefore stay closed.
-  const replayRecord =
-    profile?.state === 'ACTIVE' && input.idempotencyKey
-      ? await db.idempotencyRecord.findUnique({
-          where: {
-            requesterId_operation_idempotencyKey: {
-              requesterId: actor.sub,
-              operation: input.operation,
-              idempotencyKey: input.idempotencyKey.trim(),
-            },
-          },
-          include: { commandCommit: true },
-        })
-      : null;
   const committedReplay =
-    replayRecord?.requestHash === canonicalSha256(input.payload) &&
-    replayRecord.commandCommit?.operation === input.operation &&
-    replayRecord.commandCommit.requesterId === actor.sub &&
-    replayRecord.commandCommit.authorizationScope ===
-      replayRecord.authorizationScope;
+    profile?.state === 'ACTIVE' && (await hasLegacyCommittedReplay(db, input));
   if (
     !profile ||
     (profile.state !== 'PREPARING' && !committedReplay) ||
@@ -307,6 +332,7 @@ export async function registerLegacyScopeManifest(
   );
   if (canonicalSha256(plan) !== canonicalSha256(pin.plan))
     throw new ConflictException('Assignment plan không khớp pin đã review');
+  const supersessions = await planLegacySupersessions(db, pin);
   await db.legacyScopeManifestRecord.create({
     data: {
       id: manifestId,
@@ -317,6 +343,8 @@ export async function registerLegacyScopeManifest(
       reviewKeys: legacyReviewKeys(pin),
     },
   });
+  for (const data of supersessions)
+    await db.legacyScopeSupersession.create({ data });
   return { manifestId, digest: pin.digest };
 }
 
@@ -392,8 +420,8 @@ export async function applyLegacyScopeRoot(
     true,
   );
   const pin = requireLegacyScopePin(manifestId);
-  const previous = await db.legacyScopeMapping.findUnique({
-    where: { cycleId },
+  const previous = await db.legacyScopeCheckpoint.findUnique({
+    where: { manifestId_cycleId: { manifestId, cycleId } },
   });
   if (previous)
     return {
@@ -485,10 +513,13 @@ export async function applyLegacyScopeRoot(
   });
   // Preserve PostgreSQL's microsecond timestamp without a lossy JS Date round
   // trip. The mapping trigger compares this exact value to the locked root.
-  await db.$executeRaw`INSERT INTO legacy_scope_mapping(cycle_id,manifest_id,chain_id,checkpoint_digest,actor_grants,original_updated_at)
+  await db.$executeRaw`INSERT INTO legacy_scope_checkpoint(cycle_id,manifest_id,chain_id,checkpoint_digest,actor_grants,original_updated_at)
     SELECT cycle_id,${manifestId}::uuid,${entry.chainId}::uuid,${checkpointDigest},${JSON.stringify(actorGrants)}::jsonb,updated_at
     FROM production_cycle WHERE cycle_id=${cycleId}::uuid`;
   if (entry.chainId) {
+    await db.legacyScopeMapping.create({
+      data: { cycleId, manifestId, chainId: entry.chainId },
+    });
     await db.productionCycle.update({
       where: { id: cycleId },
       data: { chainId: entry.chainId },

@@ -82,7 +82,7 @@ export async function legacyHistoryFixture(
   const lotIds: string[] = [];
   const eventIds: string[] = [];
   for (const harvestCount of [2, 1]) {
-    const cycle = await db.productionCycle.create({
+    const created = await db.productionCycle.create({
       data: {
         cycleCode: randomUUID(),
         farmId: farm.id,
@@ -90,6 +90,14 @@ export async function legacyHistoryFixture(
         productId: product.id,
         maxHarvestQuantity: '20',
         harvestUnit: 'kg',
+      },
+    });
+    const cycle = await db.productionCycle.update({
+      where: { id: created.id },
+      data: {
+        state: 'PLANTED',
+        version: { increment: 1 },
+        startDate: new Date(),
       },
     });
     cycles.push(cycle);
@@ -264,14 +272,14 @@ export async function legacyHistoryFixture(
   };
 }
 
-export function installLegacyPin(pin: LegacyScopePin) {
+export function installLegacyPin(...pins: LegacyScopePin[]) {
   const directory = mkdtempSync(join(tmpdir(), 'agritrace-history-pin-'));
   const file = join(directory, 'pins.json');
   const previous = process.env.HYBRID_LEGACY_MANIFEST_PINS_FILE;
   const previousGate = process.env.HYBRID_LEGACY_APPLY_ENABLED;
   writeFileSync(
     file,
-    JSON.stringify({ schema: 'agritrace-legacy-scope-pins-1', pins: [pin] }),
+    JSON.stringify({ schema: 'agritrace-legacy-scope-pins-1', pins }),
     { mode: 0o600 },
   );
   process.env.HYBRID_LEGACY_MANIFEST_PINS_FILE = file;

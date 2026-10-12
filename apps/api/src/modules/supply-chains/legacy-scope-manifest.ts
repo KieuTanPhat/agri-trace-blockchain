@@ -17,7 +17,8 @@ export interface LegacyScopeInventory {
 }
 
 export interface LegacyScopeManifest {
-  schema: 'agritrace-legacy-scope-manifest-1';
+  schema:
+    'agritrace-legacy-scope-manifest-1' | 'agritrace-legacy-scope-manifest-2';
   id: string;
   sourceSha: string;
   environment: 'isolated' | 'dev';
@@ -25,6 +26,11 @@ export interface LegacyScopeManifest {
   operatorId: string;
   reviewerId: string;
   reviewEvidenceDigest: string;
+  supersedes?: Array<{
+    manifestId: string;
+    manifestDigest: string;
+    cycleId: string;
+  }>;
   entries: Array<{
     cycleId: string;
     producerOrgId: string;
@@ -69,6 +75,7 @@ export function validateLegacyScopeManifest(
   expected: { environment: 'isolated' | 'dev'; sourceSha: string },
 ) {
   hash(pinnedDigest);
+  const version = (value as { schema?: unknown } | null)?.schema;
   const data = object(value, [
     'schema',
     'id',
@@ -79,8 +86,15 @@ export function validateLegacyScopeManifest(
     'reviewerId',
     'reviewEvidenceDigest',
     'entries',
+    ...(version === 'agritrace-legacy-scope-manifest-2' ? ['supersedes'] : []),
   ]);
-  if (data.schema !== 'agritrace-legacy-scope-manifest-1') fail('schema');
+  if (
+    ![
+      'agritrace-legacy-scope-manifest-1',
+      'agritrace-legacy-scope-manifest-2',
+    ].includes(String(data.schema))
+  )
+    fail('schema');
   if (
     data.environment !== expected.environment ||
     data.sourceSha !== expected.sourceSha ||
@@ -137,6 +151,32 @@ export function validateLegacyScopeManifest(
     if (entry.decision === 'MAP') uuid(entry.chainId);
     else if (entry.decision !== 'UNRESOLVED' || entry.chainId !== null)
       fail('mapping decision');
+  }
+  if (version === 'agritrace-legacy-scope-manifest-2') {
+    if (
+      !Array.isArray(data.supersedes) ||
+      data.supersedes.length > inventory.roots.length * 100
+    )
+      fail('invalid supersession list');
+    let last = '';
+    for (const candidate of data.supersedes) {
+      const replacement = object(candidate, [
+        'manifestId',
+        'manifestDigest',
+        'cycleId',
+      ]);
+      uuid(replacement.manifestId);
+      uuid(replacement.cycleId);
+      hash(replacement.manifestDigest);
+      const key = `${replacement.manifestId}:${replacement.cycleId}`;
+      if (
+        replacement.manifestId === data.id ||
+        !roots.has(String(replacement.cycleId)) ||
+        key <= last
+      )
+        fail('duplicate, unsorted or invalid supersession root');
+      last = key;
+    }
   }
   if (canonicalSha256(value) !== pinnedDigest)
     fail('independent manifest pin mismatch');

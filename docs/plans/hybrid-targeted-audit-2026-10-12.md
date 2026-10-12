@@ -24,6 +24,7 @@ migration vì candidate draft chưa chạy trên database dùng chung.
 | SQL rename `fn_hybrid_cycle_scope_before_legacy` nhưng không có caller/trigger | Tạo function dư trong candidate DB | Dùng CREATE OR REPLACE giữ guard hiệu lực; bỏ function bản sao không dùng |
 | Nullable final mapping dùng cả cho UNRESOLVED | Checkpoint immutable khóa root vĩnh viễn, không thể resolve sau review mới | Tách checkpoint quyết định bất biến khỏi final mapping MAP duy nhất |
 | Activation yêu cầu từng manifest cũ phải tự có mapping | Re-review sau stale consent/history drift không thể kích hoạt | Supersession theo root, append-only, digest độc lập và replacement cùng target |
+| Create-chain service chưa tạo business profile; chưa có activation command | Chuỗi mới cần thao tác DB thủ công để chạy nghiệp vụ | Bổ sung PREPARING bootstrap và activation được gate/pin/current owner review sau regression checkpoint |
 
 ## Thứ tự triển khai và gate
 
@@ -71,3 +72,11 @@ Web recovery đã đạt kiểm local: 198 unit/DOM tests, 84 lint contract, 4 i
 optimizer, lint không warning, typecheck và production build. Runtime đúng Node
 24.19.0/npm 12.1.0; giữ failures của fixture/biến thừa/npm 11. Chưa tính đây là
 browser/mobile trên app + DB thật hoặc evidence PostgreSQL cho schema tiếp theo.
+
+Refactor checkpoint/supersession đã viết trong candidate, chưa nghiệm thu DB.
+Local Prisma validate/generate, API typecheck/lint/build, 135 unit và OpenAPI
+contract check 94 operations đạt. Thêm 6 scenario DB cho UNRESOLVED → MAP,
+partial re-review/regrant, history drift, expired unknown/no-journal và known
+rejection; suite policy dự kiến 86 tests/23 HTTP groups. Số dự kiến là đối chiếu
+suite, không phải assertion đã chạy hoặc kết quả pass. Gate PostgreSQL, schema
+diff zero, concurrency replacement và browser còn phải thực hiện trên exact SHA.

@@ -24,11 +24,14 @@ import { OrganizationAccessService } from '../src/modules/auth/organization-acce
 import { TraceService } from '../src/modules/trace/trace.service.js';
 import {
   applyLegacyScopeRoot,
+  authorizeLegacyScopeCommand,
   confirmLegacyScopeProposal,
   legacyReviewKeys,
   registerLegacyScopeManifest,
 } from '../src/modules/supply-chains/legacy-scope.commands.js';
 import { inventoryLegacyScope } from '../src/modules/supply-chains/legacy-scope-inventory.js';
+import { planLegacyScopeAssignments } from '../src/modules/supply-chains/legacy-scope-plan.js';
+import type { LegacyScopePin } from '../src/modules/supply-chains/legacy-scope-pins.js';
 import {
   legacyHistoryFixture,
   installLegacyPin,
@@ -90,6 +93,74 @@ async function scenario(work: (tx: Prisma.TransactionClient) => Promise<void>) {
   }
 }
 
+async function reviewedReplacement(
+  tx: Prisma.TransactionClient,
+  f: Fixture,
+  roots: string[],
+  from?: LegacyScopePin,
+): Promise<LegacyScopePin> {
+  const inventory = await inventoryLegacyScope(tx);
+  const own = new Set(roots);
+  const manifest: LegacyScopePin['manifest'] = {
+    ...f.pin.manifest,
+    id: randomUUID(),
+    schema: 'agritrace-legacy-scope-manifest-2',
+    inventoryDigest: inventory.digest,
+    entries: inventory.roots.map((r) => ({
+      cycleId: r.cycleId,
+      producerOrgId: r.producerOrgId,
+      expectedVersion: r.version,
+      inventoryDigest: r.inventoryDigest,
+      decision: own.has(r.cycleId) ? 'MAP' : 'UNRESOLVED',
+      chainId: own.has(r.cycleId) ? f.chain.id : null,
+    })),
+    supersedes: from
+      ? roots
+          .map((cycleId) => ({
+            manifestId: from.manifest.id,
+            manifestDigest: from.digest,
+            cycleId,
+          }))
+          .sort((a, b) => a.cycleId.localeCompare(b.cycleId))
+      : [],
+  };
+  const digest = canonicalSha256(manifest);
+  return {
+    manifest,
+    digest,
+    plan: await planLegacyScopeAssignments(tx, manifest, inventory, digest, {
+      environment: manifest.environment,
+      sourceSha: manifest.sourceSha,
+    }),
+  };
+}
+
+async function sqlGuard(
+  tx: Prisma.TransactionClient,
+  work: () => Promise<unknown>,
+  message: string,
+) {
+  await tx.$executeRawUnsafe('SAVEPOINT expected_legacy_guard');
+  let detail = '';
+  try {
+    await work();
+  } catch (error) {
+    detail = JSON.stringify(error, (_key, value: unknown) =>
+      value instanceof Error
+        ? Object.fromEntries(
+            Object.getOwnPropertyNames(value).map((key) => [
+              key,
+              (value as unknown as Record<string, unknown>)[key],
+            ]),
+          )
+        : value,
+    );
+    await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT expected_legacy_guard');
+  }
+  await tx.$executeRawUnsafe('RELEASE SAVEPOINT expected_legacy_guard');
+  expect(detail).toContain(message);
+}
+
 beforeAll(async () => {
   expect(process.env.HYBRID_DRAFT_TESTS).toBe('1');
   expect(await db.lot.count({ where: { lotCode: 'scope-lot' } })).toBe(1);
@@ -99,6 +170,381 @@ afterAll(async () => {
 });
 
 describe('Legacy history preservation on isolated PostgreSQL', () => {
+  it('resolves a previously UNRESOLVED checkpoint under fresh pinned review while preserving its old journal, hash and exact history', () =>
+    scenario(async (tx) => {
+      const f = await legacyHistoryFixture(tx, trace);
+      f.pin = await reviewedReplacement(tx, f, []);
+      const firstPins = installLegacyPin(f.pin);
+      let replacementPins: ReturnType<typeof installLegacyPin> | undefined;
+      try {
+        const before = await snapshot(tx, f);
+        await registerLegacyScopeManifest(tx, f.operator, f.pin.manifest.id);
+        const old = await applyLegacyScopeRoot(
+          tx,
+          f.operator,
+          f.pin.manifest.id,
+          f.cycles[0].id,
+        );
+        expect(
+          await tx.legacyScopeMapping.count({
+            where: { cycleId: f.cycles[0].id },
+          }),
+        ).toBe(0);
+        expect(
+          await tx.legacyScopeCheckpoint.count({
+            where: { manifestId: f.pin.manifest.id },
+          }),
+        ).toBe(1);
+        const originalKey = randomUUID();
+        const originalPayload = {
+          manifestId: f.pin.manifest.id,
+          cycleId: f.cycles[0].id,
+        };
+        const originalScope = canonicalSha256({
+          protocol: 'legacy-scope-command-v1',
+          manifestDigest: f.pin.digest,
+          planDigest: f.pin.plan.digest,
+          actor: f.operator.sub,
+          operation: 'SCOPE_APPLY_LEGACY_ROOT',
+        });
+        const record = await tx.idempotencyRecord.create({
+          data: {
+            requesterId: f.operator.sub!,
+            operation: 'SCOPE_APPLY_LEGACY_ROOT',
+            requestType: 'COMMAND',
+            idempotencyKey: originalKey,
+            requestHash: canonicalSha256(originalPayload),
+            authorizationScope: originalScope,
+          },
+        });
+        const journal = await tx.commandCommit.create({
+          data: {
+            idempotencyRecordId: record.id,
+            requesterId: f.operator.sub!,
+            operation: record.operation,
+            authorizationScope: originalScope,
+            actorScope: { role: 'SYSTEM_ADMIN', organizationId: null },
+            resourceIds: {},
+            responseStatus: 201,
+            responseBody: old,
+          },
+        });
+        const replacement = await reviewedReplacement(
+          tx,
+          f,
+          f.cycles.map((c) => c.id),
+          f.pin,
+        );
+        replacementPins = installLegacyPin(f.pin, replacement);
+        await registerLegacyScopeManifest(
+          tx,
+          f.operator,
+          replacement.manifest.id,
+        );
+        await expect(
+          applyLegacyScopeRoot(
+            tx,
+            f.operator,
+            f.pin.manifest.id,
+            f.cycles[0].id,
+          ),
+        ).rejects.toThrow('review đã được thay thế');
+        await confirmations(tx, { ...f, pin: replacement });
+        for (const cycle of f.cycles)
+          await applyLegacyScopeRoot(
+            tx,
+            f.operator,
+            replacement.manifest.id,
+            cycle.id,
+          );
+        await tx.chainBusinessProfile.update({
+          where: { chainId: f.chain.id },
+          data: { state: 'ACTIVE', version: { increment: 1 } },
+        });
+        expect(await snapshot(tx, f)).toEqual(before);
+        expect(
+          await tx.legacyScopeCheckpoint.count({
+            where: { cycleId: { in: f.cycles.map((c) => c.id) } },
+          }),
+        ).toBe(3);
+        expect(
+          await tx.commandCommit.findUnique({ where: { id: journal.id } }),
+        ).toEqual(journal);
+        expect(
+          await authorizeLegacyScopeCommand(
+            tx,
+            {
+              requesterId: f.operator.sub!,
+              actor: f.operator,
+              operation: record.operation,
+              payload: originalPayload,
+              idempotencyKey: originalKey,
+            },
+            true,
+          ),
+        ).toBe(originalScope);
+        await sqlGuard(
+          tx,
+          () =>
+            tx.legacyScopeCheckpoint.delete({
+              where: {
+                manifestId_cycleId: {
+                  manifestId: f.pin.manifest.id,
+                  cycleId: f.cycles[0].id,
+                },
+              },
+            }),
+          'legacy_scope_checkpoint is immutable',
+        );
+        await sqlGuard(
+          tx,
+          () =>
+            tx.legacyScopeSupersession.delete({
+              where: {
+                fromManifestId_cycleId: {
+                  fromManifestId: f.pin.manifest.id,
+                  cycleId: f.cycles[0].id,
+                },
+              },
+            }),
+          'legacy_scope_supersession is immutable',
+        );
+      } finally {
+        replacementPins?.restore();
+        firstPins.restore();
+      }
+    }));
+
+  it('re-reviews only the remaining root after a stale consent without replacing the already applied provenance', () =>
+    scenario(async (tx) => {
+      const f = await legacyHistoryFixture(tx, trace);
+      const initialPins = installLegacyPin(f.pin);
+      let replacementPins: ReturnType<typeof installLegacyPin> | undefined;
+      try {
+        const before = await snapshot(tx, f);
+        await registerLegacyScopeManifest(tx, f.operator, f.pin.manifest.id);
+        await confirmations(tx, f);
+        const first = await applyLegacyScopeRoot(
+          tx,
+          f.operator,
+          f.pin.manifest.id,
+          f.cycles[0].id,
+        );
+        const grant = await tx.scopedRoleGrant.findFirstOrThrow({
+          where: {
+            userId: f.transporter.sub!,
+            scope: 'ORGANIZATION',
+            role: 'ORG_ADMIN',
+            revokedAt: null,
+          },
+        });
+        await tx.scopedRoleGrant.update({
+          where: { id: grant.id },
+          data: { revokedAt: new Date(), revision: { increment: 1 } },
+        });
+        await tx.scopedRoleGrant.create({
+          data: {
+            userId: f.transporter.sub!,
+            organizationId: f.transporter.organizationId!,
+            scope: 'ORGANIZATION',
+            role: 'ORG_ADMIN',
+          },
+        });
+        await expect(
+          applyLegacyScopeRoot(
+            tx,
+            f.operator,
+            f.pin.manifest.id,
+            f.cycles[1].id,
+          ),
+        ).rejects.toThrow('Thiếu xác nhận hiện hành');
+        const replacement = await reviewedReplacement(
+          tx,
+          f,
+          [f.cycles[1].id],
+          f.pin,
+        );
+        replacementPins = installLegacyPin(f.pin, replacement);
+        await registerLegacyScopeManifest(
+          tx,
+          f.operator,
+          replacement.manifest.id,
+        );
+        await confirmations(tx, { ...f, pin: replacement });
+        await applyLegacyScopeRoot(
+          tx,
+          f.operator,
+          replacement.manifest.id,
+          f.cycles[1].id,
+        );
+        await tx.chainBusinessProfile.update({
+          where: { chainId: f.chain.id },
+          data: { state: 'ACTIVE', version: { increment: 1 } },
+        });
+        expect(
+          await tx.legacyScopeMapping.findUnique({
+            where: { cycleId: f.cycles[0].id },
+            include: { checkpoint: true },
+          }),
+        ).toMatchObject({
+          manifestId: f.pin.manifest.id,
+          checkpoint: { checkpointDigest: first.checkpointDigest },
+        });
+        expect(
+          await tx.legacyScopeSupersession.count({
+            where: { fromManifestId: f.pin.manifest.id },
+          }),
+        ).toBe(1);
+        expect(await snapshot(tx, f)).toEqual(before);
+      } finally {
+        replacementPins?.restore();
+        initialPins.restore();
+      }
+    }));
+
+  it('requires explicit pinned replacement of a changed history and keeps old consent artifacts rather than mutating them', () =>
+    scenario(async (tx) => {
+      const f = await legacyHistoryFixture(tx, trace);
+      const initialPins = installLegacyPin(f.pin);
+      let replacementPins: ReturnType<typeof installLegacyPin> | undefined;
+      try {
+        await registerLegacyScopeManifest(tx, f.operator, f.pin.manifest.id);
+        await confirmations(tx, f);
+        const consents = await tx.legacyScopeConsent.findMany({
+          where: { manifestId: f.pin.manifest.id },
+          orderBy: { id: 'asc' },
+        });
+        await tx.careRecord.create({
+          data: {
+            cycleId: f.cycles[0].id,
+            careType: 'WATERING',
+            eventTime: new Date(),
+          },
+        });
+        const before = await snapshot(tx, f);
+        const unreviewed = await reviewedReplacement(
+          tx,
+          f,
+          f.cycles.map((c) => c.id),
+        );
+        replacementPins = installLegacyPin(f.pin, unreviewed);
+        await expect(
+          registerLegacyScopeManifest(tx, f.operator, unreviewed.manifest.id),
+        ).rejects.toThrow('cần supersession được pin rõ');
+        expect(
+          await tx.legacyScopeManifestRecord.count({
+            where: { id: unreviewed.manifest.id },
+          }),
+        ).toBe(0);
+        replacementPins.restore();
+        replacementPins = undefined;
+        const replacement = await reviewedReplacement(
+          tx,
+          f,
+          f.cycles.map((c) => c.id),
+          f.pin,
+        );
+        replacementPins = installLegacyPin(f.pin, replacement);
+        await registerLegacyScopeManifest(
+          tx,
+          f.operator,
+          replacement.manifest.id,
+        );
+        await confirmations(tx, { ...f, pin: replacement });
+        for (const cycle of f.cycles)
+          await applyLegacyScopeRoot(
+            tx,
+            f.operator,
+            replacement.manifest.id,
+            cycle.id,
+          );
+        await tx.chainBusinessProfile.update({
+          where: { chainId: f.chain.id },
+          data: { state: 'ACTIVE', version: { increment: 1 } },
+        });
+        expect(await snapshot(tx, f)).toEqual(before);
+        expect(
+          await tx.legacyScopeConsent.findMany({
+            where: { manifestId: f.pin.manifest.id },
+            orderBy: { id: 'asc' },
+          }),
+        ).toEqual(consents);
+      } finally {
+        replacementPins?.restore();
+        initialPins.restore();
+      }
+    }));
+
+  it.each(['PROCESSING', 'COMPLETED', 'FAILED'] as const)(
+    'holds replacement for an old %s record without positive journal unless it is a known rejection',
+    (status) =>
+      scenario(async (tx) => {
+        const f = await legacyHistoryFixture(tx, trace);
+        const initialPins = installLegacyPin(f.pin);
+        let replacementPins: ReturnType<typeof installLegacyPin> | undefined;
+        try {
+          await registerLegacyScopeManifest(tx, f.operator, f.pin.manifest.id);
+          await tx.idempotencyRecord.create({
+            data: {
+              requesterId: f.operator.sub!,
+              operation: 'SCOPE_APPLY_LEGACY_ROOT',
+              requestType: 'COMMAND',
+              idempotencyKey: randomUUID(),
+              requestHash: canonicalSha256({
+                manifestId: f.pin.manifest.id,
+                cycleId: f.cycles[0].id,
+              }),
+              status,
+              responseStatus:
+                status === 'FAILED' ? 409 : status === 'COMPLETED' ? 201 : null,
+              createdAt: new Date(Date.now() - 120000),
+              expiresAt: new Date(Date.now() - 60000),
+            },
+          });
+          const replacement = await reviewedReplacement(
+            tx,
+            f,
+            f.cycles.map((c) => c.id),
+            f.pin,
+          );
+          replacementPins = installLegacyPin(f.pin, replacement);
+          if (status === 'FAILED')
+            await registerLegacyScopeManifest(
+              tx,
+              f.operator,
+              replacement.manifest.id,
+            );
+          else {
+            await expect(
+              registerLegacyScopeManifest(
+                tx,
+                f.operator,
+                replacement.manifest.id,
+              ),
+            ).rejects.toThrow('Apply trước chưa rõ kết quả');
+            expect(
+              await tx.legacyScopeManifestRecord.count({
+                where: { id: replacement.manifest.id },
+              }),
+            ).toBe(0);
+            expect(
+              await tx.legacyScopeSupersession.count({
+                where: { fromManifestId: f.pin.manifest.id },
+              }),
+            ).toBe(0);
+          }
+          expect(
+            await tx.legacyScopeMapping.count({
+              where: { cycleId: { in: f.cycles.map((c) => c.id) } },
+            }),
+          ).toBe(0);
+        } finally {
+          replacementPins?.restore();
+          initialPins.restore();
+        }
+      }),
+  );
+
   it('requires each assignment consent and preserves multi-harvest, Shipment, QR, proof, outbox and exact timestamps across apply and resume', () =>
     scenario(async (tx) => {
       const f = await legacyHistoryFixture(tx, trace);

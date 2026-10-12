@@ -125,6 +125,7 @@ model SupplyChain {
   shipmentPlans ShipmentPlan[]
   eventContexts EventChainContext[]
   legacyScopeMappings LegacyScopeMapping[]
+  legacyScopeCheckpoints LegacyScopeCheckpoint[]
 
   @@index([ownerOrganizationId])
   @@map("supply_chain")
@@ -441,6 +442,8 @@ model ProductionCycle {
   chain              SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   assignments        StageAssignment[]
   legacyScopeMapping LegacyScopeMapping?
+  legacyScopeCheckpoints LegacyScopeCheckpoint[]
+  legacyScopeSupersessions LegacyScopeSupersession[]
 
   harvestSensorWindows HarvestSensorWindow[]
   sensorReconciliations CycleSensorReconciliation[]
@@ -947,6 +950,9 @@ model LegacyScopeManifestRecord {
   registeredAt DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
   consents LegacyScopeConsent[]
   mappings LegacyScopeMapping[]
+  checkpoints LegacyScopeCheckpoint[]
+  replacedRoots LegacyScopeSupersession[] @relation("legacy_replaced_manifest")
+  replacementRoots LegacyScopeSupersession[] @relation("legacy_replacement_manifest")
   bridges LegacyCommandBridge[]
   @@map("legacy_scope_manifest")
 }
@@ -967,8 +973,8 @@ model LegacyScopeConsent {
   @@map("legacy_scope_consent")
 }
 
-model LegacyScopeMapping {
-  cycleId String @id @map("cycle_id") @db.Uuid
+model LegacyScopeCheckpoint {
+  cycleId String @map("cycle_id") @db.Uuid
   manifestId String @map("manifest_id") @db.Uuid
   chainId String? @map("chain_id") @db.Uuid
   checkpointDigest String @map("checkpoint_digest") @db.VarChar(64)
@@ -978,9 +984,35 @@ model LegacyScopeMapping {
   cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   chain SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   manifest LegacyScopeManifestRecord @relation(fields: [manifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  mapping LegacyScopeMapping?
+  @@id([manifestId, cycleId])
+  @@map("legacy_scope_checkpoint")
+}
+
+model LegacyScopeMapping {
+  cycleId String @id @map("cycle_id") @db.Uuid
+  manifestId String @map("manifest_id") @db.Uuid
+  chainId String @map("chain_id") @db.Uuid
+  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  chain SupplyChain @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  manifest LegacyScopeManifestRecord @relation(fields: [manifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  checkpoint LegacyScopeCheckpoint @relation(fields: [manifestId, cycleId], references: [manifestId, cycleId], onDelete: Restrict, onUpdate: NoAction)
   bridges LegacyCommandBridge[]
+  @@unique([manifestId, cycleId], map: "uq_legacy_scope_mapping_checkpoint")
   @@index([manifestId], map: "ix_legacy_scope_mapping_manifest")
   @@map("legacy_scope_mapping")
+}
+
+model LegacyScopeSupersession {
+  fromManifestId String @map("from_manifest_id") @db.Uuid
+  cycleId String @map("cycle_id") @db.Uuid
+  toManifestId String @map("to_manifest_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  fromManifest LegacyScopeManifestRecord @relation("legacy_replaced_manifest", fields: [fromManifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  toManifest LegacyScopeManifestRecord @relation("legacy_replacement_manifest", fields: [toManifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@id([fromManifestId, cycleId])
+  @@map("legacy_scope_supersession")
 }
 
 model LegacyCommandBridge {
