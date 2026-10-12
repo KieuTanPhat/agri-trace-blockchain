@@ -19,7 +19,10 @@ export type ProductionCycleOption = Schemas["CycleListDto"];
 export type AuthUser = Pick<
   Schemas["AuthUserDto"],
   "id" | "email" | "fullName" | "organizationId" | "accountStatus"
-> & { role: Pick<Schemas["AuthRoleDto"], "code" | "name"> };
+> & {
+  role: Pick<Schemas["AuthRoleDto"], "code" | "name">;
+  accessRevision?: string;
+};
 export type LoginResponse = Pick<
   Schemas["AuthSessionDto"],
   "accessToken" | "tokenType"

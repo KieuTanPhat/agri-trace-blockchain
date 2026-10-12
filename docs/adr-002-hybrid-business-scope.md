@@ -207,3 +207,19 @@ evidence `/opt/agri-trace-admin/hybrid-scope-draft/fce7466263ece890-179177574742
 112 legacy chưa chạy ở lượt lỗi này. Bổ sung shared-device nested cycle privacy,
 inventory DB read-only và chín manifest negative/positive unit cases; 114 unit
 đạt tại local. Candidate mới phải qua DB/HTTP và legacy regression trước rollout.
+
+`c68a4ec` đã qua 54 PostgreSQL tests, 30 SQL assertions, ORM và 114 unit, gồm
+shared-device nested privacy, read-only legacy inventory và manifest pins.
+Hồi quy 112 E2E bị outer helper timeout 300 giây; chưa tính suite này đạt. Lưu
+partial result và failure tại
+`/opt/agri-trace-admin/hybrid-scope-draft/fce7466263ece890-1791776965493630720`;
+container/network đã dọn. Helper kế tiếp cho riêng suite legacy tối đa 1200 giây,
+giữ test timeout 30 giây, CPU quota và bounded service; timeout output được giữ.
+
+Web kế tiếp đã qua 158 tests: revalidate khi focus/tab/permission notification,
+poll tab hiện 60 giây, bỏ response account cũ, ẩn private content khi không kiểm
+được quyền, bỏ cache/remount khi accessRevision đổi. Revision UI không thay
+command fingerprint hoặc làm mất replay do thêm role khác. Focus với revision
+không đổi giữ form/retry đang chờ; public QR vẫn dùng đường riêng. Chưa nghiệm
+thu browser/mobile; 57 DB tests gồm grant-revoke HTTP và hai backfill preflight
+scenario đang chuẩn bị chạy cùng toàn bộ legacy trước triển khai.

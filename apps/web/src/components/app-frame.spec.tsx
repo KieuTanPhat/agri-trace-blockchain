@@ -17,10 +17,12 @@ const { auth, location, replace } = vi.hoisted(() => ({
   auth: {
     isAuthenticated: true,
     isLoading: false,
+    privateAccessStatus: "ready" as "ready" | "checking" | "unavailable",
     user: {
       id: "first",
       fullName: "First user",
       organizationId: "first-org" as string | null,
+      accessRevision: undefined as string | undefined,
       role: { code: "SYSTEM_ADMIN", name: "Admin" },
     },
     logout: vi.fn(),
@@ -39,6 +41,8 @@ afterEach(() => {
   location.pathname = "/lots";
   auth.isAuthenticated = true;
   auth.isLoading = false;
+  auth.privateAccessStatus = "ready";
+  auth.user.accessRevision = undefined;
 });
 
 it.each(["/", "/scan", "/trace/token"])(
@@ -70,6 +74,63 @@ it("requires login for the relocated dashboard", async () => {
   await act(async () => {});
   expect(replace).toHaveBeenCalledWith("/login?next=%2Fdashboard");
   expect(screen.queryByText("Private information")).not.toBeInTheDocument();
+});
+
+it("hides private content during revalidation while preserving the same form until the revision changes", async () => {
+  vi.mocked(getLots).mockResolvedValue([]);
+  function Form() {
+    const [text, setText] = useState("");
+    return (
+      <input
+        aria-label="Pending form"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+      />
+    );
+  }
+  auth.user.accessRevision = "a".repeat(64);
+  const view = render(
+    <AppFrame>
+      <Form />
+    </AppFrame>,
+  );
+  fireEvent.change(screen.getByLabelText("Pending form"), {
+    target: { value: "original key body" },
+  });
+  auth.privateAccessStatus = "checking";
+  view.rerender(
+    <AppFrame>
+      <Form />
+    </AppFrame>,
+  );
+  expect(screen.getByLabelText("Pending form")).not.toBeVisible();
+  auth.privateAccessStatus = "ready";
+  view.rerender(
+    <AppFrame>
+      <Form />
+    </AppFrame>,
+  );
+  expect(screen.getByLabelText("Pending form")).toHaveValue(
+    "original key body",
+  );
+  auth.user.accessRevision = "b".repeat(64);
+  view.rerender(
+    <AppFrame>
+      <Form />
+    </AppFrame>,
+  );
+  expect(screen.getByLabelText("Pending form")).toHaveValue("");
+  auth.privateAccessStatus = "unavailable";
+  view.rerender(
+    <AppFrame>
+      <Form />
+    </AppFrame>,
+  );
+  expect(screen.getByLabelText("Pending form")).not.toBeVisible();
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Chưa kiểm tra được quyền hiện hành",
+  );
+  await act(async () => {});
 });
 
 describe("organization-scoped header search", () => {

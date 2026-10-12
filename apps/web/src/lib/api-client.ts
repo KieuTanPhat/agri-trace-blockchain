@@ -13,6 +13,10 @@ import {
   withAuthLock,
 } from "./auth-coordination";
 import { clearStoredIotReadings } from "./iot-local-store";
+import {
+  publishPermissionChange,
+  PERMISSION_CHECK_EVENT,
+} from "./permission-sync";
 import type { components } from "./generated/api";
 import type {
   AllowedCommand,
@@ -539,6 +543,13 @@ export async function request<T>(
     return request<T>(path, { ...init, headers }, authenticated, false);
   }
   if (!response.ok) {
+    if (
+      authenticated &&
+      (response.status === 403 || response.status === 404) &&
+      path !== "/chain-permissions" &&
+      typeof window !== "undefined"
+    )
+      window.dispatchEvent(new Event(PERMISSION_CHECK_EVENT));
     if (response.status === 401 && authenticated) {
       clearSession();
     }
@@ -569,6 +580,14 @@ export async function request<T>(
         "Yêu cầu thất bại. Vui lòng thử lại.",
     };
   }
+  if (
+    authenticated &&
+    method !== "GET" &&
+    /^\/(supply-chains|chain-memberships|organizations\/[^/]+\/(scoped-grants|capabilities)|scoped-grants|compliance-assignments)(\/|$)/.test(
+      path,
+    )
+  )
+    publishPermissionChange();
   if (payload && "success" in payload) return payload.data;
   return payload as T;
 }

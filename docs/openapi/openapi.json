@@ -946,6 +946,10 @@
       },
       "ChainContextDto": {
         "properties": {
+          "accessRevision": {
+            "description": "Revision để bỏ dữ liệu UI cũ; không là quyền command",
+            "type": "string"
+          },
           "businessChains": {
             "items": {
               "type": "string"

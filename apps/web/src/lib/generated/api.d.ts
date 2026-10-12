@@ -1518,6 +1518,8 @@ export interface components {
             version: number;
         };
         ChainContextDto: {
+            /** @description Revision để bỏ dữ liệu UI cũ; không là quyền command */
+            accessRevision?: string;
             businessChains?: string[];
             businessScopeActivated?: boolean;
             capabilities: components["schemas"]["CapabilityRecordDto"][];

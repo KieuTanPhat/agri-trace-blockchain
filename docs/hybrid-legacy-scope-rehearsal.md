@@ -37,6 +37,12 @@ artifact; tự đổi target rồi sửa digest trong artifact không vượt ki
 reviewer chưa là bằng chứng chữ ký doanh nghiệp của bản C. Pilot cách ly có
 identity tổng hợp, không mô tả đó là nghiệm thu đối tác thật.
 
+Check preflight chạy trong cùng snapshot: operator SYSTEM_ADMIN hiện hành,
+reviewer khác user có CHAIN_MANAGER của chủ target, target PREPARING. Các org
+producer/transporter/retailer cũ phải có ACTIVE membership/capability và actor
+grant tường minh trong target. Không tự provision grant hoặc coi platform user
+là business actor. Target đã ACTIVE bị chặn ở preflight backfill này.
+
 Trước apply còn phải triển khai và kiểm: paused writer/Worker snapshot,
 manifest pin runtime và provenance bất biến, apply idempotent/resumable,
 StageAssignment đúng subject/party, active unresolved barrier, journal bridge

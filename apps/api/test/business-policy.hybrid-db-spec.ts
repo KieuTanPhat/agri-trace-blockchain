@@ -49,6 +49,7 @@ import { commandTransaction } from '../src/common/idempotency/command-transactio
 import { inventoryLegacyScope } from '../src/modules/supply-chains/legacy-scope-inventory.js';
 import { validateLegacyScopeManifest } from '../src/modules/supply-chains/legacy-scope-manifest.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
+import { preflightLegacyScope } from '../src/modules/supply-chains/legacy-scope-preflight.js';
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -1790,6 +1791,88 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
     ).toEqual(legacy);
   });
 
+  it.each([false, true])(
+    'checks reviewed legacy owner/actor readiness without mapping and rejects ACTIVE targets (%s)',
+    async (activeTarget) =>
+      isolated(async (tx) => {
+        const target = await tx.supplyChain.create({
+          data: {
+            name: randomUUID(),
+            ownerOrganizationId: producer.organizationId!,
+          },
+        });
+        await tx.chainMembership.create({
+          data: {
+            chainId: target.id,
+            organizationId: producer.organizationId!,
+            status: 'ACTIVE',
+          },
+        });
+        await tx.chainBusinessProfile.create({ data: { chainId: target.id } });
+        await grant(tx, producer, 'CHAIN_MANAGER', target.id);
+        await grant(tx, producer, 'FARM_STAFF', target.id);
+        const role = await tx.role.findUniqueOrThrow({
+          where: { code: 'SYSTEM_ADMIN' },
+        });
+        const operator = await tx.user.create({
+          data: {
+            roleId: role.id,
+            email: `${randomUUID()}@example.test`,
+            fullName: 'Synthetic cutover operator',
+            passwordHash: 'unused-synthetic-hash',
+          },
+        });
+        const inventory = await inventoryLegacyScope(tx);
+        const manifest = {
+          schema: 'agritrace-legacy-scope-manifest-1',
+          id: randomUUID(),
+          sourceSha: 'a'.repeat(40),
+          environment: 'isolated',
+          inventoryDigest: inventory.digest,
+          operatorId: operator.id,
+          reviewerId: producer.sub!,
+          reviewEvidenceDigest: 'b'.repeat(64),
+          entries: inventory.roots.map((root) => ({
+            cycleId: root.cycleId,
+            producerOrgId: root.producerOrgId,
+            expectedVersion: root.version,
+            inventoryDigest: root.inventoryDigest,
+            chainId: target.id,
+            decision: 'MAP',
+          })),
+        };
+        const validated = validateLegacyScopeManifest(
+          manifest,
+          inventory,
+          canonicalSha256(manifest),
+          { environment: 'isolated', sourceSha: manifest.sourceSha },
+        );
+        if (activeTarget) {
+          await tx.chainBusinessProfile.update({
+            where: { chainId: target.id },
+            data: { state: 'ACTIVE', version: { increment: 1 } },
+          });
+          await expect(
+            preflightLegacyScope(tx, validated.manifest),
+          ).rejects.toThrow('PREPARING target');
+        } else
+          expect(
+            await preflightLegacyScope(tx, validated.manifest),
+          ).toMatchObject({
+            mapped: inventory.roots.length,
+            applyReady: false,
+          });
+        expect(
+          await tx.productionCycle.count({
+            where: {
+              id: { in: inventory.roots.map((root) => root.cycleId) },
+              chainId: null,
+            },
+          }),
+        ).toBe(inventory.roots.length);
+      }),
+  );
+
   describe('HTTP scope and command contracts on the isolated draft database', () => {
     let app: INestApplication;
     let producerToken: string;
@@ -2403,6 +2486,74 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       expect(
         await db.productionCycle.findUnique({ where: { id: legacy.id } }),
       ).toEqual(legacy);
+    });
+
+    it('changes UI revision and closes private reads and create replay after scoped grant revocation', async () => {
+      const scoped = await db.$transaction(async (tx) => {
+        const template = await tx.user.findUniqueOrThrow({
+          where: { id: producer.sub! },
+        });
+        const user = await tx.user.create({
+          data: {
+            organizationId: producer.organizationId,
+            roleId: template.roleId,
+            email: `${randomUUID()}@example.test`,
+            fullName: 'Temporary scoped producer',
+            passwordHash: 'unused-synthetic-hash',
+          },
+        });
+        const actor = { ...producer, sub: user.id };
+        const permission = await grant(tx, actor, 'FARM_STAFF');
+        return { actor, permission };
+      });
+      const session = await authenticated(scoped.actor);
+      const token = app
+        .get(JwtService)
+        .sign({ sub: scoped.actor.sub, sid: session.sid });
+      const key = randomUUID();
+      const body = {
+        chainId,
+        farmId,
+        productId,
+        cycleCode: randomUUID(),
+        maxHarvestQuantity: 5,
+        harvestUnit: 'kg',
+      };
+      const created = await post('/production-cycles', token, body, key).expect(
+        201,
+      );
+      const id = created.body.data.id;
+      await post('/production-cycles', token, body, key).expect(201);
+      const record = await db.idempotencyRecord.findUniqueOrThrow({
+        where: {
+          requesterId_operation_idempotencyKey: {
+            requesterId: scoped.actor.sub!,
+            operation: 'CREATE_PRODUCTION_CYCLE',
+            idempotencyKey: key,
+          },
+        },
+      });
+      const journal = await db.commandCommit.findUniqueOrThrow({
+        where: { idempotencyRecordId: record.id },
+      });
+      const before = await get('/chain-permissions', token).expect(200);
+      expect(before.body.data.accessRevision).toMatch(/^[a-f0-9]{64}$/);
+      await db.scopedRoleGrant.update({
+        where: { id: scoped.permission.id },
+        data: { revokedAt: new Date(), revision: { increment: 1 } },
+      });
+      const after = await get('/chain-permissions', token).expect(200);
+      expect(after.body.data.accessRevision).not.toBe(
+        before.body.data.accessRevision,
+      );
+      await get(`/production-cycles/${id}`, token).expect(404);
+      await post('/production-cycles', token, body, key).expect(403);
+      expect(await db.productionCycle.count({ where: { id } })).toBe(1);
+      expect(
+        await db.commandCommit.findUnique({
+          where: { idempotencyRecordId: record.id },
+        }),
+      ).toEqual(journal);
     });
 
     it('requires the independent scoped reviewer for sensor reconciliation instead of implicit platform authority', async () => {

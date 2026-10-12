@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth-store";
 import type { LotTrace } from "@/lib/types";
 import { canAccessManagementRoute } from "@/lib/permissions";
 import { getAuthorizationScope } from "@/lib/auth-scope";
+import { PERMISSION_SYNC_EVENT } from "@/lib/permission-sync";
 
 const navigation = [
   { href: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
@@ -53,7 +54,12 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     scope?: string;
     lots: LotTrace[];
   }>({ lots: [] });
-  const lots = searchData.scope === authorizationScope ? searchData.lots : [];
+  const privateAccessReady =
+    !auth.privateAccessStatus || auth.privateAccessStatus === "ready";
+  const lots =
+    privateAccessReady && searchData.scope === authorizationScope
+      ? searchData.lots
+      : [];
   const [searchFailed, setSearchFailed] = useState(false);
   useEffect(() => {
     let active = true;
@@ -357,9 +363,33 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
         <main className="content" id="main-content">
+          {!privateAccessReady && (
+            <div
+              className="notice"
+              role={
+                auth.privateAccessStatus === "unavailable" ? "alert" : "status"
+              }
+            >
+              {auth.privateAccessStatus === "unavailable"
+                ? "Chưa kiểm tra được quyền hiện hành. Dữ liệu riêng đang được ẩn."
+                : "Đang kiểm tra quyền hiện hành…"}
+              {auth.privateAccessStatus === "unavailable" && (
+                <button
+                  className="button secondary"
+                  onClick={() =>
+                    window.dispatchEvent(new Event(PERMISSION_SYNC_EVENT))
+                  }
+                >
+                  Kiểm tra lại
+                </button>
+              )}
+            </div>
+          )}
           <div
             className="page-content"
             key={`${authorizationScope}:${pathname}`}
+            hidden={!privateAccessReady}
+            style={privateAccessReady ? undefined : { display: "none" }}
           >
             {children}
           </div>

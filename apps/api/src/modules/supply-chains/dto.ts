@@ -119,6 +119,12 @@ export class CapabilityRecordDto {
   revokedAt!: string | null;
 }
 export class ChainContextDto {
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: 'Revision để bỏ dữ liệu UI cũ; không là quyền command',
+  })
+  accessRevision?: string;
   @ApiProperty({ type: [GrantRecordDto] }) grants!: GrantRecordDto[];
   @ApiProperty({ type: [MemberRecordDto] }) memberships!: MemberRecordDto[];
   @ApiProperty({ type: [CapabilityRecordDto] })

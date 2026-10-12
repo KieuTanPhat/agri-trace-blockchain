@@ -4,6 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { inventoryLegacyScope } from '../src/modules/supply-chains/legacy-scope-inventory.js';
 import { validateLegacyScopeManifest } from '../src/modules/supply-chains/legacy-scope-manifest.js';
+import { preflightLegacyScope } from '../src/modules/supply-chains/legacy-scope-preflight.js';
 
 const [mode, artifact, pin, sourceSha] = process.argv.slice(2);
 let database: PrismaClient | undefined;
@@ -21,13 +22,27 @@ try {
   database = new PrismaClient({
     adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
   });
-  const inventory = await database.$transaction(
+  let candidate: unknown;
+  if (mode === 'check') {
+    if (!pin || !sourceSha || statSync(artifact).size > 8 * 1024 * 1024)
+      throw new Error('Requires independent pin, source and bounded manifest');
+    candidate = JSON.parse(readFileSync(artifact, 'utf8'));
+  }
+  const snapshot = await database.$transaction(
     async (tx) => {
       await tx.$executeRaw`SET TRANSACTION READ ONLY`;
-      return inventoryLegacyScope(tx);
+      const inventory = await inventoryLegacyScope(tx);
+      if (mode !== 'check') return { inventory };
+      const checked = validateLegacyScopeManifest(candidate, inventory, pin!, {
+        environment: 'isolated',
+        sourceSha: sourceSha!,
+      });
+      const readiness = await preflightLegacyScope(tx, checked.manifest);
+      return { inventory, checked, readiness };
     },
     { isolationLevel: 'RepeatableRead', timeout: 120000 },
   );
+  const { inventory } = snapshot;
   if (mode === 'inventory') {
     writeFileSync(artifact, JSON.stringify(inventory, null, 2) + '\n', {
       flag: 'wx',
@@ -41,14 +56,7 @@ try {
       }),
     );
   } else {
-    if (!pin || !sourceSha || statSync(artifact).size > 8 * 1024 * 1024)
-      throw new Error('Requires independent pin, source and bounded manifest');
-    const result = validateLegacyScopeManifest(
-      JSON.parse(readFileSync(artifact, 'utf8')),
-      inventory,
-      pin,
-      { environment: 'isolated', sourceSha },
-    );
+    const result = snapshot.checked!;
     console.log(
       JSON.stringify({
         result: 'read-only-manifest-checked',

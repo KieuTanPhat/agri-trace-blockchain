@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import {
   BUSINESS_CAPABILITIES,
   chainAccess,
@@ -109,9 +110,54 @@ export class SupplyChainsService {
             .map((m) => m.chainId),
         },
       },
-      select: { chainId: true },
+      select: { chainId: true, version: true },
+    });
+    const [assignments, reviewAssignments] = await Promise.all([
+      this.prisma.stageAssignment.findMany({
+        where: {
+          organizationId,
+          chainId: { in: memberships.map((member) => member.chainId) },
+        },
+        select: {
+          id: true,
+          chainId: true,
+          stage: true,
+          status: true,
+          version: true,
+        },
+        orderBy: { id: 'asc' },
+        take: 10001,
+      }),
+      this.prisma.complianceAssignment.findMany({
+        where: { reviewerUserId: actor.sub!, revokedAt: null },
+        select: { id: true, farmId: true },
+        orderBy: { id: 'asc' },
+        take: 10001,
+      }),
+    ]);
+    if (assignments.length > 10000 || reviewAssignments.length > 10000)
+      throw new ConflictException(
+        'Permission context cần phân trang trước khi mở rộng',
+      );
+    // UI invalidation only. Never use this complete role set as command/replay
+    // authority: business fingerprints bind only the command's actual grant.
+    const accessRevision = canonicalSha256({
+      grants: grants.map((grant) => [grant.id, grant.revision]).sort(),
+      memberships: memberships
+        .map((member) => [member.id, member.status, member.version])
+        .sort(),
+      capabilities: capabilities
+        .map((capability) => [capability.code, capability.revision])
+        .sort(),
+      businessScopeActivated,
+      profiles: businessChains
+        .map((profile) => [profile.chainId, profile.version])
+        .sort(),
+      assignments,
+      reviewAssignments,
     });
     return {
+      accessRevision,
       grants,
       memberships,
       capabilities,
