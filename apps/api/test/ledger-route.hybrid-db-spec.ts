@@ -13,6 +13,7 @@ import {
 } from '../src/modules/trace/ledger-route.js';
 import { fixtureRoutePayload } from './support/ledger-route-fixture.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
+import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -44,15 +45,17 @@ async function register(
   return route;
 }
 async function event(entityId = randomUUID()) {
-  return db.$transaction((tx) =>
+  const result = await db.$transaction((tx) =>
     trace.createInTransaction(tx, {
       entityType: 'LOT',
       entityId,
       eventType: 'ROUTE_REHEARSAL',
-      actor: { sub: null, organizationId: null, role: 'SYSTEM' },
+      actor: { sub: null, organizationId: null, role: 'SYSTEM_ACTOR' },
       businessData: { synthetic: true },
     }),
   );
+  expect(privateTraceEvidenceMatches(result)).toBe(true);
+  return result;
 }
 async function rejected(
   tx: Prisma.TransactionClient,
@@ -374,7 +377,14 @@ describe('Logical ledger routes on PostgreSQL 18', () => {
       return { ...input, txId: syntheticTx(input.eventId) };
     });
     const processing = firstWorker.service.processPending();
-    await enteredSend;
+    const reachedRelay = await Promise.race([
+      enteredSend.then(() => true),
+      processing.then(() => false),
+    ]);
+    if (!reachedRelay)
+      throw new Error(
+        'Worker exited before reaching the controlled relay gate',
+      );
     try {
       await expect(
         secondWorker.service.processPending(),

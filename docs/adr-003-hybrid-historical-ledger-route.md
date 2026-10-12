@@ -111,3 +111,12 @@ predecessor ordering, simulated response loss/duplicate và wrong channel receip
 Chưa ghi các DB cases mới là pass trước terminal job. Adapter trong DB suite được
 mock, không là Fabric VALID commit acceptance. Import legacy, official migration,
 copy/restore/compatible rollback và exact SHA CI/production rollout còn là gate.
+
+Lượt DB `9b19e57` đạt 140 unit, SQL 31, full diff zero + sáu guards và ORM;
+111/114 policy cases đạt. Ba failure cùng fixture dùng null actor với role
+`SYSTEM`, trong khi evidence contract chỉ nhận `SYSTEM_ACTOR` cho assertion này.
+Worker đúng là từ chối trước submit; latch concurrency chờ network nên timeout.
+Sửa fixture role, thêm precondition private evidence hợp lệ và fail-fast nếu Worker
+thoát trước relay gate; giữ assertions và timeout nghiệp vụ. Container 384 MiB/1 CPU
+không OOM/restart; cleanup container/network/port/keeper verified. Chưa chạy legacy
+E2E ở lượt fail, chưa gọi toàn suite hoặc Fabric gate là pass.
