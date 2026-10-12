@@ -41,6 +41,32 @@ export class TraceService {
     tx: Prisma.TransactionClient,
     input: CreateTraceEventInput,
   ) {
+    const roots = await tx.$queryRaw<
+      Array<{ cycleId: string; chainId: string | null }>
+    >`
+      SELECT c.cycle_id AS "cycleId", c.chain_id AS "chainId" FROM production_cycle c
+      WHERE c.cycle_id = ${input.cycleId ?? null}::uuid OR EXISTS (
+        SELECT 1 FROM harvest_event h JOIN lot l ON l.harvest_id = h.harvest_id
+        WHERE h.cycle_id = c.cycle_id AND l.lot_id = ${input.lotId ?? null}::uuid
+      )`;
+    if (roots.length > 1)
+      throw new ConflictException('Trace subjects disagree');
+    const chainId = roots[0]?.chainId ?? null;
+    if (chainId) {
+      if (
+        !input.businessData ||
+        typeof input.businessData !== 'object' ||
+        Array.isArray(input.businessData)
+      )
+        throw new ConflictException('Scoped trace cần payload object');
+      const data = input.businessData as Prisma.InputJsonObject;
+      if (data.chainId && data.chainId !== chainId)
+        throw new ConflictException('Trace chain context mismatch');
+      input = {
+        ...input,
+        businessData: { ...input.businessData, chainId, scopeVersion: 1 },
+      };
+    }
     // Serialize hash-chain head creation per entity. Without this transaction
     // lock, two concurrent commands can both read the same predecessor and
     // produce sibling events that Fabric cannot append deterministically.
@@ -120,6 +146,10 @@ export class TraceService {
         nextAttemptAt: new Date(),
       },
     });
+    if (chainId)
+      await tx.eventChainContext.create({
+        data: { eventId: event.id, chainId },
+      });
     return event;
   }
 

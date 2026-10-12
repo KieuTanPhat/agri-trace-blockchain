@@ -13,6 +13,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   commandTransaction,
   lockAggregate,
+  effectiveCommandActor,
 } from '../../common/idempotency/command-transaction.js';
 import { quantity } from '../../common/quantity.js';
 import { businessTimestamp } from '../../common/timestamp.js';
@@ -20,6 +21,10 @@ import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import { assignedFarmWhere } from '../auth/compliance-scope.js';
+import {
+  legacyOrScopedCycle,
+  scopedLotReadWhere,
+} from '../supply-chains/business-read-scope.js';
 import {
   validateSensorTime,
   markLateReading,
@@ -69,28 +74,35 @@ export class ProductionCyclesService {
         sensorDigests: { orderBy: { periodEnd: 'desc' } },
         certificates: true,
         harvestEvents: {
-          where:
-            actor.role === 'TRANSPORTER'
-              ? {
-                  lot: {
-                    shipment: {
-                      transporterOrgId:
-                        actor.organizationId ??
-                        '00000000-0000-0000-0000-000000000000',
-                    },
-                  },
-                }
-              : actor.role === 'RETAILER'
-                ? {
-                    lot: {
-                      shipment: {
-                        retailerOrgId:
-                          actor.organizationId ??
-                          '00000000-0000-0000-0000-000000000000',
+          where: {
+            OR: [
+              {
+                cycle: { chainId: null },
+                ...(actor.role === 'TRANSPORTER'
+                  ? {
+                      lot: {
+                        shipment: {
+                          transporterOrgId:
+                            actor.organizationId ??
+                            '00000000-0000-0000-0000-000000000000',
+                        },
                       },
-                    },
-                  }
-                : undefined,
+                    }
+                  : actor.role === 'RETAILER'
+                    ? {
+                        lot: {
+                          shipment: {
+                            retailerOrgId:
+                              actor.organizationId ??
+                              '00000000-0000-0000-0000-000000000000',
+                          },
+                        },
+                      }
+                    : {}),
+              },
+              { lot: { is: scopedLotReadWhere(actor) } },
+            ],
+          },
           include: { lot: { include: { shipment: true } }, sensorWindow: true },
           orderBy: { harvestTime: 'asc' },
         },
@@ -101,6 +113,10 @@ export class ProductionCyclesService {
   }
 
   private visibleWhere(actor: Actor): Prisma.ProductionCycleWhereInput {
+    return legacyOrScopedCycle(actor, this.legacyVisibleWhere(actor));
+  }
+
+  private legacyVisibleWhere(actor: Actor): Prisma.ProductionCycleWhereInput {
     if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) return {};
     if (actor.role === 'COMPLIANCE_REVIEWER')
       return { farm: assignedFarmWhere(actor) };
@@ -141,6 +157,7 @@ export class ProductionCyclesService {
   }
 
   async create(input: CreateProductionCycleDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     const farm = await this.access.assertFarmAccess(actor, input.farmId);
     const [product, plot] = await Promise.all([
@@ -192,6 +209,7 @@ export class ProductionCyclesService {
           cycleCode: input.cycleCode.trim(),
           farmId: farm.id,
           farmOrgId: farm.organizationId,
+          chainId: input.chainId,
           plotId: input.plotId,
           productId: input.productId,
           startDate: input.startDate
@@ -208,6 +226,16 @@ export class ProductionCyclesService {
           note: input.note,
         },
       });
+      if (input.chainId)
+        await tx.stageAssignment.create({
+          data: {
+            chainId: input.chainId,
+            organizationId: farm.organizationId,
+            stage: 'PRODUCTION',
+            cycleId: cycle.id,
+            status: 'ACCEPTED',
+          },
+        });
       await this.trace.createInTransaction(tx, {
         entityType: 'PRODUCTION_CYCLE',
         entityId: cycle.id,
@@ -228,6 +256,7 @@ export class ProductionCyclesService {
   }
 
   async plant(id: string, input: PlantCycleDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, id);
     const plantedAt = businessTimestamp(input.plantedAt, 'Thời điểm trồng');
@@ -245,6 +274,7 @@ export class ProductionCyclesService {
   }
 
   async addCare(id: string, input: CareRecordDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, id);
     return commandTransaction(this.prisma, async (tx) => {
@@ -312,6 +342,7 @@ export class ProductionCyclesService {
   }
 
   async addSensorReading(id: string, input: SensorReadingDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     const cycle = await this.access.assertProductionCycleAccess(actor, id);
     if (!['PLANTED', 'GROWING'].includes(cycle.currentState)) {
@@ -462,6 +493,7 @@ export class ProductionCyclesService {
   }
 
   async close(id: string, input: VersionedCommandDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, id);
     return this.transition(
@@ -476,6 +508,7 @@ export class ProductionCyclesService {
   }
 
   async cancel(id: string, input: CancelCycleDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, id);
     return this.transition(

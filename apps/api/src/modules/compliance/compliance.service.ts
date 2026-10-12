@@ -14,6 +14,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   commandTransaction,
   lockAggregate,
+  effectiveCommandActor,
 } from '../../common/idempotency/command-transaction.js';
 import {
   assignedFarmWhere,
@@ -24,6 +25,10 @@ import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import { businessTimestamp } from '../../common/timestamp.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
+import {
+  legacyOrScopedLot,
+  legacyOrScopedCycle,
+} from '../supply-chains/business-read-scope.js';
 import type {
   CreateCertificateDto,
   CreateInspectionDto,
@@ -41,41 +46,37 @@ export class ComplianceService {
     const unrestricted = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role);
     return this.prisma.inspection.findMany({
       where: {
+        lot: legacyOrScopedLot(
+          actor,
+          unrestricted
+            ? {}
+            : actor.role === 'COMPLIANCE_REVIEWER'
+              ? { harvest: { cycle: { farm: assignedFarmWhere(actor) } } }
+              : {
+                  OR: [
+                    {
+                      farmOrgId:
+                        actor.organizationId ??
+                        '00000000-0000-0000-0000-000000000000',
+                    },
+                    {
+                      shipment: {
+                        transporterOrgId:
+                          actor.organizationId ??
+                          '00000000-0000-0000-0000-000000000000',
+                      },
+                    },
+                    {
+                      shipment: {
+                        retailerOrgId:
+                          actor.organizationId ??
+                          '00000000-0000-0000-0000-000000000000',
+                      },
+                    },
+                  ],
+                },
+        ),
         lotId: lotId || undefined,
-        ...(actor.role === 'COMPLIANCE_REVIEWER'
-          ? { lot: { harvest: { cycle: { farm: assignedFarmWhere(actor) } } } }
-          : {}),
-        OR: unrestricted
-          ? undefined
-          : actor.role === 'COMPLIANCE_REVIEWER'
-            ? undefined
-            : [
-                {
-                  lot: {
-                    farmOrgId:
-                      actor.organizationId ??
-                      '00000000-0000-0000-0000-000000000000',
-                  },
-                },
-                {
-                  lot: {
-                    shipment: {
-                      transporterOrgId:
-                        actor.organizationId ??
-                        '00000000-0000-0000-0000-000000000000',
-                    },
-                  },
-                },
-                {
-                  lot: {
-                    shipment: {
-                      retailerOrgId:
-                        actor.organizationId ??
-                        '00000000-0000-0000-0000-000000000000',
-                    },
-                  },
-                },
-              ],
       },
       include: {
         organization: { select: { id: true, name: true, type: true } },
@@ -86,6 +87,7 @@ export class ComplianceService {
   }
 
   async createInspection(input: CreateInspectionDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, COMPLIANCE_REVIEW_ROLES);
     this.assertCorrectionInput(input);
     const inspectedAt = businessTimestamp(
@@ -154,61 +156,38 @@ export class ComplianceService {
 
   listCertificates(actor: Actor, lotId?: string, cycleId?: string) {
     const unrestricted = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role);
+    const org = actor.organizationId ?? '00000000-0000-0000-0000-000000000000';
+    const legacyLot: Prisma.LotWhereInput = unrestricted
+      ? {}
+      : actor.role === 'COMPLIANCE_REVIEWER'
+        ? { harvest: { cycle: { farm: assignedFarmWhere(actor) } } }
+        : {
+            OR: [
+              { farmOrgId: org },
+              { shipment: { transporterOrgId: org } },
+              { shipment: { retailerOrgId: org } },
+            ],
+          };
+    const legacyCycle: Prisma.ProductionCycleWhereInput = unrestricted
+      ? {}
+      : actor.role === 'COMPLIANCE_REVIEWER'
+        ? { farm: assignedFarmWhere(actor) }
+        : { farmOrgId: org };
     return this.prisma.certificate.findMany({
       where: {
         lotId: lotId || undefined,
         cycleId: cycleId || undefined,
-        OR: unrestricted
-          ? undefined
-          : actor.role === 'COMPLIANCE_REVIEWER'
-            ? [
-                {
-                  lot: {
-                    harvest: { cycle: { farm: assignedFarmWhere(actor) } },
-                  },
-                },
-                { cycle: { farm: assignedFarmWhere(actor) } },
-              ]
-            : [
-                {
-                  lot: {
-                    farmOrgId:
-                      actor.organizationId ??
-                      '00000000-0000-0000-0000-000000000000',
-                  },
-                },
-                {
-                  cycle: {
-                    farmOrgId:
-                      actor.organizationId ??
-                      '00000000-0000-0000-0000-000000000000',
-                  },
-                },
-                {
-                  lot: {
-                    shipment: {
-                      transporterOrgId:
-                        actor.organizationId ??
-                        '00000000-0000-0000-0000-000000000000',
-                    },
-                  },
-                },
-                {
-                  lot: {
-                    shipment: {
-                      retailerOrgId:
-                        actor.organizationId ??
-                        '00000000-0000-0000-0000-000000000000',
-                    },
-                  },
-                },
-              ],
+        OR: [
+          { lot: { is: legacyOrScopedLot(actor, legacyLot) } },
+          { cycle: { is: legacyOrScopedCycle(actor, legacyCycle) } },
+        ],
       },
       orderBy: { issueDate: 'desc' },
     });
   }
 
   async createCertificate(input: CreateCertificateDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     if (Boolean(input.lotId) === Boolean(input.cycleId))
       throw new UnprocessableEntityException(
@@ -315,6 +294,7 @@ export class ComplianceService {
     input: ReviewCertificateDto,
     actor: Actor,
   ) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, COMPLIANCE_REVIEW_ROLES);
     if (!['APPROVED', 'REJECTED'].includes(input.status))
       throw new UnprocessableEntityException(

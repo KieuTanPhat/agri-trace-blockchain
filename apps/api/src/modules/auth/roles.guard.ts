@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { AuthenticatedRequest } from '../../modules/auth/auth.types.js';
 import { ROLES_KEY } from './roles.decorator.js';
+import { COMMAND_POLICY_KEY } from './command-policy.decorator.js';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -28,8 +29,19 @@ export class RolesGuard implements CanActivate {
     if (!request.user) {
       throw new UnauthorizedException('Chưa xác thực người dùng');
     }
+    if (requiredRoles.length === 0)
+      throw new ForbiddenException('Bạn không có quyền thực hiện chức năng này');
 
-    if (!requiredRoles.includes(request.user.role)) {
+    if (
+      !requiredRoles.includes(request.user.role) &&
+      !(
+        ['POST', 'PATCH'].includes(request.method) &&
+        this.reflector.getAllAndOverride<boolean>(COMMAND_POLICY_KEY, [
+          context.getHandler(),
+          context.getClass(),
+        ])
+      )
+    ) {
       throw new ForbiddenException(
         'Bạn không có quyền thực hiện chức năng này',
       );

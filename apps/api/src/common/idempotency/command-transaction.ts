@@ -18,6 +18,19 @@ export interface CommandContext {
 
 export const commandContext = new AsyncLocalStorage<CommandContext>();
 
+export function effectiveCommandActor<
+  T extends { sub: string | null; role: string; organizationId: string | null },
+>(actor: T): T {
+  const business = commandContext.getStore()?.input.businessActor;
+  if (!business) return actor;
+  if (
+    business.sub !== actor.sub ||
+    business.organizationId !== actor.organizationId
+  )
+    throw new Error('Derived command actor identity mismatch');
+  return { ...actor, role: business.role };
+}
+
 export function commandResponseJson(value: unknown): Prisma.InputJsonValue {
   // Mirrors HTTP serialization for Date/Decimal, with lossless bigint strings.
   const encoded = JSON.stringify(value, (_key, item: unknown) =>
@@ -97,8 +110,14 @@ export async function commandTransaction<T>(
           authorizationScope: context.authorizationScope,
           actorScope: {
             requesterId: context.input.requesterId,
-            role: context.input.actor?.role ?? 'IOT_DEVICE',
+            role:
+              context.input.businessActor?.role ??
+              context.input.actor?.role ??
+              'IOT_DEVICE',
             organizationId: context.input.actor?.organizationId ?? null,
+            ...(context.input.businessActor
+              ? { authenticatedRole: context.input.actor!.role }
+              : {}),
           },
           resourceIds: {
             requested: resourceIds(context.input.payload),

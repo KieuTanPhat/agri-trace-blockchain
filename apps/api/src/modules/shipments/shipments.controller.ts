@@ -28,6 +28,7 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
+import { CommandPolicy } from '../auth/command-policy.decorator.js';
 import {
   CreateShipmentDto,
   DamageShipmentDto,
@@ -41,6 +42,7 @@ import { ShipmentsService } from './shipments.service.js';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('shipments')
+@CommandPolicy()
 export class ShipmentsController {
   constructor(
     private readonly service: ShipmentsService,

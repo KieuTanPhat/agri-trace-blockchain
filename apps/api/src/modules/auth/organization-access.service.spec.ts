@@ -94,6 +94,7 @@ describe('OrganizationAccessService', () => {
       retailerOrgId: 'retailer-org-id',
       lot: {
         farmOrgId: 'farm-org-id',
+        harvest: { cycle: { farmId: 'farm-id', chainId: null } },
       },
     });
 
@@ -112,6 +113,7 @@ describe('OrganizationAccessService', () => {
       retailerOrgId: 'retailer-org-id',
       lot: {
         farmOrgId: 'farm-org-id',
+        harvest: { cycle: { farmId: 'farm-id', chainId: null } },
       },
     });
 

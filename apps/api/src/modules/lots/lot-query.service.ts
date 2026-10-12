@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import { assignedFarmWhere } from '../auth/compliance-scope.js';
@@ -7,8 +11,12 @@ import {
   INTERNAL_LOT_INCLUDE,
   publicLotInclude,
   PUBLIC_TRACE_INCLUDE,
+  type InternalLot,
 } from './lot-query.types.js';
 import { toInternalLotDto, toPublicLotDto } from './lot.presenter.js';
+import { legacyOrScopedLot } from '../supply-chains/business-read-scope.js';
+import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
+import { getAllowedLotCommands, type LotCommand } from './lot-action.policy.js';
 
 @Injectable()
 export class LotQueryService {
@@ -24,42 +32,73 @@ export class LotQueryService {
       include: INTERNAL_LOT_INCLUDE,
     });
     if (!lot) throw new NotFoundException('Không tìm thấy lô hàng');
-    return toInternalLotDto(lot, actor);
+    return this.projectInternal(lot, actor);
   }
 
   async getList(actor: Actor) {
     const lots = await this.prisma.lot.findMany({
-      where: ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)
-        ? undefined
-        : actor.role === 'COMPLIANCE_REVIEWER'
-          ? { harvest: { cycle: { farm: assignedFarmWhere(actor) } } }
-          : {
-              OR: [
-                {
-                  farmOrgId:
-                    actor.organizationId ??
-                    '00000000-0000-0000-0000-000000000000',
-                },
-                {
-                  shipment: {
-                    transporterOrgId:
+      where: legacyOrScopedLot(
+        actor,
+        ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)
+          ? undefined
+          : actor.role === 'COMPLIANCE_REVIEWER'
+            ? { harvest: { cycle: { farm: assignedFarmWhere(actor) } } }
+            : {
+                OR: [
+                  {
+                    farmOrgId:
                       actor.organizationId ??
                       '00000000-0000-0000-0000-000000000000',
                   },
-                },
-                {
-                  shipment: {
-                    retailerOrgId:
-                      actor.organizationId ??
-                      '00000000-0000-0000-0000-000000000000',
+                  {
+                    shipment: {
+                      transporterOrgId:
+                        actor.organizationId ??
+                        '00000000-0000-0000-0000-000000000000',
+                    },
                   },
-                },
-              ],
-            },
+                  {
+                    shipment: {
+                      retailerOrgId:
+                        actor.organizationId ??
+                        '00000000-0000-0000-0000-000000000000',
+                    },
+                  },
+                ],
+              },
+      ),
       include: INTERNAL_LOT_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
-    return lots.map((lot) => toInternalLotDto(lot, actor));
+    return Promise.all(lots.map((lot) => this.projectInternal(lot, actor)));
+  }
+
+  private async projectInternal(lot: InternalLot, actor: Actor) {
+    const response = toInternalLotDto(lot, actor);
+    const chainId = lot.harvest.cycle.chainId;
+    if (!chainId) return response;
+    const commands = new Set<LotCommand>();
+    for (const role of ['FARM_STAFF', 'TRANSPORTER', 'RETAILER'] as const) {
+      try {
+        const authority = await authorizeBusinessCommand(this.prisma, actor, {
+          chainId,
+          role,
+          subject: { kind: 'lot', id: lot.id },
+        });
+        for (const command of getAllowedLotCommands(
+          { ...lot, quantityReconciled: response.quantityReconciled },
+          authority.actor,
+        ))
+          if (command !== 'createShipment') commands.add(command);
+      } catch (error) {
+        if (!(
+          error instanceof ForbiddenException ||
+          error instanceof NotFoundException
+        ))
+          throw error;
+      }
+    }
+    return { ...response, allowedCommands: [...commands] };
   }
 
   async getDashboard(actor: Actor) {

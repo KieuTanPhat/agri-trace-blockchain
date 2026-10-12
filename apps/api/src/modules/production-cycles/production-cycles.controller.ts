@@ -25,6 +25,7 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
+import { CommandPolicy } from '../auth/command-policy.decorator.js';
 import {
   CancelCycleDto,
   CareRecordDto,
@@ -41,6 +42,7 @@ import { ProductionCyclesService } from './production-cycles.service.js';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(...FARM_WRITE_ROLES)
 @Controller('production-cycles')
+@CommandPolicy()
 export class ProductionCyclesController {
   constructor(
     private readonly service: ProductionCyclesService,

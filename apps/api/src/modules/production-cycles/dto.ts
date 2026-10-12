@@ -14,6 +14,15 @@ import {
 } from 'class-validator';
 
 export class CreateProductionCycleDto {
+  @ApiProperty({
+    type: String,
+    required: false,
+    format: 'uuid',
+    description: 'Bắt buộc sau cutover sang quản lý theo chuỗi',
+  })
+  @IsOptional()
+  @IsUUID()
+  chainId?: string;
   @ApiProperty({ type: String, format: 'uuid' })
   @IsUUID()
   farmId!: string;

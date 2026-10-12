@@ -6,6 +6,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { assertAssignedFarm } from './compliance-scope.js';
+import {
+  scopedCycleReadWhere,
+  scopedLotReadWhere,
+  scopedShipmentReadWhere,
+} from '../supply-chains/business-read-scope.js';
 type Actor = {
   sub?: string | null;
   role: string;
@@ -40,6 +45,7 @@ export class OrganizationAccessService {
       select: {
         id: true,
         currentState: true,
+        chainId: true,
         farm: {
           select: { id: true, organizationId: true },
         },
@@ -48,6 +54,22 @@ export class OrganizationAccessService {
 
     if (!cycle) {
       throw new NotFoundException('Không tìm thấy vụ sản xuất');
+    }
+
+    if (cycle.chainId) {
+      if (
+        !(await this.prisma.productionCycle.findFirst({
+          where: {
+            AND: [
+              { id: cycleId },
+              scopedCycleReadWhere({ ...actor, sub: actor.sub ?? null }),
+            ],
+          },
+          select: { id: true },
+        }))
+      )
+        throw new NotFoundException('Không tìm thấy vụ sản xuất');
+      return cycle;
     }
 
     if (actor.role === 'COMPLIANCE_REVIEWER') {
@@ -73,7 +95,9 @@ export class OrganizationAccessService {
       select: {
         id: true,
         farmOrgId: true,
-        harvest: { select: { cycle: { select: { farmId: true } } } },
+        harvest: {
+          select: { cycle: { select: { farmId: true, chainId: true } } },
+        },
         shipment: {
           select: { transporterOrgId: true, retailerOrgId: true },
         },
@@ -82,6 +106,22 @@ export class OrganizationAccessService {
 
     if (!lot) {
       throw new NotFoundException('Không tìm thấy lô hàng');
+    }
+
+    if (lot.harvest.cycle.chainId) {
+      if (
+        !(await this.prisma.lot.findFirst({
+          where: {
+            AND: [
+              { id: lotId },
+              scopedLotReadWhere({ ...actor, sub: actor.sub ?? null }),
+            ],
+          },
+          select: { id: true },
+        }))
+      )
+        throw new NotFoundException('Không tìm thấy lô hàng');
+      return lot;
     }
 
     if (actor.role === 'COMPLIANCE_REVIEWER') {
@@ -115,7 +155,9 @@ export class OrganizationAccessService {
         lot: {
           select: {
             farmOrgId: true,
-            harvest: { select: { cycle: { select: { farmId: true } } } },
+            harvest: {
+              select: { cycle: { select: { farmId: true, chainId: true } } },
+            },
           },
         },
       },
@@ -123,6 +165,22 @@ export class OrganizationAccessService {
 
     if (!shipment) {
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
+    }
+
+    if (shipment.lot.harvest.cycle.chainId) {
+      if (
+        !(await this.prisma.shipment.findFirst({
+          where: {
+            AND: [
+              { id: shipmentId },
+              scopedShipmentReadWhere({ ...actor, sub: actor.sub ?? null }),
+            ],
+          },
+          select: { id: true },
+        }))
+      )
+        throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
+      return shipment;
     }
 
     if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) {
@@ -162,14 +220,22 @@ export class OrganizationAccessService {
       select: { id: true, lotId: true, cycleId: true },
     });
     if (!event) throw new NotFoundException('Trace event not found');
-    if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) return;
-    if (!actor.organizationId)
-      throw new ForbiddenException('Organization required');
     if (event.lotId) {
       await this.assertLotAccess(actor, event.lotId);
       return;
     }
     if (event.cycleId) {
+      const root = await this.prisma.productionCycle.findUnique({
+        where: { id: event.cycleId },
+        select: { chainId: true },
+      });
+      if (root?.chainId) {
+        await this.assertProductionCycleAccess(actor, event.cycleId);
+        return;
+      }
+      if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) return;
+      if (!actor.organizationId)
+        throw new ForbiddenException('Organization required');
       if (actor.role === 'COMPLIANCE_REVIEWER') {
         await this.assertProductionCycleAccess(actor, event.cycleId);
         return;

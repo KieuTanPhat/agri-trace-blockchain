@@ -64,6 +64,7 @@ export class ProductRecordDto {
 
 export class ProductionCycleRecordDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true }) chainId!: string | null;
   @ApiProperty({ type: String }) cycleCode!: string;
   @ApiProperty({ type: String, format: 'uuid' }) productId!: string;
   @ApiProperty({ type: String, format: 'uuid' }) farmId!: string;

@@ -123,3 +123,34 @@ export function scopedCycleReadWhere(
     })),
   };
 }
+
+export function legacyOrScopedCycle(
+  actor: CommandActor,
+  legacy: Prisma.ProductionCycleWhereInput = {},
+): Prisma.ProductionCycleWhereInput {
+  return {
+    OR: [{ AND: [{ chainId: null }, legacy] }, scopedCycleReadWhere(actor)],
+  };
+}
+export function legacyOrScopedLot(
+  actor: CommandActor,
+  legacy: Prisma.LotWhereInput = {},
+): Prisma.LotWhereInput {
+  return {
+    OR: [
+      { AND: [{ harvest: { cycle: { chainId: null } } }, legacy] },
+      scopedLotReadWhere(actor),
+    ],
+  };
+}
+export function legacyOrScopedShipment(
+  actor: CommandActor,
+  legacy: Prisma.ShipmentWhereInput = {},
+): Prisma.ShipmentWhereInput {
+  return {
+    OR: [
+      { AND: [{ lot: { harvest: { cycle: { chainId: null } } } }, legacy] },
+      scopedShipmentReadWhere(actor),
+    ],
+  };
+}

@@ -32,6 +32,7 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
+import { CommandPolicy } from '../auth/command-policy.decorator.js';
 import { DeviceKeyGuard } from './device-key.guard.js';
 import {
   CreateSensorDigestDto,
@@ -45,6 +46,7 @@ import { IotService } from './iot.service.js';
 
 @ApiTags('iot')
 @Controller('iot')
+@CommandPolicy()
 export class IotController {
   constructor(
     private readonly service: IotService,

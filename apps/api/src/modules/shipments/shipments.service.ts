@@ -16,6 +16,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   commandTransaction,
   lockAggregate,
+  effectiveCommandActor,
 } from '../../common/idempotency/command-transaction.js';
 import { assertQuantityReconciled, quantity } from '../../common/quantity.js';
 import { businessTimestamp } from '../../common/timestamp.js';
@@ -24,6 +25,7 @@ import { OrganizationAccessService } from '../auth/organization-access.service.j
 import { assignedFarmWhere } from '../auth/compliance-scope.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
+import { legacyOrScopedShipment } from '../supply-chains/business-read-scope.js';
 import type {
   CreateShipmentDto,
   DamageShipmentDto,
@@ -43,31 +45,36 @@ export class ShipmentsService {
   list(actor: Actor) {
     const unrestricted = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role);
     return this.prisma.shipment.findMany({
-      where: unrestricted
-        ? undefined
-        : actor.role === 'COMPLIANCE_REVIEWER'
-          ? { lot: { harvest: { cycle: { farm: assignedFarmWhere(actor) } } } }
-          : {
-              OR: [
-                {
-                  transporterOrgId:
-                    actor.organizationId ??
-                    '00000000-0000-0000-0000-000000000000',
-                },
-                {
-                  retailerOrgId:
-                    actor.organizationId ??
-                    '00000000-0000-0000-0000-000000000000',
-                },
-                {
-                  lot: {
-                    farmOrgId:
+      where: legacyOrScopedShipment(
+        actor,
+        unrestricted
+          ? undefined
+          : actor.role === 'COMPLIANCE_REVIEWER'
+            ? {
+                lot: { harvest: { cycle: { farm: assignedFarmWhere(actor) } } },
+              }
+            : {
+                OR: [
+                  {
+                    transporterOrgId:
                       actor.organizationId ??
                       '00000000-0000-0000-0000-000000000000',
                   },
-                },
-              ],
-            },
+                  {
+                    retailerOrgId:
+                      actor.organizationId ??
+                      '00000000-0000-0000-0000-000000000000',
+                  },
+                  {
+                    lot: {
+                      farmOrgId:
+                        actor.organizationId ??
+                        '00000000-0000-0000-0000-000000000000',
+                    },
+                  },
+                ],
+              },
+      ),
       include: {
         transporter: { select: { id: true, name: true, type: true } },
         retailer: { select: { id: true, name: true, type: true } },
@@ -85,8 +92,7 @@ export class ShipmentsService {
   }
 
   async get(id: string, actor: Actor) {
-    if (actor.role === 'COMPLIANCE_REVIEWER')
-      await this.access.assertShipmentAccess(actor, id);
+    await this.access.assertShipmentAccess(actor, id);
     const shipment = await this.prisma.shipment.findUnique({
       where: { id },
       include: {
@@ -215,6 +221,7 @@ export class ShipmentsService {
   }
 
   async start(id: string, input: ShipmentTransitionDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertOrg(id, actor, 'transporter');
     return this.transition(
       shipment.id,
@@ -230,6 +237,7 @@ export class ShipmentsService {
   }
 
   async arrive(id: string, input: ShipmentTransitionDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertOrg(id, actor, 'transporter');
     return this.transition(
       shipment.id,
@@ -245,6 +253,7 @@ export class ShipmentsService {
   }
 
   async receive(id: string, input: ReceiveShipmentDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertOrg(id, actor, 'retailer');
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'lot', shipment.lotId);
@@ -329,6 +338,7 @@ export class ShipmentsService {
   }
 
   async reject(id: string, input: RejectShipmentDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertOrg(id, actor, 'retailer');
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'lot', shipment.lotId);
@@ -383,6 +393,7 @@ export class ShipmentsService {
   }
 
   async damage(id: string, input: DamageShipmentDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertCurrentCustodian(id, actor);
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'lot', shipment.lotId);

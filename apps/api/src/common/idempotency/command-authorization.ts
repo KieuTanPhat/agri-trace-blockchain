@@ -18,6 +18,10 @@ import {
   authorizeShipmentPlanCommand,
   lockShipmentPlanCommand,
 } from '../../modules/supply-chains/shipment-plan.commands.js';
+import {
+  authorizeCoreBusinessCommand,
+  scopedDeviceAuthority,
+} from '../../modules/supply-chains/core-business-policy.js';
 
 export interface CommandActor {
   sub: string | null;
@@ -31,6 +35,7 @@ export interface AuthorizedCommand {
   operation: string;
   payload: unknown;
   actor: CommandActor | null;
+  businessActor?: CommandActor;
 }
 
 function payloadOf(input: AuthorizedCommand): Record<string, unknown> {
@@ -126,6 +131,16 @@ export async function authorizeCommand(
       if (current.organizationId !== found.organizationId)
         throw new ForbiddenException('Phạm vi thiết bị đã thay đổi');
     }
+    const subject =
+      input.operation === 'INGEST_SENSOR_READING'
+        ? { kind: 'cycle' as const, id: id('cycleId') }
+        : { kind: 'shipment' as const, id: id('shipmentId') };
+    const deviceScope = await scopedDeviceAuthority(
+      db,
+      found.organizationId,
+      subject,
+      lock,
+    );
     if (input.operation === 'INGEST_SENSOR_READING') {
       const subject = await cycle(id('cycleId'));
       if (
@@ -153,6 +168,7 @@ export async function authorizeCommand(
       requesterId: input.requesterId,
       deviceId: found.id,
       organizationId: found.organizationId,
+      ...(deviceScope ? { protocol: 'scoped-device-v1', deviceScope } : {}),
     });
   }
 
@@ -206,6 +222,13 @@ export async function authorizeCommand(
     return authorizeShipmentPlanCommand(db, input, lock);
   if (input.operation.startsWith('HYB_'))
     return authorizeChainCommand(db, input, lock);
+
+  const business = await authorizeCoreBusinessCommand(db, input, lock);
+  if (business) {
+    input.businessActor = business.actor;
+    return business.scope;
+  }
+  input.businessActor = undefined;
 
   let assignmentId: string | null = null;
   switch (input.operation) {

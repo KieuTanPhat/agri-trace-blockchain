@@ -785,9 +785,6 @@ export async function finalizeShipmentPlan(
       expectedArrival: shipment.expectedArrival?.toISOString() ?? null,
     },
   });
-  await db.eventChainContext.create({
-    data: { eventId: event.id, chainId: plan.chainId },
-  });
   await audit(
     db,
     actor,

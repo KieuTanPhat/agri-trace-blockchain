@@ -153,3 +153,19 @@ transaction ghi journal; locks nhiều tổ chức/user được lấy theo th�
 chain. Finalize scope còn gồm ba consent/grant hiện hành, không hồi sinh sau
 regrant. Cùng org ba party vẫn xác nhận riêng, handover ghi INTERNAL. Candidate
 mới chưa nghiệm thu; không mở dev profile hoặc migration CD.
+
+Lượt `0d1bff7` đã đạt 42 PostgreSQL tests, 30 SQL assertions, ORM alignment và
+105 unit tests; hoàn tất 09:32 ngày 12/10/2026 (UTC+7). Evidence:
+`/opt/agri-trace-admin/hybrid-scope-draft/fce7466263ece890-1791771758466856398`.
+Bao gồm same-org three-party consent/internal handover, Farm capability và
+legacy type fallback, journal/plan cùng commit, consent replay sau finalize,
+finalize replay không trùng và regrant không hồi sinh consent cũ.
+
+Candidate tích hợp tiếp theo có ShipmentPlan API/Swagger/projection, common
+core command scope và actor role do server suy ra, Cycle scope/assignment cùng
+trace/outbox, SQL read scope ở core/trace/proof/compliance/IoT. Release A ingest
+key xác thực gateway nội bộ, không là chữ ký doanh nghiệp của bản C. Profile
+dev chưa được bật, migrations chính thức/Web/backfill/rehearsal và scoped
+reconciliation còn thiếu. Không tính code compile là nghiệm thu HTTP/security.
+Hai unit fixtures cũ thiếu Harvest/Cycle đã được sửa; 105 unit, lint/typecheck
+đạt. Bộ HTTP/DB mở rộng đang được kiểm trước promotion.

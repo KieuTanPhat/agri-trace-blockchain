@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   commandTransaction,
   lockAggregate,
+  effectiveCommandActor,
 } from '../../common/idempotency/command-transaction.js';
 import { assertQuantityReconciled, quantity } from '../../common/quantity.js';
 import { isPastExpiry } from '../../common/expiry-date.js';
@@ -65,6 +66,7 @@ export class LotCommandsService {
     actor: Actor,
     command: Command,
   ) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(
       actor,
       command === 'damage'

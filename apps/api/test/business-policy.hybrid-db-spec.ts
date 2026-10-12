@@ -2,7 +2,17 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  ValidationPipe,
+  type INestApplication,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
+import { AppModule } from '../src/app.module.js';
+import { ApiResponseInterceptor } from '../src/common/api/api-response.interceptor.js';
+import { GlobalExceptionFilter } from '../src/common/exception/global-exception.filter.js';
+import { createOpenApiDocument } from '../src/common/api/openapi.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomUUID } from 'node:crypto';
 import {
@@ -32,7 +42,7 @@ import {
 } from '../src/modules/supply-chains/shipment-plan.commands.js';
 import { TraceService } from '../src/modules/trace/trace.service.js';
 import { OrganizationAccessService } from '../src/modules/auth/organization-access.service.js';
-import type { PrismaService } from '../src/prisma/prisma.service.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
 import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { commandTransaction } from '../src/common/idempotency/command-transaction.js';
@@ -1732,5 +1742,283 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       ForbiddenException,
     );
     expect(calls).toBe(1);
+  });
+
+  describe('HTTP scope and command contracts on the isolated draft database', () => {
+    let app: INestApplication;
+    let producerToken: string;
+    let transporterToken: string;
+    let retailerToken: string;
+    beforeAll(async () => {
+      const module = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(PrismaService)
+        .useValue(serviceDb)
+        .overrideProvider(ConfigService)
+        .useValue(
+          new ConfigService({
+            ...process.env,
+            JWT_SECRET: 'isolated-hybrid-http-only',
+            FABRIC_ENABLED: 'false',
+          }),
+        )
+        .compile();
+      app = module.createNestApplication();
+      app.setGlobalPrefix('api');
+      app.useGlobalPipes(
+        new ValidationPipe({
+          transform: true,
+          whitelist: true,
+          forbidNonWhitelisted: true,
+        }),
+      );
+      app.useGlobalInterceptors(new ApiResponseInterceptor());
+      app.useGlobalFilters(new GlobalExceptionFilter());
+      await app.init();
+      const token = async (actor: CommandActor) => {
+        const active = await authenticated(actor);
+        return app.get(JwtService).sign({ sub: actor.sub, sid: active.sid });
+      };
+      producerToken = await token(producer);
+      transporterToken = await token(transporter);
+      retailerToken = await token(retailer);
+    });
+    afterAll(async () => {
+      if (app) await app.close();
+    });
+    const post = (
+      url: string,
+      token: string,
+      body: object,
+      key = randomUUID(),
+    ) =>
+      request(app.getHttpServer())
+        .post(`/api${url}`)
+        .set('Authorization', `Bearer ${token}`)
+        .set('Idempotency-Key', key)
+        .send(body);
+
+    it('exports the actual plan command, consent and projection schemas in NestJS Swagger', () => {
+      const document = createOpenApiDocument(app);
+      expect(
+        document.paths['/api/supply-chains/{chainId}/shipment-plans']?.post,
+      ).toBeDefined();
+      expect(
+        document.paths[
+          '/api/supply-chains/{chainId}/shipment-plans/{planId}/finalize'
+        ]?.post,
+      ).toBeDefined();
+      expect(
+        document.components?.schemas?.AcceptShipmentPlanDto,
+      ).toHaveProperty('properties.payloadDigest');
+      expect(
+        document.components?.schemas?.ShipmentPlanRecordDto,
+      ).toHaveProperty('properties.current');
+    });
+
+    it('creates, accepts and finalizes over HTTP without exposing grant or user IDs in projections', async () => {
+      const { lot, input } = await db.$transaction((tx) => freshPlan(tx), {
+        timeout: 20000,
+      });
+      await db.$transaction(
+        async (tx) => {
+          const event = await trace.createInTransaction(tx, {
+            entityType: 'HARVEST',
+            entityId: lot.harvestId,
+            cycleId,
+            lotId: lot.id,
+            eventType: 'HARVEST_RECORDED',
+            actor: producer,
+            businessData: { quantity: '5', unit: 'kg' },
+          });
+          await tx.quantityMovement.create({
+            data: {
+              lotId: lot.id,
+              eventId: event.id,
+              type: 'HARVEST_IN',
+              quantity: '5',
+              unit: 'kg',
+              beforeQty: '0',
+              delta: '5',
+              afterQty: '5',
+            },
+          });
+        },
+        { timeout: 20000 },
+      );
+      const url = `/supply-chains/${chainId}/shipment-plans`;
+      const key = randomUUID();
+      const created = await post(
+        url,
+        producerToken,
+        { lotId: lot.id, ...input },
+        key,
+      ).expect(201);
+      const plan = created.body.data;
+      expect(
+        (
+          await post(
+            url,
+            producerToken,
+            { lotId: lot.id, ...input },
+            key,
+          ).expect(201)
+        ).body.data.id,
+      ).toBe(plan.id);
+      for (const [party, token] of [
+        ['PRODUCER', producerToken],
+        ['TRANSPORTER', transporterToken],
+        ['RETAILER', retailerToken],
+      ] as const) {
+        const accepted = await post(`${url}/${plan.id}/accept`, token, {
+          party,
+          revision: 0,
+          payloadDigest: plan.current.payloadDigest,
+        }).expect(201);
+        expect(accepted.body.data).not.toHaveProperty('grantId');
+        expect(accepted.body.data).not.toHaveProperty('userId');
+      }
+      const projected = await request(app.getHttpServer())
+        .get(`/api${url}/${plan.id}`)
+        .set('Authorization', `Bearer ${transporterToken}`)
+        .expect(200);
+      expect(projected.body.data.current.acceptances).toHaveLength(3);
+      expect(projected.body.data.current.acceptances[0]).not.toHaveProperty(
+        'grantId',
+      );
+      const finalized = await post(
+        `${url}/${plan.id}/finalize`,
+        producerToken,
+        { version: 0 },
+      ).expect(201);
+      expect(finalized.body.data.shipmentId).toBeTruthy();
+      expect(await db.shipment.count({ where: { lotId: lot.id } })).toBe(1);
+    });
+
+    it('rejects producer direct Shipment creation and partner production writes on scoped subjects', async () => {
+      const { lot } = await db.$transaction((tx) => freshPlan(tx), {
+        timeout: 20000,
+      });
+      await post('/shipments', producerToken, {
+        lotId: lot.id,
+        transporterOrgId: transporter.organizationId,
+        retailerOrgId: retailer.organizationId,
+        origin: 'farm',
+        destination: 'shop',
+      }).expect(403);
+      await post(`/production-cycles/${cycleId}/plant`, transporterToken, {
+        version: 0,
+        plantedAt: new Date().toISOString(),
+      }).expect(403);
+      expect(await db.shipment.count({ where: { lotId: lot.id } })).toBe(0);
+    });
+
+    it('creates scoped Cycle, assignment, trace/outbox and replays without duplicates', async () => {
+      const payload = {
+        chainId,
+        farmId,
+        productId,
+        cycleCode: randomUUID(),
+        maxHarvestQuantity: 10,
+        harvestUnit: 'kg',
+      };
+      const key = randomUUID();
+      const created = await post(
+        '/production-cycles',
+        producerToken,
+        payload,
+        key,
+      ).expect(201);
+      const id = created.body.data.id;
+      expect(created.body.data.chainId).toBe(chainId);
+      expect(
+        (
+          await post('/production-cycles', producerToken, payload, key).expect(
+            201,
+          )
+        ).body.data.id,
+      ).toBe(id);
+      expect(
+        await db.stageAssignment.count({
+          where: { cycleId: id, chainId, status: 'ACCEPTED' },
+        }),
+      ).toBe(1);
+      const event = await db.traceEvent.findFirstOrThrow({
+        where: { cycleId: id, eventType: 'PRODUCTION_CYCLE_CREATED' },
+      });
+      expect(event.businessData).toMatchObject({ chainId, scopeVersion: 1 });
+      expect(
+        await db.eventChainContext.count({
+          where: { eventId: event.id, chainId },
+        }),
+      ).toBe(1);
+      expect(
+        await db.blockchainOutbox.count({ where: { eventId: event.id } }),
+      ).toBe(1);
+      await post('/production-cycles', producerToken, {
+        ...payload,
+        chainId: undefined,
+        cycleCode: randomUUID(),
+      }).expect(403);
+    });
+
+    it('derives transporter and retail actors from scoped authority across the physical flow', async () => {
+      const { plan, lot } = await db.$transaction((tx) => acceptedPlan(tx), {
+        timeout: 20000,
+      });
+      const finalized = await db.$transaction(
+        (tx) => finalizeShipmentPlan(tx, producer, plan.id, 0, trace),
+        { timeout: 20000 },
+      );
+      const id = finalized.shipment.id;
+      await post(`/shipments/${id}/start`, transporterToken, {
+        version: 0,
+        lotVersion: 0,
+      }).expect(201);
+      await post(`/shipments/${id}/arrive`, transporterToken, {
+        version: 1,
+        lotVersion: 1,
+      }).expect(201);
+      await post(`/shipments/${id}/receive`, retailerToken, {
+        version: 2,
+        lotVersion: 2,
+        receivedQuantity: 5,
+      }).expect(201);
+      await post(`/lots/${lot.id}/mark-for-sale`, retailerToken, {
+        version: 3,
+        shipmentVersion: 3,
+      }).expect(201);
+      const sold = await post(`/lots/${lot.id}/mark-sold`, retailerToken, {
+        version: 4,
+        shipmentVersion: 3,
+      }).expect(201);
+      expect(sold.body.data.currentState).toBe('SOLD');
+      const events = await db.traceEvent.findMany({
+        where: {
+          lotId: lot.id,
+          eventType: {
+            in: [
+              'SHIPMENT_STARTED',
+              'SHIPMENT_ARRIVED',
+              'SHIPMENT_RECEIVED',
+              'LOT_FOR_SALE',
+              'LOT_SOLD',
+            ],
+          },
+        },
+      });
+      expect(
+        events.find((e) => e.eventType === 'SHIPMENT_STARTED')?.actorRole,
+      ).toBe('TRANSPORTER');
+      expect(
+        events.find((e) => e.eventType === 'SHIPMENT_RECEIVED')?.actorRole,
+      ).toBe('RETAILER');
+      expect(events.every((e) => privateTraceEvidenceMatches(e))).toBe(true);
+      for (const event of events)
+        expect(
+          await db.eventChainContext.count({
+            where: { eventId: event.id, chainId },
+          }),
+        ).toBe(1);
+    });
   });
 });
