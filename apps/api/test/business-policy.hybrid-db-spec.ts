@@ -1796,6 +1796,10 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
         .set('Authorization', `Bearer ${token}`)
         .set('Idempotency-Key', key)
         .send(body);
+    const get = (url: string, token: string) =>
+      request(app.getHttpServer())
+        .get(`/api${url}`)
+        .set('Authorization', `Bearer ${token}`);
 
     it('exports the actual plan command, consent and projection schemas in NestJS Swagger', () => {
       const document = createOpenApiDocument(app);
@@ -2000,12 +2004,21 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
               'SHIPMENT_STARTED',
               'SHIPMENT_ARRIVED',
               'SHIPMENT_RECEIVED',
-              'LOT_FOR_SALE',
+              'MARKED_FOR_SALE',
               'LOT_SOLD',
             ],
           },
         },
       });
+      expect(events.map((event) => event.eventType).sort()).toEqual(
+        [
+          'SHIPMENT_STARTED',
+          'SHIPMENT_ARRIVED',
+          'SHIPMENT_RECEIVED',
+          'MARKED_FOR_SALE',
+          'LOT_SOLD',
+        ].sort(),
+      );
       expect(
         events.find((e) => e.eventType === 'SHIPMENT_STARTED')?.actorRole,
       ).toBe('TRANSPORTER');
@@ -2019,6 +2032,218 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
             where: { eventId: event.id, chainId },
           }),
         ).toBe(1);
+    });
+
+    it('filters direct IDs, proof, compliance, IoT and nested cycles across chains sharing one Farm/org', async () => {
+      const hidden = await db.$transaction(
+        async (tx) => {
+          const cycle = await tx.productionCycle.create({
+            data: {
+              farmId,
+              productId,
+              farmOrgId: producer.organizationId!,
+              chainId: otherChainId,
+              cycleCode: randomUUID(),
+            },
+          });
+          await tx.stageAssignment.create({
+            data: {
+              chainId: otherChainId,
+              organizationId: producer.organizationId!,
+              stage: 'PRODUCTION',
+              cycleId: cycle.id,
+              status: 'ACCEPTED',
+            },
+          });
+          const harvest = await tx.harvestEvent.create({
+            data: {
+              cycleId: cycle.id,
+              harvestTime: new Date(),
+              quantity: '5',
+              unit: 'kg',
+            },
+          });
+          const lot = await tx.lot.create({
+            data: {
+              lotCode: randomUUID(),
+              harvestId: harvest.id,
+              productId,
+              farmOrgId: producer.organizationId!,
+              initialQuantity: '5',
+              availableQuantity: '5',
+              unit: 'kg',
+            },
+          });
+          const event = await trace.createInTransaction(tx, {
+            entityType: 'HARVEST',
+            entityId: harvest.id,
+            cycleId: cycle.id,
+            lotId: lot.id,
+            eventType: 'HARVEST_RECORDED',
+            actor: producer,
+            businessData: { quantity: '5', unit: 'kg' },
+          });
+          const device = await tx.iotDevice.create({
+            data: {
+              organizationId: producer.organizationId!,
+              cycleId: cycle.id,
+              deviceCode: randomUUID(),
+              name: 'Hidden scope device',
+              type: 'temperature',
+            },
+          });
+          await tx.certificate.create({
+            data: {
+              cycleId: cycle.id,
+              type: 'Quality',
+              issuer: 'Fixture',
+              issueDate: new Date(),
+              documentRef: 'fixture://certificate',
+              documentHash: 'e'.repeat(64),
+              createdByUserId: producer.sub,
+            },
+          });
+          return { cycle, lot, event, device };
+        },
+        { timeout: 20000 },
+      );
+      await get(`/production-cycles/${hidden.cycle.id}`, producerToken).expect(
+        404,
+      );
+      await get(`/lots/${hidden.lot.id}`, producerToken).expect(404);
+      await get(`/trace/lots/${hidden.lot.id}`, producerToken).expect(404);
+      await get(`/trace/events/${hidden.event.id}/proof`, producerToken).expect(
+        404,
+      );
+      expect(
+        (
+          await get(
+            `/certificates?cycleId=${hidden.cycle.id}`,
+            producerToken,
+          ).expect(200)
+        ).body.data,
+      ).toEqual([]);
+      expect(
+        (await get('/iot/devices', producerToken).expect(200)).body.data.some(
+          (row: { id: string }) => row.id === hidden.device.id,
+        ),
+      ).toBe(false);
+      expect(
+        (
+          await get('/production-cycles', producerToken).expect(200)
+        ).body.data.some((row: { id: string }) => row.id === hidden.cycle.id),
+      ).toBe(false);
+    });
+
+    it('rejects producer organization self-review across users despite AUDITOR capability and assignment', async () => {
+      const user = await db.$transaction(
+        async (tx) => {
+          if (
+            !(await tx.organizationCapability.findUnique({
+              where: {
+                organizationId_code: {
+                  organizationId: producer.organizationId!,
+                  code: 'AUDITOR',
+                },
+              },
+            }))
+          )
+            await tx.organizationCapability.create({
+              data: {
+                organizationId: producer.organizationId!,
+                code: 'AUDITOR',
+              },
+            });
+          const template = await tx.user.findUniqueOrThrow({
+            where: { id: producer.sub! },
+          });
+          const user = await tx.user.create({
+            data: {
+              organizationId: producer.organizationId,
+              roleId: template.roleId,
+              email: `${randomUUID()}@example.test`,
+              fullName: 'Other producer reviewer',
+              passwordHash: 'unused-synthetic-hash',
+            },
+          });
+          await grant(tx, { ...producer, sub: user.id }, 'COMPLIANCE_REVIEWER');
+          await tx.complianceAssignment.create({
+            data: { reviewerUserId: user.id, farmId },
+          });
+          return user;
+        },
+        { timeout: 20000 },
+      );
+      const actor = await authenticated({ ...producer, sub: user.id });
+      const token = app.get(JwtService).sign({ sub: user.id, sid: actor.sid });
+      const count = await db.inspection.count();
+      await post('/inspections', token, {
+        lotId,
+        result: 'PASS',
+        inspectedAt: new Date().toISOString(),
+      }).expect(403);
+      expect(await db.inspection.count()).toBe(count);
+    });
+
+    it('creates production with a scoped FARM_STAFF grant while the authenticated global role remains TRANSPORTER', async () => {
+      const actor = await db.$transaction(
+        async (tx) => {
+          const role = await tx.role.upsert({
+            where: { code: 'TRANSPORTER' },
+            create: { code: 'TRANSPORTER', name: 'Transporter' },
+            update: {},
+          });
+          const user = await tx.user.create({
+            data: {
+              organizationId: producer.organizationId,
+              roleId: role.id,
+              email: `${randomUUID()}@example.test`,
+              fullName: 'Scoped production actor',
+              passwordHash: 'unused-synthetic-hash',
+            },
+          });
+          const actor = {
+            sub: user.id,
+            organizationId: producer.organizationId,
+            role: 'TRANSPORTER',
+          };
+          await grant(tx, actor, 'FARM_STAFF');
+          return actor;
+        },
+        { timeout: 20000 },
+      );
+      const session = await authenticated(actor);
+      const token = app
+        .get(JwtService)
+        .sign({ sub: actor.sub, sid: session.sid });
+      await get('/catalog', token).expect(200);
+      const created = await post('/production-cycles', token, {
+        chainId,
+        farmId,
+        productId,
+        cycleCode: randomUUID(),
+        maxHarvestQuantity: 5,
+        harvestUnit: 'kg',
+      }).expect(201);
+      const event = await db.traceEvent.findFirstOrThrow({
+        where: { cycleId: created.body.data.id },
+      });
+      expect(event.actorRole).toBe('FARM_STAFF');
+      expect(
+        (
+          await db.user.findUniqueOrThrow({
+            where: { id: actor.sub },
+            include: { role: true },
+          })
+        ).role.code,
+      ).toBe('TRANSPORTER');
+      expect(
+        (
+          await get(`/production-cycles/${created.body.data.id}`, token).expect(
+            200,
+          )
+        ).body.data.canWriteProduction,
+      ).toBe(true);
     });
   });
 });

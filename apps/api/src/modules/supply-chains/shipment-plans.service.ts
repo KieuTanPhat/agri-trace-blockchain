@@ -13,6 +13,7 @@ import {
   type DraftShipmentPlan,
 } from './shipment-plan.commands.js';
 import type { AcceptShipmentPlanDto } from './shipment-plan.dto.js';
+import { authorizeBusinessCommand } from './business-policy.js';
 
 const currentSelect = {
   revision: true,
@@ -107,6 +108,48 @@ export class ShipmentPlansService {
     private readonly prisma: PrismaService,
     private readonly trace: TraceService,
   ) {}
+  async planningLots(actor: CommandActor, chainId: string) {
+    await authorizeBusinessCommand(this.prisma, actor, {
+      chainId,
+      role: 'CHAIN_MANAGER',
+    });
+    const lots = await this.prisma.lot.findMany({
+      where: {
+        currentState: 'HARVESTED',
+        availableQuantity: { gt: 0 },
+        shipment: { is: null },
+        harvest: {
+          cycle: {
+            chainId,
+            assignments: { some: { stage: 'PRODUCTION', status: 'ACCEPTED' } },
+          },
+        },
+        organization: {
+          status: 'ACTIVE',
+          capabilities: { some: { code: 'FARM', revokedAt: null } },
+          chainMemberships: { some: { chainId, status: 'ACTIVE' } },
+        },
+      },
+      select: {
+        id: true,
+        lotCode: true,
+        availableQuantity: true,
+        unit: true,
+        farmOrgId: true,
+        product: { select: { productName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    return lots.map((lot) => ({
+      id: lot.id,
+      lotCode: lot.lotCode,
+      quantity: lot.availableQuantity.toFixed(3),
+      unit: lot.unit,
+      productName: lot.product.productName,
+      producerOrgId: lot.farmOrgId,
+    }));
+  }
   list(actor: CommandActor, chainId: string) {
     return this.prisma.shipmentPlan.findMany({
       where: shipmentPlanReadWhere(actor, chainId),

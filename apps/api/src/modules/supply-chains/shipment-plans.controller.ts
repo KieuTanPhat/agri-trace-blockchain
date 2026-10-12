@@ -23,6 +23,7 @@ import {
   ReviseShipmentPlanDto,
   ShipmentPlanRecordDto,
   ShipmentPlanVersionDto,
+  PlanningLotDto,
 } from './shipment-plan.dto.js';
 
 @ApiTags('shipment-plans')
@@ -61,6 +62,14 @@ export class ShipmentPlansController {
     @Param('chainId', ParseUUIDPipe) chainId: string,
   ) {
     return this.service.list(req.user, chainId);
+  }
+  @Get('planning-lots')
+  @ApiDataResponse(PlanningLotDto, 200, true)
+  planningLots(
+    @Req() req: AuthenticatedRequest,
+    @Param('chainId', ParseUUIDPipe) chainId: string,
+  ) {
+    return this.service.planningLots(req.user, chainId);
   }
   @Get(':planId')
   @ApiDataResponse(ShipmentPlanRecordDto)

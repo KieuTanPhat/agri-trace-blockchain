@@ -133,3 +133,12 @@ export class PlanFinalizeResultDto {
   @ApiProperty({ type: String, format: 'uuid' }) shipmentId!: string;
   @ApiProperty({ type: String, format: 'uuid' }) eventId!: string;
 }
+
+export class PlanningLotDto {
+  @ApiProperty({ type: String, format: 'uuid' }) id!: string;
+  @ApiProperty({ type: String }) lotCode!: string;
+  @ApiProperty({ type: String }) quantity!: string;
+  @ApiProperty({ type: String }) unit!: string;
+  @ApiProperty({ type: String }) productName!: string;
+  @ApiProperty({ type: String, format: 'uuid' }) producerOrgId!: string;
+}

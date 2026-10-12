@@ -169,3 +169,18 @@ dev chưa được bật, migrations chính thức/Web/backfill/rehearsal và sc
 reconciliation còn thiếu. Không tính code compile là nghiệm thu HTTP/security.
 Hai unit fixtures cũ thiếu Harvest/Cycle đã được sửa; 105 unit, lint/typecheck
 đạt. Bộ HTTP/DB mở rộng đang được kiểm trước promotion.
+
+Candidate `187ef0e` đã qua 47 PostgreSQL tests, gồm năm scenario HTTP với Nest
+thật: Swagger, plan create/consent/finalize/projection, chặn direct Shipment và
+partner production write, Cycle scope/assignment/trace/outbox/replay, flow
+start/arrive/receive/sale dùng actor role từ grant. 30 SQL assertions, ORM và
+105 unit cũng đạt; tài nguyên DB test đã dọn. Evidence:
+`/opt/agri-trace-admin/hybrid-scope-draft/fce7466263ece890-1791773228820916964`.
+Đây là representative HTTP evidence, không phải toàn bộ HYB-AC-01–08/17/18/22/24.
+
+Web candidate thêm kế hoạch, xác nhận đúng party/revision/digest, cùng org ba
+vai trò vẫn xác nhận riêng, chọn chain khi tạo Cycle và quyền ghi từ server.
+Planning-lots là projection của manager, không mở raw partner records. Toàn bộ
+151 Web tests đã qua trước bài so lượng thập phân bổ sung; hai lần lỗi test
+mới do thiếu DOM cleanup đã sửa và chạy lại đạt. Chưa nghiệm thu browser/mobile,
+backfill/rehearsal hoặc triển khai candidate này lên dev. Gate 24h còn thiếu.

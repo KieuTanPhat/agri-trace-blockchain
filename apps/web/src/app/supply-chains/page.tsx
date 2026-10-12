@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 import { request, getOrganizations } from "@/lib/api-client";
 import { DataForm } from "@/components/data-form";
+import { ShipmentPlansPanel } from "@/components/shipment-plans-panel";
 import type { components } from "@/lib/generated/api";
 import type { Organization } from "@/lib/types";
 
@@ -423,6 +424,21 @@ function ChainWorkspace({
             </div>
           )}
         </section>
+      )}
+      {selected && context?.businessChains?.includes(selected) && (
+        <ShipmentPlansPanel
+          key={`${selected}:${revision}`}
+          chainId={selected}
+          organizationId={organizationId}
+          manager={Boolean(manager)}
+          orgAdmin={orgAdmin}
+          organizations={members
+            .filter((member) => member.status === "ACTIVE")
+            .map((member) => ({
+              value: member.organizationId,
+              label: name(member.organizationId),
+            }))}
+        />
       )}
     </div>
   );

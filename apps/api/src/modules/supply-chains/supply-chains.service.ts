@@ -74,7 +74,51 @@ export class SupplyChainsService {
     const capabilities = await this.prisma.organizationCapability.findMany({
       where: { organizationId, revokedAt: null },
     });
-    return { grants, memberships, capabilities };
+    const businessScopeActivated = Boolean(
+      await this.prisma.organizationBusinessScope.findUnique({
+        where: { organizationId },
+      }),
+    );
+    const productionChains =
+      actor.role === 'SYSTEM_ADMIN' ||
+      !capabilities.some((c) => c.code === 'FARM')
+        ? []
+        : await this.prisma.supplyChain.findMany({
+            where: {
+              businessProfile: { is: { state: 'ACTIVE', scopeVersion: 1 } },
+              memberships: { some: { organizationId, status: 'ACTIVE' } },
+              grants: {
+                some: {
+                  userId: actor.sub!,
+                  organizationId,
+                  scope: 'CHAIN',
+                  role: 'FARM_STAFF',
+                  revokedAt: null,
+                },
+              },
+            },
+            orderBy: { name: 'asc' },
+            take: 200,
+          });
+    const businessChains = await this.prisma.chainBusinessProfile.findMany({
+      where: {
+        state: 'ACTIVE',
+        chainId: {
+          in: memberships
+            .filter((m) => m.status === 'ACTIVE')
+            .map((m) => m.chainId),
+        },
+      },
+      select: { chainId: true },
+    });
+    return {
+      grants,
+      memberships,
+      capabilities,
+      businessScopeActivated,
+      productionChains,
+      businessChains: businessChains.map((p) => p.chainId),
+    };
   }
 
   async list(actor: CommandActor) {

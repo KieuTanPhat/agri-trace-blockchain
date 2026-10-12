@@ -123,6 +123,15 @@ export class ChainContextDto {
   @ApiProperty({ type: [MemberRecordDto] }) memberships!: MemberRecordDto[];
   @ApiProperty({ type: [CapabilityRecordDto] })
   capabilities!: CapabilityRecordDto[];
+  @ApiProperty({ type: Boolean, required: false })
+  businessScopeActivated?: boolean;
+  @ApiProperty({ type: [String], required: false }) businessChains?: string[];
+  @ApiProperty({
+    type: [ChainRecordDto],
+    required: false,
+    description: 'Chuỗi ACTIVE được cấp quyền sản xuất và capability hiện hành',
+  })
+  productionChains?: ChainRecordDto[];
 }
 
 export class ScopedUserDto {

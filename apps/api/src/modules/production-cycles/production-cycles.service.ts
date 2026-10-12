@@ -21,6 +21,7 @@ import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import { assignedFarmWhere } from '../auth/compliance-scope.js';
+import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
 import {
   legacyOrScopedCycle,
   scopedLotReadWhere,
@@ -50,8 +51,8 @@ export class ProductionCyclesService {
     private readonly trace: TraceService,
   ) {}
 
-  list(actor: Actor) {
-    return this.prisma.productionCycle.findMany({
+  async list(actor: Actor) {
+    const cycles = await this.prisma.productionCycle.findMany({
       where: this.visibleWhere(actor),
       include: {
         product: { select: { id: true, productName: true, defaultUnit: true } },
@@ -60,6 +61,12 @@ export class ProductionCyclesService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    return Promise.all(
+      cycles.map(async (cycle) => ({
+        ...cycle,
+        canWriteProduction: await this.canWriteCycle(actor, cycle),
+      })),
+    );
   }
 
   async get(id: string, actor: Actor) {
@@ -109,7 +116,35 @@ export class ProductionCyclesService {
       },
     });
     if (!cycle) throw new NotFoundException('Không tìm thấy vụ sản xuất');
-    return cycle;
+    return {
+      ...cycle,
+      canWriteProduction: await this.canWriteCycle(actor, cycle),
+    };
+  }
+
+  private async canWriteCycle(
+    actor: Actor,
+    cycle: { id: string; chainId: string | null; farmOrgId: string },
+  ) {
+    if (!cycle.chainId)
+      return (
+        actor.role === 'FARM_STAFF' && actor.organizationId === cycle.farmOrgId
+      );
+    try {
+      await authorizeBusinessCommand(this.prisma, actor, {
+        chainId: cycle.chainId,
+        role: 'FARM_STAFF',
+        subject: { kind: 'cycle', id: cycle.id },
+      });
+      return true;
+    } catch (error) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      )
+        return false;
+      throw error;
+    }
   }
 
   private visibleWhere(actor: Actor): Prisma.ProductionCycleWhereInput {
