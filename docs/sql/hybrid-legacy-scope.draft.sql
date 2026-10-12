@@ -132,7 +132,9 @@ BEGIN
       SELECT 1 FROM legacy_scope_mapping m JOIN chain_business_profile b USING(chain_id)
       WHERE m.cycle_id=NEW.cycle_id AND m.chain_id=NEW.chain_id AND b.state='PREPARING') THEN RETURN NEW; END IF;
   IF TG_OP='UPDATE' AND NEW.chain_id IS DISTINCT FROM OLD.chain_id THEN RAISE EXCEPTION 'Cycle scope immutable; legacy mapping requires reviewed cutover'; END IF;
-  IF NEW.chain_id IS NULL AND EXISTS(SELECT 1 FROM organization_business_scope WHERE organization_id=NEW.farm_org_id) THEN
+  IF NEW.chain_id IS NULL AND (EXISTS(SELECT 1 FROM organization_business_scope WHERE organization_id=NEW.farm_org_id)
+    OR EXISTS(SELECT 1 FROM harvest_event h JOIN lot l USING(harvest_id) JOIN shipment s USING(lot_id)
+      JOIN organization_business_scope o ON o.organization_id IN(s.transporter_org_id,s.retailer_org_id) WHERE h.cycle_id=NEW.cycle_id)) THEN
     IF TG_OP='INSERT' THEN RAISE EXCEPTION 'Chain scope required after cutover'; END IF;
     RAISE EXCEPTION 'Unresolved legacy cycle blocks writes after cutover'; END IF;
   IF NEW.chain_id IS NOT NULL THEN PERFORM fn_hybrid_participant(NEW.chain_id,NEW.farm_org_id,'FARM'); END IF;

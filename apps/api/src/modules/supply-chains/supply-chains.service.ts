@@ -16,6 +16,10 @@ import {
 } from './chain-policy.js';
 import type { ChangeMemberDto, GrantRoleDto } from './dto.js';
 import { legacyScopePins } from './legacy-scope-pins.js';
+import {
+  authorizeLegacyScopeCommand,
+  legacyReviewKeys,
+} from './legacy-scope.commands.js';
 
 @Injectable()
 export class SupplyChainsService {
@@ -140,6 +144,45 @@ export class SupplyChainsService {
       throw new ConflictException(
         'Permission context cần phân trang trước khi mở rộng',
       );
+    const legacyPendingManifests: Array<{ manifestId: string }> = [];
+    if (actor.role !== 'SYSTEM_ADMIN')
+      for (const pin of legacyScopePins()) {
+        const keys = [
+          ...new Map(
+            pin.plan.proposals
+              .filter(
+                (p) =>
+                  p.organizationId === organizationId &&
+                  memberships.some(
+                    (m) => m.chainId === p.chainId && m.status === 'ACTIVE',
+                  ),
+              )
+              .map((p) => [`${p.chainId}:${p.stage}`, p.key]),
+          ).values(),
+          ...(pin.manifest.reviewerId === actor.sub
+            ? Object.keys(legacyReviewKeys(pin))
+            : []),
+        ];
+        for (const proposalKey of keys) {
+          try {
+            await authorizeLegacyScopeCommand(this.prisma, {
+              actor,
+              requesterId: actor.sub!,
+              operation: 'SCOPE_CONFIRM_LEGACY_ASSIGNMENT',
+              payload: { manifestId: pin.manifest.id, proposalKey },
+            });
+            legacyPendingManifests.push({ manifestId: pin.manifest.id });
+            break;
+          } catch (error) {
+            if (!(
+              error instanceof ForbiddenException ||
+              error instanceof NotFoundException
+            ))
+              throw error;
+            if (error instanceof NotFoundException) break;
+          }
+        }
+      }
     // UI invalidation only. Never use this complete role set as command/replay
     // authority: business fingerprints bind only the command's actual grant.
     const accessRevision = canonicalSha256({
@@ -156,6 +199,7 @@ export class SupplyChainsService {
         .sort(),
       assignments,
       reviewAssignments,
+      legacyPendingManifests,
       legacyPins: legacyScopePins()
         .filter((pin) =>
           pin.manifest.entries.some((entry) =>
@@ -173,6 +217,7 @@ export class SupplyChainsService {
       businessScopeActivated,
       productionChains,
       businessChains: businessChains.map((p) => p.chainId),
+      legacyPendingManifests,
     };
   }
 

@@ -56,6 +56,8 @@ class LegacyProposalDto {
   @ApiProperty({ type: String, format: 'uuid' }) chainId!: string;
   @ApiProperty({ type: String }) chainName!: string;
   @ApiProperty({ type: String }) subjectLabel!: string;
+  @ApiProperty({ enum: ['PENDING', 'CONFIRMED', 'REVIEW_REQUIRED'] })
+  confirmationStatus!: string;
   @ApiProperty({ enum: ['PRODUCTION', 'TRANSPORT', 'RETAIL', 'REVIEW'] })
   stage!: string;
   @ApiProperty({ type: String }) manifestDigest!: string;
@@ -174,6 +176,12 @@ export class LegacyScopeController {
           ...p,
           chainName: chain.name,
           subjectLabel,
+          confirmationStatus:
+            (
+              await this.db.$queryRaw<Array<{ status: string }>>`
+            SELECT CASE WHEN fn_hybrid_legacy_consent_current(c) THEN 'CONFIRMED' ELSE 'REVIEW_REQUIRED' END AS status
+            FROM legacy_scope_consent c WHERE manifest_id=${manifestId}::uuid AND proposal_key=${p.key}`
+            )[0]?.status ?? 'PENDING',
           manifestDigest: pin.digest,
           planDigest: pin.plan.digest,
         });

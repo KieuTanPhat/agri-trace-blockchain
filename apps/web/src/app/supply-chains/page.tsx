@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 import { request, getOrganizations } from "@/lib/api-client";
@@ -163,6 +164,18 @@ function ChainWorkspace({
         </p>
       )}
       {loading && <p role="status">Đang tải chuỗi được cấp quyền…</p>}
+      {context?.legacyPendingManifests?.length ? (
+        <section className="panel">
+          <h2>Dữ liệu cần xác nhận chuyển sang chuỗi</h2>
+          {context.legacyPendingManifests.map((item, index) => (
+            <p key={item.manifestId}>
+              <Link href={`/supply-chains/legacy/${item.manifestId}`}>
+                Mở bản xác nhận {index + 1}
+              </Link>
+            </p>
+          ))}
+        </section>
+      ) : null}
       {canCreate && (
         <DataForm
           title="Tạo chuỗi cung ứng"

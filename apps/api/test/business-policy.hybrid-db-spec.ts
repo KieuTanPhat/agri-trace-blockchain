@@ -15,7 +15,7 @@ import { GlobalExceptionFilter } from '../src/common/exception/global-exception.
 import { createOpenApiDocument } from '../src/common/api/openapi.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomUUID } from 'node:crypto';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, unlinkSync, rmdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -1751,7 +1751,14 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       const target = await tx.supplyChain.create({
         data: {
           name: 'Partner different chain',
-          ownerOrganizationId: parties[1].org,
+          ownerOrganizationId: producer.organizationId!,
+        },
+      });
+      await tx.chainMembership.create({
+        data: {
+          chainId: target.id,
+          organizationId: producer.organizationId!,
+          status: 'ACTIVE',
         },
       });
       const membership = await tx.chainMembership.create({
@@ -1835,6 +1842,23 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       await tx.$executeRawUnsafe('RELEASE SAVEPOINT partner_legacy_rejection');
       expect(rejected).toBe(true);
       expect(await tx.shipment.count({ where: { lotId: lots[1].id } })).toBe(0);
+      await tx.$executeRawUnsafe('SAVEPOINT unresolved_cycle_rejection');
+      let cycleRejected = false;
+      try {
+        await tx.productionCycle.update({
+          where: { id: cycle.id },
+          data: { note: 'Legacy write bypass' },
+        });
+      } catch {
+        cycleRejected = true;
+        await tx.$executeRawUnsafe(
+          'ROLLBACK TO SAVEPOINT unresolved_cycle_rejection',
+        );
+      }
+      await tx.$executeRawUnsafe(
+        'RELEASE SAVEPOINT unresolved_cycle_rejection',
+      );
+      expect(cycleRejected).toBe(true);
     }));
 
   it('replays draft creation without duplicates and commits its result journal with the plan', async () => {
@@ -2343,7 +2367,8 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
         else process.env.HYBRID_LEGACY_MANIFEST_PINS_FILE = previous;
         if (gate === undefined) delete process.env.HYBRID_LEGACY_APPLY_ENABLED;
         else process.env.HYBRID_LEGACY_APPLY_ENABLED = gate;
-        rmSync(directory, { recursive: true });
+        unlinkSync(file);
+        rmdirSync(directory);
       }
     }
     async function consent(

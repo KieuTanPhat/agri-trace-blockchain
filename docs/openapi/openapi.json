@@ -971,6 +971,12 @@
             },
             "type": "array"
           },
+          "legacyPendingManifests": {
+            "items": {
+              "$ref": "#/components/schemas/LegacyPendingManifestDto"
+            },
+            "type": "array"
+          },
           "memberships": {
             "items": {
               "$ref": "#/components/schemas/MemberRecordDto"
@@ -3440,6 +3446,18 @@
         ],
         "type": "object"
       },
+      "LegacyPendingManifestDto": {
+        "properties": {
+          "manifestId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "manifestId"
+        ],
+        "type": "object"
+      },
       "LegacyProposalDto": {
         "properties": {
           "chainId": {
@@ -3447,6 +3465,14 @@
             "type": "string"
           },
           "chainName": {
+            "type": "string"
+          },
+          "confirmationStatus": {
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "REVIEW_REQUIRED"
+            ],
             "type": "string"
           },
           "key": {
@@ -3480,6 +3506,7 @@
           "chainId",
           "chainName",
           "subjectLabel",
+          "confirmationStatus",
           "stage",
           "manifestDigest",
           "planDigest",

@@ -118,6 +118,9 @@ export class CapabilityRecordDto {
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })
   revokedAt!: string | null;
 }
+export class LegacyPendingManifestDto {
+  @ApiProperty({ type: String, format: 'uuid' }) manifestId!: string;
+}
 export class ChainContextDto {
   @ApiProperty({
     type: String,
@@ -138,6 +141,8 @@ export class ChainContextDto {
     description: 'Chuỗi ACTIVE được cấp quyền sản xuất và capability hiện hành',
   })
   productionChains?: ChainRecordDto[];
+  @ApiProperty({ type: [LegacyPendingManifestDto], required: false })
+  legacyPendingManifests?: LegacyPendingManifestDto[];
 }
 
 export class ScopedUserDto {

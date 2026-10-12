@@ -65,7 +65,12 @@ export function LegacyScopePanel({ manifestId }: { manifestId: string }) {
         <p>Chưa có công đoạn cần xác nhận trong phạm vi hiện hành.</p>
       )}
       {proposals.map((p) => (
-        <div className="panel" key={`${manifestId}:${p.key}`} hidden={loading || Boolean(error)} style={loading || error ? { display: "none" } : undefined}>
+        <div
+          className="panel"
+          key={`${manifestId}:${p.key}`}
+          hidden={loading || Boolean(error)}
+          style={loading || error ? { display: "none" } : undefined}
+        >
           <h2>{p.chainName}</h2>
           <p>
             {p.subjectLabel} · {labels[p.stage]}
@@ -74,7 +79,13 @@ export function LegacyScopePanel({ manifestId }: { manifestId: string }) {
             <summary>Mã bản xác nhận</summary>
             <p style={{ overflowWrap: "anywhere" }}>{p.planDigest}</p>
           </details>
-          {confirmed.includes(`${manifestId}:${p.key}`) ? (
+          {p.confirmationStatus === "REVIEW_REQUIRED" ? (
+            <p role="alert">
+              Xác nhận trước không còn hiệu lực. Cần chủ chuỗi chuẩn bị bản xác
+              nhận mới.
+            </p>
+          ) : p.confirmationStatus === "CONFIRMED" ||
+            confirmed.includes(`${manifestId}:${p.key}`) ? (
             <p role="status">Đã ghi nhận xác nhận công đoạn.</p>
           ) : (
             <DataForm

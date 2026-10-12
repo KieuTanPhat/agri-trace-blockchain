@@ -20,11 +20,34 @@ const proposal = (stage: string, key = stage) => ({
   subjectId: "subject",
   manifestDigest: "a".repeat(64),
   planDigest: "b".repeat(64),
+  confirmationStatus: "PENDING",
 });
 beforeEach(() => vi.clearAllMocks());
 afterEach(cleanup);
 
 describe("Legacy participant confirmation", () => {
+  it("shows a recorded confirmation without offering another submission", async () => {
+    api.request.mockResolvedValue([
+      { ...proposal("PRODUCTION"), confirmationStatus: "CONFIRMED" },
+    ]);
+    render(<LegacyScopePanel manifestId="one" />);
+    await screen.findByText("Đã ghi nhận xác nhận công đoạn.");
+    expect(
+      screen.queryByRole("button", { name: "Xác nhận vai trò sản xuất" }),
+    ).not.toBeInTheDocument();
+  });
+  it("requires a new owner review when a previous confirmation loses authority", async () => {
+    api.request.mockResolvedValue([
+      { ...proposal("TRANSPORT"), confirmationStatus: "REVIEW_REQUIRED" },
+    ]);
+    render(<LegacyScopePanel manifestId="one" />);
+    await screen.findByText(
+      "Xác nhận trước không còn hiệu lực. Cần chủ chuỗi chuẩn bị bản xác nhận mới.",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Xác nhận vai trò vận chuyển" }),
+    ).not.toBeInTheDocument();
+  });
   it("requires a distinct confirmation for each stage in the same enterprise", async () => {
     api.request.mockImplementation((_path: string, options?: RequestInit) =>
       Promise.resolve(
@@ -68,7 +91,9 @@ describe("Legacy participant confirmation", () => {
       }),
     );
     await screen.findByRole("alert");
-    fireEvent.click(screen.getByRole("button", { name: "Tải lại phạm vi xác nhận" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Tải lại phạm vi xác nhận" }),
+    );
     await screen.findByRole("button", { name: "Xác nhận vai trò vận chuyển" });
     fireEvent.click(
       screen.getByRole("button", { name: "Xác nhận vai trò vận chuyển" }),

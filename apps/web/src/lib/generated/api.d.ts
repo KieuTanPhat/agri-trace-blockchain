@@ -1588,6 +1588,7 @@ export interface components {
             businessScopeActivated?: boolean;
             capabilities: components["schemas"]["CapabilityRecordDto"][];
             grants: components["schemas"]["GrantRecordDto"][];
+            legacyPendingManifests?: components["schemas"]["LegacyPendingManifestDto"][];
             memberships: components["schemas"]["MemberRecordDto"][];
             /** @description Chuỗi ACTIVE được cấp quyền sản xuất và capability hiện hành */
             productionChains?: components["schemas"]["ChainRecordDto"][];
@@ -2299,10 +2300,16 @@ export interface components {
             manifestId: string;
             proposalKey: string;
         };
+        LegacyPendingManifestDto: {
+            /** Format: uuid */
+            manifestId: string;
+        };
         LegacyProposalDto: {
             /** Format: uuid */
             chainId: string;
             chainName: string;
+            /** @enum {string} */
+            confirmationStatus: "PENDING" | "CONFIRMED" | "REVIEW_REQUIRED";
             key: string;
             manifestDigest: string;
             planDigest: string;
