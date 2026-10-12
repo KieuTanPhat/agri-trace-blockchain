@@ -54,6 +54,16 @@ hiển thị consent đã ghi nhận và consent cần review lại. Đổi auth
 bỏ response cũ. Manual refresh giữ identity của request đang chưa rõ kết quả.
 Reconciliation qua reload/tab cho mọi command còn là gate riêng cần tiếp tục.
 
+API candidate có `POST /api/command-requests/status`: header Idempotency-Key
+là key gốc, body gồm operation và payload gốc đã chuẩn hóa. Endpoint kiểm JWT,
+record lock rồi current scope/grant/session dưới cùng transaction. Trả
+NOT_FOUND/PROCESSING/COMMITTED/REJECTED/RECONCILIATION_REQUIRED; không execute
+command, renew expiry hoặc tạo key mới. Positive journal thắng response cache;
+expired PROCESSING thiếu journal vẫn cần đối soát. Legacy positive journal khác
+scope còn phải qua versioned bridge và độc lập pin. Consent đã commit có thể
+reconcile sau activation chỉ với key/payload gốc và grant hiện hành; fresh hoặc
+regranted consent không dùng đường này.
+
 ## Cách kiểm trong DB riêng
 
 1. Dùng DB PostgreSQL test mới; apply 15 migration hiện có, rồi

@@ -12,10 +12,25 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   authorizeCommand,
+  type AuthorizedCommand,
   type CommandActor,
 } from './command-authorization.js';
 import { commandContext, commandResponseJson } from './command-transaction.js';
-import { ensureLegacyCommandBridge } from './legacy-command-bridge.js';
+import {
+  ensureLegacyCommandBridge,
+  ensureLegacyCommandBridgeInTransaction,
+} from './legacy-command-bridge.js';
+
+export interface CommandRequestInspection {
+  status:
+    | 'NOT_FOUND'
+    | 'PROCESSING'
+    | 'COMMITTED'
+    | 'REJECTED'
+    | 'RECONCILIATION_REQUIRED';
+  responseStatus?: number;
+  result?: Prisma.JsonValue | null;
+}
 
 export interface StartIdempotencyInput {
   idempotencyKey: string;
@@ -43,6 +58,93 @@ export type IdempotencyStartResult =
 @Injectable()
 export class IdempotencyService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+
+  /** Reconciliation never executes a domain command or renews its key/expiry.
+   * Lock the record before scope locks, exactly like commandTransaction. A
+   * writer may still be committing; re-read after that lock before disclosure. */
+  async inspectCommand(
+    input: AuthorizedCommand & { idempotencyKey: string },
+  ): Promise<CommandRequestInspection> {
+    const key = input.idempotencyKey.trim();
+    if (!key || key.length > 255)
+      throw new ConflictException('Thiếu Idempotency-Key hợp lệ');
+    return this.prisma.$transaction(
+      async (tx) => {
+        const found = await tx.idempotencyRecord.findUnique({
+          where: {
+            requesterId_operation_idempotencyKey: {
+              requesterId: input.requesterId,
+              operation: input.operation,
+              idempotencyKey: key,
+            },
+          },
+        });
+        if (found)
+          await tx.$queryRaw`SELECT idempotency_record_id FROM idempotency_record WHERE idempotency_record_id=${found.id}::uuid FOR UPDATE`;
+        const scope = await authorizeCommand(tx, input, true);
+        if (!found) return { status: 'NOT_FOUND' };
+        const record = await tx.idempotencyRecord.findUniqueOrThrow({
+          where: { id: found.id },
+          include: { commandCommit: true },
+        });
+        const requestHash = this.createRequestHash(input.payload);
+        if (record.requestHash !== requestHash)
+          throw new ConflictException(
+            'Idempotency-Key đã được dùng cho payload khác',
+          );
+        if (record.authorizationScope !== scope) {
+          if (!record.commandCommit)
+            return { status: 'RECONCILIATION_REQUIRED' };
+          const journal = await ensureLegacyCommandBridgeInTransaction(
+            tx,
+            {
+              ...input,
+              idempotencyKey: key,
+              authorizationScope: scope,
+              requestHash,
+            },
+            record.id,
+          );
+          return {
+            status: 'COMMITTED',
+            responseStatus: journal.responseStatus,
+            result: journal.responseBody,
+          };
+        }
+        const journal = record.commandCommit;
+        if (journal) {
+          if (
+            journal.requesterId !== input.requesterId ||
+            journal.operation !== input.operation ||
+            journal.authorizationScope !== scope
+          )
+            throw new ConflictException('Journal không khớp phạm vi command');
+          return {
+            status: 'COMMITTED',
+            responseStatus: journal.responseStatus,
+            result: journal.responseBody,
+          };
+        }
+        if (
+          record.status === 'FAILED' &&
+          record.responseStatus !== null &&
+          record.responseStatus >= 400
+        )
+          return {
+            status: 'REJECTED',
+            responseStatus: record.responseStatus,
+            result: record.responseBody,
+          };
+        if (
+          record.status === 'COMPLETED' ||
+          (record.expiresAt && record.expiresAt <= new Date())
+        )
+          return { status: 'RECONCILIATION_REQUIRED' };
+        return { status: 'PROCESSING' };
+      },
+      { maxWait: 5000, timeout: 20000 },
+    );
+  }
 
   /** HTTP business commands must enter here, including device commands. */
   async executeCommand<T>(
@@ -224,10 +326,20 @@ export class IdempotencyService {
       record.authorizationScope !== input.authorizationScope
     ) {
       if (input.actor) {
-        const journal = await ensureLegacyCommandBridge(this.prisma, {
-          ...input, actor: input.actor, authorizationScope: input.authorizationScope,
-        }, record.id);
-        return { type: 'REPLAY', status: journal.responseStatus, body: journal.responseBody };
+        const journal = await ensureLegacyCommandBridge(
+          this.prisma,
+          {
+            ...input,
+            actor: input.actor,
+            authorizationScope: input.authorizationScope,
+          },
+          record.id,
+        );
+        return {
+          type: 'REPLAY',
+          status: journal.responseStatus,
+          body: journal.responseBody,
+        };
       }
       throw new ConflictException(
         'Idempotency-Key thuộc phạm vi khác hoặc bản ghi legacy cần đối soát',

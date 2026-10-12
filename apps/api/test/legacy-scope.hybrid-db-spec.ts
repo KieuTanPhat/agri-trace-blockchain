@@ -15,7 +15,11 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { ApiResponseInterceptor } from '../src/common/api/api-response.interceptor.js';
 import { GlobalExceptionFilter } from '../src/common/exception/global-exception.filter.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
-import type { CommandActor } from '../src/common/idempotency/command-authorization.js';
+import {
+  authorizeCommand,
+  type CommandActor,
+} from '../src/common/idempotency/command-authorization.js';
+import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
 import { OrganizationAccessService } from '../src/modules/auth/organization-access.service.js';
 import { TraceService } from '../src/modules/trace/trace.service.js';
 import {
@@ -267,6 +271,17 @@ describe('Legacy apply through real JWT HTTP and concurrent transactions', () =>
       .set('Authorization', `Bearer ${tokens.get(actor.sub!)}`)
       .set('Idempotency-Key', key)
       .send(body);
+  const inspect = (
+    actor: CommandActor,
+    operation: string,
+    key: string,
+    payload: object,
+  ) =>
+    request(app.getHttpServer())
+      .post('/api/command-requests/status')
+      .set('Authorization', `Bearer ${tokens.get(actor.sub!)}`)
+      .set('Idempotency-Key', key)
+      .send({ operation, payload });
   beforeAll(async () => {
     f = await db.$transaction((tx) => legacyHistoryFixture(tx, trace), {
       timeout: 20000,
@@ -367,7 +382,7 @@ describe('Legacy apply through real JWT HTTP and concurrent transactions', () =>
         ),
       ).toBe(true);
       const context = await request(app.getHttpServer())
-        .get('/api/supply-chains/context')
+        .get('/api/chain-permissions')
         .set('Authorization', `Bearer ${tokens.get(actor.sub!)}`)
         .expect(200);
       expect(context.body.data.legacyPendingManifests).toEqual([
@@ -481,6 +496,120 @@ describe('Legacy apply through real JWT HTTP and concurrent transactions', () =>
     expect(await snapshot(db, f)).toEqual(before);
   });
 
+  it('inspects the immutable commit after a lost response and keeps an expired unknown request unresolved without changing its record', async () => {
+    const record = await db.idempotencyRecord.findFirstOrThrow({
+      where: {
+        requesterId: f.operator.sub!,
+        operation: 'SCOPE_APPLY_LEGACY_ROOT',
+        commandCommit: { isNot: null },
+      },
+      include: { commandCommit: true },
+    });
+    const payload = { manifestId: f.pin.manifest.id, cycleId: f.cycles[0].id };
+    const committed = await inspect(
+      f.operator,
+      record.operation,
+      record.idempotencyKey,
+      payload,
+    ).expect(200);
+    expect(committed.body.data).toEqual({
+      status: 'COMMITTED',
+      responseStatus: 201,
+      result: record.commandCommit!.responseBody,
+    });
+    const input = {
+      actor: { ...f.operator, sid: sessions.get(f.operator.sub!) },
+      requesterId: f.operator.sub!,
+      operation: record.operation,
+      idempotencyKey: randomUUID(),
+      payload: { ...payload, cycleId: f.cycles[1].id },
+    };
+    const scope = await authorizeCommand(db, input);
+    const unknown = await db.idempotencyRecord.create({
+      data: {
+        requesterId: input.requesterId,
+        operation: input.operation,
+        idempotencyKey: input.idempotencyKey,
+        requestType: 'COMMAND',
+        requestHash: canonicalSha256(input.payload),
+        authorizationScope: scope,
+        status: 'PROCESSING',
+        createdAt: new Date(Date.now() - 60000),
+        expiresAt: new Date(Date.now() - 1000),
+      },
+    });
+    expect(
+      (
+        await inspect(
+          f.operator,
+          input.operation,
+          input.idempotencyKey,
+          input.payload,
+        ).expect(200)
+      ).body.data,
+    ).toEqual({ status: 'RECONCILIATION_REQUIRED' });
+    expect(
+      await db.idempotencyRecord.findUniqueOrThrow({
+        where: { id: unknown.id },
+      }),
+    ).toEqual(unknown);
+    expect(
+      await db.commandCommit.count({
+        where: { idempotencyRecordId: unknown.id },
+      }),
+    ).toBe(0);
+    expect(
+      await db.legacyScopeMapping.count({ where: { cycleId: f.cycles[1].id } }),
+    ).toBe(0);
+    expect(
+      (
+        await inspect(
+          f.operator,
+          input.operation,
+          randomUUID(),
+          input.payload,
+        ).expect(200)
+      ).body.data,
+    ).toEqual({ status: 'NOT_FOUND' });
+  });
+
+  it('does not disclose an inspected result to another party or a changed payload and distinguishes a known rejection', async () => {
+    const positive = await db.idempotencyRecord.findFirstOrThrow({
+      where: {
+        requesterId: f.operator.sub!,
+        operation: 'SCOPE_APPLY_LEGACY_ROOT',
+        commandCommit: { isNot: null },
+      },
+    });
+    const payload = { manifestId: f.pin.manifest.id, cycleId: f.cycles[0].id };
+    await inspect(
+      f.transporter,
+      positive.operation,
+      positive.idempotencyKey,
+      payload,
+    ).expect(403);
+    await inspect(f.operator, positive.operation, positive.idempotencyKey, {
+      ...payload,
+      cycleId: f.cycles[1].id,
+    }).expect(409);
+    const rejected = await db.idempotencyRecord.findFirstOrThrow({
+      where: {
+        requesterId: f.operator.sub!,
+        operation: positive.operation,
+        status: 'FAILED',
+      },
+    });
+    const response = await inspect(
+      f.operator,
+      rejected.operation,
+      rejected.idempotencyKey,
+      payload,
+    ).expect(200);
+    expect(response.body.data.status).toBe('REJECTED');
+    expect(response.body.data.responseStatus).toBe(409);
+    expect(await snapshot(db, f)).toEqual(before);
+  });
+
   it('serializes concurrent root apply, resumes the remaining root and activates only a complete mapping', async () => {
     const responses = await Promise.all([
       post(`/roots/${f.cycles[1].id}/apply`, f.operator).expect(201),
@@ -503,6 +632,80 @@ describe('Legacy apply through real JWT HTTP and concurrent transactions', () =>
       data: { state: 'ACTIVE', version: { increment: 1 } },
     });
     expect(await snapshot(db, f)).toEqual(before);
+  });
+
+  it('reconciles a committed consent after activation using its original key, while closing fresh and regranted consent', async () => {
+    const record = await db.idempotencyRecord.findFirstOrThrow({
+      where: {
+        requesterId: f.transporter.sub!,
+        operation: 'SCOPE_CONFIRM_LEGACY_ASSIGNMENT',
+        commandCommit: { isNot: null },
+      },
+      include: { commandCommit: true },
+    });
+    const result = record.commandCommit!.responseBody as {
+      proposalKey: string;
+    };
+    expect(
+      (
+        await post(
+          '/confirm',
+          f.transporter,
+          { proposalKey: result.proposalKey },
+          record.idempotencyKey,
+        ).expect(201)
+      ).body.data,
+    ).toEqual(result);
+    expect(
+      (
+        await inspect(f.transporter, record.operation, record.idempotencyKey, {
+          manifestId: f.pin.manifest.id,
+          proposalKey: result.proposalKey,
+        }).expect(200)
+      ).body.data.status,
+    ).toBe('COMMITTED');
+    await post('/confirm', f.transporter, {
+      proposalKey: result.proposalKey,
+    }).expect(403);
+    expect(
+      (
+        await request(app.getHttpServer())
+          .get(url() + '/proposals')
+          .set('Authorization', `Bearer ${tokens.get(f.transporter.sub!)}`)
+          .expect(200)
+      ).body.data,
+    ).toEqual([]);
+    const consent = await db.legacyScopeConsent.findUniqueOrThrow({
+      where: {
+        manifestId_proposalKey: {
+          manifestId: f.pin.manifest.id,
+          proposalKey: result.proposalKey,
+        },
+      },
+    });
+    await db.scopedRoleGrant.update({
+      where: { id: consent.grantId },
+      data: { revokedAt: new Date(), revision: { increment: 1 } },
+    });
+    await db.scopedRoleGrant.create({
+      data: {
+        userId: f.transporter.sub!,
+        organizationId: f.transporter.organizationId!,
+        scope: 'ORGANIZATION',
+        role: 'ORG_ADMIN',
+      },
+    });
+    await post(
+      '/confirm',
+      f.transporter,
+      { proposalKey: result.proposalKey },
+      record.idempotencyKey,
+    ).expect(409);
+    expect(
+      await db.legacyScopeConsent.findUniqueOrThrow({
+        where: { id: consent.id },
+      }),
+    ).toEqual(consent);
   });
 
   it('checks current sessions before returning a stored apply response', async () => {

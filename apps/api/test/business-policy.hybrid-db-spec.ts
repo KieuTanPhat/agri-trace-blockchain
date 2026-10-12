@@ -632,137 +632,148 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('locks current replay authority against revoke and never re-executes the original command', async () => {
-    const template = await db.user.findUniqueOrThrow({
-      where: { id: producer.sub! },
-    });
-    const user = await db.user.create({
-      data: {
-        organizationId: producer.organizationId,
-        roleId: template.roleId,
-        email: `${randomUUID()}@example.test`,
-        fullName: 'Replay lock scenario',
-        passwordHash: 'unused-synthetic-hash',
-      },
-    });
-    const actor = await authenticated({ ...producer, sub: user.id });
-    const permission = await grant(db, actor, 'FARM_STAFF');
-    const input = {
-      actor,
-      requesterId: actor.sub!,
-      operation: 'PLANT_PRODUCTION_CYCLE',
-      idempotencyKey: randomUUID(),
-      requestType: 'COMMAND',
-      payload: { id: cycleId, version: 0 },
-    };
-    const scope = await authorizeCommand(db, input);
-    const record = await db.idempotencyRecord.create({
-      data: {
-        requesterId: actor.sub!,
-        operation: input.operation,
-        requestType: input.requestType,
-        idempotencyKey: input.idempotencyKey,
-        requestHash: canonicalSha256(input.payload),
-        authorizationScope: scope,
-        status: 'PROCESSING',
-      },
-    });
-    await db.commandCommit.create({
-      data: {
-        idempotencyRecordId: record.id,
-        requesterId: actor.sub!,
-        operation: input.operation,
-        authorizationScope: scope,
-        actorScope: { organizationId: actor.organizationId, role: actor.role },
-        resourceIds: { cycleId },
-        responseStatus: 201,
-        responseBody: { id: cycleId },
-      },
-    });
-    let entered!: () => void;
-    let release!: () => void;
-    const ready = new Promise<void>((resolve) => {
-      entered = resolve;
-    });
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const label = `hybrid-replay-revoke-${randomUUID()}`;
-    let calls = 0;
-    // Intercept only the test service's authorization transaction. Its real
-    // PostgreSQL locks stay held while another connection tries to revoke.
-    const replayDb = new Proxy(serviceDb, {
-      get(target, key) {
-        if (key === '$transaction')
-          return (work: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
-            db.$transaction(
-              async (tx) => {
-                const value = await work(tx);
-                entered();
-                await gate;
-                return value;
-              },
-              { timeout: 20000 },
-            );
-        const value = Reflect.get(target, key);
-        return typeof value === 'function' ? value.bind(target) : value;
-      },
-    });
-    const replay = new IdempotencyService(replayDb).executeCommand(
-      input,
-      async () => {
-        calls++;
-        return {};
-      },
-    );
-    let revoke: Promise<unknown> | undefined;
-    try {
-      await Promise.race([
-        ready,
-        replay.then(() => {
-          throw new Error('Replay returned without authority lock');
-        }),
-      ]);
-      revoke = db.$transaction(
-        async (tx) => {
-          await tx.$queryRaw`SELECT set_config('application_name', ${label}, true)`;
-          await tx.scopedRoleGrant.update({
-            where: { id: permission.id },
-            data: { revokedAt: new Date(), revision: { increment: 1 } },
-          });
+  it.each(['replay', 'inspection'] as const)(
+    'locks current %s authority against revoke and never re-executes the original command',
+    async (mode) => {
+      const template = await db.user.findUniqueOrThrow({
+        where: { id: producer.sub! },
+      });
+      const user = await db.user.create({
+        data: {
+          organizationId: producer.organizationId,
+          roleId: template.roleId,
+          email: `${randomUUID()}@example.test`,
+          fullName: 'Replay lock scenario',
+          passwordHash: 'unused-synthetic-hash',
         },
-        { timeout: 20000 },
-      );
-      let observed = false;
-      const deadline = Date.now() + 10000;
-      while (Date.now() < deadline) {
-        const rows = await db.$queryRaw<
-          { waiting: boolean }[]
-        >`SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE application_name = ${label} AND wait_event_type = 'Lock') AS waiting`;
-        if (rows[0].waiting) {
-          observed = true;
-          break;
+      });
+      const actor = await authenticated({ ...producer, sub: user.id });
+      const permission = await grant(db, actor, 'FARM_STAFF');
+      const input = {
+        actor,
+        requesterId: actor.sub!,
+        operation: 'PLANT_PRODUCTION_CYCLE',
+        idempotencyKey: randomUUID(),
+        requestType: 'COMMAND',
+        payload: { id: cycleId, version: 0 },
+      };
+      const scope = await authorizeCommand(db, input);
+      const record = await db.idempotencyRecord.create({
+        data: {
+          requesterId: actor.sub!,
+          operation: input.operation,
+          requestType: input.requestType,
+          idempotencyKey: input.idempotencyKey,
+          requestHash: canonicalSha256(input.payload),
+          authorizationScope: scope,
+          status: 'PROCESSING',
+        },
+      });
+      await db.commandCommit.create({
+        data: {
+          idempotencyRecordId: record.id,
+          requesterId: actor.sub!,
+          operation: input.operation,
+          authorizationScope: scope,
+          actorScope: {
+            organizationId: actor.organizationId,
+            role: actor.role,
+          },
+          resourceIds: { cycleId },
+          responseStatus: 201,
+          responseBody: { id: cycleId },
+        },
+      });
+      let entered!: () => void;
+      let release!: () => void;
+      const ready = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const label = `hybrid-replay-revoke-${randomUUID()}`;
+      let calls = 0;
+      // Intercept only the test service's authorization transaction. Its real
+      // PostgreSQL locks stay held while another connection tries to revoke.
+      const replayDb = new Proxy(serviceDb, {
+        get(target, key) {
+          if (key === '$transaction')
+            return (work: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
+              db.$transaction(
+                async (tx) => {
+                  const value = await work(tx);
+                  entered();
+                  await gate;
+                  return value;
+                },
+                { timeout: 20000 },
+              );
+          const value = Reflect.get(target, key);
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      });
+      const service = new IdempotencyService(replayDb);
+      const replay =
+        mode === 'inspection'
+          ? service.inspectCommand(input)
+          : service.executeCommand(input, async () => {
+              calls++;
+              return {};
+            });
+      let revoke: Promise<unknown> | undefined;
+      try {
+        await Promise.race([
+          ready,
+          replay.then(() => {
+            throw new Error('Replay returned without authority lock');
+          }),
+        ]);
+        revoke = db.$transaction(
+          async (tx) => {
+            await tx.$queryRaw`SELECT set_config('application_name', ${label}, true)`;
+            await tx.scopedRoleGrant.update({
+              where: { id: permission.id },
+              data: { revokedAt: new Date(), revision: { increment: 1 } },
+            });
+          },
+          { timeout: 20000 },
+        );
+        let observed = false;
+        const deadline = Date.now() + 10000;
+        while (Date.now() < deadline) {
+          const rows = await db.$queryRaw<
+            { waiting: boolean }[]
+          >`SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE application_name = ${label} AND wait_event_type = 'Lock') AS waiting`;
+          if (rows[0].waiting) {
+            observed = true;
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 25));
         }
-        await new Promise((resolve) => setTimeout(resolve, 25));
+        expect(
+          observed,
+          'Replay must hold a real PostgreSQL authority lock',
+        ).toBe(true);
+      } finally {
+        release();
+        await replay;
+        if (revoke) await revoke;
       }
-      expect(
-        observed,
-        'Replay must hold a real PostgreSQL authority lock',
-      ).toBe(true);
-    } finally {
-      release();
-      await replay;
-      if (revoke) await revoke;
-    }
-    expect(calls).toBe(0);
-    await expect(
-      idem.executeCommand(input, async () => {
-        calls++;
-        return {};
-      }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-    expect(calls).toBe(0);
-  });
+      expect(calls).toBe(0);
+      if (mode === 'inspection')
+        await expect(idem.inspectCommand(input)).rejects.toBeInstanceOf(
+          ForbiddenException,
+        );
+      await expect(
+        idem.executeCommand(input, async () => {
+          calls++;
+          return {};
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(calls).toBe(0);
+    },
+  );
 
   it('filters list, direct ID and count across chains that share a Farm', () =>
     isolated(async (tx) => {

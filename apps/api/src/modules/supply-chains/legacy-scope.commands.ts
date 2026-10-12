@@ -199,9 +199,31 @@ export async function authorizeLegacyScopeCommand(
       },
     }),
   ]);
+  // A completed consent remains reconcilable after activation with its
+  // original key/payload and current authority. Fresh consent still requires
+  // PREPARING; GET projections do not supply a key and therefore stay closed.
+  const replayRecord =
+    profile?.state === 'ACTIVE' && input.idempotencyKey
+      ? await db.idempotencyRecord.findUnique({
+          where: {
+            requesterId_operation_idempotencyKey: {
+              requesterId: actor.sub,
+              operation: input.operation,
+              idempotencyKey: input.idempotencyKey.trim(),
+            },
+          },
+          include: { commandCommit: true },
+        })
+      : null;
+  const committedReplay =
+    replayRecord?.requestHash === canonicalSha256(input.payload) &&
+    replayRecord.commandCommit?.operation === input.operation &&
+    replayRecord.commandCommit.requesterId === actor.sub &&
+    replayRecord.commandCommit.authorizationScope ===
+      replayRecord.authorizationScope;
   if (
     !profile ||
-    profile.state !== 'PREPARING' ||
+    (profile.state !== 'PREPARING' && !committedReplay) ||
     membership?.status !== 'ACTIVE' ||
     !permission ||
     (reviewChain && profile.chain.ownerOrganizationId !== actor.organizationId)
