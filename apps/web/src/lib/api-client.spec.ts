@@ -1,4 +1,6 @@
 import type { PublicLotTrace } from "./types";
+import { webcrypto } from "node:crypto";
+import { installBrowserLocks } from "../test/browser-locks";
 import {
   afterEach,
   beforeEach,
@@ -20,6 +22,7 @@ const user = {
 const auth = { accessToken: "old", tokenType: "Bearer" as const, user };
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status });
+let restoreLocks: (() => void) | undefined;
 
 beforeEach(() => {
   vi.resetModules();
@@ -27,9 +30,12 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://api.test/api");
   vi.stubEnv("NEXT_PUBLIC_API_SAME_ORIGIN", "false");
   localStorage.clear();
+  vi.stubGlobal("crypto", webcrypto);
+  restoreLocks = installBrowserLocks();
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+  restoreLocks?.();
   vi.unstubAllEnvs();
 });
 

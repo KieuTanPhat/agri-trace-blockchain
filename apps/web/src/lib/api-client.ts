@@ -6,6 +6,12 @@ import {
   mockSubmitCommand,
 } from "./mock-api";
 import { getAuthorizationScope } from "./auth-scope";
+import { commandRequest } from "./command-request";
+import {
+  recoverableCommand,
+  retrySavedCommand,
+  type SavedCommand,
+} from "./command-recovery";
 import {
   AUTH_SYNC_KEY,
   publishAuthChange,
@@ -473,6 +479,96 @@ export async function request<T>(
   authenticated = true,
   canRefresh = true,
 ): Promise<T> {
+  const method = init.method?.toUpperCase() ?? "GET";
+  if (
+    !authenticated ||
+    typeof window === "undefined" ||
+    typeof init.body !== "string" ||
+    !commandRequest(path, method, init.body)
+  )
+    return rawRequest<T>(path, init, authenticated, canRefresh);
+  const context = await recoveryContext();
+  const headers = new Headers(init.headers);
+  const command: SavedCommand = {
+    path,
+    method,
+    body: init.body,
+    key: headers.get("idempotency-key") ?? crypto.randomUUID(),
+  };
+  return recoverableCommand(
+    context,
+    command,
+    recoveryTransport(init, canRefresh),
+  ) as Promise<T>;
+}
+
+async function recoveryContext() {
+  if (
+    synchronizeBrowserSession() ||
+    identityMutation ||
+    (!session && isSessionRestoring())
+  )
+    throw sessionChanged();
+  if (!session) await refreshAccessToken();
+  const user = session?.user;
+  if (!user) throw sessionChanged();
+  const scope = getAuthorizationScope(user),
+    identity = identityVersion;
+  return {
+    owner: JSON.stringify([user.id, user.organizationId ?? null]),
+    assertCurrent() {
+      if (
+        synchronizeBrowserSession() ||
+        identityMutation ||
+        identityVersion !== identity ||
+        getAuthorizationScope(session?.user) !== scope
+      )
+        throw sessionChanged();
+    },
+  };
+}
+function recoveryTransport(init: RequestInit = {}, canRefresh = true) {
+  return {
+    send(command: SavedCommand) {
+      const headers = new Headers(init.headers);
+      headers.set("idempotency-key", command.key);
+      return rawRequest(
+        command.path,
+        { ...init, method: command.method, body: command.body, headers },
+        true,
+        canRefresh,
+      );
+    },
+    inspect(
+      command: SavedCommand,
+      descriptor: components["schemas"]["InspectCommandRequestDto"],
+    ) {
+      return rawRequest<components["schemas"]["CommandRequestStatusDto"]>(
+        "/command-requests/status",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            operation: descriptor.operation,
+            payload: descriptor.payload,
+          }),
+          headers: { "idempotency-key": command.key },
+        },
+        true,
+        canRefresh,
+      );
+    },
+  };
+}
+export async function retryPendingCommand(id: string) {
+  return retrySavedCommand(await recoveryContext(), id, recoveryTransport());
+}
+
+async function rawRequest<T>(
+  path: string,
+  init: RequestInit = {},
+  authenticated = true,
+  canRefresh = true,
+): Promise<T> {
   if (authenticated) {
     if (
       synchronizeBrowserSession() ||
@@ -559,7 +655,7 @@ export async function request<T>(
     // Refresh is asynchronous. Keep the original access epoch across it;
     // recursively retrying would otherwise silently adopt a different scope.
     assertBusinessAccess();
-    return request<T>(path, { ...init, headers }, authenticated, false);
+    return rawRequest<T>(path, { ...init, headers }, authenticated, false);
   }
   if (!response.ok) {
     if (
@@ -599,6 +695,17 @@ export async function request<T>(
         "Yêu cầu thất bại. Vui lòng thử lại.",
     };
   }
+  if (
+    authenticated &&
+    typeof init.body === "string" &&
+    commandRequest(path, method, init.body) &&
+    (!payload || !("success" in payload) || !payload.success)
+  )
+    throw {
+      status: 0,
+      code: "UNREADABLE_RESPONSE",
+      message: "Chưa đọc được kết quả. Kiểm tra yêu cầu trước khi thử lại.",
+    };
   if (
     authenticated &&
     method !== "GET" &&

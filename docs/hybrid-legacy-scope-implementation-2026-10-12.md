@@ -52,7 +52,13 @@ Permission context chỉ đưa link manifest mà actor hiện hành có quyền 
 Web có trang `/supply-chains/legacy/:manifestId`, yêu cầu từng công đoạn riêng,
 hiển thị consent đã ghi nhận và consent cần review lại. Đổi auth scope/manifest
 bỏ response cũ. Manual refresh giữ identity của request đang chưa rõ kết quả.
-Reconciliation qua reload/tab cho mọi command còn là gate riêng cần tiếp tục.
+Web candidate đã có recovery ledger theo user/org cho các command được allowlist:
+original body/key được lưu trước write, named Web Lock serialize các tab, inspect
+quyền hiện hành trước retry/replay. UNKNOWN không renew key; known rejection cho
+restart chủ động. Terminal metadata bỏ body/result, không replay private cache.
+DataForm/ActionPanel có thao tác recovery, nút nằm trong modal khi cần. Endpoint
+auth/password/signing key/device ingestion không vào ledger này. Browser/mobile
+trên app + DB thật vẫn là gate riêng cần tiếp tục.
 
 API candidate có `POST /api/command-requests/status`: header Idempotency-Key
 là key gốc, body gồm operation và payload gốc đã chuẩn hóa. Endpoint kiểm JWT,
@@ -96,8 +102,12 @@ không phải Fabric commit hoặc authority của doanh nghiệp thật.
 Suite `legacy-scope.hybrid-db-spec.ts` kiểm distinct consent, multi-harvest,
 hash/inventory và microseconds, incomplete activation, history drift, JWT thật,
 projection privacy, commit nhưng mất response, retry cùng key, concurrent apply,
-resume và revoked session. Các kết quả chạy sẽ được ghi theo SHA; thêm test
-không có nghĩa các test đã pass.
+resume và revoked session. Commit `0ac761a8` đã đạt PostgreSQL 18 cách ly: 130
+API unit, 30 SQL assertions, full schema diff zero + 6 unique guards, ORM,
+80 policy/HTTP/DB (23 nhóm HTTP) và 112 legacy E2E; cleanup container/network/
+process đã kiểm. Evidence và audit tiếp theo nằm trong
+[targeted audit](plans/hybrid-targeted-audit-2026-10-12.md). Kết quả này không áp
+dụng cho schema/cleanup mới chưa chạy lại.
 
 Các failure fixture expiry và revoke owner được sửa tiền điều kiện; constraint
 expiry và owner vẫn giữ. Missing-consent HTTP mới đòi conflict có trạng thái
