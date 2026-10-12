@@ -124,3 +124,10 @@ Lượt `546be97` đạt 147 unit/type/lint, dừng trước route SQL vì seed 
 COMPLETED thiếu completedAt; existing completed-state guard chặn đúng. Sửa fixture
 ghi completedAt/nextAttemptAt theo lifecycle, không đổi guard. OOM false/restart0,
 cleanup container/network/port/keeper verified. Chưa có DB import acceptance.
+
+Lượt `4871bd5` đã seed 28 events trước route guard và full Prisma diff zero +
+sáu guards; SQL scenarios phát hiện fixture update mọi business profile toàn DB.
+Profile seed ACTIVE bị update ACTIVE → ACTIVE, guard chặn đúng. Sửa UPDATE chỉ
+hai chain fixture và ORM cutover count chỉ membership của chain fixture; giữ số
+assertion/expected 31/4, không đổi state-machine guard. Cleanup verified, chưa
+chạy đến 132 policy/DB.
