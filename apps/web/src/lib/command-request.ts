@@ -38,6 +38,12 @@ export function commandRequest(
     discriminator = "",
   ) => ({ operation, payload: { ...data, ...ids }, discriminator });
   if (method === "POST" && creates[path]) return result(creates[path]);
+  const activation = match(
+    path,
+    `/supply-chains/(${uuid})/business-profile/activate`,
+  );
+  if (activation && method === "POST")
+    return result("HYB_ACTIVATE_BUSINESS_PROFILE", { chainId: activation[1] });
   let m = match(
     path,
     `/production-cycles/(${uuid})/(plant|care|sensor-readings|close|cancel|harvests|sensor-reconciliations)`,

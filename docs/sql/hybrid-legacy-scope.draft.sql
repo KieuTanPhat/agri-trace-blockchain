@@ -291,20 +291,34 @@ END;
 $$;
 CREATE TRIGGER trg_legacy_bridge_scope BEFORE INSERT ON legacy_command_bridge FOR EACH ROW EXECUTE FUNCTION fn_hybrid_legacy_bridge();
 
+-- Current readiness also covers roots absent from any registered manifest.
+-- Match inventoryLegacyScope's conservative active definition, including Pending.
+CREATE FUNCTION fn_hybrid_legacy_root_active(p_cycle uuid) RETURNS boolean LANGUAGE sql STABLE AS $$
+  SELECT EXISTS(SELECT 1 FROM production_cycle c WHERE c.cycle_id=p_cycle AND (
+    c.current_state NOT IN('COMPLETED','CANCELLED')
+    OR EXISTS(SELECT 1 FROM harvest_event h JOIN lot l USING(harvest_id) WHERE h.cycle_id=c.cycle_id
+      AND l.current_state NOT IN('SOLD','RECALLED','EXPIRED','DAMAGED'))
+    OR EXISTS(SELECT 1 FROM harvest_event h JOIN lot l USING(harvest_id) JOIN shipment s USING(lot_id)
+      WHERE h.cycle_id=c.cycle_id AND s.status<>'DELIVERED')
+    OR EXISTS(SELECT 1 FROM trace_event e JOIN blockchain_outbox b USING(event_id) WHERE b.status<>'COMPLETED'
+      AND (e.cycle_id=c.cycle_id OR e.lot_id IN(SELECT l.lot_id FROM harvest_event h JOIN lot l USING(harvest_id) WHERE h.cycle_id=c.cycle_id)))
+  ))
+$$;
 CREATE FUNCTION fn_hybrid_legacy_activation_gate() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE m legacy_scope_manifest%ROWTYPE; entry jsonb;
 BEGIN
   IF NEW.state<>'ACTIVE' OR OLD.state<>'PREPARING' THEN RETURN NEW; END IF;
+  IF EXISTS(SELECT 1 FROM production_cycle c WHERE c.chain_id IS NULL AND fn_hybrid_legacy_root_active(c.cycle_id)
+    AND EXISTS(SELECT 1 FROM chain_membership n WHERE n.chain_id=NEW.chain_id AND n.status='ACTIVE'
+      AND (n.organization_id=c.farm_org_id OR EXISTS(SELECT 1 FROM harvest_event h JOIN lot l USING(harvest_id) JOIN shipment s USING(lot_id)
+        WHERE h.cycle_id=c.cycle_id AND n.organization_id IN(s.transporter_org_id,s.retailer_org_id)))))
+    THEN RAISE EXCEPTION 'Active unresolved legacy root blocks activation'; END IF;
   FOR m IN SELECT * FROM legacy_scope_manifest LOOP
     FOR entry IN SELECT value FROM jsonb_array_elements(m.document->'entries') LOOP
       IF EXISTS(SELECT 1 FROM legacy_scope_supersession WHERE from_manifest_id=m.manifest_id AND cycle_id=(entry->>'cycleId')::uuid) THEN CONTINUE; END IF;
       IF entry->>'decision'='MAP' AND entry->>'chainId'=NEW.chain_id::text AND NOT EXISTS(
         SELECT 1 FROM legacy_scope_mapping WHERE manifest_id=m.manifest_id AND cycle_id=(entry->>'cycleId')::uuid AND chain_id=NEW.chain_id)
         THEN RAISE EXCEPTION 'Legacy mapping incomplete before activation'; END IF;
-      IF entry->>'decision'='UNRESOLVED' AND NOT EXISTS(SELECT 1 FROM legacy_scope_mapping WHERE cycle_id=(entry->>'cycleId')::uuid) AND EXISTS(SELECT 1 FROM jsonb_array_elements(m.inventory->'roots') r
-        WHERE r->>'cycleId'=entry->>'cycleId' AND (r->>'active')::boolean) AND EXISTS(
-          SELECT 1 FROM chain_membership WHERE chain_id=NEW.chain_id AND organization_id=(entry->>'producerOrgId')::uuid AND status='ACTIVE')
-        THEN RAISE EXCEPTION 'Active unresolved legacy root blocks activation'; END IF;
     END LOOP;
   END LOOP;
   RETURN NEW;

@@ -16,6 +16,7 @@ import {
 } from './chain-policy.js';
 import type { ChangeMemberDto, GrantRoleDto } from './dto.js';
 import { legacyScopePins } from './legacy-scope-pins.js';
+import { assertBusinessActivationReady } from './business-profile.commands.js';
 import {
   authorizeLegacyScopeCommand,
   legacyReviewKeys,
@@ -273,6 +274,7 @@ export class SupplyChainsService {
       const chain = await tx.supplyChain.create({
         data: { name, ownerOrganizationId: actor.organizationId! },
       });
+      await tx.chainBusinessProfile.create({ data: { chainId: chain.id } });
       await tx.chainMembership.create({
         data: {
           chainId: chain.id,
@@ -291,6 +293,46 @@ export class SupplyChainsService {
       });
       await this.audit(tx, actor, 'CREATE_CHAIN', chain.id, 0, chain.id);
       return chain;
+    });
+  }
+  async businessProfile(actor: CommandActor, chainId: string) {
+    await chainAccess(this.prisma, actor, chainId);
+    const profile = await this.prisma.chainBusinessProfile.findUnique({
+      where: { chainId },
+    });
+    if (!profile)
+      throw new NotFoundException('Chuỗi chưa chuẩn bị profile nghiệp vụ');
+    return profile;
+  }
+  activateBusinessProfile(
+    actor: CommandActor,
+    chainId: string,
+    version: number,
+  ) {
+    return this.transaction(async (tx) => {
+      const profile = await tx.chainBusinessProfile.findUnique({
+        where: { chainId },
+      });
+      if (
+        !profile ||
+        profile.state !== 'PREPARING' ||
+        profile.version !== version
+      )
+        throw new ConflictException('Profile đã đổi hoặc không còn PREPARING');
+      await assertBusinessActivationReady(tx, chainId);
+      const activated = await tx.chainBusinessProfile.update({
+        where: { chainId },
+        data: { state: 'ACTIVE', version: { increment: 1 } },
+      });
+      await this.audit(
+        tx,
+        actor,
+        'ACTIVATE_BUSINESS_PROFILE',
+        chainId,
+        activated.version,
+        chainId,
+      );
+      return activated;
     });
   }
   invite(actor: CommandActor, chainId: string, organizationId: string) {

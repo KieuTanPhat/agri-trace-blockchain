@@ -154,11 +154,15 @@ export async function authorizeChainCommand(
         throw new ForbiddenException('Lời mời không còn hiệu lực');
       permission = access.admin;
     } else if (
-      ['HYB_INVITE_MEMBERSHIP', 'HYB_CHANGE_MEMBERSHIP'].includes(
-        input.operation,
-      )
+      [
+        'HYB_INVITE_MEMBERSHIP',
+        'HYB_CHANGE_MEMBERSHIP',
+        'HYB_ACTIVATE_BUSINESS_PROFILE',
+      ].includes(input.operation)
     ) {
       if (
+        (input.operation === 'HYB_ACTIVATE_BUSINESS_PROFILE' &&
+          actor.role === 'SYSTEM_ADMIN') ||
         access.chain.ownerOrganizationId !== actor.organizationId ||
         access.membership.status !== 'ACTIVE'
       )

@@ -11,6 +11,11 @@ describe("command status controller payload contract", () => {
       { id },
     ],
     [`/production-cycles/${id}/harvests`, "RECORD_HARVEST", { cycleId: id }],
+    [
+      `/supply-chains/${id}/business-profile/activate`,
+      "HYB_ACTIVATE_BUSINESS_PROFILE",
+      { chainId: id },
+    ],
     [`/iot/cycles/${id}/digests`, "CREATE_SENSOR_DIGEST", { cycleId: id }],
     [
       `/iot/shipments/${id}/devices/${other}/unbind`,

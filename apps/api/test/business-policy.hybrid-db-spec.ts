@@ -1772,17 +1772,20 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
           status: 'ACTIVE',
         },
       });
+      await tx.chainBusinessProfile.create({ data: { chainId: target.id } });
+      await tx.chainBusinessProfile.update({
+        where: { chainId: target.id },
+        data: { state: 'ACTIVE', version: { increment: 1 } },
+      });
+      // Late admission to an already ACTIVE profile quarantines the partner's
+      // unresolved historical roots. Activation of a PREPARING profile with
+      // this active root is separately blocked by the readiness gate.
       const membership = await tx.chainMembership.create({
         data: {
           chainId: target.id,
           organizationId: parties[1].org,
           status: 'ACTIVE',
         },
-      });
-      await tx.chainBusinessProfile.create({ data: { chainId: target.id } });
-      await tx.chainBusinessProfile.update({
-        where: { chainId: target.id },
-        data: { state: 'ACTIVE', version: { increment: 1 } },
       });
       await tx.chainMembership.update({
         where: { id: membership.id },
@@ -2151,7 +2154,8 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       canonicalSha256(manifest),
       { environment: 'isolated', sourceSha: manifest.sourceSha },
     );
-    expect(result.activeUnresolved).toContain(legacy.id);
+    expect(result.unresolved).toContain(legacy.id);
+    expect(result.activeUnresolved).not.toContain(legacy.id);
     expect(
       await db.productionCycle.findUnique({ where: { id: legacy.id } }),
     ).toEqual(legacy);
@@ -2793,6 +2797,160 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       request(app.getHttpServer())
         .get(`/api${url}`)
         .set('Authorization', `Bearer ${token}`);
+
+    async function preparingChain() {
+      if (
+        !(await db.scopedRoleGrant.findFirst({
+          where: {
+            userId: producer.sub!,
+            organizationId: producer.organizationId!,
+            scope: 'ORGANIZATION',
+            role: 'CREATE_CHAIN',
+            revokedAt: null,
+          },
+        }))
+      )
+        await db.scopedRoleGrant.create({
+          data: {
+            userId: producer.sub!,
+            organizationId: producer.organizationId!,
+            scope: 'ORGANIZATION',
+            role: 'CREATE_CHAIN',
+          },
+        });
+      const created = await post('/supply-chains', producerToken, {
+        name: `Activation HTTP ${randomUUID()}`,
+      }).expect(201);
+      const id = created.body.data.id as string;
+      const profile = await get(
+        `/supply-chains/${id}/business-profile`,
+        producerToken,
+      ).expect(200);
+      expect(profile.body.data).toMatchObject({
+        chainId: id,
+        state: 'PREPARING',
+        version: 0,
+        scopeVersion: 1,
+      });
+      return id;
+    }
+
+    it('creates a PREPARING profile and reconciles activation with current owner authority', async () => {
+      const id = await preparingChain();
+      const path = `/supply-chains/${id}/business-profile/activate`;
+      const key = randomUUID();
+      const body = { version: 0 };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const activated = await post(path, producerToken, body, key).expect(
+          201,
+        );
+        expect(activated.body.data).toMatchObject({
+          chainId: id,
+          state: 'ACTIVE',
+          version: 1,
+        });
+      }
+      const status = await post(
+        '/command-requests/status',
+        producerToken,
+        {
+          operation: 'HYB_ACTIVATE_BUSINESS_PROFILE',
+          payload: { ...body, chainId: id },
+        },
+        key,
+      ).expect(200);
+      expect(status.body.data).toMatchObject({ status: 'COMMITTED' });
+      expect(
+        await db.chainAudit.count({
+          where: { chainId: id, action: 'ACTIVATE_BUSINESS_PROFILE' },
+        }),
+      ).toBe(1);
+      const manager = await db.scopedRoleGrant.findFirstOrThrow({
+        where: { chainId: id, userId: producer.sub!, role: 'CHAIN_MANAGER' },
+      });
+      await db.scopedRoleGrant.update({
+        where: { id: manager.id },
+        data: { revokedAt: new Date(), revision: { increment: 1 } },
+      });
+      // The SQL fixture retains ORG_ADMIN for metadata reads; it cannot
+      // replace the revoked owner CHAIN_MANAGER for business activation.
+      await post(path, producerToken, body, key).expect(403);
+      await post(
+        '/command-requests/status',
+        producerToken,
+        {
+          operation: 'HYB_ACTIVATE_BUSINESS_PROFILE',
+          payload: { ...body, chainId: id },
+        },
+        key,
+      ).expect(403);
+    });
+
+    it('rejects activation for an active member with an unregistered legacy root without activating or auditing it', async () => {
+      const id = await preparingChain();
+      const organization = await db.organization.create({
+        data: {
+          name: `Unregistered active legacy ${randomUUID()}`,
+          type: 'FARM',
+        },
+      });
+      await db.organizationCapability.create({
+        data: { organizationId: organization.id, code: 'FARM' },
+      });
+      const farm = await db.farm.create({
+        data: { organizationId: organization.id, name: 'Unregistered farm' },
+      });
+      await db.productionCycle.create({
+        data: {
+          farmId: farm.id,
+          farmOrgId: organization.id,
+          productId,
+          cycleCode: randomUUID(),
+        },
+      });
+      await db.chainMembership.create({
+        data: {
+          chainId: id,
+          organizationId: organization.id,
+          status: 'ACTIVE',
+        },
+      });
+      await post(
+        `/supply-chains/${id}/business-profile/activate`,
+        producerToken,
+        { version: 0 },
+      ).expect(409);
+      expect(
+        await db.chainBusinessProfile.findUniqueOrThrow({
+          where: { chainId: id },
+        }),
+      ).toMatchObject({ state: 'PREPARING', version: 0 });
+      expect(
+        await db.chainAudit.count({
+          where: { chainId: id, action: 'ACTIVATE_BUSINESS_PROFILE' },
+        }),
+      ).toBe(0);
+    });
+
+    it('serializes distinct concurrent activation commands into one profile transition and one audit', async () => {
+      const id = await preparingChain();
+      const path = `/supply-chains/${id}/business-profile/activate`;
+      const results = await Promise.all([
+        post(path, producerToken, { version: 0 }),
+        post(path, producerToken, { version: 0 }),
+      ]);
+      expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+      expect(
+        await db.chainBusinessProfile.findUniqueOrThrow({
+          where: { chainId: id },
+        }),
+      ).toMatchObject({ state: 'ACTIVE', version: 1 });
+      expect(
+        await db.chainAudit.count({
+          where: { chainId: id, action: 'ACTIVATE_BUSINESS_PROFILE' },
+        }),
+      ).toBe(1);
+    });
 
     it('exports the actual plan command, consent and projection schemas in NestJS Swagger', () => {
       const document = createOpenApiDocument(app);

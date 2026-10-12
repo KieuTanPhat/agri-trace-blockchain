@@ -283,7 +283,7 @@ export async function authorizeLegacyScopeCommand(
 /** Short maintenance snapshot. SHARE ROW EXCLUSIVE blocks concurrent writers
  * including Worker state changes while each root is checked and committed.
  * Locks do not stand in for the external operational pause/rehearsal gate. */
-async function lockLegacySnapshot(db: Prisma.TransactionClient) {
+export async function lockLegacySnapshot(db: Prisma.TransactionClient) {
   await db.$executeRawUnsafe(`LOCK TABLE production_cycle, care_record, harvest_event, lot, shipment,
     sensor_reading, sensor_digest, iot_device, harvest_sensor_window, harvest_sensor_membership,
     late_sensor_reading, cycle_sensor_reconciliation, certificate, inspection, quantity_movement,

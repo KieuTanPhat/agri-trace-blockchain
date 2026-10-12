@@ -60,6 +60,11 @@ BEGIN
   PERFORM pg_temp.reject('profile-preparing-denies-cycle',format(
     'INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id,chain_id) VALUES (%L,%L,%L,%L,%L)',
     'blocked',v_product,v_farm,pg_temp.fixture('producer'),pg_temp.fixture('chain_a')),'Hybrid business profile not active');
+  PERFORM pg_temp.reject('active-unmapped-root-blocks-activation',format(
+    'UPDATE chain_business_profile SET state=%L,version=1 WHERE chain_id=%L','ACTIVE',pg_temp.fixture('chain_a')),'Active unresolved legacy root blocks activation');
+  -- Remaining assertions use a closed historical unresolved root. It stays
+  -- readable only before cutover; closing it does not exempt legacy write guards.
+  UPDATE production_cycle SET current_state='CANCELLED',version=version+1 WHERE cycle_id=pg_temp.fixture('legacy_cycle');
   UPDATE chain_business_profile SET state='ACTIVE',version=1;
   PERFORM pg_temp.reject('omitting-chain-cannot-bypass-cutover',format(
     'INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id) VALUES (%L,%L,%L,%L)',

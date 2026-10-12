@@ -34,6 +34,7 @@ import {
   InviteMemberDto,
   MemberRecordDto,
   ScopedUserDto,
+  BusinessProfileDto,
 } from './dto.js';
 
 export class RevokeGrantDto extends ChainVersionDto {
@@ -111,6 +112,34 @@ export class SupplyChainsController {
   ) {
     return this.command(req, key, 'HYB_CREATE_CHAIN', input, () =>
       this.service.create(req.user, input.name),
+    );
+  }
+
+  @Get('supply-chains/:chainId/business-profile')
+  @ApiDataResponse(BusinessProfileDto)
+  profile(
+    @Req() req: AuthenticatedRequest,
+    @Param('chainId', ParseUUIDPipe) chainId: string,
+  ) {
+    return this.service.businessProfile(req.user, chainId);
+  }
+
+  @Post('supply-chains/:chainId/business-profile/activate')
+  @ApiDataResponse(BusinessProfileDto, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  activate(
+    @Req() req: AuthenticatedRequest,
+    @Param('chainId', ParseUUIDPipe) chainId: string,
+    @Body() input: ChainVersionDto,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.command(
+      req,
+      key,
+      'HYB_ACTIVATE_BUSINESS_PROFILE',
+      { ...input, chainId },
+      () =>
+        this.service.activateBusinessProfile(req.user, chainId, input.version),
     );
   }
 

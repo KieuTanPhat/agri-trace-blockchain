@@ -86,6 +86,13 @@ export class ChainRecordDto {
   @ApiProperty({ type: Number }) version!: number;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
 }
+export class BusinessProfileDto {
+  @ApiProperty({ type: String, format: 'uuid' }) chainId!: string;
+  @ApiProperty({ enum: ['PREPARING', 'ACTIVE', 'SUSPENDED'] }) state!: string;
+  @ApiProperty({ type: Number }) version!: number;
+  @ApiProperty({ type: Number }) scopeVersion!: number;
+  @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
+}
 export class MemberRecordDto {
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
   @ApiProperty({ type: String, format: 'date-time' }) updatedAt!: string;
