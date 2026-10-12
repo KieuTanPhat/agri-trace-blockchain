@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Administrator-only environment install/adoption and dev lifecycle.
+"""Administrator-only production install/adoption and activation.
 
 No path to this program is granted to a delivery SSH key. Configuration is
 root-owned; existing production state and data are adopted without seeding.
@@ -110,132 +110,26 @@ def install_target(args, config):
         policy.require(any(m.get("Name") == config["postgres_volume"] and m["Destination"] == "/var/lib/postgresql" for m in inspect["Mounts"]), "Existing PGDATA mapping differs")
         # Exact state/current/history are retained. No seed, migration or restart.
         atomic_json(base / "cd/target-adoption.json", {"environment": "production", "current": record["id"], "project": config["project"], "postgres_volume": config["postgres_volume"]})
-    elif not (base / "cd/state.json").exists():
-        policy.require(not (base / "current").exists(), "Dev workspace already has an unmanaged release")
-        atomic_json(base / "cd/state.json", {"current": None, "previous": None, "compatible_migrations": [],
-                    "chaincode": {"sequence": 0, "version": "disabled", "packages": {}, "fingerprint": None}})
     installed_helpers(args.environment)
     atomic_json(target_file, config)
     user = provision_identity(args.environment, Path(args.public_key).read_text().strip())
     return {"result": "installed", "environment": args.environment, "user": user, "enabled": config["enabled"]}
 
 
+
+
+
+
 def lifecycle(environment, operation, config):
-    policy.require(environment == "development" or operation == "enable", "Suspend/retire operations only manage dev")
-    controller = Controller(config)
-    if operation == "enable":
-        config["enabled"] = True
-        atomic_json(config_path(environment), config)
-        return {"result": "enabled", "environment": environment}
-    config["enabled"] = False
+    policy.require(environment == "production" and operation == "enable", "Only production activation is supported")
+    config["enabled"] = True
     atomic_json(config_path(environment), config)
-    state = controller.state()
-    if state["current"]:
-        record = controller.record(state["current"])
-        controller.stop(record)
-        if config.get("fabric"):
-            controller.run("dev-fabric-stop", ["docker", "stop", "--time", "20", *config["fabric"]["containers"]])
-        controller.run("dev-app-stop", controller.dc(record, "stop"))
-        if operation == "retire":
-            # Compose down retains data volumes and only removes this project.
-            controller.run("dev-runtime-retire", controller.dc(record, "down"))
-    return {"result": "retired" if operation == "retire" else "suspended", "environment": environment, "volumes": "retained", "edge": "retained"}
-
-
-def fabric_runtime(environment, operation, config):
-    policy.require(environment == "development" and config.get("fabric"), "Provision a reviewed, separate dev Fabric binding first")
-    policy.require(config["enabled"], "Enable development before changing its Fabric runtime")
-    controller = Controller(config)
-    state = controller.state()
-    policy.require(state["current"], "Initialize the light dev database first")
-    record = controller.record(state["current"])
-    fabric = config["fabric"]
-    root = Path(fabric["root"]).resolve(strict=True)
-    policy.require(root.is_relative_to(Path(config["base"]) / "shared/fabric"), "Dev Fabric root resolves outside dev")
-    # Names alone are insufficient: inspect the actual network and mounts before
-    # any stop/start. No Docker operation may manage a production resource.
-    for name in fabric["containers"]:
-        metadata = json.loads(controller.run("dev-fabric-ownership", ["docker", "inspect", name]))[0]
-        policy.require(fabric["network"] in metadata["NetworkSettings"]["Networks"], "Dev Fabric container network mismatch")
-        for mount in metadata.get("Mounts", []):
-            if mount["Type"] == "volume":
-                policy.require(mount["Name"] in fabric["volumes"], "Uncatalogued Fabric volume")
-            elif mount["Source"] != "/var/run/docker.sock":
-                policy.require(Path(mount["Source"]).resolve().is_relative_to(root), "Fabric mount resolves outside dev")
-    marker = controller.storage / "runtime-toggle.json"
-    atomic_json(marker, {"operation": operation, "release": record["id"]})
-    try:
-        controller.stop(record)
-        if operation == "fabric-off":
-            # Stop the signing writer before its network; retain ledger/identity.
-            controller.run("dev-fabric-stop", ["docker", "stop", "--time", "20", *fabric["containers"]])
-            config["fabric_enabled"] = False
-        else:
-            policy.require(state["chaincode"]["fingerprint"] == record["manifest"]["chaincode"], "Dev source and retained ledger fingerprint differ")
-            memory = dict(line.split(":", 1) for line in Path("/proc/meminfo").read_text().splitlines())
-            policy.require(int(memory["MemAvailable"].split()[0]) >= (config.get("min_available_mib", 1536) + 2048) * 1024, "Insufficient host RAM for dev Fabric")
-            config["fabric_enabled"] = True
-            active = Controller(config)
-            active.resume_fabric()
-            definition = active.definition()
-            if state["chaincode"]["sequence"] == 0:
-                # First activation adopts only packages built from this exact
-                # immutable release, installed by the network administrator.
-                package = active.storage / "records" / record["id"] / "chaincode.tgz"
-                active.peer("dev-fabric-package", 1, "package", str(package), "--path", str(Path(record["directory"]) / "blockchain/chaincode"),
-                            "--lang", "node", "--label", "agritrace-" + record["sha"])
-                expected = active.peer("dev-fabric-package-id", 1, "calculatepackageid", str(package)).decode().strip()
-                packages = {}
-                for org in (1, 2):
-                    approved = json.loads(active.peer("dev-fabric-approved-package", org, "queryapproved", "--channelID", fabric["channel"],
-                                         "--name", fabric["chaincode"], "--sequence", str(definition["sequence"]), "--output", "json"))
-                    packages[str(org)] = policy.approved_package(approved)
-                policy.require(set(packages.values()) == {expected}, "Provisioned dev chaincode does not match current source")
-                state["chaincode"] = {"sequence": definition["sequence"], "version": definition["version"], "packages": packages,
-                                      "fingerprint": record["manifest"]["chaincode"]}
-                atomic_json(active.storage / "state.json", state)
-            else:
-                policy.require(definition["sequence"] == state["chaincode"]["sequence"] and definition["version"] == state["chaincode"]["version"], "Retained dev ledger definition changed")
-        atomic_json(config_path(environment), config)
-        active = Controller(config)
-        active.preflight(record)
-        active.start(record)
-        active.verify(record, record["sha"] if operation == "fabric-on" else None)
-        active.save_record(dict(record, chaincode=active.state()["chaincode"]))
-        marker.unlink()
-        return {"result": "passed", "environment": environment, "runtimeProfile": "fabric" if active.fabric_active else "light"}
-    except Exception as error:
-        failures = []
-        try:
-            # Inspect the project labels directly: cleanup must work even if
-            # Compose preflight failed or no Worker was created yet.
-            rows = controller.run("dev-running-writers", ["docker", "ps", "--filter", "label=com.docker.compose.project=" + config["project"],
-                                  "--format", '{{.ID}} {{.Label "com.docker.compose.service"}}']).decode().splitlines()
-            writers = [row.split()[0] for row in rows if len(row.split()) == 2 and row.split()[1] in {"api", "worker"}]
-            policy.require(all(re.fullmatch(r"[a-f0-9]{12,64}", item) for item in writers), "Unexpected writer container ID")
-            if writers:
-                controller.run("dev-writers-stop-after-failure", ["docker", "stop", "--time", "120", *writers], timeout=200)
-        except Exception:
-            failures.append("writers")
-        config["fabric_enabled"] = False
-        try:
-            atomic_json(config_path(environment), config)
-        except Exception:
-            failures.append("config")
-        try:
-            controller.run("dev-fabric-stop-after-failure", ["docker", "stop", "--time", "20", *fabric["containers"]])
-        except Exception:
-            failures.append("Fabric")
-        # Keep the marker and writers stopped. An administrator retries the
-        # switch; CD cannot deploy over an unresolved runtime transition.
-        if failures:
-            raise policy.PolicyError("Fabric switch failed; administrator must reconcile cleanup: " + ", ".join(failures)) from error
-        raise
+    return {"result": "enabled", "environment": environment}
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("install", "adopt-legacy", "enable", "suspend", "retire", "fabric-on", "fabric-off"))
+    parser.add_argument("operation", choices=("install", "adopt-legacy", "enable"))
     parser.add_argument("--environment", choices=policy.targets.TARGETS, required=True)
     parser.add_argument("--config")
     parser.add_argument("--public-key")
@@ -262,8 +156,6 @@ def main():
         if args.operation in {"install", "adopt-legacy"}:
             policy.require(bool(args.public_key), "Install requires a dedicated CD public key")
             result = install_target(args, config)
-        elif args.operation in {"fabric-on", "fabric-off"}:
-            result = fabric_runtime(args.environment, args.operation, config)
         else:
             result = lifecycle(args.environment, args.operation, config)
         print(json.dumps(result))

@@ -1,5 +1,10 @@
 # Vận hành dev và production
 
+> Tài liệu lịch sử, được thay thế ngày 12/10/2026 bởi
+> [runbook production](production-runbook.md). Target/workflow/runtime dev đã
+> được quyết định retire; không dùng các lệnh provision/resume/toggle dev bên
+> dưới. Evidence cũ được giữ để truy vết, không là cấu hình hiện hành.
+
 ## Target và giới hạn của đợt chuyển cấu hình
 
 | Thuộc tính | Development | Production |
@@ -145,6 +150,40 @@ proof cũ. Yêu cầu descriptor `fabric` root-owned trong config dev:
   với dedicated public key hiện có. Giữ `profile=light`, `fabric_enabled=false`;
   runtime switch không làm đổi identity của release manifest cùng SHA.
 
+Công cụ `deploy/fabric-dev.py` chuẩn bị và provision pilot kỹ thuật hai org,
+một Raft orderer, LevelDB và ba CA riêng. Binaries 2.5.16/CA 1.5.22 được kiểm
+SHA-256 từ official release assets; samples pin `5789681b4f4d24e58fa40f19a69f5496892374b6`.
+Công cụ chỉ dùng CA/channel helpers đã cách ly hostname/cổng, không gọi
+`test-network/network.sh` hoặc cleanup toàn host. Host ports chỉ mở loopback,
+peer/chaincode tối đa 512 MiB mỗi container, CA 128 MiB, orderer 256 MiB.
+Chaincode CPU dùng `CpuQuota=100000`/`CpuPeriod=100000` (một CPU). Fabric
+2.5.16 không đọc `NanoCpus` trong hostConfig; chỉ đặt biến đó không tạo limit.
+Sau peer recreate kiểm Docker HostConfig của chaincode mới, không suy ra CPU
+limit của chaincode từ limit trên peer.
+Mạng/channel lần lượt `agritrace-dev-fabric`/`agritrace-dev`; không mô phỏng
+authority độc lập của đối tác thật.
+
+Peer/orderer có explicit mounts cho cả `/var/hyperledger` và
+`/etc/hyperledger/fabric`, tránh volume ẩn ngoài danh mục backup. Endpoint admin
+dùng `localhost` khớp DNS SAN của cert, không tắt TLS verification. Helpers
+orderer động cũng dùng hostname đã cách ly; topology này chỉ dùng một Raft node.
+
+Đặt GitHub development `CD_DEPLOY_ENABLED=false`, xác nhận không delivery đang
+chạy và dùng source đã review để chuẩn bị/provision bằng root:
+
+```bash
+python3 deploy/fabric-dev.py prepare
+python3 deploy/fabric-dev.py provision
+```
+
+Prepare từ chối database đã có proof và tài nguyên đã tồn tại. Provision giữ
+mạng đã dựng ở trạng thái stopped, cài binding root-owned và signer riêng vào
+config dev light. `prepared.json` giữ checksum; `provisioning.json` tồn tại nếu
+thất bại. Không rerun để reset identity/ledger; quản trị viên đối chiếu phase,
+channel membership/package và khôi phục từ dữ liệu giữ lại. Trước fabric-on,
+lấy snapshot DB/config/ledger nhất quán rồi xác minh baseline. Sau switch và
+smoke/retention test đạt mới bật lại development CD.
+
 ```bash
 python3 deploy/cd/install-target.py fabric-on --environment development
 python3 deploy/cd/install-target.py fabric-off --environment development
@@ -156,8 +195,17 @@ dừng Worker trước mạng riêng, giữ DB/ledger/identity và trở về li
 giữ `runtime-toggle.json`, dừng cả API/Worker của project dev; admin sửa nguyên
 nhân và chạy lại switch. Lỗi cleanup phải được quản trị viên đối chiếu, không
 coi là đã dừng writers thành công.
-CD không deploy đè transition chưa rõ. Fabric-on/off chưa được chứng minh trên
-VPS nếu chưa có network dev; Blockchain CI dùng Fabric riêng trên runner.
+CD không deploy đè transition chưa rõ. API nhận channel đọc từ binding qua
+overlay `ledger-context.json`, kể cả light mode sau khi đã có proof. Overlay
+chỉ có metadata channel; không cấp signer cho API. Release verifier đợi backlog
+được ghi trước khi chụp proof snapshot, có giới hạn 180 giây/10.000 events;
+dead-letter hoặc hết thời gian vẫn chặn release. Một canary đã confirm không
+đồng nghĩa mọi aggregate khác đã drain.
+
+Pilot VPS và các lỗi/sửa trong lần dựng đầu được ghi tại
+[implementation record](hybrid-chain-management-implementation.md) và
+[pilot ledger dev](fabric-dev-pilot-2026-10-11.md). Blockchain
+CI dùng Fabric riêng trên runner; không thay bằng mock cho bằng chứng ledger.
 
 ## Suspend, retire và dựng lại dev
 

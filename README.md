@@ -68,19 +68,16 @@ Fabric hoặc Worker tạm dừng; các sự kiện chờ được giữ trong
 `blockchain_outbox`. Worker health chỉ mở trong Docker network tại
 `http://worker:8081/health/ready`.
 
-## Triển khai dev và production
+## Triển khai production
 
-`dev` triển khai bản test tại `nongtrace.site`; `main` là nguồn của target
-production tại `agritrace.dev`. CI dùng cùng bộ checks trên cả hai nhánh.
-Hai target có database, secrets, SSH key, release state và Docker networks
-riêng; dùng chung Edge Caddy trên VPS. Dev mặc định chạy Web/API/PostgreSQL,
-giữ outbox Pending khi Worker/Fabric tắt. Fabric dev chỉ bật sau khi provision
-mạng riêng và kiểm tương thích với dữ liệu dev đang giữ.
+`main` là nguồn triển khai duy nhất vào `agritrace.dev`. Không còn target dev,
+dev CD, profile light hoặc route `nongtrace.site`. CI kiểm PR vào main và mọi
+push lên main; database/Fabric thử nghiệm dùng local hoặc runner cách ly.
 
-Lệnh cài đặt, bật/tắt Fabric, suspend/retire và dựng lại dev nằm trong
-[runbook dev/production](docs/dev-production-runbook.md). Target production
-adopt dữ liệu/Fabric hiện có; việc cấu hình target không thay thế nghiệm thu
-release và thiết kế Fabric production theo AGT-005/029/030/031.
+Vận hành theo [runbook production](docs/production-runbook.md). Target adopt
+database/Fabric hiện có và giữ migration/checksum, backup, proof/history cùng
+rollback gates. [Kế hoạch chuyển](docs/plans/production-only-transition-2026-10-12.md)
+ghi phạm vi, snapshot/retirement evidence và các gate Hybrid còn thiếu.
 
 ## Hệ thống hiện có tại agritrace.dev
 
@@ -142,7 +139,7 @@ Web chạy ESLint cho React/TypeScript/accessibility và Oxlint cho các rule Ne
 `npm run build --workspace apps/web` chạy cả hai trước khi biên dịch; `check`
 còn kiểm tra hợp đồng lint và xác nhận build bị chặn khi có warning hoặc lỗi.
 
-PR chọn job theo phạm vi thay đổi; mọi push lên `main`/`dev` chạy đầy đủ để CD dùng
+PR chọn job theo phạm vi thay đổi; mọi push lên `main` chạy đầy đủ để CD dùng
 bằng chứng của đúng SHA. Xem [chính sách CI](docs/ci.md) và
 [báo cáo kiểm tra CI/clean code](docs/ci-clean-code-audit-2026-10-09.md).
 

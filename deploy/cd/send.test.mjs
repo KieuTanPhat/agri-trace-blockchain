@@ -34,8 +34,8 @@ print(json.dumps({'result':'passed','credentialBytes':len(auth['token']),'archiv
   const archive=path.join(root,'bundle.tar.gz');writeFileSync(archive,'public bundle fixture');
   const credential='ghs_'+'A'.repeat(1500);
   const env={...process.env,PATH:bin+path.delimiter+process.env.PATH,RUNNER_TEMP:root,
-    CD_TEST_MARKER:marker,UAT_HOST:'13.140.170.166',UAT_USER:'agri-cd',
-    UAT_SSH_PRIVATE_KEY:'synthetic test key',UAT_KNOWN_HOSTS:'synthetic test host pin',
+    CD_TEST_MARKER:marker,CD_HOST:'13.140.170.166',CD_USER:'agri-cd-prod',CD_ENVIRONMENT:'production',
+    CD_SSH_PRIVATE_KEY:'synthetic test key',CD_KNOWN_HOSTS:'synthetic test host pin',
     REGISTRY_USERNAME:'KieuTanPhat',GH_TOKEN:credential};
   delete env.GITHUB_ACTOR;
   const run=(...args)=>spawnSync(process.execPath,[sender,...args],{env,encoding:'utf8',timeout:10000});
@@ -59,13 +59,13 @@ test('missing registry username fails before SSH and removes temporary key',{ski
 test('failed backup transport never leaves an incomplete artifact',{skip:process.platform==='win32'},t=>{
   const f=fixture(t);const result=f.run('backup',sha);
   assert.equal(result.status,1);
-  assert.equal(existsSync(path.join(f.root,`uat-backup-${sha}.cms`)),false);
+  assert.equal(existsSync(path.join(f.root,`prod-backup-${sha}.cms`)),false);
   assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
 });
 
 test('failed backup retry preserves an already completed backup',{skip:process.platform==='win32'},t=>{
   const f=fixture(t);
-  const filename=path.join(f.root,`uat-backup-${sha}.cms`);
+  const filename=path.join(f.root,`prod-backup-${sha}.cms`);
   const saved=Buffer.alloc(1024,23);writeFileSync(filename,saved);
   const result=f.run('backup',sha);
   assert.equal(result.status,1);
@@ -75,7 +75,7 @@ test('failed backup retry preserves an already completed backup',{skip:process.p
 
 test('complete backup is published privately and retry cannot overwrite it',{skip:process.platform==='win32'},t=>{
   const f=fixture(t);f.env.CD_TEST_COMPLETE_BACKUP='true';
-  const filename=path.join(f.root,`uat-backup-${sha}.cms`);
+  const filename=path.join(f.root,`prod-backup-${sha}.cms`);
   const first=f.run('backup',sha);
   assert.equal(first.status,0,first.stderr);
   const saved=readFileSync(filename);
@@ -84,19 +84,19 @@ test('complete backup is published privately and retry cannot overwrite it',{ski
   const retry=f.run('backup',sha);
   assert.equal(retry.status,1);
   assert.deepEqual(readFileSync(filename),saved);
-  assert.ok(!readdirSync(f.root).some(name=>name.startsWith('uat-backup-download-')));
+  assert.ok(!readdirSync(f.root).some(name=>name.startsWith('prod-backup-download-')));
 });
 
 test('missing host pin removes the private key before SSH starts',t=>{
-  const f=fixture(t);delete f.env.UAT_KNOWN_HOSTS;
+  const f=fixture(t);delete f.env.CD_KNOWN_HOSTS;
   const result=f.run('deploy',sha,f.archive);
   assert.equal(result.status,1);assert.equal(existsSync(f.marker),false);
   assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
-  assert.ok(!result.stderr.includes(f.env.UAT_SSH_PRIVATE_KEY));
+  assert.ok(!result.stderr.includes(f.env.CD_SSH_PRIVATE_KEY));
 });
 
 test('missing private key leaves no temporary SSH directory',t=>{
-  const f=fixture(t);delete f.env.UAT_SSH_PRIVATE_KEY;
+  const f=fixture(t);delete f.env.CD_SSH_PRIVATE_KEY;
   const result=f.run('deploy',sha,f.archive);
   assert.equal(result.status,1);assert.equal(existsSync(f.marker),false);
   assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
@@ -108,5 +108,5 @@ test('known-hosts write failure cleans up a key already written',t=>{
   const result=f.run('deploy',sha,f.archive);
   assert.equal(result.status,1);assert.equal(existsSync(f.marker),false);
   assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
-  assert.ok(!result.stderr.includes(f.env.UAT_SSH_PRIVATE_KEY));
+  assert.ok(!result.stderr.includes(f.env.CD_SSH_PRIVATE_KEY));
 });

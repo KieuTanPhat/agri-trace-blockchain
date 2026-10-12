@@ -10,11 +10,11 @@ test('queued rerun of a successful commit must finish again',()=>assert.equal(ev
 test('latest failed run cannot be hidden by older success',()=>assert.equal(evaluate([...runs,{...runs[0],id:100,conclusion:'failure'}],sha,sha).status,'failed'));
 test('PR, wrong branch, wrong SHA and wrong workflow path are ineligible',()=>{for(const change of [{event:'pull_request'},{head_branch:'feature'},{head_sha:'b'.repeat(40)},{path:'.github/workflows/fake.yml'}])assert.equal(evaluate([{...runs[0],...change},...runs.slice(1)],sha,sha).status,'pending');});
 test('a newer main commit supersedes a candidate even if its CI passes',()=>assert.equal(evaluate(runs,sha,'b'.repeat(40)).status,'stale'));
-test('dev requires its own push CI even at the same SHA as main',()=>{
+test('dev cannot authorize any delivery even at the same SHA as main',()=>{
   const dev=runs.map(run=>({...run,head_branch:'dev'}));
-  assert.equal(evaluate(dev,sha,sha,'dev').status,'success');
-  assert.equal(evaluate(runs,sha,sha,'dev').status,'pending');
+  assert.throws(()=>evaluate(dev,sha,sha,'dev'),/Only main/);
+  assert.throws(()=>evaluate(runs,sha,sha,'dev'),/Only main/);
   assert.equal(evaluate(dev,sha,sha,'main').status,'pending');
-  assert.equal(evaluate(dev,sha,'b'.repeat(40),'dev').status,'stale');
-  assert.throws(()=>evaluate(dev,sha,sha,'feature'),/Unknown/);
+  assert.throws(()=>evaluate(dev,sha,'b'.repeat(40),'dev'),/Only main/);
+  assert.throws(()=>evaluate(dev,sha,sha,'feature'),/Only main/);
 });

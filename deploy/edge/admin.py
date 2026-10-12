@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Administrator-owned Edge preparation, cutover, reload and dev route retirement."""
+"""Administrator-owned production Edge preparation, cutover and reload."""
 import argparse
 import contextlib
 import datetime
@@ -24,9 +24,8 @@ def compose(*args):
             "-f", str(ROOT / "docker-compose.yml"), *args]
 
 
-def config(dev):
-    source = Path(__file__).with_name("Caddyfile").read_text()
-    return source if dev else source.split("nongtrace.site, www.nongtrace.site {")[0]
+def config():
+    return Path(__file__).with_name("Caddyfile").read_text()
 
 
 def health():
@@ -54,7 +53,7 @@ def validate(filename="Caddyfile"):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("prepare", "cutover", "enable-dev", "disable-dev"))
+    parser.add_argument("operation", choices=("prepare", "cutover", "reload"))
     args = parser.parse_args()
     if os.getuid() != 0:
         raise RuntimeError("Edge administration requires root; delivery keys cannot change routes")
@@ -68,7 +67,7 @@ def main():
         fcntl.flock(host, fcntl.LOCK_EX | fcntl.LOCK_NB)
         if args.operation == "prepare":
             (ROOT / "config").mkdir(mode=0o755, exist_ok=True)
-            for network in ("agritrace-dev-ingress", "agritrace-prod-ingress"):
+            for network in ("agritrace-prod-ingress",):
                 if subprocess.run(["docker", "network", "inspect", network], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
                     run("docker", "network", "create", network)
             for component in ("api", "web"):
@@ -90,7 +89,7 @@ def main():
             (ROOT / ".env").write_text("".join(k + "=" + v + "\n" for k, v in env.items()))
             (ROOT / ".env").chmod(0o600)
             shutil.copyfile(Path(__file__).with_name("docker-compose.yml"), ROOT / "docker-compose.yml")
-            (ROOT / "config/Caddyfile").write_text(config(False))
+            (ROOT / "config/Caddyfile").write_text(config())
             (ROOT / "config/Caddyfile").chmod(0o644)
             validate()
         elif args.operation == "cutover":
@@ -109,7 +108,7 @@ def main():
             backup = ROOT / ("Caddyfile.before-" + stamp)
             shutil.copyfile(filename, backup)
             candidate = ROOT / "config/Caddyfile.next"
-            candidate.write_text(config(args.operation == "enable-dev"))
+            candidate.write_text(config())
             candidate.chmod(0o644)
             validate("Caddyfile.next")
             os.replace(candidate, filename)

@@ -15,6 +15,9 @@ class TrustedHelpers(unittest.TestCase):
     def test_bundle_pins_every_installed_helper_to_committed_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
+            # Match the repository's LF archive policy independently of a
+            # Windows user's global core.autocrlf setting.
+            (root / '.gitattributes').write_bytes(b'* text eol=lf\n')
             files = {
                 "docker-compose.uat.yml": "services: {}\n",
                 "docker-compose.uat-https.yml": "services: {}\n",

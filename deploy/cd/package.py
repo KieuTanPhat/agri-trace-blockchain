@@ -51,7 +51,7 @@ if __name__ == "__main__":
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--environment", choices=targets.TARGETS)
     parser.add_argument("--project")
-    parser.add_argument("--profile", choices=("light", "fabric"))
+    parser.add_argument("--profile", choices=("fabric",))
     arguments = vars(parser.parse_args())
     environment = arguments.pop("environment")
     project, profile = arguments.pop("project"), arguments.pop("profile")

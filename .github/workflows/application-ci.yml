@@ -2,9 +2,9 @@ name: Application CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
-    branches: [main, dev]
+    branches: [main]
   merge_group:
   workflow_dispatch:
 
@@ -246,8 +246,8 @@ jobs:
       - name: Stop disposable application stack
         if: always()
         run: docker compose down --volumes --remove-orphans
-      - name: Rehearse two independent app projects and dev retirement
-        run: python3 deploy/cd/rehearse-environments.py
+      - name: Rehearse production database retention on this disposable runner
+        run: python3 deploy/cd/rehearse-production.py
 
   gate:
     name: Application gate

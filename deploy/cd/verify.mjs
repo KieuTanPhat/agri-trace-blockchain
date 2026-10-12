@@ -6,9 +6,8 @@ import pg from 'pg';
 import {loadConfig, connectGateway, FabricBlockchainAdapter} from './blockchain/gateway/dist/index.js';
 
 const input = JSON.parse(readFileSync(0, 'utf8'));
-const fabricEnabled = (input.profile ?? 'fabric') === 'fabric';
-assert.ok(['light', 'fabric'].includes(input.profile ?? 'fabric'));
-assert.ok(fabricEnabled || input.environment === 'development', 'Light verification is only for development');
+assert.equal(input.profile ?? 'fabric','fabric','Production verification requires Fabric');
+assert.ok(!input.environment || input.environment === 'production','Only production verification is supported');
 const tokens = {};
 const sessions = {};
 const refresh = [];
@@ -31,7 +30,6 @@ try {
   assert.equal((await fetch(`${input.origin}/login`,{signal:AbortSignal.timeout(15000)})).status,200);
   assert.equal((await fetch(`${input.origin}/api/docs`,{signal:AbortSignal.timeout(15000)})).status,404);
   await http('/health');
-  if(fabricEnabled){
   const response = await fetch('http://127.0.0.1:8081/health/ready');
   assert.equal(response.status,200);
   const health=await response.json();
@@ -39,7 +37,6 @@ try {
   assert.equal(health.runtime.running,true);
   assert.equal(health.runtime.lastError,null);
   assert.equal(health.backlog.deadLetter,0);
-  }
   phase='cors';
   const corsOrigins=input.corsOrigins??[input.origin];
   for(const origin of [...corsOrigins,'https://unapproved.example']){
@@ -86,9 +83,9 @@ try {
   await http('/auth/refresh',undefined,logout.body,401,undefined,{cookie:logout.cookie});
   if(rotatedSession.kind==='family')await http('/auth/me','LIFECYCLE',undefined,401);
   await db.connect();
-  const gatewayConfig=fabricEnabled?loadConfig(process.env):null;
-  if(fabricEnabled)connection=await connectGateway(gatewayConfig);
-  const adapter=fabricEnabled?new FabricBlockchainAdapter(connection.gateway,gatewayConfig):null;
+  const gatewayConfig=loadConfig(process.env);
+  connection=await connectGateway(gatewayConfig);
+  const adapter=new FabricBlockchainAdapter(connection.gateway,gatewayConfig);
   if(input.canary){
     phase='canary';
     assert.match(input.canary,/^[a-f0-9]{40}$/);
@@ -105,12 +102,30 @@ try {
       const result=await db.query(`SELECT e.event_id,p.transaction_status,o.status FROM trace_event e
         LEFT JOIN blockchain_proof p USING(event_id) LEFT JOIN blockchain_outbox o USING(event_id)
         WHERE e.entity_id=$1 AND e.event_type='PRODUCTION_CYCLE_CREATED'`,[cycle.id]);
-      confirmed=result.rows.length===1&&(fabricEnabled?result.rows[0].transaction_status==='CONFIRMED':
-        result.rows[0].status==='PENDING'&&result.rows[0].transaction_status===null);
+      confirmed=result.rows.length===1&&result.rows[0].transaction_status==='CONFIRMED';
       if(!confirmed)await new Promise(resolve=>setTimeout(resolve,2000));
     }while(!confirmed&&Date.now()<deadline);
-    assert.ok(confirmed,fabricEnabled?'Canary proof did not confirm':'Light canary must have a real Pending outbox without a proof');
+    assert.ok(confirmed,'Canary proof did not confirm');
   }
+    // A confirmed canary can overtake another aggregate's Pending predecessor.
+    // Wait for the retained backlog too before taking the proof snapshot.
+    phase='outbox-drain';
+    const deadline=Date.now()+180000;
+    let incomplete;
+    do{
+      const result=await db.query(`SELECT count(*)::int AS total,
+        count(*) FILTER (WHERE o.status IS DISTINCT FROM 'COMPLETED'
+          OR p.transaction_status IS DISTINCT FROM 'CONFIRMED')::int AS incomplete,
+        count(*) FILTER (WHERE o.status='DEAD_LETTER')::int AS dead_letter
+        FROM trace_event e LEFT JOIN blockchain_outbox o USING(event_id)
+        LEFT JOIN blockchain_proof p USING(event_id)`);
+      const progress=result.rows[0];
+      assert.ok(progress.total<=10000,'Verification event budget exceeded');
+      assert.equal(progress.dead_letter,0,'Dead-letter events require reconciliation');
+      incomplete=progress.incomplete;
+      if(incomplete>0)await new Promise(resolve=>setTimeout(resolve,2000));
+    }while(incomplete>0&&Date.now()<deadline);
+    assert.equal(incomplete,0,'Retained outbox did not drain within the verification window');
   phase='database-and-ledger';
   await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
   const events=(await db.query(`SELECT e.event_id,e.entity_type,e.entity_id,e.data_hash,e.previous_event_hash,
@@ -122,25 +137,12 @@ try {
   for(const table of ['app_user','organization','farm','plot','product','production_cycle','harvest_event','lot','shipment','trace_event','blockchain_outbox','blockchain_proof'])
     counts[table]=Number((await db.query(`SELECT count(*) FROM ${table}`)).rows[0].count);
   await db.query('COMMIT');
-  assert.ok((!fabricEnabled||events.length>0)&&events.length<=10000,'Verification event budget exceeded');
+  assert.ok(events.length>0&&events.length<=10000,'Verification event budget exceeded');
   const fingerprints={};
   const groups=new Map();
-  let pendingEvents=0;
   for(const event of events){
     fingerprints[`event:${event.event_id}`]=createHash('sha256').update(event.immutable_row).digest('hex');
     if(event.tx_id)fingerprints[`proof:${event.event_id}`]=createHash('sha256').update(JSON.stringify([event.tx_id,event.proof_hash,event.channel_id])).digest('hex');
-    if(!fabricEnabled){
-      assert.ok(['PENDING','RETRY','COMPLETED'].includes(event.status),'Unexpected outbox state while Worker is disabled');
-      const apiProof=await http(`/blockchain/events/${event.event_id}/verify`,'SYSTEM_ADMIN');
-      assert.equal(apiProof.localHashMatches,true);
-      if(event.status!=='COMPLETED'){
-        assert.equal(event.tx_id,null);assert.equal(event.transaction_status,null);
-        assert.equal(apiProof.status,'PENDING');pendingEvents++;
-      }else{
-        assert.equal(event.transaction_status,'CONFIRMED');assert.equal(event.proof_hash,event.data_hash);
-      }
-      continue;
-    }
     assert.equal(event.status,'COMPLETED');assert.equal(event.transaction_status,'CONFIRMED');
     const [actual,proof,apiProof]=await Promise.all([adapter.queryEvent(event.event_id),adapter.getProof(event.event_id),http(`/blockchain/events/${event.event_id}/verify`,'SYSTEM_ADMIN')]);
     assert.equal(actual.eventId,event.event_id);assert.equal(actual.dataHash,event.data_hash);
@@ -180,17 +182,15 @@ try {
       assert.ok(trace.warnings.includes('LEGACY_UNVERIFIED'));
       for(const warning of ['QUANTITY_MISMATCH','STATE_MISMATCH','SENSOR_INTEGRITY_WARNING'])assert.ok(!trace.warnings.includes(warning));
       legacyQR++;
-    }else if(fabricEnabled){
-      assert.equal(trace.proofStatus,'VERIFIED');
     }else{
-      assert.ok(['PENDING','VERIFIED'].includes(trace.proofStatus));
+      assert.equal(trace.proofStatus,'VERIFIED');
     }
-    assert.ok(trace.timeline.every(event=>fabricEnabled?event.proofStatus==='VERIFIED':['PENDING','VERIFIED'].includes(event.proofStatus)));
+    assert.ok(trace.timeline.every(event=>event.proofStatus==='VERIFIED'));
     assert.equal((await fetch(`${input.origin}/trace/${qr.trace_token}`,{signal:AbortSignal.timeout(15000)})).status,200);
   }
-  console.log(JSON.stringify({result:'passed',counts,fingerprints,fabricVerification:fabricEnabled?'passed':'not-evaluated-disabled',
-    directLedgerEvents:fabricEnabled?events.length:0,pendingEvents,entityHistories:groups.size,
-    verifiedQR:fabricEnabled?qrs.length-legacyQR:0,legacyQR,roles:5,corsOrigins,refreshLogout:true,pwaAssets:true,canary:input.canary??null}));
+  console.log(JSON.stringify({result:'passed',counts,fingerprints,fabricVerification:'passed',
+    directLedgerEvents:events.length,pendingEvents:0,entityHistories:groups.size,
+    verifiedQR:qrs.length-legacyQR,legacyQR,roles:5,corsOrigins,refreshLogout:true,pwaAssets:true,canary:input.canary??null}));
 }catch{
   console.error(`Release verification failed at ${phase}; sensitive diagnostics withheld`);
   process.exitCode=1;

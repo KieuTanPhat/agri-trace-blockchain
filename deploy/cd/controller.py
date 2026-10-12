@@ -47,7 +47,7 @@ class Controller:
         self.config = config
         require(config.get("schema") in (None, 2) and ("environment" not in config or config.get("schema") == 2), "Unsupported installed config schema")
         self.target = policy.targets.validate_config(config, require) if config.get("schema") == 2 else None
-        self.fabric_active = not self.target or config.get("fabric_enabled", config["profile"] == "fabric")
+        self.fabric_active = True  # Production and retained UAT releases require Fabric.
         self.project = config["project"] if self.target else "agri-trace-uat"
         self.prefix = policy.targets.TARGETS[config["environment"]]["prefix"] if self.target else "uat"
         self.fabric = config.get("fabric") or {}
@@ -82,7 +82,7 @@ class Controller:
 
     def save_record(self, record):
         if self.target:
-            record["runtimeProfile"] = "fabric" if self.fabric_active else "light"
+            record["runtimeProfile"] = "fabric"
         directory = self.storage / "records" / record["id"]
         atomic_json(directory / "record.json", record)
         atomic_json(directory / "images.json", {"services": {
@@ -104,13 +104,12 @@ class Controller:
             values.update(DEPLOY_ENV=self.config["environment"], INGRESS_NETWORK=self.config["ingress"],
                           API_IMAGE=record["manifest"]["api"], WEB_IMAGE=record["manifest"]["web"],
                           POSTGRES_VOLUME=self.config["postgres_volume"], UPSTREAM_PREFIX=self.prefix,
-                          POSTGRES_MEMORY="384m" if self.prefix == "dev" else "1g",
-                          API_MEMORY="384m" if self.prefix == "dev" else "768m",
-                          API_HEAP_MB="256" if self.prefix == "dev" else "512",
-                          WEB_MEMORY="512m" if self.prefix == "dev" else "768m",
-                          WEB_HEAP_MB="320" if self.prefix == "dev" else "512")
-            if self.fabric_active:
-                values["FABRIC_DOCKER_NETWORK"] = self.fabric["network"]
+                          POSTGRES_MEMORY="1g",
+                          API_MEMORY="768m",
+                          API_HEAP_MB="512",
+                          WEB_MEMORY="768m",
+                          WEB_HEAP_MB="512")
+            values["FABRIC_DOCKER_NETWORK"] = self.fabric["network"]
         directory = self.storage / "records" / record["id"]
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         filename = directory / "origin.env"
@@ -129,12 +128,18 @@ class Controller:
         self.write_release_environment(record)
         if self.target and record["manifest"].get("format") == 2:
             compose_files = ["-f", str(root / "docker-compose.app.yml")]
-            if self.fabric_active:
-                compose_files += ["-f", str(root / "docker-compose.app-fabric.yml")]
+            compose_files += ["-f", str(root / "docker-compose.app-fabric.yml")]
             compose_files += ["-f", str(self.storage / "records" / record["id"] / "images.json")]
+            if self.fabric:
+                # API verifies cached receipts without a signing identity. Its
+                # read context must match the retained
+                # ledger, including releases predating explicit binding metadata.
+                context = self.storage / "records" / record["id"] / "ledger-context.json"
+                atomic_json(context, {"services": {"api": {"environment": {"FABRIC_CHANNEL_NAME": self.fabric["channel"]}}}})
+                compose_files += ["-f", str(context)]
             return ["docker", "compose", "--project-name", self.project, "--env-file", self.config["env"],
                     "--env-file", str(self.storage / "records" / record["id"] / "origin.env"), *compose_files,
-                    *(["--profile", "fabric"] if self.fabric_active else []), *args]
+                    "--profile", "fabric", *args]
         compose_files = ["-f", str(root / "docker-compose.uat.yml")]
         if self.origin_for(record).startswith("https://"):
             compose_files += ["-f", str(root / "docker-compose.uat-https.yml")]
@@ -226,20 +231,17 @@ class Controller:
         require(model["volumes"]["postgres-data"]["name"] == self.config["postgres_volume"], "Database volume changed")
         require(model["networks"]["default"]["name"] == self.project + "_default" and
                 model["networks"]["ingress"]["external"] and model["networks"]["ingress"]["name"] == self.config["ingress"], "App network changed")
-        allowed_networks = {"default", "ingress"} | ({"fabric"} if self.fabric_active else set())
+        allowed_networks = {"default", "ingress", "fabric"}
         require(set(model["networks"]) == allowed_networks, "Unexpected app network")
         expected_database = f"postgresql://{self.environment['POSTGRES_USER']}:{self.environment['POSTGRES_PASSWORD']}@postgres:5432/{self.environment['POSTGRES_DB']}?schema=public"
         for name, service in services.items():
             require(not any(service.get(k) for k in ("ports", "privileged", "cap_add", "devices", "network_mode", "pid", "extra_hosts", "secrets")), "Unexpected container privilege/port/secret")
             require(set(service.get("networks", {})) == ({"default", "ingress"} if name in {"api", "web"} else
-                    {"default", "fabric"} if name == "worker" and self.fabric_active else {"default"}), "Unexpected service network")
+                    {"default", "fabric"} if name == "worker" else {"default"}), "Unexpected service network")
             if name != "web":
                 require(service["environment"].get("DATABASE_URL", expected_database) == expected_database, "Database configuration changed")
-            if name in {"api", "migrate", "web"} or (name == "worker" and not self.fabric_active):
+            if name in {"api", "migrate", "web"}:
                 require(not service.get("volumes"), "Public/tool service received host mounts")
-            limit = {"postgres": 384, "api": 384, "web": 512}.get(name) if self.prefix == "dev" else None
-            if limit:
-                require(0 < int(service.get("mem_limit", 0)) <= limit * 1024 ** 2, "Dev resource limit changed")
         require(services["postgres"]["image"] == self.environment["POSTGRES_IMAGE"], "Database image changed")
         mounts = services["postgres"].get("volumes", [])
         require(len(mounts) == 1 and mounts[0].get("type") == "volume" and mounts[0]["source"] == "postgres-data" and
@@ -250,23 +252,21 @@ class Controller:
         api = services["api"]["environment"]
         require(api["FABRIC_ENABLED"] == "false" and api["JWT_SECRET"] == self.environment["JWT_SECRET"] and
                 api["CORS_ORIGIN"] == self.environment["CORS_ORIGINS"] and api["PUBLIC_TRACE_BASE_URL"] == origin + "/trace", "API environment changed")
+        if self.fabric:
+            require(api.get("FABRIC_CHANNEL_NAME") == self.fabric["channel"], "API receipt channel differs from its retained ledger")
         require(services["web"]["environment"].get("API_INTERNAL_BASE_URL") == "http://api:8080/api", "SSR API boundary changed")
         for name in ("api", "web"):
             require(services[name]["networks"]["ingress"].get("aliases", []) == [self.prefix + "-" + name], "Ingress alias changed")
-        if self.fabric_active:
-            worker = services["worker"]
-            require(model["networks"]["fabric"]["external"] and model["networks"]["fabric"]["name"] == self.fabric["network"], "Fabric network changed")
-            require(worker["environment"]["FABRIC_ENABLED"] == "true" and worker["environment"]["FABRIC_CHANNEL_NAME"] == self.fabric["channel"] and
-                    worker["environment"]["FABRIC_CHAINCODE_NAME"] == self.fabric["chaincode"] and
-                    worker["user"] == f"{self.environment['WORKER_UID']}:{self.environment['WORKER_GID']}", "Worker signing boundary changed")
-            mounts = {mount["target"]: mount for mount in worker.get("volumes", [])}
-            require(set(mounts) == {"/fabric-identity", "/fabric-tls/ca.crt"}, "Worker mount set changed")
-            for path, key in (("/fabric-identity", "RELAYER_MSP_DIR_HOST"), ("/fabric-tls/ca.crt", "FABRIC_TLS_CERT_HOST")):
-                require(mounts[path]["source"] == self.environment[key] and mounts[path].get("read_only") and
-                        not mounts[path].get("bind", {}).get("create_host_path"), "Worker signing mount changed")
-            if self.prefix == "dev":
-                require(all(Path(self.environment[key]).resolve().is_relative_to(Path(self.fabric["root"]).resolve())
-                            for key in ("RELAYER_MSP_DIR_HOST", "FABRIC_TLS_CERT_HOST")), "Dev signing paths must belong to its Fabric binding")
+        worker = services["worker"]
+        require(model["networks"]["fabric"]["external"] and model["networks"]["fabric"]["name"] == self.fabric["network"], "Fabric network changed")
+        require(worker["environment"]["FABRIC_ENABLED"] == "true" and worker["environment"]["FABRIC_CHANNEL_NAME"] == self.fabric["channel"] and
+                worker["environment"]["FABRIC_CHAINCODE_NAME"] == self.fabric["chaincode"] and
+                worker["user"] == f"{self.environment['WORKER_UID']}:{self.environment['WORKER_GID']}", "Worker signing boundary changed")
+        mounts = {mount["target"]: mount for mount in worker.get("volumes", [])}
+        require(set(mounts) == {"/fabric-identity", "/fabric-tls/ca.crt"}, "Worker mount set changed")
+        for path, key in (("/fabric-identity", "RELAYER_MSP_DIR_HOST"), ("/fabric-tls/ca.crt", "FABRIC_TLS_CERT_HOST")):
+            require(mounts[path]["source"] == self.environment[key] and mounts[path].get("read_only") and
+                    not mounts[path].get("bind", {}).get("create_host_path"), "Worker signing mount changed")
 
     def applied(self, record):
         query = 'SELECT migration_name,checksum,finished_at IS NOT NULL AS complete FROM "_prisma_migrations" WHERE rolled_back_at IS NULL ORDER BY migration_name'
@@ -287,10 +287,10 @@ class Controller:
                    "requireSessionFamily": bool(canary) or record.get("sessionContract") == "family-v1",
                    "legacyQrLotIds": record.get("legacyQrLotIds", [])}
         if self.target:
-            payload.update(profile="fabric" if self.fabric_active else "light", canaryCatalog=self.config["canary"], environment=self.config["environment"])
+            payload.update(profile="fabric", canaryCatalog=self.config["canary"], environment=self.config["environment"])
         script = (Path(__file__).with_name("session-auth.mjs").read_text() + "\n" +
                   Path(__file__).with_name("verify.mjs").read_text())
-        output = self.run("release-verification", self.dc(record, "exec", "-T", "worker" if self.fabric_active else "api", "node", "--input-type=module", "-e", script),
+        output = self.run("release-verification", self.dc(record, "exec", "-T", "worker", "node", "--input-type=module", "-e", script),
                           json.dumps(payload).encode(), timeout=480)
         result = json.loads(output)
         require(result.get("result") == "passed", "Release verification did not succeed")
@@ -298,8 +298,7 @@ class Controller:
 
     def start(self, record):
         self.run("api-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "api"), timeout=240)
-        if self.fabric_active:
-            self.run("worker-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "worker"), timeout=240)
+        self.run("worker-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "worker"), timeout=240)
         edge_owned = self.target and (record["manifest"].get("format") == 2 or self.config.get("edge_adopted"))
         self.run("web-proxy-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "web", *([] if edge_owned else ["proxy"])), timeout=240)
         if self.origin_for(record).startswith("https://"):
@@ -317,7 +316,7 @@ class Controller:
             require(False, "Public HTTPS routes did not become ready for apex and www")
 
     def stop(self, record):
-        self.run("stop-writers", self.dc(record, "stop", "api", *(["worker"] if self.fabric_active else [])), timeout=200)
+        self.run("stop-writers", self.dc(record, "stop", "api", "worker"), timeout=200)
 
     @contextlib.contextmanager
     def stop_on_failure(self, record):
@@ -436,14 +435,8 @@ class Controller:
         stopped = False
         try:
             if self.fabric:
-                if self.fabric_active:
-                    stopped = True
-                    self.run("fabric-stop-for-snapshot", ["docker", "stop", "--time", "20", *self.fabric["containers"]], timeout=180)
-                else:
-                    # A light runtime can still have confirmed proofs from an
-                    # earlier Fabric session. Retain their ledger and identity
-                    # in the same snapshot, without waking the signing network.
-                    self.retained_fabric_snapshot_ready()
+                stopped = True
+                self.run("fabric-stop-for-snapshot", ["docker", "stop", "--time", "20", *self.fabric["containers"]], timeout=180)
                 for volume in self.fabric["volumes"]:
                     mount = self.run("ledger-volume-path", ["docker", "volume", "inspect", "--format", "{{.Mountpoint}}", volume]).decode().strip()
                     require(mount == f"/var/lib/docker/volumes/{volume}/_data", "Unexpected ledger volume path")
@@ -473,25 +466,8 @@ class Controller:
                 self.phase = phase
         return str(directory)
 
-    def retained_fabric_snapshot_ready(self):
-        require(self.prefix == "dev", "Only development can retain inactive Fabric")
-        root = Path(self.fabric["root"]).resolve(strict=True)
-        require(root.is_relative_to(self.base / "shared/fabric"), "Fabric root resolves outside dev")
-        for path in self.fabric["backup_paths"]:
-            require(Path(path).resolve(strict=True).is_relative_to(root), "Fabric backup path resolves outside dev")
-        for name in self.fabric["containers"]:
-            metadata = json.loads(self.run("retained-fabric-container", ["docker", "inspect", name]))[0]
-            require(not metadata["State"]["Running"] and metadata["State"]["Status"] != "restarting", "Retained Fabric must remain stopped during light backup")
-            require(self.fabric["network"] in metadata["NetworkSettings"]["Networks"], "Retained Fabric network mismatch")
-            for mount in metadata.get("Mounts", []):
-                if mount["Type"] == "volume":
-                    require(mount["Name"] in self.fabric["volumes"], "Uncatalogued retained Fabric volume")
-                elif mount["Source"] != "/var/run/docker.sock":
-                    require(Path(mount["Source"]).resolve().is_relative_to(root), "Fabric mount resolves outside dev")
 
     def resume_fabric(self):
-        if not self.fabric_active:
-            return
         self.run("fabric-resume", ["docker", "start", *(self.fabric["containers"] if self.target else FABRIC)], timeout=180)
         self.phase = "fabric-readiness"
         deadline = time.monotonic() + 180
@@ -533,7 +509,7 @@ class Controller:
         return results[0]
 
     def lifecycle(self, package_ids, version, sequence):
-        require(self.fabric_active, "Fabric lifecycle is unavailable in light mode")
+        require(self.fabric_active, "Production Fabric must be active")
         peers = []
         if self.target:
             binding = self.fabric["orderer"]
@@ -578,12 +554,6 @@ class Controller:
         return self.lifecycle({"1": package_id, "2": package_id}, f"cd-{candidate['sha'][:12]}", expected_sequence + 1)
 
     def restore_definition(self, state, previous):
-        if not self.fabric_active:
-            known = state["chaincode"]
-            if self.fabric:
-                require(known["fingerprint"] == previous["manifest"]["chaincode"], "Retained dev ledger requires a compatible recovery release")
-                return known
-            return dict(known, fingerprint=previous["manifest"]["chaincode"])
         actual = self.definition()
         known = state["chaincode"]
         # A crash after switch() can leave the candidate in state while the
@@ -621,11 +591,7 @@ class Controller:
         policy.migrations(self.applied(current), target_record["manifest"]["migrations"], target_record["directory"], state.get("compatible_migrations", []))
         # Code rollback across a different chaincode requires its historical package.
         chaincode = state["chaincode"]
-        if not self.fabric_active and not self.fabric:
-            chaincode = dict(chaincode, fingerprint=target_record["manifest"]["chaincode"])
-        elif not self.fabric_active:
-            require(target_record["manifest"]["chaincode"] == chaincode["fingerprint"], "Retained dev ledger requires a compatible chaincode release")
-        elif self.fabric_active and target_record["manifest"]["chaincode"] != chaincode["fingerprint"]:
+        if target_record["manifest"]["chaincode"] != chaincode["fingerprint"]:
             old_chaincode = target_record.get("chaincode")
             require(old_chaincode is not None, "Historical chaincode package metadata is missing")
             actual = self.definition()
@@ -639,20 +605,6 @@ class Controller:
         self.switch(target_record, updated)
         return updated, evidence
 
-    def resume_development(self, record, only_if_stopped=False):
-        require(self.target and self.prefix == "dev" and record.get("verified"), "Only a verified development release can resume retained data")
-        if only_if_stopped:
-            running = set(self.run("retained-dev-runtime", self.dc(record, "ps", "--services", "--status", "running")).decode().split())
-            required = {"postgres", "api", "web"} | ({"worker"} if self.fabric_active else set())
-            if required <= running:
-                return None
-        retained = json.loads(self.run("retained-dev-volume", ["docker", "volume", "inspect", self.config["postgres_volume"]]))[0]
-        require((retained.get("Labels") or {}).get("com.docker.compose.project") == self.project, "Retained dev volume ownership changed")
-        with self.stop_on_failure(record):
-            self.run("retained-dev-postgres", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "120", "postgres"), timeout=180)
-            self.resume_fabric()
-            self.start(record)
-            return self.verify(record)
 
     def rollout(self, candidate, state, expected_sequence=None):
         old = self.record(state["current"])
@@ -661,21 +613,14 @@ class Controller:
         candidate["legacyQrLotIds"] = list(old.get("legacyQrLotIds", []))
         require(not (self.storage / "journal.json").exists(), "Interrupted deployment needs recover before a new rollout")
         self.preflight(candidate)
-        if expected_sequence is None and (self.fabric_active or self.fabric):
+        if expected_sequence is None:
             require(candidate["manifest"]["chaincode"] == state["chaincode"]["fingerprint"], "Chaincode changed; dispatch upgrade with expected sequence")
-        elif expected_sequence is not None:
-            require(self.fabric_active, "Fabric upgrades require an active, separate Fabric binding")
-        # Retirement removes containers, but the verified release and its data
-        # remain. Resume that baseline even when the branch has advanced.
-        before = self.resume_development(old, only_if_stopped=True) if self.target and self.prefix == "dev" else None
         new_migrations = policy.migrations(self.applied(old), candidate["manifest"]["migrations"], candidate["directory"])
         if expected_sequence is not None:
             require(self.definition()["sequence"] == expected_sequence, "Expected chaincode sequence mismatch")
-        before = before or self.verify(old)
+        before = self.verify(old)
         self.journal(old, candidate, "snapshot", before)
         chaincode = state["chaincode"]
-        if not self.fabric_active and not self.fabric:
-            chaincode = dict(chaincode, fingerprint=candidate["manifest"]["chaincode"])
         snapshot = None
         try:
             self.stop(old)
@@ -740,14 +685,7 @@ class Controller:
         if not (self.storage / "journal.json").exists():
             return {"result": "no-recovery-required", "release": self.state()["current"]}
         journal = json.loads((self.storage / "journal.json").read_text())
-        if journal.get("previous") is None:
-            require(self.target and self.prefix == "dev" and not self.fabric_active, "Unknown initial provisioning target")
-            candidate = self.record(journal["candidate"])
-            require(self.state()["current"] in (None, candidate["id"]), "Initial recovery current release changed")
-            self.preflight(candidate)
-            with self.stop_on_failure(candidate):
-                self.stop(candidate)
-                return self.complete_initial_development(candidate)
+        require(journal.get("previous") is not None, "Production recovery requires a verified previous release")
         state = self.state()
         previous = self.record(journal["previous"])
         candidate = self.record(journal["candidate"])
@@ -767,52 +705,7 @@ class Controller:
             (self.storage / "journal.json").unlink()
         return {"result": "recovered", "release": previous["id"], "counts": evidence["counts"]}
 
-    def initialize_development(self, candidate):
-        require(self.target and self.prefix == "dev" and not self.fabric_active and self.state()["current"] is None,
-                "Only a new light development database can be initialized")
-        require(not (self.base / "current").exists() and not (self.storage / "journal.json").exists(), "Initial provisioning requires a clean journal")
-        self.preflight(candidate)
-        # Do not seed or migrate an existing volume, even if current is absent.
-        inspection = subprocess.run(["docker", "volume", "inspect", self.config["postgres_volume"]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        require(inspection.returncode != 0 and b"no such volume" in inspection.stderr.lower(), "Dev data volume already exists; administrator reconciliation is required")
-        atomic_json(self.storage / "journal.json", {"previous": None, "candidate": candidate["id"], "stage": "initial-provision"})
-        return self.complete_initial_development(candidate)
 
-    def complete_initial_development(self, candidate):
-        try:
-            self.run("initial-postgres", self.dc(candidate, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "120", "postgres"), timeout=180)
-            volume = json.loads(self.run("initial-volume-ownership", ["docker", "volume", "inspect", self.config["postgres_volume"]]))[0]
-            require((volume.get("Labels") or {}).get("com.docker.compose.project") == self.project, "Initial dev volume ownership changed")
-            has_catalog = self.run("initial-migration-catalog", self.dc(candidate, "exec", "-T", "postgres", "psql", "-U", self.environment["POSTGRES_USER"],
-                                   "-d", self.environment["POSTGRES_DB"], "-At", "-c", "SELECT to_regclass('public._prisma_migrations') IS NOT NULL")).strip() == b"t"
-            if has_catalog:
-                applied = self.applied(candidate)
-                catalog = candidate["manifest"]["migrations"]
-                require(set(applied) <= set(catalog), "Unexpected schema history during initial dev recovery")
-                policy.migrations(applied, {k: catalog[k] for k in applied}, candidate["directory"])
-            self.migrate(candidate)
-            # The UAT bootstrap is used solely for a fresh, isolated dev DB.
-            self.run("initial-dev-catalog", self.dc(candidate, "run", "--rm", "--no-deps", "--pull", "never",
-                     "--user", "0:0",
-                     "-e", "APP_ENV=uat", "-e", "UAT_BOOTSTRAP_ENABLED=true", "-e", "UAT_ACCOUNTS_FILE=/run/dev-accounts.json",
-                     "-v", self.config["accounts"] + ":/run/dev-accounts.json:ro", "api", "node", "apps/api/scripts/bootstrap-uat.mjs"), timeout=180)
-            self.start(candidate)
-            evidence = self.verify(candidate, candidate["sha"])
-            chaincode = dict(self.state()["chaincode"], fingerprint=candidate["manifest"]["chaincode"])
-            candidate.update(verified=True, sessionContract="family-v1", chaincode=chaincode)
-            self.save_record(candidate)
-            self.switch(candidate, dict(self.state(), current=candidate["id"], chaincode=chaincode))
-            self.stop(candidate)
-            snapshot = self.snapshot(candidate, candidate["sha"], evidence)
-            self.start(candidate)
-            final = self.verify(candidate)
-            self.preserve(evidence, final)
-            atomic_json(self.storage / "last-result.json", {"result": "passed", "release": candidate["id"], "counts": final["counts"], "snapshot": snapshot})
-            (self.storage / "journal.json").unlink()
-            return {"result": "initialized", "release": candidate["id"], "counts": final["counts"], "fabricVerification": "not-evaluated-disabled"}
-        except Exception:
-            self.stop(candidate)
-            raise PolicyError("Initial dev provisioning failed; inspect the private journal and reconcile without deleting retained data")
 
     def execute(self, parts, stream):
         op = parts[0]
@@ -832,11 +725,8 @@ class Controller:
             return self.recover()
         require(self.config.get("enabled", True), "Deployment is disabled for this environment")
         require(not (self.storage / "runtime-toggle.json").exists(), "Administrator must finish the interrupted Fabric runtime switch")
-        if self.target:
-            if self.prefix == "dev":
-                memory = dict(line.split(":", 1) for line in Path("/proc/meminfo").read_text().splitlines())
-                require(int(memory["MemAvailable"].split()[0]) >= self.config.get("min_available_mib", 1536) * 1024, "Insufficient host RAM for dev delivery")
         state = self.state()
+        require(state["current"] is not None, "Production requires an adopted verified release")
         if op == "rollback":
             require(not (self.storage / "journal.json").exists(), "Recover interrupted rollout before rollback")
             target = self.prefix + "-" + parts[1]
@@ -897,18 +787,10 @@ class Controller:
                 self.save_record(record)
             self.server_gate(record, auth)
             if state["current"] == release and op == "deploy":
-                # A suspended/retired dev can resume the current immutable
-                # release without re-running bootstrap or migrations.
-                if self.target and self.prefix == "dev":
-                    self.preflight(record)
-                    self.registry(record, auth)
-                    evidence = self.resume_development(record)
-                else:
-                    evidence = self.verify(record)
+                evidence = self.verify(record)
                 return {"result": "unchanged", "release": release, "counts": evidence["counts"]}
             self.registry(record, auth)
-            if state["current"] is None:
-                return self.initialize_development(record)
+            require(state["current"] is not None, "Production requires an adopted verified release")
             return self.rollout(record, state, int(parts[3]) if op == "upgrade" else None)
 
 

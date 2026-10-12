@@ -1,7 +1,6 @@
 {
     admin unix//tmp/caddy-admin.sock
 }
-
 (application) {
     encode gzip
     @docs path /api/docs /api/docs/* /api/docs-json /api/docs-yaml
@@ -26,8 +25,4 @@ agritrace.dev, www.agritrace.dev {
 # Preserve the existing legacy QR origin only on the production route.
 http://13.140.170.166 {
     import application prod-api prod-web
-}
-
-nongtrace.site, www.nongtrace.site {
-    import application dev-api dev-web
 }
