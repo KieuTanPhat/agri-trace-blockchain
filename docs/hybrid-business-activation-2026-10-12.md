@@ -65,3 +65,19 @@ Fabric binding trong overlay, shared env thiếu năm biến worker của app Co
 TLS hostname/endpoint descriptor, giữ nguyên private bytes có sẵn và runtime.
 Preflight Compose/signer đạt lúc 17:06:11 UTC, dispatch lại cùng `main@8ae1354`.
 Failure và thiếu snapshot của lần preflight được giữ; không tính là rollout pass.
+
+`544d0d9` local đã đạt 135 unit, 31 SQL assertions, full Prisma diff zero +
+6 unique guards và ORM. Policy: 69 passed/10 failed/10 skipped trên tổng 89;
+không nghiệm thu suite. Tám legacy cases và HTTP setup bị fixture dùng `state`
+cho `ProductionCycle`, model thực là `currentState`; capability FARM đã được
+trigger bootstrap nên create bị trùng; root chung đã CANCELLED nên không đúng
+case active unresolved. Sửa fixture sang field thực, upsert capability và tạo
+active participant/root riêng trong transaction; typed check bao gồm cả hai
+hybrid specs/support. Giữ assertions history/hash/journal/activation/concurrency.
+
+Production CD retry 38281981598 đạt cho main8ae1354. Snapshot dừng/resume Fabric
+và Compose recreate cả PostgreSQL/API/Worker/Web như kế hoạch; PostgreSQL giữ
+đúng volume đã adopt. Kiểm hậu triển khai dùng IDs của persistent Fabric,
+binding/package/sequence/history/keys và chỉ cho phép những lifecycle changes
+được rollout/snapshot tạo có chủ ý; không dùng baseline startedAt của runtime
+cũ để kết luận lỗi dữ liệu. Receipt hậu triển khai chưa hoàn tất ở checkpoint này.

@@ -95,7 +95,7 @@ export async function legacyHistoryFixture(
     const cycle = await db.productionCycle.update({
       where: { id: created.id },
       data: {
-        state: 'PLANTED',
+        currentState: 'PLANTED',
         version: { increment: 1 },
         startDate: new Date(),
       },

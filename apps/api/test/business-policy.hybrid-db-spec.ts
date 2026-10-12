@@ -2303,6 +2303,37 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       });
       await grant(tx, producer, 'CHAIN_MANAGER', target.id);
       const permission = await grant(tx, producer, 'FARM_STAFF', target.id);
+      let activeUnresolvedRootId: string | undefined;
+      if (unresolved) {
+        // The shared historical root is closed. This separate participant
+        // supplies a genuinely active root before its cutover marker exists.
+        const org = await tx.organization.create({
+          data: {
+            name: `Unresolved participant ${randomUUID()}`,
+            type: 'FARM',
+          },
+        });
+        const farm = await tx.farm.create({
+          data: { organizationId: org.id, name: 'Active unresolved farm' },
+        });
+        activeUnresolvedRootId = (
+          await tx.productionCycle.create({
+            data: {
+              farmId: farm.id,
+              farmOrgId: org.id,
+              productId,
+              cycleCode: randomUUID(),
+            },
+          })
+        ).id;
+        await tx.chainMembership.create({
+          data: {
+            chainId: target.id,
+            organizationId: org.id,
+            status: 'ACTIVE',
+          },
+        });
+      }
       const role = await tx.role.findUniqueOrThrow({
         where: { code: 'SYSTEM_ADMIN' },
       });
@@ -2353,7 +2384,7 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
         inventory,
         pin,
         actor,
-        cycleId: manifest.entries[0].cycleId,
+        cycleId: activeUnresolvedRootId ?? manifest.entries[0].cycleId,
       };
     }
     async function pinned(
@@ -2894,8 +2925,15 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
           type: 'FARM',
         },
       });
-      await db.organizationCapability.create({
-        data: { organizationId: organization.id, code: 'FARM' },
+      await db.organizationCapability.upsert({
+        where: {
+          organizationId_code: {
+            organizationId: organization.id,
+            code: 'FARM',
+          },
+        },
+        create: { organizationId: organization.id, code: 'FARM' },
+        update: {},
       });
       const farm = await db.farm.create({
         data: { organizationId: organization.id, name: 'Unregistered farm' },
