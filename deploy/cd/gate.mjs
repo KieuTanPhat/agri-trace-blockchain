@@ -4,7 +4,7 @@ import {pathToFileURL} from 'node:url';
 export const requiredWorkflows = ['application-ci.yml', 'blockchain-ci.yml', 'dependency-audit.yml'];
 
 export function evaluate(runs, sha, branchSha, branch = 'main') {
-  if (!['main', 'dev'].includes(branch)) throw new Error('Unknown deployable branch');
+  if (branch !== 'main') throw new Error('Only main is deployable');
   if (branchSha !== sha) return {status: 'stale'};
   const selected = requiredWorkflows.map(file => runs.filter(run => run.head_sha === sha && run.head_branch === branch &&
     run.event === 'push' && run.path === `.github/workflows/${file}`).sort((a,b) => b.id - a.id)[0]);
@@ -25,7 +25,7 @@ export async function github(route) {
 async function main() {
   const sha = process.env.GITHUB_SHA;
   const branchName = process.env.CD_BRANCH ?? 'main';
-  if (!['main', 'dev'].includes(branchName) || !/^[a-f0-9]{40}$/.test(sha ?? '') || process.env.GITHUB_REF !== `refs/heads/${branchName}`) throw new Error('CD branch/commit mismatch');
+  if (branchName !== 'main' || !/^[a-f0-9]{40}$/.test(sha ?? '') || process.env.GITHUB_REF !== 'refs/heads/main') throw new Error('CD branch/commit mismatch');
   const deadline = Date.now() + 55 * 60_000;
   let previous;
   while (Date.now() < deadline) {

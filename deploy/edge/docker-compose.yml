@@ -13,7 +13,7 @@ services:
         bind: {create_host_path: false}
       - caddy-data:/data
       - caddy-config:/config
-    networks: [development, production]
+    networks: [production]
     mem_limit: 128m
     cpus: 0.25
     labels: {com.datadoghq.tags.env: infrastructure, com.datadoghq.tags.service: agritrace-edge}
@@ -21,7 +21,6 @@ services:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
 networks:
-  development: {external: true, name: agritrace-dev-ingress}
   production: {external: true, name: agritrace-prod-ingress}
 volumes:
   caddy-data: {external: true, name: "${EDGE_DATA_VOLUME:?Set existing certificate volume}"}

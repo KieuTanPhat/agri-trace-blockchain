@@ -3,8 +3,6 @@ import re
 from pathlib import PurePosixPath as Path
 
 TARGETS = {
-    "development": {"branch": "dev", "origin": "https://nongtrace.site", "prefix": "dev",
-                    "project": "agritrace-dev", "ingress": "agritrace-dev-ingress"},
     "production": {"branch": "main", "origin": "https://agritrace.dev", "prefix": "prod",
                    "project": "agritrace-prod", "ingress": "agritrace-prod-ingress"},
 }
@@ -25,15 +23,14 @@ def validate_target(value, require):
     if value["environment"] == "production":
         projects.add("agri-trace-uat")  # Adoption preserves the existing PGDATA.
     require(value.get("project") in projects, "Environment project mismatch")
-    require(value.get("profile") in {"light", "fabric"}, "Unknown deployment profile")
-    require(value["environment"] != "production" or value["profile"] == "fabric", "Production requires Fabric")
+    require(value.get("profile") == "fabric", "Production requires Fabric")
     return selected
 
 
 def validate_config(config, require):
     selected = validate_target(config, require)
     require(config.get("schema") == 2 and type(config.get("enabled")) is bool, "Invalid installed target config")
-    expected_base = "/opt/agri-trace-dev" if config["environment"] == "development" else "/opt/agri-trace"
+    expected_base = "/opt/agri-trace"
     require(config.get("base") == expected_base, "Environment workspace mismatch")
     require(config.get("ingress") == selected["ingress"], "Environment ingress mismatch")
     require(config.get("postgres_volume") == config["project"] + "_postgres-data", "Database volume ownership mismatch")
@@ -54,7 +51,7 @@ def validate_config(config, require):
     if config["profile"] == "fabric":
         require(bool(fabric), "Fabric binding must be provisioned before activation")
     active = config.get("fabric_enabled", config["profile"] == "fabric")
-    require(type(active) is bool and (config["environment"] != "production" or active), "Invalid Fabric runtime switch")
+    require(active is True, "Production requires active Fabric")
     require(not active or bool(fabric), "Fabric binding must be provisioned before activation")
     canary = config.get("canary")
     require(isinstance(canary, dict) and set(canary) == {"farmId", "plotId", "productId"}, "Dedicated canary catalog is required")
@@ -72,11 +69,11 @@ def validate_fabric(config, require):
             "Invalid Fabric resource catalog")
     require(all(isinstance(name, str) and re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,200}", name) for name in resources),
             "Invalid Fabric resource name")
-    if config["environment"] == "development":
-        require(fabric["network"] == "agritrace-dev-fabric", "Dev cannot use the production Fabric network")
-        require(all(name.startswith("agritrace-dev-") for name in resources), "Dev Fabric resources must have dev ownership")
-        require(owned_path(fabric["root"], Path(config["base"]) / "shared/fabric"), "Dev Fabric root ownership mismatch")
     require(Path(fabric["root"]).is_absolute(), "Fabric root must be absolute")
+    require(not owned_path(fabric["root"], "/opt/agri-trace-dev") and
+            fabric["network"] != "agritrace-dev-fabric" and fabric["channel"] != "agritrace-dev" and
+            all(not name.startswith("agritrace-dev") for name in resources),
+            "Retired development Fabric cannot serve production")
     require(bool(fabric.get("backup_paths")) and all(owned_path(p, fabric["root"])
             for p in fabric["backup_paths"]), "Fabric backup paths must belong to its root")
     for peer in fabric["peers"].values():

@@ -1,5 +1,10 @@
 # Vận hành dev và production
 
+> Tài liệu lịch sử, được thay thế ngày 12/10/2026 bởi
+> [runbook production](production-runbook.md). Target/workflow/runtime dev đã
+> được quyết định retire; không dùng các lệnh provision/resume/toggle dev bên
+> dưới. Evidence cũ được giữ để truy vết, không là cấu hình hiện hành.
+
 ## Target và giới hạn của đợt chuyển cấu hình
 
 | Thuộc tính | Development | Production |

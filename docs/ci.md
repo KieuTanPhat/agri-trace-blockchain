@@ -1,6 +1,6 @@
 # CI của Agri Trace
 
-CI chạy trên PR vào `main`/`dev`, push lên `main`/`dev`, merge queue và thao tác
+CI chạy trên PR vào `main`, push lên `main`, merge queue và thao tác
 `workflow_dispatch`. Push lên nhánh làm việc được kiểm tra qua PR để tránh
 chạy lặp cùng thay đổi bằng cả push và PR. Runner cố định `ubuntu-24.04`;
 actions được cố định bằng SHA và cập nhật qua Dependabot.
@@ -21,7 +21,7 @@ Lỗi audit không ngăn lint/test/build trả kết quả nhưng vẫn chặn m
 `Dependency gate`. Strict status checks yêu cầu kiểm tra trên nhánh đã cập
 nhật với `main`.
 
-Mọi push lên `main` và `dev` chạy đầy đủ các job trên đúng SHA, kể cả commit tài liệu.
+Mọi push lên `main` chạy đầy đủ các job trên đúng SHA, kể cả commit tài liệu.
 CD dùng ba workflow push thành công của SHA đó: nếu chọn job theo diff của
 push, một commit tài liệu sau commit code chưa đạt có thể tạo gate xanh khi
 API/Web/Fabric bị bỏ qua. Chỉ PR được tối ưu bằng chọn đường dẫn. Test logic
@@ -29,15 +29,15 @@ chọn job và gate chạy trong job `changes` của Application CI, trước c�
 có điều kiện; không phụ thuộc việc API có được chọn hay không.
 
 CD yêu cầu bằng chứng push của đúng branch, SHA và lần chạy mới nhất của cả
-ba workflow. Kết quả PR hoặc CI của `main` không thay thế CI của `dev`, kể cả
-khi hai nhánh cùng SHA. Application CI còn diễn tập hai app projects dùng thử:
-network/database riêng, backup/restore, gỡ rồi dựng lại dev và đối chiếu
-container ID, thời điểm khởi động, dữ liệu production mô phỏng không đổi.
-Fabric thật tiếp tục được kiểm trên runner bởi Blockchain CI.
+ba workflow. Kết quả PR hoặc CI của `dev` không cho phép triển khai, kể cả
+khi hai nhánh cùng SHA. Application CI diễn tập PostgreSQL trong container có
+label, network/volume riêng và quota trên runner: cold TCP readiness,
+backup/restore và dữ liệu giữ qua restart; cleanup kiểm ownership. Đây là gate
+database. Fabric thật tiếp tục được kiểm bởi Blockchain CI và release verifier.
 
 Vận hành domain, khóa triển khai và các công tắc CD theo
-[runbook dev/production](dev-production-runbook.md). Cấu hình GitHub/server
-mặc định tắt delivery cho môi trường chưa được provision và kiểm chứng.
+[runbook production](production-runbook.md). Production là target duy nhất;
+công tắc GitHub/server chỉ bật sau khi cài helper đã review và đủ release gates.
 
 Ruleset GitHub phải bắt buộc đúng ba **tên job** ở bảng trên, nguồn check là
 GitHub Actions. Tệp workflow không tự bật branch protection. Giữ các quy

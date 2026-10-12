@@ -34,8 +34,8 @@ print(json.dumps({'result':'passed','credentialBytes':len(auth['token']),'archiv
   const archive=path.join(root,'bundle.tar.gz');writeFileSync(archive,'public bundle fixture');
   const credential='ghs_'+'A'.repeat(1500);
   const env={...process.env,PATH:bin+path.delimiter+process.env.PATH,RUNNER_TEMP:root,
-    CD_TEST_MARKER:marker,UAT_HOST:'13.140.170.166',UAT_USER:'agri-cd',
-    UAT_SSH_PRIVATE_KEY:'synthetic test key',UAT_KNOWN_HOSTS:'synthetic test host pin',
+    CD_TEST_MARKER:marker,CD_HOST:'13.140.170.166',CD_USER:'agri-cd-prod',CD_ENVIRONMENT:'production',
+    CD_SSH_PRIVATE_KEY:'synthetic test key',CD_KNOWN_HOSTS:'synthetic test host pin',
     REGISTRY_USERNAME:'KieuTanPhat',GH_TOKEN:credential};
   delete env.GITHUB_ACTOR;
   const run=(...args)=>spawnSync(process.execPath,[sender,...args],{env,encoding:'utf8',timeout:10000});
@@ -88,15 +88,15 @@ test('complete backup is published privately and retry cannot overwrite it',{ski
 });
 
 test('missing host pin removes the private key before SSH starts',t=>{
-  const f=fixture(t);delete f.env.UAT_KNOWN_HOSTS;
+  const f=fixture(t);delete f.env.CD_KNOWN_HOSTS;
   const result=f.run('deploy',sha,f.archive);
   assert.equal(result.status,1);assert.equal(existsSync(f.marker),false);
   assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
-  assert.ok(!result.stderr.includes(f.env.UAT_SSH_PRIVATE_KEY));
+  assert.ok(!result.stderr.includes(f.env.CD_SSH_PRIVATE_KEY));
 });
 
 test('missing private key leaves no temporary SSH directory',t=>{
-  const f=fixture(t);delete f.env.UAT_SSH_PRIVATE_KEY;
+  const f=fixture(t);delete f.env.CD_SSH_PRIVATE_KEY;
   const result=f.run('deploy',sha,f.archive);
   assert.equal(result.status,1);assert.equal(existsSync(f.marker),false);
   assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
@@ -108,5 +108,5 @@ test('known-hosts write failure cleans up a key already written',t=>{
   const result=f.run('deploy',sha,f.archive);
   assert.equal(result.status,1);assert.equal(existsSync(f.marker),false);
   assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
-  assert.ok(!result.stderr.includes(f.env.UAT_SSH_PRIVATE_KEY));
+  assert.ok(!result.stderr.includes(f.env.CD_SSH_PRIVATE_KEY));
 });

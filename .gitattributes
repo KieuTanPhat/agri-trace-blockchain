@@ -9,3 +9,4 @@ docs/openapi/openapi.sha256 text eol=lf
 deploy/cd/*.py text eol=lf
 deploy/cd/*.mjs text eol=lf
 deploy/cd/entry text eol=lf
+deploy/edge/Caddyfile text eol=lf
