@@ -221,5 +221,14 @@ poll tab hiện 60 giây, bỏ response account cũ, ẩn private content khi kh
 được quyền, bỏ cache/remount khi accessRevision đổi. Revision UI không thay
 command fingerprint hoặc làm mất replay do thêm role khác. Focus với revision
 không đổi giữ form/retry đang chờ; public QR vẫn dùng đường riêng. Chưa nghiệm
-thu browser/mobile; 57 DB tests gồm grant-revoke HTTP và hai backfill preflight
-scenario đang chuẩn bị chạy cùng toàn bộ legacy trước triển khai.
+thu browser/mobile. Lượt `b7a52339` sau đó đạt 57 DB tests gồm grant-revoke HTTP
+và hai backfill preflight scenarios, nhưng legacy 110/112 do hai lỗi guard
+trả 400 thay vì 403 trước DTO. Failure giữ tại
+`/opt/agri-trace-admin/hybrid-scope-draft/fce7466263ece890-1791778321957691924`.
+
+Candidate sửa guard/Web refresh-access race và assignment proposal chỉ đọc:
+130 API unit, 169 Web tests, lint/typecheck và 89-operation contract đạt trong
+bản sao cách ly. 58 DB tests gồm mixed-global/scoped reviewer chưa chạy lại;
+hai preflight cases được mở rộng kiểm proposal không ghi DB. Không ghi Passed
+cho PG/112 legacy, Web production build hoặc promote migration/app. Giới hạn
+và tiến độ tại [checkpoint ngày 12/10](hybrid-progress-2026-10-12.md).

@@ -7,6 +7,8 @@ import {
   PERMISSION_SYNC_EVENT,
   PERMISSION_SYNC_KEY,
   PERMISSION_CHECK_EVENT,
+  acceptBusinessAccessRevision,
+  invalidateBusinessAccess,
 } from "./permission-sync";
 import type { AuthUser } from "./types";
 
@@ -18,6 +20,7 @@ export function useBusinessAccess(user: AuthUser | null) {
   const [scope, setScope] = useState<{
     identity: string;
     revision?: string;
+    productionAccess?: boolean;
     status: Status;
   }>({ identity: "", status: "checking" });
   const identity = getAuthorizationScope(
@@ -29,6 +32,7 @@ export function useBusinessAccess(user: AuthUser | null) {
     let running = false;
     let recheck = false;
     let previous: string | undefined;
+    let productionAccess: boolean | undefined;
     const forget = () =>
       clearStoredIotReadings(
         getAuthorizationScope({ ...user, accessRevision: previous }),
@@ -36,16 +40,23 @@ export function useBusinessAccess(user: AuthUser | null) {
     const check = async (foreground = false) => {
       if (!active || tabHidden()) return;
       if (foreground)
-        setScope({ identity, revision: previous, status: "checking" });
+        setScope({
+          identity,
+          revision: previous,
+          productionAccess,
+          status: "checking",
+        });
       if (running) {
         recheck = true;
         return;
       }
       running = true;
       try {
-        const context = await request<{ accessRevision?: string }>(
-          "/chain-permissions",
-        );
+        const context = await request<{
+          accessRevision?: string;
+          businessScopeActivated?: boolean;
+          productionChains?: { id: string }[];
+        }>("/chain-permissions");
         if (!active) return;
         if (
           !context.accessRevision ||
@@ -53,16 +64,28 @@ export function useBusinessAccess(user: AuthUser | null) {
         )
           throw new Error("Missing current permission revision");
         if (previous !== context.accessRevision) forget();
+        acceptBusinessAccessRevision(context.accessRevision);
         previous = context.accessRevision;
+        productionAccess = context.businessScopeActivated
+          ? (context.productionChains?.length ?? 0) > 0
+          : user.role.code === "FARM_STAFF" ||
+            (context.productionChains?.length ?? 0) > 0;
         setScope({
           identity,
           revision: previous,
+          productionAccess,
           status: tabHidden() ? "checking" : "ready",
         });
       } catch {
         if (active) {
           forget();
-          setScope({ identity, revision: previous, status: "unavailable" });
+          invalidateBusinessAccess();
+          setScope({
+            identity,
+            revision: previous,
+            productionAccess,
+            status: "unavailable",
+          });
         }
       } finally {
         running = false;
@@ -83,7 +106,12 @@ export function useBusinessAccess(user: AuthUser | null) {
     };
     const visibility = () => {
       if (document.visibilityState === "hidden")
-        setScope({ identity, revision: previous, status: "checking" });
+        setScope({
+          identity,
+          revision: previous,
+          productionAccess,
+          status: "checking",
+        });
       else refresh();
     };
     window.addEventListener("focus", refresh);
@@ -110,5 +138,10 @@ export function useBusinessAccess(user: AuthUser | null) {
   }, [identity]);
   return scope.identity === identity
     ? scope
-    : { identity, revision: undefined, status: "checking" as const };
+    : {
+        identity,
+        revision: undefined,
+        productionAccess: undefined,
+        status: "checking" as const,
+      };
 }

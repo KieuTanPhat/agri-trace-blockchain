@@ -16,6 +16,7 @@ import { clearStoredIotReadings } from "./iot-local-store";
 import {
   publishPermissionChange,
   PERMISSION_CHECK_EVENT,
+  businessAccessEpoch,
 } from "./permission-sync";
 import type { components } from "./generated/api";
 import type {
@@ -485,9 +486,23 @@ export async function request<T>(
     ? (readAccessToken() ?? (await refreshAccessToken()))
     : null;
   const requestIdentity = identityVersion;
+  const requestAccessEpoch = businessAccessEpoch();
   const requestScope = authenticated
     ? getAuthorizationScope(session?.user)
     : null;
+  const assertBusinessAccess = () => {
+    if (
+      authenticated &&
+      path !== "/chain-permissions" &&
+      businessAccessEpoch() !== requestAccessEpoch
+    )
+      throw {
+        status: 409,
+        code: "ACCESS_CHANGED",
+        message:
+          "Quyền hiện hành đã thay đổi. Kiểm tra kết quả đã ghi trước khi gửi lại.",
+      };
+  };
   const headers = new Headers(init.headers);
   if (init.body) headers.set("content-type", "application/json");
   if (token) headers.set("authorization", `Bearer ${token}`);
@@ -528,6 +543,7 @@ export async function request<T>(
       code: "SESSION_CHANGED",
       message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
     };
+  assertBusinessAccess();
   if (response.status === 401 && authenticated && canRefresh) {
     if (readAccessToken() === token) await refreshAccessToken();
     if (
@@ -540,6 +556,9 @@ export async function request<T>(
         message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
       };
     }
+    // Refresh is asynchronous. Keep the original access epoch across it;
+    // recursively retrying would otherwise silently adopt a different scope.
+    assertBusinessAccess();
     return request<T>(path, { ...init, headers }, authenticated, false);
   }
   if (!response.ok) {

@@ -1705,6 +1705,7 @@ export interface components {
             role: "FARM_STAFF" | "TRANSPORTER" | "RETAILER";
         };
         CycleDetailDto: {
+            canReviewCompliance?: boolean;
             canWriteProduction?: boolean;
             careRecords: components["schemas"]["CareRecordRecordDto"][];
             certificates: components["schemas"]["CertificateRecordDto"][];
@@ -1744,6 +1745,7 @@ export interface components {
             version: number;
         };
         CycleListDto: {
+            canReviewCompliance?: boolean;
             canWriteProduction?: boolean;
             /** Format: uuid */
             chainId: string | null;

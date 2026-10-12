@@ -68,6 +68,8 @@ export class CatalogDto {
 }
 export class CycleListDto extends ProductionCycleRecordDto {
   @ApiProperty({ type: Boolean, required: false }) canWriteProduction?: boolean;
+  @ApiProperty({ type: Boolean, required: false })
+  canReviewCompliance?: boolean;
   @ApiProperty({ type: ProductOptionDto }) product!: ProductOptionDto;
   @ApiProperty({ type: NamedDto }) farm!: NamedDto;
   @ApiProperty({ type: NamedDto, nullable: true }) plot!: NamedDto | null;
@@ -84,6 +86,8 @@ class HarvestDetailDto extends HarvestEventRecordDto {
 }
 export class CycleDetailDto extends ProductionCycleRecordDto {
   @ApiProperty({ type: Boolean, required: false }) canWriteProduction?: boolean;
+  @ApiProperty({ type: Boolean, required: false })
+  canReviewCompliance?: boolean;
   @ApiProperty({ type: ProductRecordDto }) product!: ProductRecordDto;
   @ApiProperty({ type: FarmRecordDto }) farm!: FarmRecordDto;
   @ApiProperty({ type: PlotRecordDto, nullable: true })

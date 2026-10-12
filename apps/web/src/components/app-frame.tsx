@@ -121,7 +121,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     );
 
   const role = auth.user.role.code;
-  if (!canAccessManagementRoute(pathname, role))
+  if (!canAccessManagementRoute(pathname, role, auth.user?.productionAccess))
     return (
       <main className="public-content">
         <div className="notice error" role="alert">
@@ -286,7 +286,9 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           aria-label="Điều hướng quản lý trên điện thoại"
         >
           {navigation
-            .filter(({ href }) => canAccessManagementRoute(href, role))
+            .filter(({ href }) =>
+              canAccessManagementRoute(href, role, auth.user?.productionAccess),
+            )
             .map(({ href, label, icon: Icon }) => (
               <Link
                 className="nav-link"
@@ -317,7 +319,13 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           <p className="sidebar-heading">Không gian quản lý</p>
           <nav className="nav-list" aria-label="Điều hướng chính">
             {navigation
-              .filter(({ href }) => canAccessManagementRoute(href, role))
+              .filter(({ href }) =>
+                canAccessManagementRoute(
+                  href,
+                  role,
+                  auth.user?.productionAccess,
+                ),
+              )
               .map(({ href, label, icon: Icon }) => {
                 const active =
                   href === "/dashboard"

@@ -34,6 +34,110 @@ afterEach(() => {
 });
 
 describe("public API", () => {
+  it.each(["GET", "POST"])(
+    "does not resend a private %s after access changes during token refresh",
+    async (method) => {
+      let finishRefresh!: (response: Response) => void;
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(json({}, 401))
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishRefresh = resolve;
+            }),
+        )
+        .mockResolvedValue(json({ success: true, data: { private: "stale" } }));
+      vi.stubGlobal("fetch", fetchMock);
+      const client = await import("./api-client");
+      const permissions = await import("./permission-sync");
+      client.setSession(auth);
+      permissions.acceptBusinessAccessRevision("a".repeat(64));
+      const pending = client.request("/lots", {
+        method,
+        ...(method === "POST" ? { body: "{}" } : {}),
+        headers: { "idempotency-key": "original-command" },
+      });
+      const rejected = expect(pending).rejects.toMatchObject({
+        status: 409,
+        code: "ACCESS_CHANGED",
+      });
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      permissions.acceptBusinessAccessRevision("b".repeat(64));
+      finishRefresh(
+        json({ success: true, data: { ...auth, accessToken: "new" } }),
+      );
+      await rejected;
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(client.readSession()?.accessToken).toBe("new");
+    },
+  );
+
+  it("does not resend a command when current permissions cannot be confirmed during refresh", async () => {
+    let finishRefresh!: (response: Response) => void;
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({}, 401))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishRefresh = resolve;
+          }),
+      )
+      .mockResolvedValue(json({ success: true, data: { id: "unexpected" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = await import("./api-client");
+    const permissions = await import("./permission-sync");
+    client.setSession(auth);
+    permissions.acceptBusinessAccessRevision("a".repeat(64));
+    const pending = client.request("/production-cycles", {
+      method: "POST",
+      body: "{}",
+      headers: { "idempotency-key": "original-command" },
+    });
+    const rejected = expect(pending).rejects.toMatchObject({
+      code: "ACCESS_CHANGED",
+    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    permissions.invalidateBusinessAccess();
+    finishRefresh(
+      json({ success: true, data: { ...auth, accessToken: "new" } }),
+    );
+    await rejected;
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["GET", "POST"])(
+    "rejects a late private %s response after the business revision changes",
+    async (method) => {
+      let finish!: (response: Response) => void;
+      const fetchMock = vi.fn<typeof fetch>().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const client = await import("./api-client");
+      const permissions = await import("./permission-sync");
+      client.setSession(auth);
+      permissions.acceptBusinessAccessRevision("a".repeat(64));
+      const old = client.request("/lots", {
+        method,
+        ...(method === "POST" ? { body: "{}" } : {}),
+      });
+      const rejected = expect(old).rejects.toMatchObject({
+        status: 409,
+        code: "ACCESS_CHANGED",
+      });
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+      permissions.acceptBusinessAccessRevision("b".repeat(64));
+      finish(json({ success: true, data: { private: "old scope" } }));
+      await rejected;
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(client.readSession()?.user.id).toBe(user.id);
+    },
+  );
   it("uses the current browser origin in production so aliases retain cookie sessions", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_API_SAME_ORIGIN", "true");

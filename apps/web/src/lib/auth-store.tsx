@@ -74,14 +74,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AuthStore>(
     () => ({
-      user: user ? { ...user, accessRevision: access.revision } : null,
+      user: user
+        ? {
+            ...user,
+            accessRevision: access.revision,
+            productionAccess: access.productionAccess,
+          }
+        : null,
       privateAccessStatus: access.status,
       isAuthenticated: Boolean(user),
       isLoading,
       login,
       logout,
     }),
-    [user, access.revision, access.status, isLoading, login, logout],
+    [
+      user,
+      access.revision,
+      access.productionAccess,
+      access.status,
+      isLoading,
+      login,
+      logout,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

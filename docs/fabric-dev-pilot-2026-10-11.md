@@ -116,8 +116,11 @@ production baseline. Cửa sổ hiện tại bắt đầu 00:54, nhưng gap 27.6
 hai lượt không được suy ra healthy. Gate quan sát 24 giờ chưa đạt; evidence
 giữ đủ lịch sử các cửa sổ và failures. Schema/policy nhánh bản A chưa triển khai.
 
-StageAssignment/ShipmentPlan, scope trên core read/write/replay và backfill
-manifest còn thiếu. Sau bản A mới mở protocol/binding/ledger registry/router
+Candidate riêng đã có StageAssignment/ShipmentPlan, core read/write/replay,
+Web permission context và inventory/manifest/assignment proposals chỉ đọc;
+chưa triển khai hoặc nghiệm thu trọn A. Apply/provenance/journal bridge,
+migration/rehearsal/browser/mobile và release gates còn thiếu. Sau bản A mới
+mở protocol/binding/ledger registry/router
 của B và chữ ký/handover của C theo các dependency trong plan. Self-managed
 partner cần doanh nghiệp thật giữ quyền quản trị và khóa của họ.
 
@@ -125,3 +128,11 @@ Lịch tiếp tục trong task này mỗi 30 phút đã bật để kiểm lỗi
 tiếp tục các gói còn thiếu. Thời gian quan sát tối thiểu 24 giờ tính cho
 candidate cuối; đổi release hoặc có lỗi sẽ không được tính là một cửa sổ đã
 đạt. Scheduled checks cần máy và app đang chạy; gián đoạn phải được ghi nhận.
+
+Checkpoint ngày 12/10 ghi monitor gần nhất đã có lúc 11:25 (UTC+7): 13/13 proof,
+Pending 0, 118 production fingerprints/15 non-dev containers. Lượt SSH khoảng
+12:09 trong phiên sau bị từ chối; không kiểm được health hoặc ghi root evidence,
+không suy ra healthy. Giữ failure cách ly để đối soát khi truy cập trở lại và
+giữ gap/window cũ. [Báo cáo tiến độ](hybrid-progress-2026-10-12.md) ghi phần
+đã kiểm local và các gate chưa đạt. Công cụ lịch cũng yêu cầu approval trong
+phiên có policy `never`, nên không cập nhật được checkpoint lịch ở lượt này.

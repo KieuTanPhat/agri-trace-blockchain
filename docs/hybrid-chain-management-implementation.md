@@ -223,8 +223,11 @@ commands, read filters, actor suy ra từ current grant, ShipmentPlan API và We
 Candidate `187ef0e` qua 47 PostgreSQL tests gồm năm representative HTTP scenarios,
 30 SQL assertions, ORM và 105 unit; Web `30ecccf` qua 152 tests, contract 89 ops.
 Lượt 50 DB tests sau đó có 49 đạt, một lỗi fixture certificate đã sửa; giữ log,
-không tính 112 E2E đạt vì lượt đó chưa chạy tới suite này. `28b90dd` đang chạy
-52 DB tests và 112 legacy E2E riêng trước khi kết luận.
+không tính 112 E2E đạt vì lượt đó chưa chạy tới suite này. `28b90dd` sau đó có
+51/52 đạt và lỗi IoT relation; `c68a4ec` đạt 54 DB nhưng legacy helper timeout;
+`b7a52339` đạt 57 DB và 110/112 legacy, hai lỗi 403/400 đang sửa. Giữ từng failure,
+không coi legacy suite đã đạt. Candidate sửa cùng assignment proposal chỉ đọc
+qua 130 API unit và 169 Web tests trong bản sao cách ly; chưa kiểm lại PG/deploy.
 
 Private reads legacy chưa resolve bị chặn sau org cutover; sensor reconciliation
 scoped yêu cầu reviewer độc lập, current grant/capability và Farm assignment.
@@ -236,3 +239,8 @@ và release gates còn thiếu. Không coi core representative tests là hoàn t
 Monitor 10:26 ngày 12/10 giữ 13/13 proof, Pending 0, 118 fingerprints production
 và 15 container ngoài dev; release vẫn `2d08e8e`. Gate 24h vẫn chưa đạt do gap
 đã ghi nhận, không xóa lịch sử hoặc suy ra healthy trong khoảng trống.
+
+Tiến độ tổng khoảng 35%, A 60%, B 10%, C 0%; chưa nghiệm thu trọn bản nào.
+[Checkpoint ngày 12/10](hybrid-progress-2026-10-12.md) ghi cách tính, tests/
+failures, giới hạn thực thi và phần còn thiếu. Dev live gần nhất được kiểm lúc
+11:25; lượt SSH khoảng 12:09 bị từ chối, không suy ra healthy hiện tại.

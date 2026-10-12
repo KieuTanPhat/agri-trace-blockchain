@@ -1538,6 +1538,9 @@
       },
       "CycleDetailDto": {
         "properties": {
+          "canReviewCompliance": {
+            "type": "boolean"
+          },
           "canWriteProduction": {
             "type": "boolean"
           },
@@ -1690,6 +1693,9 @@
       },
       "CycleListDto": {
         "properties": {
+          "canReviewCompliance": {
+            "type": "boolean"
+          },
           "canWriteProduction": {
             "type": "boolean"
           },

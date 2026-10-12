@@ -22,6 +22,7 @@ export type AuthUser = Pick<
 > & {
   role: Pick<Schemas["AuthRoleDto"], "code" | "name">;
   accessRevision?: string;
+  productionAccess?: boolean;
 };
 export type LoginResponse = Pick<
   Schemas["AuthSessionDto"],

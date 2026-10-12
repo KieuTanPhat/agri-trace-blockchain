@@ -124,6 +124,15 @@ export function scopedCycleReadWhere(
   };
 }
 
+/** A specific current role for UI command projections, not the union of
+ * every readable role. Writes still recheck command authority under locks. */
+export function scopedCycleRoleReadWhere(
+  actor: CommandActor,
+  role: 'FARM_STAFF' | 'COMPLIANCE_REVIEWER',
+): Prisma.ProductionCycleWhereInput {
+  return permitted(actor) ? cycleForRole(actor, role) : { id: NONE };
+}
+
 export function legacyOrScopedCycle(
   actor: CommandActor,
   legacy: Prisma.ProductionCycleWhereInput = {},

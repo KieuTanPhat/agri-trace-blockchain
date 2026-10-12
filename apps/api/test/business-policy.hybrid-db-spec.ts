@@ -50,6 +50,7 @@ import { inventoryLegacyScope } from '../src/modules/supply-chains/legacy-scope-
 import { validateLegacyScopeManifest } from '../src/modules/supply-chains/legacy-scope-manifest.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
 import { preflightLegacyScope } from '../src/modules/supply-chains/legacy-scope-preflight.js';
+import { planLegacyScopeAssignments } from '../src/modules/supply-chains/legacy-scope-plan.js';
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -1855,13 +1856,55 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
           await expect(
             preflightLegacyScope(tx, validated.manifest),
           ).rejects.toThrow('PREPARING target');
-        } else
+          await expect(
+            planLegacyScopeAssignments(
+              tx,
+              validated.manifest,
+              inventory,
+              validated.digest,
+              {
+                environment: 'isolated',
+                sourceSha: manifest.sourceSha,
+              },
+            ),
+          ).rejects.toThrow('PREPARING target');
+        } else {
           expect(
             await preflightLegacyScope(tx, validated.manifest),
           ).toMatchObject({
             mapped: inventory.roots.length,
             applyReady: false,
           });
+          const assignmentsBefore = await tx.stageAssignment.count();
+          const journalBefore = await tx.commandCommit.count();
+          const plan = await planLegacyScopeAssignments(
+            tx,
+            validated.manifest,
+            inventory,
+            validated.digest,
+            {
+              environment: 'isolated',
+              sourceSha: manifest.sourceSha,
+            },
+          );
+          expect(plan.applyReady).toBe(false);
+          expect(plan.cutoverReady).toBe(false);
+          expect(
+            plan.proposals.filter(
+              (proposal) => proposal.stage === 'PRODUCTION',
+            ),
+          ).toHaveLength(inventory.roots.length);
+          expect(
+            plan.proposals.every(
+              (proposal) =>
+                proposal.status === 'PROPOSED' &&
+                proposal.requiresParticipantConfirmation,
+            ),
+          ).toBe(true);
+          expect(await inventoryLegacyScope(tx)).toEqual(inventory);
+          expect(await tx.stageAssignment.count()).toBe(assignmentsBefore);
+          expect(await tx.commandCommit.count()).toBe(journalBefore);
+        }
         expect(
           await tx.productionCycle.count({
             where: {
@@ -2554,6 +2597,58 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
           where: { idempotencyRecordId: record.id },
         }),
       ).toEqual(journal);
+    });
+
+    it('projects reviewer command availability and permits scoped inspection while the authenticated global role is TRANSPORTER', async () => {
+      const actor = await db.$transaction(async (tx) => {
+        const role = await tx.role.findUniqueOrThrow({
+          where: { code: 'TRANSPORTER' },
+        });
+        const user = await tx.user.create({
+          data: {
+            organizationId: reviewer.organizationId,
+            roleId: role.id,
+            email: `${randomUUID()}@example.test`,
+            fullName: 'Mixed-role reviewer',
+            passwordHash: 'unused-synthetic-hash',
+          },
+        });
+        const actor = { ...reviewer, sub: user.id, role: 'TRANSPORTER' };
+        await grant(tx, actor, 'COMPLIANCE_REVIEWER');
+        await tx.complianceAssignment.create({
+          data: { reviewerUserId: user.id, farmId },
+        });
+        return actor;
+      });
+      const session = await authenticated(actor);
+      const token = app
+        .get(JwtService)
+        .sign({ sub: actor.sub, sid: session.sid });
+      const cycles = await get('/production-cycles', token).expect(200);
+      const root = cycles.body.data.find(
+        (row: { id: string }) => row.id === cycleId,
+      );
+      expect(root.canReviewCompliance).toBe(true);
+      expect(root.canWriteProduction).toBe(false);
+      const inspection = await post('/inspections', token, {
+        lotId,
+        result: 'PASS',
+        inspectedAt: new Date().toISOString(),
+      }).expect(201);
+      const event = await db.traceEvent.findFirstOrThrow({
+        where: { entityType: 'INSPECTION', entityId: inspection.body.data.id },
+      });
+      expect(event.actorRole).toBe('COMPLIANCE_REVIEWER');
+      expect(event.actorUserId).toBe(actor.sub);
+      const producerCycles = await get(
+        '/production-cycles',
+        producerToken,
+      ).expect(200);
+      expect(
+        producerCycles.body.data.every(
+          (row: { canReviewCompliance: boolean }) => !row.canReviewCompliance,
+        ),
+      ).toBe(true);
     });
 
     it('requires the independent scoped reviewer for sensor reconciliation instead of implicit platform authority', async () => {

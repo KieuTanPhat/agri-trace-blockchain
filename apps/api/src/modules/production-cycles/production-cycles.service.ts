@@ -26,6 +26,7 @@ import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
 import {
   legacyOrScopedCycle,
   scopedLotReadWhere,
+  scopedCycleRoleReadWhere,
 } from '../supply-chains/business-read-scope.js';
 import {
   validateSensorTime,
@@ -62,10 +63,23 @@ export class ProductionCyclesService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    const reviewable = await this.prisma.productionCycle.findMany({
+      where: {
+        AND: [
+          { id: { in: cycles.map((cycle) => cycle.id) } },
+          scopedCycleRoleReadWhere(actor, 'COMPLIANCE_REVIEWER'),
+        ],
+      },
+      select: { id: true },
+    });
+    const reviewIds = new Set(reviewable.map((cycle) => cycle.id));
     return Promise.all(
       cycles.map(async (cycle) => ({
         ...cycle,
         canWriteProduction: await this.canWriteCycle(actor, cycle),
+        canReviewCompliance:
+          reviewIds.has(cycle.id) ||
+          (!cycle.chainId && actor.role === 'COMPLIANCE_REVIEWER'),
       })),
     );
   }
@@ -120,6 +134,19 @@ export class ProductionCyclesService {
     return {
       ...cycle,
       canWriteProduction: await this.canWriteCycle(actor, cycle),
+      canReviewCompliance:
+        Boolean(
+          await this.prisma.productionCycle.findFirst({
+            where: {
+              AND: [
+                { id: cycle.id },
+                scopedCycleRoleReadWhere(actor, 'COMPLIANCE_REVIEWER'),
+              ],
+            },
+            select: { id: true },
+          }),
+        ) ||
+        (!cycle.chainId && actor.role === 'COMPLIANCE_REVIEWER'),
     };
   }
 

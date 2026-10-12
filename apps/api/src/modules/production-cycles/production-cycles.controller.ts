@@ -127,6 +127,7 @@ export class ProductionCyclesController {
   }
   @ApiDataResponse(ReconciliationResultDto, 201)
   @Roles('SYSTEM_ADMIN')
+  @CommandPolicy('COMPLIANCE_REVIEWER')
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/sensor-reconciliations')
   reconcileSensor(

@@ -36,6 +36,23 @@ afterEach(() => {
 });
 
 describe("Current business permission refresh", () => {
+  it("drops scoped production access on revoke despite an unchanged global farmer role", async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      accessRevision: first,
+      businessScopeActivated: true,
+      productionChains: [{ id: "chain" }],
+    });
+    const { result } = renderHook(() => useBusinessAccess(user));
+    await waitFor(() => expect(result.current.productionAccess).toBe(true));
+    vi.mocked(request).mockResolvedValueOnce({
+      accessRevision: second,
+      businessScopeActivated: true,
+      productionChains: [],
+    });
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(result.current.revision).toBe(second));
+    expect(result.current.productionAccess).toBe(false);
+  });
   it("keeps the same scope through a focus check and changes it after another tab revokes access", async () => {
     const { result } = renderHook(() => useBusinessAccess(user));
     await waitFor(() => expect(result.current.status).toBe("ready"));
