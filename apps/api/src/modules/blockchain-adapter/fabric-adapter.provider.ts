@@ -4,13 +4,44 @@ import {
   connectGateway,
   loadConfig,
   type GatewayConnection,
+  type GatewayConfig,
 } from '@agri-trace/fabric-gateway';
+import {
+  ROUTE_PROTOCOL,
+  ledgerRouteDigest,
+  type RouteDefinition,
+} from '../trace/ledger-route.js';
 
 @Injectable()
 export class FabricAdapterProvider implements OnModuleDestroy {
   private connection?: GatewayConnection;
   private adapter?: FabricBlockchainAdapter;
   private connecting?: Promise<FabricBlockchainAdapter>;
+  private gatewayConfig?: GatewayConfig;
+  private writerIdentity?: RouteDefinition;
+
+  /** Capture the destination used by this connection, including cached adapters.
+   * A changed process env cannot label an existing gateway as a new ledger. */
+  getWriterRoute(): RouteDefinition {
+    if (this.writerIdentity) return this.writerIdentity;
+    const config = loadConfig();
+    const route: RouteDefinition = {
+      protocol: ROUTE_PROTOCOL,
+      mode: 'WRITE',
+      network: process.env.FABRIC_NETWORK_NAME ?? '',
+      channelId: config.channelName,
+      chaincodeName: config.chaincodeName,
+      contractName: config.contractName,
+      envelopeVersion: '3.0.0',
+      writerAuthority: process.env.LEDGER_WRITER_AUTHORITY ?? '',
+      writerMspId: config.mspId,
+      writerRole: 'relayer',
+    };
+    ledgerRouteDigest(route);
+    this.gatewayConfig = config;
+    this.writerIdentity = Object.freeze(route);
+    return this.writerIdentity;
+  }
 
   async getAdapter(): Promise<FabricBlockchainAdapter> {
     if (this.adapter) return this.adapter;
@@ -24,7 +55,8 @@ export class FabricAdapterProvider implements OnModuleDestroy {
   }
 
   private async connectCompatibleAdapter(): Promise<FabricBlockchainAdapter> {
-    const config = loadConfig();
+    this.getWriterRoute();
+    const config = this.gatewayConfig!;
     const connection = await connectGateway(config);
     const adapter = new FabricBlockchainAdapter(connection.gateway, config);
     try {

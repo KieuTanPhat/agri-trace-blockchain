@@ -1,5 +1,6 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 import { vietnamCalendarDate } from '../../common/expiry-date.js';
+import { EVENT_LEDGER_ROUTE_INCLUDE } from '../trace/ledger-route.js';
 
 const SENSOR_WINDOW = {
   include: {
@@ -9,6 +10,7 @@ const SENSOR_WINDOW = {
 } satisfies Prisma.HarvestSensorWindowDefaultArgs;
 
 export const LOT_TRACE_INCLUDE = {
+  ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
   blockchainProof: true,
   blockchainOutbox: { select: { status: true } },
   actor: { select: { id: true } },
@@ -109,6 +111,7 @@ export function publicLotInclude(now = new Date()): typeof PUBLIC_LOT_INCLUDE {
   };
 }
 export const PUBLIC_TRACE_INCLUDE = {
+  ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
   blockchainProof: {
     select: {
       eventId: true,

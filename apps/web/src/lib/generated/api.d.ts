@@ -3278,13 +3278,13 @@ export interface components {
         };
         TraceProofDto: {
             attemptCount: number;
-            channelId: string;
+            channelId: string | null;
             dataHash: string;
             /** Format: uuid */
             eventId: string;
             lastError: string | null;
             localHashMatches: boolean;
-            network: string;
+            network: string | null;
             /** Format: date-time */
             nextAttemptAt: string | null;
             /** @enum {string} */
@@ -3381,7 +3381,7 @@ export interface components {
         };
         VerifyProofDto: {
             attemptCount: number;
-            channelId: string;
+            channelId: string | null;
             dataHash: string;
             /** @enum {string} */
             deliveryStatus: "PENDING" | "PROCESSING" | "COMPLETED" | "DEAD_LETTER";

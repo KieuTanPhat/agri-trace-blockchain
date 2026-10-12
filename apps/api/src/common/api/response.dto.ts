@@ -215,8 +215,8 @@ export class TraceHistoryDto extends TraceEventRecordDto {
 }
 export class TraceProofDto {
   @ApiProperty({ format: 'uuid' }) eventId!: string;
-  @ApiProperty() network!: string;
-  @ApiProperty() channelId!: string;
+  @ApiProperty({ type: String, nullable: true }) network!: string | null;
+  @ApiProperty({ type: String, nullable: true }) channelId!: string | null;
   @ApiProperty({ type: String, nullable: true }) txId!: string | null;
   @ApiProperty() dataHash!: string;
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })

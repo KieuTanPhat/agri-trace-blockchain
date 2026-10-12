@@ -116,6 +116,13 @@ async function createCoreFixture(tx: Prisma.TransactionClient) {
 
   const traceEvent = await tx.traceEvent.create({
     data: {
+      ledgerRoute: {
+        create: {
+          definition: {
+            connect: { digest: process.env.LEDGER_ACTIVE_ROUTE_DIGEST! },
+          },
+        },
+      },
       entityType: 'LOT',
       entityId: lot.id,
       lotId: lot.id,

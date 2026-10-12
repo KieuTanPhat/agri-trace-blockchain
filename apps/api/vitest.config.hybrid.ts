@@ -11,6 +11,7 @@ export default defineConfig({
   plugins: [swc.vite()],
   test: {
     globals: true,
+    setupFiles: ['test/support/ledger-route-setup.ts'],
     include: ['test/**/*.hybrid-db-spec.ts'],
     fileParallelism: false,
     testTimeout: 30000,

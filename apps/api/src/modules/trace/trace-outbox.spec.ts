@@ -2,6 +2,12 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { TraceService } from './trace.service.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
+import {
+  fixtureRoute,
+  fixtureRoutePins,
+} from '../../../test/support/ledger-route-fixture.js';
+
+beforeEach(fixtureRoutePins);
 
 describe('TraceService transactional outbox', () => {
   it('creates the trace event and outbox row without creating a pending proof', async () => {
@@ -18,6 +24,10 @@ describe('TraceService transactional outbox', () => {
       },
       blockchainOutbox: { create: vi.fn().mockResolvedValue({}) },
       blockchainProof: { create: vi.fn() },
+      ledgerRouteDefinition: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue(fixtureRoute),
+      },
+      eventLedgerRoute: { create: vi.fn().mockResolvedValue({}) },
     };
     const service = new TraceService(
       {} as PrismaService,
@@ -43,6 +53,12 @@ describe('TraceService transactional outbox', () => {
       }),
     });
     expect(tx.blockchainProof.create).not.toHaveBeenCalled();
+    expect(tx.eventLedgerRoute.create).toHaveBeenCalledWith({
+      data: { eventId: event.id, definitionDigest: fixtureRoute.digest },
+    });
+    expect(tx.eventLedgerRoute.create.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.blockchainOutbox.create.mock.invocationCallOrder[0],
+    );
     expect(tx.traceEvent.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         schemaVersion: '2.0.0',

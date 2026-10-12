@@ -9,6 +9,7 @@ import { inventoryLegacyScope } from '../../src/modules/supply-chains/legacy-sco
 import { planLegacyScopeAssignments } from '../../src/modules/supply-chains/legacy-scope-plan.js';
 import type { LegacyScopePin } from '../../src/modules/supply-chains/legacy-scope-pins.js';
 import type { TraceService } from '../../src/modules/trace/trace.service.js';
+import { fixtureRoute } from './ledger-route-fixture.js';
 
 /** Every party starts uncutover. The owner has its own ACTIVE membership.
  * Existing unrelated legacy roots remain unresolved outside this chain, so
@@ -174,8 +175,8 @@ export async function legacyHistoryFixture(
       await db.blockchainProof.create({
         data: {
           eventId: event.id,
-          network: 'synthetic-rehearsal',
-          channelId: 'isolated-fixture',
+          network: fixtureRoute.network,
+          channelId: fixtureRoute.channelId,
           txId: `synthetic-${randomUUID()}`,
           dataHash: event.dataHash,
           transactionStatus: 'CONFIRMED',

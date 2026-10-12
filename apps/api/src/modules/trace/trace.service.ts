@@ -11,6 +11,13 @@ import { privateTraceEvidenceMatches } from './trace-evidence.js';
 import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
 import { getLotEventProofStatus } from '../lots/lot-proof-status.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
+import {
+  activeWriteRoute,
+  EVENT_LEDGER_ROUTE_INCLUDE,
+  routeProofMatches,
+  sameLedgerDestination,
+  verifiedEventRoute,
+} from './ledger-route.js';
 
 export type Actor = {
   sub: string | null;
@@ -77,8 +84,10 @@ export class TraceService {
     const eventTime = input.eventTime ?? new Date();
     // Business timestamps may be backdated, and transaction timestamps may tie.
     // The predecessor is the chain's leaf, not the newest business timestamp.
-    const heads = await tx.$queryRaw<Array<{ dataHash: string }>>(Prisma.sql`
-      SELECT current_event.data_hash AS "dataHash"
+    const heads = await tx.$queryRaw<
+      Array<{ eventId: string; dataHash: string }>
+    >(Prisma.sql`
+      SELECT current_event.event_id AS "eventId", current_event.data_hash AS "dataHash"
       FROM trace_event current_event
       WHERE current_event.entity_type = ${input.entityType}
         AND current_event.entity_id = ${input.entityId}::uuid
@@ -93,6 +102,21 @@ export class TraceService {
     if (heads.length > 1)
       throw new ConflictException('Trace event chain has multiple heads');
     const previous = heads[0];
+    const route = await activeWriteRoute(tx);
+    if (previous) {
+      const sidecar = await tx.eventLedgerRoute.findUnique({
+        where: { eventId: previous.eventId },
+        ...EVENT_LEDGER_ROUTE_INCLUDE,
+      });
+      const predecessor = verifiedEventRoute({
+        dataHash: previous.dataHash,
+        ledgerRoute: sidecar,
+      });
+      if (!predecessor || !sameLedgerDestination(predecessor, route))
+        throw new ConflictException(
+          'Ledger predecessor cần route cùng destination đã xác minh',
+        );
+    }
     const actorAuthProof = createHash('sha256')
       .update(`${input.actor.sub}:${input.actor.role}`, 'utf8')
       .digest('hex');
@@ -141,6 +165,9 @@ export class TraceService {
       },
     });
 
+    await tx.eventLedgerRoute.create({
+      data: { eventId: event.id, definitionDigest: route.digest },
+    });
     await tx.blockchainOutbox.create({
       data: {
         eventId: event.id,
@@ -168,22 +195,23 @@ export class TraceService {
     await this.access.assertTraceEventAccess(actor, eventId);
     const event = await this.prisma.traceEvent.findUnique({
       where: { id: eventId },
-      include: { blockchainProof: true, blockchainOutbox: true },
+      include: {
+        blockchainProof: true,
+        blockchainOutbox: true,
+        ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
+      },
     });
     if (!event) throw new NotFoundException('Không tìm thấy trace event');
     const proof = event.blockchainProof;
+    const route = verifiedEventRoute(event);
     const sensorMatches = await harvestSensorTraceEvidenceMatches(
       this.prisma,
       event,
     );
     return {
       eventId,
-      network:
-        proof?.network ??
-        process.env.FABRIC_NETWORK_NAME ??
-        'hyperledger-fabric',
-      channelId:
-        proof?.channelId ?? process.env.FABRIC_CHANNEL_NAME ?? 'agritrace',
+      network: route?.network ?? null,
+      channelId: route?.channelId ?? null,
       txId: proof?.txId ?? null,
       dataHash: proof?.dataHash ?? event.dataHash,
       recordedAt: proof?.recordedAt ?? null,
@@ -196,7 +224,8 @@ export class TraceService {
       nextAttemptAt: event.blockchainOutbox?.nextAttemptAt ?? null,
       lastError: event.blockchainOutbox?.lastError ?? null,
       localHashMatches:
-        (!proof || proof.dataHash === event.dataHash) &&
+        Boolean(route) &&
+        (!proof || routeProofMatches(event, proof)) &&
         privateTraceEvidenceMatches(event) &&
         sensorMatches,
       proofStatus: sensorMatches

@@ -1,18 +1,21 @@
 import { calculateTraceEventHash } from '../trace/public.js';
 import { privateTraceEvidenceMatches } from '../trace/trace-evidence.js';
+import { routeProofMatches, type RoutedEvent } from '../trace/ledger-route.js';
 
-export type ProofEvent = Parameters<typeof calculateTraceEventHash>[0] & {
-  dataHash: string;
-  blockchainProof: null | {
+export type ProofEvent = Parameters<typeof calculateTraceEventHash>[0] &
+  RoutedEvent & {
     dataHash: string;
-    transactionStatus: string;
-    eventId?: string;
-    txId?: string | null;
-    channelId?: string;
-    recordedAt?: Date | null;
+    blockchainProof: null | {
+      dataHash: string;
+      transactionStatus: string;
+      eventId?: string;
+      txId?: string | null;
+      channelId?: string;
+      network?: string;
+      recordedAt?: Date | null;
+    };
+    blockchainOutbox?: null | { status: string };
   };
-  blockchainOutbox?: null | { status: string };
-};
 
 export function aggregateLotProofStatus(events: ProofEvent[]) {
   const statuses = events.map((event) => getLotEventProofStatus(event));
@@ -45,7 +48,7 @@ export function getLotEventProofStatus(event?: ProofEvent) {
       proof.eventId !== event.id ||
       !proof.txId ||
       !/^[a-f0-9]{64}$/.test(proof.txId) ||
-      proof.channelId !== (process.env.FABRIC_CHANNEL_NAME ?? 'agritrace') ||
+      !routeProofMatches(event, proof) ||
       !proof.recordedAt ||
       !Number.isFinite(proof.recordedAt.getTime())
     )

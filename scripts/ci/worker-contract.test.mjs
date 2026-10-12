@@ -5,8 +5,16 @@ import { test } from 'node:test';
 import { BlockchainWorkerService } from '../../apps/api/dist/modules/blockchain-adapter/blockchain-worker.service.js';
 import { calculateTraceEventHash } from '../../apps/api/dist/modules/trace/trace-hash.js';
 import { parseTraceEventInput } from '../../blockchain/chaincode/dist/validation.js';
+import { ledgerRouteDigest, ROUTE_PROTOCOL } from '../../apps/api/dist/modules/trace/ledger-route.js';
 
 test('the production Worker submits an event accepted by the actual chaincode validator', async () => {
+  const definition = {
+    protocol: ROUTE_PROTOCOL, mode: 'WRITE', network: 'isolated-contract-fixture',
+    channelId: 'agritrace', chaincodeName: 'agritrace', contractName: 'AgriTraceContract',
+    envelopeVersion: '3.0.0', writerAuthority: 'isolated:technical-relayer', writerMspId: 'FixtureMSP', writerRole: 'relayer',
+  };
+  definition.digest = ledgerRouteDigest(definition);
+  process.env.LEDGER_ROUTE_PINS = JSON.stringify([definition.digest]);
   const event = {
     id: randomUUID(), entityType: 'PRODUCTION_CYCLE', entityId: randomUUID(),
     eventType: 'PRODUCTION_CYCLE_CREATED', eventTime: new Date(),
@@ -19,6 +27,8 @@ test('the production Worker submits an event accepted by the actual chaincode va
   event.cycleId = event.entityId;
   event.lotId = null;
   event.dataHash = calculateTraceEventHash(event);
+  event.ledgerRoute = { definitionDigest: definition.digest, definition };
+  event.blockchainProof = null;
   const job = { id: randomUUID(), eventId: event.id, traceEvent: event, attemptCount: 1, leaseToken: randomUUID() };
   let confirmed = false;
   let submitted;
@@ -27,9 +37,9 @@ test('the production Worker submits an event accepted by the actual chaincode va
     blockchainOutbox: { updateMany: async () => ({ count: 1 }), findMany: async () => [job] },
     blockchainProof: { upsert: async () => { confirmed = true; } },
   };
-  const db = { $transaction: async callback => callback(tx), blockchainOutbox: tx.blockchainOutbox };
+  const db = { ledgerRouteDefinition: { findMany: async () => [definition] }, $transaction: async callback => callback(tx), blockchainOutbox: tx.blockchainOutbox };
   const config = { get: (_name, fallback) => fallback };
-  const fabric = { getAdapter: async () => ({
+  const fabric = { getWriterRoute: () => definition, getAdapter: async () => ({
     healthCheck: async () => ({ status: 'OK', envelopeVersion: '3.0.0' }),
     submitTraceEvent: async input => {
       submitted = input;

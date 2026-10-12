@@ -726,6 +726,7 @@ model ShipmentTelemetryDigest {
 
 model TraceEvent {
   chainContext EventChainContext?
+  ledgerRoute EventLedgerRoute?
   id                      String             @id @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
   entityType              String             @map("entity_type") @db.VarChar(50)
   entityId                String             @map("entity_id") @db.Uuid
@@ -766,6 +767,37 @@ model TraceEvent {
   @@index([lotId, eventTime], map: "ix_trace_event_lot_time")
   @@index([eventType], map: "ix_trace_event_type")
   @@map("trace_event")
+}
+
+/// Logical ledger destination; credentials and physical endpoints belong to bindings.
+model LedgerRouteDefinition {
+  digest          String             @id @db.VarChar(64)
+  protocol        String             @default("agritrace-ledger-route/1") @db.VarChar(50)
+  mode            String             @db.VarChar(16)
+  network         String             @db.VarChar(100)
+  channelId       String             @map("channel_id") @db.VarChar(100)
+  chaincodeName   String             @map("chaincode_name") @db.VarChar(100)
+  contractName    String             @map("contract_name") @db.VarChar(100)
+  envelopeVersion String?            @map("envelope_version") @db.VarChar(50)
+  writerAuthority String?            @map("writer_authority") @db.VarChar(100)
+  writerMspId     String?            @map("writer_msp_id") @db.VarChar(100)
+  writerRole      String?            @map("writer_role") @db.VarChar(50)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  routes          EventLedgerRoute[]
+
+  @@map("ledger_route_definition")
+}
+
+/// Immutable sidecar; adding a historical route never changes the event commitment.
+model EventLedgerRoute {
+  eventId          String                @id @map("event_id") @db.Uuid
+  definitionDigest String                @map("definition_digest") @db.VarChar(64)
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  traceEvent       TraceEvent            @relation(fields: [eventId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  definition       LedgerRouteDefinition @relation(fields: [definitionDigest], references: [digest], onUpdate: NoAction, onDelete: Restrict)
+
+  @@index([definitionDigest], map: "ix_event_ledger_route_definition")
+  @@map("event_ledger_route")
 }
 
 model BlockchainProof {

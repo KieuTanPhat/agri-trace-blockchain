@@ -12,6 +12,7 @@ export default defineConfig({
   plugins: [swc.vite()],
   test: {
     globals: true,
+    setupFiles: ['test/support/ledger-route-setup.ts'],
     root: './',
     include: ['**/*.e2e-spec.ts'],
   },

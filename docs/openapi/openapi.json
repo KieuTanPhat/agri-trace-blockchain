@@ -6729,6 +6729,7 @@
             "type": "number"
           },
           "channelId": {
+            "nullable": true,
             "type": "string"
           },
           "dataHash": {
@@ -6746,6 +6747,7 @@
             "type": "boolean"
           },
           "network": {
+            "nullable": true,
             "type": "string"
           },
           "nextAttemptAt": {
@@ -7076,6 +7078,7 @@
             "type": "number"
           },
           "channelId": {
+            "nullable": true,
             "type": "string"
           },
           "dataHash": {
