@@ -387,7 +387,64 @@ CREATE TRIGGER trg_hybrid_profile_cutover AFTER UPDATE ON chain_business_profile
 CREATE TRIGGER trg_hybrid_membership_cutover AFTER INSERT OR UPDATE ON chain_membership
   FOR EACH ROW EXECUTE FUNCTION fn_hybrid_record_org_cutover();
 
+-- Keep the core Farm ownership guard, with current capability replacing the
+-- single legacy type. Capability does not confer a user grant or chain access.
+CREATE OR REPLACE FUNCTION public.fn_validate_farm_organization_type()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE active boolean; cap_revoked timestamptz;
+BEGIN
+  SELECT status = 'ACTIVE' INTO active FROM organization
+    WHERE organization_id = NEW.organization_id FOR SHARE;
+  IF active IS DISTINCT FROM true THEN RAISE EXCEPTION 'Farm organization must be ACTIVE'; END IF;
+  SELECT revoked_at INTO cap_revoked FROM organization_capability
+    WHERE organization_id = NEW.organization_id AND code = 'FARM' FOR SHARE;
+  IF NOT FOUND OR cap_revoked IS NOT NULL THEN RAISE EXCEPTION 'Farm organization requires active FARM capability'; END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Scoped subjects use participant capability/membership/profile, while
+-- unmapped legacy subjects retain the old type gate. Quantity, state and unit
+-- protections are retained; changing capability never permits split Lots.
+CREATE OR REPLACE FUNCTION public.fn_validate_shipment_insert()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE l lot%ROWTYPE; root_chain uuid; participant record; org_type organization_type; org_status organization_status;
+BEGIN
+  SELECT * INTO l FROM lot WHERE lot_id = NEW.lot_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Lot % does not exist', NEW.lot_id; END IF;
+  IF l.current_state <> 'HARVESTED' THEN
+    RAISE EXCEPTION 'Shipment can only be created for HARVESTED Lot. Current state: %', l.current_state;
+  END IF;
+  IF NEW.shipped_quantity <> l.available_quantity THEN
+    RAISE EXCEPTION 'Core does not support split lot: shipped_quantity (%) must equal available_quantity (%)', NEW.shipped_quantity, l.available_quantity;
+  END IF;
+  IF NEW.unit <> l.unit THEN RAISE EXCEPTION 'Shipment unit (%) must match Lot unit (%)', NEW.unit, l.unit; END IF;
+  IF NEW.status <> 'CREATED' THEN RAISE EXCEPTION 'New Shipment must start at CREATED state'; END IF;
+  SELECT c.chain_id INTO root_chain FROM harvest_event h JOIN production_cycle c USING(cycle_id)
+    WHERE h.harvest_id = l.harvest_id;
+  IF root_chain IS NOT NULL THEN
+    FOR participant IN SELECT * FROM (VALUES
+      (l.farm_org_id,'FARM'::organization_type),
+      (NEW.transporter_org_id,'TRANSPORTER'::organization_type),
+      (NEW.retailer_org_id,'RETAILER'::organization_type)
+    ) AS parties(org_id,capability) ORDER BY org_id,capability LOOP
+      PERFORM fn_hybrid_participant(root_chain,participant.org_id,participant.capability);
+    END LOOP;
+  ELSE
+    SELECT type,status INTO org_type,org_status FROM organization WHERE organization_id = NEW.transporter_org_id FOR SHARE;
+    IF NOT FOUND OR org_type <> 'TRANSPORTER' OR org_status <> 'ACTIVE' THEN
+      RAISE EXCEPTION 'transporter_org_id must reference an ACTIVE TRANSPORTER organization';
+    END IF;
+    SELECT type,status INTO org_type,org_status FROM organization WHERE organization_id = NEW.retailer_org_id FOR SHARE;
+    IF NOT FOUND OR org_type <> 'RETAILER' OR org_status <> 'ACTIVE' THEN
+      RAISE EXCEPTION 'retailer_org_id must reference an ACTIVE RETAILER organization';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
 -- Still a draft: dedicated DB scenarios, Prisma, service locking/read/write,
--- capability changes to existing Farm/Shipment triggers, cutover and Web gates
+-- capability service changes, cutover and Web gates
 -- must pass before promotion. No CD allowlist/checksum exception exists here.
 COMMIT;

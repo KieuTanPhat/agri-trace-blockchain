@@ -34,6 +34,8 @@ import { TraceService } from '../src/modules/trace/trace.service.js';
 import { OrganizationAccessService } from '../src/modules/auth/organization-access.service.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
 import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
+import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
+import { commandTransaction } from '../src/common/idempotency/command-transaction.js';
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -43,6 +45,18 @@ const trace = new TraceService(
   serviceDb,
   new OrganizationAccessService(serviceDb),
 );
+const idem = new IdempotencyService(serviceDb);
+
+async function authenticated(actor: CommandActor) {
+  const session = await db.refreshSession.create({
+    data: {
+      userId: actor.sub!,
+      tokenHash: randomUUID(),
+      expiresAt: new Date(Date.now() + 3600000),
+    },
+  });
+  return { ...actor, sid: session.id };
+}
 let chainId: string;
 let otherChainId: string;
 let cycleId: string;
@@ -1301,5 +1315,422 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
         where: { OR: [{ lotId: lot.id }, { shipment: { lotId: lot.id } }] },
       }),
     ).toBe(2);
+  });
+
+  it('accepts three distinct party confirmations for one multi-capability enterprise, marking handover internal', () =>
+    isolated(async (tx) => {
+      for (const code of ['TRANSPORTER', 'RETAILER'] as const) {
+        await tx.organizationCapability.create({
+          data: { organizationId: producer.organizationId!, code },
+        });
+        await grant(tx, producer, code);
+      }
+      const { lot, input } = await freshPlan(tx);
+      const harvest = await trace.createInTransaction(tx, {
+        entityType: 'HARVEST',
+        entityId: lot.harvestId,
+        cycleId,
+        lotId: lot.id,
+        eventType: 'HARVEST_RECORDED',
+        actor: producer,
+        businessData: { quantity: '5', unit: 'kg' },
+      });
+      await tx.quantityMovement.create({
+        data: {
+          lotId: lot.id,
+          eventId: harvest.id,
+          type: 'HARVEST_IN',
+          quantity: '5',
+          unit: 'kg',
+          beforeQty: '0',
+          delta: '5',
+          afterQty: '5',
+        },
+      });
+      const plan = await createShipmentPlan(tx, producer, chainId, lot.id, {
+        ...input,
+        transporterOrgId: producer.organizationId!,
+        retailerOrgId: producer.organizationId!,
+      });
+      for (const party of ['PRODUCER', 'TRANSPORTER', 'RETAILER'] as const)
+        await acceptShipmentPlan(
+          tx,
+          producer,
+          plan.id,
+          party,
+          0,
+          plan.current.payloadDigest,
+        );
+      const result = await finalizeShipmentPlan(
+        tx,
+        producer,
+        plan.id,
+        0,
+        trace,
+      );
+      expect(
+        (
+          await tx.traceEvent.findUniqueOrThrow({
+            where: { id: result.eventId },
+          })
+        ).businessData,
+      ).toMatchObject({
+        handover: {
+          producerToTransporter: 'INTERNAL',
+          transporterToRetailer: 'INTERNAL',
+        },
+      });
+      expect(
+        (
+          await tx.organization.findUniqueOrThrow({
+            where: { id: producer.organizationId! },
+          })
+        ).type,
+      ).toBe('FARM');
+      for (const role of ['TRANSPORTER', 'RETAILER'] as const) {
+        const effective = await authorizeBusinessCommand(
+          tx,
+          producer,
+          {
+            chainId,
+            role,
+            subject: { kind: 'shipment', id: result.shipment.id },
+          },
+          true,
+        );
+        expect(effective.actor.role).toBe(role);
+        expect(effective.assignment).not.toBeNull();
+      }
+    }));
+
+  it('allows Farm ownership through FARM capability without changing primary organization type', () =>
+    isolated(async (tx) => {
+      await tx.organizationCapability.create({
+        data: { organizationId: transporter.organizationId!, code: 'FARM' },
+      });
+      const farm = await tx.farm.create({
+        data: {
+          organizationId: transporter.organizationId!,
+          name: 'Capability farm',
+        },
+      });
+      expect(farm.organizationId).toBe(transporter.organizationId);
+      expect(
+        (
+          await tx.organization.findUniqueOrThrow({
+            where: { id: transporter.organizationId! },
+          })
+        ).type,
+      ).toBe('TRANSPORTER');
+    }));
+
+  it('rejects Farm ownership without current FARM capability at the database guard', async () => {
+    await expect(
+      db.$transaction((tx) =>
+        tx.farm.create({
+          data: {
+            organizationId: transporter.organizationId!,
+            name: 'Forbidden capability farm',
+          },
+        }),
+      ),
+    ).rejects.toThrow('requires active FARM capability');
+  });
+
+  it('keeps legacy Shipment type restrictions when the root has no chain mapping', async () => {
+    await expect(
+      db.$transaction(
+        async (tx) => {
+          const legacy = await tx.productionCycle.findFirstOrThrow({
+            where: { cycleCode: 'legacy-before-cutover' },
+          });
+          await tx.organizationCapability.create({
+            data: {
+              organizationId: producer.organizationId!,
+              code: 'TRANSPORTER',
+            },
+          });
+          await tx.organizationCapability.create({
+            data: {
+              organizationId: producer.organizationId!,
+              code: 'RETAILER',
+            },
+          });
+          const harvest = await tx.harvestEvent.create({
+            data: {
+              cycleId: legacy.id,
+              harvestTime: new Date(),
+              quantity: '5',
+              unit: 'kg',
+            },
+          });
+          const lot = await tx.lot.create({
+            data: {
+              lotCode: randomUUID(),
+              harvestId: harvest.id,
+              productId,
+              farmOrgId: producer.organizationId!,
+              initialQuantity: '5',
+              availableQuantity: '5',
+              unit: 'kg',
+            },
+          });
+          await tx.shipment.create({
+            data: {
+              lotId: lot.id,
+              transporterOrgId: producer.organizationId!,
+              retailerOrgId: producer.organizationId!,
+              shippedQuantity: '5',
+              unit: 'kg',
+              origin: 'farm',
+              destination: 'shop',
+            },
+          });
+        },
+        { timeout: 20000 },
+      ),
+    ).rejects.toThrow('must reference an ACTIVE TRANSPORTER organization');
+  });
+
+  it('replays draft creation without duplicates and commits its result journal with the plan', async () => {
+    const actor = await authenticated(producer);
+    const { lot, input } = await db.$transaction((tx) => freshPlan(tx), {
+      timeout: 20000,
+    });
+    const command = {
+      actor,
+      requesterId: actor.sub!,
+      operation: 'SCOPE_CREATE_SHIPMENT_PLAN',
+      idempotencyKey: randomUUID(),
+      requestType: 'COMMAND',
+      responseStatus: 201,
+      payload: { chainId, lotId: lot.id, ...input },
+    };
+    let calls = 0;
+    const run = () => {
+      calls++;
+      return commandTransaction(
+        serviceDb,
+        (tx) => createShipmentPlan(tx, actor, chainId, lot.id, input),
+        { timeout: 20000 },
+      );
+    };
+    const first = await idem.executeCommand(command, run);
+    const replay = await idem.executeCommand(command, run);
+    expect(calls).toBe(1);
+    expect(JSON.parse(JSON.stringify(replay))).toEqual(
+      JSON.parse(JSON.stringify(first)),
+    );
+    expect(await db.shipmentPlan.count({ where: { lotId: lot.id } })).toBe(1);
+    const record = await db.idempotencyRecord.findUniqueOrThrow({
+      where: {
+        requesterId_operation_idempotencyKey: {
+          requesterId: actor.sub!,
+          operation: command.operation,
+          idempotencyKey: command.idempotencyKey,
+        },
+      },
+    });
+    expect(record.status).toBe('COMPLETED');
+    expect(
+      await db.commandCommit.count({
+        where: { idempotencyRecordId: record.id },
+      }),
+    ).toBe(1);
+    await expect(
+      idem.executeCommand(
+        { ...command, payload: { ...command.payload, chainId: otherChainId } },
+        run,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(calls).toBe(1);
+  });
+
+  it('replays party consent after finalization without requiring the old DRAFT lifecycle state', async () => {
+    const { plan } = await db.$transaction((tx) => acceptedPlan(tx), {
+      timeout: 20000,
+    });
+    // This plan already has producer consent from setup. A fresh command must
+    // report a conflict, not adopt an acceptance created outside its journal.
+    const actor = await authenticated(producer);
+    const command = {
+      actor,
+      requesterId: actor.sub!,
+      operation: 'SCOPE_ACCEPT_SHIPMENT_PLAN',
+      idempotencyKey: randomUUID(),
+      requestType: 'COMMAND',
+      responseStatus: 201,
+      payload: {
+        chainId,
+        planId: plan.id,
+        party: 'PRODUCER',
+        revision: 0,
+        payloadDigest: plan.current.payloadDigest,
+      },
+    };
+    await expect(
+      idem.executeCommand(command, () =>
+        commandTransaction(
+          serviceDb,
+          (tx) =>
+            acceptShipmentPlan(
+              tx,
+              actor,
+              plan.id,
+              'PRODUCER',
+              0,
+              plan.current.payloadDigest,
+            ),
+          { timeout: 20000 },
+        ),
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    const { lot, input } = await db.$transaction((tx) => freshPlan(tx), {
+      timeout: 20000,
+    });
+    const fresh = await db.$transaction(
+      (tx) => createShipmentPlan(tx, producer, chainId, lot.id, input),
+      { timeout: 20000 },
+    );
+    const consentCommand = {
+      ...command,
+      idempotencyKey: randomUUID(),
+      payload: {
+        ...command.payload,
+        planId: fresh.id,
+        payloadDigest: fresh.current.payloadDigest,
+      },
+    };
+    let calls = 0;
+    const run = () => {
+      calls++;
+      return commandTransaction(
+        serviceDb,
+        (tx) =>
+          acceptShipmentPlan(
+            tx,
+            actor,
+            fresh.id,
+            'PRODUCER',
+            0,
+            fresh.current.payloadDigest,
+          ),
+        { timeout: 20000 },
+      );
+    };
+    const first = await idem.executeCommand(consentCommand, run);
+    for (const [party, participant] of [
+      ['TRANSPORTER', transporter],
+      ['RETAILER', retailer],
+    ] as const)
+      await db.$transaction(
+        (tx) =>
+          acceptShipmentPlan(
+            tx,
+            participant,
+            fresh.id,
+            party,
+            0,
+            fresh.current.payloadDigest,
+          ),
+        { timeout: 20000 },
+      );
+    const event = await db.$transaction(
+      async (tx) => {
+        const event = await trace.createInTransaction(tx, {
+          entityType: 'HARVEST',
+          entityId: lot.harvestId,
+          cycleId,
+          lotId: lot.id,
+          eventType: 'HARVEST_RECORDED',
+          actor: producer,
+          businessData: { quantity: '5', unit: 'kg' },
+        });
+        await tx.quantityMovement.create({
+          data: {
+            lotId: lot.id,
+            eventId: event.id,
+            type: 'HARVEST_IN',
+            quantity: '5',
+            unit: 'kg',
+            beforeQty: '0',
+            delta: '5',
+            afterQty: '5',
+          },
+        });
+        return finalizeShipmentPlan(tx, producer, fresh.id, 0, trace);
+      },
+      { timeout: 20000 },
+    );
+    expect(event.planId).toBe(fresh.id);
+    expect(
+      JSON.parse(
+        JSON.stringify(await idem.executeCommand(consentCommand, run)),
+      ),
+    ).toEqual(JSON.parse(JSON.stringify(first)));
+    expect(calls).toBe(1);
+  });
+
+  it('replays finalize without another Shipment/event and rejects replay when a confirming grant is revoked', async () => {
+    const { lot, plan } = await db.$transaction((tx) => acceptedPlan(tx), {
+      timeout: 20000,
+    });
+    const actor = await authenticated(producer);
+    const command = {
+      actor,
+      requesterId: actor.sub!,
+      operation: 'SCOPE_FINALIZE_SHIPMENT_PLAN',
+      idempotencyKey: randomUUID(),
+      requestType: 'COMMAND',
+      responseStatus: 201,
+      payload: { chainId, planId: plan.id, version: 0 },
+    };
+    let calls = 0;
+    const run = () => {
+      calls++;
+      return commandTransaction(
+        serviceDb,
+        (tx) => finalizeShipmentPlan(tx, actor, plan.id, 0, trace),
+        { timeout: 20000 },
+      );
+    };
+    const first = await idem.executeCommand(command, run);
+    expect(
+      JSON.parse(JSON.stringify(await idem.executeCommand(command, run))),
+    ).toEqual(JSON.parse(JSON.stringify(first)));
+    expect(calls).toBe(1);
+    expect(await db.shipment.count({ where: { lotId: lot.id } })).toBe(1);
+    expect(
+      await db.traceEvent.count({
+        where: { lotId: lot.id, eventType: 'SHIPMENT_CREATED' },
+      }),
+    ).toBe(1);
+    const consent = await db.shipmentPlanAcceptance.findUniqueOrThrow({
+      where: {
+        planId_revision_party: {
+          planId: plan.id,
+          revision: 0,
+          party: 'TRANSPORTER',
+        },
+      },
+    });
+    // Restore authority with a new grant for later scenarios; the old consent
+    // must remain invalid because it retains the original grant identity.
+    await db.scopedRoleGrant.update({
+      where: { id: consent.grantId },
+      data: { revokedAt: new Date(), revision: { increment: 1 } },
+    });
+    await db.scopedRoleGrant.create({
+      data: {
+        userId: transporter.sub!,
+        organizationId: transporter.organizationId!,
+        scope: 'ORGANIZATION',
+        role: 'ORG_ADMIN',
+      },
+    });
+    await expect(idem.executeCommand(command, run)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(calls).toBe(1);
   });
 });

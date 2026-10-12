@@ -135,3 +135,21 @@ lỗi tại `/opt/agri-trace-admin/hybrid-scope-draft/49e53ed42c56d69d-179177042
 Candidate tiếp theo bổ sung finalize nguyên tử và tests thiếu consent, grant
 thay thế, trace failure rollback, tranh finalize hai plan cùng Lot. Chưa ghi
 Passed hoặc mở endpoint/dev profile trước kết quả terminal của lượt mới.
+
+Lượt `2f41572` đã qua 35 PostgreSQL policy/read/plan tests, 30 SQL assertions,
+ORM alignment và 105 unit tests; hoàn tất 09:19 ngày 12/10/2026 (UTC+7), tài
+nguyên test đã dọn. Evidence:
+`/opt/agri-trace-admin/hybrid-scope-draft/49e53ed42c56d69d-1791771146741688470`.
+Đã kiểm atomic finalize, injected trace failure rollback và hai plan tranh
+finalize cùng Lot chỉ có một Shipment/event/outbox. Đây chưa là HTTP/UI/Fabric
+nghiệm thu scoped commands; toàn bộ endpoint core vẫn còn phải tích hợp.
+
+Candidate kế tiếp thay type guards Farm/Shipment bằng current capability cho
+đối tượng scoped, giữ state/unit/quantity và type restrictions cho Shipment
+legacy chưa mapping. Draft SQL digest mới:
+`fce7466263ece890993ad1c128638e156b8d291ef1d2d8f337733dce876ca3f4`.
+Thêm bridge `SCOPE_*` vào authorizeCommand để kiểm session trước replay và
+transaction ghi journal; locks nhiều tổ chức/user được lấy theo thứ tự trước
+chain. Finalize scope còn gồm ba consent/grant hiện hành, không hồi sinh sau
+regrant. Cùng org ba party vẫn xác nhận riêng, handover ghi INTERNAL. Candidate
+mới chưa nghiệm thu; không mở dev profile hoặc migration CD.

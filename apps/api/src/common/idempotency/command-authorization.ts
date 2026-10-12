@@ -13,6 +13,11 @@ import {
 } from '../../modules/lots/lot-custody.js';
 import { assertAssignedFarm } from '../../modules/auth/compliance-scope.js';
 import { authorizeChainCommand } from '../../modules/supply-chains/chain-policy.js';
+import {
+  SHIPMENT_PLAN_OPERATIONS,
+  authorizeShipmentPlanCommand,
+  lockShipmentPlanCommand,
+} from '../../modules/supply-chains/shipment-plan.commands.js';
 
 export interface CommandActor {
   sub: string | null;
@@ -155,11 +160,19 @@ export async function authorizeCommand(
   if (!actor.sub || actor.sub !== input.requesterId || !isUUID(actor.sub))
     throw new UnauthorizedException('Command thiếu định danh hợp lệ');
   if (lock) {
-    // Same organization -> user order as refresh/logout. Shared locks allow
-    // concurrent business commands but serialize account/org revocation.
-    if (actor.organizationId)
-      await db.$queryRaw`SELECT organization_id FROM organization WHERE organization_id = ${actor.organizationId}::uuid FOR SHARE`;
-    await db.$queryRaw`SELECT user_id FROM app_user WHERE user_id = ${actor.sub}::uuid FOR SHARE`;
+    if (
+      SHIPMENT_PLAN_OPERATIONS.some(
+        (operation) => operation === input.operation,
+      )
+    ) {
+      await lockShipmentPlanCommand(db, input);
+    } else {
+      // Same organization -> user order as refresh/logout. Shared locks allow
+      // concurrent business commands but serialize account/org revocation.
+      if (actor.organizationId)
+        await db.$queryRaw`SELECT organization_id FROM organization WHERE organization_id = ${actor.organizationId}::uuid FOR SHARE`;
+      await db.$queryRaw`SELECT user_id FROM app_user WHERE user_id = ${actor.sub}::uuid FOR SHARE`;
+    }
   }
   const user = await db.user.findUnique({
     where: { id: actor.sub },
@@ -187,6 +200,10 @@ export async function authorizeCommand(
   )
     throw new UnauthorizedException('Phiên đăng nhập không còn hợp lệ');
 
+  if (
+    SHIPMENT_PLAN_OPERATIONS.some((operation) => operation === input.operation)
+  )
+    return authorizeShipmentPlanCommand(db, input, lock);
   if (input.operation.startsWith('HYB_'))
     return authorizeChainCommand(db, input, lock);
 

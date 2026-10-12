@@ -11,6 +11,7 @@ import type {
   ShipmentPlanRevision,
 } from '../../generated/prisma/client.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
+import type { AuthorizedCommand } from '../../common/idempotency/command-authorization.js';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import { lockAggregate } from '../../common/idempotency/command-transaction.js';
 import { assertQuantityReconciled, quantity } from '../../common/quantity.js';
@@ -64,6 +65,168 @@ async function lockContext(
   for (const id of ids) await lockChainScope(db, `org:${id}`);
   await lockChainScope(db, chainId);
   await db.$queryRaw`SELECT chain_id FROM chain_business_profile WHERE chain_id = ${chainId}::uuid FOR SHARE`;
+}
+
+export const SHIPMENT_PLAN_OPERATIONS = [
+  'SCOPE_CREATE_SHIPMENT_PLAN',
+  'SCOPE_REVISE_SHIPMENT_PLAN',
+  'SCOPE_ACCEPT_SHIPMENT_PLAN',
+  'SCOPE_CANCEL_SHIPMENT_PLAN',
+  'SCOPE_FINALIZE_SHIPMENT_PLAN',
+] as const;
+
+function commandPayload(input: AuthorizedCommand) {
+  const data = input.payload as Record<string, unknown>;
+  const fields = [
+    'chainId',
+    input.operation === 'SCOPE_CREATE_SHIPMENT_PLAN' ? 'lotId' : 'planId',
+  ];
+  if (
+    ['SCOPE_CREATE_SHIPMENT_PLAN', 'SCOPE_REVISE_SHIPMENT_PLAN'].includes(
+      input.operation,
+    )
+  )
+    fields.push('transporterOrgId', 'retailerOrgId');
+  if (
+    fields.some(
+      (field) => typeof data[field] !== 'string' || !isUUID(data[field]),
+    )
+  )
+    throw new ForbiddenException('Command thiếu định danh kế hoạch hợp lệ');
+  return data;
+}
+
+/** The common authorization path calls this before locking its actor. A plan
+ * may involve several orgs/users, so taking actor authority first would violate
+ * the common order used by finalize, revoke and account status updates. */
+export async function lockShipmentPlanCommand(
+  db: Prisma.TransactionClient,
+  input: AuthorizedCommand,
+) {
+  const actor = input.actor!;
+  const data = commandPayload(input);
+  const chainId = String(data.chainId);
+  let organizations = [
+    String(data.transporterOrgId),
+    String(data.retailerOrgId),
+  ];
+  let users: string[] = [];
+  if (input.operation === 'SCOPE_CREATE_SHIPMENT_PLAN') {
+    const root = await businessRoot(db, {
+      kind: 'lot',
+      id: String(data.lotId),
+    });
+    organizations.push(root.cycle.farmOrgId);
+  } else {
+    const plan = await db.shipmentPlan.findUnique({
+      where: { id: String(data.planId) },
+      include: { current: { include: { acceptances: true } } },
+    });
+    if (!plan || plan.chainId !== chainId)
+      throw new NotFoundException('Không tìm thấy kế hoạch trong chuỗi');
+    organizations = [
+      plan.current.producerOrgId,
+      plan.current.transporterOrgId,
+      plan.current.retailerOrgId,
+    ];
+    if (input.operation === 'SCOPE_REVISE_SHIPMENT_PLAN')
+      organizations.push(
+        String(data.transporterOrgId),
+        String(data.retailerOrgId),
+      );
+    if (input.operation === 'SCOPE_FINALIZE_SHIPMENT_PLAN')
+      users = plan.current.acceptances.map((a) => a.userId);
+  }
+  await lockContext(db, actor, chainId, organizations, users);
+}
+
+/** Checks current authority before idempotency replay and again under lock.
+ * Excludes the state/version advanced by a successful command. */
+export async function authorizeShipmentPlanCommand(
+  db: Prisma.TransactionClient,
+  input: AuthorizedCommand,
+  lock = false,
+) {
+  const actor = input.actor!;
+  const data = commandPayload(input);
+  const chainId = String(data.chainId);
+  const plan =
+    input.operation === 'SCOPE_CREATE_SHIPMENT_PLAN'
+      ? null
+      : await db.shipmentPlan.findUnique({
+          where: { id: String(data.planId) },
+          include: { current: { include: { acceptances: true } } },
+        });
+  if (
+    input.operation !== 'SCOPE_CREATE_SHIPMENT_PLAN' &&
+    (!plan || plan.chainId !== chainId)
+  )
+    throw new NotFoundException('Không tìm thấy kế hoạch trong chuỗi');
+  if (input.operation === 'SCOPE_ACCEPT_SHIPMENT_PLAN') {
+    if (lock)
+      await db.$queryRaw`SELECT grant_id FROM scoped_role_grant WHERE user_id = ${actor.sub}::uuid AND organization_id = ${actor.organizationId}::uuid AND scope = 'ORGANIZATION' AND role = 'ORG_ADMIN' AND revoked_at IS NULL FOR SHARE`;
+    return (
+      await authorizePlanAcceptance(
+        db,
+        actor,
+        plan!.id,
+        data.party as ShipmentPlanParty,
+        Number(data.revision),
+        String(data.payloadDigest),
+      )
+    ).scope;
+  }
+  const authority = await authorizeBusinessCommand(
+    db,
+    actor,
+    {
+      chainId,
+      role: 'CHAIN_MANAGER',
+      subject: { kind: 'lot', id: plan?.lotId ?? String(data.lotId) },
+    },
+    lock,
+  );
+  if (input.operation !== 'SCOPE_FINALIZE_SHIPMENT_PLAN')
+    return authority.scope;
+  if (plan!.current.acceptances.length !== 3)
+    throw new ConflictException('Chưa đủ xác nhận của ba bên');
+  const confirmations = [];
+  for (const consent of [...plan!.current.acceptances].sort((a, b) =>
+    a.party.localeCompare(b.party),
+  )) {
+    if (lock)
+      await db.$queryRaw`SELECT grant_id FROM scoped_role_grant WHERE grant_id = ${consent.grantId}::uuid FOR SHARE`;
+    const user = await db.user.findUniqueOrThrow({
+      where: { id: consent.userId },
+      include: { role: true },
+    });
+    const valid = await authorizePlanAcceptance(
+      db,
+      {
+        sub: user.id,
+        organizationId: user.organizationId,
+        role: user.role.code,
+      },
+      plan!.id,
+      consent.party,
+      plan!.currentRevision,
+      plan!.current.payloadDigest,
+    );
+    if (
+      valid.grant.id !== consent.grantId ||
+      valid.grant.revision !== consent.grantRevision
+    )
+      throw new ForbiddenException('Xác nhận cũ đã mất hiệu lực');
+    confirmations.push({ id: consent.id, scope: valid.scope });
+  }
+  return canonicalSha256({
+    protocol: 'shipment-plan-finalize-v1',
+    manager: authority.scope,
+    planId: plan!.id,
+    revision: plan!.currentRevision,
+    digest: plan!.current.payloadDigest,
+    confirmations,
+  });
 }
 
 function payload(input: DraftShipmentPlan, producerOrgId: string) {
@@ -601,6 +764,16 @@ export async function finalizeShipmentPlan(
       revision: plan.currentRevision,
       payloadDigest: plan.current.payloadDigest,
       assignments: { transport: transport.id, retail: retail.id },
+      handover: {
+        producerToTransporter:
+          plan.current.producerOrgId === shipment.transporterOrgId
+            ? 'INTERNAL'
+            : 'BETWEEN_ORGANIZATIONS',
+        transporterToRetailer:
+          shipment.transporterOrgId === shipment.retailerOrgId
+            ? 'INTERNAL'
+            : 'BETWEEN_ORGANIZATIONS',
+      },
       transporterOrgId: shipment.transporterOrgId,
       retailerOrgId: shipment.retailerOrgId,
       quantity: shipment.shippedQuantity.toString(),
