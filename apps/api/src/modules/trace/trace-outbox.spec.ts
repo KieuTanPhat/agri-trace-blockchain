@@ -43,5 +43,11 @@ describe('TraceService transactional outbox', () => {
       }),
     });
     expect(tx.blockchainProof.create).not.toHaveBeenCalled();
+    expect(tx.traceEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        schemaVersion: '2.0.0',
+        canonicalizationVersion: 'RFC8785',
+      }),
+    });
   });
 });

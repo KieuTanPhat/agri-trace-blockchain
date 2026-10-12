@@ -3,6 +3,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import { BUSINESS_CAPABILITIES, lockChainScope } from './chain-policy.js';
+import { assertLegacyScopeProvenance } from './legacy-scope-pins.js';
 
 export type BusinessRole = keyof typeof BUSINESS_CAPABILITIES | 'CHAIN_MANAGER';
 export type BusinessSubject =
@@ -22,6 +23,7 @@ export async function businessRoot(
       select: { id: true, chainId: true, farmOrgId: true, farmId: true },
     });
     if (!cycle) throw new NotFoundException('Không tìm thấy đối tượng');
+    await assertLegacyScopeProvenance(db, cycle.id);
     return { cycle, lotId: null, shipmentId: null };
   }
   const lot = await db.lot.findFirst({
@@ -42,6 +44,7 @@ export async function businessRoot(
     },
   });
   if (!lot) throw new NotFoundException('Không tìm thấy đối tượng');
+  await assertLegacyScopeProvenance(db, lot.harvest.cycle.id);
   return {
     cycle: lot.harvest.cycle,
     lotId: lot.id,

@@ -13,6 +13,7 @@ import {
   type BusinessSubject,
 } from './business-policy.js';
 import { lockChainScope } from './chain-policy.js';
+import { legacyCreationReplayRoot } from './legacy-creation-replay.js';
 
 const CYCLE_WRITES = [
   'PLANT_PRODUCTION_CYCLE',
@@ -62,6 +63,11 @@ export async function authorizeCoreBusinessCommand(
     return value;
   };
   const operation = input.operation;
+  if (['CREATE_PRODUCTION_CYCLE', 'CREATE_SHIPMENT'].includes(operation)) {
+    const replay = await legacyCreationReplayRoot(db, input);
+    if (replay) return authorizeBusinessCommand(db, actor, { chainId: replay.cycle.chainId!, role: 'FARM_STAFF',
+      subject: { kind: 'cycle', id: replay.cycle.id } }, lock);
+  }
   if (operation === 'CREATE_PRODUCTION_CYCLE') {
     if (!data.chainId) {
       if (

@@ -1,6 +1,7 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { BUSINESS_CAPABILITIES } from './chain-policy.js';
+import { trustedLegacyCycleWhere } from './legacy-scope-pins.js';
 
 const NONE = '00000000-0000-0000-0000-000000000000';
 const READ_ROLES = [
@@ -55,6 +56,7 @@ function cycleForRole(
   role: ReadRole,
 ): Prisma.ProductionCycleWhereInput {
   return {
+    AND: [trustedLegacyCycleWhere()],
     chain: { is: chainAuthority(actor, role) },
     ...(role === 'FARM_STAFF'
       ? { assignments: { some: assignment(actor, 'PRODUCTION') } }

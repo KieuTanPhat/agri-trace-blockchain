@@ -41,6 +41,7 @@ model User {
   scopedGrants ScopedRoleGrant[]
   chainAudits ChainAudit[]
   shipmentPlanAcceptances ShipmentPlanAcceptance[]
+  legacyScopeConsents LegacyScopeConsent[]
 
   @@unique([id, organizationId], map: "uq_user_org_scope")
 
@@ -123,6 +124,7 @@ model SupplyChain {
   assignments StageAssignment[]
   shipmentPlans ShipmentPlan[]
   eventContexts EventChainContext[]
+  legacyScopeMappings LegacyScopeMapping[]
 
   @@index([ownerOrganizationId])
   @@map("supply_chain")
@@ -162,6 +164,7 @@ model ScopedRoleGrant {
   chain SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   membership ChainMembership? @relation(fields: [chainId, organizationId], references: [chainId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   planAcceptances ShipmentPlanAcceptance[]
+  legacyScopeConsents LegacyScopeConsent[]
 
   @@index([userId, revokedAt])
   @@index([chainId, organizationId])
@@ -437,6 +440,7 @@ model ProductionCycle {
   traceEvents        TraceEvent[]
   chain              SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   assignments        StageAssignment[]
+  legacyScopeMapping LegacyScopeMapping?
 
   harvestSensorWindows HarvestSensorWindow[]
   sensorReconciliations CycleSensorReconciliation[]
@@ -926,9 +930,71 @@ model CommandCommit {
   responseBody Json @map("response_body")
   committedAt DateTime @default(now()) @map("committed_at") @db.Timestamptz(6)
   idempotencyRecord IdempotencyRecord @relation(fields: [idempotencyRecordId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  legacyBridge LegacyCommandBridge?
 
   @@index([requesterId, committedAt], map: "ix_command_commit_requester_time")
   @@map("command_commit")
+}
+
+// Controlled legacy cutover candidate; isolated draft only.
+model LegacyScopeManifestRecord {
+  id String @id @map("manifest_id") @db.Uuid
+  digest String @unique @db.VarChar(64)
+  document Json
+  inventory Json
+  plan Json
+  reviewKeys Json @map("review_keys")
+  registeredAt DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
+  consents LegacyScopeConsent[]
+  mappings LegacyScopeMapping[]
+  bridges LegacyCommandBridge[]
+  @@map("legacy_scope_manifest")
+}
+
+model LegacyScopeConsent {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @map("consent_id") @db.Uuid
+  manifestId String @map("manifest_id") @db.Uuid
+  proposalKey String @map("proposal_key") @db.VarChar(64)
+  userId String @map("user_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  grantId String @map("grant_id") @db.Uuid
+  grantRevision Int @map("grant_revision")
+  acceptedAt DateTime @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  manifest LegacyScopeManifestRecord @relation(fields: [manifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  user User @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  grant ScopedRoleGrant @relation(fields: [grantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@unique([manifestId, proposalKey], map: "uq_legacy_scope_consent_proposal")
+  @@map("legacy_scope_consent")
+}
+
+model LegacyScopeMapping {
+  cycleId String @id @map("cycle_id") @db.Uuid
+  manifestId String @map("manifest_id") @db.Uuid
+  chainId String? @map("chain_id") @db.Uuid
+  checkpointDigest String @map("checkpoint_digest") @db.VarChar(64)
+  actorGrants Json @map("actor_grants")
+  originalUpdatedAt DateTime @map("original_updated_at") @db.Timestamptz(6)
+  appliedAt DateTime @default(now()) @map("applied_at") @db.Timestamptz(6)
+  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  chain SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  manifest LegacyScopeManifestRecord @relation(fields: [manifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  bridges LegacyCommandBridge[]
+  @@index([manifestId], map: "ix_legacy_scope_mapping_manifest")
+  @@map("legacy_scope_mapping")
+}
+
+model LegacyCommandBridge {
+  commandCommitId String @id @map("command_commit_id") @db.Uuid
+  manifestId String @map("manifest_id") @db.Uuid
+  cycleId String @map("cycle_id") @db.Uuid
+  protocolVersion Int @default(1) @map("protocol_version")
+  targetScope String @map("target_scope") @db.VarChar(64)
+  journalDigest String @map("journal_digest") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  commit CommandCommit @relation(fields: [commandCommitId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  manifest LegacyScopeManifestRecord @relation(fields: [manifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  mapping LegacyScopeMapping @relation(fields: [cycleId], references: [cycleId], onDelete: Restrict, onUpdate: NoAction)
+  @@map("legacy_command_bridge")
 }
 
 model ComplianceAssignment {

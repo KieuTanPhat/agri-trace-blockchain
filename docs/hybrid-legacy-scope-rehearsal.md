@@ -1,7 +1,8 @@
 # Legacy scope: inventory và manifest trước backfill
 
-Trạng thái 12/10/2026: công cụ chỉ đọc đang được kiểm trên PostgreSQL cách ly.
-Chưa có apply/backfill, migration promotion hoặc cho phép cutover dev. Không
+Trạng thái 12/10/2026: inventory/check/plan đã qua cloud PostgreSQL cách ly;
+controlled apply/provenance/journal bridge mới đang là candidate chưa nghiệm thu.
+Chưa có migration promotion hoặc cho phép cutover dev. Không
 chạy app feature trên DB dùng chung khi schema chính thức còn thiếu.
 
 `inventoryLegacyScope` chạy trong REPEATABLE READ, READ ONLY. Snapshot root và
@@ -35,9 +36,8 @@ gian chạy. Thiếu root/child, đổi producer/version hoặc sai quan hệ b�
 Plan không ghi DB, không thay payload/hash/proof/QR, không cấp grant, không
 coi proposal là consent. `applyReady` và `cutoverReady` luôn false.
 
-Candidate ngày 12/10 được chuẩn bị trong bản sao cách ly vì phiên làm việc
-không ghi được worktree/SSH. Chưa có nghiệm thu PostgreSQL của mode `plan`,
-apply/resume hoặc rollout; kiểm unit không thay cho các gate này.
+Mode `plan` đã được kiểm ở 58 cloud DB scenarios của candidate `41bbb6a`.
+Apply/resume và rollout là gate riêng; kiểm unit không thay cho các gate này.
 
 Manifest schema `agritrace-legacy-scope-manifest-1` yêu cầu ID, source SHA,
 environment (`isolated` hoặc `dev`), inventory digest, operator/reviewer UUID
@@ -58,9 +58,54 @@ producer/transporter/retailer cũ phải có ACTIVE membership/capability và ac
 grant tường minh trong target. Không tự provision grant hoặc coi platform user
 là business actor. Target đã ACTIVE bị chặn ở preflight backfill này.
 
-Trước apply còn phải triển khai và kiểm: paused writer/Worker snapshot,
-manifest pin runtime và provenance bất biến, apply idempotent/resumable,
-StageAssignment đúng subject/party, active unresolved barrier, journal bridge
-kiểm quyền hiện hành trước replay và không execute lại PROCESSING thiếu journal,
-hash/receipt/route/QR comparison, restore và compatible rollback. Không sửa
-payload/hash/proof/journal cũ để thêm scope hoặc nâng mức trust của legacy proof.
+## Controlled apply candidate
+
+Draft bổ sung [hybrid-legacy-scope.draft.sql](sql/hybrid-legacy-scope.draft.sql)
+chỉ được apply sau business-scope draft trên DB test riêng. Bốn bảng mới lưu
+manifest/consent/mapping/checkpoint/bridge append-only; không sửa journal cũ.
+Chưa đưa vào Prisma migration hoặc CD allowlist.
+
+Operator giữ file `HYBRID_LEGACY_MANIFEST_PINS_FILE` độc lập với DB, absolute
+path, không symlink, không group/world writable trên Linux. File schema
+`agritrace-legacy-scope-pins-1`, `pins` gồm `{manifest, digest, plan}`. Manifest
+digest và plan digest phải khớp artifact đã review; không nhận digest/mapping
+do HTTP client cung cấp. File không chứa token hoặc private payload. File mất,
+sai hoặc bị withdraw làm mapped legacy private read/write/replay fail closed.
+
+Swagger candidate có:
+
+- `POST /legacy-scope/manifests/:id/register`: đúng SYSTEM_ADMIN/operator
+  đã review, inventory/plan khớp pin, target PREPARING. Gate server
+  `HYBRID_LEGACY_APPLY_ENABLED=1` mặc định đóng.
+- `GET .../proposals`: chỉ proposal của org admin tương ứng và review của
+  owner manager được chỉ định; không trả grant/user IDs.
+- `POST .../confirm`: current session/party/role/grant/capability/membership,
+  digest/revision pin; owner review riêng theo từng target chain. Cùng org
+  nhiều công đoạn vẫn cần từng proposal confirmation riêng.
+- `POST .../roots/:cycleId/apply`: từng root dưới maintenance table locks;
+  immutable checkpoint, assignment ACCEPTED chỉ sau consent hiện hành,
+  EventChainContext riêng; giữ version/timestamp/hash/QR/proof/outbox/journal.
+  Rerun cùng provenance trả checkpoint cũ, không tạo lại resource. Root lỗi
+  không để mapping/assignment/context commit một phần.
+
+Cutover marker được ghi khi apply để chặn đường legacy trong giai đoạn
+PREPARING; suspend/revoke không xóa marker. Active unresolved trong org bị ảnh
+hưởng chặn activation. Resolution/supersession của một quyết định UNRESOLVED
+đã apply cần workflow review mới, không update/delete provenance đã lưu.
+
+Bridge v1 chỉ lấy response từ journal khớp request hash/requester/operation,
+actor role/org, root/pin và grant snapshot tại cutover. Current permission và
+session được kiểm dưới transaction lock; regrant không hồi sinh journal. Old
+creation replay lấy root từ journal, không mở đường fresh unscoped creation
+hoặc direct Shipment. PROCESSING thiếu positive journal giữ gate reconciliation.
+
+Candidate đã qua local API 130 unit/typecheck/lint/build, Swagger sinh 93 ops.
+PostgreSQL apply/consent/bridge/privacy scenarios còn phải chạy trước kết luận.
+Lượt alignment/replay trước `4a40fac` đạt 130 unit/30 SQL/zero-drift và 6 unique
+guards, nhưng 57/59 DB do TraceService chưa ghi version vào row. Đã thêm explicit
+version vào row và assertion unit; giữ failure, chưa tính candidate mới Passed.
+
+Gate tiếp theo: full PostgreSQL/HTTP/legacy regressions, participant/concurrency
+coverage, paused writer/Worker snapshot và independent pin deployment, DB mới/
+copy rehearsal, restore, migration/checksum/compatible rollback, browser/mobile
+và CI/CD đúng SHA. Không sửa payload/hash/proof/journal cũ hoặc nâng trust legacy.

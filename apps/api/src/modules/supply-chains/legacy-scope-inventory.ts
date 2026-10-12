@@ -8,6 +8,7 @@ import type { LegacyScopeInventory } from './legacy-scope-manifest.js';
  * bodies, QR tokens and credentials must never be emitted into the manifest. */
 export async function inventoryLegacyScope(
   db: Prisma.TransactionClient,
+  selection?: { cycleIds: string[] },
 ): Promise<LegacyScopeInventory> {
   if (
     await db.traceEvent.findFirst({
@@ -19,15 +20,21 @@ export async function inventoryLegacyScope(
       'Legacy event without a resolvable root requires explicit reconciliation',
     );
   const cycles = await db.productionCycle.findMany({
-    where: { chainId: null },
+    where: selection ? { id: { in: selection.cycleIds } } : { chainId: null },
     orderBy: { id: 'asc' },
     take: 10001,
     include: {
       careRecords: { orderBy: { id: 'asc' } },
-      sensorReadings: { orderBy: { id: 'asc' } },
+      sensorReadings: {
+        orderBy: { id: 'asc' },
+        include: { harvestMembership: true, lateMarker: true },
+      },
       sensorDigests: { orderBy: { id: 'asc' } },
       sensorReconciliations: { orderBy: { id: 'asc' } },
-      harvestSensorWindows: { orderBy: { id: 'asc' } },
+      harvestSensorWindows: {
+        orderBy: { id: 'asc' },
+        include: { readings: { orderBy: { readingId: 'asc' } } },
+      },
       certificates: { orderBy: { id: 'asc' } },
       devices: { orderBy: { id: 'asc' } },
       harvestEvents: {
@@ -83,8 +90,10 @@ export async function inventoryLegacyScope(
     )
       throw new Error('Legacy event subject or evidence disagrees with root');
     const snapshot = JSON.parse(
-      JSON.stringify({ cycle, events }, (_key, value: unknown) =>
-        typeof value === 'bigint' ? value.toString() : value,
+      JSON.stringify(
+        { cycle: selection ? { ...cycle, chainId: null } : cycle, events },
+        (_key, value: unknown) =>
+          typeof value === 'bigint' ? value.toString() : value,
       ),
     ) as unknown;
     roots.push({

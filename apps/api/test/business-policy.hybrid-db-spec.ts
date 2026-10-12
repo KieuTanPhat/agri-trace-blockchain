@@ -15,6 +15,9 @@ import { GlobalExceptionFilter } from '../src/common/exception/global-exception.
 import { createOpenApiDocument } from '../src/common/api/openapi.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomUUID } from 'node:crypto';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   PrismaClient,
   type Prisma,
@@ -54,6 +57,14 @@ import { validateLegacyScopeManifest } from '../src/modules/supply-chains/legacy
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
 import { preflightLegacyScope } from '../src/modules/supply-chains/legacy-scope-preflight.js';
 import { planLegacyScopeAssignments } from '../src/modules/supply-chains/legacy-scope-plan.js';
+import {
+  applyLegacyScopeRoot,
+  confirmLegacyScopeProposal,
+  legacyReviewKeys,
+  registerLegacyScopeManifest,
+} from '../src/modules/supply-chains/legacy-scope.commands.js';
+import type { LegacyScopePin } from '../src/modules/supply-chains/legacy-scope-pins.js';
+import { legacyOrScopedCycle } from '../src/modules/supply-chains/business-read-scope.js';
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -2050,6 +2061,460 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
         ).toBe(inventory.roots.length);
       }),
   );
+
+  describe('Controlled legacy apply and journal bridge', () => {
+    async function prepared(tx: Prisma.TransactionClient, unresolved = false) {
+      const target = await tx.supplyChain.create({
+        data: {
+          name: randomUUID(),
+          ownerOrganizationId: producer.organizationId!,
+        },
+      });
+      await tx.chainBusinessProfile.create({ data: { chainId: target.id } });
+      await tx.chainMembership.create({
+        data: {
+          chainId: target.id,
+          organizationId: producer.organizationId!,
+          status: 'ACTIVE',
+        },
+      });
+      await grant(tx, producer, 'CHAIN_MANAGER', target.id);
+      const permission = await grant(tx, producer, 'FARM_STAFF', target.id);
+      const role = await tx.role.findUniqueOrThrow({
+        where: { code: 'SYSTEM_ADMIN' },
+      });
+      const operator = await tx.user.create({
+        data: {
+          roleId: role.id,
+          email: `${randomUUID()}@example.test`,
+          fullName: 'Synthetic legacy operator',
+          passwordHash: 'unused',
+        },
+      });
+      const inventory = await inventoryLegacyScope(tx);
+      const manifest = {
+        schema: 'agritrace-legacy-scope-manifest-1' as const,
+        id: randomUUID(),
+        sourceSha: 'a'.repeat(40),
+        environment: 'isolated' as const,
+        inventoryDigest: inventory.digest,
+        operatorId: operator.id,
+        reviewerId: producer.sub!,
+        reviewEvidenceDigest: 'b'.repeat(64),
+        entries: inventory.roots.map((root) => ({
+          cycleId: root.cycleId,
+          producerOrgId: root.producerOrgId,
+          expectedVersion: root.version,
+          inventoryDigest: root.inventoryDigest,
+          decision: unresolved ? ('UNRESOLVED' as const) : ('MAP' as const),
+          chainId: unresolved ? null : target.id,
+        })),
+      };
+      const digest = canonicalSha256(manifest);
+      const plan = await planLegacyScopeAssignments(
+        tx,
+        manifest,
+        inventory,
+        digest,
+        { environment: 'isolated', sourceSha: manifest.sourceSha },
+      );
+      const pin: LegacyScopePin = { manifest, digest, plan };
+      const actor = {
+        sub: operator.id,
+        organizationId: null,
+        role: 'SYSTEM_ADMIN',
+      };
+      return {
+        target,
+        permission,
+        inventory,
+        pin,
+        actor,
+        cycleId: manifest.entries[0].cycleId,
+      };
+    }
+    async function pinned(
+      pin: LegacyScopePin,
+      work: (file: string) => Promise<void>,
+    ) {
+      const directory = mkdtempSync(join(tmpdir(), 'agritrace-legacy-pin-'));
+      const file = join(directory, 'pins.json');
+      const previous = process.env.HYBRID_LEGACY_MANIFEST_PINS_FILE;
+      const gate = process.env.HYBRID_LEGACY_APPLY_ENABLED;
+      writeFileSync(
+        file,
+        JSON.stringify({
+          schema: 'agritrace-legacy-scope-pins-1',
+          pins: [pin],
+        }),
+        { mode: 0o600 },
+      );
+      process.env.HYBRID_LEGACY_MANIFEST_PINS_FILE = file;
+      process.env.HYBRID_LEGACY_APPLY_ENABLED = '1';
+      try {
+        await work(file);
+      } finally {
+        if (previous === undefined)
+          delete process.env.HYBRID_LEGACY_MANIFEST_PINS_FILE;
+        else process.env.HYBRID_LEGACY_MANIFEST_PINS_FILE = previous;
+        if (gate === undefined) delete process.env.HYBRID_LEGACY_APPLY_ENABLED;
+        else process.env.HYBRID_LEGACY_APPLY_ENABLED = gate;
+        rmSync(directory, { recursive: true });
+      }
+    }
+    async function consent(
+      tx: Prisma.TransactionClient,
+      pin: LegacyScopePin,
+      omit?: 'review' | 'party',
+    ) {
+      if (omit !== 'review')
+        for (const key of Object.keys(legacyReviewKeys(pin)))
+          await confirmLegacyScopeProposal(tx, producer, pin.manifest.id, key);
+      if (omit !== 'party')
+        for (const p of pin.plan.proposals)
+          await confirmLegacyScopeProposal(
+            tx,
+            producer,
+            pin.manifest.id,
+            p.key,
+          );
+    }
+    async function rejectMutation(
+      tx: Prisma.TransactionClient,
+      work: () => Promise<unknown>,
+    ) {
+      await tx.$executeRawUnsafe('SAVEPOINT legacy_expected_rejection');
+      let rejected = false;
+      try {
+        await work();
+      } catch {
+        rejected = true;
+        await tx.$executeRawUnsafe(
+          'ROLLBACK TO SAVEPOINT legacy_expected_rejection',
+        );
+      }
+      await tx.$executeRawUnsafe('RELEASE SAVEPOINT legacy_expected_rejection');
+      expect(rejected, 'Database mutation must reject').toBe(true);
+    }
+
+    it('applies reviewed scope/assignment/context atomically, preserving inventory and immutable checkpoint on rerun', () =>
+      isolated(async (tx) => {
+        const f = await prepared(tx);
+        await pinned(f.pin, async () => {
+          await registerLegacyScopeManifest(tx, f.actor, f.pin.manifest.id);
+          await consent(tx, f.pin);
+          const before = await tx.productionCycle.findUniqueOrThrow({
+            where: { id: f.cycleId },
+          });
+          const applied = await applyLegacyScopeRoot(
+            tx,
+            f.actor,
+            f.pin.manifest.id,
+            f.cycleId,
+          );
+          expect(
+            await applyLegacyScopeRoot(
+              tx,
+              f.actor,
+              f.pin.manifest.id,
+              f.cycleId,
+            ),
+          ).toEqual(applied);
+          expect(
+            await inventoryLegacyScope(tx, { cycleIds: [f.cycleId] }),
+          ).toEqual(f.inventory);
+          const after = await tx.productionCycle.findUniqueOrThrow({
+            where: { id: f.cycleId },
+          });
+          expect({ ...after, chainId: null }).toEqual(before);
+          expect(
+            await tx.stageAssignment.count({
+              where: { cycleId: f.cycleId, status: 'ACCEPTED' },
+            }),
+          ).toBe(1);
+          expect(
+            await tx.legacyScopeMapping.count({
+              where: { cycleId: f.cycleId },
+            }),
+          ).toBe(1);
+          await tx.chainBusinessProfile.update({
+            where: { chainId: f.target.id },
+            data: { state: 'ACTIVE', version: { increment: 1 } },
+          });
+          await expect(
+            authority(tx, producer, 'FARM_STAFF', f.target.id, f.cycleId),
+          ).resolves.toMatchObject({ chainId: f.target.id });
+        });
+      }));
+
+    it.each(['review', 'party'] as const)(
+      'requires current %s confirmation before legacy apply with no partial mapping',
+      (missing) =>
+        isolated(async (tx) => {
+          const f = await prepared(tx);
+          await pinned(f.pin, async () => {
+            await registerLegacyScopeManifest(tx, f.actor, f.pin.manifest.id);
+            await consent(tx, f.pin, missing);
+            await rejectMutation(tx, () =>
+              applyLegacyScopeRoot(tx, f.actor, f.pin.manifest.id, f.cycleId),
+            );
+            expect(
+              await tx.legacyScopeMapping.count({
+                where: { cycleId: f.cycleId },
+              }),
+            ).toBe(0);
+            expect(
+              (
+                await tx.productionCycle.findUniqueOrThrow({
+                  where: { id: f.cycleId },
+                })
+              ).chainId,
+            ).toBeNull();
+          });
+        }),
+    );
+
+    it('closes runtime scope and list/count when an independently stored pin is withdrawn', () =>
+      isolated(async (tx) => {
+        const f = await prepared(tx);
+        await pinned(f.pin, async (file) => {
+          await registerLegacyScopeManifest(tx, f.actor, f.pin.manifest.id);
+          await consent(tx, f.pin);
+          await applyLegacyScopeRoot(tx, f.actor, f.pin.manifest.id, f.cycleId);
+          await tx.chainBusinessProfile.update({
+            where: { chainId: f.target.id },
+            data: { state: 'ACTIVE', version: { increment: 1 } },
+          });
+          expect(
+            await tx.productionCycle.count({
+              where: {
+                AND: [{ id: f.cycleId }, legacyOrScopedCycle(producer)],
+              },
+            }),
+          ).toBe(1);
+          writeFileSync(
+            file,
+            JSON.stringify({
+              schema: 'agritrace-legacy-scope-pins-1',
+              pins: [],
+            }),
+            { mode: 0o600 },
+          );
+          await expect(
+            authority(tx, producer, 'FARM_STAFF', f.target.id, f.cycleId),
+          ).rejects.toBeInstanceOf(ForbiddenException);
+          expect(
+            await tx.productionCycle.count({
+              where: {
+                AND: [{ id: f.cycleId }, legacyOrScopedCycle(producer)],
+              },
+            }),
+          ).toBe(0);
+        });
+      }));
+
+    it('does not revive recorded participant consent by revoking and granting a fresh org admin role', () =>
+      isolated(async (tx) => {
+        const f = await prepared(tx);
+        await pinned(f.pin, async () => {
+          await registerLegacyScopeManifest(tx, f.actor, f.pin.manifest.id);
+          await consent(tx, f.pin);
+          const c = await tx.legacyScopeConsent.findFirstOrThrow({
+            where: {
+              manifestId: f.pin.manifest.id,
+              proposalKey: f.pin.plan.proposals[0].key,
+            },
+          });
+          await tx.scopedRoleGrant.update({
+            where: { id: c.grantId },
+            data: { revokedAt: new Date(), revision: { increment: 1 } },
+          });
+          await tx.scopedRoleGrant.create({
+            data: {
+              userId: producer.sub!,
+              organizationId: producer.organizationId!,
+              role: 'ORG_ADMIN',
+              scope: 'ORGANIZATION',
+            },
+          });
+          await expect(
+            confirmLegacyScopeProposal(
+              tx,
+              producer,
+              f.pin.manifest.id,
+              c.proposalKey,
+            ),
+          ).rejects.toBeInstanceOf(ConflictException);
+          await rejectMutation(tx, () =>
+            applyLegacyScopeRoot(tx, f.actor, f.pin.manifest.id, f.cycleId),
+          );
+          expect(
+            await tx.legacyScopeMapping.count({
+              where: { cycleId: f.cycleId },
+            }),
+          ).toBe(0);
+        });
+      }));
+
+    it('records unresolved provenance without assigning a chain and blocks activation of an affected active root', () =>
+      isolated(async (tx) => {
+        const f = await prepared(tx, true);
+        await pinned(f.pin, async () => {
+          await registerLegacyScopeManifest(tx, f.actor, f.pin.manifest.id);
+          await applyLegacyScopeRoot(tx, f.actor, f.pin.manifest.id, f.cycleId);
+          expect(
+            (
+              await tx.productionCycle.findUniqueOrThrow({
+                where: { id: f.cycleId },
+              })
+            ).chainId,
+          ).toBeNull();
+          await rejectMutation(tx, () =>
+            tx.chainBusinessProfile.update({
+              where: { chainId: f.target.id },
+              data: { state: 'ACTIVE', version: { increment: 1 } },
+            }),
+          );
+        });
+      }));
+
+    it('bridges only a positive legacy journal using the cutover grant and never executes an uncertain or regranted command', () =>
+      isolated(async (tx) => {
+        const f = await prepared(tx);
+        await pinned(f.pin, async () => {
+          const actor = await authenticated(producer);
+          const input = {
+            actor,
+            requesterId: actor.sub!,
+            operation: 'CREATE_PRODUCTION_CYCLE',
+            idempotencyKey: randomUUID(),
+            requestType: 'COMMAND',
+            payload: { farmId, cycleCode: 'legacy-before-cutover', productId },
+          };
+          const legacyScope = canonicalSha256({
+            requesterId: actor.sub,
+            role: 'FARM_STAFF',
+            organizationId: actor.organizationId,
+          });
+          const record = await tx.idempotencyRecord.create({
+            data: {
+              requesterId: actor.sub!,
+              operation: input.operation,
+              requestType: 'COMMAND',
+              idempotencyKey: input.idempotencyKey,
+              requestHash: canonicalSha256(input.payload),
+              authorizationScope: legacyScope,
+              status: 'PROCESSING',
+            },
+          });
+          const journal = await tx.commandCommit.create({
+            data: {
+              idempotencyRecordId: record.id,
+              requesterId: actor.sub!,
+              operation: input.operation,
+              authorizationScope: legacyScope,
+              actorScope: {
+                organizationId: actor.organizationId,
+                role: 'FARM_STAFF',
+              },
+              resourceIds: { requested: { farmId }, result: { id: f.cycleId } },
+              responseStatus: 201,
+              responseBody: { id: f.cycleId },
+            },
+          });
+          await registerLegacyScopeManifest(tx, f.actor, f.pin.manifest.id);
+          await consent(tx, f.pin);
+          await applyLegacyScopeRoot(tx, f.actor, f.pin.manifest.id, f.cycleId);
+          await tx.chainBusinessProfile.update({
+            where: { chainId: f.target.id },
+            data: { state: 'ACTIVE', version: { increment: 1 } },
+          });
+          const replayDb = new Proxy(tx as unknown as PrismaService, {
+            get(target, key) {
+              if (key === '$transaction')
+                return (
+                  work: (value: Prisma.TransactionClient) => Promise<unknown>,
+                ) => work(tx);
+              if (key === 'idempotencyRecord')
+                return {
+                  ...tx.idempotencyRecord,
+                  create: async (args: Prisma.IdempotencyRecordCreateArgs) => {
+                    await tx.$executeRawUnsafe(
+                      'SAVEPOINT legacy_test_autocommit',
+                    );
+                    try {
+                      const value = await tx.idempotencyRecord.create(args);
+                      await tx.$executeRawUnsafe(
+                        'RELEASE SAVEPOINT legacy_test_autocommit',
+                      );
+                      return value;
+                    } catch (error) {
+                      await tx.$executeRawUnsafe(
+                        'ROLLBACK TO SAVEPOINT legacy_test_autocommit',
+                      );
+                      await tx.$executeRawUnsafe(
+                        'RELEASE SAVEPOINT legacy_test_autocommit',
+                      );
+                      throw error;
+                    }
+                  },
+                };
+              const value = Reflect.get(target, key);
+              return typeof value === 'function' ? value.bind(target) : value;
+            },
+          });
+          let calls = 0;
+          const work = async () => {
+            calls++;
+            return {};
+          };
+          const replay = new IdempotencyService(replayDb);
+          expect(await replay.executeCommand(input, work)).toEqual(
+            journal.responseBody,
+          );
+          expect(
+            (
+              await tx.legacyCommandBridge.findUniqueOrThrow({
+                where: { commandCommitId: journal.id },
+              })
+            ).protocolVersion,
+          ).toBe(1);
+          expect(
+            await tx.commandCommit.findUnique({ where: { id: journal.id } }),
+          ).toEqual(journal);
+          const uncertain = {
+            ...input,
+            operation: 'PLANT_PRODUCTION_CYCLE',
+            idempotencyKey: randomUUID(),
+            payload: { id: f.cycleId, version: 0 },
+          };
+          await tx.idempotencyRecord.create({
+            data: {
+              requesterId: actor.sub!,
+              operation: uncertain.operation,
+              requestType: 'COMMAND',
+              idempotencyKey: uncertain.idempotencyKey,
+              requestHash: canonicalSha256(uncertain.payload),
+              authorizationScope: legacyScope,
+              status: 'PROCESSING',
+              expiresAt: new Date(0),
+            },
+          });
+          await expect(
+            replay.executeCommand(uncertain, work),
+          ).rejects.toBeInstanceOf(ConflictException);
+          await tx.scopedRoleGrant.update({
+            where: { id: f.permission.id },
+            data: { revokedAt: new Date(), revision: { increment: 1 } },
+          });
+          await grant(tx, producer, 'FARM_STAFF', f.target.id);
+          await expect(
+            replay.executeCommand(input, work),
+          ).rejects.toBeInstanceOf(ConflictException);
+          expect(calls).toBe(0);
+        });
+      }));
+  });
 
   describe('HTTP scope and command contracts on the isolated draft database', () => {
     let app: INestApplication;

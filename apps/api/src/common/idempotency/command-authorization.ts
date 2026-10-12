@@ -22,6 +22,12 @@ import {
   authorizeCoreBusinessCommand,
   scopedDeviceAuthority,
 } from '../../modules/supply-chains/core-business-policy.js';
+import {
+  LEGACY_SCOPE_OPERATIONS,
+  authorizeLegacyScopeCommand,
+  lockLegacyScope,
+} from '../../modules/supply-chains/legacy-scope.commands.js';
+import { requireLegacyScopePin } from '../../modules/supply-chains/legacy-scope-pins.js';
 
 export interface CommandActor {
   sub: string | null;
@@ -36,6 +42,7 @@ export interface AuthorizedCommand {
   payload: unknown;
   actor: CommandActor | null;
   businessActor?: CommandActor;
+  idempotencyKey?: string;
 }
 
 function payloadOf(input: AuthorizedCommand): Record<string, unknown> {
@@ -177,6 +184,14 @@ export async function authorizeCommand(
     throw new UnauthorizedException('Command thiếu định danh hợp lệ');
   if (lock) {
     if (
+      LEGACY_SCOPE_OPERATIONS.some((operation) => operation === input.operation)
+    ) {
+      await lockLegacyScope(
+        db,
+        requireLegacyScopePin(String(payload.manifestId)),
+        actor,
+      );
+    } else if (
       SHIPMENT_PLAN_OPERATIONS.some(
         (operation) => operation === input.operation,
       )
@@ -216,6 +231,10 @@ export async function authorizeCommand(
   )
     throw new UnauthorizedException('Phiên đăng nhập không còn hợp lệ');
 
+  if (
+    LEGACY_SCOPE_OPERATIONS.some((operation) => operation === input.operation)
+  )
+    return authorizeLegacyScopeCommand(db, input, lock);
   if (
     SHIPMENT_PLAN_OPERATIONS.some((operation) => operation === input.operation)
   )

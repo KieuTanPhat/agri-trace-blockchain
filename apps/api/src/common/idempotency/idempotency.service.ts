@@ -15,6 +15,7 @@ import {
   type CommandActor,
 } from './command-authorization.js';
 import { commandContext, commandResponseJson } from './command-transaction.js';
+import { ensureLegacyCommandBridge } from './legacy-command-bridge.js';
 
 export interface StartIdempotencyInput {
   idempotencyKey: string;
@@ -25,6 +26,7 @@ export interface StartIdempotencyInput {
   expiresInMinutes?: number;
   authorizationScope?: string;
   responseStatus?: number;
+  actor?: CommandActor | null;
 }
 
 export type IdempotencyStartResult =
@@ -221,6 +223,12 @@ export class IdempotencyService {
       input.authorizationScope &&
       record.authorizationScope !== input.authorizationScope
     ) {
+      if (input.actor) {
+        const journal = await ensureLegacyCommandBridge(this.prisma, {
+          ...input, actor: input.actor, authorizationScope: input.authorizationScope,
+        }, record.id);
+        return { type: 'REPLAY', status: journal.responseStatus, body: journal.responseBody };
+      }
       throw new ConflictException(
         'Idempotency-Key thuộc phạm vi khác hoặc bản ghi legacy cần đối soát',
       );

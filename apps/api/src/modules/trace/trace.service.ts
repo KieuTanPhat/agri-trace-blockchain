@@ -131,6 +131,8 @@ export class TraceService {
         actorRole: input.actor.role,
         authProofType,
         actorAuthProof,
+        schemaVersion: '2.0.0',
+        canonicalizationVersion: 'RFC8785',
         eventTime,
         businessData: input.businessData,
         dataHash,
