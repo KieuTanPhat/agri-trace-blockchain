@@ -2100,7 +2100,7 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
               issueDate: new Date(),
               documentRef: 'fixture://certificate',
               documentHash: 'e'.repeat(64),
-              createdByUserId: producer.sub,
+              submittedByUserId: producer.sub,
             },
           });
           return { cycle, lot, event, device };
@@ -2244,6 +2244,88 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
           )
         ).body.data.canWriteProduction,
       ).toBe(true);
+    });
+
+    it('hides unresolved legacy roots after organization cutover from producer and platform private reads', async () => {
+      const legacy = await db.productionCycle.findFirstOrThrow({
+        where: { cycleCode: 'legacy-before-cutover' },
+      });
+      const role = await db.role.upsert({
+        where: { code: 'SYSTEM_ADMIN' },
+        create: { code: 'SYSTEM_ADMIN', name: 'System admin' },
+        update: {},
+      });
+      const user = await db.user.create({
+        data: {
+          roleId: role.id,
+          email: `${randomUUID()}@example.test`,
+          fullName: 'Synthetic platform operator',
+          passwordHash: 'unused-synthetic-hash',
+        },
+      });
+      const session = await authenticated({
+        sub: user.id,
+        role: 'SYSTEM_ADMIN',
+        organizationId: null,
+      });
+      const platformToken = app
+        .get(JwtService)
+        .sign({ sub: user.id, sid: session.sid });
+      for (const token of [producerToken, platformToken]) {
+        await get(`/production-cycles/${legacy.id}`, token).expect(404);
+        const list = await get('/production-cycles', token).expect(200);
+        expect(
+          list.body.data.some((row: { id: string }) => row.id === legacy.id),
+        ).toBe(false);
+      }
+      await post(`/production-cycles/${legacy.id}/plant`, producerToken, {
+        version: legacy.version,
+        plantedAt: new Date().toISOString(),
+      }).expect(403);
+      expect(
+        await db.productionCycle.findUnique({ where: { id: legacy.id } }),
+      ).toEqual(legacy);
+    });
+
+    it('requires the independent scoped reviewer for sensor reconciliation instead of implicit platform authority', async () => {
+      const cycle = await post('/production-cycles', producerToken, {
+        chainId,
+        farmId,
+        productId,
+        cycleCode: randomUUID(),
+        maxHarvestQuantity: 5,
+        harvestUnit: 'kg',
+      }).expect(201);
+      const id = cycle.body.data.id;
+      const plantedAt = new Date(Date.now() - 1000).toISOString();
+      await post(`/production-cycles/${id}/plant`, producerToken, {
+        version: 0,
+        plantedAt,
+      }).expect(201);
+      await post(
+        `/production-cycles/${id}/sensor-reconciliations`,
+        producerToken,
+        { version: 1, plantedAt, reason: 'Scope test' },
+      ).expect(403);
+      const actor = await authenticated(reviewer);
+      const token = app
+        .get(JwtService)
+        .sign({ sub: reviewer.sub, sid: actor.sid });
+      const reconciled = await post(
+        `/production-cycles/${id}/sensor-reconciliations`,
+        token,
+        { version: 1, plantedAt, reason: 'Independent scoped review' },
+      ).expect(201);
+      expect(reconciled.body.data.reconciliation.recordedById).toBe(
+        reviewer.sub,
+      );
+      expect(
+        (
+          await db.traceEvent.findFirstOrThrow({
+            where: { cycleId: id, eventType: 'CORRECTION_RECORDED' },
+          })
+        ).actorRole,
+      ).toBe('COMPLIANCE_REVIEWER');
     });
   });
 });

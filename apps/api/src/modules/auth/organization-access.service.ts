@@ -45,6 +45,7 @@ export class OrganizationAccessService {
       select: {
         id: true,
         currentState: true,
+        farmOrgId: true,
         chainId: true,
         farm: {
           select: { id: true, organizationId: true },
@@ -72,6 +73,12 @@ export class OrganizationAccessService {
       return cycle;
     }
 
+    if (
+      await this.prisma.organizationBusinessScope.findUnique({
+        where: { organizationId: cycle.farmOrgId },
+      })
+    )
+      throw new NotFoundException('Vụ legacy chưa resolve scope sau cutover');
     if (actor.role === 'COMPLIANCE_REVIEWER') {
       await assertAssignedFarm(
         this.prisma,
@@ -124,6 +131,12 @@ export class OrganizationAccessService {
       return lot;
     }
 
+    if (
+      await this.prisma.organizationBusinessScope.findUnique({
+        where: { organizationId: lot.farmOrgId },
+      })
+    )
+      throw new NotFoundException('Lô legacy chưa resolve scope sau cutover');
     if (actor.role === 'COMPLIANCE_REVIEWER') {
       await assertAssignedFarm(
         this.prisma,
@@ -183,6 +196,14 @@ export class OrganizationAccessService {
       return shipment;
     }
 
+    if (
+      await this.prisma.organizationBusinessScope.findUnique({
+        where: { organizationId: shipment.lot.farmOrgId },
+      })
+    )
+      throw new NotFoundException(
+        'Shipment legacy chưa resolve scope sau cutover',
+      );
     if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) {
       return shipment;
     }
@@ -227,9 +248,15 @@ export class OrganizationAccessService {
     if (event.cycleId) {
       const root = await this.prisma.productionCycle.findUnique({
         where: { id: event.cycleId },
-        select: { chainId: true },
+        select: { chainId: true, farmOrgId: true },
       });
-      if (root?.chainId) {
+      if (
+        root?.chainId ||
+        (root &&
+          (await this.prisma.organizationBusinessScope.findUnique({
+            where: { organizationId: root.farmOrgId },
+          })))
+      ) {
         await this.assertProductionCycleAccess(actor, event.cycleId);
         return;
       }

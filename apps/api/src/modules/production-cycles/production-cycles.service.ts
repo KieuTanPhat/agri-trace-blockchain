@@ -14,6 +14,7 @@ import {
   commandTransaction,
   lockAggregate,
   effectiveCommandActor,
+  commandContext,
 } from '../../common/idempotency/command-transaction.js';
 import { quantity } from '../../common/quantity.js';
 import { businessTimestamp } from '../../common/timestamp.js';
@@ -442,8 +443,14 @@ export class ProductionCyclesService {
     input: ReconcileCycleSensorDto,
     actor: Actor,
   ) {
-    if (actor.role !== 'SYSTEM_ADMIN' || !actor.sub)
-      throw new ForbiddenException('Chỉ Admin được ghi đối soát legacy');
+    const reviewer =
+      commandContext.getStore()?.input.businessActor?.role ===
+      'COMPLIANCE_REVIEWER';
+    actor = effectiveCommandActor(actor);
+    if ((!reviewer && actor.role !== 'SYSTEM_ADMIN') || !actor.sub)
+      throw new ForbiddenException(
+        'Không có quyền ghi đối soát sensor hiện hành',
+      );
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'cycle', id);
       const cycle = await tx.productionCycle.findUnique({ where: { id } });

@@ -22,6 +22,7 @@ function actor(
 
 describe('OrganizationAccessService', () => {
   const prisma = {
+    organizationBusinessScope: { findUnique: vi.fn().mockResolvedValue(null) },
     farm: {
       findUnique: vi.fn(),
     },

@@ -91,7 +91,10 @@ export async function authorizeCoreBusinessCommand(
   let role: BusinessRole;
   if (CYCLE_WRITES.includes(operation)) {
     subject = { kind: 'cycle', id: id('cycleId' in data ? 'cycleId' : 'id') };
-    role = 'FARM_STAFF';
+    role =
+      operation === 'RECONCILE_CYCLE_SENSOR'
+        ? 'COMPLIANCE_REVIEWER'
+        : 'FARM_STAFF';
   } else if (LOT_WRITES.includes(operation)) {
     subject = { kind: 'lot', id: id('lotId') };
     role =
@@ -146,10 +149,6 @@ export async function authorizeCoreBusinessCommand(
   }
   if (operation === 'CREATE_SHIPMENT')
     throw new ForbiddenException('Lô thuộc chuỗi phải finalize ShipmentPlan');
-  if (operation === 'RECONCILE_CYCLE_SENSOR')
-    throw new ForbiddenException(
-      'Reconciliation scoped cần policy riêng; không dùng quyền platform mặc định',
-    );
   if (data.chainId && data.chainId !== root.cycle.chainId)
     throw new NotFoundException('Không tìm thấy subject trong chuỗi');
   if (['RECALL_LOT', 'EXPIRE_LOT', 'DAMAGE_SHIPMENT'].includes(operation)) {

@@ -92,7 +92,7 @@ function permitted(actor: CommandActor) {
   );
 }
 
-/** Candidate SQL filters, not wired to endpoints yet. Caller filters and these
+/** SQL filters for private core reads. Caller filters and these
  * predicates must be composed with AND. A manager needs a separate projection;
  * ownership and platform metadata authority do not grant raw business reads. */
 export function scopedLotReadWhere(actor: CommandActor): Prisma.LotWhereInput {
@@ -129,7 +129,15 @@ export function legacyOrScopedCycle(
   legacy: Prisma.ProductionCycleWhereInput = {},
 ): Prisma.ProductionCycleWhereInput {
   return {
-    OR: [{ AND: [{ chainId: null }, legacy] }, scopedCycleReadWhere(actor)],
+    OR: [
+      {
+        AND: [
+          { chainId: null, organization: { businessScope: { is: null } } },
+          legacy,
+        ],
+      },
+      scopedCycleReadWhere(actor),
+    ],
   };
 }
 export function legacyOrScopedLot(
@@ -138,7 +146,19 @@ export function legacyOrScopedLot(
 ): Prisma.LotWhereInput {
   return {
     OR: [
-      { AND: [{ harvest: { cycle: { chainId: null } } }, legacy] },
+      {
+        AND: [
+          {
+            harvest: {
+              cycle: {
+                chainId: null,
+                organization: { businessScope: { is: null } },
+              },
+            },
+          },
+          legacy,
+        ],
+      },
       scopedLotReadWhere(actor),
     ],
   };
@@ -149,7 +169,21 @@ export function legacyOrScopedShipment(
 ): Prisma.ShipmentWhereInput {
   return {
     OR: [
-      { AND: [{ lot: { harvest: { cycle: { chainId: null } } } }, legacy] },
+      {
+        AND: [
+          {
+            lot: {
+              harvest: {
+                cycle: {
+                  chainId: null,
+                  organization: { businessScope: { is: null } },
+                },
+              },
+            },
+          },
+          legacy,
+        ],
+      },
       scopedShipmentReadWhere(actor),
     ],
   };

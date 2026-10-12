@@ -184,3 +184,16 @@ Planning-lots là projection của manager, không mở raw partner records. To�
 151 Web tests đã qua trước bài so lượng thập phân bổ sung; hai lần lỗi test
 mới do thiếu DOM cleanup đã sửa và chạy lại đạt. Chưa nghiệm thu browser/mobile,
 backfill/rehearsal hoặc triển khai candidate này lên dev. Gate 24h còn thiếu.
+
+Candidate Web `30ecccf` đã qua 152 Web tests và contract 89 operations. Lượt
+PostgreSQL mới lúc 10:19 ngày 12/10 có 49/50 tests đạt; fixture certificate
+dùng sai field `createdByUserId`, đã sửa thành `submittedByUserId`. Evidence
+lỗi giữ tại `/opt/agri-trace-admin/hybrid-scope-draft/fce7466263ece890-1791774717446115730`;
+112 legacy E2E chưa được chạy trong lượt này. Không tính candidate đạt toàn bộ.
+
+Đối soát sensor trên root scoped yêu cầu `COMPLIANCE_REVIEWER` độc lập với org
+sản xuất, current grant/capability/membership và Farm assignment; platform
+admin không có business authority mặc định. Root legacy chưa resolve sau org
+cutover bị đóng private read/write, kể cả platform private reads. Public QR
+giữ policy projection riêng; không sửa dữ liệu/hash/proof lịch sử. Bổ sung hai
+HTTP scenarios, đang kiểm lại DB và toàn bộ legacy E2E trước promotion.
