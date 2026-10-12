@@ -91,3 +91,31 @@ Không chạy draft trên DB dùng chung; không tái tạo deployment dev/nongt
   predecessor phải có provenance hợp lệ. Reader kiểm canonical artifact và
   entry tương tự. Withdraw pin giữ backlog nguyên attempt/lease và proof reader
   trả trạng thái chưa xác minh.
+
+## Candidate đã triển khai, chưa có DB receipt
+
+Schema/SQL candidate thêm sealed requirements, immutable import registry và FK
+sidecar. API/reader xác minh canonical artifact + independent pins + entry;
+Worker thêm filter import trước claim, giữ predecessor/proof destination checks.
+Operator dùng `apps/api/scripts/ledger-route-operator.mjs` trong image đã build:
+
+```text
+node apps/api/scripts/ledger-route-operator.mjs inventory <absolute-event-id-list.json> <absolute-new-inventory.json>
+node apps/api/scripts/ledger-route-operator.mjs register <absolute-pinned-definition.json>
+node apps/api/scripts/ledger-route-operator.mjs apply <absolute-pinned-import-artifact.json>
+```
+
+Release job cung cấp `APP_RELEASE_SHA`, `LEDGER_ROUTE_OPERATOR_ENVIRONMENT`,
+DB connection và pin metadata ngoài artifact. Register/apply yêu cầu gate riêng
+`LEDGER_ROUTE_IMPORT_ENABLED=true`; không thêm API endpoint hoặc signer mount.
+Inventory chỉ đọc, output tạo exclusive 0600. Register không nhận extra payload
+vào row. Pending còn phải có private evidence/schema tương thích và descriptor
+được pin riêng; không tự nâng protocol của backlog chưa rõ nguồn.
+
+Thêm bảy unit cases và 18 DB cases: proof/history exact bytes, topo order,
+snapshot microsecond, wrong pin/source/env/proof, revoked pin trước claim,
+unknown/expired PROCESSING holds, immutable/sealed guards, atomic rollback,
+concurrent apply, batch resume và relay progress/rerun. Seed 28 synthetic events
+bằng writer schema cũ trước khi cài route guards, không disable trigger. Local
+typed check/lint và 147 unit đạt trước DB; chưa ghi 132 policy/DB là pass. Draft
+không chạy trên DB dùng chung hoặc production; official migration còn gate.

@@ -15,6 +15,28 @@ import {
   verifiedEventRoute,
   type RouteDefinition,
 } from '../trace/ledger-route.js';
+import {
+  routeImportPins,
+  verifiedRouteImportArtifact,
+} from '../trace/ledger-route-import-artifact.js';
+
+function importProvenanceFilter(
+  routeAlias: 'er' | 'previous_route',
+  eventAlias: 'te' | 'previous_event',
+  imports: string[],
+) {
+  const column = Prisma.raw(`${routeAlias}.import_digest`);
+  if (!imports.length) return Prisma.sql`${column} IS NULL`;
+  return Prisma.sql`(${column} IS NULL OR (
+    ${column} IN (${Prisma.join(imports)}) AND EXISTS (
+      SELECT 1 FROM ledger_route_import ri, jsonb_array_elements(ri.artifact->'entries') imported_entry
+      WHERE ri.digest=${column}
+        AND imported_entry->>'eventId'=${Prisma.raw(`${eventAlias}.event_id`)}::text
+        AND imported_entry->>'dataHash'=${Prisma.raw(`${eventAlias}.data_hash`)}
+        AND imported_entry->>'definitionDigest'=${Prisma.raw(`${routeAlias}.definition_digest`)}
+    )
+  ))`;
+}
 
 type FabricReceipt = {
   txId?: string;
@@ -81,6 +103,22 @@ export class BlockchainWorkerService {
         .filter((route) => this.matchesWriter(route, writer))
         .map((route) => route.digest);
       if (!eligible.length) return { processed: 0, skipped: false };
+      const importPins = routeImportPins();
+      const imports = importPins.length
+        ? await this.prisma.ledgerRouteImport.findMany({
+            where: { digest: { in: importPins.map((pin) => pin.digest) } },
+          })
+        : [];
+      const trustedImports = imports
+        .filter((record) => {
+          try {
+            verifiedRouteImportArtifact(record, importPins);
+            return true;
+          } catch {
+            return false;
+          }
+        })
+        .map((record) => record.digest);
       // Capability/network failures must not consume leases or retry budgets.
       const adapter = await this.fabric.getAdapter();
       const health = (await adapter.healthCheck()) as {
@@ -95,6 +133,7 @@ export class BlockchainWorkerService {
         limit,
         eligible,
         trusted.map((route) => route.digest),
+        trustedImports,
       );
       for (const job of jobs) {
         await this.submit(job);
@@ -120,6 +159,7 @@ export class BlockchainWorkerService {
     limit: number,
     eligible: string[],
     trusted: string[],
+    imports: string[],
   ): Promise<ClaimedOutbox[]> {
     const maxRetries = this.numberConfig('FABRIC_MAX_RETRIES', 5);
     const leaseMs = this.numberConfig('FABRIC_CLAIM_LEASE_MS', 120_000);
@@ -147,6 +187,7 @@ export class BlockchainWorkerService {
           )
         )
           AND er.definition_digest IN (${Prisma.join(eligible)})
+          AND ${importProvenanceFilter('er', 'te', imports)}
           AND (
             te.previous_event_hash IS NULL
             OR EXISTS (
@@ -162,6 +203,7 @@ export class BlockchainWorkerService {
                 AND previous_event.entity_id = te.entity_id
                 AND previous_event.data_hash = te.previous_event_hash
                 AND previous_route.definition_digest IN (${Prisma.join(trusted)})
+                AND ${importProvenanceFilter('previous_route', 'previous_event', imports)}
                 AND (previous_definition.network, previous_definition.channel_id, previous_definition.chaincode_name, previous_definition.contract_name)
                   = (rd.network, rd.channel_id, rd.chaincode_name, rd.contract_name)
                 AND previous_proof.transaction_status = 'CONFIRMED'::blockchain_transaction_status

@@ -4,6 +4,10 @@ import type {
   Prisma,
 } from '../../generated/prisma/client.js';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
+import {
+  routeImportEntryMatches,
+  type RouteImportRecord,
+} from './ledger-route-import-artifact.js';
 
 export const ROUTE_PROTOCOL = 'agritrace-ledger-route/1';
 export type RouteDefinition = Pick<
@@ -21,11 +25,17 @@ export type RouteDefinition = Pick<
 >;
 export type PinnedRoute = RouteDefinition & { digest: string };
 export type RoutedEvent = {
+  id?: string;
   dataHash: string;
-  ledgerRoute?: null | { definitionDigest: string; definition: PinnedRoute };
+  ledgerRoute?: null | {
+    definitionDigest: string;
+    definition: PinnedRoute;
+    importDigest?: string | null;
+    import?: RouteImportRecord | null;
+  };
 };
 export const EVENT_LEDGER_ROUTE_INCLUDE = {
-  include: { definition: true },
+  include: { definition: true, import: true },
 } as const;
 
 export function routePayload(route: RouteDefinition): RouteDefinition {
@@ -126,6 +136,18 @@ export function verifiedEventRoute(event: RoutedEvent): PinnedRoute | null {
     const sidecar = event.ledgerRoute;
     if (!sidecar || sidecar.definitionDigest !== sidecar.definition.digest)
       return null;
+    if (sidecar.importDigest) {
+      if (
+        !sidecar.import ||
+        sidecar.import.digest !== sidecar.importDigest ||
+        !routeImportEntryMatches(
+          sidecar.import,
+          event,
+          sidecar.definitionDigest,
+        )
+      )
+        return null;
+    } else if (sidecar.import) return null;
     return assertPinnedLedgerRoute(sidecar.definition);
   } catch {
     return null;

@@ -109,6 +109,7 @@ export class TraceService {
         ...EVENT_LEDGER_ROUTE_INCLUDE,
       });
       const predecessor = verifiedEventRoute({
+        id: previous.eventId,
         dataHash: previous.dataHash,
         ledgerRoute: sidecar,
       });

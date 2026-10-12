@@ -727,6 +727,7 @@ model ShipmentTelemetryDigest {
 model TraceEvent {
   chainContext EventChainContext?
   ledgerRoute EventLedgerRoute?
+  legacyRouteRequirement LedgerRouteLegacyRequirement?
   id                      String             @id @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
   entityType              String             @map("entity_type") @db.VarChar(50)
   entityId                String             @map("entity_id") @db.Uuid
@@ -792,12 +793,37 @@ model LedgerRouteDefinition {
 model EventLedgerRoute {
   eventId          String                @id @map("event_id") @db.Uuid
   definitionDigest String                @map("definition_digest") @db.VarChar(64)
+  importDigest     String?               @map("import_digest") @db.VarChar(64)
   createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   traceEvent       TraceEvent            @relation(fields: [eventId], references: [id], onUpdate: NoAction, onDelete: Restrict)
   definition       LedgerRouteDefinition @relation(fields: [definitionDigest], references: [digest], onUpdate: NoAction, onDelete: Restrict)
+  import           LedgerRouteImport?    @relation(fields: [importDigest], references: [digest], onUpdate: NoAction, onDelete: Restrict)
 
   @@index([definitionDigest], map: "ix_event_ledger_route_definition")
+  @@index([importDigest], map: "ix_event_ledger_route_import")
   @@map("event_ledger_route")
+}
+
+/// Independently pinned review artifact; never contains private trace payloads.
+model LedgerRouteImport {
+  digest      String             @id @db.VarChar(64)
+  sourceSha   String             @map("source_sha") @db.VarChar(40)
+  environment String             @db.VarChar(16)
+  artifact    Json               @db.JsonB
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  routes      EventLedgerRoute[]
+
+  @@map("ledger_route_import")
+}
+
+/// Sealed migration inventory; only preexisting events can receive an import.
+model LedgerRouteLegacyRequirement {
+  eventId    String     @id @map("event_id") @db.Uuid
+  dataHash   String     @map("data_hash") @db.VarChar(64)
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  traceEvent TraceEvent @relation(fields: [eventId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+
+  @@map("ledger_route_legacy_requirement")
 }
 
 model BlockchainProof {
