@@ -57,7 +57,12 @@ export class JwtAuthGuard implements CanActivate {
         email: true,
         role: { select: { code: true } },
         organizationId: true,
-        organization: { select: { status: true } },
+        organization: {
+          select: {
+            status: true,
+            businessScope: { select: { organizationId: true } },
+          },
+        },
         accountStatus: true,
       },
     });
@@ -95,6 +100,7 @@ export class JwtAuthGuard implements CanActivate {
       role: user.role.code,
       organizationId: user.organizationId,
       accountStatus: user.accountStatus,
+      organizationScopeActivated: Boolean(user.organization?.businessScope),
     };
     return true;
   }

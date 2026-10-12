@@ -119,6 +119,23 @@ refresh cùng scope giữ retry key chưa rõ kết quả. Pin withdrawal đổi
 revision, không đổi business command fingerprint. Local Web đạt 173 tests và
 lint/typecheck; browser/mobile còn phải kiểm với API thật trên DB cách ly.
 
+`483840c` đạt 130 API unit, 30 SQL, zero-drift/sáu guards, ORM và 65/66
+policy/DB/HTTP scenarios. Các đường apply/consent/pin withdrawal đã chạy trên
+PostgreSQL thật. Scenario bridge đã replay positive journal và giữ journal cũ,
+nhưng fixture PROCESSING expired bị `chk_idempotency_expiry` chặn trước hai
+assertion cuối. Đã đặt createdAt trước expiresAt trong fixture; giữ invariant,
+không sửa constraint. 112 legacy chưa chạy tới. Job terminal/cleanup đã kiểm;
+failure evidence:
+`/opt/agri-trace-admin/hybrid-scope-draft/fce7466263ece890-1791803930687297149`.
+
+Candidate tiếp theo đóng legacy khi producer **hoặc** một bên Shipment đã
+cutover, kể cả partner revoke/suspend sau đó. SQL read predicates, private
+direct-ID/proof và core/device writes dùng cùng barrier; DB chặn tạo Shipment
+legacy với bên đã cutover. JWT guard lấy marker tổ chức từ DB, không từ claim.
+Legacy command lấy org scope lock để serialize với cutover. Bổ sung PostgreSQL
+scenario producer chưa cutover/partner đã cutover. Local API 130 unit đạt lại
+sau cập nhật fixture relation; Web production build/173 tests đã đạt.
+
 Gate tiếp theo: full PostgreSQL/HTTP/legacy regressions, participant/concurrency
 coverage, paused writer/Worker snapshot và independent pin deployment, DB mới/
 copy rehearsal, restore, migration/checksum/compatible rollback, browser/mobile

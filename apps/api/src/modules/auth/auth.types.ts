@@ -11,5 +11,6 @@ export interface AuthenticatedRequest extends Request {
   user: JwtPayload & {
     organizationId: string | null;
     accountStatus: string;
+    organizationScopeActivated?: boolean;
   };
 }

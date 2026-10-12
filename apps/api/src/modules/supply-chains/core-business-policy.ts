@@ -14,6 +14,7 @@ import {
 } from './business-policy.js';
 import { lockChainScope } from './chain-policy.js';
 import { legacyCreationReplayRoot } from './legacy-creation-replay.js';
+import { legacyCycleHasCutover } from './legacy-cutover-policy.js';
 
 const CYCLE_WRITES = [
   'PLANT_PRODUCTION_CYCLE',
@@ -65,8 +66,17 @@ export async function authorizeCoreBusinessCommand(
   const operation = input.operation;
   if (['CREATE_PRODUCTION_CYCLE', 'CREATE_SHIPMENT'].includes(operation)) {
     const replay = await legacyCreationReplayRoot(db, input);
-    if (replay) return authorizeBusinessCommand(db, actor, { chainId: replay.cycle.chainId!, role: 'FARM_STAFF',
-      subject: { kind: 'cycle', id: replay.cycle.id } }, lock);
+    if (replay)
+      return authorizeBusinessCommand(
+        db,
+        actor,
+        {
+          chainId: replay.cycle.chainId!,
+          role: 'FARM_STAFF',
+          subject: { kind: 'cycle', id: replay.cycle.id },
+        },
+        lock,
+      );
   }
   if (operation === 'CREATE_PRODUCTION_CYCLE') {
     if (!data.chainId) {
@@ -143,14 +153,21 @@ export async function authorizeCoreBusinessCommand(
   } else return null;
   const root = await businessRoot(db, subject);
   if (!root.cycle.chainId) {
-    if (
-      await db.organizationBusinessScope.findUnique({
-        where: { organizationId: root.cycle.farmOrgId },
-      })
-    )
+    if (await legacyCycleHasCutover(db, root.cycle.id, actor.organizationId))
       throw new ForbiddenException(
         'Subject legacy chưa mapping chuỗi; cần đối soát trước khi ghi',
       );
+    if (operation === 'CREATE_SHIPMENT') {
+      const party = await db.organizationBusinessScope.findFirst({
+        where: {
+          organizationId: { in: [id('transporterOrgId'), id('retailerOrgId')] },
+        },
+      });
+      if (party)
+        throw new ForbiddenException(
+          'Bên nhận đã cutover; Shipment cần mapping chuỗi và consent',
+        );
+    }
     return null;
   }
   if (operation === 'CREATE_SHIPMENT')
@@ -224,11 +241,7 @@ export async function scopedDeviceAuthority(
   const root = await businessRoot(db, subject);
   const chainId = root.cycle.chainId;
   if (!chainId) {
-    if (
-      await db.organizationBusinessScope.findUnique({
-        where: { organizationId: root.cycle.farmOrgId },
-      })
-    )
+    if (await legacyCycleHasCutover(db, root.cycle.id, organizationId))
       throw new ForbiddenException(
         'Thiết bị legacy chưa resolve scope sau cutover',
       );

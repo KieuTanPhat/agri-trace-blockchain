@@ -11,10 +11,12 @@ import {
   scopedLotReadWhere,
   scopedShipmentReadWhere,
 } from '../supply-chains/business-read-scope.js';
+import { legacyCycleHasCutover } from '../supply-chains/legacy-cutover-policy.js';
 type Actor = {
   sub?: string | null;
   role: string;
   organizationId: string | null;
+  organizationScopeActivated?: boolean;
 };
 
 @Injectable()
@@ -73,11 +75,7 @@ export class OrganizationAccessService {
       return cycle;
     }
 
-    if (
-      await this.prisma.organizationBusinessScope.findUnique({
-        where: { organizationId: cycle.farmOrgId },
-      })
-    )
+    if (await legacyCycleHasCutover(this.prisma, cycleId, actor.organizationId))
       throw new NotFoundException('Vụ legacy chưa resolve scope sau cutover');
     if (actor.role === 'COMPLIANCE_REVIEWER') {
       await assertAssignedFarm(
@@ -103,7 +101,9 @@ export class OrganizationAccessService {
         id: true,
         farmOrgId: true,
         harvest: {
-          select: { cycle: { select: { farmId: true, chainId: true } } },
+          select: {
+            cycle: { select: { id: true, farmId: true, chainId: true } },
+          },
         },
         shipment: {
           select: { transporterOrgId: true, retailerOrgId: true },
@@ -132,9 +132,11 @@ export class OrganizationAccessService {
     }
 
     if (
-      await this.prisma.organizationBusinessScope.findUnique({
-        where: { organizationId: lot.farmOrgId },
-      })
+      await legacyCycleHasCutover(
+        this.prisma,
+        lot.harvest.cycle.id,
+        actor.organizationId,
+      )
     )
       throw new NotFoundException('Lô legacy chưa resolve scope sau cutover');
     if (actor.role === 'COMPLIANCE_REVIEWER') {
@@ -169,7 +171,9 @@ export class OrganizationAccessService {
           select: {
             farmOrgId: true,
             harvest: {
-              select: { cycle: { select: { farmId: true, chainId: true } } },
+              select: {
+                cycle: { select: { id: true, farmId: true, chainId: true } },
+              },
             },
           },
         },
@@ -197,9 +201,11 @@ export class OrganizationAccessService {
     }
 
     if (
-      await this.prisma.organizationBusinessScope.findUnique({
-        where: { organizationId: shipment.lot.farmOrgId },
-      })
+      await legacyCycleHasCutover(
+        this.prisma,
+        shipment.lot.harvest.cycle.id,
+        actor.organizationId,
+      )
     )
       throw new NotFoundException(
         'Shipment legacy chưa resolve scope sau cutover',
@@ -253,9 +259,11 @@ export class OrganizationAccessService {
       if (
         root?.chainId ||
         (root &&
-          (await this.prisma.organizationBusinessScope.findUnique({
-            where: { organizationId: root.farmOrgId },
-          })))
+          (await legacyCycleHasCutover(
+            this.prisma,
+            event.cycleId,
+            actor.organizationId,
+          )))
       ) {
         await this.assertProductionCycleAccess(actor, event.cycleId);
         return;

@@ -28,12 +28,14 @@ import {
   lockLegacyScope,
 } from '../../modules/supply-chains/legacy-scope.commands.js';
 import { requireLegacyScopePin } from '../../modules/supply-chains/legacy-scope-pins.js';
+import { lockChainScope } from '../../modules/supply-chains/chain-policy.js';
 
 export interface CommandActor {
   sub: string | null;
   organizationId: string | null;
   role: string;
   sid?: string;
+  organizationScopeActivated?: boolean;
 }
 
 export interface AuthorizedCommand {
@@ -242,6 +244,8 @@ export async function authorizeCommand(
   if (input.operation.startsWith('HYB_'))
     return authorizeChainCommand(db, input, lock);
 
+  if (lock && actor.organizationId)
+    await lockChainScope(db, `org:${actor.organizationId}`);
   const business = await authorizeCoreBusinessCommand(db, input, lock);
   if (business) {
     input.businessActor = business.actor;

@@ -28,6 +28,7 @@ describe('OrganizationAccessService', () => {
     },
     productionCycle: {
       findUnique: vi.fn(),
+      findFirst: vi.fn().mockResolvedValue({ id: 'cycle-id' }),
     },
     lot: {
       findUnique: vi.fn(),
@@ -95,7 +96,9 @@ describe('OrganizationAccessService', () => {
       retailerOrgId: 'retailer-org-id',
       lot: {
         farmOrgId: 'farm-org-id',
-        harvest: { cycle: { farmId: 'farm-id', chainId: null } },
+        harvest: {
+          cycle: { id: 'cycle-id', farmId: 'farm-id', chainId: null },
+        },
       },
     });
 
@@ -114,7 +117,9 @@ describe('OrganizationAccessService', () => {
       retailerOrgId: 'retailer-org-id',
       lot: {
         farmOrgId: 'farm-org-id',
-        harvest: { cycle: { farmId: 'farm-id', chainId: null } },
+        harvest: {
+          cycle: { id: 'cycle-id', farmId: 'farm-id', chainId: null },
+        },
       },
     });
 

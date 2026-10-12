@@ -65,6 +65,7 @@ import {
 } from '../src/modules/supply-chains/legacy-scope.commands.js';
 import type { LegacyScopePin } from '../src/modules/supply-chains/legacy-scope-pins.js';
 import { legacyOrScopedCycle } from '../src/modules/supply-chains/business-read-scope.js';
+import { authorizeCoreBusinessCommand } from '../src/modules/supply-chains/core-business-policy.js';
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -1602,18 +1603,29 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
     await expect(
       db.$transaction(
         async (tx) => {
-          const legacy = await tx.productionCycle.findFirstOrThrow({
-            where: { cycleCode: 'legacy-before-cutover' },
+          const org = await tx.organization.create({
+            data: { name: 'Uncutover legacy type scenario', type: 'FARM' },
+          });
+          const farm = await tx.farm.create({
+            data: { organizationId: org.id, name: 'Legacy type guard farm' },
+          });
+          const legacy = await tx.productionCycle.create({
+            data: {
+              farmId: farm.id,
+              farmOrgId: org.id,
+              productId,
+              cycleCode: randomUUID(),
+            },
           });
           await tx.organizationCapability.create({
             data: {
-              organizationId: producer.organizationId!,
+              organizationId: org.id,
               code: 'TRANSPORTER',
             },
           });
           await tx.organizationCapability.create({
             data: {
-              organizationId: producer.organizationId!,
+              organizationId: org.id,
               code: 'RETAILER',
             },
           });
@@ -1630,7 +1642,7 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
               lotCode: randomUUID(),
               harvestId: harvest.id,
               productId,
-              farmOrgId: producer.organizationId!,
+              farmOrgId: org.id,
               initialQuantity: '5',
               availableQuantity: '5',
               unit: 'kg',
@@ -1639,8 +1651,8 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
           await tx.shipment.create({
             data: {
               lotId: lot.id,
-              transporterOrgId: producer.organizationId!,
-              retailerOrgId: producer.organizationId!,
+              transporterOrgId: org.id,
+              retailerOrgId: org.id,
               shippedQuantity: '5',
               unit: 'kg',
               origin: 'farm',
@@ -1652,6 +1664,178 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       ),
     ).rejects.toThrow('must reference an ACTIVE TRANSPORTER organization');
   });
+
+  it('closes unmapped legacy read/write when a partner cuts over, including after its membership revoke and profile suspension', () =>
+    isolated(async (tx) => {
+      const parties: Array<{ org: string; actor: CommandActor }> = [];
+      for (const [type, roleCode] of [
+        ['FARM', 'FARM_STAFF'],
+        ['TRANSPORTER', 'TRANSPORTER'],
+        ['RETAILER', 'RETAILER'],
+      ] as const) {
+        const org = await tx.organization.create({
+          data: { name: randomUUID(), type },
+        });
+        const role = await tx.role.upsert({
+          where: { code: roleCode },
+          create: { code: roleCode, name: roleCode },
+          update: {},
+        });
+        const user = await tx.user.create({
+          data: {
+            organizationId: org.id,
+            roleId: role.id,
+            email: `${randomUUID()}@example.test`,
+            passwordHash: 'unused',
+            fullName: 'Legacy cutover participant',
+          },
+        });
+        parties.push({
+          org: org.id,
+          actor: { sub: user.id, organizationId: org.id, role: roleCode },
+        });
+      }
+      const farm = await tx.farm.create({
+        data: { organizationId: parties[0].org, name: 'Uncutover producer' },
+      });
+      const cycle = await tx.productionCycle.create({
+        data: {
+          farmId: farm.id,
+          farmOrgId: parties[0].org,
+          productId,
+          cycleCode: randomUUID(),
+        },
+      });
+      const lots = [];
+      for (let index = 0; index < 2; index++) {
+        const harvest = await tx.harvestEvent.create({
+          data: {
+            cycleId: cycle.id,
+            harvestTime: new Date(),
+            quantity: '5',
+            unit: 'kg',
+          },
+        });
+        lots.push(
+          await tx.lot.create({
+            data: {
+              lotCode: randomUUID(),
+              harvestId: harvest.id,
+              productId,
+              farmOrgId: parties[0].org,
+              initialQuantity: '5',
+              availableQuantity: '5',
+              unit: 'kg',
+            },
+          }),
+        );
+      }
+      const shipment = await tx.shipment.create({
+        data: {
+          lotId: lots[0].id,
+          transporterOrgId: parties[1].org,
+          retailerOrgId: parties[2].org,
+          shippedQuantity: '5',
+          unit: 'kg',
+          origin: 'farm',
+          destination: 'shop',
+        },
+      });
+      expect(
+        await tx.productionCycle.count({
+          where: {
+            AND: [{ id: cycle.id }, legacyOrScopedCycle(parties[0].actor)],
+          },
+        }),
+      ).toBe(1);
+      const target = await tx.supplyChain.create({
+        data: {
+          name: 'Partner different chain',
+          ownerOrganizationId: parties[1].org,
+        },
+      });
+      const membership = await tx.chainMembership.create({
+        data: {
+          chainId: target.id,
+          organizationId: parties[1].org,
+          status: 'ACTIVE',
+        },
+      });
+      await tx.chainBusinessProfile.create({ data: { chainId: target.id } });
+      await tx.chainBusinessProfile.update({
+        where: { chainId: target.id },
+        data: { state: 'ACTIVE', version: { increment: 1 } },
+      });
+      await tx.chainMembership.update({
+        where: { id: membership.id },
+        data: { status: 'REVOKED', version: { increment: 1 } },
+      });
+      await tx.chainBusinessProfile.update({
+        where: { chainId: target.id },
+        data: { state: 'SUSPENDED', version: { increment: 1 } },
+      });
+      expect(
+        await tx.organizationBusinessScope.findUnique({
+          where: { organizationId: parties[0].org },
+        }),
+      ).toBeNull();
+      for (const actor of [
+        ...parties.map((p) => p.actor),
+        { sub: randomUUID(), organizationId: null, role: 'SYSTEM_ADMIN' },
+      ])
+        expect(
+          await tx.productionCycle.count({
+            where: { AND: [{ id: cycle.id }, legacyOrScopedCycle(actor)] },
+          }),
+        ).toBe(0);
+      await expect(
+        authorizeCoreBusinessCommand(
+          tx,
+          {
+            actor: parties[1].actor,
+            requesterId: parties[1].actor.sub!,
+            operation: 'START_SHIPMENT',
+            payload: { id: shipment.id, version: 0 },
+          },
+          true,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        authorizeCoreBusinessCommand(
+          tx,
+          {
+            actor: parties[0].actor,
+            requesterId: parties[0].actor.sub!,
+            operation: 'PLANT_PRODUCTION_CYCLE',
+            payload: { id: cycle.id, version: 0 },
+          },
+          true,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await tx.$executeRawUnsafe('SAVEPOINT partner_legacy_rejection');
+      let rejected = false;
+      try {
+        await tx.shipment.create({
+          data: {
+            lotId: lots[1].id,
+            transporterOrgId: parties[1].org,
+            retailerOrgId: parties[2].org,
+            shippedQuantity: '5',
+            unit: 'kg',
+            origin: 'farm',
+            destination: 'shop',
+          },
+        });
+      } catch {
+        rejected = true;
+        await tx.$executeRawUnsafe(
+          'ROLLBACK TO SAVEPOINT partner_legacy_rejection',
+        );
+      }
+      await tx.$executeRawUnsafe('RELEASE SAVEPOINT partner_legacy_rejection');
+      expect(rejected).toBe(true);
+      expect(await tx.shipment.count({ where: { lotId: lots[1].id } })).toBe(0);
+    }));
 
   it('replays draft creation without duplicates and commits its result journal with the plan', async () => {
     const actor = await authenticated(producer);
@@ -2497,7 +2681,8 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
               requestHash: canonicalSha256(uncertain.payload),
               authorizationScope: legacyScope,
               status: 'PROCESSING',
-              expiresAt: new Date(0),
+              createdAt: new Date(Date.now() - 60000),
+              expiresAt: new Date(Date.now() - 1000),
             },
           });
           await expect(

@@ -2,6 +2,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { BUSINESS_CAPABILITIES } from './chain-policy.js';
 import { trustedLegacyCycleWhere } from './legacy-scope-pins.js';
+import { uncutoverLegacyCycleWhere } from './legacy-cutover-policy.js';
 
 const NONE = '00000000-0000-0000-0000-000000000000';
 const READ_ROLES = [
@@ -143,7 +144,7 @@ export function legacyOrScopedCycle(
     OR: [
       {
         AND: [
-          { chainId: null, organization: { businessScope: { is: null } } },
+          uncutoverLegacyCycleWhere(actor),
           legacy,
         ],
       },
@@ -161,10 +162,7 @@ export function legacyOrScopedLot(
         AND: [
           {
             harvest: {
-              cycle: {
-                chainId: null,
-                organization: { businessScope: { is: null } },
-              },
+              cycle: uncutoverLegacyCycleWhere(actor),
             },
           },
           legacy,
@@ -185,10 +183,7 @@ export function legacyOrScopedShipment(
           {
             lot: {
               harvest: {
-                cycle: {
-                  chainId: null,
-                  organization: { businessScope: { is: null } },
-                },
+                cycle: uncutoverLegacyCycleWhere(actor),
               },
             },
           },

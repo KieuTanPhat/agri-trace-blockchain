@@ -431,6 +431,10 @@ BEGIN
       PERFORM fn_hybrid_participant(root_chain,participant.org_id,participant.capability);
     END LOOP;
   ELSE
+    IF EXISTS (SELECT 1 FROM organization_business_scope WHERE organization_id IN
+      (l.farm_org_id, NEW.transporter_org_id, NEW.retailer_org_id)) THEN
+      RAISE EXCEPTION 'Unresolved legacy Shipment parties after cutover require reviewed chain mapping';
+    END IF;
     SELECT type,status INTO org_type,org_status FROM organization WHERE organization_id = NEW.transporter_org_id FOR SHARE;
     IF NOT FOUND OR org_type <> 'TRANSPORTER' OR org_status <> 'ACTIVE' THEN
       RAISE EXCEPTION 'transporter_org_id must reference an ACTIVE TRANSPORTER organization';
