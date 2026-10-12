@@ -7,6 +7,7 @@ import { getAuthorizationScope } from "@/lib/auth-scope";
 import { request, getOrganizations } from "@/lib/api-client";
 import { DataForm } from "@/components/data-form";
 import { ShipmentPlansPanel } from "@/components/shipment-plans-panel";
+import { BusinessProfilePanel } from "@/components/business-profile-panel";
 import type { components } from "@/lib/generated/api";
 import type { Organization } from "@/lib/types";
 
@@ -217,6 +218,22 @@ function ChainWorkspace({
         </label>
         {chain && <p>Chủ chuỗi: {name(chain.ownerOrganizationId)}</p>}
       </section>
+      {chain && !platformAdmin && (
+        <BusinessProfilePanel
+          key={`${selected}:${revision}`}
+          chainId={selected}
+          canActivate={Boolean(
+            manager &&
+            context?.memberships.some(
+              (m) =>
+                m.chainId === selected &&
+                m.organizationId === organizationId &&
+                m.status === "ACTIVE",
+            ),
+          )}
+          onChanged={refresh}
+        />
+      )}
       {chain && (
         <section className="panel">
           <h2>Thành viên</h2>

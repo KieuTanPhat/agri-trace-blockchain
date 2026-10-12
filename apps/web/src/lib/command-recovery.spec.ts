@@ -4,6 +4,7 @@ import {
   COMMAND_STORAGE_PREFIX,
   recoverableCommand,
   retrySavedCommand,
+  pendingSavedCommands,
   type SavedCommand,
 } from "./command-recovery";
 import { installBrowserLocks } from "../test/browser-locks";
@@ -42,6 +43,31 @@ afterEach(() => {
 });
 
 describe("Command reconciliation across remount and tabs", () => {
+  it("lists only owner-bound pending metadata after remount and never sends a command while listing", async () => {
+    const wire = transport();
+    wire.send.mockRejectedValueOnce({ status: 0, message: "Lost response" });
+    await expect(
+      recoverableCommand(context(), command(), wire),
+    ).rejects.toBeDefined();
+    const list = await pendingSavedCommands(context());
+    expect(list).toEqual([
+      { id: expect.any(String), operation: "HYB_CREATE_CHAIN" },
+    ]);
+    expect(JSON.stringify(list)).not.toContain("Private chain name");
+    expect(JSON.stringify(list)).not.toContain("original-key");
+    expect(wire.send).toHaveBeenCalledTimes(1);
+    expect(wire.inspect).not.toHaveBeenCalled();
+    expect(
+      await pendingSavedCommands({
+        owner: "another-owner",
+        assertCurrent: vi.fn(),
+      }),
+    ).toEqual([]);
+    wire.inspect.mockResolvedValueOnce(committed());
+    await retrySavedCommand(context(), list[0].id, wire);
+    expect(await pendingSavedCommands(context())).toEqual([]);
+    expect(stored()).not.toContain("Private chain name");
+  });
   it("persists before writing, retains identity after a lost response and discards payload/result cache only after a known commit", async () => {
     const ctx = context(),
       wire = transport();

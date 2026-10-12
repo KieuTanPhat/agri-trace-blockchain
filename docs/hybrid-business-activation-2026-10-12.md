@@ -88,3 +88,33 @@ fail vì candidate SQL dùng `digest()` nhưng không khai báo extension pgcryp
 input/hex output, không thêm extension hay đổi digest/provenance. Case còn lại
 đã reject activation đúng nhưng kỳ vọng message của gate cũ; cập nhật message
 chính xác của active-root guard mới, giữ việc reject và kiểm mọi history/audit.
+
+## Gate local đã đạt — 13/10/2026
+
+Exact SHA `0158efd2903a428602a9d5cced0f058e6d2ac9ca` đã đạt 135 API unit,
+31 SQL scenarios, full Prisma diff zero (chỉ đọc, không execute) và sáu unique
+guards, ORM, 89 policy/HTTP/DB tests gồm 26 nhóm HTTP, cùng 112 legacy API E2E.
+PostgreSQL 18 chạy cách ly local WSL; receipt xác nhận container/network đã gỡ,
+port đã trả và WSL keeper đã dừng. Không dùng tài nguyên hay database production.
+Evidence: `.codex/evidence/hybrid-local/agritrace-hybrid-local-0158efd2-1791827555639799500/`
+với `result.json`, `cleanup.json` và logs từng bước. Giữ mọi attempts thất bại.
+
+Web bổ sung business-profile/activation của owner và hàng đợi đối soát trong
+AppFrame: đọc lại khi remount, focus, pageshow, storage event hoặc write trong
+tab hiện tại. Chỉ hiển thị tên nghiệp vụ, không body/key/result; người dùng chủ
+động retry original command, server kiểm quyền hiện hành trước replay. UNKNOWN
+giữ nguyên key và chờ đối soát. Đổi tài khoản/scope bỏ response cũ. Activation
+dùng version server, chỉ hiện với current owner/CHAIN_MANAGER; API vẫn quyết
+định authority và gate cuối cùng.
+
+Kiểm Web trên code của commit chứa cập nhật này: 206 unit/DOM tests, 84 lint
+contract tests, bốn image optimizer tests, TypeScript, lint không warning và
+production build đạt với Node 24.19/npm 12.1.0. Đây chưa là browser/mobile E2E
+trên app + DB thật. Bridge compliance/device/creation, logical historical route,
+official migration/checksum, fresh/sanitized-copy restore và compatible rollback
+vẫn là gate trước release A; B/C chưa nghiệm thu.
+
+Production release cleanup `prod-8ae13542aee92b47d7ed64a0d83d560dbb517dc3`
+đã được kiểm riêng; xem [receipt](production-only-deployment-2026-10-13.md).
+Kết quả đó không phát hành candidate Hybrid hoặc biến dev observation window
+đã đóng thành pass.

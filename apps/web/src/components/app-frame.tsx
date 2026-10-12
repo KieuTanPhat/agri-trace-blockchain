@@ -24,6 +24,7 @@ import type { LotTrace } from "@/lib/types";
 import { canAccessManagementRoute } from "@/lib/permissions";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 import { PERMISSION_SYNC_EVENT } from "@/lib/permission-sync";
+import { PendingCommandsPanel } from "./pending-commands-panel";
 
 const navigation = [
   { href: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
@@ -399,6 +400,10 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             hidden={!privateAccessReady}
             style={privateAccessReady ? undefined : { display: "none" }}
           >
+            <PendingCommandsPanel
+              key={authorizationScope}
+              onSettled={() => window.location.reload()}
+            />
             {children}
           </div>
           <footer className="footer">

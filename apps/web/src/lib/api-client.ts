@@ -10,6 +10,7 @@ import { commandRequest } from "./command-request";
 import {
   recoverableCommand,
   retrySavedCommand,
+  pendingSavedCommands,
   type SavedCommand,
 } from "./command-recovery";
 import {
@@ -561,6 +562,10 @@ function recoveryTransport(init: RequestInit = {}, canRefresh = true) {
 }
 export async function retryPendingCommand(id: string) {
   return retrySavedCommand(await recoveryContext(), id, recoveryTransport());
+}
+
+export async function listPendingCommands() {
+  return pendingSavedCommands(await recoveryContext());
 }
 
 async function rawRequest<T>(

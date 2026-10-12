@@ -21,6 +21,11 @@ type Transport = {
   inspect(command: SavedCommand, descriptor: CommandRequest): Promise<Status>;
 };
 export const COMMAND_STORAGE_PREFIX = "agritrace-command:v1:";
+export const COMMAND_RECOVERY_CHANGED_EVENT = "agritrace-command-changed";
+export type PendingCommand = {
+  id: string;
+  operation: CommandRequest["operation"];
+};
 const storageError = {
   status: 409,
   code: "RECOVERY_STORAGE",
@@ -77,6 +82,7 @@ function write(context: Context, ledger: Ledger) {
       raw
     )
       throw storageError;
+    window.dispatchEvent(new Event(COMMAND_RECOVERY_CHANGED_EVENT));
   } catch {
     throw storageError;
   }
@@ -164,8 +170,11 @@ function terminal(
 ) {
   // No response cache or private payload remains once the outcome is known.
   ledger.entries[id] = {
-    path: entry.path, method: entry.method, key: entry.key,
-    fingerprint: entry.fingerprint, status,
+    path: entry.path,
+    method: entry.method,
+    key: entry.key,
+    fingerprint: entry.fingerprint,
+    status,
   };
   write(context, ledger);
 }
@@ -353,5 +362,34 @@ export function retrySavedCommand(
       id,
       "Yêu cầu vẫn cần đối soát. Chưa gửi lại hoặc tạo yêu cầu thay thế.",
     );
+  });
+}
+
+/** Only metadata leaves the private ledger. Listing does not inspect or send a
+ * command; an explicit recovery action rechecks current server authority. */
+export function pendingSavedCommands(
+  context: Context,
+): Promise<PendingCommand[]> {
+  return locked(context, async () => {
+    const result: PendingCommand[] = [];
+    for (const [id, entry] of Object.entries(read(context).entries)) {
+      if (entry.status !== "PENDING") continue;
+      const command = { ...entry, body: entry.body! };
+      const descriptor = commandRequest(
+        command.path,
+        command.method,
+        command.body,
+      );
+      if (
+        !descriptor ||
+        slot(command, descriptor) !== id ||
+        hasSecret(descriptor.payload) ||
+        (await fingerprint(command)) !== entry.fingerprint
+      )
+        throw storageError;
+      result.push({ id, operation: descriptor.operation });
+    }
+    context.assertCurrent();
+    return result;
   });
 }

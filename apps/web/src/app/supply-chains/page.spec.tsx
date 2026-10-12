@@ -62,6 +62,13 @@ describe("Chain workspace scope isolation", () => {
             version: 0,
           },
         ]);
+      if (path.endsWith("/business-profile"))
+        return Promise.resolve({
+          chainId: path.split("/")[2],
+          state: "ACTIVE",
+          version: 1,
+          scopeVersion: 1,
+        });
       throw new Error(path);
     });
     render(<SupplyChainsPage />);
