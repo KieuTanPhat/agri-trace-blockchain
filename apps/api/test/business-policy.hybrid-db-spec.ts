@@ -26,13 +26,23 @@ import {
   authorizePlanAcceptance,
   cancelShipmentPlan,
   createShipmentPlan,
+  finalizeShipmentPlan,
   reviseShipmentPlan,
   shipmentPlanDigest,
 } from '../src/modules/supply-chains/shipment-plan.commands.js';
+import { TraceService } from '../src/modules/trace/trace.service.js';
+import { OrganizationAccessService } from '../src/modules/auth/organization-access.service.js';
+import type { PrismaService } from '../src/prisma/prisma.service.js';
+import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
 });
+const serviceDb = db as unknown as PrismaService;
+const trace = new TraceService(
+  serviceDb,
+  new OrganizationAccessService(serviceDb),
+);
 let chainId: string;
 let otherChainId: string;
 let cycleId: string;
@@ -124,6 +134,46 @@ async function freshPlan(db: Prisma.TransactionClient) {
     destination: 'shop',
   };
   return { lot, input };
+}
+
+async function acceptedPlan(db: Prisma.TransactionClient) {
+  const { lot, input } = await freshPlan(db);
+  const event = await trace.createInTransaction(db, {
+    entityType: 'HARVEST',
+    entityId: lot.harvestId,
+    cycleId,
+    lotId: lot.id,
+    eventType: 'HARVEST_RECORDED',
+    actor: producer,
+    businessData: { quantity: '5', unit: 'kg' },
+  });
+  await db.quantityMovement.create({
+    data: {
+      lotId: lot.id,
+      eventId: event.id,
+      type: 'HARVEST_IN',
+      quantity: '5',
+      unit: 'kg',
+      beforeQty: '0',
+      delta: '5',
+      afterQty: '5',
+    },
+  });
+  const plan = await createShipmentPlan(db, producer, chainId, lot.id, input);
+  for (const [party, actor] of [
+    ['PRODUCER', producer],
+    ['TRANSPORTER', transporter],
+    ['RETAILER', retailer],
+  ] as const)
+    await acceptShipmentPlan(
+      db,
+      actor,
+      plan.id,
+      party,
+      0,
+      plan.current.payloadDigest,
+    );
+  return { lot, input, plan };
 }
 
 describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint acceptance)', () => {
@@ -839,35 +889,23 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       ).rejects.toBeInstanceOf(ConflictException);
     }));
 
-  it('retains old consent and requires new consent after revision, with stale version protection', () =>
-    isolated(async (tx) => {
-      const { lot, input } = await freshPlan(tx);
-      const plan = await createShipmentPlan(
-        tx,
-        producer,
-        chainId,
-        lot.id,
-        input,
-      );
-      const old = await acceptShipmentPlan(
-        tx,
-        producer,
-        plan.id,
-        'PRODUCER',
-        0,
-        plan.current.payloadDigest,
-      );
-      const next = await reviseShipmentPlan(tx, producer, plan.id, 0, {
-        ...input,
-        destination: 'new-shop',
-      });
-      expect(next.version).toBe(1);
-      expect(next.currentRevision).toBe(1);
-      expect(next.current.payloadDigest).not.toBe(plan.current.payloadDigest);
-      expect(
-        await tx.shipmentPlanAcceptance.findUnique({ where: { id: old.id } }),
-      ).not.toBeNull();
-      await expect(
+  it('retains old consent and requires new consent after revision, with stale version protection', async () => {
+    const { plan, input } = await db.$transaction(
+      async (tx) => {
+        const { lot, input } = await freshPlan(tx);
+        const plan = await createShipmentPlan(
+          tx,
+          producer,
+          chainId,
+          lot.id,
+          input,
+        );
+        return { plan, input };
+      },
+      { timeout: 20000 },
+    );
+    const old = await db.$transaction(
+      (tx) =>
         acceptShipmentPlan(
           tx,
           producer,
@@ -876,25 +914,61 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
           0,
           plan.current.payloadDigest,
         ),
-      ).rejects.toBeInstanceOf(ConflictException);
-      await expect(
-        reviseShipmentPlan(tx, producer, plan.id, 0, input),
-      ).rejects.toBeInstanceOf(ConflictException);
-      await acceptShipmentPlan(
-        tx,
-        producer,
-        plan.id,
-        'PRODUCER',
-        1,
-        next.current.payloadDigest,
-      );
-      expect(
-        await tx.shipmentPlanRevision.count({ where: { planId: plan.id } }),
-      ).toBe(2);
-      expect(
-        await tx.shipmentPlanAcceptance.count({ where: { planId: plan.id } }),
-      ).toBe(2);
-    }));
+      { timeout: 20000 },
+    );
+    const next = await db.$transaction(
+      (tx) =>
+        reviseShipmentPlan(tx, producer, plan.id, 0, {
+          ...input,
+          destination: 'new-shop',
+        }),
+      { timeout: 20000 },
+    );
+    expect(next.version).toBe(1);
+    expect(next.currentRevision).toBe(1);
+    expect(next.current.payloadDigest).not.toBe(plan.current.payloadDigest);
+    expect(
+      await db.shipmentPlanAcceptance.findUnique({ where: { id: old.id } }),
+    ).not.toBeNull();
+    await expect(
+      db.$transaction(
+        (tx) =>
+          acceptShipmentPlan(
+            tx,
+            producer,
+            plan.id,
+            'PRODUCER',
+            0,
+            plan.current.payloadDigest,
+          ),
+        { timeout: 20000 },
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      db.$transaction(
+        (tx) => reviseShipmentPlan(tx, producer, plan.id, 0, input),
+        { timeout: 20000 },
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    await db.$transaction(
+      (tx) =>
+        acceptShipmentPlan(
+          tx,
+          producer,
+          plan.id,
+          'PRODUCER',
+          1,
+          next.current.payloadDigest,
+        ),
+      { timeout: 20000 },
+    );
+    expect(
+      await db.shipmentPlanRevision.count({ where: { planId: plan.id } }),
+    ).toBe(2);
+    expect(
+      await db.shipmentPlanAcceptance.count({ where: { planId: plan.id } }),
+    ).toBe(2);
+  });
 
   it('does not authorize consent through an old revoked org admin grant', () =>
     isolated(async (tx) => {
@@ -1007,4 +1081,225 @@ describe('Candidate scoped command policy on PostgreSQL draft (not core endpoint
       ).rejects.toBeInstanceOf(ConflictException);
       expect(await tx.shipment.count({ where: { lotId: lot.id } })).toBe(0);
     }));
+
+  it('finalizes Shipment, both assignments, trace, outbox and context with the actual manager actor', () =>
+    isolated(async (tx) => {
+      const { lot, plan } = await acceptedPlan(tx);
+      const result = await finalizeShipmentPlan(
+        tx,
+        producer,
+        plan.id,
+        0,
+        trace,
+      );
+      const event = await tx.traceEvent.findUniqueOrThrow({
+        where: { id: result.eventId },
+      });
+      expect(event.actorUserId).toBe(producer.sub);
+      expect(event.actorRole).toBe('CHAIN_MANAGER');
+      expect(privateTraceEvidenceMatches(event)).toBe(true);
+      expect(event.businessData).toMatchObject({
+        chainId,
+        shipmentPlanId: plan.id,
+        payloadDigest: plan.current.payloadDigest,
+      });
+      expect(
+        await tx.blockchainOutbox.count({
+          where: { eventId: result.eventId, status: 'PENDING' },
+        }),
+      ).toBe(1);
+      expect(
+        await tx.eventChainContext.count({
+          where: { eventId: result.eventId, chainId },
+        }),
+      ).toBe(1);
+      expect(
+        await tx.stageAssignment.count({
+          where: {
+            chainId,
+            shipmentId: result.shipment.id,
+            stage: 'TRANSPORT',
+            status: 'ACCEPTED',
+          },
+        }),
+      ).toBe(1);
+      expect(
+        await tx.stageAssignment.count({
+          where: {
+            chainId,
+            lotId: lot.id,
+            stage: 'RETAIL',
+            status: 'ACCEPTED',
+          },
+        }),
+      ).toBe(1);
+      expect(
+        (await tx.shipmentPlan.findUniqueOrThrow({ where: { id: plan.id } }))
+          .status,
+      ).toBe('FINALIZED');
+      expect(
+        (
+          await tx.lot.findUniqueOrThrow({ where: { id: lot.id } })
+        ).availableQuantity.toFixed(3),
+      ).toBe('5.000');
+    }));
+
+  it('requires all three current confirmations before creating any physical resource', () =>
+    isolated(async (tx) => {
+      const { lot, input } = await freshPlan(tx);
+      const plan = await createShipmentPlan(
+        tx,
+        producer,
+        chainId,
+        lot.id,
+        input,
+      );
+      await acceptShipmentPlan(
+        tx,
+        producer,
+        plan.id,
+        'PRODUCER',
+        0,
+        plan.current.payloadDigest,
+      );
+      await expect(
+        finalizeShipmentPlan(tx, producer, plan.id, 0, trace),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(await tx.shipment.count({ where: { lotId: lot.id } })).toBe(0);
+      expect(await tx.stageAssignment.count({ where: { lotId: lot.id } })).toBe(
+        0,
+      );
+    }));
+
+  it('does not revive old finalize consent by granting a fresh org admin role', () =>
+    isolated(async (tx) => {
+      const { lot, plan } = await acceptedPlan(tx);
+      const acceptance = await tx.shipmentPlanAcceptance.findUniqueOrThrow({
+        where: {
+          planId_revision_party: {
+            planId: plan.id,
+            revision: 0,
+            party: 'TRANSPORTER',
+          },
+        },
+      });
+      await tx.scopedRoleGrant.update({
+        where: { id: acceptance.grantId },
+        data: { revokedAt: new Date(), revision: { increment: 1 } },
+      });
+      await tx.scopedRoleGrant.create({
+        data: {
+          userId: transporter.sub!,
+          organizationId: transporter.organizationId!,
+          scope: 'ORGANIZATION',
+          role: 'ORG_ADMIN',
+        },
+      });
+      await expect(
+        finalizeShipmentPlan(tx, producer, plan.id, 0, trace),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(await tx.shipment.count({ where: { lotId: lot.id } })).toBe(0);
+    }));
+
+  it('rolls back physical writes when trace/outbox creation fails', async () => {
+    const { lot, plan } = await db.$transaction((tx) => acceptedPlan(tx), {
+      timeout: 20000,
+    });
+    const beforeEvents = await db.traceEvent.count({
+      where: { lotId: lot.id },
+    });
+    const beforeOutbox = await db.blockchainOutbox.count({
+      where: { traceEvent: { lotId: lot.id } },
+    });
+    await expect(
+      db.$transaction(
+        (tx) =>
+          finalizeShipmentPlan(tx, producer, plan.id, 0, {
+            createInTransaction: async () => {
+              throw new Error('injected-trace-failure');
+            },
+          }),
+        { timeout: 20000 },
+      ),
+    ).rejects.toThrow('injected-trace-failure');
+    expect(await db.shipment.count({ where: { lotId: lot.id } })).toBe(0);
+    expect(
+      await db.stageAssignment.count({
+        where: { OR: [{ lotId: lot.id }, { shipment: { lotId: lot.id } }] },
+      }),
+    ).toBe(0);
+    expect(
+      (await db.shipmentPlan.findUniqueOrThrow({ where: { id: plan.id } }))
+        .status,
+    ).toBe('DRAFT');
+    expect(await db.traceEvent.count({ where: { lotId: lot.id } })).toBe(
+      beforeEvents,
+    );
+    expect(
+      await db.blockchainOutbox.count({
+        where: { traceEvent: { lotId: lot.id } },
+      }),
+    ).toBe(beforeOutbox);
+  });
+
+  it('allows only one of two concurrent plans to finalize the same Lot', async () => {
+    const { lot, first, second } = await db.$transaction(
+      async (tx) => {
+        const { lot, plan: first, input } = await acceptedPlan(tx);
+        const second = await createShipmentPlan(tx, producer, chainId, lot.id, {
+          ...input,
+          destination: 'other-shop',
+        });
+        for (const [party, actor] of [
+          ['PRODUCER', producer],
+          ['TRANSPORTER', transporter],
+          ['RETAILER', retailer],
+        ] as const)
+          await acceptShipmentPlan(
+            tx,
+            actor,
+            second.id,
+            party,
+            0,
+            second.current.payloadDigest,
+          );
+        return { lot, first, second };
+      },
+      { timeout: 20000 },
+    );
+    const results = await Promise.allSettled(
+      [first, second].map((plan) =>
+        db.$transaction(
+          (tx) => finalizeShipmentPlan(tx, producer, plan.id, 0, trace),
+          { timeout: 20000 },
+        ),
+      ),
+    );
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const failed = results.find(
+      (r) => r.status === 'rejected',
+    ) as PromiseRejectedResult;
+    expect(failed.reason).toBeInstanceOf(ConflictException);
+    expect(await db.shipment.count({ where: { lotId: lot.id } })).toBe(1);
+    expect(
+      await db.shipmentPlan.count({
+        where: { lotId: lot.id, status: 'FINALIZED' },
+      }),
+    ).toBe(1);
+    expect(
+      await db.traceEvent.count({
+        where: { lotId: lot.id, eventType: 'SHIPMENT_CREATED' },
+      }),
+    ).toBe(1);
+    expect(
+      await db.blockchainOutbox.count({
+        where: { traceEvent: { lotId: lot.id, eventType: 'SHIPMENT_CREATED' } },
+      }),
+    ).toBe(1);
+    expect(
+      await db.stageAssignment.count({
+        where: { OR: [{ lotId: lot.id }, { shipment: { lotId: lot.id } }] },
+      }),
+    ).toBe(2);
+  });
 });

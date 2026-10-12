@@ -13,10 +13,11 @@ import type {
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import { lockAggregate } from '../../common/idempotency/command-transaction.js';
-import { quantity } from '../../common/quantity.js';
+import { assertQuantityReconciled, quantity } from '../../common/quantity.js';
 import { businessTimestamp } from '../../common/timestamp.js';
 import { authorizeBusinessCommand, businessRoot } from './business-policy.js';
 import { lockChainScope, organizationGrant } from './chain-policy.js';
+import type { TraceService } from '../trace/trace.service.js';
 
 export interface DraftShipmentPlan {
   transporterOrgId: string;
@@ -49,14 +50,17 @@ async function lockContext(
   actor: CommandActor,
   chainId: string,
   organizations: string[],
+  users: string[] = [],
 ) {
   assertActor(actor);
   const ids = [...new Set([actor.organizationId!, ...organizations])].sort();
-  if (![chainId, actor.sub!, ...ids].every((id) => isUUID(id)))
+  const userIds = [...new Set([actor.sub!, ...users])].sort();
+  if (![chainId, ...userIds, ...ids].every((id) => isUUID(id)))
     throw new UnprocessableEntityException('Định danh kế hoạch không hợp lệ');
   for (const id of ids)
     await db.$queryRaw`SELECT organization_id FROM organization WHERE organization_id = ${id}::uuid FOR SHARE`;
-  await db.$queryRaw`SELECT user_id FROM app_user WHERE user_id = ${actor.sub}::uuid FOR SHARE`;
+  for (const id of userIds)
+    await db.$queryRaw`SELECT user_id FROM app_user WHERE user_id = ${id}::uuid FOR SHARE`;
   for (const id of ids) await lockChainScope(db, `org:${id}`);
   await lockChainScope(db, chainId);
   await db.$queryRaw`SELECT chain_id FROM chain_business_profile WHERE chain_id = ${chainId}::uuid FOR SHARE`;
@@ -143,6 +147,7 @@ async function draftLot(
   value: ReturnType<typeof payload>,
 ) {
   await lockAggregate(db, 'lot', lotId);
+  await db.$queryRaw`SELECT lot_id FROM lot WHERE lot_id = ${lotId}::uuid FOR UPDATE`;
   const lot = await db.lot.findUnique({
     where: { id: lotId },
     include: {
@@ -307,14 +312,8 @@ export async function authorizePlanAcceptance(
 ) {
   assertActor(actor);
   const plan = await planBeforeLock(db, id);
-  if (
-    !(party in PARTY) ||
-    plan.currentRevision !== revision ||
-    plan.current.payloadDigest !== digest ||
-    shipmentPlanDigest(plan.chainId, plan.lotId, revision, plan.current) !==
-      digest
-  )
-    throw new ConflictException('Revision hoặc nội dung kế hoạch đã thay đổi');
+  if (!(party in PARTY))
+    throw new ForbiddenException('Vai trò xác nhận không hợp lệ');
   const spec = PARTY[party];
   if (plan.current[spec.field] !== actor.organizationId)
     throw new ForbiddenException('Không xác nhận thay đối tác');
@@ -355,6 +354,13 @@ export async function authorizePlanAcceptance(
     !grant
   )
     throw new ForbiddenException('Chưa có quyền xác nhận kế hoạch');
+  if (
+    plan.currentRevision !== revision ||
+    plan.current.payloadDigest !== digest ||
+    shipmentPlanDigest(plan.chainId, plan.lotId, revision, plan.current) !==
+      digest
+  )
+    throw new ConflictException('Revision hoặc nội dung kế hoạch đã thay đổi');
   return {
     plan,
     grant,
@@ -467,4 +473,160 @@ export async function cancelShipmentPlan(
     plan.currentRevision,
   );
   return result;
+}
+
+/** Candidate atomic finalization. Session/replay authorization still needs to
+ * be integrated in command-authorization before any endpoint is exposed. */
+export async function finalizeShipmentPlan(
+  db: Prisma.TransactionClient,
+  actor: CommandActor,
+  id: string,
+  version: number,
+  trace: Pick<TraceService, 'createInTransaction'>,
+) {
+  const initial = await db.shipmentPlan.findUnique({
+    where: { id },
+    include: { current: { include: { acceptances: true } } },
+  });
+  if (!initial) throw new NotFoundException('Không tìm thấy kế hoạch');
+  // A revision's three unique acceptance rows are immutable. Collect their
+  // users before locking; reject a changed plan after the chain lock instead
+  // of locking new users out of order or borrowing old-revision consent.
+  await lockContext(
+    db,
+    actor,
+    initial.chainId,
+    [
+      initial.current.producerOrgId,
+      initial.current.transporterOrgId,
+      initial.current.retailerOrgId,
+    ],
+    initial.current.acceptances.map((a) => a.userId),
+  );
+  const authority = await authorizeBusinessCommand(
+    db,
+    actor,
+    {
+      chainId: initial.chainId,
+      role: 'CHAIN_MANAGER',
+      subject: { kind: 'lot', id: initial.lotId },
+    },
+    true,
+  );
+  if (initial.current.acceptances.length !== 3)
+    throw new ConflictException('Chưa đủ xác nhận của ba bên');
+  const plan = await lockedPlan(db, id, version);
+  if (
+    plan.currentRevision !== initial.currentRevision ||
+    plan.current.payloadDigest !== initial.current.payloadDigest
+  )
+    throw new ConflictException('Nội dung kế hoạch đã thay đổi');
+  for (const consent of initial.current.acceptances) {
+    const user = await db.user.findUniqueOrThrow({
+      where: { id: consent.userId },
+      include: { role: true },
+    });
+    const current = await authorizePlanAcceptance(
+      db,
+      {
+        sub: user.id,
+        organizationId: user.organizationId,
+        role: user.role.code,
+      },
+      id,
+      consent.party,
+      plan.currentRevision,
+      plan.current.payloadDigest,
+    );
+    if (
+      current.grant.id !== consent.grantId ||
+      current.grant.revision !== consent.grantRevision
+    )
+      throw new ForbiddenException(
+        'Quyền xác nhận cũ đã mất hiệu lực; cần revision và xác nhận mới',
+      );
+  }
+  const lot = await draftLot(db, plan.chainId, plan.lotId, plan.current);
+  await assertQuantityReconciled(db, lot);
+  const shipment = await db.shipment.create({
+    data: {
+      lotId: lot.id,
+      transporterOrgId: plan.current.transporterOrgId,
+      retailerOrgId: plan.current.retailerOrgId,
+      origin: plan.current.origin,
+      destination: plan.current.destination,
+      shippedQuantity: plan.current.quantity,
+      unit: plan.current.unit,
+      vehicleRef: plan.current.vehicleRef,
+      plannedPickupTime: plan.current.plannedPickupTime,
+      expectedArrival: plan.current.expectedArrivalTime,
+    },
+  });
+  const transport = await db.stageAssignment.create({
+    data: {
+      chainId: plan.chainId,
+      organizationId: shipment.transporterOrgId,
+      stage: 'TRANSPORT',
+      shipmentId: shipment.id,
+      status: 'ACCEPTED',
+    },
+  });
+  const retail = await db.stageAssignment.create({
+    data: {
+      chainId: plan.chainId,
+      organizationId: shipment.retailerOrgId,
+      stage: 'RETAIL',
+      lotId: lot.id,
+      status: 'ACCEPTED',
+    },
+  });
+  await db.shipmentPlan.update({
+    where: { id },
+    data: {
+      status: 'FINALIZED',
+      shipmentId: shipment.id,
+      version: { increment: 1 },
+    },
+  });
+  const event = await trace.createInTransaction(db, {
+    entityType: 'SHIPMENT',
+    entityId: shipment.id,
+    lotId: lot.id,
+    eventType: 'SHIPMENT_CREATED',
+    actor: authority.actor,
+    businessData: {
+      chainId: plan.chainId,
+      scopeVersion: 1,
+      shipmentPlanId: id,
+      revision: plan.currentRevision,
+      payloadDigest: plan.current.payloadDigest,
+      assignments: { transport: transport.id, retail: retail.id },
+      transporterOrgId: shipment.transporterOrgId,
+      retailerOrgId: shipment.retailerOrgId,
+      quantity: shipment.shippedQuantity.toString(),
+      unit: shipment.unit,
+      origin: shipment.origin,
+      destination: shipment.destination,
+      vehicleRef: shipment.vehicleRef,
+      plannedPickupTime: shipment.plannedPickupTime?.toISOString() ?? null,
+      expectedArrival: shipment.expectedArrival?.toISOString() ?? null,
+    },
+  });
+  await db.eventChainContext.create({
+    data: { eventId: event.id, chainId: plan.chainId },
+  });
+  await audit(
+    db,
+    actor,
+    plan.chainId,
+    'FINALIZE_SHIPMENT_PLAN',
+    id,
+    plan.currentRevision,
+  );
+  return {
+    shipment,
+    planId: id,
+    revision: plan.currentRevision,
+    eventId: event.id,
+  };
 }

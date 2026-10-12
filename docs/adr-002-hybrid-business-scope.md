@@ -127,3 +127,11 @@ outbox vật lý. Finalize cùng Shipment/assignments/trace/outbox, command repl
 integration, API/Swagger/Web và capability core guards còn phải triển khai.
 Các tests rollback chủ động cũng ép deferred constraints kiểm trước rollback;
 không lấy transaction rollback làm bằng chứng deferred FK đã hợp lệ khi commit.
+
+Lượt `df6ff3e` có 29/30 tests đạt; test create rồi revise trong cùng transaction
+bị deferred trigger chặn đúng quy tắc một revision mỗi command. Đã đổi scenario
+thành các transaction create/accept/revise riêng; giữ nguyên DB guards và log
+lỗi tại `/opt/agri-trace-admin/hybrid-scope-draft/49e53ed42c56d69d-1791770429813985911`.
+Candidate tiếp theo bổ sung finalize nguyên tử và tests thiếu consent, grant
+thay thế, trace failure rollback, tranh finalize hai plan cùng Lot. Chưa ghi
+Passed hoặc mở endpoint/dev profile trước kết quả terminal của lượt mới.
