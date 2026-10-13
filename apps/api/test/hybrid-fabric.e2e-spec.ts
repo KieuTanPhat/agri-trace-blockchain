@@ -22,7 +22,14 @@ import {
   mirrorCredential,
   onboardBindingOnLedger,
 } from '../src/modules/ledger/ledger-onboarding.js';
+import {
+  activateSigningKey,
+  registerSigningKeyOnLedger,
+  setHandoverMode,
+} from '../src/modules/ledger/ledger-signing.js';
+import type { IntentBody } from '../src/modules/trace/signed-commitment.js';
 import { provisionChain } from './support/chain-scope.js';
+import { TestSigner } from './support/signer.js';
 import {
   CHAINCODE,
   CONTRACT,
@@ -276,9 +283,11 @@ interface World {
       ).id;
       worlds.b = await createWorld('hb', 'hybrid-b', 'org2');
       worlds.self = await createWorld('hs', 'hybrid-self', 'org3');
+      worlds.signed = await createWorld('hc', 'hybrid-b', 'org2');
       const file = writeBindingsConfig([
         worlds.b.bindingDigest,
         worlds.self.bindingDigest,
+        worlds.signed.bindingDigest,
       ]);
       const config = new ConfigService({
         FABRIC_MAX_RETRIES: '8',
@@ -312,9 +321,9 @@ interface World {
       await app.init();
       jwt = app.get(JwtService);
       // Activation queues every valid chain grant for ledger confirmation.
-      for (const w of [worlds.b, worlds.self])
+      for (const w of [worlds.b, worlds.self, worlds.signed])
         await prisma.$transaction((tx) => activateBinding(tx, w.bindingDigest));
-      for (const w of [worlds.b, worlds.self])
+      for (const w of [worlds.b, worlds.self, worlds.signed])
         await settle(permissionsActive(w));
     }, 240_000);
 
@@ -839,5 +848,231 @@ interface World {
         }),
       ).toBe(1);
     }, 240_000);
+
+    // ----------------------------------------------------------- release C
+    type Party = 'farm' | 'transporter' | 'retailer';
+    const signers = {} as Record<Party, TestSigner>;
+    const keyOf = {} as Record<Party, string>;
+
+    async function enrollSigners(w: World) {
+      const ledger = await pilotOperator(w.channel, w.owner);
+      for (const party of ['farm', 'transporter', 'retailer'] as const) {
+        const signer = TestSigner.generate();
+        const keyRef = randomUUID();
+        await post(
+          w,
+          `/supply-chains/${w.chainId}/signing-keys`,
+          {
+            keyRef,
+            label: party,
+            publicKey: signer.publicKey,
+            popSignature: signer.proof({
+              bindingDigest: w.bindingDigest,
+              keyRef,
+              orgRef: w.orgs[party],
+            }),
+          },
+          party,
+        ).expect(201);
+        // The operator registers the key on the ledger with the owner's approval.
+        await registerSigningKeyOnLedger({
+          operator: ledger.operator,
+          reader: ledger.reader,
+          approvers: ledger.approvers,
+          key: await prisma.signingKey.findUniqueOrThrow({ where: { keyRef } }),
+        });
+        await activateSigningKey(prisma, keyRef);
+        signers[party] = signer;
+        keyOf[party] = keyRef;
+      }
+      await setHandoverMode(prisma, w.chainId, 'DUAL_SIGNED');
+    }
+
+    async function signed(
+      w: World,
+      who: Party,
+      path: string,
+      body: object,
+      signer: TestSigner = signers[who],
+    ) {
+      const prepared = (await post(w, path, body, who).expect(201)).body
+        .data as {
+        intentId: string;
+        intent: IntentBody;
+      };
+      const res = await post(
+        w,
+        `/signing-intents/${prepared.intentId}/submit`,
+        { signature: signer.signIntent(prepared.intent) },
+        who,
+      );
+      return { prepared, res };
+    }
+
+    async function signedShipment(w: World) {
+      const cycle = await cycleFlow(w, 2);
+      await post(w, `/production-cycles/${cycle.id}/plant`, {
+        version: 0,
+        plantedAt: '2026-09-25T00:00:00.000Z',
+      }).expect(201);
+      const harvested = (
+        await post(w, `/production-cycles/${cycle.id}/harvests`, {
+          quantity: 2,
+          unit: 'kg',
+          harvestTime: '2026-09-26T00:00:00.000Z',
+        }).expect(201)
+      ).body.data;
+      return {
+        shipmentId: await shipLot(w, harvested.lot.id, 2),
+        lotId: harvested.lot.id as string,
+      };
+    }
+
+    it('delivers a two-party handover to the ledger with both organization signatures verified there', async () => {
+      const w = worlds.signed;
+      await enrollSigners(w);
+      const { shipmentId, lotId } = await signedShipment(w);
+      expect(
+        (await prisma.shipment.findUniqueOrThrow({ where: { id: shipmentId } }))
+          .handoverMode,
+      ).toBe('DUAL_SIGNED');
+      const pickup = await signed(
+        w,
+        'farm',
+        `/shipments/${shipmentId}/handover-offers/intent`,
+        { kind: 'PICKUP' },
+      );
+      expect(pickup.res.status).toBe(201);
+      const confirmed = await signed(
+        w,
+        'transporter',
+        `/handovers/${pickup.res.body.data.id}/confirmation/intent`,
+        {},
+      );
+      expect(confirmed.res.body.data.state).toBe('CONFIRMED');
+      const arrival = await signed(
+        w,
+        'transporter',
+        `/shipments/${shipmentId}/handover-offers/intent`,
+        { kind: 'ARRIVAL' },
+      );
+      await signed(
+        w,
+        'retailer',
+        `/handovers/${arrival.res.body.data.id}/confirmation/intent`,
+        {},
+      );
+      await post(
+        w,
+        `/shipments/${shipmentId}/receive`,
+        { version: 2, lotVersion: 2, receivedQuantity: 2 },
+        'retailer',
+      ).expect(201);
+      await settle(unconfirmed(w), 60);
+
+      const events = await prisma.traceEvent.findMany({
+        where: { entityId: shipmentId, actorSignature: { isNot: null } },
+        include: { actorSignature: true, blockchainProof: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(events.map((e) => e.eventType)).toEqual([
+        'HANDOVER_OFFERED',
+        'HANDOVER_CONFIRMED',
+        'HANDOVER_OFFERED',
+        'HANDOVER_CONFIRMED',
+      ]);
+      const reader = (await pilotClient('org1', 'relayer', w.channel)).client;
+      const signerOrgs = [
+        w.orgs.farm,
+        w.orgs.transporter,
+        w.orgs.transporter,
+        w.orgs.retailer,
+      ];
+      for (const [index, event] of events.entries()) {
+        expect(event.blockchainProof?.transactionStatus).toBe('CONFIRMED');
+        const onLedger = (await reader.getBindingProof(
+          w.chainRef,
+          event.id,
+        )) as {
+          dataHash: string;
+          signature: {
+            keyRef: string;
+            orgRef: string;
+            assertionDigest: string;
+          };
+        };
+        expect(onLedger.dataHash).toBe(event.dataHash);
+        expect(onLedger.signature).toMatchObject({
+          keyRef: event.actorSignature?.keyRef,
+          orgRef: signerOrgs[index],
+          assertionDigest: event.actorSignature?.assertionDigest,
+        });
+        const proof = (
+          await get(w, `/trace/events/${event.id}/proof`).expect(200)
+        ).body.data;
+        expect(proof).toMatchObject({
+          transactionStatus: 'CONFIRMED',
+          localHashMatches: true,
+        });
+      }
+      const lot = await get(w, `/lots/${lotId}`).expect(200);
+      expect(JSON.stringify(lot.body.data)).toContain('VERIFIED');
+    }, 300_000);
+
+    it('withdraws a revoked key through the Worker and refuses signed events delivered afterwards', async () => {
+      const w = worlds.signed;
+      const { shipmentId } = await signedShipment(w);
+      // Signed and committed in the database, but not yet delivered.
+      const offer = await signed(
+        w,
+        'farm',
+        `/shipments/${shipmentId}/handover-offers/intent`,
+        { kind: 'PICKUP' },
+      );
+      expect(offer.res.status).toBe(201);
+      const signedEvent = await prisma.traceEvent.findFirstOrThrow({
+        where: { entityId: shipmentId, eventType: 'HANDOVER_OFFERED' },
+      });
+      // The farm organization withdraws the key before the Worker relays the event.
+      await post(
+        w,
+        `/supply-chains/${w.chainId}/signing-keys/${keyOf.farm}/revoke`,
+        { reason: 'signer device lost' },
+        'farm',
+      ).expect(201);
+      const reader = (await pilotClient('org1', 'relayer', w.channel)).client;
+      const revoked = async () =>
+        (
+          (await reader.getRegistrySigningKey(w.bindingDigest, keyOf.farm)) as {
+            status: string;
+          }
+        ).status === 'REVOKED';
+      await settle(revoked, 20);
+      // The key is gone from the ledger registry too, and the event cannot land.
+      await settle(
+        async () =>
+          (
+            await prisma.blockchainOutbox.findUniqueOrThrow({
+              where: { eventId: signedEvent.id },
+            })
+          ).status === 'DEAD_LETTER',
+        30,
+      );
+      const proof = (
+        await get(w, `/trace/events/${signedEvent.id}/proof`).expect(200)
+      ).body.data;
+      expect(proof.transactionStatus).toBe('FAILED');
+      expect(proof.lastError).toMatch(/SIGNING_KEY_INACTIVE/);
+      // Nothing was verified, and the handover never moved custody.
+      expect(
+        await prisma.blockchainProof.count({
+          where: { eventId: signedEvent.id },
+        }),
+      ).toBe(0);
+      expect(
+        (await prisma.shipment.findUniqueOrThrow({ where: { id: shipmentId } }))
+          .status,
+      ).toBe('CREATED');
+    }, 300_000);
   },
 );

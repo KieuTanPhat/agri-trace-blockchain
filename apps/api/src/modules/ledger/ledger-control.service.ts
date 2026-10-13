@@ -34,10 +34,14 @@ export class LedgerControlService {
   private async claim(limit: number): Promise<Job[]> {
     const lease = this.number('FABRIC_CLAIM_LEASE_MS', 120_000);
     const token = randomUUID();
+    // A binding this Worker has no controller/admin identity for must not
+    // starve the others: its jobs are simply not ours to claim.
+    const digests = this.pool.configuredDigests(['controller', 'admin']);
+    if (!digests.length) return [];
     return this.prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         SELECT j.job_id AS id FROM ledger_control_job j
-        WHERE (
+        WHERE j.binding_digest = ANY(${digests}::text[]) AND (
             (j.status = 'PENDING'::ledger_control_status AND (j.next_attempt_at IS NULL OR j.next_attempt_at <= now()))
             OR (j.status = 'PROCESSING'::ledger_control_status AND j.lease_expires_at <= now())
           )

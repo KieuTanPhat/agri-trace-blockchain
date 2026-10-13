@@ -41,19 +41,30 @@ export class BindingConnectionPool implements OnModuleDestroy {
   /** Overridable for tests; read lazily so the file is parsed once. */
   public environment: NodeJS.ProcessEnv = process.env;
 
-  private config(digest: string): BindingNodeConfig | undefined {
+  private load(): Map<string, BindingNodeConfig> {
     this.configs ??= new Map(
       loadBindingNodeConfigs(this.environment).map((item) => [
         item.bindingDigest,
         item,
       ]),
     );
-    return this.configs.get(digest);
+    return this.configs;
+  }
+
+  private config(digest: string): BindingNodeConfig | undefined {
+    return this.load().get(digest);
   }
 
   public configured(digest: string, role: BindingRole): boolean {
     const config = this.config(digest);
     return Boolean(config && (role === 'relayer' || config[role]));
+  }
+
+  /** Bindings this process holds every listed identity for. */
+  public configuredDigests(roles: BindingRole[]): string[] {
+    return [...this.load().keys()].filter((digest) =>
+      roles.every((role) => this.configured(digest, role)),
+    );
   }
 
   public async get(
