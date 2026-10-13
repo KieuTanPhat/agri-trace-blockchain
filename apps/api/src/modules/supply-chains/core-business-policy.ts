@@ -37,6 +37,8 @@ const LOT_WRITES = [
 /** Two-party handover (release C). The acting role comes from the persisted
  * intent or handover, never from the request body. */
 const HANDOVER_WRITES = [
+  'PREPARE_HANDOVER_OFFER',
+  'PREPARE_HANDOVER_CONFIRM',
   'SUBMIT_SIGNED_INTENT',
   'REJECT_HANDOVER',
   'CANCEL_HANDOVER',
@@ -67,6 +69,12 @@ async function handoverTarget(
       : side === 'giver'
         ? 'TRANSPORTER'
         : 'RETAILER';
+  if (operation === 'PREPARE_HANDOVER_OFFER') {
+    const kind = String(data.kind);
+    if (kind !== 'PICKUP' && kind !== 'ARRIVAL')
+      throw new ForbiddenException('Loại bàn giao không hợp lệ');
+    return { shipmentId: id('shipmentId'), role: roleOf(kind, 'giver') };
+  }
   if (operation === 'SUBMIT_SIGNED_INTENT') {
     const intent = await db.signingIntent.findUnique({
       where: { id: id('intentId') },
@@ -90,7 +98,9 @@ async function handoverTarget(
     shipmentId: handover.shipmentId,
     role: roleOf(
       handover.kind,
-      operation === 'REJECT_HANDOVER' ? 'receiver' : 'giver',
+      ['REJECT_HANDOVER', 'PREPARE_HANDOVER_CONFIRM'].includes(operation)
+        ? 'receiver'
+        : 'giver',
     ),
   };
 }

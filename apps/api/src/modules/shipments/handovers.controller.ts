@@ -50,22 +50,38 @@ export class HandoversController {
 
   @Post('shipments/:shipmentId/handover-offers/intent')
   @ApiDataResponse(SigningIntentDto, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
   prepareOffer(
     @Req() req: AuthenticatedRequest,
     @Param('shipmentId', ParseUUIDPipe) shipmentId: string,
     @Body() input: PrepareHandoverOfferDto,
+    @IdempotencyKey() key: string,
   ) {
-    return this.service.prepareOffer(shipmentId, input, req.user);
+    return this.run(
+      req,
+      key,
+      'PREPARE_HANDOVER_OFFER',
+      { shipmentId, ...input },
+      () => this.service.prepareOffer(shipmentId, input, req.user),
+    );
   }
 
   @Post('handovers/:handoverId/confirmation/intent')
   @ApiDataResponse(SigningIntentDto, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
   prepareConfirm(
     @Req() req: AuthenticatedRequest,
     @Param('handoverId', ParseUUIDPipe) handoverId: string,
     @Body() input: PrepareIntentOptionsDto,
+    @IdempotencyKey() key: string,
   ) {
-    return this.service.prepareConfirm(handoverId, input, req.user);
+    return this.run(
+      req,
+      key,
+      'PREPARE_HANDOVER_CONFIRM',
+      { handoverId, ...input },
+      () => this.service.prepareConfirm(handoverId, input, req.user),
+    );
   }
 
   @Get('signing-intents/:intentId')

@@ -17,7 +17,6 @@ import {
 } from '../../common/idempotency/command-transaction.js';
 import { assertQuantityReconciled } from '../../common/quantity.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
-import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
 import {
   consumeSigningIntent,
   prepareSigningIntent,
@@ -41,11 +40,6 @@ import type {
 const DEFAULT_OFFER_VALID_MINUTES = 24 * 60;
 type Kind = 'PICKUP' | 'ARRIVAL';
 type Db = Prisma.TransactionClient;
-
-const giverRole = (kind: Kind) =>
-  kind === 'PICKUP' ? ('FARM_STAFF' as const) : ('TRANSPORTER' as const);
-const receiverRole = (kind: Kind) =>
-  kind === 'PICKUP' ? ('TRANSPORTER' as const) : ('RETAILER' as const);
 
 export function handoverView(h: ShipmentHandover) {
   return {
@@ -100,42 +94,37 @@ export class HandoversService {
     actor: Actor,
   ): Promise<PreparedIntentView> {
     await this.expireDue(shipmentId);
-    const c = await this.context(this.prisma, shipmentId);
-    await authorizeBusinessCommand(this.prisma, actor, {
-      chainId: c.chainId,
-      role: giverRole(input.kind),
-      subject: { kind: 'shipment', id: shipmentId },
-    });
-    this.assertOfferable(c, input.kind, actor.organizationId);
-    if (
-      await this.prisma.shipmentHandover.findFirst({
-        where: { shipmentId, state: 'OFFERED' },
-      })
-    )
-      throw new ConflictException('Chuyến hàng đang có đề nghị bàn giao mở');
-    const receiverOrgId =
-      input.kind === 'PICKUP'
-        ? c.shipment.transporterOrgId
-        : c.shipment.retailerOrgId;
-    const offerExpiresAt = new Date(
-      Date.now() +
-        (input.offerValidMinutes ?? DEFAULT_OFFER_VALID_MINUTES) * 60_000,
-    );
-    const payload = {
-      handoverId: randomUUID(),
-      kind: input.kind,
-      shipmentId,
-      lotId: c.lot.id,
-      giverOrgId: actor.organizationId!,
-      receiverOrgId,
-      quantity: c.lot.availableQuantity.toFixed(3),
-      unit: c.lot.unit,
-      shipmentVersion: String(c.shipment.version),
-      lotVersion: String(c.lot.version),
-      offerExpiresAt: offerExpiresAt.toISOString(),
-      note: input.note ?? '',
-    };
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      const c = await this.context(tx, shipmentId);
+      this.assertOfferable(c, input.kind, actor.organizationId);
+      if (
+        await tx.shipmentHandover.findFirst({
+          where: { shipmentId, state: 'OFFERED' },
+        })
+      )
+        throw new ConflictException('Chuyến hàng đang có đề nghị bàn giao mở');
+      const receiverOrgId =
+        input.kind === 'PICKUP'
+          ? c.shipment.transporterOrgId
+          : c.shipment.retailerOrgId;
+      const offerExpiresAt = new Date(
+        Date.now() +
+          (input.offerValidMinutes ?? DEFAULT_OFFER_VALID_MINUTES) * 60_000,
+      );
+      const payload = {
+        handoverId: randomUUID(),
+        kind: input.kind,
+        shipmentId,
+        lotId: c.lot.id,
+        giverOrgId: actor.organizationId!,
+        receiverOrgId,
+        quantity: c.lot.availableQuantity.toFixed(3),
+        unit: c.lot.unit,
+        shipmentVersion: String(c.shipment.version),
+        lotVersion: String(c.lot.version),
+        offerExpiresAt: offerExpiresAt.toISOString(),
+        note: input.note ?? '',
+      };
       const key = await resolveSigningKey(
         tx,
         c.binding.digest,
@@ -170,35 +159,30 @@ export class HandoversService {
     });
     if (!known) throw new NotFoundException('Không tìm thấy bàn giao');
     await this.expireDue(known.shipmentId);
-    const h = await this.prisma.shipmentHandover.findUniqueOrThrow({
-      where: { id: handoverId },
-      include: { offerIntent: true },
-    });
-    const c = await this.context(this.prisma, h.shipmentId);
-    await authorizeBusinessCommand(this.prisma, actor, {
-      chainId: c.chainId,
-      role: receiverRole(h.kind),
-      subject: { kind: 'shipment', id: h.shipmentId },
-    });
-    if (actor.organizationId !== h.receiverOrgId)
-      throw new ForbiddenException('Chỉ bên nhận được xác nhận bàn giao');
-    if (h.state !== 'OFFERED')
-      throw new ConflictException('Đề nghị bàn giao không còn mở');
-    this.assertUnchanged(h, c);
-    const payload = {
-      handoverId: h.id,
-      kind: h.kind,
-      shipmentId: h.shipmentId,
-      giverOrgId: h.giverOrgId,
-      receiverOrgId: h.receiverOrgId,
-      offerIntentDigest: h.offerIntent.intentDigest,
-      offerEventId: h.offerEventId,
-      quantity: h.quantity.toFixed(3),
-      unit: h.unit,
-      shipmentVersion: String(h.shipmentVersion),
-      lotVersion: String(h.lotVersion),
-    };
-    return this.prisma.$transaction(async (tx) => {
+    return commandTransaction(this.prisma, async (tx) => {
+      const h = await tx.shipmentHandover.findUniqueOrThrow({
+        where: { id: handoverId },
+        include: { offerIntent: true },
+      });
+      const c = await this.context(tx, h.shipmentId);
+      if (actor.organizationId !== h.receiverOrgId)
+        throw new ForbiddenException('Chỉ bên nhận được xác nhận bàn giao');
+      if (h.state !== 'OFFERED')
+        throw new ConflictException('Đề nghị bàn giao không còn mở');
+      this.assertUnchanged(h, c);
+      const payload = {
+        handoverId: h.id,
+        kind: h.kind,
+        shipmentId: h.shipmentId,
+        giverOrgId: h.giverOrgId,
+        receiverOrgId: h.receiverOrgId,
+        offerIntentDigest: h.offerIntent.intentDigest,
+        offerEventId: h.offerEventId,
+        quantity: h.quantity.toFixed(3),
+        unit: h.unit,
+        shipmentVersion: String(h.shipmentVersion),
+        lotVersion: String(h.lotVersion),
+      };
       const key = await resolveSigningKey(
         tx,
         c.binding.digest,
