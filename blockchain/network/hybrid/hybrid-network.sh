@@ -16,6 +16,10 @@ REPO="$(cd "${HERE}/../../.." && pwd)"
 ROOT="${AGRI_FABRIC_ROOT:-${HOME}/agritrace-fabric}"
 INSTANCE="${AGRI_FABRIC_INSTANCE:?Set AGRI_FABRIC_INSTANCE to an isolated test resource prefix}"
 [[ "${INSTANCE}" =~ ^[a-z][a-z0-9-]{3,48}$ ]] || { echo 'Invalid Fabric instance' >&2; exit 2; }
+# Loopback by default. WSL2 NAT cannot forward a 127.0.0.1-bound port to the Windows
+# host, so a Windows test run sets AGRI_FABRIC_BIND_ADDRESS=0.0.0.0 on a private machine.
+BIND_ADDRESS="${AGRI_FABRIC_BIND_ADDRESS:-127.0.0.1}"
+[[ "${BIND_ADDRESS}" =~ ^[0-9.]{7,15}$ ]] || { echo 'Invalid Fabric bind address' >&2; exit 2; }
 PORT_OFFSET="${AGRI_FABRIC_PORT_OFFSET:-0}"
 [[ "${PORT_OFFSET}" =~ ^[0-9]{1,5}$ ]] && ((PORT_OFFSET <= 50000)) || { echo 'Invalid Fabric port offset' >&2; exit 2; }
 ROOT="$(realpath -m "${ROOT}")"
@@ -82,7 +86,7 @@ docker() {
         args+=(--network "${next}") ;;
       -p)
         next="$1"; shift
-        args+=(-p "127.0.0.1:$(host_port "${next%%:*}"):${next##*:}") ;;
+        args+=(-p "${BIND_ADDRESS}:$(host_port "${next%%:*}"):${next##*:}") ;;
       -v)
         next="$1"; shift; original="${next%%:*}"
         if known_resource "${original}"; then next="$(resource "${original}"):${next#*:}"; fi
@@ -335,6 +339,8 @@ build_cc_image() {
   rm -rf "${stage}"; mkdir -p "${stage}"
   cp "${src}/package.json" "${src}/package-lock.json" "${stage}/"
   cp -r "${src}/dist" "${stage}/dist"
+  # umask 077 makes the staged files unreadable to the image's non-root user.
+  chmod -R a+rX "${stage}"
   docker build -q -t "${CC_IMAGE}" -f "${HERE}/ccaas/Dockerfile" "${stage}" >/dev/null
 }
 
