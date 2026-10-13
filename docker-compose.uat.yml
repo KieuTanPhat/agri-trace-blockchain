@@ -75,6 +75,8 @@ services:
     environment:
       <<: *database
       NODE_ENV: production
+      # Disposable UAT/CI data: production starts CLOSED and opens only through a reviewed cutover.
+      HYBRID_WRITES_MODE: OPEN
       PORT: "8080"
       TRUST_PROXY_HOPS: "1"
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}

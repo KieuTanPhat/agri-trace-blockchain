@@ -54,7 +54,7 @@ try {
     assert.equal((await request('/auth/me', role)).role.code, role);
   }
   await request('/organizations', 'AUDITOR', {name: 'Must be rejected', type: 'FARM'}, 403);
-  const cycleInput = {farmId: UAT_FIXTURE.farmId, plotId: UAT_FIXTURE.plotId, productId: UAT_FIXTURE.productId, cycleCode: `UAT-${randomUUID()}`, maxHarvestQuantity: 10, harvestUnit: 'kg'};
+  const cycleInput = {chainId: UAT_FIXTURE.chain.id, farmId: UAT_FIXTURE.farmId, plotId: UAT_FIXTURE.plotId, productId: UAT_FIXTURE.productId, cycleCode: `UAT-${randomUUID()}`, maxHarvestQuantity: 10, harvestUnit: 'kg'};
   const key = randomUUID();
   const cycle = await request('/production-cycles', 'FARM_STAFF', cycleInput, 201, key);
   assert.equal((await request('/production-cycles', 'FARM_STAFF', cycleInput, 201, key)).id, cycle.id);
@@ -64,7 +64,14 @@ try {
   for (let index = 0; index < 2; index++) {
     const harvest = await request(`/production-cycles/${cycle.id}/harvests`, 'FARM_STAFF', {quantity: 2, unit: 'kg', harvestTime: new Date().toISOString()});
     lots.push(harvest.lot.id);
-    const shipment = await request('/shipments', 'FARM_STAFF', {lotId: harvest.lot.id, transporterOrgId: UAT_FIXTURE.organizations.TRANSPORTER.id, retailerOrgId: UAT_FIXTURE.organizations.RETAILER.id, origin: 'UAT farm', destination: 'UAT retailer'});
+    // A chain lot ships only through a finalized ShipmentPlan that all three parties accepted.
+    const plans = `/supply-chains/${UAT_FIXTURE.chain.id}/shipment-plans`;
+    const plan = await request(plans, 'FARM_STAFF', {lotId: harvest.lot.id, transporterOrgId: UAT_FIXTURE.organizations.TRANSPORTER.id, retailerOrgId: UAT_FIXTURE.organizations.RETAILER.id, quantity: '2.000', unit: 'kg', origin: 'UAT farm', destination: 'UAT retailer'});
+    for (const [party, role] of [['PRODUCER', 'FARM_STAFF'], ['TRANSPORTER', 'TRANSPORTER'], ['RETAILER', 'RETAILER']]) {
+      await request(`${plans}/${plan.id}/accept`, role, {party, revision: plan.currentRevision, payloadDigest: plan.current.payloadDigest});
+    }
+    const finalized = await request(`${plans}/${plan.id}/finalize`, 'FARM_STAFF', {version: plan.version});
+    const shipment = {id: finalized.shipmentId};
     const versions = async () => {
       const current = await request(`/shipments/${shipment.id}`, 'TRANSPORTER');
       const lot = await request(`/lots/${harvest.lot.id}`, 'FARM_STAFF');
@@ -93,7 +100,7 @@ try {
   assert.ok(refreshed.accessToken && rotatedCookie);
   await request('/auth/logout', undefined, {}, 201, undefined, {cookie: rotatedCookie});
   await request('/auth/refresh', undefined, {}, 401, undefined, {cookie: rotatedCookie});
-  console.log(JSON.stringify({result: 'passed', roles: UAT_ROLES, cycleId: cycle.id, lotIds: lots, proof: values['expect-proof'], flows: ['login/me', 'RBAC rejection', 'idempotency replay', 'two harvests', 'shipments receive/reject', 'public QR', 'refresh/logout']}));
+  console.log(JSON.stringify({result: 'passed', roles: UAT_ROLES, cycleId: cycle.id, lotIds: lots, proof: values['expect-proof'], flows: ['login/me', 'RBAC rejection', 'idempotency replay', 'two harvests', 'shipment plan consent and finalize', 'shipments receive/reject', 'public QR', 'refresh/logout']}));
 } catch (error) {
   console.error(error instanceof Error ? error.message : 'UAT smoke failed');
   process.exitCode = 1;

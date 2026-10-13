@@ -228,7 +228,7 @@ async function main() {
   assert.equal(health.runtime.running, true);
   assert.ok(health.runtime.lastCompletedAt);
   assert.equal(health.runtime.lastError, null);
-  assert.deepEqual(health.backlog, { pending: 0, retry: 0, deadLetter: 0 });
+  assert.deepEqual(health.backlog, { pending: 0, retry: 0, deadLetter: 0, controlPending: 0 });
   checkpoint('Worker is ready, its loop is active, and backlog is empty');
 }
 

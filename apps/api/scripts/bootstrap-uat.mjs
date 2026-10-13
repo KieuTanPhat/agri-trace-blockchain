@@ -35,9 +35,18 @@ export function readAccounts(environment = process.env) {
   return accounts;
 }
 
+// Business parties of the UAT chain and the chain-scoped roles each account needs. ORG_ADMIN or
+// ownership alone never supplies a business capability.
+const CHAIN_PARTIES = ['FARM_STAFF', 'TRANSPORTER', 'RETAILER'];
+const CHAIN_GRANTS = {FARM_STAFF: ['FARM_STAFF', 'CHAIN_MANAGER'], TRANSPORTER: ['TRANSPORTER'], RETAILER: ['RETAILER']};
+// Each party organization consents to ShipmentPlans through an organization-level ORG_ADMIN grant
+// plus a capability matching its type (a FARM capability is what a producer needs).
+const ORG_ADMINS = ['FARM_STAFF', 'TRANSPORTER', 'RETAILER'];
+
 export async function bootstrapUat(database, accounts) {
   return database.$transaction(async tx => {
     const result = {created: 0, existing: 0, roles: UAT_ROLES, fixture: UAT_FIXTURE};
+    const userIds = {};
     for (const account of accounts) {
       const role = await tx.role.upsert({where: {code: account.role}, create: {code: account.role, name: account.role}, update: {}});
       const organization = UAT_FIXTURE.organizations[account.role];
@@ -54,13 +63,15 @@ export async function bootstrapUat(database, accounts) {
             !(await compare(account.password, existing.passwordHash))) {
           throw new Error('Existing UAT account does not match; no account has been overwritten');
         }
+        userIds[account.role] = existing.id;
         result.existing++;
       } else {
-        await tx.user.create({data: {
+        const created = await tx.user.create({data: {
           email: account.email, fullName: `UAT ${account.role}`,
           passwordHash: await hash(account.password, 12), roleId: role.id,
           organizationId: organization?.id ?? null,
         }});
+        userIds[account.role] = created.id;
         result.created++;
       }
     }
@@ -79,6 +90,44 @@ export async function bootstrapUat(database, accounts) {
       throw new Error('UAT plot identifier conflicts with existing data');
     }
     if (!plot) await tx.plot.create({data: {id: UAT_FIXTURE.plotId, farmId: UAT_FIXTURE.farmId, name: 'UAT: Plot', area: 1, unit: 'ha'}});
+    const chainId = UAT_FIXTURE.chain.id;
+    const ownerOrganizationId = UAT_FIXTURE.organizations.FARM_STAFF.id;
+    const chain = await tx.supplyChain.findUnique({where: {id: chainId}});
+    if (chain && (chain.name !== UAT_FIXTURE.chain.name || chain.ownerOrganizationId !== ownerOrganizationId)) {
+      throw new Error('UAT chain identifier conflicts with existing data');
+    }
+    // The owner membership constraint is checked at commit, so the chain, its memberships and its
+    // profile are written in this one transaction.
+    if (!chain) await tx.supplyChain.create({data: {id: chainId, name: UAT_FIXTURE.chain.name, ownerOrganizationId}});
+    for (const party of CHAIN_PARTIES) {
+      const organizationId = UAT_FIXTURE.organizations[party].id;
+      if (!(await tx.chainMembership.findFirst({where: {chainId, organizationId}}))) {
+        await tx.chainMembership.create({data: {chainId, organizationId, status: 'ACTIVE'}});
+      }
+    }
+    if (!(await tx.chainBusinessProfile.findUnique({where: {chainId}}))) {
+      await tx.chainBusinessProfile.create({data: {chainId}});
+      await tx.chainBusinessProfile.update({where: {chainId}, data: {state: 'ACTIVE', version: {increment: 1}}});
+    }
+    for (const party of ORG_ADMINS) {
+      const {id: organizationId, type: code} = UAT_FIXTURE.organizations[party];
+      if (!(await tx.organizationCapability.findUnique({where: {organizationId_code: {organizationId, code}}}))) {
+        await tx.organizationCapability.create({data: {organizationId, code}});
+      }
+      const key = {userId: userIds[party], organizationId, scope: 'ORGANIZATION', chainId: null, role: 'ORG_ADMIN'};
+      if (!(await tx.scopedRoleGrant.findFirst({where: {...key, revokedAt: null}}))) {
+        await tx.scopedRoleGrant.create({data: key});
+      }
+    }
+    for (const [party, grants] of Object.entries(CHAIN_GRANTS)) {
+      const organizationId = UAT_FIXTURE.organizations[party].id;
+      for (const grant of grants) {
+        const key = {userId: userIds[party], organizationId, scope: 'CHAIN', chainId, role: grant};
+        if (!(await tx.scopedRoleGrant.findFirst({where: {...key, revokedAt: null}}))) {
+          await tx.scopedRoleGrant.create({data: key});
+        }
+      }
+    }
     return result;
   }, {timeout: 30_000});
 }

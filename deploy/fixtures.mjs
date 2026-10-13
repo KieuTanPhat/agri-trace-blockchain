@@ -9,4 +9,6 @@ export const UAT_FIXTURE = {
   farmId: '6bb639b5-924a-4e82-8d80-000000000201',
   productId: '6bb639b5-924a-4e82-8d80-000000000202',
   plotId: '6bb639b5-924a-4e82-8d80-000000000203',
+  // Business writes are chain-scoped: the farm owns one ACTIVE chain with the other business parties.
+  chain: {id: '6bb639b5-924a-4e82-8d80-000000000301', name: 'UAT: Chain'},
 };

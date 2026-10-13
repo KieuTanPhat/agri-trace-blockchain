@@ -72,6 +72,42 @@ test('bootstrap adds all five roles to existing data, hashes credentials and pre
   assert.ok(!readFileSync(filename, 'utf8').includes('SSH'));
 });
 
+test('bootstrap provisions one ACTIVE chain with chain-scoped roles, idempotently, and never adopts a conflicting chain', async () => {
+  const chainId = UAT_FIXTURE.chain.id;
+  const owner = UAT_FIXTURE.organizations.FARM_STAFF.id;
+  const chain = await database.supplyChain.findUnique({where: {id: chainId}, include: {memberships: true, businessProfile: true}});
+  assert.equal(chain.ownerOrganizationId, owner);
+  assert.equal(chain.businessProfile.state, 'ACTIVE');
+  assert.deepEqual(chain.memberships.map(item => item.organizationId).sort(),
+    ['FARM_STAFF', 'TRANSPORTER', 'RETAILER'].map(role => UAT_FIXTURE.organizations[role].id).sort());
+  assert.ok(chain.memberships.every(item => item.status === 'ACTIVE'));
+  const grantsFor = async role => (await database.scopedRoleGrant.findMany({
+    where: {chainId, revokedAt: null, user: {email: accounts.find(account => account.role === role).email}},
+  })).map(grant => grant.role).sort();
+  const orgAdmins = await database.scopedRoleGrant.findMany({where: {role: 'ORG_ADMIN', scope: 'ORGANIZATION', revokedAt: null,
+    user: {email: {in: accounts.map(account => account.email)}}}, include: {user: true}});
+  assert.deepEqual(orgAdmins.map(grant => grant.organizationId).sort(),
+    ['FARM_STAFF', 'TRANSPORTER', 'RETAILER'].map(role => UAT_FIXTURE.organizations[role].id).sort());
+  for (const role of ['FARM_STAFF', 'TRANSPORTER', 'RETAILER']) {
+    const capability = await database.organizationCapability.findUnique({where: {organizationId_code: {
+      organizationId: UAT_FIXTURE.organizations[role].id, code: UAT_FIXTURE.organizations[role].type}}});
+    assert.ok(capability && !capability.revokedAt);
+  }
+  assert.deepEqual(await grantsFor('FARM_STAFF'), ['CHAIN_MANAGER', 'FARM_STAFF']);
+  assert.deepEqual(await grantsFor('TRANSPORTER'), ['TRANSPORTER']);
+  assert.deepEqual(await grantsFor('RETAILER'), ['RETAILER']);
+  assert.deepEqual(await grantsFor('AUDITOR'), []);
+  assert.deepEqual(await grantsFor('SYSTEM_ADMIN'), []);
+  const before = await database.scopedRoleGrant.count({where: {chainId}});
+  await bootstrapUat(database, readAccounts(environment));
+  assert.equal(await database.scopedRoleGrant.count({where: {chainId}}), before);
+  assert.equal(await database.chainMembership.count({where: {chainId}}), 3);
+
+  await database.supplyChain.update({where: {id: chainId}, data: {name: 'Conflicting chain'}});
+  await assert.rejects(bootstrapUat(database, readAccounts(environment)), /chain identifier conflicts/);
+  await database.supplyChain.update({where: {id: chainId}, data: {name: UAT_FIXTURE.chain.name}});
+});
+
 test.after(async () => {
   await database.$disconnect();
   const resolved = path.resolve(directory);
