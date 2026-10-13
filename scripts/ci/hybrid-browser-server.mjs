@@ -33,7 +33,10 @@ if (!worker) {
   });
   await new Promise(resolve => proxy.listen(0, '127.0.0.1', resolve));
 }
-process.send?.({ ready: true, origin: `http://127.0.0.1:${proxy ? proxy.address().port : address.port}` });
+const origin = `http://127.0.0.1:${proxy ? proxy.address().port : address.port}`;
+// The auth controller trusts only CORS_ORIGIN and reads it per request; the browser origin is a dynamic port.
+if (proxy) process.env.CORS_ORIGIN = origin;
+process.send?.({ ready: true, origin });
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => {
   await new Promise(resolve => proxy ? proxy.close(resolve) : resolve());
   await app.close(); process.exit(0);
