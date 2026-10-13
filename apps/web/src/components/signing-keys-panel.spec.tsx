@@ -275,7 +275,8 @@ describe("SigningKeysPanel", () => {
     );
     await act(async () => finish({ status: "PENDING_LEDGER" }));
     expect(screen.queryByText(/Đã tạo khóa trên thiết bị này/)).toBeNull();
-    expect(screen.getByLabelText("Tên khóa")).toHaveValue("");
+    expect(await screen.findByLabelText("Tên khóa")).toHaveValue("");
+    expect(screen.queryByText(/Đã tạo khóa trên thiết bị này/)).toBeNull();
   });
 
   it("revokes a key with a reason", async () => {
