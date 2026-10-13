@@ -21,7 +21,7 @@ class FirstInstallation(unittest.TestCase):
         self.cd.storage.mkdir()
         self.candidate = {'id': 'prod-' + 'a' * 40, 'sha': 'a' * 40, 'verified': False, 'manifest': {'chaincode': 'b' * 64}}
         self.state = {'current': None, 'previous': None, 'chaincode': {'sequence': 0}}
-        for method in ['preflight', 'admit_fresh_release', 'migration_policy', 'protect_hybrid_schema', 'migrate',
+        for method in ['preflight', 'admit_fresh_release', 'register_fresh_backup', 'migration_policy', 'protect_hybrid_schema', 'migrate',
                        'bootstrap_hosted', 'start', 'stop', 'save_record', 'switch']:
             setattr(self.cd, method, MagicMock())
         self.cd.dc = MagicMock(return_value=['docker', 'compose'])

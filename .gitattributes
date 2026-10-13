@@ -14,3 +14,6 @@ blockchain/network/hybrid/** text eol=lf
 *.tmpl text eol=lf
 *.mts text eol=lf
 Dockerfile text eol=lf
+blockchain/network/production/*.py text eol=lf
+apps/api/scripts/*.mjs text eol=lf
+.env.deploy.example text eol=lf

@@ -670,8 +670,11 @@ class Controller:
                 self.run("private-identity-backup", ["tar", "--numeric-owner", "--acls", "--xattrs", "-czf", str(directory / "fabric-identities.tar.gz"),
                          "-C", "/", *[str(Path(p).relative_to("/")) for p in self.fabric["backup_paths"] + hosted.get("backup_paths", [])]])
                 files += ["fabric-ledger.tar.gz", "fabric-identities.tar.gz"]
-            self.run("private-config-backup", ["tar", "-czf", str(directory / "private-config.tar.gz"), "-C", "/",
-                     str(Path(self.config["env"]).relative_to("/")), str(Path(self.config["accounts"]).relative_to("/"))])
+            private_paths = [str(Path(self.config["env"]).relative_to("/")), str(Path(self.config["accounts"]).relative_to("/"))]
+            if self.fresh:
+                private_paths = [str((self.base / "shared").relative_to("/")), str(self.storage.relative_to("/")),
+                                 "etc/agri-trace-cd/prod", "usr/local/lib/agri-trace-cd/prod"]
+            self.run("private-config-backup", ["tar", "--exclude=operations.log", "--exclude=delivery.lock", "-czf", str(directory / "private-config.tar.gz"), "-C", "/", *private_paths])
             atomic_json(directory / "checksums.json", {name: policy.sha256((directory / name).read_bytes()) for name in files})
             plain = directory / "snapshot.tar"
             self.run("snapshot-bundle", ["tar", "-cf", str(plain), "-C", str(directory), *files, "checksums.json"])
@@ -1144,6 +1147,7 @@ class Controller:
             journal = {"previous": None, "candidate": candidate["id"], "stage": "fresh-database", "emptyDatabaseVerified": False}
         self.preflight(candidate)
         self.admit_fresh_release(candidate, state)
+        self.register_fresh_backup(candidate)
         if not resume:
             self.migration_policy({}, candidate)
         atomic_json(filename, journal)
@@ -1192,6 +1196,17 @@ class Controller:
             atomic_json(self.storage / "records" / candidate["id"] / "installation-journal.json", journal)
             filename.unlink()
         return {"result": "fresh-installed", "release": candidate["id"], "counts": evidence["counts"]}
+
+    def register_fresh_backup(self, candidate):
+        evidence = json.loads(Path(self.config["restore_evidence"]).read_text())
+        archive = Path(evidence["encrypted_archive"])
+        require(evidence.get("result") == "passed" and evidence.get("off_vps") is True and
+                policy.targets.owned_path(archive, self.base / "backups") and archive.is_file() and
+                policy.sha256(archive.read_bytes()) == evidence["archive_sha256"], "First deployment needs its verified recovery archive")
+        filename = self.storage / "backups.json"
+        catalog = json.loads(filename.read_text()) if filename.exists() else {}
+        catalog[candidate["sha"]] = str(archive.parent)
+        atomic_json(filename, catalog)
 
     def bootstrap_hosted(self, record, key_refs=None):
         filename = self.config.get("bootstrap")
