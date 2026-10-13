@@ -1,5 +1,10 @@
 # Bằng chứng nghiệm thu Hybrid A/B/C — 13/10/2026
 
+> **Bản ghi lịch sử của checkpoint 13/10/2026.** Chạy trên Node 24.14.1/npm 11.11 (ngoài
+> engines của manifest) và bỏ qua kịch bản Fabric thật theo cờ; vì vậy **không** đóng các cổng
+> release. Cổng hiện hành và bằng chứng mới nằm ở
+> [kế hoạch sẵn sàng production](plans/hybrid-production-readiness-2026-10-13.md).
+
 Bản ghi trung thực những gì **đã chạy**, lệnh, kết quả và những gì **chưa**. Mạng
 Fabric là pilot 3 Org cách ly trên một máy (WSL2/Docker); quyền của doanh nghiệp
 đối tác thật là **NotEvaluated**. Chưa có exact-SHA CI trên GitHub cho nhánh này
