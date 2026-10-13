@@ -21,9 +21,12 @@ import type { LotTrace } from "@/lib/types";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
 import { LotWarnings } from "@/components/lot-warnings";
+import { HandoverPanel } from "@/components/handover-panel";
+import { useAuth } from "@/lib/auth-store";
 
 export default function LotDetailPage() {
   const { lotId } = useParams<{ lotId: string }>();
+  const { user } = useAuth();
   const [lots, setLots] = useState<LotTrace[]>([]);
   const [lot, setLot] = useState<LotTrace | null>(null);
   const [error, setError] = useState("");
@@ -111,6 +114,16 @@ export default function LotDetailPage() {
                   Số lượng gửi: {lot.shipment.shippedQuantity} {lot.unit} · Từ
                   chối: {lot.shipment.rejectedQuantity ?? 0} {lot.unit}
                 </p>
+                {lot.shipment.handoverMode === "DUAL_SIGNED" && (
+                  <HandoverPanel
+                    shipmentId={lot.shipment.shipmentId}
+                    status={lot.shipment.status}
+                    organizationId={user?.organizationId ?? null}
+                    farmOrgId={lot.farmOrg.organizationId}
+                    transporterOrgId={lot.shipment.transporterOrgId}
+                    onChanged={load}
+                  />
+                )}
               </>
             ) : (
               <p>Chưa tạo chuyến vận chuyển.</p>

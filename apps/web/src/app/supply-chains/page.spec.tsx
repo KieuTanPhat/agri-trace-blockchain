@@ -59,6 +59,14 @@ describe("Chain workspace scope isolation", () => {
             ownerOrganizationId: "owner-org",
           },
         ]);
+      if (path.endsWith("/signing-keys"))
+        return Promise.resolve({
+          chainId: path.split("/")[2],
+          organizationId: "org",
+          bindingDigest: null,
+          handoverMode: "STANDARD",
+          keys: [],
+        });
       if (path.endsWith("/ledger-status"))
         return Promise.resolve({
           chainId: path.split("/")[2],
@@ -66,7 +74,13 @@ describe("Chain workspace scope isolation", () => {
           bindingStatus: null,
           channelId: null,
           permissions: { active: 0, pending: 0, revoking: 0, held: 0 },
-          delivery: { completed: 0, pending: 0, retry: 0, deadLetter: 0, oldestPendingAt: null },
+          delivery: {
+            completed: 0,
+            pending: 0,
+            retry: 0,
+            deadLetter: 0,
+            oldestPendingAt: null,
+          },
           openHolds: 0,
           pendingControlJobs: 0,
         });
@@ -135,6 +149,14 @@ describe("Chain workspace scope isolation", () => {
             version: 0,
           },
         ]);
+      if (path.endsWith("/signing-keys"))
+        return Promise.resolve({
+          chainId: path.split("/")[2],
+          organizationId: "org",
+          bindingDigest: null,
+          handoverMode: "STANDARD",
+          keys: [],
+        });
       if (path.endsWith("/ledger-status"))
         return Promise.resolve({
           chainId: path.split("/")[2],
@@ -142,7 +164,13 @@ describe("Chain workspace scope isolation", () => {
           bindingStatus: null,
           channelId: null,
           permissions: { active: 0, pending: 0, revoking: 0, held: 0 },
-          delivery: { completed: 0, pending: 0, retry: 0, deadLetter: 0, oldestPendingAt: null },
+          delivery: {
+            completed: 0,
+            pending: 0,
+            retry: 0,
+            deadLetter: 0,
+            oldestPendingAt: null,
+          },
           openHolds: 0,
           pendingControlJobs: 0,
         });

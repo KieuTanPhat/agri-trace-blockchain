@@ -2433,6 +2433,11 @@ export interface components {
         };
         InternalShipmentDto: {
             destination: string;
+            /**
+             * @description DUAL_SIGNED: lấy hàng và giao hàng cần bàn giao hai bên có chữ ký
+             * @enum {string}
+             */
+            handoverMode: "STANDARD" | "DUAL_SIGNED";
             origin: string;
             receivedQuantity: number | null;
             rejectedQuantity: number | null;

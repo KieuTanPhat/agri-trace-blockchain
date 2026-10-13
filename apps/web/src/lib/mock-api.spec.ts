@@ -21,6 +21,7 @@ describe("public trace mock projection", () => {
         shippedQuantity: 120,
         receivedQuantity: null,
         rejectedQuantity: null,
+        handoverMode: "STANDARD",
       },
     };
     mockLots.push(lot);

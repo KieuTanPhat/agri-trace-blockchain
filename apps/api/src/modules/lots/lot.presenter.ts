@@ -119,6 +119,7 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
             lot.shipment.rejectedQuantity === null
               ? null
               : Number(lot.shipment.rejectedQuantity),
+          handoverMode: lot.shipment.handoverMode,
         }
       : undefined,
   };

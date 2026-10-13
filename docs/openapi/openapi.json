@@ -3415,6 +3415,14 @@
           "destination": {
             "type": "string"
           },
+          "handoverMode": {
+            "description": "DUAL_SIGNED: lấy hàng và giao hàng cần bàn giao hai bên có chữ ký",
+            "enum": [
+              "STANDARD",
+              "DUAL_SIGNED"
+            ],
+            "type": "string"
+          },
           "origin": {
             "type": "string"
           },
@@ -3466,7 +3474,8 @@
           "destination",
           "shippedQuantity",
           "receivedQuantity",
-          "rejectedQuantity"
+          "rejectedQuantity",
+          "handoverMode"
         ],
         "type": "object"
       },

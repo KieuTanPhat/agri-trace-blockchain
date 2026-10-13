@@ -24,6 +24,11 @@ import type { IntentBody } from '../src/modules/trace/signed-commitment.js';
 import { signedMessageForIntent } from '../src/modules/trace/signed-commitment.js';
 import { TraceService } from '../src/modules/trace/trace.service.js';
 import { provisionChain } from './support/chain-scope.js';
+import {
+  generateSignerKey,
+  registrationBody,
+  signPreparedIntent,
+} from '../src/modules/signing/org-signer.js';
 import { TestSigner } from './support/signer.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
@@ -900,6 +905,56 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
           }),
         ),
       ).rejects.toThrow(/requires an organization signature/);
+    });
+
+    it('works with a key held outside AgriTrace through the reference signer', async () => {
+      // A second active key makes the choice explicit: no silent default.
+      const external = generateSignerKey();
+      const body = registrationBody(external.privatePem, {
+        bindingDigest: digest,
+        organizationId: orgs.transporter,
+        label: 'Dịch vụ ký ngoài',
+      });
+      await post(
+        'transporter',
+        `/supply-chains/${chainId}/signing-keys`,
+        body,
+      ).expect(201);
+      await activateSigningKey(prisma, body.keyRef);
+      const { shipmentId } = await newShipment();
+      const pickup = await offer('farm', shipmentId, 'PICKUP');
+      const handoverId = pickup.res.body.data.id as string;
+      const ambiguous = await post(
+        'transporter',
+        `/handovers/${handoverId}/confirmation/intent`,
+      );
+      expect(ambiguous.status).toBe(409);
+      expect(JSON.stringify(ambiguous.body)).toMatch(/keyRef/);
+      const prepared = (
+        await post(
+          'transporter',
+          `/handovers/${handoverId}/confirmation/intent`,
+          {
+            keyRef: body.keyRef,
+          },
+        ).expect(201)
+      ).body.data;
+      // The external signer sees only the prepared intent and its own PEM key.
+      const { signature } = signPreparedIntent(external.privatePem, prepared);
+      const done = await post(
+        'transporter',
+        `/signing-intents/${prepared.intentId}/submit`,
+        {
+          signature,
+        },
+      );
+      expect(done.status).toBe(201);
+      expect(done.body.data.state).toBe('CONFIRMED');
+      const signed = await prisma.eventActorSignature.findFirstOrThrow({
+        where: { intentId: prepared.intentId },
+      });
+      expect(signed.keyRef).toBe(body.keyRef);
+      expect((await shipmentRow(shipmentId)).status).toBe('IN_TRANSIT');
     });
 
     it('refuses to switch the chain mode while a handover is open', async () => {

@@ -25,6 +25,8 @@ export type LotActionContext = {
     status: string;
     transporterOrgId: string;
     retailerOrgId: string;
+    /** DUAL_SIGNED shipments move only through signed handovers. */
+    handoverMode?: string;
   };
 };
 
@@ -54,13 +56,20 @@ export function getAllowedLotCommands(
     actor.role === 'TRANSPORTER' &&
     actor.organizationId === lot.shipment.transporterOrgId
   ) {
-    if (lot.shipment.status === 'CREATED' && lot.currentState === 'HARVESTED')
+    const direct = lot.shipment.handoverMode !== 'DUAL_SIGNED';
+    if (
+      direct &&
+      lot.shipment.status === 'CREATED' &&
+      lot.currentState === 'HARVESTED'
+    )
       commands.push('startTransport');
     if (
       lot.shipment.status === 'IN_TRANSIT' &&
       lot.currentState === 'IN_TRANSPORT'
-    )
-      commands.push('reportArrival', 'reportDamage');
+    ) {
+      if (direct) commands.push('reportArrival');
+      commands.push('reportDamage');
+    }
   }
   if (
     positive &&

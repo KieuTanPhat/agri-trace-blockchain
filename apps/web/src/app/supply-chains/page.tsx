@@ -6,6 +6,7 @@ import { getAuthorizationScope } from "@/lib/auth-scope";
 import { request, getOrganizations } from "@/lib/api-client";
 import { DataForm } from "@/components/data-form";
 import { LedgerStatusPanel } from "@/components/ledger-status-panel";
+import { SigningKeysPanel } from "@/components/signing-keys-panel";
 import { ShipmentPlansPanel } from "@/components/shipment-plans-panel";
 import { BusinessProfilePanel } from "@/components/business-profile-panel";
 import type { components } from "@/lib/generated/api";
@@ -445,6 +446,14 @@ function ChainWorkspace({
       )}
       {selected && chain && !platformAdmin && (
         <LedgerStatusPanel key={`ledger:${selected}:${revision}`} chainId={selected} />
+      )}
+      {selected && chain && !platformAdmin && organizationId && (
+        <SigningKeysPanel
+          key={`keys:${selected}:${revision}`}
+          chainId={selected}
+          organizationId={organizationId}
+          orgAdmin={orgAdmin}
+        />
       )}
       {selected && context?.businessChains?.includes(selected) && (
         <ShipmentPlansPanel
