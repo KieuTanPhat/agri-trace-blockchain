@@ -85,10 +85,14 @@ async function main() {
     const farm = await db.farm.create({ data: { name: 'CI Fabric farm', organizationId: org.id } });
     const product = await db.product.create({ data: { productName: 'CI Fabric vegetables', defaultUnit: 'kg' } });
     const actor = await db.user.create({ data: { email: ${JSON.stringify(email)}, passwordHash: await hash(${JSON.stringify(password)}, 10), fullName: 'CI farmer', roleId: role.id, organizationId: org.id } });
-    const chain = await db.supplyChain.create({ data: { name: 'CI scoped Fabric chain', ownerOrganizationId: org.id } });
-    await db.chainMembership.create({ data: { chainId: chain.id, organizationId: org.id, status: 'ACTIVE' } });
-    await db.chainBusinessProfile.create({ data: { chainId: chain.id } });
-    await db.chainBusinessProfile.update({ where: { chainId: chain.id }, data: { state: 'ACTIVE', version: { increment: 1 } } });
+    // The owner membership constraint is deferred to commit: create the chain atomically.
+    const chain = await db.$transaction(async tx => {
+      const created = await tx.supplyChain.create({ data: { name: 'CI scoped Fabric chain', ownerOrganizationId: org.id } });
+      await tx.chainMembership.create({ data: { chainId: created.id, organizationId: org.id, status: 'ACTIVE' } });
+      await tx.chainBusinessProfile.create({ data: { chainId: created.id } });
+      await tx.chainBusinessProfile.update({ where: { chainId: created.id }, data: { state: 'ACTIVE', version: { increment: 1 } } });
+      return created;
+    });
     for (const code of ['FARM_STAFF', 'CHAIN_MANAGER'])
       await db.scopedRoleGrant.create({ data: { userId: actor.id, organizationId: org.id, scope: 'CHAIN', chainId: chain.id, role: code } });
     console.log(JSON.stringify({ chainId: chain.id, farmId: farm.id, productId: product.id }));

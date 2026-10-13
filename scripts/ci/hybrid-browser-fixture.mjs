@@ -35,11 +35,15 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
   }
   const farm = await db.farm.create({ data: { name: label, organizationId: users.farm.organizationId } });
   const product = await db.product.create({ data: { productName: label, defaultUnit: 'kg' } });
-  const chain = await db.supplyChain.create({ data: { name: `${label} ${randomUUID()}`, ownerOrganizationId: users.farm.organizationId } });
-  for (const party of ['farm', 'transporter', 'retailer'])
-    await db.chainMembership.create({ data: { chainId: chain.id, organizationId: users[party].organizationId, status: 'ACTIVE' } });
-  await db.chainBusinessProfile.create({ data: { chainId: chain.id } });
-  await db.chainBusinessProfile.update({ where: { chainId: chain.id }, data: { state: 'ACTIVE', version: { increment: 1 } } });
+  // The owner membership constraint is deferred to commit: create the chain atomically.
+  const chain = await db.$transaction(async tx => {
+    const created = await tx.supplyChain.create({ data: { name: `${label} ${randomUUID()}`, ownerOrganizationId: users.farm.organizationId } });
+    for (const party of ['farm', 'transporter', 'retailer'])
+      await tx.chainMembership.create({ data: { chainId: created.id, organizationId: users[party].organizationId, status: 'ACTIVE' } });
+    await tx.chainBusinessProfile.create({ data: { chainId: created.id } });
+    await tx.chainBusinessProfile.update({ where: { chainId: created.id }, data: { state: 'ACTIVE', version: { increment: 1 } } });
+    return created;
+  });
   for (const [party, role] of [['farm', 'FARM_STAFF'], ['farm', 'CHAIN_MANAGER'], ['transporter', 'TRANSPORTER'], ['retailer', 'RETAILER']])
     await db.scopedRoleGrant.create({ data: { userId: users[party].id, organizationId: users[party].organizationId, chainId: chain.id, scope: 'CHAIN', role } });
   // Same-organization handover still requires each business capability/role.
