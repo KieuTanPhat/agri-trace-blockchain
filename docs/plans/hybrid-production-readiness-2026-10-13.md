@@ -126,3 +126,17 @@ Web types for the extended ledger-status and lot DTOs; `AGRI_FABRIC_BIND_ADDRESS
 setup opt into `0.0.0.0` on a private machine); staged chaincode files made readable by
 the image's non-root user under `umask 077`; the CI Fabric suite now sets
 `HYBRID_LOAD_E2E=1`, `RATE_LIMIT_REQUESTS=100000` and records the load report.
+
+### Bổ sung kiểm tra cục bộ (2026-10-13, cùng commit `44a631a`)
+
+Đã chạy lại bằng Node 24.15.0 + npm 12.1.0 và đều thoát với mã 0:
+`npm run check --workspace apps/web` (gồm typecheck, test, `lint:contract`, build),
+`check` của `blockchain/chaincode` và `blockchain/gateway`, `test:worker-contract`,
+`check:chaincode:standalone`, `api-contract:check` (contract khớp metadata NestJS đã
+biên dịch) và `audit:dependencies` (0 lỗ hổng, installed-tree PASS).
+
+Lưu ý môi trường Windows: `npm run` lồng nhau chạy qua `cmd.exe`, không thấy shim bash.
+Nếu `PATH` của `cmd.exe` trỏ tới npm hệ thống (khác 12.1), test
+`lint:contract` "no invalid peers" báo sai các gói bị `overrides` ghim (postcss, undici,
+mysql2, deepmerge-ts, tmp). Đây không phải lỗi mã: đặt npm 12.1 và Node 24.15 lên đầu
+`PATH` của `cmd.exe` thì test qua; CI Linux dùng `npm ci` nên không gặp.
