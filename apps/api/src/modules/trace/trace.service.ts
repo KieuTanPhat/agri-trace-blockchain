@@ -19,8 +19,7 @@ import {
   C_SCHEMA_VERSION,
   signedBindingEventCommitment,
 } from './signed-commitment.js';
-import { privateTraceEvidenceMatches } from './trace-evidence.js';
-import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
+import { localEvidence } from './event-evidence.js';
 import { getLotEventProofStatus } from '../lots/lot-proof-status.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import {
@@ -28,7 +27,6 @@ import {
   EVENT_BINDING_CONTEXT_INCLUDE,
   EVENT_LEDGER_ROUTE_INCLUDE,
   type PinnedRoute,
-  routeProofMatches,
   sameLedgerDestination,
   verifiedEventRoute,
 } from './ledger-route.js';
@@ -370,8 +368,7 @@ export class TraceService {
     });
     if (!event) throw new NotFoundException('Không tìm thấy trace event');
     const proof = event.blockchainProof;
-    const route = verifiedEventRoute(event);
-    const sensorMatches = await harvestSensorTraceEvidenceMatches(
+    const { route, sensorMatches, localHashMatches } = await localEvidence(
       this.prisma,
       event,
     );
@@ -390,11 +387,7 @@ export class TraceService {
       attemptCount: event.blockchainOutbox?.attemptCount ?? 0,
       nextAttemptAt: event.blockchainOutbox?.nextAttemptAt ?? null,
       lastError: event.blockchainOutbox?.lastError ?? null,
-      localHashMatches:
-        Boolean(route) &&
-        (!proof || routeProofMatches(event, proof)) &&
-        privateTraceEvidenceMatches(event) &&
-        sensorMatches,
+      localHashMatches,
       proofStatus: sensorMatches
         ? getLotEventProofStatus(event)
         : 'INTEGRITY_WARNING',

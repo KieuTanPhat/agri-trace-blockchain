@@ -374,6 +374,64 @@ cmd_start() {
   log "containers started"
 }
 
+# Consistent offline copy of every ledger volume plus AgriTrace's own crypto
+# material. Org3's keys live in its own directory and are never in this archive;
+# its owner backs them up separately. The archive holds CA keys: keep it private.
+cmd_backup() {
+  local out="${1:?usage: backup <dir>}" volume
+  mkdir -p "${out}"; chmod 700 "${out}"
+  log "stopping peers and the orderer for a consistent copy"
+  docker stop peer0.org1.example.com peer0.org2.example.com peer0.org3.example.com orderer.example.com >/dev/null
+  for volume in "${HYBRID_VOLUMES[@]}"; do
+    docker run --rm -v "${volume}:/data:ro" -v "${out}:/backup" alpine tar czf "/backup/${volume}.tgz" -C /data .
+  done
+  # CA keys are root-owned by the CA containers, so the archive is made as root.
+  docker run --rm -v "${NET}:/net:ro" -v "${out}:/backup" alpine sh -c \
+    'tar czf /backup/agritrace-crypto.tgz -C /net organizations fabric-ca public channel-artifacts configtx && chmod 600 /backup/*.tgz'
+  docker start orderer.example.com peer0.org1.example.com peer0.org2.example.com peer0.org3.example.com >/dev/null
+  log "backup written to ${out}"
+}
+
+peer_height() { # org channel
+  as "$1" peer channel getinfo -c "$2" 2>&1 | grep -o '"height":[0-9]*' | grep -o '[0-9]*' || echo 0
+}
+
+# Recreates one peer from a backup (a relocation to a new host is the same
+# steps with the same MSP/TLS material): it starts at the backup height and
+# must catch up from the ordering service before it is trusted again.
+cmd_restore_peer() {
+  local org="${1:?usage: restore-peer <org1|org2|org3> <backup-dir>}" from="${2:?backup dir}" volume
+  volume="peer0.${org}.example.com"
+  [[ -f "${from}/${volume}.tgz" ]] || { echo "No backup of ${volume} in ${from}" >&2; exit 1; }
+  docker rm -f "${volume}" >/dev/null 2>&1 || true
+  docker volume rm "${volume}" >/dev/null 2>&1 || true
+  docker volume create "${volume}" >/dev/null
+  docker run --rm -v "${volume}:/data" -v "${from}:/backup:ro" alpine tar xzf "/backup/${volume}.tgz" -C /data
+  run_peer "${org}"
+  local channel reference target
+  for channel in "${CHANNEL_B}" "${CHANNEL_SELF}"; do
+    reference="$(channel_peer_other "${channel}" "${org}")"
+    [[ -n "${reference}" ]] || continue
+    target="$(peer_height "${reference}" "${channel}")"
+    for _ in $(seq 1 90); do
+      [[ "$(peer_height "${org}" "${channel}")" -ge "${target}" ]] && break
+      sleep 1
+    done
+    log "${org} on ${channel}: height $(peer_height "${org}" "${channel}") (reference ${target})"
+    [[ "$(peer_height "${org}" "${channel}")" -ge "${target}" ]] || { echo "${org} did not catch up on ${channel}" >&2; exit 1; }
+  done
+}
+
+# The other organization on a channel (empty when `org` is not a member).
+channel_peer_other() { # channel org
+  case "$1:$2" in
+    "${CHANNEL_B}:org1") echo org2 ;;
+    "${CHANNEL_B}:org2") echo org1 ;;
+    "${CHANNEL_SELF}:org1") echo org3 ;;
+    "${CHANNEL_SELF}:org3") echo org1 ;;
+  esac
+}
+
 cmd_down() {
   docker rm -f cc-org1 cc-org2 cc-org3 >/dev/null 2>&1 || true
   docker rm -f "${HYBRID_CONTAINERS[@]}" >/dev/null 2>&1 || true
@@ -394,7 +452,9 @@ case "${1:-}" in
   export) shift; cmd_export "$@" ;;
   rotate-relayer) shift; cmd_rotate_relayer "$@" ;;
   start) cmd_start ;;
+  backup) shift; cmd_backup "$@" ;;
+  restore-peer) shift; cmd_restore_peer "$@" ;;
   down) cmd_down ;;
   clean) cmd_clean ;;
-  *) echo "Usage: $0 {up|deploy|start|status|export [dir]|rotate-relayer [suffix]|down|clean}" >&2; exit 2 ;;
+  *) echo "Usage: $0 {up|deploy|start|status|export [dir]|rotate-relayer [suffix]|backup <dir>|restore-peer <org> <dir>|down|clean}" >&2; exit 2 ;;
 esac
