@@ -980,7 +980,10 @@ describe('Release A scoped command policy on PostgreSQL', () => {
   it('creates an immutable draft revision without reserving stock or creating a Shipment', () =>
     isolated(async (tx) => {
       const { lot, input } = await freshPlan(tx);
-      const beforeEvents = await tx.traceEvent.count();
+      // Scope the count: other E2E files write events concurrently.
+      const beforeEvents = await tx.traceEvent.count({
+        where: { cycleId },
+      });
       const plan = await createShipmentPlan(
         tx,
         producer,
@@ -999,7 +1002,9 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         ).availableQuantity.toFixed(3),
       ).toBe('5.000');
       expect(await tx.shipment.count({ where: { lotId: lot.id } })).toBe(0);
-      expect(await tx.traceEvent.count()).toBe(beforeEvents);
+      expect(await tx.traceEvent.count({ where: { cycleId } })).toBe(
+        beforeEvents,
+      );
       expect(
         await tx.chainAudit.count({
           where: { subjectId: plan.id, operation: 'CREATE_SHIPMENT_PLAN' },
