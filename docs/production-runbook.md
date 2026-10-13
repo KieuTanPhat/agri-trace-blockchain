@@ -86,3 +86,55 @@ ledger/channel/history/QR, identity fingerprints và độ trễ. Ghi downtime/g
 không suy healthy trong khoảng thiếu quan sát. Chỉ bắt đầu window mới khi
 release/runtime đổi có chủ ý và ghi nguyên nhân. Legacy dev observation giữ
 nguyên gaps/failures và kết thúc do retire, không được ghi thành nghiệm thu 24h.
+
+## Hybrid A/B/C (chuỗi, binding Fabric, chữ ký tổ chức)
+
+Phạm vi là hosted A/B/C. Chữ ký độc lập chỉ bao phủ bàn giao hai bên; ghi nhận
+chăm sóc/thu hoạch giữ cơ chế xác thực hiện tại. Quyền của đối tác ngoài thật là
+**NotEvaluated**. Channel legacy `agritrace` (sequence 3), lịch sử, identity và
+khóa hiện có được giữ nguyên; B/C chỉ chạy trên một network/channel hosted tách
+biệt (container, volume, MSP/CA riêng). Chi tiết giao thức và vận hành ledger nằm
+ở [runbook Hybrid](hybrid-fabric-runbook.md) và
+[ADR-004](adr-004-hybrid-binding-and-signatures.md).
+
+**Chế độ ghi.** API đọc `HYBRID_WRITES_MODE`: `CLOSED` (mặc định khi
+`NODE_ENV=production` và biến chưa đặt), `CANARY` (chỉ các UUID trong
+`HYBRID_CANARY_ACTOR_IDS`, tối đa 32; vẫn qua đủ kiểm tra phiên/phạm vi) hoặc `OPEN`.
+Đăng nhập, refresh, logout và đọc trạng thái command vẫn hoạt động khi đóng. Lần
+cutover đầu mở ở `CLOSED`/`CANARY`; chỉ `OPEN` sau xác nhận cài đặt riêng
+(`hybrid_open_ack` theo đúng SHA và checksum manifest).
+
+**Điều kiện cài đặt (cấu hình root-owned, bundle release không tự cấp được).**
+Danh mục `migration_reviews` (checksum chính xác + `protocol: hybrid-abc/1`) cho ba
+migration non-additive; `hybrid_release_ack` (SHA, manifest, vân tay legacy, digest
+mapping); cấu hình `hosted` (network/channel khác legacy, container và volume
+độc lập, image pin theo digest, đường dẫn backup identity/config, digest governance
+khớp descriptor đóng gói); mô tả lịch sử legacy do API/Worker đọc (`LEGACY_LEDGER_DESCRIPTOR_*`,
+chỉ-đọc, pin SHA-256 của byte gốc); `FABRIC_BINDINGS_CONFIG_HOST`,
+`HOSTED_WORKER_IDENTITIES_HOST` (chỉ danh tính kỹ thuật của hosted, gắn chỉ-đọc cho
+Worker), `HOSTED_FABRIC_DOCKER_NETWORK`, `LEDGER_WRITER_AUTHORITY`. API không nhận
+signer hay khóa điều khiển. Ví dụ biến ở `.env.deploy.example`; compose bổ sung ở
+`docker-compose.app-hybrid.yml`.
+
+**Dung lượng.** Trước khi dựng hosted, preflight cộng hạn mức bộ nhớ của mọi
+container legacy và hosted, yêu cầu quota CPU/RAM tường minh và chừa tối thiểu 20%
+RAM host. `deploy/hosted-capacity.example.json` chỉ là đề xuất cần diễn tập tải và
+bảo toàn chứng cứ; thiếu bằng chứng thì giữ nguyên, không bỏ quota hay mua thêm.
+
+**Sàn schema và phục hồi.** Sau khi áp migration Hybrid, `hybrid-floor.json` ghi
+checksum đã bảo vệ; image cũ (như `8ae`) không còn chạy được dù danh sách tương
+thích chung có tên migration. Triển khai lỗi giữ writer đóng và journal; dùng image
+tương thích đã xác minh hoặc `forward` (fix-forward có manifest được duyệt, không
+restore PostgreSQL/ledger, không đổi channel/package legacy). Không dùng restore DB
+làm rollback ứng dụng.
+
+**Bằng chứng đã có trước release** (cục bộ, chưa phải acceptance trên runner/prod):
+30/30 kiểm tra ledger, 13 kịch bản API→Worker→Fabric thật (gồm hai Worker chia một
+backlog đúng một lần, lease Worker treo được nhận lại, và tải 10 client/200 sự
+kiện Pending trên hai binding: p95 741 ms, drain 126 s). Cần chạy lại trên CI đúng
+SHA (job `Hybrid A B C real Fabric and browser`) trước khi merge.
+
+**Quan sát sau release.** Panel Ledger và `GET /supply-chains/:id/ledger-status` hiện
+heartbeat Worker, chứng thư sắp/đã hết hạn, tác vụ điều khiển lỗi và tuổi backlog.
+Cửa sổ quan sát ≥24h bằng collector phía server mỗi phút (khoảng trống tối đa 5
+phút) **chưa được cài**; phải có trước khi bắt đầu window.

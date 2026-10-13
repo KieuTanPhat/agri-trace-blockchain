@@ -122,7 +122,12 @@ export async function withHybridStack(callback, { suite = 'hybrid-fabric' } = {}
 }
 
 async function main() {
-  await withHybridStack(async ({ execute, env, receipt, npm }) => {
+  await withHybridStack(async ({ execute, env, receipt, npm, evidenceDir }) => {
+    // The load/fault scenario is part of acceptance (10 clients, 200 Pending, two
+    // bindings, outage and recovery); a skipped scenario fails the pending check below.
+    env.HYBRID_LOAD_E2E = '1';
+    env.RATE_LIMIT_REQUESTS = '100000';
+    env.HYBRID_LOAD_REPORT = path.join(evidenceDir, 'load.json');
     receipt.suites.push({ name: 'ledger-acceptance', status: 'running' });
     execute(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'blockchain/network/hybrid/acceptance/ledger-acceptance.mts'], { stdio: 'inherit' });
     receipt.suites.at(-1).status = 'passed';
@@ -136,6 +141,8 @@ async function main() {
     receipt.suites.at(-1).status = 'passed';
     receipt.suites.at(-1).passed = result.numPassedTests;
     receipt.suites.at(-1).skipped = result.numPendingTests;
+    // Measured under the isolated quotas; the scenario itself asserts p95 <= 2s and drain <= 15min.
+    receipt.suites.at(-1).load = JSON.parse(readFileSync(env.HYBRID_LOAD_REPORT, 'utf8'));
   });
 }
 

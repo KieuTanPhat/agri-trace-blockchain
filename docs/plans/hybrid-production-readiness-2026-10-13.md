@@ -102,3 +102,27 @@ before any production quota change or hosted provisioning.
 Source fixes are in progress and have not passed release acceptance. Production
 delivery has not started. The existing Claude acceptance record remains historical;
 its unsupported npm11 run and skipped Fabric tests do not close the new gates.
+
+## Execution log — single agent, 2026-10-13
+
+Primary agent (Claude) continued from the Codex working tree in the order above.
+Source is committed on `feature/hybrid-production-readiness`; nothing was pushed or
+deployed. Node 24.15.0 with npm 12.1.0 (manifest engines) was used.
+
+| Gate | Status | Evidence / remaining |
+| --- | --- | --- |
+| 1 Takeover | Done by Codex | Pilot cold backup verified; its 11 containers stay stopped. A new isolated instance `agri-hybrid-claude` (offset 12000) was used for validation and is owned by this agent. |
+| 2 Dependencies | Provisional | Fresh install by Codex; rerun on exact candidate in CI. |
+| 3 Domain/Web interfaces | Implemented, locally verified | API 174 unit, 204 E2E; Web 249 tests, typecheck and eslint clean; Python deploy tests 80 (29 skipped on this platform); `test:ci` pass. Ledger status panel now shows worker heartbeat/certificate/failed jobs/backlog age. |
+| 4 Historical readers | Implemented | `legacy-ledger-descriptor` (pinned finite baseline) with unit spec; QR/legacy trust cannot be upgraded to organization signatures. |
+| 5 Required gates | **Open** | Real three-org Fabric on the isolated instance: 11/11 API→Worker→Fabric scenarios and 30/30 ledger checks pass locally (WSL, Windows host). The Linux-only CI harnesses (`hybrid-fabric.mjs`, browser desktop/mobile, production images, compiled operators) have not run: no Linux Node on this machine. They run on the PR. Skipped tests are not acceptance (the harness fails on pending tests). |
+| 6 Migrations/floor/restore | Partly | Policy floor, reviewed-checksum admission and capacity budget tested (Python). Legacy→all-migration rehearsal passes in E2E; production-copy rehearsal and compatible-image recovery **not run**. |
+| 7 Fault/load | Done locally | Two Workers drain one backlog exactly once; a crashed Worker lease is reclaimed; 10 clients × 20 care events (200 Pending) on two bindings during a two-peer outage: API p95 741 ms (max 1.3 s), drain 126 s after recovery, 0 dead letters. This is a single-host run without the production quotas; CI repeats it under per-container quotas and records `load.json` in the receipt. |
+| 8–12 PR, release, capacity, cutover, observation | **Not started** | Needs approval: push, PR, merge, capacity admission, production backup and cutover. The 24h server collector is not implemented. |
+
+Fixes made while validating: a spec cast; an impossible org-signer expiry scenario;
+Web types for the extended ledger-status and lot DTOs; `AGRI_FABRIC_BIND_ADDRESS`
+(WSL2 NAT cannot reach loopback-published ports from the Windows host, so runs on that
+setup opt into `0.0.0.0` on a private machine); staged chaincode files made readable by
+the image's non-root user under `umask 077`; the CI Fabric suite now sets
+`HYBRID_LOAD_E2E=1`, `RATE_LIMIT_REQUESTS=100000` and records the load report.
