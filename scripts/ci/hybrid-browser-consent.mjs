@@ -21,11 +21,9 @@ export async function checkPartyConsent({
 }) {
   const contexts = [];
   const form = (target, title) =>
-    target
-      .locator("form")
-      .filter({
-        has: target.getByRole("button", { name: title, exact: true }),
-      });
+    target.locator("form").filter({
+      has: target.getByRole("button", { name: title, exact: true }),
+    });
   async function select(target) {
     await target.reload();
     await target
@@ -44,13 +42,15 @@ export async function checkPartyConsent({
       .waitFor();
   }
   async function submit(target, title, path) {
-    const response = target.waitForResponse(
-      (reply) =>
-        reply.request().method() === "POST" && reply.url().endsWith(path),
-    );
-    await form(target, title)
-      .getByRole("button", { name: title, exact: true })
-      .click();
+    const [response] = await Promise.all([
+      target.waitForResponse(
+        (reply) =>
+          reply.request().method() === "POST" && reply.url().endsWith(path),
+      ),
+      form(target, title)
+        .getByRole("button", { name: title, exact: true })
+        .click(),
+    ]);
     return response;
   }
   try {
@@ -272,6 +272,10 @@ export async function checkPartyConsent({
       rejected.status() >= 400 && rejected.status() < 500,
       "revoked consent must block finalization",
     );
+    const originalFinalize = {
+      key: rejected.request().headers()["idempotency-key"],
+      body: rejected.request().postDataJSON(),
+    };
     assert.equal(
       (await db.shipmentPlan.findUniqueOrThrow({ where: { id: plan.id } }))
         .status,
@@ -334,6 +338,61 @@ export async function checkPartyConsent({
     );
     setLastPage(page);
     await select(page);
+    const finalize = form(page, "Tạo chuyến theo kế hoạch đã xác nhận");
+    const [unknown] = await Promise.all([
+      page.waitForResponse(
+        (reply) =>
+          reply.request().method() === "POST" &&
+          reply.url().endsWith("/command-requests/status"),
+      ),
+      finalize
+        .getByRole("button", {
+          name: "Tạo chuyến theo kế hoạch đã xác nhận",
+          exact: true,
+        })
+        .click(),
+    ]);
+    assert.equal((await unknown.json()).data.status, "NOT_FOUND");
+    await finalize.getByRole("alert").waitFor();
+    // A response rejected before reservation is not a journal. Explicitly
+    // reconcile the original version/key; its stale version cannot finalize.
+    const [stale] = await Promise.all([
+      page.waitForResponse(
+        (reply) =>
+          reply.request().method() === "POST" &&
+          reply.url().endsWith(path + "/finalize"),
+      ),
+      finalize
+        .getByRole("button", {
+          name: "Kiểm tra và thử lại yêu cầu trước",
+          exact: true,
+        })
+        .click(),
+    ]);
+    assert.equal(stale.status(), 409);
+    assert.equal(
+      stale.request().headers()["idempotency-key"],
+      originalFinalize.key,
+    );
+    assert.deepEqual(stale.request().postDataJSON(), originalFinalize.body);
+    assert.equal(await db.shipment.count({ where: { lotId: lot.id } }), 0);
+    const [known] = await Promise.all([
+      page.waitForResponse(
+        (reply) =>
+          reply.request().method() === "POST" &&
+          reply.url().endsWith("/command-requests/status"),
+      ),
+      finalize
+        .getByRole("button", {
+          name: "Kiểm tra và thử lại yêu cầu trước",
+          exact: true,
+        })
+        .click(),
+    ]);
+    assert.equal((await known.json()).data.status, "REJECTED");
+    await finalize
+      .getByRole("button", { name: "Chuẩn bị yêu cầu mới", exact: true })
+      .click();
     assert.equal(
       (
         await submit(

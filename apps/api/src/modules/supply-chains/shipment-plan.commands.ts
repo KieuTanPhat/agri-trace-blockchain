@@ -43,9 +43,9 @@ function assertActor(actor: CommandActor) {
     throw new ForbiddenException('Cần người dùng của tổ chức được cấp quyền');
 }
 
-/** Run only inside the eventual command/journal transaction. Acquire all org
+/** Run only inside the command/journal transaction. Acquire all org
  * scope locks before the chain lock, including newly proposed participants.
- * No endpoint or feature activation is exposed by this candidate module. */
+ * The HTTP command path and domain transaction use this same lock order. */
 async function lockContext(
   db: Prisma.TransactionClient,
   actor: CommandActor,
@@ -638,8 +638,8 @@ export async function cancelShipmentPlan(
   return result;
 }
 
-/** Candidate atomic finalization. Session/replay authorization still needs to
- * be integrated in command-authorization before any endpoint is exposed. */
+/** Atomic finalization under the current session, scope and party authority
+ * shared with command authorization and reconciliation. */
 export async function finalizeShipmentPlan(
   db: Prisma.TransactionClient,
   actor: CommandActor,

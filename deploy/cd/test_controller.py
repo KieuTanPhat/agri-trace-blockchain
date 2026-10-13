@@ -423,6 +423,21 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.assertNotIn("start-" + self.old["id"], self.controller.calls)
         self.assertTrue((self.base / "cd/journal.json").exists())
 
+    def test_recover_cannot_start_legacy_writers_below_scope_or_route_floor(self):
+        for name in module.policy.REQUIRED_RELEASE_MIGRATIONS:
+            with self.subTest(name=name):
+                applied = {"20260101_init": "a" * 64, name: "d" * 64}
+                self.candidate["manifest"]["migrations"][name] = "d" * 64
+                self.controller.save_record(self.candidate)
+                self.controller.applied = MagicMock(return_value=applied)
+                atomic_json(self.base / "cd/state.json", dict(self.state, compatible_migrations=[name]))
+                self.controller.journal(self.old, self.candidate, "migration", self.controller.data)
+                with self.assertRaisesRegex(PolicyError, "schema floor"):
+                    self.controller.recover()
+                self.assertNotIn("start-" + self.old["id"], self.controller.calls)
+                self.assertTrue((self.base / "cd/journal.json").exists())
+                del self.candidate["manifest"]["migrations"][name]
+
     def test_result_write_failure_keeps_journal_if_rollback_also_fails(self):
         self.controller.fail_rollback = True
 

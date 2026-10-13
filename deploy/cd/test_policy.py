@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from policy import CONTROLLER_FILES, PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth, valid_public_origin, https_origins
+from policy import REQUIRED_RELEASE_MIGRATIONS
 
 SHA = "a" * 40
 REPO = "KieuTanPhat/agri-trace-blockchain"
@@ -186,6 +187,13 @@ class Policies(unittest.TestCase):
             new = dict(old, **{"20260102_note": sha256(sql.encode())})
             self.assertEqual(migrations(old, new, directory), ["20260102_note"])
             self.assertEqual(migrations(new, old, directory, ["20260102_note"]), [])
+
+    def test_scope_and_route_floor_cannot_be_waived_by_generic_compatibility(self):
+        for name in REQUIRED_RELEASE_MIGRATIONS:
+            applied = {"20260101_init": "a" * 64, name: "b" * 64}
+            with self.subTest(name=name), self.assertRaisesRegex(PolicyError, "schema floor"):
+                migrations(applied, {"20260101_init": "a" * 64}, ".", [name])
+            self.assertEqual(migrations(applied, dict(applied), ".", [name]), [])
 
     def test_new_migration_checks_exact_bytes_before_decoding_sql(self):
         with tempfile.TemporaryDirectory() as directory:

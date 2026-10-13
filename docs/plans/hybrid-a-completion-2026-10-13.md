@@ -134,3 +134,21 @@ controlled import plan. Browser harness đang được đưa vào `scripts/ci`, 
 Playwright 1.62.1 và mở rộng hai nhóm: lời mời/current membership, ba party
 consent/revoke-regrant/revision mới/atomic finalize. Các nhóm mới chưa pass.
 Không tính tổng số tests thành tỷ lệ hoàn thành A hoặc toàn bộ A → B → C.
+
+Lượt browser `0cbe43f` giữ failure và cleanup verified: ba bên xác nhận/regrant/
+revision mới đều đi qua real API, nhưng harness chờ POST finalize mới trong khi
+Web đang chặn yêu cầu cũ chưa đối soát. Finalize cũ bị 403 trước reservation nên
+không có idempotency record; NOT_FOUND không được coi là positive rejection.
+Harness bổ sung thao tác recovery rõ ràng: gửi lại đúng body/key/version cũ,
+nhận 409 stale version và record FAILED, inspect REJECTED rồi mới chuẩn bị key
+mới cho revision hiện hành. Không sửa Web để bỏ gate hoặc xóa pending entry.
+
+Review CD phát hiện `compatible_migrations` sau success có thể cho legacy image
+bỏ qua migration scope/route. Policy thêm floor bắt buộc cho hai migration mới,
+kể cả receipt compatibility chung; recovery phải giữ journal/writers stopped
+khi target thiếu floor. Chưa thêm checksum allowlist hoặc chạy migration thật.
+
+Chỉ đạo bổ sung: sau toàn bộ A → B → C, quét toàn dự án và lặp review → plan →
+sửa → kiểm chứng cho mọi phát hiện có căn cứ. Chỉ shutdown máy local sau khi
+nghiệm thu toàn bộ, lưu MD/evidence/commits và cleanup mọi job; không ép đóng
+ứng dụng có dữ liệu chưa lưu. Chưa đủ điều kiện shutdown ở checkpoint này.

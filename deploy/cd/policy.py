@@ -24,6 +24,12 @@ CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify.mjs", "s
 REVIEWED_EXPANSIONS = {
     "20261011140000_chain_management_foundation": "9beb5342bb4dbb7eae9f221d6fe1b6dbfd648bae7ba46cb3e580a6e69e26ac28",
 }
+# These guards change the application's authorization/route contract. A generic
+# additive compatibility receipt cannot make a legacy image understand it.
+REQUIRED_RELEASE_MIGRATIONS = frozenset({
+    "20261013010000_hybrid_business_scope",
+    "20261013011000_immutable_ledger_routes",
+})
 
 
 class PolicyError(Exception):
@@ -254,6 +260,8 @@ def additive_sql(sql):
 def migrations(applied, candidate, directory, compatible_missing=()):
     for name, digest in applied.items():
         if name not in candidate:
+            require(name not in REQUIRED_RELEASE_MIGRATIONS,
+                    "Release is below the required scope/ledger schema floor")
             require(name in compatible_missing, "Applied migration is absent from release")
         else:
             if candidate[name] != digest:
