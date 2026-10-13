@@ -314,17 +314,8 @@ export class IdempotencyService {
       input.authorizationScope &&
       record.authorizationScope !== input.authorizationScope
     ) {
-      const journal = await this.prisma.commandCommit.findUnique({
-        where: { idempotencyRecordId: record.id },
-      });
-      if (journal && input.actor !== undefined) {
-        this.assertJournalIdentity(journal, input);
-        return {
-          type: 'REPLAY',
-          status: journal.responseStatus,
-          body: journal.responseBody,
-        };
-      }
+      // Never replay a command committed under another scope (re-invite,
+      // regrant, other chain). Reconciliation reads it via inspectCommand.
       throw new ConflictException(
         'Idempotency-Key thuộc phạm vi khác hoặc cần đối soát',
       );

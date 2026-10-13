@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
+import { provisionChainIn } from './support/chain-scope.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 
@@ -70,8 +71,18 @@ async function createCoreFixture(tx: Prisma.TransactionClient) {
     },
   });
 
+  const chainId = await provisionChainIn(tx, {
+    ownerOrganizationId: farmOrganization.id,
+    memberOrganizationIds: [
+      transporterOrganization.id,
+      retailerOrganization.id,
+    ],
+    grants: [],
+  });
+
   const cycle = await tx.productionCycle.create({
     data: {
+      chainId,
       cycleCode: `CYCLE-${tag}`,
       productId: product.id,
       farmId: farm.id,
@@ -313,6 +324,7 @@ async function createCoreFixture(tx: Prisma.TransactionClient) {
 
         const otherCycle = await tx.productionCycle.create({
           data: {
+            chainId: fixture.cycle.chainId,
             cycleCode: `OTHER-CYCLE-${tag}`,
             productId: fixture.product.id,
             farmId: fixture.farm.id,

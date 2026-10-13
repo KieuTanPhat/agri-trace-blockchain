@@ -71,12 +71,10 @@ export function ledgerRouteDigest(route: RouteDefinition): string {
     payload.writerMspId,
     payload.writerRole,
   ];
-  if (
-    !(
-      authority.every((value) => value === null) ||
-      authority.every((value) => typeof value === 'string' && NAME.test(value))
-    )
-  )
+  if (!(
+    authority.every((value) => value === null) ||
+    authority.every((value) => typeof value === 'string' && NAME.test(value))
+  ))
     throw new Error('Invalid ledger writer authority');
   if (payload.writerRole !== null && payload.writerRole.length > 50)
     throw new Error('Invalid ledger writer role');

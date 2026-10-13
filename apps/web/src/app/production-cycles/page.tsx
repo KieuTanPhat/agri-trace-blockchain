@@ -10,7 +10,6 @@ import { emptyCatalog, type Catalog } from "@/lib/catalog";
 import { ResponsiveTable } from "@/components/responsive-table";
 import { DataForm } from "@/components/data-form";
 import { QrCodeCard } from "@/components/qr-code-card";
-import { canWriteFarm } from "@/lib/permissions";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 type Cycle = components["schemas"]["CycleDetailDto"];
 const states: Record<string, string> = {
@@ -30,11 +29,8 @@ function CycleWorkspace() {
     components["schemas"]["ChainContextDto"] | null
   >(null);
   const [selectedChain, setSelectedChain] = useState("");
-  const legacyCanWrite = canWriteFarm(user?.role.code);
   const productionChains = permissions?.productionChains ?? [];
-  const canWrite = permissions?.businessScopeActivated
-    ? productionChains.length > 0
-    : legacyCanWrite;
+  const canWrite = productionChains.length > 0;
   const [cycles, setCycles] = useState<ProductionCycleOption[]>([]);
   const [catalog, setCatalog] = useState<Catalog>(emptyCatalog);
   const [selected, setSelected] = useState("");
@@ -57,14 +53,14 @@ function CycleWorkspace() {
       ]);
       setCycles(items);
       setPermissions(scope);
-      if (legacyCanWrite || (scope.productionChains?.length ?? 0) > 0)
+      if ((scope.productionChains?.length ?? 0) > 0)
         setCatalog(await request<Catalog>("/catalog"));
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [legacyCanWrite]);
+  }, []);
   useEffect(() => {
     void load();
   }, [load]);
@@ -89,7 +85,7 @@ function CycleWorkspace() {
     void load();
   };
   const active = detail && ["PLANTED", "GROWING"].includes(detail.currentState);
-  const canWriteDetail = detail?.canWriteProduction ?? legacyCanWrite;
+  const canWriteDetail = detail?.canWriteProduction ?? false;
   return (
     <div className="grid cycles-page">
       <section className="page-header">
@@ -123,7 +119,7 @@ function CycleWorkspace() {
           {notice}
         </p>
       )}
-      {canWrite && permissions?.businessScopeActivated && (
+      {canWrite && (
         <label className="field">
           <span>Chuỗi sản xuất</span>
           <select
@@ -141,13 +137,12 @@ function CycleWorkspace() {
         </label>
       )}
       {canWrite &&
-        (!permissions?.businessScopeActivated ||
-          productionChains.some((chain) => chain.id === selectedChain)) && (
+        productionChains.some((chain) => chain.id === selectedChain) && (
           <DataForm
-            key={selectedChain || "legacy-create"}
+            key={selectedChain}
             title="Tạo vụ trồng"
             path="/production-cycles"
-            extra={selectedChain ? { chainId: selectedChain } : {}}
+            extra={{ chainId: selectedChain }}
             fields={[
               { name: "cycleCode", label: "Mã vụ trồng", required: true },
               {

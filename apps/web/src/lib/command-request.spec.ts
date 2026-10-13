@@ -32,11 +32,6 @@ describe("command status controller payload contract", () => {
       "SCOPE_ACCEPT_SHIPMENT_PLAN",
       { chainId: id, planId: other },
     ],
-    [
-      `/legacy-scope/manifests/${id}/roots/${other}/apply`,
-      "SCOPE_APPLY_LEGACY_ROOT",
-      { manifestId: id, cycleId: other },
-    ],
   ])("normalizes %s for the status inspector", (path, operation, ids) => {
     expect(
       commandRequest(String(path), "POST", JSON.stringify({ version: 1 })),

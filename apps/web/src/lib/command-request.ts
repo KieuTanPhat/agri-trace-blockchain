@@ -134,20 +134,6 @@ export function commandRequest(
           : "HYB_GRANT_ROLE",
       { organizationId: m[1], ...(m[3] ? { grantId: m[3] } : {}) },
     );
-  m = match(
-    path,
-    `/legacy-scope/manifests/(${uuid})/(register|confirm|roots/(${uuid})/apply)`,
-  );
-  if (m && method === "POST")
-    return result(
-      m[2] === "register"
-        ? "SCOPE_REGISTER_LEGACY_MANIFEST"
-        : m[2] === "confirm"
-          ? "SCOPE_CONFIRM_LEGACY_ASSIGNMENT"
-          : "SCOPE_APPLY_LEGACY_ROOT",
-      { manifestId: m[1], ...(m[3] ? { cycleId: m[3] } : {}) },
-      m[2] === "confirm" ? String(data.proposalKey ?? "") : "",
-    );
   m = match(path, `/iot/cycles/(${uuid})/digests`);
   if (m && method === "POST")
     return result("CREATE_SENSOR_DIGEST", { cycleId: m[1] });

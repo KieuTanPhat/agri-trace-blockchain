@@ -54,7 +54,6 @@ export function useBusinessAccess(user: AuthUser | null) {
       try {
         const context = await request<{
           accessRevision?: string;
-          businessScopeActivated?: boolean;
           productionChains?: { id: string }[];
         }>("/chain-permissions");
         if (!active) return;
@@ -66,10 +65,7 @@ export function useBusinessAccess(user: AuthUser | null) {
         if (previous !== context.accessRevision) forget();
         acceptBusinessAccessRevision(context.accessRevision);
         previous = context.accessRevision;
-        productionAccess = context.businessScopeActivated
-          ? (context.productionChains?.length ?? 0) > 0
-          : user.role.code === "FARM_STAFF" ||
-            (context.productionChains?.length ?? 0) > 0;
+        productionAccess = (context.productionChains?.length ?? 0) > 0;
         setScope({
           identity,
           revision: previous,

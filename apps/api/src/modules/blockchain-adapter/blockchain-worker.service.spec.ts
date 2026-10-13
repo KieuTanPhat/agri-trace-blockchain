@@ -48,7 +48,9 @@ describe('BlockchainWorkerService distributed claim', () => {
     expect(sql.strings.join(' ')).toContain('blockchain_outbox');
     expect(sql.strings.join(' ')).toContain('lease_expires_at');
     expect(sql.strings.join(' ')).toContain('previous_event_hash');
-    expect(sql.strings.join(' ')).toContain('previous_proof.transaction_status');
+    expect(sql.strings.join(' ')).toContain(
+      'previous_proof.transaction_status',
+    );
     expect(sql.strings.join(' ')).toContain('ledger_route_exemption');
   });
 
