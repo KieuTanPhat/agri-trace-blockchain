@@ -160,6 +160,14 @@ Observation production UTC01:29:31 ngày13/10 (08:29:31 VN) pass same8ae/sequenc
 60ledger/Pending0/QR2+6/118old fingerprints/current120/209identities/noDev.
 Elapsed7,762h, gap21224,924s; window chưa đạt, không suy healthy trong gap.
 
+Lượt `3529879` lỗi harness: sau refresh, selection vẫn là chain hiện tại nhưng
+Playwright selectOption cùng value phát change lần nữa. Handler clear members,
+selected không đổi nên effect không tải lại; options plan rỗng. Fixture chỉ chọn
+chain khi value thực sự khác; giữ refresh quyền/current context và mọi assertions.
+Không giảm locator strictness hoặc capability/consent constraints. Cleanup verified.
+Lịch heartbeat cũ không còn tồn tại trong app khi kiểm ngày13/10; không tạo lại
+lịch có thể đã bị người dùng xóa. Công việc tiếp tục trực tiếp trong chat.
+
 Chỉ đạo bổ sung: sau toàn bộ A → B → C, quét toàn dự án và lặp review → plan →
 sửa → kiểm chứng cho mọi phát hiện có căn cứ. Chỉ shutdown máy local sau khi
 nghiệm thu toàn bộ, lưu MD/evidence/commits và cleanup mọi job; không ép đóng

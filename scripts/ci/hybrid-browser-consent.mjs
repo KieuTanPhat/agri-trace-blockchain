@@ -44,9 +44,9 @@ export async function checkPartyConsent({
     await target
       .getByText("Đang tải chuỗi được cấp quyền…", { exact: true })
       .waitFor({ state: "hidden" });
-    await target
-      .getByRole("combobox", { name: /^Chọn chuỗi/ })
-      .selectOption(chain.id);
+    const selectedChain = target.getByRole("combobox", { name: /^Chọn chuỗi/ });
+    if ((await selectedChain.inputValue()) !== chain.id)
+      await selectedChain.selectOption(chain.id);
     await target
       .getByRole("region", { name: "Trạng thái nghiệp vụ chuỗi" })
       .getByText("Đang hoạt động", { exact: true })
