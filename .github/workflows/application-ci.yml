@@ -164,8 +164,8 @@ jobs:
             assert.equal(r.status, 200);
             const h = await r.json();
             assert.equal(h.service, 'agri-trace-blockchain-worker');
-            assert.equal(h.runtime.enabled, false);
-            assert.equal(h.runtime.running, false);
+            assert.equal(h.runtime.fabricEnabled, false);
+            assert.equal(h.runtime.running, true);
             assert.equal(h.backlog.deadLetter, 0);
           "
       - name: Collect application diagnostics
