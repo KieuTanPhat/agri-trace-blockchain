@@ -26,9 +26,14 @@ import {
 } from "../../../gateway/src/index.ts";
 import chaincodeBinding from "../../../chaincode/src/binding.ts";
 import type { BindingEventInput, BindingTuple } from "../../../chaincode/src/binding.ts";
+import chaincodeSigning from "../../../chaincode/src/signing.ts";
+import type { SignatureAssertion, SignedBindingEventInput } from "../../../chaincode/src/signing.ts";
+import { createHash, generateKeyPairSync, sign as edSign } from "node:crypto";
 
 // The chaincode package is CommonJS; read its encoders through the default export.
 const { bindingDigest, bindingEventCommitment } = chaincodeBinding as unknown as typeof import("../../../chaincode/src/binding.ts");
+const { assertionDigest, intentSignedMessage, keyPopMessage, signedBindingEventCommitment } =
+  chaincodeSigning as unknown as typeof import("../../../chaincode/src/signing.ts");
 
 const ROOT = process.env.FABRIC_ROOT ?? "\\\\wsl.localhost\\Ubuntu\\home\\kieup\\agritrace-fabric";
 const SCRIPT =
@@ -188,6 +193,178 @@ const send = async (channel: Channel, event: BindingEventInput, generation = "0"
     throw Object.assign(new Error(`committed as ${outcome.status}`), { validationCode: outcome.status });
   return outcome;
 };
+
+function newSigner() {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  return {
+    publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64url"),
+    sign: (message: Buffer) => edSign(null, message, privateKey).toString("base64url"),
+  };
+}
+type Signer = ReturnType<typeof newSigner>;
+
+/** Registers an organization key through the governed registry (proof of
+ * possession, writer and owner approvals). */
+async function registerKey(channel: Channel, binding: Binding, signer: Signer, keyRef = u(), orgRef = u()) {
+  const fields = { bindingDigest: binding.digest, keyRef, orgRef, algorithm: "Ed25519" as const, publicKey: signer.publicKey };
+  const payload = { ...fields, popSignature: signer.sign(keyPopMessage(fields)) };
+  await channel.operator.apply("SIGNING_KEY_REGISTER", payload, ["Org1MSP", ORG[channel.ownerOrg].msp]);
+  return { keyRef, orgRef };
+}
+
+function signedEventFor(
+  binding: Binding,
+  signer: Signer,
+  keyRef: string,
+  options: { signAs?: Partial<Record<"chainRef" | "eventId" | "entityId" | "eventType" | "bindingDigest", string>>; intentDigest?: string } = {},
+): { event: SignedBindingEventInput; assertion: SignatureAssertion } {
+  const eventId = u();
+  const entityId = u();
+  const intentDigest = options.intentDigest ?? createHash("sha256").update(u()).digest("hex");
+  ordinal += 1;
+  const signedFields = {
+    intentDigest,
+    chainRef: binding.tuple.chainRef,
+    eventId,
+    entityType: "SHIPMENT",
+    entityId,
+    eventType: "HANDOVER_OFFERED",
+    bindingDigest: binding.digest,
+    keyRef,
+    ...options.signAs,
+  };
+  const assertion: SignatureAssertion = {
+    algorithm: "Ed25519",
+    keyRef,
+    intentDigest,
+    signature: signer.sign(intentSignedMessage(signedFields)),
+  };
+  const base: SignedBindingEventInput = {
+    envelopeVersion: "5.0.0", schemaVersion: "4.0.0", canonicalizationVersion: "RFC8785",
+    eventId, nonce: eventId, entityType: "SHIPMENT", entityId, cycleId: null, lotId: null,
+    eventType: "HANDOVER_OFFERED", eventTime: new Date().toISOString(), previousEventHash: null,
+    privateBodyDigest: "ab".repeat(32), bindingDigest: binding.digest, chainRef: binding.tuple.chainRef,
+    permissions: [{ permissionRef: binding.permissionRef, epoch: "1", ordinal: String(ordinal) }],
+    dataHash: "",
+    signature: { keyRef, intentDigest, assertionDigest: assertionDigest(assertion) },
+  };
+  return { event: { ...base, dataHash: signedBindingEventCommitment(base) }, assertion };
+}
+
+const sendSigned = async (
+  channel: Channel,
+  built: { event: SignedBindingEventInput; assertion: SignatureAssertion },
+  generation = "0",
+  orgs?: string[],
+) => {
+  const endorsed = await channel.relayer
+    .recordSignedBindingEvent(JSON.stringify(built.event), JSON.stringify(built.assertion), JSON.stringify({ generation }), orgs)
+    .endorse();
+  const outcome = await endorsed.submit();
+  if (!outcome.successful)
+    throw Object.assign(new Error(`committed as ${outcome.status}`), { validationCode: outcome.status });
+  return outcome;
+};
+
+/** Release C on the real ledger: organization signatures, key registry and
+ * the handover event types that cannot be written without them. */
+async function releaseC(b: Channel, s: Channel) {
+  const bind = await registerBinding(b);
+  await grant(b, bind, bind.permissionRef);
+  const signer = newSigner();
+  const { keyRef, orgRef } = await registerKey(b, bind, signer);
+
+  await check("AC-14", "a key registers only with proof of possession and the writer and owner approvals", async () => {
+    const stranger = newSigner();
+    const fields = { bindingDigest: bind.digest, keyRef: u(), orgRef: u(), algorithm: "Ed25519" as const, publicKey: stranger.publicKey };
+    const copied = { ...fields, popSignature: signer.sign(keyPopMessage(fields)) };
+    const fail = await failure(() => b.operator.propose("SIGNING_KEY_REGISTER", copied));
+    if (!/SIGNATURE_INVALID/.test(fail.message)) throw new Error(fail.message.slice(0, 200));
+    const proposal = await b.operator.propose("SIGNING_KEY_REGISTER", { ...fields, popSignature: stranger.sign(keyPopMessage(fields)) });
+    await b.operator.approve(proposal, "Org1MSP");
+    expectChaincode(await failure(() => b.operator.execute(proposal)), "APPROVALS_MISSING");
+    const registered = (await b.relayer.getRegistrySigningKey(bind.digest, keyRef)) as { status: string; orgRef: string };
+    if (registered.status !== "ACTIVE" || registered.orgRef !== orgRef) throw new Error(JSON.stringify(registered));
+  });
+  await check("AC-14", "a signed handover event commits with the signature verified on the ledger", async () => {
+    const built = signedEventFor(bind, signer, keyRef);
+    await sendSigned(b, built);
+    const proof = (await b.relayer.getBindingProof(bind.tuple.chainRef, built.event.eventId)) as {
+      signature?: { keyRef: string; orgRef: string; assertionDigest: string };
+      dataHash: string;
+    };
+    if (proof.dataHash !== built.event.dataHash || proof.signature?.orgRef !== orgRef || proof.signature.keyRef !== keyRef)
+      throw new Error(JSON.stringify(proof));
+    return `signed by org ${orgRef.slice(0, 8)}`;
+  });
+  await check("AC-14", "a handover event without a signature is refused (no unsigned bypass)", async () => {
+    const unsigned = eventFor(bind, { entityType: "SHIPMENT", eventType: "HANDOVER_CONFIRMED", cycleId: null });
+    expectChaincode(await failure(() => send(b, unsigned)), "SIGNATURE_REQUIRED");
+  });
+  await check("AC-21", "a signature moved to another event, entity, type, chain or binding never verifies", async () => {
+    const variants: Array<[string, Partial<Record<"chainRef" | "eventId" | "entityId" | "eventType" | "bindingDigest", string>>]> = [
+      ["event", { eventId: u() }],
+      ["entity", { entityId: u() }],
+      ["event type", { eventType: "HANDOVER_CONFIRMED" }],
+      ["chain", { chainRef: u() }],
+    ];
+    for (const [label, signAs] of variants) {
+      const built = signedEventFor(bind, signer, keyRef, { signAs });
+      expectChaincode(await failure(() => sendSigned(b, built)), "SIGNATURE_INVALID");
+      void label;
+    }
+  });
+  await check("AC-21", "a substituted dataHash, intent digest or assertion is refused", async () => {
+    const built = signedEventFor(bind, signer, keyRef);
+    expectChaincode(
+      await failure(() => sendSigned(b, { ...built, event: { ...built.event, dataHash: "ff".repeat(32) } })),
+      "INVALID_INPUT",
+    );
+    const flipped = Buffer.from(built.assertion.signature, "base64url");
+    flipped[0] ^= 1;
+    expectChaincode(
+      await failure(() => sendSigned(b, { ...built, assertion: { ...built.assertion, signature: flipped.toString("base64url") } })),
+      "SIGNATURE_INVALID",
+    );
+    const other = newSigner();
+    const forged = signedEventFor(bind, other, keyRef);
+    expectChaincode(await failure(() => sendSigned(b, forged)), "SIGNATURE_INVALID");
+  });
+  await check("AC-14", "an intent signed twice for two events can authorize only one (replay)", async () => {
+    const intentDigest = createHash("sha256").update("shared-intent").digest("hex");
+    const first = signedEventFor(bind, signer, keyRef, { intentDigest });
+    const second = signedEventFor(bind, signer, keyRef, { intentDigest });
+    await sendSigned(b, first);
+    expectChaincode(await failure(() => sendSigned(b, second)), "SIGNATURE_REPLAY");
+    expectChaincode(await failure(() => sendSigned(b, first)), "DUPLICATE_EVENT");
+  });
+  await check("AC-14", "the owner peer must endorse signed events on its channel", async () => {
+    const fail = await failure(() => sendSigned(b, signedEventFor(bind, signer, keyRef), "0", ["Org1MSP"]));
+    if (fail.kind !== "COMMIT_INVALID" || fail.validationCode !== "ENDORSEMENT_POLICY_FAILURE")
+      throw new Error(`${fail.kind}/${fail.validationCode}`);
+  });
+  await check("AC-22", "a revoked key refuses even an event whose time claims it was signed earlier", async () => {
+    const queued = signedEventFor(bind, signer, keyRef);
+    queued.event.eventTime = "2020-01-01T00:00:00.000Z";
+    const refreshed = { ...queued.event };
+    refreshed.dataHash = signedBindingEventCommitment(refreshed);
+    await b.operator.apply("SIGNING_KEY_REVOKE", { bindingDigest: bind.digest, keyRef }, ["Org2MSP"], "1");
+    expectChaincode(await failure(() => sendSigned(b, { ...queued, event: refreshed })), "SIGNING_KEY_INACTIVE");
+    const state = (await b.relayer.getRegistrySigningKey(bind.digest, keyRef)) as { status: string };
+    if (state.status !== "REVOKED") throw new Error(state.status);
+  });
+  await check("AC-14", "the self-managed channel enforces the same signature rules with its own owner approval", async () => {
+    const bindS = await registerBinding(s);
+    await grant(s, bindS, bindS.permissionRef);
+    const signerS = newSigner();
+    const registered = await registerKey(s, bindS, signerS);
+    await sendSigned(s, signedEventFor(bindS, signerS, registered.keyRef));
+    expectChaincode(
+      await failure(() => sendSigned(s, signedEventFor(bindS, newSigner(), registered.keyRef))),
+      "SIGNATURE_INVALID",
+    );
+  });
+}
 
 async function main() {
   const b = await openChannel("hybrid-b", "org2");
@@ -372,6 +549,8 @@ async function main() {
     const dup = await failure(() => send(b, e, "0", rotatedB.client));
     if (dup.chaincodeCode !== "DUPLICATE_EVENT") throw new Error(`${dup.kind}/${dup.chaincodeCode}`);
   });
+
+  await releaseC(b, s);
 
   const failed = results.filter((r) => r.status === "FAIL");
   const evidenceDir = path.resolve("blockchain", ".fabric", "evidence");
