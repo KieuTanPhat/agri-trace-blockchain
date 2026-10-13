@@ -37,11 +37,21 @@ try {
   assert.equal(model.services.api.environment.FABRIC_ENABLED, 'false');
   assert.equal((model.services.api.volumes ?? []).length, 0);
   assert.equal((model.services.api.secrets ?? []).length, 0);
+  for (const key of ['APP_RELEASE_SHA', 'LEDGER_ROUTE_PINS', 'LEDGER_ACTIVE_ROUTE_DIGEST', 'LEDGER_ROUTE_IMPORT_PINS', 'LEDGER_PAUSED_WRITER_PINS', 'LEDGER_WRITER_AUTHORITY']) {
+    assert.equal(model.services.api.environment[key], model.services.worker.environment[key], 'API and Worker route metadata differ');
+  }
+  const pins = JSON.parse(model.services.api.environment.LEDGER_ROUTE_PINS);
+  assert(Array.isArray(pins) && pins.length <= 256 && pins.every(pin => /^[a-f0-9]{64}$/.test(pin)) && new Set(pins).size === pins.length, 'Invalid operator-owned route pins');
+  if (pins.length) {
+    assert(pins.includes(model.services.api.environment.LEDGER_ACTIVE_ROUTE_DIGEST), 'Active route is not independently pinned');
+    assert.match(model.services.api.environment.APP_RELEASE_SHA, /^[a-f0-9]{40}$/);
+  } else assert(values['config-only'], 'Register and pin the reviewed write route before runtime preflight');
   assert.equal(model.services.bootstrap.environment.APP_ENV, 'uat');
   assert.equal(model.services.postgres.volumes[0].target, '/var/lib/postgresql');
   assert.equal(model.services.migrate.restart, 'no');
   if (values.fabric) {
     assert.equal(model.services.worker.environment.FABRIC_ENABLED, 'true');
+    assert.match(model.services.worker.environment.LEDGER_WRITER_AUTHORITY, /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/);
     assert.equal(model.services.worker.volumes.length, 2);
     for (const mount of model.services.worker.volumes) {
       assert.equal(mount.read_only, true);

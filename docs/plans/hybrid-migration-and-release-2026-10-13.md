@@ -62,3 +62,72 @@ Subagent không commit/stage/push hoặc chạy DB/browser/Docker. Root chỉ ch
 sau khi mọi bên đã bàn giao và ngừng sửa source thuộc fence; không chạy trùng job.
 Hai docs dirty có sẵn và `AGENTS.md` untracked giữ nguyên. Tất cả evidence gắn SHA
 đã commit; hoàn tất script hoặc tài liệu chưa được tính là pass runtime.
+
+### Lượt tích hợp sau checkpoint `ae557d59`
+
+CI agent sở hữu riêng fixture `deploy/hybrid-route-fixture*`, preflight UAT,
+Compose general/UAT, hai env examples và phần container/Fabric workflows.
+DB agent review chỉ đọc restore và CD; documentation agent chỉ ghi plan B mới.
+Root sở hữu CD policy/controller/tests, backup metadata, helpers local và plan
+này. Không bên nào đổi HEAD hoặc API/Web/SQL/scripts CI khi job DB đang chạy.
+
+Official catalog đã áp đủ 17 migrations trên `ae557d59`, đạt 147 unit, 31 SQL,
+zero diff + sáu guards, ORM, 132 policy/DB và 112 E2E. Gate tổng vẫn failed:
+restore fingerprint không khớp; không OOM/restart, cleanup verified. Lưu failure,
+bổ sung before/after và per-guard diagnostics trước assert, xác định sai lệch
+trước khi kết luận restore đạt. Không bỏ constraints/triggers khỏi phép so sánh.
+
+Review CD phát hiện hai dependency cutover cần sửa trước checksum admission:
+
+1. Snapshot phải mang exact bytes/checksum của legacy pins ngoài DB, kể cả lần
+   đầu image cũ chưa hiểu Hybrid. Archive env chỉ mang đường dẫn là chưa đủ.
+   Rehearsal CMS decrypt/checksums phải khôi phục file sang host cách ly trống;
+   không dựng lại authority từ DB đã restore.
+2. Vượt floor lần đầu cần acknowledgement SHA riêng trong shared config trước
+   writer stop. Recovery cũ giữ journal/writers stopped khi image8ae thiếu floor.
+   Bổ sung forward recovery có kiểm soát: exact-main CI và immutable images,
+   catalog identical candidate thất bại, đủ cả floor, chaincode không đổi,
+   preflight/pins hợp lệ, giữ previous/baseline/backup. Cho phép hoàn tất phần
+   catalog chưa áp khi lần trước dừng giữa hai migrations; không thêm catalog
+   khác. Chỉ switch/clear journal sau readiness/canary/history preservation.
+   Forward lỗi phải giữ journal và dừng writers; không restore DB/ledger hoặc
+   start image cũ. Test partial/full floor, replay, wrong catalog/SHA, failure
+   trước/sau migration và absence of compatible rollback baseline.
+
+Lượt restore thứ hai trên cùng `ae557d59` đã xác nhận mọi table fingerprints
+bằng nhau và 864 guards đủ cả trước/sau. Chỉ năm finite CHECK khác vị trí cast
+`varchar[] → text[]` thành cast từng phần tử. Canonicalizer giữ whitelist đúng
+năm tên/column/ordered values và hai full expressions; 21 regressions chặn đổi
+domain, NULL, flags, type modifier, operator, extra conditions và guard loss.
+Các raw definitions vẫn giữ riêng. Đây là kết luận từ diagnostics và
+[issue PostgreSQL chính thức](https://www.postgresql.org/message-id/15611-7efe329c2185c9b9%40postgresql.org),
+phù hợp [ANY](https://www.postgresql.org/docs/18/functions-comparisons.html) và
+[unbounded varchar/text](https://www.postgresql.org/docs/18/datatype-character.html).
+Không sửa migration hoặc bỏ CHECK để test pass. Lượt tiếp theo bổ sung indexes,
+validation/enforcement/deferral flags và canonical comparisons, chưa pass DB.
+
+Working-tree CD/transport đạt 116 Python Linux tests và 38 Node Linux tests;
+CMS encrypted/decrypted snapshot + checksum/pin restore là real IO, forward
+Docker/SQL/network orchestration dùng stubs. Fresh runtime readonly readiness
+được wire vào preparer browser và CI container fixture nhưng chưa có DB receipt.
+Giữ separate gates và không ghi evidence này như production rollout hoặc B/C.
+
+Phân công tiếp: DB agent chỉ ghi `deploy/hybrid-restore-run{,.test}.mjs` để đưa
+backup/restore vào CI; documentation agent chỉ ghi plan C mới. Root chốt code
+đã bàn giao, chạy nặng tuần tự trên SHA cố định; các file đang làm dở không stage.
+
+Review tiếp đã thêm re-read shared env (Compose đọc file live), kiểm actual
+Fabric definition sát bước start sau migration/readiness/CI, xác nhận current
+symlink thuộc known attempts và fsync base/journal. Regression fixture được
+chỉnh để reset cả symlink khi reset state giữa subcases; giữ đầy đủ stopped/
+journal/preservation assertions. Lượt mới đạt 119 CD Linux tests, không skips.
+Tracked CI restore runner đạt 46 pure refusal/ownership/receipt/path tests;
+chưa là real DB restore pass. CI serial order là policy → restore → API build
+→ fresh browser preparation/read-only readiness → Web build → browser.
+
+Remote main/dev vẫn `a450ca2`/`6be14c2`; production vẫn release8ae, chưa áp
+Hybrid. Feature remote ở `f021e9d` khi kiểm. Sau checkpoint local và gates
+cách ly sẽ push feature để dispatch Application/Blockchain CI, không trigger
+production CD hoặc ghi evidence feature dispatch như main push acceptance.
+Main push và rollout còn chờ scoped verifier, old-writer/copy, checksum review,
+compatible app rollback và những gate nêu trên.

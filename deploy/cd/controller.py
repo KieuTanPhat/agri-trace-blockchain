@@ -3,6 +3,7 @@
 import argparse
 import contextlib
 import datetime
+import hashlib
 import importlib.util
 import json
 import os
@@ -24,6 +25,14 @@ FABRIC = ["ca_org1", "ca_org2", "ca_orderer", "orderer.example.com", "peer0.org1
 LEDGERS = ["compose_orderer.example.com", "compose_peer0.org1.example.com", "compose_peer0.org2.example.com"]
 
 
+def sync_directory(directory):
+    descriptor = os.open(directory, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def atomic_json(filename, data):
     filename = Path(filename)
     filename.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -35,11 +44,7 @@ def atomic_json(filename, data):
         file.flush()
         os.fsync(file.fileno())
     os.replace(temporary, filename)
-    descriptor = os.open(filename.parent, os.O_RDONLY)
-    try:
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
+    sync_directory(filename.parent)
 
 
 class Controller:
@@ -311,6 +316,96 @@ class Controller:
         require(result.get("result") == "passed", "Release verification did not succeed")
         return result
 
+    def quiescent_baseline(self, record, verified):
+        tables = ("app_user", "organization", "farm", "plot", "product", "production_cycle", "harvest_event",
+                  "lot", "shipment", "trace_event", "blockchain_outbox", "blockchain_proof")
+        counts = ",".join(f"'{table}',(SELECT count(*) FROM {table})" for table in tables)
+        query = ("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY; SELECT json_build_object('counts',json_build_object("
+                 + counts + "),'events',(SELECT coalesce(json_agg(x),'[]'::json) FROM (SELECT e.event_id,"
+                 "to_jsonb(e)::text AS event_row,CASE WHEN p.tx_id IS NOT NULL THEN "
+                 "json_build_array(p.tx_id,p.data_hash,p.channel_id) END AS proof FROM trace_event e "
+                 "LEFT JOIN blockchain_proof p USING(event_id) ORDER BY e.event_id) x)); COMMIT;")
+        result = json.loads(self.run("quiescent-baseline", self.dc(record, "exec", "-T", "postgres", "psql",
+                            "-U", self.environment["POSTGRES_USER"], "-d", self.environment["POSTGRES_DB"],
+                            "-v", "ON_ERROR_STOP=1", "-Atq", "-c", query)))
+        require(0 < len(result["events"]) <= 10000, "Quiescent event verification budget exceeded")
+        fingerprints = {}
+        for row in result["events"]:
+            fingerprints["event:" + row["event_id"]] = policy.sha256(row["event_row"].encode())
+            if row["proof"] is not None:
+                fingerprints["proof:" + row["event_id"]] = policy.sha256(
+                    json.dumps(row["proof"], ensure_ascii=False, separators=(",", ":")).encode())
+        frozen = dict(verified, counts=result["counts"], fingerprints=fingerprints)
+        self.preserve(verified, frozen)
+        return frozen
+
+    def hybrid_readiness(self, record):
+        if not policy.REQUIRED_RELEASE_MIGRATIONS <= set(record["manifest"]["migrations"]):
+            return
+        result = json.loads(self.run("hybrid-route-readiness", self.dc(record, "--profile", "tools", "run",
+                            "--rm", "--no-deps", "--pull", "never", "--entrypoint", "node", "api",
+                            "apps/api/scripts/check-hybrid-readiness.mjs"), timeout=180))
+        require(result.get("result") == "passed" and result.get("sourceSha") == record["sha"] and
+                result.get("readOnly") is True and result.get("signingMaterialRead") is False,
+                "Hybrid history/active-route registration is not ready; writers remain stopped")
+
+    def metadata_digest(self):
+        # Compose resolves this live file at each invocation. Checking only
+        # the cached dictionary would miss an administrator's mid-cutover edit.
+        require(policy.read_env(self.config["env"]) == self.environment,
+                "Shared deployment environment changed during the cutover")
+        return policy.hybrid_metadata_digest(self.environment, self.base)
+
+    def clear_journal(self):
+        filename = self.storage / "journal.json"
+        saved = json.loads(filename.read_text())
+        try:
+            filename.unlink()
+            sync_directory(self.storage)
+        except Exception:
+            # If the directory flush fails, recreate the recovery record rather
+            # than treating an unconfirmed unlink as a durable completion.
+            atomic_json(filename, saved)
+            raise
+
+    def prepare_compatible_start(self, record):
+        if policy.REQUIRED_RELEASE_MIGRATIONS <= set(record["manifest"]["migrations"]):
+            self.preflight(record)
+            self.hybrid_readiness(record)
+
+    @staticmethod
+    def file_digest(filename):
+        digest = hashlib.sha256()
+        with Path(filename).open("rb") as file:
+            for chunk in iter(lambda: file.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    def snapshot_reference(self, directory, source_sha):
+        path = Path(directory)
+        require(not path.is_symlink() and path.is_dir() and path.resolve().is_relative_to((self.base / "backups").resolve()),
+                "Forward recovery snapshot must belong to this production workspace")
+        index = json.loads((self.storage / "backups.json").read_text())
+        require(index.get(source_sha) == str(path), "Completed cutover snapshot index is missing")
+        for name in ("snapshot.cms", "checksums.json", "hybrid-metadata.json", "legacy-scope-pins.json"):
+            source = path / name
+            require(not source.is_symlink() and source.is_file(), "Cutover snapshot is incomplete")
+        require((path / "snapshot.cms").stat().st_size > 512, "Encrypted cutover snapshot is incomplete")
+        checksums = json.loads((path / "checksums.json").read_text())
+        require({"baseline.json", "release.json", "postgres.dump", "private-config.tar.gz",
+                 "legacy-scope-pins.json", "hybrid-metadata.json"} <= set(checksums), "Snapshot lacks independent authority")
+        for name, digest in checksums.items():
+            require(isinstance(name, str) and "/" not in name and "\\" not in name and name not in (".", "..") and
+                    isinstance(digest, str) and bool(policy.DIGEST.fullmatch(digest)), "Invalid snapshot checksum catalog")
+            source = path / name
+            require(not source.is_symlink() and source.is_file() and self.file_digest(source) == digest,
+                    "Cutover snapshot checksum differs")
+        metadata = json.loads((path / "hybrid-metadata.json").read_text())
+        require(metadata.get("attemptSha") == source_sha and metadata.get("sha256") == checksums["legacy-scope-pins.json"],
+                "Cutover snapshot authority provenance differs")
+        return {"sourceSha": source_sha, "directory": str(path), "encryptedSha256": self.file_digest(path / "snapshot.cms"),
+                "checksumsSha256": self.file_digest(path / "checksums.json")}
+
     def start(self, record):
         self.run("api-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "api"), timeout=240)
         self.run("worker-readiness", self.dc(record, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "worker"), timeout=240)
@@ -443,6 +538,20 @@ class Controller:
         atomic_json(directory / "baseline.json", baseline)
         atomic_json(directory / "release.json", old)
         files = ["baseline.json", "release.json", "postgres.dump", "private-config.tar.gz"]
+        # This authority lives outside PostgreSQL. Keep the validated bytes in
+        # the encrypted snapshot, including the first schema-floor cutover when
+        # the previous application still predates Hybrid. Env alone is a path.
+        if "HYBRID_LEGACY_MANIFEST_PINS_HOST" in self.environment:
+            source, content = policy.legacy_pin_metadata(self.environment, self.base)
+            with (directory / "legacy-scope-pins.json").open("xb") as output:
+                os.chmod(output.name, 0o600)
+                output.write(content)
+            atomic_json(directory / "hybrid-metadata.json", {
+                "schema": "agritrace-hybrid-metadata-backup/1", "attemptSha": attempt_sha,
+                "previousRelease": old["id"], "source": str(source),
+                "runtimePath": policy.LEGACY_PINS_TARGET, "file": "legacy-scope-pins.json",
+                "sha256": policy.sha256(content), "bytes": len(content), "restoreMode": "0644"})
+            files += ["legacy-scope-pins.json", "hybrid-metadata.json"]
         with (directory / "postgres.dump").open("wb") as output:
             os.chmod(output.name, 0o600)
             self.run("postgres-consistent-backup", self.dc(old, "exec", "-T", "postgres", "pg_dump", "--format=custom", "--no-owner", "--no-acl",
@@ -592,6 +701,7 @@ class Controller:
         require(not link.exists(), "Unexpected current.next path")
         link.symlink_to(record["directory"], target_is_directory=True)
         os.replace(link, self.base / "current")
+        sync_directory(self.base)
         atomic_json(self.storage / "state.json", state)
 
     @staticmethod
@@ -612,6 +722,7 @@ class Controller:
             actual = self.definition()
             chaincode = self.lifecycle(old_chaincode["packages"], f"rollback-{target_record['sha'][:12]}-{actual['sequence'] + 1}", actual["sequence"] + 1)
             chaincode["fingerprint"] = target_record["manifest"]["chaincode"]
+        self.prepare_compatible_start(target_record)
         self.start(target_record)
         evidence = self.verify(target_record)
         if before:
@@ -621,7 +732,7 @@ class Controller:
         return updated, evidence
 
 
-    def rollout(self, candidate, state, expected_sequence=None):
+    def rollout(self, candidate, state, expected_sequence=None, auth=None):
         old = self.record(state["current"])
         # Only an administrator's reviewed cutover may establish this catalog.
         # A routine release must not widen the legacy sensor exception.
@@ -630,7 +741,12 @@ class Controller:
         self.preflight(candidate)
         if expected_sequence is None:
             require(candidate["manifest"]["chaincode"] == state["chaincode"]["fingerprint"], "Chaincode changed; dispatch upgrade with expected sequence")
-        new_migrations = policy.migrations(self.applied(old), candidate["manifest"]["migrations"], candidate["directory"])
+        applied = self.applied(old)
+        first_floor = policy.scope_floor_admission(candidate["manifest"], candidate["sha"], applied, self.environment)
+        require(not first_floor or expected_sequence is None, "First schema-floor cutover cannot also upgrade chaincode")
+        require(not first_floor or auth is not None, "First schema-floor cutover requires exact CI revalidation credentials")
+        metadata_digest = self.metadata_digest() if first_floor else None
+        new_migrations = policy.migrations(applied, candidate["manifest"]["migrations"], candidate["directory"])
         if expected_sequence is not None:
             require(self.definition()["sequence"] == expected_sequence, "Expected chaincode sequence mismatch")
         before = self.verify(old)
@@ -639,14 +755,34 @@ class Controller:
         snapshot = None
         try:
             self.stop(old)
+            before = self.quiescent_baseline(old, before)
+            self.journal(old, candidate, "snapshot", before)
             snapshot = self.snapshot(old, candidate["sha"], before)
             self.journal(old, candidate, "migration")
+            if first_floor:
+                reference = self.snapshot_reference(snapshot, candidate["sha"])
+                require(self.metadata_digest() == metadata_digest,
+                        "Independent Hybrid metadata changed during cutover backup")
+                journal = json.loads((self.storage / "journal.json").read_text())
+                journal["scopeCutover"] = {"sourceSha": candidate["sha"], "originalCandidate": candidate["id"],
+                                          "migrations": candidate["manifest"]["migrations"], "metadataDigest": metadata_digest,
+                                          "chaincode": state["chaincode"], "snapshot": reference}
+                atomic_json(self.storage / "journal.json", journal)
             self.migrate(candidate)
             if expected_sequence is not None:
                 self.journal(old, candidate, "chaincode")
                 chaincode = self.upgrade(candidate, expected_sequence)
                 chaincode["fingerprint"] = candidate["manifest"]["chaincode"]
             self.journal(old, candidate, "application")
+            self.hybrid_readiness(candidate)
+            if first_floor:
+                self.server_gate(candidate, auth)
+                actual = self.definition()
+                require(actual.get("sequence") == state["chaincode"]["sequence"] and
+                        actual.get("version") == state["chaincode"]["version"],
+                        "Actual Fabric definition changed before cutover writer startup")
+                require(self.metadata_digest() == metadata_digest,
+                        "Independent Hybrid metadata changed before writer startup")
             self.start(candidate)
             evidence = self.verify(candidate, candidate["sha"])
             self.preserve(before, evidence)
@@ -659,7 +795,7 @@ class Controller:
             self.switch(candidate, updated)
             atomic_json(self.storage / "last-result.json", {"result": "passed", "sha": candidate["sha"], "release": candidate["id"], "snapshot": snapshot,
                        "counts": evidence["counts"], "canary": evidence["canary"], "chaincode": chaincode})
-            (self.storage / "journal.json").unlink()
+            self.clear_journal()
             return {"result": "passed", "release": candidate["id"], "counts": evidence["counts"], "chaincodeSequence": chaincode["sequence"]}
         except Exception as error:
             failed_phase = self.phase
@@ -669,18 +805,117 @@ class Controller:
                     self.resume_fabric()
                     compatible = self.recovery_migrations(old, candidate, state)
                     restored = self.restore_definition(state, old)
+                    self.prepare_compatible_start(old)
                     self.start(old)
                     evidence = self.verify(old)
                     self.preserve(before, evidence)
                     # Expanded schema stays; compatible migration names remain known for recovery.
                     restored_state = dict(state, chaincode=restored, compatible_migrations=compatible)
                     self.switch(old, restored_state)
-                    (self.storage / "journal.json").unlink()
+                    self.clear_journal()
                 rollback = "verified"
             except Exception:
                 rollback = "recovery-required"
             atomic_json(self.storage / "last-result.json", {"result": "failed", "sha": candidate["sha"], "phase": failed_phase, "rollback": rollback, "snapshot": snapshot})
             raise PolicyError(f"Release failed at {failed_phase}; rollback={rollback}; database and ledger were not restored") from error
+
+    def forward(self, candidate, state, auth):
+        filename = self.storage / "journal.json"
+        require(filename.exists(), "Forward recovery requires an interrupted first-floor cutover")
+        journal = json.loads(filename.read_text())
+        failed = self.record(journal["candidate"])
+        with self.stop_on_failure(failed):
+            return self.forward_candidate(candidate, state, auth)
+
+    def forward_candidate(self, candidate, state, auth):
+        filename = self.storage / "journal.json"
+        require(filename.exists(), "Forward recovery requires an interrupted first-floor cutover")
+        journal = json.loads(filename.read_text())
+        cutover = journal.get("scopeCutover")
+        require(isinstance(cutover, dict) and journal.get("baseline") and journal.get("previous"),
+                "Forward recovery requires the cutover admission, quiescent baseline and completed backup")
+        original = self.record(cutover["originalCandidate"])
+        previous = self.record(journal["previous"])
+        failed = self.record(journal["candidate"])
+        attempts = journal.get("forwardAttempts", [])
+        known = {previous["id"], original["id"], failed["id"], *attempts}
+        require(state["current"] in known and len(attempts) < 100, "Forward recovery state is outside the pinned cutover")
+        current = self.base / "current"
+        require(current.is_symlink() and current.resolve() in {Path(self.record(name)["directory"]).resolve() for name in known},
+                "Current release link is outside the pinned cutover attempts")
+        require(not policy.REQUIRED_RELEASE_MIGRATIONS <= set(previous["manifest"]["migrations"]),
+                "Forward recovery is reserved for the first schema-floor cutover")
+        require(candidate["manifest"]["migrations"] == cutover["migrations"] == original["manifest"]["migrations"] and
+                policy.REQUIRED_RELEASE_MIGRATIONS <= set(cutover["migrations"]),
+                "Forward recovery must keep the exact reviewed migration catalog")
+        require(self.environment.get("HYBRID_SCOPE_CUTOVER_SHA") == cutover["sourceSha"] == original["sha"],
+                "Forward recovery lost the original independent cutover acknowledgement")
+        require(candidate["manifest"]["chaincode"] == cutover["chaincode"]["fingerprint"] == state["chaincode"]["fingerprint"],
+                "Forward recovery cannot change the chaincode package")
+        require(self.metadata_digest() == cutover["metadataDigest"],
+                "Independent Hybrid metadata changed since cutover admission")
+        reference = cutover["snapshot"]
+        require(self.snapshot_reference(reference["directory"], reference["sourceSha"]) == reference,
+                "The original cutover snapshot changed")
+        candidate["legacyQrLotIds"] = list(previous.get("legacyQrLotIds", []))
+        self.preflight(candidate)
+        # These checks run before touching the existing journal or starting
+        # writers. An unfinished Prisma row is never resolved automatically.
+        policy.migrations(self.applied(failed), candidate["manifest"]["migrations"], candidate["directory"])
+        require(state["chaincode"] == cutover["chaincode"], "Cutover chaincode state changed")
+        self.server_gate(candidate, auth)
+        if candidate["id"] not in attempts:
+            attempts.append(candidate["id"])
+        journal.update(candidate=candidate["id"], forwardAttempts=attempts, stage="forward-migration")
+        atomic_json(filename, journal)
+        try:
+            with self.stop_on_failure(candidate):
+                self.stop(failed)
+                self.resume_fabric()
+                self.phase = "forward-fabric-binding"
+                actual = self.definition()
+                require(actual.get("sequence") == cutover["chaincode"]["sequence"] and
+                        actual.get("version") == cutover["chaincode"]["version"],
+                        "Actual Fabric definition changed; forward recovery is held")
+                self.migrate(candidate)
+                applied = self.applied(candidate)
+                require(set(applied) == set(candidate["manifest"]["migrations"]) and
+                        not policy.migrations(applied, candidate["manifest"]["migrations"], candidate["directory"]),
+                        "Forward recovery did not finish the exact migration catalog")
+                self.hybrid_readiness(candidate)
+                require(self.metadata_digest() == cutover["metadataDigest"],
+                        "Independent Hybrid metadata changed before forward startup")
+                self.server_gate(candidate, auth)
+                self.journal(previous, candidate, "forward-application")
+                self.phase = "forward-final-admission"
+                actual = self.definition()
+                require(actual.get("sequence") == cutover["chaincode"]["sequence"] and
+                        actual.get("version") == cutover["chaincode"]["version"],
+                        "Actual Fabric definition changed before writer startup")
+                require(self.metadata_digest() == cutover["metadataDigest"],
+                        "Independent Hybrid metadata changed before writer startup")
+                self.start(candidate)
+                evidence = self.verify(candidate, candidate["sha"])
+                self.preserve(journal["baseline"], evidence)
+                candidate.update(verified=True, sessionContract="family-v1", chaincode=cutover["chaincode"])
+                self.save_record(candidate)
+                self.switch(candidate, dict(state, current=candidate["id"], previous=previous["id"],
+                            compatible_migrations=sorted(set(state.get("compatible_migrations", [])) | set(cutover["migrations"]))))
+                index = json.loads((self.storage / "backups.json").read_text())
+                require(candidate["sha"] not in index or index[candidate["sha"]] == reference["directory"],
+                        "Forward recovery cannot replace a previously saved snapshot")
+                index[candidate["sha"]] = reference["directory"]
+                atomic_json(self.storage / "backups.json", index)
+                atomic_json(self.storage / "last-result.json", {"result": "passed", "operation": "forward",
+                            "sha": candidate["sha"], "release": candidate["id"], "snapshot": reference,
+                            "counts": evidence["counts"], "canary": evidence["canary"], "chaincode": cutover["chaincode"]})
+                self.clear_journal()
+            return {"result": "forward-recovered", "release": candidate["id"], "snapshotSourceSha": reference["sourceSha"],
+                    "counts": evidence["counts"], "chaincodeSequence": cutover["chaincode"]["sequence"]}
+        except Exception as error:
+            atomic_json(self.storage / "last-result.json", {"result": "failed", "operation": "forward",
+                        "sha": candidate["sha"], "phase": self.phase, "snapshot": reference, "journalRetained": True})
+            raise PolicyError(f"Forward recovery failed at {self.phase}; journal retained and writers require reconciliation") from error
 
     def recovery_migrations(self, previous, candidate, state):
         applied = self.applied(previous)
@@ -710,6 +945,7 @@ class Controller:
             # A completed migration from an interrupted release still requires compatibility validation.
             compatible = self.recovery_migrations(previous, candidate, state)
             chaincode = self.restore_definition(state, previous)
+            self.prepare_compatible_start(previous)
             self.start(previous)
             evidence = self.verify(previous)
             if journal.get("baseline"):
@@ -717,7 +953,7 @@ class Controller:
             self.switch(previous, dict(state, current=previous["id"],
                         previous=state["current"] if state["current"] != previous["id"] else state.get("previous"), chaincode=chaincode,
                         compatible_migrations=compatible))
-            (self.storage / "journal.json").unlink()
+            self.clear_journal()
         return {"result": "recovered", "release": previous["id"], "counts": evidence["counts"]}
 
 
@@ -761,16 +997,21 @@ class Controller:
                 try:
                     with self.stop_on_failure(record):
                         self.stop(old)
+                        before = self.quiescent_baseline(old, before)
+                        self.journal(old, record, "rollback", before)
                         self.snapshot(old, parts[1], before)
                         _, evidence = self.rollback_to(target, state, before)
-                        (self.storage / "journal.json").unlink()
+                        self.clear_journal()
                     return {"result": "rolled-back", "release": target, "counts": evidence["counts"]}
                 except Exception:
                     # Journal preserves an explicit recover path; no implicit data restore.
                     raise PolicyError("Rollback did not complete; run recover to restore the previous verified application")
             return {"result": "unchanged", "release": target}
         # This must precede transport/record writes and the same-SHA fast path.
-        require(not (self.storage / "journal.json").exists(), "Interrupted deployment needs recover before a new rollout")
+        if op == "forward":
+            require((self.storage / "journal.json").exists(), "Forward recovery requires an interrupted cutover")
+        else:
+            require(not (self.storage / "journal.json").exists(), "Interrupted deployment needs recover before a new rollout")
         header = stream.readline(policy.MAX_AUTH_HEADER + 1)
         require(len(header) <= policy.MAX_AUTH_HEADER and header.endswith(b"\n"), "Invalid registry authentication framing")
         auth = json.loads(header)
@@ -806,7 +1047,9 @@ class Controller:
                 return {"result": "unchanged", "release": release, "counts": evidence["counts"]}
             self.registry(record, auth)
             require(state["current"] is not None, "Production requires an adopted verified release")
-            return self.rollout(record, state, int(parts[3]) if op == "upgrade" else None)
+            if op == "forward":
+                return self.forward(record, state, auth)
+            return self.rollout(record, state, int(parts[3]) if op == "upgrade" else None, auth=auth)
 
 
 def main():

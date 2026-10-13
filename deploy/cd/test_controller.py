@@ -184,6 +184,10 @@ class Rehearsal(Controller):
             raise PolicyError("simulated backup failure")
         return "private-backup"
 
+    def quiescent_baseline(self, record, verified):
+        self.calls.append("quiescent-baseline")
+        return copy.deepcopy(self.data)
+
     def run(self, label, args, **kwargs):
         self.calls.append(label)
         return b""

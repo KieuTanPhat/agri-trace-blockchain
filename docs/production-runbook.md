@@ -67,6 +67,36 @@ compatible migrations/core rollback floor. Rollback application không tự
 restore dữ liệu/ledger. Khi journal đang mở, dùng `recover`; không xóa journal
 hoặc tạo deployment key mới để bỏ qua trạng thái chưa biết.
 
+Hai migration scope/route ngày13/10 thuộc floor bắt buộc. Lần vượt floor đầu
+cần `HYBRID_SCOPE_CUTOVER_SHA` trong shared environment khớp exact candidate
+đã rehearsal; không gộp với chaincode upgrade. Pin metadata độc lập, reviewed
+import/registration và backup phải sẵn sàng; default blank giữ deployment blocked.
+Baseline DB được chụp lại sau khi writers đã dừng để giữ cả commit đến muộn.
+Snapshot mã hóa mang bytes/checksum/provenance của legacy pins ngoài DB, ngoài
+env/accounts/PG/ledger/identities. Restore authority từ archive đã kiểm, không
+tự sinh pins từ database; file nonsecret được dựng riêng với mode0644.
+
+Sau migration, one-off API image kiểm read-only active definition và toàn bộ
+historical route/import/proof trước mở writers; operator đăng ký/import riêng
+với artifact đã review. Không tự chọn route theo Worker env hoặc bật import
+gate trong API/Worker thường trực. Candidate phải hiểu schema mới trước canary.
+
+Nếu candidate lỗi sau floor và previous image thiếu floor, `recover` sẽ giữ hold.
+Dùng dispatch `forward` trên main cho exact-SHA candidate đã đạt ba push CI và
+có immutable images. Catalog phải giữ toàn bộ checksums của candidate gốc,
+chaincode không đổi, pins/acknowledgement và encrypted snapshot gốc giữ nguyên.
+Forward có thể áp migration còn thiếu khi row trước đã finished; unfinished
+Prisma row vẫn cần reconciliation riêng, không tự `migrate resolve`.
+Giữ previous, quiescent baseline, original candidate, backup reference và các
+attempts trong journal. Chỉ switch/clear journal sau readiness/canary/preservation;
+lỗi giữ journal và dừng writers. Backup download của forward SHA là alias tới
+snapshot gốc và receipt ghi `snapshotSourceSha`, không phải snapshot mới.
+
+Forward orchestration đã có regression tests với external IO stubs; chưa thay
+rehearsal image rollback/actual Fabric hoặc production cutover acceptance.
+Verifier cần hoàn tất [scope-aware plan](plans/hybrid-scoped-production-verification-2026-10-13.md)
+trước activation; không dùng Admin bypass hoặc loại bỏ historical proof checks.
+
 Restore là một thao tác quản trị riêng: giải mã backup ngoài VPS, kiểm mọi
 checksum, rehearsal trên database trống/copy đã sanitize và đối chiếu counts,
 hash/proof, identities rồi mới lập cutover. Không restore đè database production

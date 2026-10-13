@@ -99,6 +99,7 @@ jobs:
       FABRIC_PEER_ENDPOINT: peer0.org1.example.com:7051
       FABRIC_WORKER_INTERVAL_MS: '1000'
       RELAYER_MSP_DIR_HOST: ./blockchain/network/identities/relayer/msp
+      HYBRID_CONTAINER_TESTS: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -136,8 +137,15 @@ jobs:
           npm run build --workspace blockchain/gateway
           echo "CI_WORKER_UID=$(id -u)" >> "$GITHUB_ENV"
           echo "CI_WORKER_GID=$(id -g)" >> "$GITHUB_ENV"
+      - name: Pin the explicit technical writer definition independently of the database
+        run: node deploy/hybrid-route-fixture.mjs prepare --stack fabric --directory .codex/evidence/hybrid-fabric-route
       - name: Build API and Worker production images
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml build api worker
+      - name: Migrate the fresh API database and register the pinned technical route
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --wait --wait-timeout 120 postgres
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml run --rm --no-deps api npm run db:migrate --workspace apps/api
+          node deploy/hybrid-route-fixture.mjs register --stack fabric --directory .codex/evidence/hybrid-fabric-route
       - name: Start production API while Worker is stopped
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --wait --wait-timeout 240 postgres api
       - name: Verify API to outbox to Worker to Fabric to confirmed proof
@@ -155,6 +163,17 @@ jobs:
         with:
           name: fabric-integration-${{ github.sha }}
           path: artifacts/fabric-integration.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload public technical route fixture receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fabric-route-fixture-${{ github.sha }}
+          path: |
+            .codex/evidence/hybrid-fabric-route/preparation.json
+            .codex/evidence/hybrid-fabric-route/registration.json
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
       - name: Stop disposable application stack

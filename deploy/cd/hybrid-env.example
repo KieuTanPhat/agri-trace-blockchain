@@ -8,6 +8,9 @@ LEDGER_ROUTE_IMPORT_PINS=[]
 LEDGER_PAUSED_WRITER_PINS=[]
 LEDGER_WRITER_AUTHORITY=production:technical-relayer
 HYBRID_LEGACY_MANIFEST_PINS_HOST=/opt/agri-trace/shared/hybrid/legacy-scope-pins.json
+# After rehearsal/backup/import review, acknowledge the exact first-floor SHA.
+# Leave blank until admission is complete; later forward keeps this original SHA.
+HYBRID_SCOPE_CUTOVER_SHA=
 # The bounded regular file uses 0444/0644, with read-only service mounts, so both
 # nonroot services can read these nonsecret pins. It may contain
 # {"schema":"agritrace-legacy-scope-pins-1","pins":[]} before any legacy mapping.

@@ -14,7 +14,7 @@ _spec.loader.exec_module(targets)
 
 SHA = re.compile(r"^[a-f0-9]{40}$")
 DIGEST = re.compile(r"^[a-f0-9]{64}$")
-OPERATIONS = {"deploy", "upgrade", "rollback", "recover", "status", "backup"}
+OPERATIONS = {"deploy", "upgrade", "forward", "rollback", "recover", "status", "backup"}
 FIXED_FILES = {"docker-compose.uat.yml", "docker-compose.uat-https.yml", "docker-compose.uat-fabric.yml", "deploy/Caddyfile.uat"}
 MAX_AUTH_HEADER = 16 * 1024
 CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify.mjs", "session-auth.mjs", "entry")
@@ -77,11 +77,11 @@ def command(value):
     parts = value.split(" ")
     require(all(parts) and parts[0] in OPERATIONS, "Unsupported CD command")
     op = parts[0]
-    expected = {"status": 1, "recover": 1, "rollback": 2, "backup": 2, "deploy": 3, "upgrade": 4}[op]
+    expected = {"status": 1, "recover": 1, "rollback": 2, "backup": 2, "deploy": 3, "forward": 3, "upgrade": 4}[op]
     require(len(parts) == expected, "Invalid CD command arguments")
     if expected > 1:
         require(bool(SHA.fullmatch(parts[1])), "Invalid commit SHA")
-    if op in {"deploy", "upgrade"}:
+    if op in {"deploy", "upgrade", "forward"}:
         require(bool(DIGEST.fullmatch(parts[2])), "Invalid archive checksum")
     if op == "upgrade":
         require(bool(re.fullmatch(r"[1-9][0-9]{0,8}", parts[3])), "Invalid expected sequence")
@@ -228,6 +228,53 @@ def read_env(filename):
 LEGACY_PINS_TARGET = "/run/agritrace/legacy-scope-pins.json"
 
 
+def legacy_pin_metadata(environment, base):
+    """Read the independent authority file without deriving trust from the DB."""
+    filename = environment.get("HYBRID_LEGACY_MANIFEST_PINS_HOST", "")
+    require(isinstance(filename, str) and targets.owned_path(filename, Path(base) / "shared" / "hybrid"),
+            "Legacy pins file must belong to the production metadata directory")
+    path = Path(filename)
+    require(not path.is_symlink() and path.is_file() and path.stat().st_size <= 8 * 1024 * 1024 and
+            path.resolve().is_relative_to((Path(base) / "shared" / "hybrid").resolve()),
+            "Legacy pins must be a bounded regular metadata file")
+    require(not (path.stat().st_mode & 0o022), "Legacy pins metadata is writable by another account")
+    require(path.stat().st_mode & 0o777 in (0o444, 0o644),
+            "Nonsecret legacy pin metadata must be readable by both nonroot services (0444/0644)")
+    try:
+        content = path.read_bytes()
+        require(len(content) <= 8 * 1024 * 1024, "Legacy pins metadata exceeded its bound")
+        legacy = json.loads(content)
+    except (ValueError, OSError):
+        raise PolicyError("Invalid legacy pins metadata") from None
+    require(isinstance(legacy, dict) and legacy.get("schema") == "agritrace-legacy-scope-pins-1" and
+            isinstance(legacy.get("pins"), list) and len(legacy["pins"]) <= 100 and
+            all(isinstance(pin, dict) and isinstance(pin.get("manifest"), dict) and
+                pin["manifest"].get("environment") == "production" for pin in legacy["pins"]),
+            "Invalid production legacy pins metadata")
+    return path, content
+
+
+def hybrid_metadata_digest(environment, base):
+    _, content = legacy_pin_metadata(environment, base)
+    keys = ("LEDGER_ROUTE_PINS", "LEDGER_ACTIVE_ROUTE_DIGEST", "LEDGER_ROUTE_IMPORT_PINS",
+            "LEDGER_PAUSED_WRITER_PINS", "LEDGER_WRITER_AUTHORITY")
+    values = {key: environment.get(key, "") for key in keys}
+    require(all(isinstance(value, str) and len(value) <= 65536 for value in values.values()),
+            "Invalid independent Hybrid metadata")
+    values["legacyFileSha256"] = sha256(content)
+    return sha256(json.dumps(values, sort_keys=True, separators=(",", ":")).encode())
+
+
+def scope_floor_admission(manifest, sha, applied, environment):
+    present = REQUIRED_RELEASE_MIGRATIONS.intersection(manifest.get("migrations", {}))
+    if not present or REQUIRED_RELEASE_MIGRATIONS <= set(applied):
+        return False
+    require(present == REQUIRED_RELEASE_MIGRATIONS, "First cutover needs the full scope/ledger schema floor")
+    require(environment.get("HYBRID_SCOPE_CUTOVER_SHA") == sha and bool(SHA.fullmatch(sha)),
+            "First schema-floor cutover requires independent SHA acknowledgement")
+    return True
+
+
 def hybrid_environment(manifest, sha, services, environment, base):
     """Check deployment-owned metadata before any migration or writer stop."""
     present = REQUIRED_RELEASE_MIGRATIONS.intersection(manifest.get("migrations", {}))
@@ -262,25 +309,8 @@ def hybrid_environment(manifest, sha, services, environment, base):
     authority = environment.get("LEDGER_WRITER_AUTHORITY", "")
     require(isinstance(authority, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,99}", authority),
             "Missing logical Worker authority")
-    filename = environment.get("HYBRID_LEGACY_MANIFEST_PINS_HOST", "")
-    require(isinstance(filename, str) and targets.owned_path(filename, Path(base) / "shared" / "hybrid"),
-            "Legacy pins file must belong to the production metadata directory")
-    path = Path(filename)
-    require(not path.is_symlink() and path.is_file() and path.stat().st_size <= 8 * 1024 * 1024 and
-            path.resolve().is_relative_to((Path(base) / "shared" / "hybrid").resolve()),
-            "Legacy pins must be a bounded regular metadata file")
-    require(not (path.stat().st_mode & 0o022), "Legacy pins metadata is writable by another account")
-    require(path.stat().st_mode & 0o777 in (0o444, 0o644),
-            "Nonsecret legacy pin metadata must be readable by both nonroot services (0444/0644)")
-    try:
-        legacy = json.loads(path.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
-        raise PolicyError("Invalid legacy pins metadata") from None
-    require(isinstance(legacy, dict) and legacy.get("schema") == "agritrace-legacy-scope-pins-1" and
-            isinstance(legacy.get("pins"), list) and len(legacy["pins"]) <= 100 and
-            all(isinstance(pin, dict) and isinstance(pin.get("manifest"), dict) and
-                pin["manifest"].get("environment") == "production" for pin in legacy["pins"]),
-            "Invalid production legacy pins metadata")
+    path, _ = legacy_pin_metadata(environment, base)
+    filename = str(path)
     for name in ("api", "worker"):
         service = services.get(name, {})
         values = service.get("environment", {})

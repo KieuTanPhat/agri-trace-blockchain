@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from policy import CONTROLLER_FILES, PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth, valid_public_origin, https_origins
-from policy import REQUIRED_RELEASE_MIGRATIONS
+from policy import REQUIRED_RELEASE_MIGRATIONS, scope_floor_admission
 
 SHA = "a" * 40
 REPO = "KieuTanPhat/agri-trace-blockchain"
@@ -117,9 +117,23 @@ class Policies(unittest.TestCase):
 
     def test_commands(self):
         self.assertEqual(command(f"upgrade {SHA} {'b' * 64} 1")[0], "upgrade")
+        self.assertEqual(command(f"forward {SHA} {'b' * 64}"), ["forward", SHA, "b" * 64])
         for value in ("bash", "status; id", "status\nwhoami", "rollback ../../etc", f"deploy {SHA} {'b' * 64} ;id", f"upgrade {SHA} {'b' * 64} 0"):
             with self.subTest(value=value), self.assertRaises(PolicyError):
                 command(value)
+
+    def test_first_schema_floor_requires_independent_exact_sha_acknowledgement(self):
+        catalog = {name: "c" * 64 for name in REQUIRED_RELEASE_MIGRATIONS}
+        manifest = {"migrations": catalog}
+        for applied in ({}, {next(iter(catalog)): "c" * 64}):
+            for acknowledgement in (None, "", "b" * 40):
+                with self.subTest(applied=applied, acknowledgement=acknowledgement), self.assertRaises(PolicyError):
+                    scope_floor_admission(manifest, SHA, applied, {"HYBRID_SCOPE_CUTOVER_SHA": acknowledgement})
+            self.assertTrue(scope_floor_admission(manifest, SHA, applied, {"HYBRID_SCOPE_CUTOVER_SHA": SHA}))
+        self.assertFalse(scope_floor_admission(manifest, SHA, catalog, {}))
+        self.assertFalse(scope_floor_admission({"migrations": {}}, SHA, {}, {}))
+        with self.assertRaises(PolicyError):
+            scope_floor_admission({"migrations": {next(iter(catalog)): "c" * 64}}, SHA, {}, {"HYBRID_SCOPE_CUTOVER_SHA": SHA})
 
     def test_good_archive(self):
         with tempfile.TemporaryDirectory() as directory:

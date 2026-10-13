@@ -462,6 +462,31 @@ try {
       ),
     );
     fixture = { registeredRoutes: route.ledgerRoutePins.length };
+    const readiness = lastJson(
+      await run(
+        "route-readiness",
+        [join(api, "scripts/check-hybrid-readiness.mjs")],
+        {
+          ...env,
+          NODE_ENV: "production",
+          FABRIC_ENABLED: "false",
+          LEDGER_ROUTE_IMPORT_ENABLED: "false",
+          APP_RELEASE_SHA: sourceSha,
+          LEDGER_ROUTE_PINS: JSON.stringify(route.ledgerRoutePins),
+          LEDGER_ACTIVE_ROUTE_DIGEST: route.activeRouteDigest,
+        },
+      ),
+    );
+    ensure(
+      readiness.result === "passed" &&
+        readiness.sourceSha === sourceSha &&
+        readiness.readOnly === true &&
+        readiness.signingMaterialRead === false &&
+        readiness.events === 0 &&
+        readiness.sealedLegacyEvents === 0,
+      "Fresh runtime route readiness did not pass",
+    );
+    fixture.readOnlyRuntimeReadiness = true;
   }
   sourceUnchanged();
   stage = "applied-catalog-check";

@@ -8,7 +8,7 @@ on:
       operation:
         description: Production delivery (enable after legacy adoption and release acceptance)
         type: choice
-        options: [deploy, upgrade, rollback, recover]
+        options: [deploy, upgrade, forward, rollback, recover]
         default: deploy
       rollback_sha: {description: Previously verified full SHA for rollback, type: string, required: false}
       expected_sequence: {description: Current Fabric sequence for upgrade, type: string, required: false}

@@ -9,6 +9,7 @@ services:
       FABRIC_CHAINCODE_NAME: agritrace
       FABRIC_CONTRACT_NAME: AgriTraceContract
       FABRIC_MSP_ID: Org1MSP
+      LEDGER_WRITER_AUTHORITY: ${LEDGER_WRITER_AUTHORITY:?Set the reviewed logical writer authority}
       FABRIC_PEER_ENDPOINT: peer0.org1.example.com:7051
       FABRIC_PEER_HOST_ALIAS: peer0.org1.example.com
       # loadConfig currently requires this path even with an explicit cert.
