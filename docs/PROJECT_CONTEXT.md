@@ -17,6 +17,11 @@ membership, grant and accepted assignment. ShipmentPlan revisions and consent
 are immutable. Quantity and custody checks run under the aggregate lock; a
 permission or optimistic-version rejection must not alter state or outbox.
 
+Login creates an independent session family under shared organization/account
+authority locks, so business readers do not cause an exclusive-lock queue.
+Refresh/logout retain exclusive account locking for family changes; account and
+organization disable still wait for those locks and revoke all affected sessions.
+
 Compliance reviewers belong to AUDITOR organizations, are assigned to the Farm,
 and cannot review their own submission. Public QR hides private data and exposes
 integrity, recall, expiry and missing-sensor warnings independently of proof.
