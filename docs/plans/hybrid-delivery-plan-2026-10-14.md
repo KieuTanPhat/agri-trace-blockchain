@@ -141,5 +141,7 @@ API unit/E2E và Web xanh sau khi cập nhật test sang mô hình chuỗi.
 | P0 Chuẩn bị | Xong 13/10/2026: nhánh, merge main, DB test, baseline |
 | P1 Làm gọn A | Xong 13/10/2026: migration gộp `20261014000000_hybrid_chain_scope`, backfill có test diễn tập, bỏ máy móc legacy, một chế độ phân quyền theo chuỗi |
 | P2 Nghiệm thu A | Xong phần API: 116 unit, 176 E2E (gồm 57 policy + 24 SQL guard + diễn tập migration), Web 200; seed chuỗi demo; kiểm giao diện chuỗi/vụ trồng trên trình duyệt. Playwright đầy đủ dời sang P6 |
-| P3 | Đang làm |
-| P4–P6 | Chưa bắt đầu |
+| P3 Bản B – nền | Đã xong: commitment B (5 vector khớp ở API và chaincode), chaincode registry/governance/RecordBindingEvent (91 test), client gateway staged + operator registry, migration `20261015000000_hybrid_fabric_binding` (binding, profile, permission epoch/sync, control job, delivery attempt/hold; không drift), TraceService đường ghi B, đồng bộ quyền ledger theo grant/membership. **Còn thiếu:** Worker router theo binding (pool, delivery attempt, reconcile/fence), Control worker chạy job quyền, CLI operator, test E2E API→Worker→Fabric thật, HYB-AC-10 (cô lập outage) |
+| P4 Mạng Fabric thật | Mạng 3 Org chạy (`blockchain/network/hybrid/hybrid-network.sh`), chaincode deploy hai channel; nghiệm thu ledger 21/21 (`acceptance/ledger-acceptance.mts`). **Còn thiếu:** backup/restore peer, relocation, nghiệm thu mức API+Worker |
+| P5 Bản C | Chưa bắt đầu |
+| P6 Hồi quy & phát hành | Chưa bắt đầu |

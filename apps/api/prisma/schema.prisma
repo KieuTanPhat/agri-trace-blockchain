@@ -19,6 +19,7 @@ model Role {
 }
 
 model User {
+  ledgerPermissions          LedgerPermission[]
   id                         String                      @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
   organizationId             String?                     @map("organization_id") @db.Uuid
   roleId                     String                      @map("role_id") @db.Uuid
@@ -107,6 +108,7 @@ model OrganizationCapability {
 }
 
 model SupplyChain {
+  ledgerProfile       ChainLedgerProfile?
   id                  String                @id @default(dbgenerated("gen_random_uuid()")) @map("chain_id") @db.Uuid
   ownerOrganizationId String                @map("owner_organization_id") @db.Uuid
   name                String                @db.VarChar(255)
@@ -146,6 +148,7 @@ model ChainMembership {
 }
 
 model ScopedRoleGrant {
+  ledgerEpoch     LedgerPermissionEpoch?
   id              String                   @id @default(dbgenerated("gen_random_uuid()")) @map("grant_id") @db.Uuid
   userId          String                   @map("user_id") @db.Uuid
   organizationId  String                   @map("organization_id") @db.Uuid
@@ -413,6 +416,7 @@ model Product {
 }
 
 model ProductionCycle {
+  ledgerContexts     CycleLedgerContext[]
   id                 String               @id @default(dbgenerated("gen_random_uuid()")) @map("cycle_id") @db.Uuid
   cycleCode          String               @map("cycle_code") @db.VarChar(100)
   productId          String               @map("product_id") @db.Uuid
@@ -723,6 +727,8 @@ model ShipmentTelemetryDigest {
 }
 
 model TraceEvent {
+  bindingContext          EventBindingContext?
+  deliveryHolds           DeliveryHold[]
   chainContext            EventChainContext?
   ledgerRoute             EventLedgerRoute?
   ledgerRouteExemption    LedgerRouteExemption?
@@ -759,6 +765,7 @@ model TraceEvent {
   lot                     Lot?                  @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   supersededEvent         TraceEvent?           @relation("TraceSupersession", fields: [supersedesEventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   supersedingEvents       TraceEvent[]          @relation("TraceSupersession")
+  ledgerControlJobs       LedgerControlJob[]
 
   @@index([cycleId, eventTime], map: "ix_trace_event_cycle_time")
   @@index([entityType, entityId], map: "ix_trace_event_entity")
@@ -770,18 +777,22 @@ model TraceEvent {
 
 /// Logical ledger destination; credentials and physical endpoints belong to bindings.
 model LedgerRouteDefinition {
-  digest          String             @id @db.VarChar(64)
-  protocol        String             @default("agritrace-ledger-route/1") @db.VarChar(50)
-  mode            String             @db.VarChar(16)
-  network         String             @db.VarChar(100)
-  channelId       String             @map("channel_id") @db.VarChar(100)
-  chaincodeName   String             @map("chaincode_name") @db.VarChar(100)
-  contractName    String             @map("contract_name") @db.VarChar(100)
-  envelopeVersion String?            @map("envelope_version") @db.VarChar(50)
-  writerAuthority String?            @map("writer_authority") @db.VarChar(100)
-  writerMspId     String?            @map("writer_msp_id") @db.VarChar(100)
-  writerRole      String?            @map("writer_role") @db.VarChar(50)
-  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  chainRef        String?                @map("chain_ref") @db.Uuid
+  bindingDigest   String?                @map("binding_digest") @db.VarChar(64)
+  binding         FabricNetworkBinding?  @relation("RouteBinding", fields: [bindingDigest], references: [digest], onDelete: Restrict, onUpdate: NoAction, map: "fk_route_binding")
+  bindingsUsing   FabricNetworkBinding[] @relation("BindingRoute")
+  digest          String                 @id @db.VarChar(64)
+  protocol        String                 @default("agritrace-ledger-route/1") @db.VarChar(50)
+  mode            String                 @db.VarChar(16)
+  network         String                 @db.VarChar(100)
+  channelId       String                 @map("channel_id") @db.VarChar(100)
+  chaincodeName   String                 @map("chaincode_name") @db.VarChar(100)
+  contractName    String                 @map("contract_name") @db.VarChar(100)
+  envelopeVersion String?                @map("envelope_version") @db.VarChar(50)
+  writerAuthority String?                @map("writer_authority") @db.VarChar(100)
+  writerMspId     String?                @map("writer_msp_id") @db.VarChar(100)
+  writerRole      String?                @map("writer_role") @db.VarChar(50)
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   routes          EventLedgerRoute[]
 
   @@map("ledger_route_definition")
@@ -833,18 +844,19 @@ model BlockchainProof {
 /// Transactional outbox entry consumed only by the dedicated blockchain worker.
 /// Business transactions create this row atomically with the immutable TraceEvent.
 model BlockchainOutbox {
-  id             String                 @id @default(dbgenerated("gen_random_uuid()")) @map("outbox_id") @db.Uuid
-  eventId        String                 @unique @map("event_id") @db.Uuid
-  status         BlockchainOutboxStatus @default(PENDING)
-  attemptCount   Int                    @default(0) @map("attempt_count")
-  nextAttemptAt  DateTime?              @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
-  leaseToken     String?                @map("lease_token") @db.Uuid
-  leaseExpiresAt DateTime?              @map("lease_expires_at") @db.Timestamptz(6)
-  lastError      String?                @map("last_error")
-  completedAt    DateTime?              @map("completed_at") @db.Timestamptz(6)
-  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime               @default(now()) @map("updated_at") @db.Timestamptz(6)
-  traceEvent     TraceEvent             @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  deliveryAttempts DeliveryAttempt[]
+  id               String                 @id @default(dbgenerated("gen_random_uuid()")) @map("outbox_id") @db.Uuid
+  eventId          String                 @unique @map("event_id") @db.Uuid
+  status           BlockchainOutboxStatus @default(PENDING)
+  attemptCount     Int                    @default(0) @map("attempt_count")
+  nextAttemptAt    DateTime?              @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  leaseToken       String?                @map("lease_token") @db.Uuid
+  leaseExpiresAt   DateTime?              @map("lease_expires_at") @db.Timestamptz(6)
+  lastError        String?                @map("last_error")
+  completedAt      DateTime?              @map("completed_at") @db.Timestamptz(6)
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime               @default(now()) @map("updated_at") @db.Timestamptz(6)
+  traceEvent       TraceEvent             @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([status, nextAttemptAt], map: "ix_blockchain_outbox_due")
   @@index([status, leaseExpiresAt], map: "ix_blockchain_outbox_lease")
@@ -1170,4 +1182,308 @@ enum ShipmentState {
   FAILED
 
   @@map("shipment_state")
+}
+
+enum LedgerProfile {
+  SERVICE
+  MANAGED_ORG
+  SELF_MANAGED_ORG
+
+  @@map("ledger_profile")
+}
+
+enum FabricBindingStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+
+  @@map("fabric_binding_status")
+}
+
+enum LedgerPermissionState {
+  REQUESTED
+  PENDING_LEDGER
+  ACTIVE
+  REVOKE_REQUESTED
+  DRAINING
+  PENDING_REVOKE_LEDGER
+  REVOKED
+  EMERGENCY_HOLD
+  PENDING_EMERGENCY_REVOKE
+  REVOKED_REVIEW_REQUIRED
+
+  @@map("ledger_permission_state")
+}
+
+enum LedgerControlOperation {
+  PERMISSION_GRANT
+  PERMISSION_REVOKE
+  PERMISSION_EMERGENCY_REVOKE
+  FENCE_DELIVERY
+
+  @@map("ledger_control_operation")
+}
+
+enum LedgerControlStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("ledger_control_status")
+}
+
+enum DeliveryState {
+  PREPARED
+  ENDORSED
+  SUBMITTED
+  VALID
+  INVALID
+  UNKNOWN
+  ABANDONED
+
+  @@map("delivery_state")
+}
+
+enum DeliveryHoldScope {
+  BINDING
+  PERMISSION
+  EVENT
+
+  @@map("delivery_hold_scope")
+}
+
+model ChainLedgerProfile {
+  chainId             String                 @id @map("chain_id") @db.Uuid
+  chainRef            String                 @unique @default(dbgenerated("gen_random_uuid()")) @map("chain_ref") @db.Uuid
+  activeBindingDigest String?                @map("active_binding_digest") @db.VarChar(64)
+  version             Int                    @default(0)
+  createdAt           DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  chain               SupplyChain            @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  bindings            FabricNetworkBinding[] @relation("BindingProfile")
+  activeBinding       FabricNetworkBinding?  @relation("ProfileActiveBinding", fields: [activeBindingDigest, chainId], references: [digest, chainId], onDelete: Restrict, onUpdate: NoAction, map: "fk_profile_active_binding")
+
+  @@unique([chainId, chainRef], map: "uq_chain_ledger_profile_ref")
+  @@map("chain_ledger_profile")
+}
+
+model FabricNetworkBinding {
+  digest           String                     @id @db.VarChar(64)
+  chainId          String                     @map("chain_id") @db.Uuid
+  chainRef         String                     @map("chain_ref") @db.Uuid
+  network          String                     @db.VarChar(100)
+  channelId        String                     @map("channel_id") @db.VarChar(100)
+  chaincodeName    String                     @map("chaincode_name") @db.VarChar(100)
+  contractName     String                     @map("contract_name") @db.VarChar(100)
+  envelopeVersion  String                     @map("envelope_version") @db.VarChar(10)
+  writerAuthority  String                     @map("writer_authority") @db.VarChar(100)
+  writerMspId      String                     @map("writer_msp_id") @db.VarChar(100)
+  writerRole       String                     @map("writer_role") @db.VarChar(50)
+  governanceDigest String                     @map("governance_digest") @db.VarChar(64)
+  profile          LedgerProfile
+  routeDigest      String                     @map("route_digest") @db.VarChar(64)
+  createdAt        DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  chainProfile     ChainLedgerProfile         @relation("BindingProfile", fields: [chainId, chainRef], references: [chainId, chainRef], onDelete: Restrict, onUpdate: NoAction)
+  activeFor        ChainLedgerProfile[]       @relation("ProfileActiveBinding")
+  route            LedgerRouteDefinition      @relation("BindingRoute", fields: [routeDigest], references: [digest], onDelete: Restrict, onUpdate: NoAction)
+  routeOwner       LedgerRouteDefinition[]    @relation("RouteBinding")
+  state            FabricBindingState?
+  credentials      FabricCredentialRevision[]
+  cycleContexts    CycleLedgerContext[]
+  eventContexts    EventBindingContext[]
+  permissions      LedgerPermission[]
+  controlJobs      LedgerControlJob[]
+  attempts         DeliveryAttempt[]
+  holds            DeliveryHold[]
+
+  @@unique([digest, chainId], map: "uq_fabric_binding_chain")
+  @@index([chainId], map: "ix_fabric_binding_chain")
+  @@map("fabric_network_binding")
+}
+
+model FabricBindingState {
+  bindingDigest String               @id @map("binding_digest") @db.VarChar(64)
+  status        FabricBindingStatus  @default(PENDING)
+  version       Int                  @default(0)
+  updatedAt     DateTime             @default(now()) @map("updated_at") @db.Timestamptz(6)
+  binding       FabricNetworkBinding @relation(fields: [bindingDigest], references: [digest], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("fabric_binding_state")
+}
+
+model FabricCredentialRevision {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @map("credential_id") @db.Uuid
+  bindingDigest   String               @map("binding_digest") @db.VarChar(64)
+  certFingerprint String               @map("cert_fingerprint") @db.VarChar(64)
+  status          String               @default("APPROVED") @db.VarChar(10)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt       DateTime?            @map("revoked_at") @db.Timestamptz(6)
+  binding         FabricNetworkBinding @relation(fields: [bindingDigest], references: [digest], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([bindingDigest, certFingerprint], map: "uq_fabric_credential")
+  @@map("fabric_credential_revision")
+}
+
+model CycleLedgerContext {
+  cycleId       String               @id @map("cycle_id") @db.Uuid
+  chainId       String               @map("chain_id") @db.Uuid
+  bindingDigest String               @map("binding_digest") @db.VarChar(64)
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  cycle         ProductionCycle      @relation(fields: [cycleId, chainId], references: [id, chainId], onDelete: Restrict, onUpdate: NoAction)
+  binding       FabricNetworkBinding @relation(fields: [bindingDigest, chainId], references: [digest, chainId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("cycle_ledger_context")
+}
+
+model EventBindingContext {
+  eventId           String                 @id @map("event_id") @db.Uuid
+  bindingDigest     String                 @map("binding_digest") @db.VarChar(64)
+  privateBodyDigest String                 @map("private_body_digest") @db.VarChar(64)
+  commitmentVersion String                 @default("b1") @map("commitment_version") @db.VarChar(10)
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  event             TraceEvent             @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  binding           FabricNetworkBinding   @relation(fields: [bindingDigest], references: [digest], onDelete: Restrict, onUpdate: NoAction)
+  permissions       EventPermissionEpoch[]
+
+  @@map("event_binding_context")
+}
+
+model LedgerPermission {
+  permissionRef  String                  @id @default(dbgenerated("gen_random_uuid()")) @map("permission_ref") @db.Uuid
+  bindingDigest  String                  @map("binding_digest") @db.VarChar(64)
+  userId         String                  @map("user_id") @db.Uuid
+  organizationId String                  @map("organization_id") @db.Uuid
+  role           ScopedRole
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  binding        FabricNetworkBinding    @relation(fields: [bindingDigest], references: [digest], onDelete: Restrict, onUpdate: NoAction)
+  user           User                    @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  epochs         LedgerPermissionEpoch[]
+  sync           LedgerPermissionSync?
+  controlJobs    LedgerControlJob[]
+  holds          DeliveryHold[]
+
+  @@unique([bindingDigest, userId, role], map: "uq_ledger_permission_subject")
+  @@map("ledger_permission")
+}
+
+model LedgerPermissionEpoch {
+  permissionRef String                 @map("permission_ref") @db.Uuid
+  epoch         Int
+  grantId       String                 @unique @map("grant_id") @db.Uuid
+  entityTypes   String[]               @map("entity_types")
+  createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  permission    LedgerPermission       @relation(fields: [permissionRef], references: [permissionRef], onDelete: Restrict, onUpdate: NoAction)
+  grant         ScopedRoleGrant        @relation(fields: [grantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  syncs         LedgerPermissionSync[]
+  events        EventPermissionEpoch[]
+  controlJobs   LedgerControlJob[]
+
+  @@id([permissionRef, epoch])
+  @@map("ledger_permission_epoch")
+}
+
+model LedgerPermissionSync {
+  permissionRef  String                @id @map("permission_ref") @db.Uuid
+  requestedEpoch Int                   @map("requested_epoch")
+  confirmedEpoch Int?                  @map("confirmed_epoch")
+  state          LedgerPermissionState @default(REQUESTED)
+  nextOrdinal    BigInt                @default(1) @map("next_ordinal")
+  barrierOrdinal BigInt?               @map("barrier_ordinal")
+  version        Int                   @default(0)
+  lastTxId       String?               @map("last_tx_id") @db.VarChar(64)
+  updatedAt      DateTime              @default(now()) @map("updated_at") @db.Timestamptz(6)
+  permission     LedgerPermission      @relation(fields: [permissionRef], references: [permissionRef], onDelete: Restrict, onUpdate: NoAction)
+  requested      LedgerPermissionEpoch @relation(fields: [permissionRef, requestedEpoch], references: [permissionRef, epoch], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([state], map: "ix_ledger_permission_sync_state")
+  @@map("ledger_permission_sync")
+}
+
+model EventPermissionEpoch {
+  eventId         String                @map("event_id") @db.Uuid
+  permissionRef   String                @map("permission_ref") @db.Uuid
+  epoch           Int
+  ordinal         BigInt
+  context         EventBindingContext   @relation(fields: [eventId], references: [eventId], onDelete: Restrict, onUpdate: NoAction)
+  permissionEpoch LedgerPermissionEpoch @relation(fields: [permissionRef, epoch], references: [permissionRef, epoch], onDelete: Restrict, onUpdate: NoAction)
+
+  @@id([eventId, permissionRef])
+  @@unique([permissionRef, ordinal], map: "uq_event_permission_ordinal")
+  @@map("event_permission_epoch")
+}
+
+model LedgerControlJob {
+  id               String                 @id @default(dbgenerated("gen_random_uuid()")) @map("job_id") @db.Uuid
+  bindingDigest    String                 @map("binding_digest") @db.VarChar(64)
+  operation        LedgerControlOperation
+  permissionRef    String?                @map("permission_ref") @db.Uuid
+  epoch            Int?
+  eventId          String?                @map("event_id") @db.Uuid
+  expectedRevision Int                    @map("expected_revision")
+  nonce            String                 @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status           LedgerControlStatus    @default(PENDING)
+  attemptCount     Int                    @default(0) @map("attempt_count")
+  nextAttemptAt    DateTime?              @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  leaseToken       String?                @map("lease_token") @db.Uuid
+  leaseExpiresAt   DateTime?              @map("lease_expires_at") @db.Timestamptz(6)
+  proposalId       String?                @map("proposal_id") @db.VarChar(64)
+  receipt          Json?
+  lastError        String?                @map("last_error")
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime               @default(now()) @map("updated_at") @db.Timestamptz(6)
+  binding          FabricNetworkBinding   @relation(fields: [bindingDigest], references: [digest], onDelete: Restrict, onUpdate: NoAction)
+  permission       LedgerPermission?      @relation(fields: [permissionRef], references: [permissionRef], onDelete: Restrict, onUpdate: NoAction)
+  permissionEpoch  LedgerPermissionEpoch? @relation(fields: [permissionRef, epoch], references: [permissionRef, epoch], onDelete: Restrict, onUpdate: NoAction)
+  event            TraceEvent?            @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([status, nextAttemptAt], map: "ix_ledger_control_job_due")
+  @@map("ledger_control_job")
+}
+
+model DeliveryAttempt {
+  id                    String                   @id @default(dbgenerated("gen_random_uuid()")) @map("attempt_id") @db.Uuid
+  outboxId              String                   @map("outbox_id") @db.Uuid
+  bindingDigest         String                   @map("binding_digest") @db.VarChar(64)
+  leaseToken            String                   @map("lease_token") @db.Uuid
+  credentialFingerprint String                   @map("credential_fingerprint") @db.VarChar(64)
+  txId                  String                   @map("tx_id") @db.VarChar(64)
+  generation            Int                      @default(0)
+  createdAt             DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  outbox                BlockchainOutbox         @relation(fields: [outboxId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  binding               FabricNetworkBinding     @relation(fields: [bindingDigest], references: [digest], onDelete: Restrict, onUpdate: NoAction)
+  outcomes              DeliveryAttemptOutcome[]
+
+  @@unique([bindingDigest, txId], map: "uq_delivery_attempt_tx")
+  @@index([outboxId, createdAt], map: "ix_delivery_attempt_outbox")
+  @@map("delivery_attempt")
+}
+
+model DeliveryAttemptOutcome {
+  attemptId String          @map("attempt_id") @db.Uuid
+  sequence  Int
+  state     DeliveryState
+  detail    String?
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  attempt   DeliveryAttempt @relation(fields: [attemptId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@id([attemptId, sequence])
+  @@map("delivery_attempt_outcome")
+}
+
+model DeliveryHold {
+  id            String               @id @default(dbgenerated("gen_random_uuid()")) @map("hold_id") @db.Uuid
+  bindingDigest String               @map("binding_digest") @db.VarChar(64)
+  scope         DeliveryHoldScope
+  permissionRef String?              @map("permission_ref") @db.Uuid
+  eventId       String?              @map("event_id") @db.Uuid
+  reason        String
+  openedAt      DateTime             @default(now()) @map("opened_at") @db.Timestamptz(6)
+  resolvedAt    DateTime?            @map("resolved_at") @db.Timestamptz(6)
+  resolution    String?
+  binding       FabricNetworkBinding @relation(fields: [bindingDigest], references: [digest], onDelete: Restrict, onUpdate: NoAction)
+  permission    LedgerPermission?    @relation(fields: [permissionRef], references: [permissionRef], onDelete: Restrict, onUpdate: NoAction)
+  event         TraceEvent?          @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([bindingDigest], map: "ix_delivery_hold_open", where: raw("(resolved_at IS NULL)"))
+  @@map("delivery_hold")
 }

@@ -1,5 +1,8 @@
 import { calculateTraceEventHash } from '../trace/public.js';
-import { privateTraceEvidenceMatches } from '../trace/trace-evidence.js';
+import {
+  privateTraceEvidenceMatches,
+  type EventBindingEvidence,
+} from '../trace/trace-evidence.js';
 import { routeProofMatches, type RoutedEvent } from '../trace/ledger-route.js';
 
 export type ProofEvent = Parameters<typeof calculateTraceEventHash>[0] &
@@ -15,6 +18,7 @@ export type ProofEvent = Parameters<typeof calculateTraceEventHash>[0] &
       recordedAt?: Date | null;
     };
     blockchainOutbox?: null | { status: string };
+    bindingContext?: EventBindingEvidence;
   };
 
 export function aggregateLotProofStatus(events: ProofEvent[]) {

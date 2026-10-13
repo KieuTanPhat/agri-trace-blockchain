@@ -2,18 +2,27 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { calculateTraceEventHash } from './trace-hash.js';
+import {
+  B_SCHEMA_VERSION,
+  bindingEventCommitment,
+  privateBodyDigest,
+} from './binding-commitment.js';
+import { reserveEventPermission } from '../ledger/ledger-permissions.js';
 import { privateTraceEvidenceMatches } from './trace-evidence.js';
 import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
 import { getLotEventProofStatus } from '../lots/lot-proof-status.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import {
   activeWriteRoute,
+  EVENT_BINDING_CONTEXT_INCLUDE,
   EVENT_LEDGER_ROUTE_INCLUDE,
+  type PinnedRoute,
   routeProofMatches,
   sameLedgerDestination,
   verifiedEventRoute,
@@ -102,7 +111,20 @@ export class TraceService {
     if (heads.length > 1)
       throw new ConflictException('Trace event chain has multiple heads');
     const previous = heads[0];
-    const route = await activeWriteRoute(tx);
+    // Release B: a cycle born on a binding stays on it for life; every child
+    // (care, harvest, Lot, Shipment...) resolves its origin through the cycle.
+    const originCycleId = roots[0]?.cycleId ?? null;
+    const origin = originCycleId
+      ? await tx.cycleLedgerContext.findUnique({
+          where: { cycleId: originCycleId },
+          include: { binding: { include: { state: true, route: true } } },
+        })
+      : null;
+    if (origin && origin.binding.state?.status !== 'ACTIVE')
+      throw new ServiceUnavailableException('Binding ledger đang tạm dừng');
+    const route: PinnedRoute = origin
+      ? (origin.binding.route as PinnedRoute)
+      : await activeWriteRoute(tx);
     if (previous) {
       const sidecar = await tx.eventLedgerRoute.findUnique({
         where: { eventId: previous.eventId },
@@ -113,7 +135,11 @@ export class TraceService {
         dataHash: previous.dataHash,
         ledgerRoute: sidecar,
       });
-      if (!predecessor || !sameLedgerDestination(predecessor, route))
+      if (
+        !predecessor ||
+        !sameLedgerDestination(predecessor, route) ||
+        (origin && predecessor.bindingDigest !== route.bindingDigest)
+      )
         throw new ConflictException(
           'Ledger predecessor cần route cùng destination đã xác minh',
         );
@@ -124,7 +150,7 @@ export class TraceService {
     const authProofType = input.actor.sub
       ? 'TOKEN_FINGERPRINT'
       : 'SYSTEM_ASSERTION';
-    const dataHash = calculateTraceEventHash({
+    const hashInput = {
       id,
       entityType: input.entityType,
       entityId: input.entityId,
@@ -141,7 +167,43 @@ export class TraceService {
       previousEventHash: previous?.dataHash ?? null,
       schemaVersion: '2.0.0',
       canonicalizationVersion: 'RFC8785',
-    });
+    };
+    // B events hash the private body (V2 shape) and then commit to the public
+    // context: binding, chain reference and the permission epoch captured here.
+    const captured = origin
+      ? await reserveEventPermission(
+          tx,
+          origin.bindingDigest,
+          input.actor,
+          input.entityType,
+        )
+      : null;
+    const bodyDigest = origin ? privateBodyDigest(hashInput) : null;
+    const dataHash =
+      origin && captured && bodyDigest
+        ? bindingEventCommitment(
+            {
+              eventId: id,
+              entityType: input.entityType,
+              entityId: input.entityId,
+              cycleId: input.cycleId ?? null,
+              lotId: input.lotId ?? null,
+              eventType: input.eventType,
+              eventTime,
+              previousEventHash: previous?.dataHash ?? null,
+              bindingDigest: origin.bindingDigest,
+              chainRef: origin.binding.chainRef,
+              permissions: [
+                {
+                  permissionRef: captured.permissionRef,
+                  epoch: String(captured.epoch),
+                  ordinal: String(captured.ordinal),
+                },
+              ],
+            },
+            bodyDigest,
+          )
+        : calculateTraceEventHash(hashInput);
 
     const event = await tx.traceEvent.create({
       data: {
@@ -156,7 +218,7 @@ export class TraceService {
         actorRole: input.actor.role,
         authProofType,
         actorAuthProof,
-        schemaVersion: '2.0.0',
+        schemaVersion: origin ? B_SCHEMA_VERSION : '2.0.0',
         canonicalizationVersion: 'RFC8785',
         eventTime,
         businessData: input.businessData,
@@ -180,6 +242,23 @@ export class TraceService {
       await tx.eventChainContext.create({
         data: { eventId: event.id, chainId },
       });
+    if (origin && captured && bodyDigest) {
+      await tx.eventBindingContext.create({
+        data: {
+          eventId: event.id,
+          bindingDigest: origin.bindingDigest,
+          privateBodyDigest: bodyDigest,
+        },
+      });
+      await tx.eventPermissionEpoch.create({
+        data: {
+          eventId: event.id,
+          permissionRef: captured.permissionRef,
+          epoch: captured.epoch,
+          ordinal: captured.ordinal,
+        },
+      });
+    }
     return event;
   }
 
@@ -200,6 +279,7 @@ export class TraceService {
         blockchainProof: true,
         blockchainOutbox: true,
         ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
+        bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
       },
     });
     if (!event) throw new NotFoundException('Không tìm thấy trace event');

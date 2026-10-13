@@ -22,6 +22,7 @@ import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
+import { activeChainBindingDigest } from '../ledger/ledger-permissions.js';
 import {
   scopedCycleReadWhere,
   scopedLotReadWhere,
@@ -212,6 +213,13 @@ export class ProductionCyclesService {
           note: input.note,
         },
       });
+      // Release B: a cycle created while its chain has an ACTIVE binding is a
+      // B stream for life (route, commitment and permissions follow the binding).
+      const bindingDigest = await activeChainBindingDigest(tx, input.chainId);
+      if (bindingDigest)
+        await tx.cycleLedgerContext.create({
+          data: { cycleId: cycle.id, chainId: input.chainId, bindingDigest },
+        });
       await tx.stageAssignment.create({
         data: {
           chainId: input.chainId,

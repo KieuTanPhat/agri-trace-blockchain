@@ -16,6 +16,10 @@ import {
 } from './chain-policy.js';
 import type { ChangeMemberDto, GrantRoleDto } from './dto.js';
 import { assertBusinessActivationReady } from './business-profile.commands.js';
+import {
+  requestLedgerGrant,
+  requestLedgerRevoke,
+} from '../ledger/ledger-permissions.js';
 
 @Injectable()
 export class SupplyChainsService {
@@ -331,11 +335,24 @@ export class SupplyChainsService {
       if (status === 'ACTIVE')
         await this.activeOrganization(tx, organizationId);
       // Rejoining requires fresh authority; old grants never revive implicitly.
-      if (status !== 'ACTIVE')
+      if (status !== 'ACTIVE') {
+        const revoking = await tx.scopedRoleGrant.findMany({
+          where: { chainId, organizationId, revokedAt: null },
+          select: { id: true },
+        });
         await tx.scopedRoleGrant.updateMany({
           where: { chainId, organizationId, revokedAt: null },
           data: { revokedAt: new Date(), revision: { increment: 1 } },
         });
+        // The API denies at once; the ledger side drains behind a barrier.
+        for (const item of revoking)
+          await requestLedgerRevoke(
+            tx,
+            item.id,
+            'NORMAL',
+            `membership ${status}`,
+          );
+      }
       const result = await tx.chainMembership.update({
         where: { id: member.id },
         data: {
@@ -420,6 +437,7 @@ export class SupplyChainsService {
         },
       });
       await this.audit(tx, actor, 'GRANT_ROLE', grant.id, 0, input.chainId);
+      await requestLedgerGrant(tx, grant);
       return grant;
     });
   }
@@ -453,6 +471,7 @@ export class SupplyChainsService {
         where: { id: grantId },
         data: { revokedAt: new Date(), revision: { increment: 1 } },
       });
+      await requestLedgerRevoke(tx, grantId, 'NORMAL', 'grant revoked');
       await this.audit(
         tx,
         actor,

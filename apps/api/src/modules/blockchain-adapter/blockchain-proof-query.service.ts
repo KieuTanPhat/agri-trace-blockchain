@@ -6,6 +6,7 @@ import { getLotEventProofStatus } from '../lots/lot-proof-status.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import type { Actor } from '../trace/trace.service.js';
 import {
+  EVENT_BINDING_CONTEXT_INCLUDE,
   EVENT_LEDGER_ROUTE_INCLUDE,
   routeProofMatches,
   verifiedEventRoute,
@@ -26,6 +27,7 @@ export class BlockchainProofQueryService {
         blockchainProof: true,
         blockchainOutbox: true,
         ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
+        bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
       },
     });
     if (!event) throw new NotFoundException('Không tìm thấy trace event');

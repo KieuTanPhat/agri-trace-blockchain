@@ -6,6 +6,8 @@ import type {
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 
 export const ROUTE_PROTOCOL = 'agritrace-ledger-route/1';
+/** Release B routes pin the chain reference and the logical binding digest. */
+export const BINDING_ROUTE_PROTOCOL = 'agritrace-ledger-route/2';
 export type RouteDefinition = Pick<
   LedgerRouteDefinition,
   | 'protocol'
@@ -18,7 +20,7 @@ export type RouteDefinition = Pick<
   | 'writerAuthority'
   | 'writerMspId'
   | 'writerRole'
->;
+> & { chainRef?: string | null; bindingDigest?: string | null };
 export type PinnedRoute = RouteDefinition & { digest: string };
 export type RoutedEvent = {
   id?: string;
@@ -31,11 +33,23 @@ export type RoutedEvent = {
 export const EVENT_LEDGER_ROUTE_INCLUDE = {
   include: { definition: true },
 } as const;
+/** Release B events carry their binding and captured permission epochs. */
+export const EVENT_BINDING_CONTEXT_INCLUDE = {
+  include: { binding: true, permissions: true },
+} as const;
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
 
 export function routePayload(route: RouteDefinition): RouteDefinition {
+  const binding =
+    route.protocol === BINDING_ROUTE_PROTOCOL
+      ? {
+          chainRef: route.chainRef ?? null,
+          bindingDigest: route.bindingDigest ?? null,
+        }
+      : {};
   return {
+    ...binding,
     protocol: route.protocol,
     mode: route.mode,
     network: route.network,
@@ -61,11 +75,26 @@ export function ledgerRouteDigest(route: RouteDefinition): string {
   ] as const)
     if (typeof payload[field] !== 'string' || !NAME.test(payload[field]))
       throw new Error('Invalid ledger destination');
+  const isBinding = payload.protocol === BINDING_ROUTE_PROTOCOL;
   if (
-    payload.protocol !== ROUTE_PROTOCOL ||
+    (payload.protocol !== ROUTE_PROTOCOL && !isBinding) ||
     !['WRITE', 'HISTORICAL'].includes(payload.mode)
   )
     throw new Error('Unsupported ledger route protocol');
+  if (isBinding) {
+    if (
+      payload.mode !== 'WRITE' ||
+      payload.envelopeVersion !== '4.0.0' ||
+      payload.writerRole !== 'relayer' ||
+      payload.writerAuthority === null ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(
+        payload.chainRef ?? '',
+      ) ||
+      !/^[a-f0-9]{64}$/.test(payload.bindingDigest ?? '')
+    )
+      throw new Error('Incompatible binding ledger route');
+    return canonicalSha256(payload);
+  }
   const authority = [
     payload.writerAuthority,
     payload.writerMspId,

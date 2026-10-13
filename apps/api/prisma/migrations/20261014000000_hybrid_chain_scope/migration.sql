@@ -190,7 +190,8 @@ CREATE TABLE event_chain_context (
 
 CREATE TABLE ledger_route_definition (
   digest varchar(64) PRIMARY KEY CHECK (digest ~ '^[a-f0-9]{64}$'),
-  protocol varchar(50) NOT NULL DEFAULT 'agritrace-ledger-route/1' CHECK (protocol = 'agritrace-ledger-route/1'),
+  protocol varchar(50) NOT NULL DEFAULT 'agritrace-ledger-route/1'
+    CHECK (protocol IN ('agritrace-ledger-route/1', 'agritrace-ledger-route/2')),
   mode varchar(16) NOT NULL CHECK (mode IN ('WRITE', 'HISTORICAL')),
   network varchar(100) NOT NULL CHECK (network ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$'),
   channel_id varchar(100) NOT NULL CHECK (channel_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$'),
@@ -200,11 +201,22 @@ CREATE TABLE ledger_route_definition (
   writer_authority varchar(100),
   writer_msp_id varchar(100),
   writer_role varchar(50),
+  -- Route protocol 2 (release B) additionally pins the chain reference and the
+  -- immutable logical binding digest; the binding table references this row.
+  chain_ref uuid,
+  binding_digest varchar(64) CHECK (binding_digest IS NULL OR binding_digest ~ '^[a-f0-9]{64}$'),
   created_at timestamptz(6) NOT NULL DEFAULT now(),
   CHECK (num_nonnulls(writer_authority, writer_msp_id, writer_role) IN (0, 3)),
   CHECK (writer_authority IS NULL OR (writer_authority ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$' AND writer_msp_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$' AND writer_role ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,49}$')),
   CHECK (envelope_version IS NULL OR envelope_version ~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,49}$'),
-  CHECK (mode = 'HISTORICAL' OR (envelope_version = '3.0.0' AND writer_authority IS NOT NULL AND writer_role = 'relayer'))
+  CHECK (
+    (protocol = 'agritrace-ledger-route/1' AND chain_ref IS NULL AND binding_digest IS NULL
+      AND (mode = 'HISTORICAL' OR (envelope_version = '3.0.0' AND writer_authority IS NOT NULL AND writer_role = 'relayer')))
+    OR
+    (protocol = 'agritrace-ledger-route/2' AND mode = 'WRITE' AND envelope_version = '4.0.0'
+      AND writer_authority IS NOT NULL AND writer_role = 'relayer'
+      AND chain_ref IS NOT NULL AND binding_digest IS NOT NULL)
+  )
 );
 
 CREATE TABLE event_ledger_route (

@@ -8,6 +8,7 @@ import { FabricAdapterProvider } from './fabric-adapter.provider.js';
 import { privateTraceEvidenceMatches } from '../trace/trace-evidence.js';
 import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
 import {
+  EVENT_BINDING_CONTEXT_INCLUDE,
   EVENT_LEDGER_ROUTE_INCLUDE,
   verifiedEventRoute,
   type PinnedRoute,
@@ -37,6 +38,7 @@ type ClaimedOutbox = Prisma.BlockchainOutboxGetPayload<{
     traceEvent: {
       include: {
         ledgerRoute: typeof EVENT_LEDGER_ROUTE_INCLUDE;
+        bindingContext: typeof EVENT_BINDING_CONTEXT_INCLUDE;
         ledgerRouteExemption: true;
         blockchainProof: true;
       };
@@ -159,6 +161,7 @@ export class BlockchainWorkerService {
           traceEvent: {
             include: {
               ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
+              bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
               ledgerRouteExemption: true,
               blockchainProof: true,
             },
