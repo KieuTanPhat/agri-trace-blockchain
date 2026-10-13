@@ -24,6 +24,7 @@ import {
   type RegistryKind,
 } from "./governance";
 import { fromLedgerBytes, timestampToIso, toLedgerBytes } from "./ledger";
+import { parseKeyRegistration } from "./signing";
 import { ENTITY_TYPES } from "./types";
 
 export const REGISTRY_KEYS = {
@@ -38,6 +39,8 @@ export const REGISTRY_KEYS = {
   proof: "b1.proof",
   head: "b1.head",
   history: "b1.history",
+  signingKey: "c1.signingKey",
+  intent: "c1.intent",
 } as const;
 
 export interface ChannelPolicy {
@@ -69,6 +72,16 @@ export interface RegisteredCredential {
   bindingDigest: string;
   authority: string;
   certFingerprint: string;
+  status: "ACTIVE" | "REVOKED";
+  revision: number;
+}
+export interface RegisteredSigningKey {
+  docType: "signingKey";
+  bindingDigest: string;
+  keyRef: string;
+  orgRef: string;
+  algorithm: "Ed25519";
+  publicKey: string;
   status: "ACTIVE" | "REVOKED";
   revision: number;
 }
@@ -151,6 +164,14 @@ export async function getCredential(
     ctx,
     compositeKey(ctx, REGISTRY_KEYS.credential, [digest, authority, fingerprint]),
   );
+}
+
+export async function getSigningKey(
+  ctx: Context,
+  digest: string,
+  keyRef: string,
+): Promise<RegisteredSigningKey | undefined> {
+  return readKey<RegisteredSigningKey>(ctx, compositeKey(ctx, REGISTRY_KEYS.signingKey, [digest, keyRef]));
 }
 
 export async function getFence(ctx: Context, chainRef: string, eventId: string): Promise<DeliveryFence | undefined> {
@@ -401,6 +422,34 @@ async function validatePayload(
       }
       return payload;
     }
+    case "SIGNING_KEY_REGISTER": {
+      // Proof of possession is checked on proposal so approvers never sign
+      // off on a key whose holder has not demonstrated the private key.
+      const key = parseKeyRegistration(payload);
+      if (expectedRevision !== "0")
+        throw contractError("INVALID_INPUT", "a signing key is registered once; use a new keyRef to rotate");
+      if (!forProposal) {
+        if (!(await getBinding(ctx, key.bindingDigest)))
+          throw contractError("NOT_FOUND", "binding is not registered");
+        if (await getSigningKey(ctx, key.bindingDigest, key.keyRef))
+          throw contractError("REVISION_CONFLICT", "signing key is already registered");
+      }
+      return payload;
+    }
+    case "SIGNING_KEY_REVOKE": {
+      requireExactKeys(payload, ["bindingDigest", "keyRef"], kind);
+      const digest = requireHash(payload.bindingDigest, "bindingDigest");
+      const keyRef = requireUuid(payload.keyRef, "keyRef");
+      if (!forProposal) {
+        const current = await getSigningKey(ctx, digest, keyRef);
+        if (!current) throw contractError("NOT_FOUND", "signing key is not registered");
+        if (String(current.revision) !== expectedRevision)
+          throw contractError("REVISION_CONFLICT", "signing key revision changed");
+        if (current.status !== "ACTIVE")
+          throw contractError("REVISION_CONFLICT", "only an active signing key can be revoked");
+      }
+      return payload;
+    }
     case "FENCE_DELIVERY": {
       requireExactKeys(payload, ["chainRef", "bindingDigest", "eventId", "dataHash"], kind);
       requireUuid(payload.chainRef, "chainRef");
@@ -497,6 +546,33 @@ async function applyChange(ctx: Context, proposal: Proposal): Promise<Record<str
         status: "REVOKED",
         reviewRequired: revoked.reviewRequired,
       };
+    }
+    case "SIGNING_KEY_REGISTER": {
+      const key = parseKeyRegistration(payload);
+      const record: RegisteredSigningKey = {
+        docType: "signingKey",
+        bindingDigest: key.bindingDigest,
+        keyRef: key.keyRef,
+        orgRef: key.orgRef,
+        algorithm: "Ed25519",
+        publicKey: key.publicKey,
+        status: "ACTIVE",
+        revision: 1,
+      };
+      await put(REGISTRY_KEYS.signingKey, [key.bindingDigest, key.keyRef], record);
+      return { keyRef: key.keyRef, orgRef: key.orgRef, status: "ACTIVE" };
+    }
+    case "SIGNING_KEY_REVOKE": {
+      const digest = payload.bindingDigest as string;
+      const keyRef = payload.keyRef as string;
+      const current = (await getSigningKey(ctx, digest, keyRef))!;
+      const revoked: RegisteredSigningKey = {
+        ...current,
+        status: "REVOKED",
+        revision: current.revision + 1,
+      };
+      await put(REGISTRY_KEYS.signingKey, [digest, keyRef], revoked);
+      return { keyRef, status: "REVOKED" };
     }
     case "FENCE_DELIVERY": {
       const chainRef = payload.chainRef as string;

@@ -13,6 +13,8 @@ export const REGISTRY_KINDS = [
   "PERMISSION_REVOKE",
   "PERMISSION_EMERGENCY_REVOKE",
   "FENCE_DELIVERY",
+  "SIGNING_KEY_REGISTER",
+  "SIGNING_KEY_REVOKE",
 ] as const;
 export type RegistryKind = (typeof REGISTRY_KINDS)[number];
 

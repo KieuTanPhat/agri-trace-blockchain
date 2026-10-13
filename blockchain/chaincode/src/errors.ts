@@ -15,7 +15,11 @@ export type ContractErrorCode =
   | "BINDING_MISMATCH"
   | "PERMISSION_INACTIVE"
   | "DELIVERY_FENCED"
-  | "LEGACY_WRITES_DISABLED";
+  | "LEGACY_WRITES_DISABLED"
+  | "SIGNATURE_REQUIRED"
+  | "SIGNATURE_INVALID"
+  | "SIGNING_KEY_INACTIVE"
+  | "SIGNATURE_REPLAY";
 
 export function contractError(code: ContractErrorCode, message: string): Error {
   return new Error(`${code}: ${message}`);

@@ -12,6 +12,7 @@ import {
   readBindingHistoryPage,
   readBindingProof,
   recordBindingEvent,
+  recordSignedBindingEvent,
 } from "./binding-events";
 import { contractError } from "./errors";
 import { GOVERNANCE_DIGEST } from "./governance";
@@ -25,8 +26,10 @@ import {
   getFence,
   getPermission,
   getProposal,
+  getSigningKey,
   proposeChange,
 } from "./registry";
+import { SIGNING_PROTOCOL } from "./signing";
 import { requireHash, requireName, requireUuid } from "./binding";
 import {
   fromLedgerBytes,
@@ -228,6 +231,27 @@ export class AgriTraceContract extends Contract {
     deliveryJson: string,
   ): Promise<string> {
     return this.stringify((await recordBindingEvent(ctx, eventJson, deliveryJson)).receipt);
+  }
+
+  @Transaction()
+  @Returns("string")
+  public async RecordSignedBindingEvent(
+    ctx: Context,
+    eventJson: string,
+    assertionJson: string,
+    deliveryJson: string,
+  ): Promise<string> {
+    return this.stringify(
+      (await recordSignedBindingEvent(ctx, eventJson, assertionJson, deliveryJson)).receipt,
+    );
+  }
+
+  @Transaction(false)
+  @Returns("string")
+  public async GetRegistrySigningKey(ctx: Context, bindingDigest: string, keyRef: string): Promise<string> {
+    const key = await getSigningKey(ctx, requireHash(bindingDigest, "bindingDigest"), requireUuid(keyRef, "keyRef"));
+    if (!key) throw contractError("NOT_FOUND", "signing key is not registered");
+    return this.stringify(key);
   }
 
   @Transaction()
@@ -487,7 +511,8 @@ export class AgriTraceContract extends Contract {
       schemaVersion: SCHEMA_VERSION,
       envelopeVersion: ENVELOPE_VERSION,
       supportedReadVersions: ["2.0.0", "3.0.0"],
-      supportedWriteVersions: ["3.0.0", "4.0.0"],
+      supportedWriteVersions: ["3.0.0", "4.0.0", "5.0.0"],
+      signingProtocol: SIGNING_PROTOCOL,
       registryProtocol: "agritrace-governance/1",
       governanceDigest: GOVERNANCE_DIGEST,
       channelPolicy: await getChannelPolicy(ctx),

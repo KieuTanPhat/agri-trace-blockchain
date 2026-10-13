@@ -156,10 +156,20 @@ function requireDateTime(value: unknown, label: string): string {
 export function parseBindingEvent(json: string): BindingEventInput {
   const input = parseStrictJson(json, "BindingEvent");
   requireExactKeys(input, EVENT_KEYS, "BindingEvent");
-  if (input.envelopeVersion !== B_ENVELOPE_VERSION)
-    throw contractError("INVALID_INPUT", `envelopeVersion must be ${B_ENVELOPE_VERSION}`);
-  if (input.schemaVersion !== B_SCHEMA_VERSION)
-    throw contractError("INVALID_INPUT", `schemaVersion must be ${B_SCHEMA_VERSION}`);
+  return parseBindingEventBody(input, B_ENVELOPE_VERSION, B_SCHEMA_VERSION);
+}
+
+/** Shared by release B (4.0.0/3.0.0) and C (5.0.0/4.0.0); the caller has
+ * already checked the exact key set for its envelope version. */
+export function parseBindingEventBody(
+  input: Record<string, unknown>,
+  envelopeVersion: string,
+  schemaVersion: string,
+): BindingEventInput {
+  if (input.envelopeVersion !== envelopeVersion)
+    throw contractError("INVALID_INPUT", `envelopeVersion must be ${envelopeVersion}`);
+  if (input.schemaVersion !== schemaVersion)
+    throw contractError("INVALID_INPUT", `schemaVersion must be ${schemaVersion}`);
   if (input.canonicalizationVersion !== "RFC8785")
     throw contractError("INVALID_INPUT", "canonicalizationVersion must be RFC8785");
   const eventId = requireUuid(input.eventId, "eventId");
@@ -184,8 +194,8 @@ export function parseBindingEvent(json: string): BindingEventInput {
     if (permissions[i - 1].permissionRef >= permissions[i].permissionRef)
       throw contractError("INVALID_INPUT", "permissions must be sorted and unique by permissionRef");
   return {
-    envelopeVersion: B_ENVELOPE_VERSION,
-    schemaVersion: B_SCHEMA_VERSION,
+    envelopeVersion,
+    schemaVersion,
     canonicalizationVersion: "RFC8785",
     eventId,
     nonce: eventId,

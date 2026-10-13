@@ -11,6 +11,16 @@ import {
   type BindingEventInput,
 } from "./binding";
 import { contractError } from "./errors";
+import {
+  assertionDigest,
+  intentSignedMessage,
+  parseSignatureAssertion,
+  parseSignedBindingEvent,
+  SIGNATURE_REQUIRED_EVENT_TYPES,
+  signedBindingEventCommitment,
+  verifyEd25519,
+  type EventSignature,
+} from "./signing";
 import { fromLedgerBytes, timestampToIso, toLedgerBytes } from "./ledger";
 import {
   callerCertFingerprint,
@@ -20,13 +30,21 @@ import {
   getCredential,
   getFence,
   getPermission,
+  getSigningKey,
   readKey,
   REGISTRY_KEYS,
   requireCallerRole,
 } from "./registry";
 
+export interface StoredSignature extends EventSignature {
+  algorithm: "Ed25519";
+  signature: string;
+  orgRef: string;
+}
+
 export interface StoredBindingEvent extends BindingEventInput {
   docType: "bindingEvent";
+  signature?: StoredSignature;
   txId: string;
   channelId: string;
   recordedAt: string;
@@ -36,6 +54,7 @@ export interface StoredBindingEvent extends BindingEventInput {
 
 export interface BindingProof {
   docType: "bindingProof";
+  signature?: EventSignature & { orgRef: string };
   eventId: string;
   chainRef: string;
   bindingDigest: string;
@@ -100,11 +119,72 @@ export async function recordBindingEvent(
   requireCallerRole(ctx, "relayer");
   const input = parseBindingEvent(eventJson);
   const delivery = parseDelivery(deliveryJson);
+  if (SIGNATURE_REQUIRED_EVENT_TYPES.includes(input.eventType))
+    throw contractError("SIGNATURE_REQUIRED", `${input.eventType} must carry an organization signature`);
 
   // The commitment binds every public field (and the private body digest)
   // to dataHash; a relayer cannot substitute context around a valid hash.
   if (bindingEventCommitment(input) !== input.dataHash)
     throw contractError("INVALID_INPUT", "dataHash is not the commitment of the public event body");
+  return commitVerifiedEvent(ctx, input, delivery, undefined);
+}
+
+/** Release C write: the event commits to an independent organization
+ * signature over a private intent. The ledger verifies the signature against
+ * the registered key and the event's public identity, then stores the same
+ * proof/head/history as release B plus the signature reference. */
+export async function recordSignedBindingEvent(
+  ctx: Context,
+  eventJson: string,
+  assertionJson: string,
+  deliveryJson: string,
+): Promise<{ receipt: Record<string, unknown> }> {
+  requireCallerRole(ctx, "relayer");
+  const input = parseSignedBindingEvent(eventJson);
+  const assertion = parseSignatureAssertion(assertionJson);
+  const delivery = parseDelivery(deliveryJson);
+
+  if (signedBindingEventCommitment(input) !== input.dataHash)
+    throw contractError("INVALID_INPUT", "dataHash is not the commitment of the signed public event body");
+  if (
+    assertion.keyRef !== input.signature.keyRef ||
+    assertion.intentDigest !== input.signature.intentDigest ||
+    assertionDigest(assertion) !== input.signature.assertionDigest
+  )
+    throw contractError("SIGNATURE_INVALID", "assertion differs from the signature committed by dataHash");
+
+  const binding = await getBinding(ctx, input.bindingDigest);
+  if (!binding) throw contractError("BINDING_UNKNOWN", "binding is not registered");
+  const key = await getSigningKey(ctx, input.bindingDigest, assertion.keyRef);
+  if (!key) throw contractError("SIGNING_KEY_INACTIVE", "signing key is not registered for this binding");
+  if (key.status !== "ACTIVE")
+    throw contractError("SIGNING_KEY_INACTIVE", "signing key was revoked");
+  const message = intentSignedMessage({
+    intentDigest: assertion.intentDigest,
+    chainRef: input.chainRef,
+    eventId: input.eventId,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    eventType: input.eventType,
+    bindingDigest: input.bindingDigest,
+    keyRef: assertion.keyRef,
+  });
+  if (!verifyEd25519(key.publicKey, message, assertion.signature))
+    throw contractError("SIGNATURE_INVALID", "signature does not verify for this event");
+  return commitVerifiedEvent(ctx, input, delivery, {
+    ...input.signature,
+    algorithm: "Ed25519",
+    signature: assertion.signature,
+    orgRef: key.orgRef,
+  });
+}
+
+async function commitVerifiedEvent(
+  ctx: Context,
+  input: BindingEventInput,
+  delivery: { generation: string },
+  signature: StoredSignature | undefined,
+): Promise<{ receipt: Record<string, unknown> }> {
 
   const policy = await getChannelPolicy(ctx);
   if (!policy?.strictB)
@@ -157,7 +237,10 @@ export async function recordBindingEvent(
   const previousBytes = await ctx.stub.getState(eventKey);
   if (previousBytes.length > 0) {
     const previous = fromLedgerBytes<StoredBindingEvent>(previousBytes, "event");
-    if (TUPLE_FIELDS.some((field) => (previous[field] ?? null) !== (input[field] ?? null)))
+    if (
+      TUPLE_FIELDS.some((field) => (previous[field] ?? null) !== (input[field] ?? null)) ||
+      (previous.signature?.assertionDigest ?? null) !== (signature?.assertionDigest ?? null)
+    )
       throw contractError("DUPLICATE_EVENT_CONFLICT", "eventId already exists with a different public tuple");
     throw contractError("DUPLICATE_EVENT", `eventId ${input.eventId} already exists`);
   }
@@ -172,9 +255,18 @@ export async function recordBindingEvent(
   const txId = ctx.stub.getTxID();
   const recordedAt = timestampToIso(ctx.stub.getTxTimestamp());
   const submitterId = ctx.clientIdentity.getID();
+  if (signature) {
+    // An intent authorizes exactly one event. The key makes concurrent reuse
+    // conflict at validation instead of relying on the relayer's behaviour.
+    const intentKey = compositeKey(ctx, REGISTRY_KEYS.intent, [input.chainRef, signature.intentDigest]);
+    if ((await ctx.stub.getState(intentKey)).length > 0)
+      throw contractError("SIGNATURE_REPLAY", "this signed intent was already used");
+    await ctx.stub.putState(intentKey, toLedgerBytes({ docType: "signedIntent", eventId: input.eventId }));
+  }
   const event: StoredBindingEvent = {
     docType: "bindingEvent",
     ...input,
+    ...(signature ? { signature } : {}),
     txId,
     channelId,
     recordedAt,
@@ -194,6 +286,16 @@ export async function recordBindingEvent(
     previousEventHash: input.previousEventHash,
     privateBodyDigest: input.privateBodyDigest,
     permissions: input.permissions,
+    ...(signature
+      ? {
+          signature: {
+            keyRef: signature.keyRef,
+            intentDigest: signature.intentDigest,
+            assertionDigest: signature.assertionDigest,
+            orgRef: signature.orgRef,
+          },
+        }
+      : {}),
     txId,
     channelId,
     recordedAt,
