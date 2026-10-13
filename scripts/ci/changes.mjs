@@ -28,7 +28,7 @@ export function classifyChanges(files, force = false) {
     if (sharedFiles.has(file) || file.startsWith('.github/') || file.startsWith('scripts/ci/') || file.startsWith('deploy/')) {
       for (const key of Object.keys(result)) result[key] = true;
     }
-    if (file.startsWith('apps/api/') || file.startsWith('blockchain/gateway/')) {
+    if (file.startsWith('apps/api/') || file.startsWith('blockchain/gateway/') || file.startsWith('docs/sql/')) {
       result.api = result.containers = result.fabric = true;
     }
     if (file.startsWith('apps/web/')) result.web = result.containers = true;

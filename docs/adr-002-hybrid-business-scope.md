@@ -1,9 +1,14 @@
 # ADR-002 — Scope nghiệp vụ và kế hoạch vận chuyển, bản A
 
-Ngày: 12/10/2026 (UTC+7). Trạng thái: candidate đang triển khai, chưa kích hoạt.
-Theo [plan R1](plans/hybrid-fabric-chain-owner-plan-2026-10-11.md).
+Ngày quyết định: 12/10/2026 (UTC+7). Cập nhật source ngày 13/10/2026: business
+scope và controlled legacy scope dùng chung
+[migration append-only](../apps/api/prisma/migrations/20261013010000_hybrid_business_scope/migration.sql).
+Source đã promote; rehearsal trên catalog chính thức, checksum approval của CD
+và production rollout vẫn chưa đạt. Không kích hoạt production từ trạng thái này.
+Theo [plan R1](plans/hybrid-fabric-chain-owner-plan-2026-10-11.md) và
+[review migration hiện hành](hybrid-migration-review-2026-10-13.md).
 
-Nền quản lý hiện chưa gắn Cycle/Lot/Shipment với chain. Mở quyền core theo
+Bối cảnh lúc lập ADR: nền quản lý chưa gắn Cycle/Lot/Shipment với chain. Mở quyền core theo
 capability trước khi mọi read/write đều biết chain sẽ làm lộ dữ liệu giữa các
 chuỗi dùng chung một đối tác. Bản A vì vậy cần một gate server mặc định đóng;
 schema expansion và kiểm DB riêng không tự kích hoạt scoped business writes.
@@ -50,11 +55,19 @@ Các quyết định triển khai:
   EventChainContext bổ sung scope, không sửa payload/hash/proof hoặc nâng
   legacy proof thành bằng chứng Fabric đã xác nhận chainId.
 
-Draft SQL tại [hybrid-business-scope.draft.sql](sql/hybrid-business-scope.draft.sql)
-chỉ dùng PostgreSQL cách ly. Chưa nằm trong Prisma migrations/CD allowlist;
-chưa chạy trên database dev hoặc production. Trước migration chính thức cần
-Prisma/Swagger đồng bộ, database guards, mọi API liên quan, backfill/cutover
-và fixtures theo ma trận nghiệm thu. Draft chưa là bằng chứng các gate đã đạt.
+Source SQL hiện hành nằm trong
+[migration business/legacy scope](../apps/api/prisma/migrations/20261013010000_hybrid_business_scope/migration.sql);
+route dùng
+[migration kế tiếp](../apps/api/prisma/migrations/20261013011000_immutable_ledger_routes/migration.sql).
+Các file draft trùng source đã được gỡ; bytes của 15 migration trước giữ nguyên.
+Hai migration mới chưa nằm trong CD checksum allowlist và chưa áp production.
+Promotion source không thay rehearsal fresh/legacy-copy/restore, compatible image
+rollback, independent pins, exact-SHA CI hoặc cutover/observation gates.
+
+## Lịch sử kiểm chứng candidate ngày 12/10
+
+Các đoạn dưới ghi trạng thái tại từng SHA và thời điểm, không phải trạng thái
+nghiệm thu hiện tại. Receipt cloud cũ được giữ sau khi môi trường dev retire.
 
 Kiểm chứng draft lúc 00:33 ngày 12/10/2026 (UTC+7): PostgreSQL 18 trên DB mới
 cách ly đã qua 21 assertion SQL, gồm cross-chain/party, quyền người xác nhận,
@@ -68,9 +81,10 @@ Evidence root-only: `/opt/agri-trace-admin/hybrid-scope-draft/882a7e24250fcf36-1
 evidence: chưa có API/Prisma integration, trace/outbox atomicity, backfill,
 reviewer independence, multi-capability Farm/Shipment trigger change hoặc Web.
 Không tắt trigger/constraint core để tạo fixture. SQL tests ở
-[draft-test.sql](sql/hybrid-business-scope.draft-test.sql) dùng dữ liệu tổng hợp.
-Chỉ chạy hai file SQL theo thứ tự trên TEST_DATABASE_URL riêng đã áp dụng
-migrations hiện hành; tuyệt đối không trỏ đến DB dùng chung.
+[hybrid-business-scope.test.sql](sql/hybrid-business-scope.test.sql) dùng dữ liệu tổng hợp.
+Tại lượt lịch sử này, draft được áp trước fixture trên TEST_DATABASE_URL riêng.
+Hiện dùng catalog migrations chính thức và harness cách ly theo
+[review migration](hybrid-migration-review-2026-10-13.md); không chạy trên DB dùng chung.
 
 Lượt bổ sung lúc 00:47 ngày 12/10 đã qua 30 assertion, thêm late membership,
 marker bất biến, bỏ chainId/thu hồi/tạm ngừng không khôi phục đường ghi legacy,
@@ -104,11 +118,12 @@ scope cũ. Role dùng ghi trace sẽ được server suy ra, giữ nguyên actor
 thực để kiểm JWT/session. Policy riêng chưa nối vào core; không dùng nó thay
 SQL read filters, lifecycle/quantity/custody hoặc correction-chain self-review.
 
-Chạy policy tests riêng sau migrations hiện hành, SQL draft và SQL fixtures:
+Policy tests dùng lệnh
 `HYBRID_DRAFT_TESTS=1 npm run test:hybrid:db --workspace apps/api`, với
-`TEST_DATABASE_URL` trỏ DB mới dùng riêng. Không dùng lệnh này trên dev/prod.
-Suite chuẩn không tự apply draft hoặc chạy các tests này. Config riêng chặn
-thiếu opt-in/database URL; fixtures cũng phải khớp trước mutation đầu tiên.
+`TEST_DATABASE_URL` trỏ DB mới dùng riêng, đã qua migration và fixture preparation.
+Tên opt-in `HYBRID_DRAFT_TESTS` được giữ để tương thích harness; nó không cho phép
+apply draft lên DB dùng chung. Suite chuẩn không tự chạy các tests này. Config
+riêng chặn thiếu opt-in/database URL; fixtures phải khớp trước mutation đầu tiên.
 
 Policy candidate `b1c8fd7` đã qua 19 PostgreSQL tests, 30 SQL assertions và ORM
 alignment; gồm quan sát lock wait thực khi revoke chờ command, rồi quyền cũ

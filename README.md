@@ -5,9 +5,10 @@ Hyperledger Fabric trong một cấu trúc thống nhất.
 
 Tiến độ triển khai core và các cổng chưa đạt:
 [core implementation](docs/core-implementation-2026-10-10.md).
-UAT đã triển khai core `53bec18`, Fabric sequence 3 và 14 migration;
-[báo cáo cutover](docs/uat-core-deployment-2026-10-10.md) ghi kiểm chứng và phần
-nghiệm thu còn lại.
+Receipt core ngày 10/10 ghi release `53bec18`, Fabric sequence 3 và 14 migration;
+[báo cáo cutover](docs/uat-core-deployment-2026-10-10.md) được giữ làm lịch sử.
+Production hiện dùng cleanup release `8ae13542`, theo
+[receipt production-only](docs/production-only-deployment-2026-10-13.md).
 
 ## Cấu trúc
 
@@ -110,7 +111,11 @@ Module lots tách `LotHarvestService` (transaction + outbox), `LotQueryService`
 Hybrid A → B → C tiếp tục theo [kế hoạch hoàn thiện A](docs/plans/hybrid-a-completion-2026-10-13.md),
 [ADR route lịch sử](docs/adr-003-hybrid-historical-ledger-route.md) và
 [controlled import plan](docs/plans/hybrid-ledger-route-import-2026-10-13.md).
-Candidate business scope/route SQL chưa là migration production. Evidence local
+Source business scope và route đã được đưa vào hai migration append-only
+`20261013010000_hybrid_business_scope` và `20261013011000_immutable_ledger_routes`.
+Đây là promotion source trong nhánh Hybrid; chưa được phép chạy trên production.
+[Review migration và các gate](docs/hybrid-migration-review-2026-10-13.md) ghi
+checksum, evidence đúng SHA và phần rehearsal/CI/CD còn thiếu. Evidence local
 không thay exact SHA CI, backup/restore, compatible rollback hoặc rollout gates.
 
 ## Kiểm tra toàn bộ

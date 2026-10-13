@@ -1,12 +1,14 @@
 # ADR-003 — Route lịch sử và ranh giới phát hành A/B
 
-Ngày 13/10/2026. Candidate triển khai; chưa là bằng chứng runtime/migration.
-Mở rộng ADR-001 và kế hoạch Hybrid đã review. Production-only là policy hiện hành.
+Ngày 13/10/2026. Source route/import đã promote vào
+[migration append-only](../apps/api/prisma/migrations/20261013011000_immutable_ledger_routes/migration.sql),
+chưa có rehearsal trên catalog chính thức hoặc production acceptance. Mở rộng
+ADR-001 và kế hoạch Hybrid đã review. Production-only là policy hiện hành.
 
 ## Vấn đề
 
-Worker/provider hiện dùng một cấu hình env; TraceService trả destination từ env
-khi chưa có proof. Đổi channel sau khi tạo event có thể gửi backlog hoặc hiển thị
+Baseline trước ADR dùng một cấu hình env cho Worker/provider; TraceService trả
+destination từ env khi chưa có proof. Đổi channel sau khi tạo event có thể gửi backlog hoặc hiển thị
 proof sai ledger. EventChainContext chỉ bổ sung scope ứng dụng, không chứng minh
 Fabric đã xác nhận chain. A cần route bất biến trước migration; B mới thêm pool,
 ledger permissions và governance doanh nghiệp.
@@ -95,13 +97,34 @@ reject. Confirmed proof phải giữ nguyên network/channel/hash/tx/time. Pendi
 có proof cần trusted descriptor evidence riêng. Sau import kiểm orphan, predecessor,
 hash/history/QR/journal trước khi resume. Chưa có receipt thì chưa nghiệm thu backfill.
 
-## Candidate và evidence hiện tại
+## Source promotion và evidence hiện tại
 
-Candidate đã thêm registry/sidecar immutable, deferred guard cho event mới,
-predecessor destination và proof destination/hash guards; chưa là official migration.
+Migration `20261013011000_immutable_ledger_routes` chứa registry/sidecar immutable,
+sealed legacy inventory, deferred guard cho event mới, predecessor destination và
+proof destination/hash guards. SQL body khớp candidate sau khi bỏ comments và
+transaction wrappers; checksum approval/rehearsal/rollout vẫn là gate riêng.
+Migration không tự gán route cho event legacy và không chứng minh Fabric commit.
 TraceService chụp route cùng event/outbox; proof/QR đọc route đã pin, không fallback
 network/channel từ env. Worker lọc route/pin/authority trước claim và health gate;
 cached gateway giữ destination lúc tạo connection. API không thêm signer hoặc mount.
+
+Checkpoint candidate `cab1cf5b5da8e0373646e64a5a0640f06ab9f1ac` đã đạt 147 API
+unit, 31 SQL, full Prisma diff zero + sáu unique guards, ORM, 132 policy/DB
+(26 HTTP groups) và 112 legacy E2E trên PostgreSQL 18 local cách ly. Controlled
+import bao gồm sealed inventory, independent pins, atomic topological apply,
+rerun/resume, preservation và hold khi PROCESSING chưa rõ kết quả. Cleanup đã kiểm.
+Receipt: `.codex/evidence/hybrid-local/agritrace-hybrid-local-cab1cf5b-1791835463921622800`.
+Adapter/synthetic proofs trong suite này không phải Fabric VALID acceptance.
+
+Browser `5bc74773cbadc845ea53485e6f8977a123844baf` đạt bảy nhóm trên Next
+production build, Nest API và DB thật; receipt/cleanup được ghi trong
+[review migration](hybrid-migration-review-2026-10-13.md). Mobile là Chromium với
+iPhone 13 viewport/touch emulation, chưa phải Safari/iOS thật. Hai receipts này
+đứng trước source promotion; không chuyển kết quả sang SHA/migration mới.
+
+## Lịch sử route candidate trước controlled import
+
+Các kết quả dưới giữ nguyên SHA và failures tại thời điểm chạy.
 
 Local API type/lint/build, 140 unit (năm regression route mới), Swagger 96 operations
 và Worker → chaincode validator contract check đạt. DB suite thêm 19 route cases

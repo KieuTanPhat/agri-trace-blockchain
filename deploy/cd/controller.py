@@ -110,6 +110,8 @@ class Controller:
                           WEB_MEMORY="768m",
                           WEB_HEAP_MB="512")
             values["FABRIC_DOCKER_NETWORK"] = self.fabric["network"]
+            if policy.REQUIRED_RELEASE_MIGRATIONS.intersection(record["manifest"].get("migrations", {})):
+                values["APP_RELEASE_SHA"] = record["sha"]
         directory = self.storage / "records" / record["id"]
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         filename = directory / "origin.env"
@@ -227,6 +229,7 @@ class Controller:
         policy.validate_manifest(record["manifest"], record["sha"], self.config["repository"], self.config["origin"], self.target)
         require(model["name"] == self.project, "Compose project changed")
         services = model["services"]
+        hybrid = policy.hybrid_environment(record["manifest"], record["sha"], services, self.environment, self.base)
         require({"postgres", "migrate", "api", "web"} <= set(services) <= {"postgres", "migrate", "api", "worker", "web"}, "Unexpected app services")
         require(model["volumes"]["postgres-data"]["name"] == self.config["postgres_volume"], "Database volume changed")
         require(model["networks"]["default"]["name"] == self.project + "_default" and
@@ -240,7 +243,7 @@ class Controller:
                     {"default", "fabric"} if name == "worker" else {"default"}), "Unexpected service network")
             if name != "web":
                 require(service["environment"].get("DATABASE_URL", expected_database) == expected_database, "Database configuration changed")
-            if name in {"api", "migrate", "web"}:
+            if name in {"migrate", "web"} or (name == "api" and not hybrid):
                 require(not service.get("volumes"), "Public/tool service received host mounts")
         require(services["postgres"]["image"] == self.environment["POSTGRES_IMAGE"], "Database image changed")
         mounts = services["postgres"].get("volumes", [])
@@ -263,10 +266,22 @@ class Controller:
                 worker["environment"]["FABRIC_CHAINCODE_NAME"] == self.fabric["chaincode"] and
                 worker["user"] == f"{self.environment['WORKER_UID']}:{self.environment['WORKER_GID']}", "Worker signing boundary changed")
         mounts = {mount["target"]: mount for mount in worker.get("volumes", [])}
-        require(set(mounts) == {"/fabric-identity", "/fabric-tls/ca.crt"}, "Worker mount set changed")
+        expected_mounts = {"/fabric-identity", "/fabric-tls/ca.crt"}
+        if hybrid:
+            expected_mounts.add(policy.LEGACY_PINS_TARGET)
+        require(set(mounts) == expected_mounts, "Worker mount set changed")
         for path, key in (("/fabric-identity", "RELAYER_MSP_DIR_HOST"), ("/fabric-tls/ca.crt", "FABRIC_TLS_CERT_HOST")):
             require(mounts[path]["source"] == self.environment[key] and mounts[path].get("read_only") and
                     not mounts[path].get("bind", {}).get("create_host_path"), "Worker signing mount changed")
+        if hybrid:
+            # Validate canonical manifest/plan bytes with the candidate's actual
+            # runtime validator, without DB access or a signing mount. This is
+            # still preflight: no writers have stopped and no SQL has run.
+            result = json.loads(self.run("hybrid-metadata-validate", self.dc(record, "run", "--rm", "--no-deps", "--pull", "never",
+                                "--entrypoint", "node", "api", "apps/api/scripts/check-hybrid-pins.mjs")))
+            require(result.get("result") == "passed" and result.get("sourceSha") == record["sha"] and
+                    result.get("databaseAccessed") is False and result.get("signingMaterialRead") is False,
+                    "Candidate runtime rejected independent Hybrid metadata")
 
     def applied(self, record):
         query = 'SELECT migration_name,checksum,finished_at IS NOT NULL AS complete FROM "_prisma_migrations" WHERE rolled_back_at IS NULL ORDER BY migration_name'

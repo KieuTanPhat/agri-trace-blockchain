@@ -1,9 +1,12 @@
 # Legacy scope: inventory và manifest trước backfill
 
-Trạng thái 12/10/2026: inventory/check/plan đã qua cloud PostgreSQL cách ly;
-controlled apply/provenance/journal bridge mới đang là candidate chưa nghiệm thu.
-Chưa có migration promotion hoặc cho phép cutover dev. Không
-chạy app feature trên DB dùng chung khi schema chính thức còn thiếu.
+Cập nhật 13/10/2026: source business/legacy scope và route đã promote vào hai
+migration append-only trong catalog Prisma. Candidate DB `cab1cf5b` và browser
+`5bc74773` đã đạt các suite ghi tại
+[review migration](hybrid-migration-review-2026-10-13.md); chưa có rehearsal cho
+bytes/catalog chính thức, CD checksum approval hoặc Hybrid production rollout.
+Dev đã retire; mọi rehearsal chạy local/runner cách ly. Không áp schema feature
+lên DB dùng chung từ trạng thái này.
 
 `inventoryLegacyScope` chạy trong REPEATABLE READ, READ ONLY. Snapshot root và
 children gồm cycle, harvest, Lot/quantity/custody, Shipment/tracking/telemetry,
@@ -12,7 +15,8 @@ không chứa QR token, payload riêng, email, password hoặc credentials. Priv
 trace hash được kiểm trước khi tạo inventory. Event không resolve được root
 chặn inventory và cần đối soát riêng; không tự gán chain từ entity/org relayer.
 
-Trên DB test mới đã áp dụng migrations và SQL draft:
+Các lệnh read-only dưới dùng DB test riêng đã chuẩn bị catalog migrations và
+fixtures. Chúng không register/apply manifest hoặc tự mở cutover:
 
 ```powershell
 $env:HYBRID_DRAFT_TESTS = '1'
@@ -40,12 +44,14 @@ Mode `plan` đã được kiểm ở 58 cloud DB scenarios của candidate `41bb
 Apply/resume và rollout là gate riêng; kiểm unit không thay cho các gate này.
 
 Manifest schema `agritrace-legacy-scope-manifest-1` yêu cầu ID, source SHA,
-environment (`isolated` hoặc `dev`), inventory digest, operator/reviewer UUID
+environment (`isolated` hoặc `production`), inventory digest, operator/reviewer UUID
 khác nhau và review evidence digest. Từng entry có cycle/producer UUID,
 expectedVersion, root inventory digest, decision và chainId. Mỗi root legacy
 cần đúng một entry, sort theo cycle UUID. `MAP` cần chain UUID được xác nhận
 nghiệp vụ; `UNRESOLVED` có chainId null. Không suy ra mapping từ Farm hoặc các
-bên Shipment; không cấp grant mọi chain từ global role.
+bên Shipment; không cấp grant mọi chain từ global role. Manifest v2 giữ các
+fields này và thêm supersession theo từng root/digest đã pin. UNRESOLVED có
+checkpoint riêng; final MAP không sửa/xóa được và không remap sang target khác.
 
 Pin digest canonical RFC8785 của toàn manifest giữ ở kênh độc lập với DB và
 artifact; tự đổi target rồi sửa digest trong artifact không vượt kiểm. Các ID
@@ -58,12 +64,16 @@ producer/transporter/retailer cũ phải có ACTIVE membership/capability và ac
 grant tường minh trong target. Không tự provision grant hoặc coi platform user
 là business actor. Target đã ACTIVE bị chặn ở preflight backfill này.
 
-## Controlled apply candidate
+## Controlled apply source
 
-Draft bổ sung [hybrid-legacy-scope.draft.sql](sql/hybrid-legacy-scope.draft.sql)
-chỉ được apply sau business-scope draft trên DB test riêng. Bốn bảng mới lưu
-manifest/consent/mapping/checkpoint/bridge append-only; không sửa journal cũ.
-Chưa đưa vào Prisma migration hoặc CD allowlist.
+[migration business/legacy scope](../apps/api/prisma/migrations/20261013010000_hybrid_business_scope/migration.sql)
+gom hai draft trước đây trong một transaction. Sáu bảng manifest, consent,
+checkpoint, mapping, supersession và bridge giữ provenance append-only; journal
+cũ không sửa. Source đã ở Prisma catalog; CD checksum allowlist vẫn chưa nhận
+hai migrations mới. Dùng
+[migration route](../apps/api/prisma/migrations/20261013011000_immutable_ledger_routes/migration.sql)
+để seal inventory event lịch sử trước controlled route import. Không resume
+Worker khi legacy routes hoặc independent pins chưa được xác minh.
 
 Operator giữ file `HYBRID_LEGACY_MANIFEST_PINS_FILE` độc lập với DB, absolute
 path, không symlink, không group/world writable trên Linux. File schema
@@ -93,11 +103,18 @@ PREPARING; suspend/revoke không xóa marker. Active unresolved trong org bị �
 hưởng chặn activation. Resolution/supersession của một quyết định UNRESOLVED
 đã apply cần workflow review mới, không update/delete provenance đã lưu.
 
-Bridge v1 chỉ lấy response từ journal khớp request hash/requester/operation,
+Bridge protocol 1 giữ tương thích actor nghiệp vụ và creation replay; protocol
+2 thêm reviewer/device authority. Các đường này đã được kiểm trong candidate DB.
+Bridge chỉ lấy response từ journal khớp request hash/requester/operation,
 actor role/org, root/pin và grant snapshot tại cutover. Current permission và
 session được kiểm dưới transaction lock; regrant không hồi sinh journal. Old
 creation replay lấy root từ journal, không mở đường fresh unscoped creation
 hoặc direct Shipment. PROCESSING thiếu positive journal giữ gate reconciliation.
+
+## Lịch sử kiểm chứng ngày 12/10
+
+Các lượt dưới là evidence tại SHA cũ, không thay receipt hiện hành hoặc gate
+rehearsal của source promotion. Failures và cleanup được giữ nguyên.
 
 Candidate đã qua local API 130 unit/typecheck/lint/build, Swagger sinh 93 ops.
 PostgreSQL apply/consent/bridge/privacy scenarios còn phải chạy trước kết luận.

@@ -8,6 +8,19 @@ x-api: &api
   logging: *logs
 x-database: &database
   DATABASE_URL: postgresql://${POSTGRES_USER:?Set POSTGRES_USER}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB}?schema=public
+x-ledger-metadata: &ledger-metadata
+  APP_RELEASE_SHA: ${APP_RELEASE_SHA:?Set exact application release SHA}
+  LEDGER_ROUTE_PINS: ${LEDGER_ROUTE_PINS:?Pin reviewed route digests}
+  LEDGER_ACTIVE_ROUTE_DIGEST: ${LEDGER_ACTIVE_ROUTE_DIGEST:?Pin active WRITE route digest}
+  LEDGER_ROUTE_IMPORT_PINS: ${LEDGER_ROUTE_IMPORT_PINS:-[]}
+  LEDGER_PAUSED_WRITER_PINS: ${LEDGER_PAUSED_WRITER_PINS:-[]}
+  HYBRID_LEGACY_MANIFEST_PINS_FILE: /run/agritrace/legacy-scope-pins.json
+x-legacy-pins: &legacy-pins
+  type: bind
+  source: ${HYBRID_LEGACY_MANIFEST_PINS_HOST:?Set operator-owned legacy pins file}
+  target: /run/agritrace/legacy-scope-pins.json
+  read_only: true
+  bind: {create_host_path: false}
 
 services:
   postgres:
@@ -43,7 +56,7 @@ services:
     <<: *api
     restart: unless-stopped
     environment:
-      <<: *database
+      <<: [*database, *ledger-metadata]
       NODE_ENV: production
       PORT: "8080"
       TRUST_PROXY_HOPS: "1"
@@ -55,6 +68,7 @@ services:
       PUBLIC_TRACE_BASE_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN}/trace
       FABRIC_ENABLED: "false"
       NODE_OPTIONS: --max-old-space-size=${API_HEAP_MB:-256}
+    volumes: [*legacy-pins]
     command: [node, apps/api/dist/main.js]
     depends_on: {postgres: {condition: service_healthy}}
     networks:
@@ -76,11 +90,12 @@ services:
     profiles: [fabric]
     restart: unless-stopped
     environment:
-      <<: *database
+      <<: [*database, *ledger-metadata]
       NODE_ENV: production
       WORKER_HEALTH_PORT: "8081"
       FABRIC_ENABLED: "false"
       NODE_OPTIONS: --max-old-space-size=320
+    volumes: [*legacy-pins]
     command: [node, apps/api/dist/worker-main.js]
     depends_on: {api: {condition: service_healthy}}
     networks: [default]

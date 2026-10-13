@@ -4,6 +4,7 @@ services:
     user: ${WORKER_UID:?Set signer UID}:${WORKER_GID:?Set signer GID}
     environment:
       FABRIC_ENABLED: "true"
+      LEDGER_WRITER_AUTHORITY: ${LEDGER_WRITER_AUTHORITY:?Set reviewed logical writer authority}
       FABRIC_NETWORK_NAME: hyperledger-fabric
       FABRIC_CHANNEL_NAME: ${FABRIC_CHANNEL_NAME:?Set channel}
       FABRIC_CHAINCODE_NAME: ${FABRIC_CHAINCODE_NAME:?Set chaincode}

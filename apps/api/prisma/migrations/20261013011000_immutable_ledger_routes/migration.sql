@@ -1,4 +1,5 @@
--- A logical route candidate: isolated databases only; not an official migration.
+-- Immutable logical routes and sealed historical import inventory.
+-- Required application schema floor; old writers cannot bypass route guards.
 BEGIN;
 -- Seal the exact preexisting set while writers are blocked. Never infer legacy
 -- eligibility from wall-clock timestamps or let a later event opt into it.

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { classifyChanges, changedFiles } from './changes.mjs';
 import { gateErrors } from './gate.mjs';
+import { validateVitestReport } from './hybrid-policy-run.mjs';
 
 test('Gateway changes run API, containers and real Fabric integration', () => {
   assert.deepEqual(classifyChanges(['blockchain/gateway/src/adapter.ts']), {
@@ -15,7 +16,7 @@ test('Gateway changes run API, containers and real Fabric integration', () => {
 });
 
 test('API and Worker changes run real Fabric integration', () => {
-  for (const file of ['apps/api/src/worker-main.ts', 'apps/api/prisma/schema.prisma']) {
+  for (const file of ['apps/api/src/worker-main.ts', 'apps/api/prisma/schema.prisma', 'docs/sql/hybrid-business-scope.test.sql']) {
     const selected = classifyChanges([file]);
     assert.equal(selected.api, true);
     assert.equal(selected.containers, true);
@@ -59,8 +60,76 @@ test('documentation-only PRs skip expensive jobs without leaving gates pending',
   assert.ok(Object.values(classifyChanges(['README.md', 'docs/ci.md'])).every(value => value === false));
   assert.deepEqual(gateErrors('application', {
     changes: { result: 'success', outputs: { api: 'false', web: 'false', containers: 'false' } },
-    api: { result: 'skipped' }, web: { result: 'skipped' }, 'container-build': { result: 'skipped' },
+    api: { result: 'skipped' }, web: { result: 'skipped' }, 'container-build': { result: 'skipped' }, hybrid: { result: 'skipped' },
   }), []);
+});
+
+test('Hybrid is required for API-only and Web-only changes and every main push', () => {
+  for (const outputs of [
+    { api: 'true', web: 'false', containers: 'true' },
+    { api: 'false', web: 'true', containers: 'true' },
+    { api: 'true', web: 'true', containers: 'true' },
+  ]) {
+    const needs = {
+      changes: { result: 'success', outputs },
+      api: { result: outputs.api === 'true' ? 'success' : 'skipped' },
+      web: { result: outputs.web === 'true' ? 'success' : 'skipped' },
+      'container-build': { result: 'success' },
+      hybrid: { result: 'success' },
+    };
+    assert.deepEqual(gateErrors('application', needs), []);
+    for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+      assert.ok(gateErrors('application', { ...needs, hybrid: { result } }).some(error => error.startsWith('hybrid:')));
+    }
+    const { hybrid: _removed, ...missing } = needs;
+    assert.ok(gateErrors('application', missing).some(error => error === 'hybrid: expected success, got missing'));
+  }
+});
+
+test('Hybrid OR selection validates both outputs even when the other selects the job', () => {
+  for (const invalid of [undefined, null, true, false, 'yes', '', 'TRUE']) {
+    for (const output of ['api', 'web']) {
+      const needs = {
+        changes: { result: 'success', outputs: { api: 'true', web: 'true', containers: 'false', [output]: invalid } },
+        api: { result: 'success' }, web: { result: 'success' },
+        'container-build': { result: 'skipped' }, hybrid: { result: 'success' },
+      };
+      assert.ok(gateErrors('application', needs).includes(`Missing or invalid change selection: ${output}`));
+    }
+  }
+  assert.ok(gateErrors('application', {
+    changes: { result: 'success', outputs: { api: 'false', web: 'false', containers: 'false' } },
+    api: { result: 'skipped' }, web: { result: 'skipped' },
+    'container-build': { result: 'skipped' }, hybrid: { result: 'success' },
+  }).includes('hybrid: expected skipped, got success'));
+});
+
+test('Hybrid report acceptance counts passed assertions and actual HTTP groups, rejecting skipped or incomplete runs', () => {
+  const report = {
+    success: true, numTotalTests: 3, numPassedTests: 3, numFailedTests: 0,
+    numPendingTests: 0, numTodoTests: 0, numFailedTestSuites: 0, numPendingTestSuites: 0,
+    testResults: [{ name: 'suite', status: 'passed', assertionResults: [
+      { fullName: 'DB atomic write', status: 'passed', ancestorTitles: ['isolated DB'], failureMessages: [] },
+      { fullName: 'HTTP lost response', status: 'passed', ancestorTitles: ['actual JWT HTTP'], failureMessages: [] },
+      { fullName: 'HTTP stale consent', status: 'passed', ancestorTitles: ['actual JWT HTTP'], failureMessages: [] },
+    ] }],
+  };
+  assert.deepEqual(validateVitestReport(report, { tests: 3, files: 1, httpGroups: 2 }), {
+    tests: 3, files: 1, httpGroups: 2, skipped: 0, todo: 0, failed: 0,
+  });
+  for (const patch of [
+    { success: false }, { numTotalTests: 2 }, { numPassedTests: 2 },
+    { numFailedTests: 1 }, { numPendingTests: 1 }, { numTodoTests: 1 },
+    { numFailedTestSuites: 1 }, { numPendingTestSuites: 1 }, { testResults: [] },
+  ]) assert.throws(() => validateVitestReport({ ...report, ...patch }, { tests: 3, files: 1, httpGroups: 2 }));
+  for (const status of ['skipped', 'pending', 'todo', 'disabled', 'failed']) {
+    const changed = structuredClone(report);
+    changed.testResults[0].assertionResults[1].status = status;
+    assert.throws(() => validateVitestReport(changed, { tests: 3, files: 1, httpGroups: 2 }));
+  }
+  const missingHttp = structuredClone(report);
+  missingHttp.testResults[0].assertionResults[1].ancestorTitles = ['direct DB'];
+  assert.throws(() => validateVitestReport(missingHttp, { tests: 3, files: 1, httpGroups: 2 }));
 });
 
 for (const [source, destination, checks] of [

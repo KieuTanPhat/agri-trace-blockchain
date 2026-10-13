@@ -1,0 +1,15 @@
+# Append reviewed metadata to the private production environment before Hybrid.
+# APP_RELEASE_SHA is written by the trusted CD controller from the release SHA.
+# These values are independent of DB rows and of a candidate release archive.
+# Replace placeholders with reviewed canonical digests; [] does not enable writes.
+LEDGER_ROUTE_PINS=[]
+LEDGER_ACTIVE_ROUTE_DIGEST=
+LEDGER_ROUTE_IMPORT_PINS=[]
+LEDGER_PAUSED_WRITER_PINS=[]
+LEDGER_WRITER_AUTHORITY=production:technical-relayer
+HYBRID_LEGACY_MANIFEST_PINS_HOST=/opt/agri-trace/shared/hybrid/legacy-scope-pins.json
+# The bounded regular file uses 0444/0644, with read-only service mounts, so both
+# nonroot services can read these nonsecret pins. It may contain
+# {"schema":"agritrace-legacy-scope-pins-1","pins":[]} before any legacy mapping.
+# Runtime/API/Worker never receive LEDGER_ROUTE_IMPORT_ENABLED=true. Run the
+# operator separately while writers are paused, with reviewed artifacts/pins.
