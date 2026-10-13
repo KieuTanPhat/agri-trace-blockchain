@@ -139,5 +139,7 @@ API unit/E2E và Web xanh sau khi cập nhật test sang mô hình chuỗi.
 | Giai đoạn | Trạng thái |
 | --- | --- |
 | P0 Chuẩn bị | Xong 13/10/2026: nhánh, merge main, DB test, baseline |
-| P1 | Đang làm |
-| P2–P6 | Chưa bắt đầu |
+| P1 Làm gọn A | Xong 13/10/2026: migration gộp `20261014000000_hybrid_chain_scope`, backfill có test diễn tập, bỏ máy móc legacy, một chế độ phân quyền theo chuỗi |
+| P2 Nghiệm thu A | Xong phần API: 116 unit, 176 E2E (gồm 57 policy + 24 SQL guard + diễn tập migration), Web 200; seed chuỗi demo; kiểm giao diện chuỗi/vụ trồng trên trình duyệt. Playwright đầy đủ dời sang P6 |
+| P3 | Đang làm |
+| P4–P6 | Chưa bắt đầu |
