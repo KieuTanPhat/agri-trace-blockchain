@@ -362,6 +362,33 @@ interface World {
       }
     });
 
+    it('projects the ledger status of a chain without exposing network details', async () => {
+      const w = worlds.b;
+      const status = (
+        await get(
+          w,
+          `/supply-chains/${w.chainId}/ledger-status`,
+          'transporter',
+        ).expect(200)
+      ).body.data;
+      expect(status).toMatchObject({
+        chainId: w.chainId,
+        profile: 'MANAGED_ORG',
+        bindingStatus: 'ACTIVE',
+        channelId: 'hybrid-b',
+        permissions: { pending: 0 },
+      });
+      expect(status.permissions.active).toBeGreaterThanOrEqual(3);
+      expect(JSON.stringify(status)).not.toMatch(
+        /network|msp|endpoint|fingerprint|digest/i,
+      );
+      // A chain without a binding stays release A; another organization sees nothing.
+      await get(
+        worlds.self,
+        `/supply-chains/${w.chainId}/ledger-status`,
+      ).expect(404);
+    });
+
     it('records a cycle as a B event: commitment hash, captured epoch, route pinned to the binding', async () => {
       const w = worlds.b;
       const cycle = await cycleFlow(w);

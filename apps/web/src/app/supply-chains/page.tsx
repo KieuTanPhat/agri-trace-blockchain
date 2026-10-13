@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 import { request, getOrganizations } from "@/lib/api-client";
 import { DataForm } from "@/components/data-form";
+import { LedgerStatusPanel } from "@/components/ledger-status-panel";
 import { ShipmentPlansPanel } from "@/components/shipment-plans-panel";
 import { BusinessProfilePanel } from "@/components/business-profile-panel";
 import type { components } from "@/lib/generated/api";
@@ -441,6 +442,9 @@ function ChainWorkspace({
             </div>
           )}
         </section>
+      )}
+      {selected && chain && !platformAdmin && (
+        <LedgerStatusPanel key={`ledger:${selected}:${revision}`} chainId={selected} />
       )}
       {selected && context?.businessChains?.includes(selected) && (
         <ShipmentPlansPanel

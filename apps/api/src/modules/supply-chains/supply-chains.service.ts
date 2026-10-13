@@ -185,6 +185,108 @@ export class SupplyChainsService {
     }
     return (await chainAccess(this.prisma, actor, id)).chain;
   }
+  /** Read-only ledger projection for any current chain member. */
+  async ledgerStatus(actor: CommandActor, chainId: string) {
+    await this.get(actor, chainId); // same visibility rule as the chain itself
+    const profile = await this.prisma.chainLedgerProfile.findUnique({
+      where: { chainId },
+      include: { activeBinding: { include: { state: true } } },
+    });
+    const binding = profile?.activeBinding ?? null;
+    const empty = {
+      permissions: { active: 0, pending: 0, revoking: 0, held: 0 },
+      delivery: {
+        completed: 0,
+        pending: 0,
+        retry: 0,
+        deadLetter: 0,
+        oldestPendingAt: null,
+      },
+    };
+    if (!binding)
+      return {
+        chainId,
+        profile: 'RELEASE_A',
+        bindingStatus: null,
+        channelId: null,
+        ...empty,
+        openHolds: 0,
+        pendingControlJobs: 0,
+      };
+    const [syncs, outbox, oldest, holds, jobs] = await Promise.all([
+      this.prisma.ledgerPermissionSync.groupBy({
+        by: ['state'],
+        where: { permission: { bindingDigest: binding.digest } },
+        _count: true,
+      }),
+      this.prisma.blockchainOutbox.groupBy({
+        by: ['status'],
+        where: {
+          traceEvent: {
+            ledgerRoute: { definition: { bindingDigest: binding.digest } },
+          },
+        },
+        _count: true,
+      }),
+      this.prisma.blockchainOutbox.findFirst({
+        where: {
+          status: { in: ['PENDING', 'RETRY', 'PROCESSING'] },
+          traceEvent: {
+            ledgerRoute: { definition: { bindingDigest: binding.digest } },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { createdAt: true },
+      }),
+      this.prisma.deliveryHold.count({
+        where: { bindingDigest: binding.digest, resolvedAt: null },
+      }),
+      this.prisma.ledgerControlJob.count({
+        where: {
+          bindingDigest: binding.digest,
+          status: { in: ['PENDING', 'PROCESSING'] },
+        },
+      }),
+    ]);
+    const count = (
+      rows: Array<{ _count: number; state?: string; status?: string }>,
+      ...names: string[]
+    ) =>
+      rows
+        .filter((row) => names.includes(String(row.state ?? row.status)))
+        .reduce((sum, row) => sum + row._count, 0);
+    return {
+      chainId,
+      profile: binding.profile,
+      bindingStatus: binding.state?.status ?? null,
+      channelId: binding.channelId,
+      permissions: {
+        active: count(syncs, 'ACTIVE'),
+        pending: count(syncs, 'REQUESTED', 'PENDING_LEDGER'),
+        revoking: count(
+          syncs,
+          'REVOKE_REQUESTED',
+          'DRAINING',
+          'PENDING_REVOKE_LEDGER',
+        ),
+        held: count(
+          syncs,
+          'EMERGENCY_HOLD',
+          'PENDING_EMERGENCY_REVOKE',
+          'REVOKED_REVIEW_REQUIRED',
+        ),
+      },
+      delivery: {
+        completed: count(outbox, 'COMPLETED'),
+        pending: count(outbox, 'PENDING', 'PROCESSING'),
+        retry: count(outbox, 'RETRY'),
+        deadLetter: count(outbox, 'DEAD_LETTER'),
+        oldestPendingAt: oldest?.createdAt ?? null,
+      },
+      openHolds: holds,
+      pendingControlJobs: jobs,
+    };
+  }
   async members(actor: CommandActor, id: string) {
     if (actor.role === 'SYSTEM_ADMIN') {
       await this.get(actor, id);

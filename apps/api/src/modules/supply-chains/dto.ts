@@ -86,6 +86,40 @@ export class ChainRecordDto {
   @ApiProperty({ type: Number }) version!: number;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
 }
+export class LedgerPermissionCountsDto {
+  @ApiProperty({ type: Number }) active!: number;
+  @ApiProperty({ type: Number, description: 'Chờ xác nhận trên ledger' })
+  pending!: number;
+  @ApiProperty({ type: Number, description: 'Đang thu hồi hoặc drain' })
+  revoking!: number;
+  @ApiProperty({ type: Number, description: 'Đang giữ để rà soát' })
+  held!: number;
+}
+export class LedgerDeliveryCountsDto {
+  @ApiProperty({ type: Number }) completed!: number;
+  @ApiProperty({ type: Number }) pending!: number;
+  @ApiProperty({ type: Number }) retry!: number;
+  @ApiProperty({ type: Number }) deadLetter!: number;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' })
+  oldestPendingAt!: string | null;
+}
+/** Trạng thái ledger của chuỗi. Không chứa endpoint, khóa hay descriptor quản trị. */
+export class LedgerStatusDto {
+  @ApiProperty({ type: String, format: 'uuid' }) chainId!: string;
+  @ApiProperty({
+    enum: ['RELEASE_A', 'SERVICE', 'MANAGED_ORG', 'SELF_MANAGED_ORG'],
+    description: 'RELEASE_A: chuỗi chưa có binding, giữ route cũ',
+  })
+  profile!: string;
+  @ApiProperty({ type: String, nullable: true }) bindingStatus!: string | null;
+  @ApiProperty({ type: String, nullable: true }) channelId!: string | null;
+  @ApiProperty({ type: LedgerPermissionCountsDto })
+  permissions!: LedgerPermissionCountsDto;
+  @ApiProperty({ type: LedgerDeliveryCountsDto })
+  delivery!: LedgerDeliveryCountsDto;
+  @ApiProperty({ type: Number }) openHolds!: number;
+  @ApiProperty({ type: Number }) pendingControlJobs!: number;
+}
 export class BusinessProfileDto {
   @ApiProperty({ type: String, format: 'uuid' }) chainId!: string;
   @ApiProperty({ enum: ['PREPARING', 'ACTIVE', 'SUSPENDED'] }) state!: string;

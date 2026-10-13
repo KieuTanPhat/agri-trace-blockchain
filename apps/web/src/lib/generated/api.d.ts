@@ -1051,6 +1051,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/supply-chains/{chainId}/ledger-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SupplyChainsController_ledgerStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/supply-chains/{chainId}/memberships": {
         parameters: {
             query?: never;
@@ -2292,6 +2308,38 @@ export interface components {
             type: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        LedgerDeliveryCountsDto: {
+            completed: number;
+            deadLetter: number;
+            /** Format: date-time */
+            oldestPendingAt: string | null;
+            pending: number;
+            retry: number;
+        };
+        LedgerPermissionCountsDto: {
+            active: number;
+            /** @description Đang giữ để rà soát */
+            held: number;
+            /** @description Chờ xác nhận trên ledger */
+            pending: number;
+            /** @description Đang thu hồi hoặc drain */
+            revoking: number;
+        };
+        LedgerStatusDto: {
+            bindingStatus: string | null;
+            /** Format: uuid */
+            chainId: string;
+            channelId: string | null;
+            delivery: components["schemas"]["LedgerDeliveryCountsDto"];
+            openHolds: number;
+            pendingControlJobs: number;
+            permissions: components["schemas"]["LedgerPermissionCountsDto"];
+            /**
+             * @description RELEASE_A: chuỗi chưa có binding, giữ route cũ
+             * @enum {string}
+             */
+            profile: "RELEASE_A" | "SERVICE" | "MANAGED_ORG" | "SELF_MANAGED_ORG";
         };
         ListShipmentLotDto: {
             /** @description Exact decimal serialized as a string */
@@ -12101,6 +12149,124 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["BusinessProfileDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    SupplyChainsController_ledgerStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chainId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LedgerStatusDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;

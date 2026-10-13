@@ -35,6 +35,7 @@ import {
   MemberRecordDto,
   ScopedUserDto,
   BusinessProfileDto,
+  LedgerStatusDto,
 } from './dto.js';
 
 export class RevokeGrantDto extends ChainVersionDto {
@@ -91,6 +92,15 @@ export class SupplyChainsController {
     @Param('chainId', ParseUUIDPipe) id: string,
   ) {
     return this.service.get(req.user, id);
+  }
+
+  @Get('supply-chains/:chainId/ledger-status')
+  @ApiDataResponse(LedgerStatusDto)
+  ledgerStatus(
+    @Req() req: AuthenticatedRequest,
+    @Param('chainId', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.ledgerStatus(req.user, id);
   }
 
   @Get('supply-chains/:chainId/memberships')
