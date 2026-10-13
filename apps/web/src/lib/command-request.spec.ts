@@ -32,6 +32,29 @@ describe("command status controller payload contract", () => {
       "SCOPE_ACCEPT_SHIPMENT_PLAN",
       { chainId: id, planId: other },
     ],
+    [
+      `/shipments/${id}/handover-offers/intent`,
+      "PREPARE_HANDOVER_OFFER",
+      { shipmentId: id },
+    ],
+    [
+      `/handovers/${id}/confirmation/intent`,
+      "PREPARE_HANDOVER_CONFIRM",
+      { handoverId: id },
+    ],
+    [`/signing-intents/${id}/submit`, "SUBMIT_SIGNED_INTENT", { intentId: id }],
+    [`/handovers/${id}/reject`, "REJECT_HANDOVER", { handoverId: id }],
+    [`/handovers/${id}/cancel`, "CANCEL_HANDOVER", { handoverId: id }],
+    [
+      `/supply-chains/${id}/signing-keys`,
+      "HYB_REGISTER_SIGNING_KEY",
+      { chainId: id },
+    ],
+    [
+      `/supply-chains/${id}/signing-keys/${other}/revoke`,
+      "HYB_REVOKE_SIGNING_KEY",
+      { chainId: id, keyRef: other },
+    ],
   ])("normalizes %s for the status inspector", (path, operation, ids) => {
     expect(
       commandRequest(String(path), "POST", JSON.stringify({ version: 1 })),
@@ -39,6 +62,30 @@ describe("command status controller payload contract", () => {
       operation,
       payload: { version: 1, ...(ids as object) },
       discriminator: "",
+    });
+  });
+  it("keeps distinct signing key enrollment identities and the original signature", () => {
+    expect(
+      commandRequest(
+        `/supply-chains/${id}/signing-keys`,
+        "POST",
+        JSON.stringify({ keyRef: other, popSignature: "proof" }),
+      ),
+    ).toEqual({
+      operation: "HYB_REGISTER_SIGNING_KEY",
+      discriminator: other,
+      payload: { chainId: id, keyRef: other, popSignature: "proof" },
+    });
+    expect(
+      commandRequest(
+        `/signing-intents/${id}/submit`,
+        "POST",
+        '{"signature":"original"}',
+      ),
+    ).toEqual({
+      operation: "SUBMIT_SIGNED_INTENT",
+      discriminator: "",
+      payload: { intentId: id, signature: "original" },
     });
   });
   it("keeps consent party identities separate and excludes secret/auth/device-ingest endpoints", () => {

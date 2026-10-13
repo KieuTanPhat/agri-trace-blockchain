@@ -14,6 +14,8 @@ import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { homedir } from "node:os";
+import { fileURLToPath } from "node:url";
 
 import {
   BindingLedgerClient,
@@ -35,19 +37,21 @@ const { bindingDigest, bindingEventCommitment } = chaincodeBinding as unknown as
 const { assertionDigest, intentSignedMessage, keyPopMessage, signedBindingEventCommitment } =
   chaincodeSigning as unknown as typeof import("../../../chaincode/src/signing.ts");
 
-const ROOT = process.env.FABRIC_ROOT ?? "\\\\wsl.localhost\\Ubuntu\\home\\kieup\\agritrace-fabric";
+const ROOT = process.env.FABRIC_ROOT ?? path.join(homedir(), 'agritrace-fabric');
 const SCRIPT =
   process.env.HYBRID_SCRIPT ??
-  "/mnt/c/Users/kieup/Desktop/agri-trace-blockchain/.claude/worktrees/hybrid-fabric/blockchain/network/hybrid/hybrid-network.sh";
+  fileURLToPath(new URL('../hybrid-network.sh', import.meta.url));
 const CHAINCODE = "agritrace";
 const CONTRACT = "AgriTraceContract";
 const AUTHORITY = "agritrace-relayer-b";
 
 type Org = "org1" | "org2" | "org3";
+const offset = Number(process.env.AGRI_FABRIC_PORT_OFFSET ?? '0');
+if (!Number.isInteger(offset) || offset < 0 || offset > 50000) throw new Error('Invalid Fabric test port offset');
 const ORG = {
-  org1: { dir: "net", msp: "Org1MSP", endpoint: "localhost:7051" },
-  org2: { dir: "net", msp: "Org2MSP", endpoint: "localhost:9051" },
-  org3: { dir: "self", msp: "Org3MSP", endpoint: "localhost:11051" },
+  org1: { dir: "net", msp: "Org1MSP", endpoint: `localhost:${7051 + offset}` },
+  org2: { dir: "net", msp: "Org2MSP", endpoint: `localhost:${9051 + offset}` },
+  org3: { dir: "self", msp: "Org3MSP", endpoint: `localhost:${11051 + offset}` },
 } as const;
 
 const orgDir = (org: Org) => path.join(ROOT, ORG[org].dir, "organizations", "peerOrganizations", `${org}.example.com`);
@@ -471,7 +475,9 @@ async function main() {
     if (files.some((f) => /org3.*(keystore|admin)/i.test(f))) throw new Error("Org3 key material found in export");
     return `${files.length} exported files, none are Org3 keys`;
   });
-  const r2Run = spawnSync("wsl", ["-d", "Ubuntu", "--", "bash", "-lc", `${SCRIPT} rotate-relayer r2`], { encoding: "utf8" });
+  const r2Run = process.platform === 'win32'
+    ? spawnSync('wsl', ['-d', process.env.HYBRID_WSL_DISTRO ?? 'Ubuntu', '--exec', 'bash', SCRIPT, 'rotate-relayer', 'r2'], { encoding: 'utf8' })
+    : spawnSync('bash', [SCRIPT, 'rotate-relayer', 'r2'], { encoding: 'utf8' });
   await check("AC-13", "a rotated certificate of the same authority is rejected until governance approves it", async () => {
     if (r2Run.status !== 0) throw new Error(`rotation failed: ${r2Run.stderr?.slice(0, 200)}`);
     const rotated = await identity("org1", "relayer-r2", "hybrid-b");
@@ -556,7 +562,10 @@ async function main() {
   const evidenceDir = path.resolve("blockchain", ".fabric", "evidence");
   mkdirSync(evidenceDir, { recursive: true });
   const file = path.join(evidenceDir, `ledger-acceptance-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
-  writeFileSync(file, JSON.stringify({ at: new Date().toISOString(), passed: results.length - failed.length, failed: failed.length, results }, null, 2));
+  writeFileSync(file, JSON.stringify({ at: new Date().toISOString(), sha: process.env.RELEASE_SHA ?? process.env.GITHUB_SHA,
+    runtime: { node: process.version, platform: process.platform }, instance: process.env.AGRI_FABRIC_INSTANCE,
+    governanceDigest: process.env.HYBRID_GOVERNANCE_DIGEST, images: JSON.parse(process.env.HYBRID_IMAGE_DIGESTS ?? '{}'),
+    passed: results.length - failed.length, failed: failed.length, skipped: 0, results }, null, 2), { mode: 0o600 });
   console.log(`\n${results.length - failed.length}/${results.length} passed. Evidence: ${file}`);
   for (const c of connections) c.close();
   process.exit(failed.length ? 1 : 0);

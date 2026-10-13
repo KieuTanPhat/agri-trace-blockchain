@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
+import { X509Certificate } from 'node:crypto';
 import {
   BindingLedgerClient,
   certificateFingerprint,
@@ -28,6 +29,7 @@ export interface BindingConnection {
   client: BindingLedgerClient;
   /** SHA-256 of the identity certificate, as the chaincode derives it. */
   fingerprint: string;
+  certificateExpiresAt: Date;
 }
 
 /** One cached gateway connection per (binding, identity role). Connections are
@@ -72,7 +74,22 @@ export class BindingConnectionPool implements OnModuleDestroy {
     role: BindingRole,
   ): Promise<BindingConnection> {
     const key = `${target.digest}:${role}`;
+    const node = this.config(target.digest);
+    const identity = role === 'relayer' ? node?.relayer : node?.[role];
+    if (!identity) throw new Error('Binding identity is not configured');
+    const bytes = await readFile(identity.certPath);
+    const certificate = new X509Certificate(bytes);
+    const notBefore = Date.parse(certificate.validFrom);
+    const notAfter = Date.parse(certificate.validTo);
+    if (!Number.isFinite(notBefore) || !Number.isFinite(notAfter) || Date.now() < notBefore || Date.now() >= notAfter) {
+      this.invalidate(target.digest, role);
+      throw new Error('BINDING_CERTIFICATE_EXPIRED: identity is outside its validity window');
+    }
     let pending = this.connections.get(key);
+    if (pending && (await pending).fingerprint !== certificateFingerprint(bytes)) {
+      this.invalidate(target.digest, role);
+      pending = undefined;
+    }
     if (!pending) {
       pending = this.connect(target, role).catch((error) => {
         this.connections.delete(key);
@@ -131,13 +148,14 @@ export class BindingConnectionPool implements OnModuleDestroy {
         supportedWriteVersions?: string[];
         governanceDigest?: string;
         callerRole?: string | null;
-        channelPolicy?: { strictB?: boolean } | null;
+        channelPolicy?: { strictB?: boolean; allowLegacyV3Writes?: boolean } | null;
       };
       if (
         health.status !== 'OK' ||
         !health.supportedWriteVersions?.includes('4.0.0') ||
         !health.supportedWriteVersions?.includes('5.0.0') ||
         health.channelPolicy?.strictB !== true ||
+        health.channelPolicy?.allowLegacyV3Writes !== false ||
         health.callerRole !== 'relayer' ||
         health.governanceDigest !== target.governanceDigest
       ) {
@@ -147,9 +165,16 @@ export class BindingConnectionPool implements OnModuleDestroy {
         );
       }
     }
+    const certificateBytes = connection.identityCertificate;
+    const certificate = new X509Certificate(certificateBytes);
+    if (Date.now() < Date.parse(certificate.validFrom) || Date.now() >= Date.parse(certificate.validTo)) {
+      connection.close();
+      throw new Error('BINDING_CERTIFICATE_EXPIRED: connected identity is outside its validity window');
+    }
     return {
       client,
-      fingerprint: certificateFingerprint(await readFile(identity.certPath)),
+      fingerprint: certificateFingerprint(certificateBytes),
+      certificateExpiresAt: new Date(certificate.validTo),
     };
   }
 

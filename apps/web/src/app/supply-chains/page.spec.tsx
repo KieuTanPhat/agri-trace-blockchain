@@ -10,7 +10,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthUser } from "@/lib/types";
 import SupplyChainsPage from "./page";
 
-const api = vi.hoisted(() => ({ request: vi.fn(), getOrganizations: vi.fn() }));
+const api = vi.hoisted(() => ({
+  request: vi.fn(),
+  getOrganizations: vi.fn(),
+  listPendingCommands: vi.fn().mockResolvedValue([]),
+}));
 let user: AuthUser;
 afterEach(cleanup);
 vi.mock("@/lib/api-client", () => api);
@@ -62,7 +66,7 @@ describe("Chain workspace scope isolation", () => {
       if (path.endsWith("/signing-keys"))
         return Promise.resolve({
           chainId: path.split("/")[2],
-          organizationId: "org",
+          organizationId: "owner-org",
           bindingDigest: null,
           handoverMode: "STANDARD",
           keys: [],

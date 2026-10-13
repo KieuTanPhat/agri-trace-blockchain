@@ -17,8 +17,9 @@ const creates: Record<string, Operation> = {
   "/supply-chains": "HYB_CREATE_CHAIN",
 };
 
-/** Normalize exactly the payload assembled by the NestJS controllers. This
- * allowlist excludes authentication, user/password and signer-key endpoints. */
+/** Normalize the request fields assembled by the NestJS controllers. Signing
+ * key inspection derives the organization from the authenticated actor on the
+ * server; credentials and private keys never enter this allowlist. */
 export function commandRequest(
   path: string,
   method: string,
@@ -38,6 +39,31 @@ export function commandRequest(
     discriminator = "",
   ) => ({ operation, payload: { ...data, ...ids }, discriminator });
   if (method === "POST" && creates[path]) return result(creates[path]);
+  let signing = match(path, `/shipments/(${uuid})/handover-offers/intent`);
+  if (signing && method === "POST")
+    return result("PREPARE_HANDOVER_OFFER", { shipmentId: signing[1] });
+  signing = match(path, `/handovers/(${uuid})/confirmation/intent`);
+  if (signing && method === "POST")
+    return result("PREPARE_HANDOVER_CONFIRM", { handoverId: signing[1] });
+  signing = match(path, `/signing-intents/(${uuid})/submit`);
+  if (signing && method === "POST")
+    return result("SUBMIT_SIGNED_INTENT", { intentId: signing[1] });
+  signing = match(path, `/handovers/(${uuid})/(reject|cancel)`);
+  if (signing && method === "POST")
+    return result(
+      signing[2] === "reject" ? "REJECT_HANDOVER" : "CANCEL_HANDOVER",
+      { handoverId: signing[1] },
+    );
+  signing = match(
+    path,
+    `/supply-chains/(${uuid})/signing-keys(?:/(${uuid})/revoke)?`,
+  );
+  if (signing && method === "POST")
+    return result(
+      signing[2] ? "HYB_REVOKE_SIGNING_KEY" : "HYB_REGISTER_SIGNING_KEY",
+      { chainId: signing[1], ...(signing[2] ? { keyRef: signing[2] } : {}) },
+      signing[2] ? "" : String(data.keyRef ?? ""),
+    );
   const activation = match(
     path,
     `/supply-chains/(${uuid})/business-profile/activate`,

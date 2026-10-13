@@ -173,6 +173,8 @@ class LotBaseDto {
   @ApiProperty({ type: SensorEvidenceDto }) sensorEvidence!: SensorEvidenceDto;
 }
 export class InternalLotDto extends LotBaseDto {
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  chainId!: string | null;
   @ApiProperty({ required: false }) traceToken?: string;
   @ApiProperty() version!: number;
   @ApiProperty() damagedQuantity!: number;

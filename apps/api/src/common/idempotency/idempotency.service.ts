@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   HttpException,
   Inject,
   Injectable,
@@ -16,6 +17,7 @@ import {
   type CommandActor,
 } from './command-authorization.js';
 import { commandContext, commandResponseJson } from './command-transaction.js';
+import { legacyCreationInspection } from './legacy-command-inspection.js';
 
 export interface CommandRequestInspection {
   status:
@@ -61,6 +63,16 @@ export class IdempotencyService {
   async inspectCommand(
     input: AuthorizedCommand & { idempotencyKey: string },
   ): Promise<CommandRequestInspection> {
+    if (['HYB_REGISTER_SIGNING_KEY', 'HYB_REVOKE_SIGNING_KEY'].includes(input.operation)) {
+      const payload = input.payload as Record<string, unknown>;
+      const organizationId = input.actor?.organizationId;
+      if (!payload || !organizationId ||
+        (payload.organizationId !== undefined && payload.organizationId !== organizationId))
+        throw new ForbiddenException('Command nằm ngoài phạm vi tổ chức');
+      // These controllers add organizationId from the authenticated actor.
+      // The status endpoint assembles the identical original request hash.
+      input = { ...input, payload: { ...payload, organizationId } };
+    }
     const key = input.idempotencyKey.trim();
     if (!key || key.length > 255)
       throw new ConflictException('Thiếu Idempotency-Key hợp lệ');
@@ -77,17 +89,19 @@ export class IdempotencyService {
         });
         if (found)
           await tx.$queryRaw`SELECT idempotency_record_id FROM idempotency_record WHERE idempotency_record_id=${found.id}::uuid FOR UPDATE`;
-        const scope = await authorizeCommand(tx, input, true);
-        if (!found) return { status: 'NOT_FOUND' };
-        const record = await tx.idempotencyRecord.findUniqueOrThrow({
+        const record = found ? await tx.idempotencyRecord.findUniqueOrThrow({
           where: { id: found.id },
           include: { commandCommit: true },
-        });
+        }) : null;
         const requestHash = this.createRequestHash(input.payload);
-        if (record.requestHash !== requestHash)
+        if (record && record.requestHash !== requestHash)
           throw new ConflictException(
             'Idempotency-Key đã được dùng cho payload khác',
           );
+        const legacy = await legacyCreationInspection(tx, input, record?.commandCommit ?? null);
+        const scope = legacy?.scope ?? await authorizeCommand(tx, input, true);
+        if (!record) return { status: 'NOT_FOUND' };
+        if (legacy?.reconciliationRequired) return { status: 'RECONCILIATION_REQUIRED' };
         if (record.authorizationScope !== scope) {
           if (!record.commandCommit)
             return { status: 'RECONCILIATION_REQUIRED' };

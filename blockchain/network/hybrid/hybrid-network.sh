@@ -14,6 +14,13 @@ set -Eeuo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "${HERE}/../../.." && pwd)"
 ROOT="${AGRI_FABRIC_ROOT:-${HOME}/agritrace-fabric}"
+INSTANCE="${AGRI_FABRIC_INSTANCE:?Set AGRI_FABRIC_INSTANCE to an isolated test resource prefix}"
+[[ "${INSTANCE}" =~ ^[a-z][a-z0-9-]{3,48}$ ]] || { echo 'Invalid Fabric instance' >&2; exit 2; }
+PORT_OFFSET="${AGRI_FABRIC_PORT_OFFSET:-0}"
+[[ "${PORT_OFFSET}" =~ ^[0-9]{1,5}$ ]] && ((PORT_OFFSET <= 50000)) || { echo 'Invalid Fabric port offset' >&2; exit 2; }
+ROOT="$(realpath -m "${ROOT}")"
+[[ "${ROOT}" != / && "${ROOT}" != "${HOME}" ]] || { echo 'Unsafe Fabric root' >&2; exit 2; }
+umask 077
 NET="${ROOT}/net"
 SELF="${ROOT}/self"
 export PATH="${ROOT}/fabric-samples/bin:${PATH}"
@@ -37,6 +44,66 @@ ORDERER_CA="${ORDERER_TLS}/ca.crt"
 log() { printf '[hybrid] %s\n' "$*"; }
 need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing required command: $1" >&2; exit 1; }; }
 
+host_port() { echo "$(( $1 + PORT_OFFSET ))"; }
+resource() { echo "${INSTANCE}-$1"; }
+known_resource() { [[ "$1" =~ ^(ca-(orderer|org[123])|orderer\.example\.com|peer0\.org[123]\.example\.com|cc-org[123])$ ]]; }
+assert_owned() { # kind, scoped resource; absent resources remain harmless
+  local label
+  command docker "$1" inspect "$2" >/dev/null 2>&1 || return 0
+  label="$(command docker "$1" inspect --format '{{index .Labels "agritrace.hybrid.instance"}}' "$2" 2>/dev/null || true)"
+  if [[ "$1" == container ]]; then
+    label="$(command docker inspect --format '{{index .Config.Labels "agritrace.hybrid.instance"}}' "$2")"
+  fi
+  [[ "${label}" == "${INSTANCE}" ]] || { echo 'Fabric resource ownership mismatch' >&2; return 3; }
+}
+
+# All Docker calls below are scoped. Canonical DNS names remain network aliases
+# for TLS/channel config; published ports are loopback-only and offsettable.
+# This adapter never selects unrelated containers, networks or volumes.
+docker() {
+  local args=() current next name original operation="${1:-}" kind="${1:-}" action="${2:-}"
+  if [[ "${kind}" == volume && "${action}" == create ]]; then
+    args=(volume create --label "agritrace.hybrid.instance=${INSTANCE}"); shift 2
+  fi
+  if [[ "${operation}" == run ]]; then
+    args=(run --label "agritrace.hybrid.instance=${INSTANCE}" --label agritrace.purpose=hybrid-test
+      --cpus "${AGRI_FABRIC_CPUS:-1}" --memory "${AGRI_FABRIC_MEMORY:-512m}" --memory-swap "${AGRI_FABRIC_MEMORY:-512m}")
+    shift
+  fi
+  while (($#)); do
+    current="$1"; shift
+    case "${current}" in
+      --name)
+        original="$1"; shift; name="$(resource "${original}")"
+        assert_owned container "${name}" || return
+        args+=(--name "${name}" --hostname "${original}" --network-alias "${original}") ;;
+      --network)
+        next="$1"; shift; [[ "${next}" != agritrace_hybrid ]] || next="$(resource network)"
+        args+=(--network "${next}") ;;
+      -p)
+        next="$1"; shift
+        args+=(-p "127.0.0.1:$(host_port "${next%%:*}"):${next##*:}") ;;
+      -v)
+        next="$1"; shift; original="${next%%:*}"
+        if known_resource "${original}"; then next="$(resource "${original}"):${next#*:}"; fi
+        args+=(-v "${next}") ;;
+      unless-stopped) args+=(no) ;;
+      agritrace_hybrid)
+        next="$(resource network)"; assert_owned network "${next}" || return; args+=("${next}") ;;
+      *)
+        if [[ "${operation}" =~ ^(rm|stop|start|inspect)$ || "${kind}" == volume ]]; then
+          if known_resource "${current}"; then
+            current="$(resource "${current}")"
+            if [[ "${kind}" == volume ]]; then assert_owned volume "${current}" || return
+            else assert_owned container "${current}" || return; fi
+          fi
+        fi
+        args+=("${current}") ;;
+    esac
+  done
+  command docker "${args[@]}"
+}
+
 render() { sed -e "s|@NET@|${NET}|g" -e "s|@SELF@|${SELF}|g" "$1" > "$2"; }
 
 org_base() { case "$1" in org3) echo "${SELF}" ;; *) echo "${NET}" ;; esac; }
@@ -51,7 +118,7 @@ peer_env() {
   export FABRIC_CFG_PATH="${FABRIC_SAMPLES_CFG}"
   export CORE_PEER_TLS_ENABLED=true
   export CORE_PEER_LOCALMSPID="$(org_msp "${org}")"
-  export CORE_PEER_ADDRESS="localhost:$(org_port "${org}")"
+  export CORE_PEER_ADDRESS="localhost:$(host_port "$(org_port "${org}")")"
   export CORE_PEER_MSPCONFIGPATH="$(org_dir "${org}")/users/Admin@${org}.example.com/msp"
   export CORE_PEER_TLS_ROOTCERT_FILE="$(peer_tls_ca "${org}")"
 }
@@ -60,7 +127,7 @@ as() { local org="$1"; shift; ( peer_env "${org}"; "$@" ); }
 wait_for_ca() {
   local port="$1"
   for _ in $(seq 1 60); do
-    curl -sk "https://localhost:${port}/cainfo" >/dev/null 2>&1 && return 0
+    curl -sk "https://localhost:$(host_port "${port}")/cainfo" >/dev/null 2>&1 && return 0
     sleep 1
   done
   echo "CA on port ${port} did not become ready" >&2
@@ -103,7 +170,7 @@ collect_tls() { # tls-dir
 setup_peer_org() { # org  (enroll CA admin, peer, admin and technical identities)
   local org="$1" base domain port caname tls orgdir
   base="$(org_base "${org}")"; domain="${org}.example.com"
-  port="$(case "${org}" in org1) echo 7054 ;; org2) echo 8054 ;; org3) echo 11054 ;; esac)"
+  port="$(host_port "$(case "${org}" in org1) echo 7054 ;; org2) echo 8054 ;; org3) echo 11054 ;; esac)")"
   caname="ca-${org}"; tls="${base}/fabric-ca/${org}/ca-cert.pem"; orgdir="$(org_dir "${org}")"
   mkdir -p "${orgdir}"
   export FABRIC_CA_CLIENT_HOME="${orgdir}"
@@ -141,7 +208,7 @@ setup_peer_org() { # org  (enroll CA admin, peer, admin and technical identities
 enroll_user() { # org id secret dir-name
   local org="$1" id="$2" secret="$3" name="$4" base port caname tls orgdir
   base="$(org_base "${org}")"
-  port="$(case "${org}" in org1) echo 7054 ;; org2) echo 8054 ;; org3) echo 11054 ;; esac)"
+  port="$(host_port "$(case "${org}" in org1) echo 7054 ;; org2) echo 8054 ;; org3) echo 11054 ;; esac)")"
   caname="ca-${org}"; tls="${base}/fabric-ca/${org}/ca-cert.pem"; orgdir="$(org_dir "${org}")"
   export FABRIC_CA_CLIENT_HOME="${orgdir}"
   fabric-ca-client enroll -u "https://${id}:${secret}@localhost:${port}" --caname "${caname}" \
@@ -153,18 +220,18 @@ setup_orderer_org() {
   local tls="${NET}/fabric-ca/orderer/ca-cert.pem" domain="example.com"
   mkdir -p "${ORDERER_DIR}"
   export FABRIC_CA_CLIENT_HOME="${ORDERER_DIR}"
-  fabric-ca-client enroll -u "https://admin:adminpw@localhost:9054" --caname ca-orderer --tls.certfiles "${tls}" >/dev/null 2>&1
-  write_node_ou "${ORDERER_DIR}/msp/config.yaml" "cacerts/localhost-9054-ca-orderer.pem"
+  fabric-ca-client enroll -u "https://admin:adminpw@localhost:$(host_port 9054)" --caname ca-orderer --tls.certfiles "${tls}" >/dev/null 2>&1
+  write_node_ou "${ORDERER_DIR}/msp/config.yaml" "cacerts/localhost-$(host_port 9054)-ca-orderer.pem"
   mkdir -p "${ORDERER_DIR}/msp/tlscacerts" "${ORDERER_DIR}/tlsca"
   cp "${tls}" "${ORDERER_DIR}/msp/tlscacerts/tlsca.${domain}-cert.pem"
   cp "${tls}" "${ORDERER_DIR}/tlsca/tlsca.${domain}-cert.pem"
   register ca-orderer "${tls}" orderer ordererpw orderer
   register ca-orderer "${tls}" ordereradmin ordereradminpw admin
   local odir="${ORDERER_DIR}/orderers/orderer.${domain}"
-  fabric-ca-client enroll -u "https://orderer:ordererpw@localhost:9054" --caname ca-orderer \
+  fabric-ca-client enroll -u "https://orderer:ordererpw@localhost:$(host_port 9054)" --caname ca-orderer \
     -M "${odir}/msp" --csr.hosts "orderer.${domain}" --csr.hosts localhost --tls.certfiles "${tls}" >/dev/null 2>&1
   cp "${ORDERER_DIR}/msp/config.yaml" "${odir}/msp/config.yaml"
-  fabric-ca-client enroll -u "https://orderer:ordererpw@localhost:9054" --caname ca-orderer \
+  fabric-ca-client enroll -u "https://orderer:ordererpw@localhost:$(host_port 9054)" --caname ca-orderer \
     -M "${odir}/tls" --enrollment.profile tls --csr.hosts "orderer.${domain}" --csr.hosts localhost \
     --tls.certfiles "${tls}" >/dev/null 2>&1
   collect_tls "${odir}/tls"
@@ -180,7 +247,14 @@ export_public_msp() { # Org3 public MSP for the shared channel configuration
   cp "${src}/config.yaml" "${dst}/config.yaml"
 }
 
-create_network() { docker network inspect agritrace_hybrid >/dev/null 2>&1 || docker network create agritrace_hybrid >/dev/null; }
+create_network() {
+  docker network inspect agritrace_hybrid >/dev/null 2>&1 || docker network create --label "agritrace.hybrid.instance=${INSTANCE}" agritrace_hybrid >/dev/null
+  local volume
+  for volume in "${HYBRID_VOLUMES[@]}"; do
+    assert_owned volume "$(resource "${volume}")"
+    docker volume create --label "agritrace.hybrid.instance=${INSTANCE}" "${volume}" >/dev/null
+  done
+}
 
 HYBRID_CONTAINERS=(ca-orderer ca-org1 ca-org2 ca-org3 orderer.example.com peer0.org1.example.com peer0.org2.example.com peer0.org3.example.com)
 HYBRID_VOLUMES=(orderer.example.com peer0.org1.example.com peer0.org2.example.com peer0.org3.example.com)
@@ -207,6 +281,12 @@ run_peer() { # org   (ports: org1 7051, org2 9051, org3 11051; operations 9444+)
 
 cmd_up() {
   need docker; need curl; need fabric-ca-client; need configtxgen; need osnadmin; need peer
+  mkdir -p "${ROOT}"
+  if [[ -e "${ROOT}/.agritrace-instance" ]]; then
+    [[ "$(cat "${ROOT}/.agritrace-instance")" == "${INSTANCE}" ]] || { echo 'Fabric root ownership mismatch' >&2; exit 2; }
+  elif [[ -d "${NET}" || -d "${SELF}" ]]; then
+    echo 'Existing unowned Fabric root; use a fresh isolated path' >&2; exit 2
+  else printf '%s\n' "${INSTANCE}" > "${ROOT}/.agritrace-instance"; fi
   create_network
   mkdir -p "${NET}/fabric-ca/orderer" "${NET}/fabric-ca/org1" "${NET}/fabric-ca/org2" \
     "${NET}/channel-artifacts" "${NET}/configtx" "${SELF}/fabric-ca/org3"
@@ -236,7 +316,7 @@ cmd_up() {
   sleep 5
   for channel in "${CHANNEL_B}" "${CHANNEL_SELF}"; do
     osnadmin channel join --channelID "${channel}" --config-block "${NET}/channel-artifacts/${channel}.block" \
-      -o localhost:7053 --ca-file "${ORDERER_CA}" --client-cert "${ORDERER_TLS}/server.crt" \
+      -o "localhost:$(host_port 7053)" --ca-file "${ORDERER_CA}" --client-cert "${ORDERER_TLS}/server.crt" \
       --client-key "${ORDERER_TLS}/server.key" >/dev/null
   done
   sleep 3
@@ -289,7 +369,7 @@ install_cc() { # org : installs the package and starts that organization's chain
 approve_cc() { # org channel policy
   local org="$1" channel="$2" policy="$3" id
   id="$(cat "${ROOT}/cc-package/${org}/package-id")"
-  as "${org}" peer lifecycle chaincode approveformyorg -o localhost:7050 --tls --cafile "${ORDERER_CA}" \
+  as "${org}" peer lifecycle chaincode approveformyorg -o "localhost:$(host_port 7050)" --tls --cafile "${ORDERER_CA}" \
     --channelID "${channel}" --name "${CC_NAME}" --version "${CC_VERSION}" --package-id "${id}" \
     --sequence "${CC_SEQUENCE}" --signature-policy "${policy}" >/dev/null
   log "${org}: approved ${CC_NAME} ${CC_VERSION}#${CC_SEQUENCE} on ${channel}"
@@ -299,9 +379,9 @@ commit_cc() { # channel policy org...
   local channel="$1" policy="$2"; shift 2
   local args=() org
   for org in "$@"; do
-    args+=(--peerAddresses "localhost:$(org_port "${org}")" --tlsRootCertFiles "$(peer_tls_ca "${org}")")
+    args+=(--peerAddresses "localhost:$(host_port "$(org_port "${org}")")" --tlsRootCertFiles "$(peer_tls_ca "${org}")")
   done
-  as "$1" peer lifecycle chaincode commit -o localhost:7050 --tls --cafile "${ORDERER_CA}" \
+  as "$1" peer lifecycle chaincode commit -o "localhost:$(host_port 7050)" --tls --cafile "${ORDERER_CA}" \
     --channelID "${channel}" --name "${CC_NAME}" --version "${CC_VERSION}" --sequence "${CC_SEQUENCE}" \
     --signature-policy "${policy}" "${args[@]}" >/dev/null
   log "committed ${CC_NAME} ${CC_VERSION}#${CC_SEQUENCE} on ${channel}"
@@ -436,10 +516,12 @@ cmd_down() {
   docker rm -f cc-org1 cc-org2 cc-org3 >/dev/null 2>&1 || true
   docker rm -f "${HYBRID_CONTAINERS[@]}" >/dev/null 2>&1 || true
   docker volume rm "${HYBRID_VOLUMES[@]}" >/dev/null 2>&1 || true
+  docker network rm agritrace_hybrid >/dev/null
   log "network stopped; volumes removed"
 }
 
 cmd_clean() {
+  [[ -f "${ROOT}/.agritrace-instance" && "$(cat "${ROOT}/.agritrace-instance")" == "${INSTANCE}" ]] || { echo 'Unowned Fabric root' >&2; return 2; }
   cmd_down
   docker run --rm -v "${ROOT}:/w" alpine sh -c 'rm -rf /w/net /w/self /w/cc-build /w/cc-package'
   log "generated material removed"

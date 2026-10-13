@@ -80,6 +80,15 @@ export class SigningRefusedError extends Error {}
 export async function signPreparedIntent(
   store: KeyStore,
   prepared: PreparedIntent,
+  expected?: {
+    chainId: string;
+    organizationId: string;
+    chainRef: string;
+    bindingDigest: string;
+    entityId: string;
+    operation: string;
+    keyRef: string;
+  },
 ): Promise<string> {
   const check = await verifyPreparedIntent(prepared);
   if (!check.ok) throw new SigningRefusedError(check.reason);
@@ -87,6 +96,22 @@ export async function signPreparedIntent(
   if (!key)
     throw new SigningRefusedError(
       "Khóa ký của tổ chức không nằm trên thiết bị này",
+    );
+  if (key.organizationId !== prepared.intent.signerOrgRef)
+    throw new SigningRefusedError("Yêu cầu ký không thuộc tổ chức giữ khóa");
+  if (
+    expected &&
+    (key.chainId !== expected.chainId ||
+      key.organizationId !== expected.organizationId ||
+      prepared.keyRef !== expected.keyRef ||
+      prepared.intent.chainRef !== expected.chainRef ||
+      prepared.intent.bindingDigest !== expected.bindingDigest ||
+      prepared.intent.entityType !== "SHIPMENT" ||
+      prepared.intent.entityId !== expected.entityId ||
+      prepared.intent.operation !== expected.operation)
+  )
+    throw new SigningRefusedError(
+      "Yêu cầu ký không khớp chuỗi, chuyến hàng hoặc khóa đã chọn",
     );
   const signature = new Uint8Array(
     await crypto.subtle.sign(

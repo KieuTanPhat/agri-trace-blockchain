@@ -67,7 +67,10 @@ export async function resolveSigningKey(
     );
   if (keys.length > 1)
     throw new ConflictException('Có nhiều khóa ký hoạt động, cần chọn keyRef');
-  return keys[0];
+  await tx.$queryRaw`SELECT key_ref FROM signing_key WHERE key_ref = ${keys[0].keyRef}::uuid FOR SHARE`;
+  const current = await tx.signingKey.findUniqueOrThrow({ where: { keyRef: keys[0].keyRef } });
+  if (current.status !== 'ACTIVE') throw new ConflictException('Khóa ký đã bị thu hồi');
+  return current;
 }
 
 export async function prepareSigningIntent(
@@ -206,14 +209,16 @@ export async function consumeSigningIntent(
     throw new ConflictException('Yêu cầu ký đã được dùng hoặc đã hết hạn');
   if (intent.expiresAt.getTime() <= Date.now())
     throw new ConflictException('Yêu cầu ký đã hết hạn');
-  if (intent.key.status !== 'ACTIVE')
+  await tx.$queryRaw`SELECT key_ref FROM signing_key WHERE key_ref = ${intent.keyRef}::uuid FOR SHARE`;
+  const key = await tx.signingKey.findUniqueOrThrow({ where: { keyRef: intent.keyRef } });
+  if (key.status !== 'ACTIVE')
     throw new ConflictException('Khóa ký đã bị thu hồi');
   const body = intent.intent as unknown as IntentBody;
   if (intentDigest(body) !== intent.intentDigest)
     throw new ConflictException('Yêu cầu ký không toàn vẹn');
   if (
     !verifyEd25519(
-      intent.key.publicKey,
+      key.publicKey,
       signedMessageForIntent(body),
       signature,
     )
@@ -225,5 +230,5 @@ export async function consumeSigningIntent(
   });
   if (consumed.count !== 1)
     throw new ConflictException('Yêu cầu ký đã được dùng');
-  return { ...intent, status: 'CONSUMED', signature, key: intent.key };
+  return { ...intent, status: 'CONSUMED', signature, key };
 }

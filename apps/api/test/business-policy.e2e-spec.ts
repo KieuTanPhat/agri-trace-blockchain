@@ -1927,7 +1927,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       url: string,
       token: string,
       body: object,
-      key = randomUUID(),
+      key: string = randomUUID(),
     ) =>
       request(app.getHttpServer())
         .post(`/api${url}`)
@@ -1938,6 +1938,75 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       request(app.getHttpServer())
         .get(`/api${url}`)
         .set('Authorization', `Bearer ${token}`);
+
+    async function legacyCreateRecord(actor: CommandActor, withJournal = true) {
+      const cycle = await db.productionCycle.findUniqueOrThrow({ where: { id: cycleId } });
+      const payload = { farmId: cycle.farmId, productId: cycle.productId, cycleCode: cycle.cycleCode,
+        maxHarvestQuantity: Number(cycle.maxHarvestQuantity), harvestUnit: cycle.harvestUnit };
+      const record = await db.idempotencyRecord.create({
+        data: { requesterId: actor.sub!, operation: 'CREATE_PRODUCTION_CYCLE', requestType: 'COMMAND',
+          idempotencyKey: randomUUID(), requestHash: canonicalSha256(payload),
+          authorizationScope: canonicalSha256({ requesterId: actor.sub, organizationId: actor.organizationId, role: actor.role }),
+          status: 'PROCESSING', createdAt: new Date(Date.now() - 60_000),
+          expiresAt: new Date(Date.now() - 1000) },
+      });
+      if (withJournal) await db.commandCommit.create({
+        data: { idempotencyRecordId: record.id, requesterId: actor.sub!, operation: record.operation,
+          authorizationScope: record.authorizationScope!, actorScope: { organizationId: actor.organizationId, role: actor.role },
+          resourceIds: { requested: { farmId: cycle.farmId, productId: cycle.productId }, result: { id: cycle.id } },
+          responseStatus: 201, responseBody: { id: cycle.id, legacyResult: true } },
+      });
+      return { record, payload };
+    }
+
+    it('reconciles a positive pre-A create journal with the original body/key and current assignment without writes', async () => {
+      const { record, payload } = await legacyCreateRecord(producer);
+      const before = { events: await db.traceEvent.count(), outbox: await db.blockchainOutbox.count(),
+        cycle: await db.productionCycle.findUniqueOrThrow({ where: { id: cycleId } }),
+        journal: await db.commandCommit.findUniqueOrThrow({ where: { idempotencyRecordId: record.id } }) };
+      const status = await post('/command-requests/status', producerToken,
+        { operation: record.operation, payload }, record.idempotencyKey).expect(200);
+      expect(status.body.data).toEqual({ status: 'COMMITTED', responseStatus: 201, result: { id: cycleId, legacyResult: true } });
+      expect(await db.idempotencyRecord.findUniqueOrThrow({ where: { id: record.id } })).toEqual(record);
+      expect(await db.commandCommit.findUniqueOrThrow({ where: { idempotencyRecordId: record.id } })).toEqual(before.journal);
+      expect(await db.productionCycle.findUniqueOrThrow({ where: { id: cycleId } })).toEqual(before.cycle);
+      expect(await db.traceEvent.count()).toBe(before.events);
+      expect(await db.blockchainOutbox.count()).toBe(before.outbox);
+    });
+
+    it('holds an unproven old PROCESSING create without disclosing a result, renewing or executing it', async () => {
+      const { record, payload } = await legacyCreateRecord(producer, false);
+      const before = await db.productionCycle.count();
+      const status = await post('/command-requests/status', producerToken,
+        { operation: record.operation, payload }, record.idempotencyKey).expect(200);
+      expect(status.body.data).toEqual({ status: 'RECONCILIATION_REQUIRED' });
+      await post('/production-cycles', producerToken, payload, record.idempotencyKey).expect(400);
+      expect(await db.productionCycle.count()).toBe(before);
+      expect(await db.idempotencyRecord.findUniqueOrThrow({ where: { id: record.id } })).toEqual(record);
+      expect(await db.commandCommit.findUnique({ where: { idempotencyRecordId: record.id } })).toBeNull();
+    });
+
+    it('denies old positive results after current grant revoke, logout or an unrelated chain grant', async () => {
+      const template = await db.user.findUniqueOrThrow({ where: { id: producer.sub! } });
+      const user = await db.user.create({ data: { organizationId: producer.organizationId, roleId: template.roleId,
+        email: `${randomUUID()}@example.test`, fullName: 'Legacy inspection actor', passwordHash: 'unused-synthetic-hash' } });
+      const actor = await authenticated({ ...producer, sub: user.id });
+      const token = app.get(JwtService).sign({ sub: actor.sub, sid: actor.sid });
+      const permission = await grant(db, actor, 'FARM_STAFF');
+      const { record, payload } = await legacyCreateRecord(actor);
+      const inspect = () => post('/command-requests/status', token, { operation: record.operation, payload }, record.idempotencyKey);
+      await inspect().expect(200);
+      await db.scopedRoleGrant.update({ where: { id: permission.id }, data: { revokedAt: new Date(), revision: { increment: 1 } } });
+      const revoked = await inspect().expect(403);
+      expect(revoked.body.data).toBeUndefined();
+      await grant(db, actor, 'FARM_STAFF', otherChainId);
+      await inspect().expect(403);
+      await grant(db, actor, 'FARM_STAFF');
+      await inspect().expect(200);
+      await db.refreshSession.update({ where: { id: actor.sid! }, data: { revokedAt: new Date() } });
+      await inspect().expect(401);
+      expect(await db.idempotencyRecord.findUniqueOrThrow({ where: { id: record.id } })).toEqual(record);
+    });
 
     async function preparingChain() {
       if (

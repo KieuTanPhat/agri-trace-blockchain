@@ -1,7 +1,8 @@
 import { CatalogModule } from './modules/catalog/catalog.module.js';
 import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { MaintenanceWriteInterceptor } from './common/maintenance/maintenance-write.interceptor.js';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { RequestIdMiddleware } from './common/request/request-id.middleware.js';
 import { AppController } from './app.controller.js';
@@ -48,7 +49,8 @@ import { SupplyChainsModule } from './modules/supply-chains/supply-chains.module
     HealthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: MaintenanceWriteInterceptor }],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

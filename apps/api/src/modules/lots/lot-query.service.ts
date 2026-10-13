@@ -26,8 +26,8 @@ export class LotQueryService {
 
   async getInternal(lotId: string, actor: Actor) {
     await this.access.assertLotAccess(actor, lotId);
-    const lot = await this.prisma.lot.findUnique({
-      where: { id: lotId },
+    const lot = await this.prisma.lot.findFirst({
+      where: { AND: [{ id: lotId }, scopedLotReadWhere(actor)] },
       include: INTERNAL_LOT_INCLUDE,
     });
     if (!lot) throw new NotFoundException('Không tìm thấy lô hàng');

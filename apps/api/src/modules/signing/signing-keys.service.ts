@@ -51,6 +51,7 @@ export class SigningKeysService {
     });
     return {
       chainId,
+      chainRef: profile?.chainRef ?? null,
       organizationId: actor.organizationId!,
       bindingDigest: profile?.activeBindingDigest ?? null,
       handoverMode: profile?.handoverMode ?? 'STANDARD',

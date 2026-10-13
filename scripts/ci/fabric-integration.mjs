@@ -84,8 +84,14 @@ async function main() {
     const org = await db.organization.create({ data: { name: 'CI Fabric farm', type: 'FARM' } });
     const farm = await db.farm.create({ data: { name: 'CI Fabric farm', organizationId: org.id } });
     const product = await db.product.create({ data: { productName: 'CI Fabric vegetables', defaultUnit: 'kg' } });
-    await db.user.create({ data: { email: ${JSON.stringify(email)}, passwordHash: await hash(${JSON.stringify(password)}, 10), fullName: 'CI farmer', roleId: role.id, organizationId: org.id } });
-    console.log(JSON.stringify({ farmId: farm.id, productId: product.id }));
+    const actor = await db.user.create({ data: { email: ${JSON.stringify(email)}, passwordHash: await hash(${JSON.stringify(password)}, 10), fullName: 'CI farmer', roleId: role.id, organizationId: org.id } });
+    const chain = await db.supplyChain.create({ data: { name: 'CI scoped Fabric chain', ownerOrganizationId: org.id } });
+    await db.chainMembership.create({ data: { chainId: chain.id, organizationId: org.id, status: 'ACTIVE' } });
+    await db.chainBusinessProfile.create({ data: { chainId: chain.id } });
+    await db.chainBusinessProfile.update({ where: { chainId: chain.id }, data: { state: 'ACTIVE', version: { increment: 1 } } });
+    for (const code of ['FARM_STAFF', 'CHAIN_MANAGER'])
+      await db.scopedRoleGrant.create({ data: { userId: actor.id, organizationId: org.id, scope: 'CHAIN', chainId: chain.id, role: code } });
+    console.log(JSON.stringify({ chainId: chain.id, farmId: farm.id, productId: product.id }));
   `);
   const auth = await http('/auth/login', undefined, { email, password });
   assert.ok(auth.accessToken, 'Login must issue an access token');
@@ -94,6 +100,7 @@ async function main() {
 
   const key = randomUUID();
   const createBody = {
+    chainId: fixture.chainId,
     farmId: fixture.farmId,
     productId: fixture.productId,
     cycleCode: `CI-${randomUUID()}`,

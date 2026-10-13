@@ -1,12 +1,59 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { request } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-store";
+import { getAuthorizationScope } from "@/lib/auth-scope";
+import { usePendingCommands } from "@/lib/use-pending-commands";
 import type { components } from "@/lib/generated/api";
 import { IndexedDbKeyStore, type KeyStore } from "@/lib/signing/key-store";
 import { createSigningKey, ed25519Supported } from "@/lib/signing/signer";
 
 type Context = components["schemas"]["SigningContextDto"];
+type PanelProps = {
+  chainId: string;
+  organizationId: string;
+  orgAdmin: boolean;
+  keyStore?: KeyStore;
+};
+const keyOperations = [
+  "HYB_REGISTER_SIGNING_KEY",
+  "HYB_REVOKE_SIGNING_KEY",
+] as const;
+function messageOf(cause: unknown, fallback: string) {
+  return cause && typeof cause === "object" && "message" in cause
+    ? String(cause.message)
+    : fallback;
+}
+
+export function SigningKeysPanel(props: PanelProps) {
+  const auth = useAuth();
+  if (
+    !auth.user ||
+    auth.user.organizationId !== props.organizationId ||
+    auth.user.accountStatus !== "ACTIVE" ||
+    (auth.privateAccessStatus && auth.privateAccessStatus !== "ready")
+  )
+    return <p role="status">Đang kiểm tra quyền khóa ký…</p>;
+  return (
+    <SigningKeysWorkspace
+      key={JSON.stringify([
+        getAuthorizationScope(auth.user),
+        props.chainId,
+        props.organizationId,
+        props.orgAdmin,
+      ])}
+      {...props}
+    />
+  );
+}
 
 const statuses: Record<string, string> = {
   PENDING_LEDGER: "Chờ kích hoạt trên ledger",
@@ -18,17 +65,12 @@ const statuses: Record<string, string> = {
  * created on this device and never sent; the API receives the public key and a
  * proof that this device holds it. Activation on the ledger is an operator
  * step that needs the owner's approval, so a new key shows as pending. */
-export function SigningKeysPanel({
+function SigningKeysWorkspace({
   chainId,
   organizationId,
   orgAdmin,
   keyStore,
-}: {
-  chainId: string;
-  organizationId: string;
-  orgAdmin: boolean;
-  keyStore?: KeyStore;
-}) {
+}: PanelProps) {
   const store = useMemo(() => keyStore ?? new IndexedDbKeyStore(), [keyStore]);
   const [context, setContext] = useState<Context | null>(null);
   const [local, setLocal] = useState<Set<string>>(new Set());
@@ -40,6 +82,14 @@ export function SigningKeysPanel({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [revision, setRevision] = useState(0);
+  const pending = usePendingCommands(keyOperations);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -52,6 +102,11 @@ export function SigningKeysPanel({
     ])
       .then(([value, stored, ok]) => {
         if (!active) return;
+        if (
+          value.chainId !== chainId ||
+          value.organizationId !== organizationId
+        )
+          throw new Error("Khóa ký không thuộc chuỗi hoặc tổ chức đang xem.");
         setContext(value);
         setLocal(new Set(stored.map((key) => key.id)));
         setSupported(ok);
@@ -68,7 +123,14 @@ export function SigningKeysPanel({
 
   async function enroll(event: FormEvent) {
     event.preventDefault();
-    if (!context?.bindingDigest || busy) return;
+    if (
+      !context?.bindingDigest ||
+      busy ||
+      pending ||
+      !orgAdmin ||
+      !label.trim()
+    )
+      return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -80,30 +142,58 @@ export function SigningKeysPanel({
         bindingDigest: context.bindingDigest,
         label: label.trim(),
       });
+      if (!alive.current) {
+        await store.remove(created.keyRef);
+        return;
+      }
       await request(`/supply-chains/${chainId}/signing-keys`, {
         method: "POST",
         headers: { "idempotency-key": crypto.randomUUID() },
         body: JSON.stringify(created),
       });
+      if (!alive.current) return;
       setLabel("");
       setNotice(
         "Đã tạo khóa trên thiết bị này. Khóa dùng được sau khi vận hành viên kích hoạt trên ledger.",
       );
       refresh();
     } catch (cause) {
-      // Never keep a private key that the API did not accept.
-      if (created) await store.remove(created.keyRef).catch(() => undefined);
-      setError(
-        cause instanceof Error ? cause.message : "Không tạo được khóa ký.",
-      );
+      // A lost response may follow an accepted registration. Preserve the
+      // non-extractable private key until the original journal is reconciled.
+      if (
+        created &&
+        cause &&
+        typeof cause === "object" &&
+        "code" in cause &&
+        cause.code === "REQUEST_REJECTED"
+      )
+        await store.remove(created.keyRef).catch(() => undefined);
+      if (alive.current) {
+        setError(
+          messageOf(
+            cause,
+            "Chưa đọc được kết quả đăng ký khóa. Kiểm tra yêu cầu đang chờ trước khi tạo khóa khác.",
+          ),
+        );
+        if (
+          created &&
+          !(
+            cause &&
+            typeof cause === "object" &&
+            "code" in cause &&
+            cause.code === "REQUEST_REJECTED"
+          )
+        )
+          setLocal((keys) => new Set([...keys, created!.keyRef]));
+      }
     } finally {
-      setBusy(false);
+      if (alive.current) setBusy(false);
     }
   }
 
   async function revoke(event: FormEvent) {
     event.preventDefault();
-    if (!revoking || busy) return;
+    if (!revoking || busy || pending || !orgAdmin) return;
     setBusy(true);
     setError("");
     try {
@@ -115,15 +205,14 @@ export function SigningKeysPanel({
           body: JSON.stringify({ reason: reason.trim() }),
         },
       );
+      if (!alive.current) return;
       setRevoking("");
       setReason("");
       refresh();
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Không thu hồi được khóa.",
-      );
+      if (alive.current) setError(messageOf(cause, "Không thu hồi được khóa."));
     } finally {
-      setBusy(false);
+      if (alive.current) setBusy(false);
     }
   }
 
@@ -145,6 +234,12 @@ export function SigningKeysPanel({
           : "tiêu chuẩn"}
         .
       </p>
+      {pending && (
+        <p className="notice" role="status">
+          Có yêu cầu khóa ký chưa rõ kết quả. Kiểm tra mục “Yêu cầu cần đối
+          soát” trước khi tạo hoặc thu hồi khóa khác.
+        </p>
+      )}
       {context.keys.length === 0 && <p>Chưa có khóa ký nào.</p>}
       <ul>
         {context.keys.map((key) => (
@@ -160,6 +255,7 @@ export function SigningKeysPanel({
                 <button
                   type="button"
                   className="button secondary"
+                  disabled={busy || pending}
                   onClick={() => setRevoking(key.keyRef)}
                 >
                   Thu hồi
@@ -183,12 +279,17 @@ export function SigningKeysPanel({
             />
           </label>
           <div className="actions">
-            <button type="submit" className="button danger" disabled={busy}>
+            <button
+              type="submit"
+              className="button danger"
+              disabled={busy || pending}
+            >
               Xác nhận thu hồi
             </button>
             <button
               type="button"
               className="button secondary"
+              disabled={busy}
               onClick={() => setRevoking("")}
             >
               Hủy
@@ -209,7 +310,7 @@ export function SigningKeysPanel({
             />
           </label>
           <div className="actions">
-            <button type="submit" className="button" disabled={busy}>
+            <button type="submit" className="button" disabled={busy || pending}>
               Tạo khóa ký trên thiết bị này
             </button>
           </div>

@@ -107,6 +107,15 @@ export function scopedShipmentReadWhere(
   return { lot: scopedLotReadWhere(actor) };
 }
 
+/** Apply scope to the final evidence query as well as its preliminary check. */
+export function scopedTraceEventReadWhere(actor: CommandActor): Prisma.TraceEventWhereInput {
+  if (!permitted(actor)) return { id: NONE };
+  return { OR: [
+    { lotId: { not: null }, lot: { is: scopedLotReadWhere(actor) } },
+    { lotId: null, cycleId: { not: null }, cycle: { is: scopedCycleReadWhere(actor) } },
+  ] };
+}
+
 /** Parent visibility does not authorize every child. Cycle detail must also
  * apply scopedLotReadWhere to harvest/Lot relations and scope each export,
  * count, proof and IoT relation. Never include all Lots after this filter. */

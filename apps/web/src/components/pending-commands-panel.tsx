@@ -13,12 +13,17 @@ import {
 const labels: Partial<Record<PendingCommand["operation"], string>> = {
   HYB_CREATE_CHAIN: "Tạo chuỗi cung ứng",
   HYB_ACTIVATE_BUSINESS_PROFILE: "Kích hoạt nghiệp vụ chuỗi",
-  SCOPE_APPLY_LEGACY_ROOT: "Chuyển dữ liệu sang chuỗi",
-  SCOPE_CONFIRM_LEGACY_ASSIGNMENT: "Xác nhận chuyển dữ liệu",
   SCOPE_FINALIZE_SHIPMENT_PLAN: "Chốt kế hoạch giao hàng",
   SCOPE_ACCEPT_SHIPMENT_PLAN: "Xác nhận kế hoạch giao hàng",
   CREATE_PRODUCTION_CYCLE: "Tạo vụ trồng",
   RECORD_HARVEST: "Ghi nhận thu hoạch",
+  PREPARE_HANDOVER_OFFER: "Chuẩn bị đề nghị bàn giao",
+  PREPARE_HANDOVER_CONFIRM: "Chuẩn bị xác nhận bàn giao",
+  SUBMIT_SIGNED_INTENT: "Gửi chữ ký bàn giao",
+  REJECT_HANDOVER: "Từ chối nhận hàng",
+  CANCEL_HANDOVER: "Hủy đề nghị bàn giao",
+  HYB_REGISTER_SIGNING_KEY: "Đăng ký khóa ký của tổ chức",
+  HYB_REVOKE_SIGNING_KEY: "Thu hồi khóa ký của tổ chức",
 };
 
 export function PendingCommandsPanel({ onSettled }: { onSettled(): void }) {
@@ -38,6 +43,8 @@ export function PendingCommandsPanel({ onSettled }: { onSettled(): void }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const alive = useRef(true);
+  const currentScope = useRef(scope);
+  currentScope.current = ready ? scope : "";
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -46,16 +53,22 @@ export function PendingCommandsPanel({ onSettled }: { onSettled(): void }) {
   }, []);
   useEffect(() => {
     let active = true;
+    let revision = 0;
     setLoaded({ scope: "", items: [] });
     setError("");
+    setBusy("");
     if (!ready) return;
     const load = () => {
+      const requestRevision = ++revision;
       void listPendingCommands()
         .then((items) => {
-          if (active) setLoaded({ scope, items });
+          if (active && revision === requestRevision) {
+            setLoaded({ scope, items });
+            setError("");
+          }
         })
         .catch(() => {
-          if (active)
+          if (active && revision === requestRevision)
             setError(
               "Chưa đọc được yêu cầu đang chờ. Kiểm tra lại trước khi gửi.",
             );
@@ -85,16 +98,16 @@ export function PendingCommandsPanel({ onSettled }: { onSettled(): void }) {
     setError("");
     try {
       await retryPendingCommand(id);
-      if (alive.current) onSettled();
+      if (alive.current && currentScope.current === scope) onSettled();
     } catch (cause) {
-      if (alive.current)
+      if (alive.current && currentScope.current === scope)
         setError(
           cause && typeof cause === "object" && "message" in cause
             ? String(cause.message)
             : "Yêu cầu vẫn cần đối soát. Chưa tạo yêu cầu thay thế.",
         );
     } finally {
-      if (alive.current) setBusy("");
+      if (alive.current && currentScope.current === scope) setBusy("");
     }
   };
   return (

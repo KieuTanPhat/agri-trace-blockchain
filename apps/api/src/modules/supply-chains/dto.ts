@@ -102,6 +102,16 @@ export class LedgerDeliveryCountsDto {
   @ApiProperty({ type: Number }) deadLetter!: number;
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })
   oldestPendingAt!: string | null;
+  @ApiProperty({ type: Number, nullable: true }) pendingAgeSeconds!: number | null;
+}
+export class LedgerWorkerObservationDto {
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' }) lastCheckedAt!: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' }) lastHealthyAt!: string | null;
+  @ApiProperty({ type: String, nullable: true }) lastErrorCode!: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' }) certificateExpiresAt!: string | null;
+  @ApiProperty({ type: Boolean }) heartbeatStale!: boolean;
+  @ApiProperty({ type: Boolean }) certificateExpired!: boolean;
+  @ApiProperty({ type: Boolean }) healthy!: boolean;
 }
 /** Trạng thái ledger của chuỗi. Không chứa endpoint, khóa hay descriptor quản trị. */
 export class LedgerStatusDto {
@@ -119,6 +129,9 @@ export class LedgerStatusDto {
   delivery!: LedgerDeliveryCountsDto;
   @ApiProperty({ type: Number }) openHolds!: number;
   @ApiProperty({ type: Number }) pendingControlJobs!: number;
+  @ApiProperty({ type: Number }) failedControlJobs!: number;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true }) lastControlFailureAt!: string | null;
+  @ApiProperty({ type: LedgerWorkerObservationDto }) worker!: LedgerWorkerObservationDto;
 }
 export class BusinessProfileDto {
   @ApiProperty({ type: String, format: 'uuid' }) chainId!: string;

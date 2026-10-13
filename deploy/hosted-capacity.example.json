@@ -1,0 +1,10 @@
+{
+  "status": "PROPOSAL_REQUIRES_COMBINED_LOAD_AND_PRESERVATION_REHEARSAL",
+  "minimumHostReservePercent": 20,
+  "appMiB": {"POSTGRES": 512, "API": 512, "WEB": 512, "WORKER": 384},
+  "retainedServicesMiB": {"datadog": 384, "edge": 64, "portainer": 128},
+  "legacyNetworkMiB": {"caOrderer": 64, "caService": 64, "caOwner": 64, "orderer": 256, "servicePeer": 384, "ownerPeer": 384, "serviceChaincode": 256, "ownerChaincode": 256},
+  "hostedNetworkMiB": {"caOrderer": 64, "caService": 64, "caOwner": 64, "orderer": 256, "servicePeer": 384, "ownerPeer": 384, "serviceChaincode": 256, "ownerChaincode": 256},
+  "estimatedTotalMiB": 5952,
+  "warning": "Do not apply this proposal to the server before exact image/protocol load, OOM/restart and legacy proof preservation evidence. Failure holds capacity; it does not authorize removing quota or buying infrastructure."
+}

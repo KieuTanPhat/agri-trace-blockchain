@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type {
   BindingLedgerClient,
   RegistryOperator,
@@ -35,13 +35,15 @@ export interface OnboardInput {
 export async function onboardBindingOnLedger(input: OnboardInput) {
   const health = (await input.reader.health()) as {
     governanceDigest: string;
-    channelPolicy: unknown;
+    channelPolicy: { strictB?: boolean; allowLegacyV3Writes?: boolean } | null;
   };
   if (health.governanceDigest !== input.binding.governanceDigest)
     throw new Error(
       'Binding governance digest differs from the deployed chaincode',
     );
-  const nonce = (label: string) =>
+  if (health.channelPolicy && (health.channelPolicy.strictB !== true || health.channelPolicy.allowLegacyV3Writes !== false))
+    throw new Error('Existing channel policy does not match the strict hosted protocol');
+  const nonce = (label: string, scope = input.binding.digest) =>
     // Deterministic nonce per (binding, step) so retries resume the same proposal.
     [8, 4, 4, 4, 12]
       .reduce<{ parts: string[]; rest: string }>(
@@ -49,7 +51,7 @@ export async function onboardBindingOnLedger(input: OnboardInput) {
           parts: [...acc.parts, acc.rest.slice(0, size)],
           rest: acc.rest.slice(size),
         }),
-        { parts: [], rest: stableHex(`${input.binding.digest}:${label}`) },
+        { parts: [], rest: stableHex(`${scope}:${label}`) },
       )
       .parts.join('-');
   const steps: string[] = [];
@@ -59,7 +61,12 @@ export async function onboardBindingOnLedger(input: OnboardInput) {
       { channelId: input.channelId, strictB: true, allowLegacyV3Writes: false },
       input.approvers,
       '0',
-      randomUUID(),
+      // Channel bootstrap is shared by all bindings on that reviewed channel.
+      // A retry after an unknown response must resume the same proposal.
+      nonce(
+        'channel-bootstrap',
+        `${input.binding.governanceDigest}:${input.channelId}`,
+      ),
     );
     steps.push('CHANNEL_BOOTSTRAP');
   }

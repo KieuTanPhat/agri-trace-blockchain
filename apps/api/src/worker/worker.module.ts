@@ -8,6 +8,7 @@ import { BindingDeliveryService } from '../modules/ledger/binding-delivery.servi
 import { LedgerControlService } from '../modules/ledger/ledger-control.service.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { WorkerHealthController } from './worker-health.controller.js';
+import { HandoverExpiryService } from '../modules/shipments/handover-expiry.service.js';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule],
@@ -17,6 +18,7 @@ import { WorkerHealthController } from './worker-health.controller.js';
     BindingConnectionPool,
     BindingDeliveryService,
     LedgerControlService,
+    HandoverExpiryService,
     BlockchainWorkerService,
     BlockchainWorkerRunner,
   ],

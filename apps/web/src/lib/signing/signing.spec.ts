@@ -172,6 +172,27 @@ describe("prepared intent verification (what you see is what you sign)", () => {
       await refused(prepared(), Date.parse("2026-10-14T00:00:01.000Z")),
     ).toBe(false);
   });
+  it("rejects an invalid expiry and mismatched displayed operation or expiry", async () => {
+    for (const extra of [
+      { operation: "HANDOVER_CONFIRM" },
+      { expiresAt: "2099-10-14T00:00:00.000Z" },
+    ])
+      expect(
+        (await verifyPreparedIntent(prepared(extra), beforeExpiry)).ok,
+      ).toBe(false);
+    const intent = { ...vector.intent, notAfter: "not-a-date" };
+    expect(
+      await verifyPreparedIntent(
+        prepared({
+          intent,
+          expiresAt: intent.notAfter,
+          intentDigest: await intentDigest(intent),
+          signedMessage: toBase64Url(await signedMessage(intent)),
+        }),
+        beforeExpiry,
+      ),
+    ).toEqual({ ok: false, reason: "Thời hạn yêu cầu ký không hợp lệ" });
+  });
 });
 
 describe("device key signer", () => {
@@ -262,5 +283,59 @@ describe("device key signer", () => {
     await expect(signPreparedIntent(store, request)).rejects.toThrow(
       /không nằm trên thiết bị/,
     );
+  });
+  it("refuses a valid server intent whose organization, binding, shipment or selected key differs from the reviewed scope", async () => {
+    const store = new MemoryKeyStore();
+    const created = await createSigningKey(store, {
+      chainId: "db-chain",
+      organizationId: vector.intent.signerOrgRef,
+      bindingDigest: vector.intent.bindingDigest,
+      label: "Scope-bound key",
+    });
+    const intent = {
+      ...vector.intent,
+      keyRef: created.keyRef,
+      notAfter: new Date(Date.now() + 60_000).toISOString(),
+    };
+    const request = prepared({
+      keyRef: created.keyRef,
+      intent,
+      expiresAt: intent.notAfter,
+      intentDigest: await intentDigest(intent),
+      signedMessage: toBase64Url(await signedMessage(intent)),
+    });
+    const expected = {
+      chainId: "db-chain",
+      organizationId: vector.intent.signerOrgRef,
+      chainRef: vector.intent.chainRef,
+      bindingDigest: vector.intent.bindingDigest,
+      entityId: vector.intent.entityId,
+      operation: vector.intent.operation,
+      keyRef: created.keyRef,
+    };
+    await expect(
+      signPreparedIntent(store, request, expected),
+    ).resolves.toHaveLength(86);
+    for (const extra of [
+      { chainId: "another-chain" },
+      { organizationId: "another-org" },
+      { chainRef: "another-logical-chain" },
+      { bindingDigest: "00".repeat(32) },
+      { entityId: "another-shipment" },
+      { operation: "HANDOVER_CONFIRM" },
+      { keyRef: "another-key" },
+    ])
+      await expect(
+        signPreparedIntent(store, request, { ...expected, ...extra }),
+      ).rejects.toBeInstanceOf(SigningRefusedError);
+    const otherOrg = { ...intent, signerOrgRef: "another-org" };
+    await expect(
+      signPreparedIntent(store, {
+        ...request,
+        intent: otherOrg,
+        intentDigest: await intentDigest(otherOrg),
+        signedMessage: toBase64Url(await signedMessage(otherOrg)),
+      }),
+    ).rejects.toThrow(/không thuộc tổ chức giữ khóa/);
   });
 });

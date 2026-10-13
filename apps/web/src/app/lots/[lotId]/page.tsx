@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ResponsiveTable } from "@/components/responsive-table";
 import { ActionPanel } from "@/components/action-panel";
 import { LotPicker } from "@/components/lot-picker";
@@ -17,31 +17,59 @@ import { StateBadge } from "@/components/state-badge";
 import { TimelineItem } from "@/components/timeline-item";
 import { getLotById, getLots } from "@/lib/api-client";
 import { labelForProof } from "@/lib/display-labels";
-import type { LotTrace } from "@/lib/types";
+import type { AuthUser, LotTrace } from "@/lib/types";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
 import { LotWarnings } from "@/components/lot-warnings";
 import { HandoverPanel } from "@/components/handover-panel";
 import { useAuth } from "@/lib/auth-store";
+import { getAuthorizationScope } from "@/lib/auth-scope";
 
 export default function LotDetailPage() {
   const { lotId } = useParams<{ lotId: string }>();
-  const { user } = useAuth();
+  const auth = useAuth();
+  if (
+    !auth.user ||
+    (auth.privateAccessStatus && auth.privateAccessStatus !== "ready")
+  )
+    return <LoadingState title="Đang kiểm tra quyền truy cập lô" />;
+  return (
+    <LotWorkspace
+      key={JSON.stringify([getAuthorizationScope(auth.user), lotId])}
+      lotId={lotId}
+      user={auth.user}
+    />
+  );
+}
+
+function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
   const [lots, setLots] = useState<LotTrace[]>([]);
   const [lot, setLot] = useState<LotTrace | null>(null);
   const [error, setError] = useState("");
+  const requestRevision = useRef(0);
+  const alive = useRef(true);
   const load = useCallback(() => {
+    const revision = ++requestRevision.current;
     setError("");
     Promise.all([getLots(), getLotById(lotId)])
       .then(([items, detail]) => {
+        if (!alive.current || requestRevision.current !== revision) return;
         setLots(items);
         setLot(detail);
       })
-      .catch((cause) =>
-        setError(cause?.message ?? "Không tải được chi tiết lô."),
-      );
+      .catch((cause) => {
+        if (alive.current && requestRevision.current === revision)
+          setError(cause?.message ?? "Không tải được chi tiết lô.");
+      });
   }, [lotId]);
-  useEffect(load, [load]);
+  useEffect(() => {
+    alive.current = true;
+    load();
+    return () => {
+      alive.current = false;
+      requestRevision.current += 1;
+    };
+  }, [load]);
   if (error)
     return (
       <ErrorState
@@ -114,13 +142,15 @@ export default function LotDetailPage() {
                   Số lượng gửi: {lot.shipment.shippedQuantity} {lot.unit} · Từ
                   chối: {lot.shipment.rejectedQuantity ?? 0} {lot.unit}
                 </p>
-                {lot.shipment.handoverMode === "DUAL_SIGNED" && (
+                {lot.shipment.handoverMode === "DUAL_SIGNED" && lot.chainId && (
                   <HandoverPanel
+                    chainId={lot.chainId}
                     shipmentId={lot.shipment.shipmentId}
                     status={lot.shipment.status}
                     organizationId={user?.organizationId ?? null}
                     farmOrgId={lot.farmOrg.organizationId}
                     transporterOrgId={lot.shipment.transporterOrgId}
+                    retailerOrgId={lot.shipment.retailerOrgId}
                     onChanged={load}
                   />
                 )}

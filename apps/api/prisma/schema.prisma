@@ -1312,6 +1312,7 @@ model FabricNetworkBinding {
   attempts         DeliveryAttempt[]
   holds            DeliveryHold[]
   signingKeys      SigningKey[]
+  workerHealth     BindingWorkerHealth?
 
   @@unique([digest, chainId], map: "uq_fabric_binding_chain")
   @@index([chainId], map: "ix_fabric_binding_chain")
@@ -1326,6 +1327,18 @@ model FabricBindingState {
   binding       FabricNetworkBinding @relation(fields: [bindingDigest], references: [digest], onDelete: Restrict, onUpdate: NoAction)
 
   @@map("fabric_binding_state")
+}
+
+/// Non-secret operational observations; never a proof or business authority.
+model BindingWorkerHealth {
+  bindingDigest       String               @id @map("binding_digest") @db.VarChar(64)
+  lastCheckedAt       DateTime             @map("last_checked_at") @db.Timestamptz(6)
+  lastHealthyAt       DateTime?            @map("last_healthy_at") @db.Timestamptz(6)
+  lastErrorCode       String?              @map("last_error_code") @db.VarChar(60)
+  certificateExpiresAt DateTime?           @map("certificate_expires_at") @db.Timestamptz(6)
+  binding             FabricNetworkBinding @relation(fields: [bindingDigest], references: [digest], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("binding_worker_health")
 }
 
 model FabricCredentialRevision {

@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { BindingConnectionPool, type BindingTarget } from './binding-pool.js';
 
 type Job = Prisma.LedgerControlJobGetPayload<{ include: { binding: true } }>;
+type Sync = Prisma.LedgerPermissionSyncGetPayload<object>;
 const MAX_ATTEMPTS = 8;
 
 /** Executes ledger permission and fence changes. The DB never claims a
@@ -59,16 +60,12 @@ export class LedgerControlService {
       `);
       if (!rows.length) return [];
       const ids = rows.map((row) => row.id);
-      await tx.ledgerControlJob.updateMany({
-        where: { id: { in: ids } },
-        data: {
-          status: 'PROCESSING',
-          attemptCount: { increment: 1 },
-          leaseToken: token,
-          leaseExpiresAt: new Date(Date.now() + lease),
-          updatedAt: new Date(),
-        },
-      });
+      await tx.$executeRaw`UPDATE ledger_control_job
+        SET status = 'PROCESSING'::ledger_control_status,
+            attempt_count = attempt_count + 1, lease_token = ${token}::uuid,
+            lease_expires_at = clock_timestamp() + ${lease} * interval '1 millisecond',
+            updated_at = clock_timestamp()
+        WHERE job_id = ANY(${ids}::uuid[])`;
       return tx.ledgerControlJob.findMany({
         where: { id: { in: ids }, leaseToken: token },
         include: { binding: true },
@@ -90,6 +87,17 @@ export class LedgerControlService {
   }
 
   private async run(job: Job): Promise<void> {
+    // Jobs claimed in a batch may have waited while earlier jobs used the
+    // network. An expired claim must never be revived by the old worker.
+    if (!(await this.renew(job))) return;
+    const heartbeat = setInterval(() => {
+      void this.renew(job).catch((error: unknown) => {
+        this.logger.warn(
+          `Control job ${job.id} lease renewal failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+        );
+      });
+    }, Math.max(100, Math.floor(this.number('FABRIC_CLAIM_LEASE_MS', 120_000) / 3)));
+    heartbeat.unref();
     try {
       if (
         !this.pool.configured(job.bindingDigest, 'controller') ||
@@ -111,19 +119,18 @@ export class LedgerControlService {
       });
       const outcome = await this.execute(job, operator, controller.client);
       if (outcome === 'DEFER') return;
-      await this.prisma.ledgerControlJob.update({
-        where: { id: job.id },
-        data: {
+      await this.writeOwned(job, {
           status: 'COMPLETED',
           receipt: outcome as Prisma.InputJsonValue,
           lastError: null,
           leaseToken: null,
           leaseExpiresAt: null,
           updatedAt: new Date(),
-        },
       });
     } catch (error) {
       await this.failure(job, error);
+    } finally {
+      clearInterval(heartbeat);
     }
   }
 
@@ -175,12 +182,19 @@ export class LedgerControlService {
     }
     const ref = job.permissionRef!;
     const epoch = job.epoch!;
-    const sync = await this.prisma.ledgerPermissionSync.findUniqueOrThrow({
+    let sync = await this.prisma.ledgerPermissionSync.findUniqueOrThrow({
       where: { permissionRef: ref },
     });
+    if (sync.requestedEpoch !== epoch) return { outcome: 'SUPERSEDED' };
     if (job.operation === 'PERMISSION_GRANT') {
-      if (sync.requestedEpoch === epoch && sync.state === 'REQUESTED')
-        await this.setSync(ref, { state: 'PENDING_LEDGER' });
+      if (sync.state === 'ACTIVE' && sync.confirmedEpoch === epoch)
+        return { outcome: 'ALREADY_ACTIVE' };
+      if (sync.state === 'REQUESTED') {
+        const pending = await this.setSync(job, sync, { state: 'PENDING_LEDGER' });
+        if (!pending) return { outcome: 'SUPERSEDED' };
+        sync = pending;
+      }
+      if (sync.state !== 'PENDING_LEDGER') return { outcome: 'SUPERSEDED' };
       const permissionEpoch =
         await this.prisma.ledgerPermissionEpoch.findUniqueOrThrow({
           where: { permissionRef_epoch: { permissionRef: ref, epoch } },
@@ -197,20 +211,17 @@ export class LedgerControlService {
         String(job.expectedRevision),
         job.nonce,
       );
-      const current = await this.prisma.ledgerPermissionSync.findUniqueOrThrow({
-        where: { permissionRef: ref },
-      });
-      if (current.requestedEpoch === epoch)
-        await this.setSync(ref, {
-          ...(current.state === 'PENDING_LEDGER' ? { state: 'ACTIVE' } : {}),
+      await this.setSync(job, sync, {
+          state: 'ACTIVE',
           confirmedEpoch: epoch,
           lastTxId: view.executedTxId ?? null,
-        });
+      });
       return { proposalId: view.proposalId, txId: view.executedTxId ?? null };
     }
-    if (sync.requestedEpoch !== epoch) return { outcome: 'SUPERSEDED' };
     if (job.operation === 'PERMISSION_REVOKE') {
       if (sync.state === 'REVOKED') return { outcome: 'ALREADY_REVOKED' };
+      if (!['REVOKE_REQUESTED', 'DRAINING', 'PENDING_REVOKE_LEDGER'].includes(sync.state))
+        return { outcome: 'SUPERSEDED' };
       // Drain: every event captured at or before the barrier must be VALID on
       // the ledger. Dead-lettered or unknown events never count as drained.
       const blocked = await this.undrained(
@@ -227,31 +238,42 @@ export class LedgerControlService {
         );
         return 'DEFER';
       }
-      if (sync.state === 'REVOKE_REQUESTED')
-        await this.setSync(ref, { state: 'DRAINING' });
-      if (['REVOKE_REQUESTED', 'DRAINING'].includes(sync.state))
-        await this.setSync(ref, { state: 'PENDING_REVOKE_LEDGER' });
+      if (sync.state === 'REVOKE_REQUESTED') {
+        const draining = await this.setSync(job, sync, { state: 'DRAINING' });
+        if (!draining) return { outcome: 'SUPERSEDED' };
+        sync = draining;
+      }
+      if (sync.state === 'DRAINING') {
+        const pending = await this.setSync(job, sync, { state: 'PENDING_REVOKE_LEDGER' });
+        if (!pending) return { outcome: 'SUPERSEDED' };
+        sync = pending;
+      }
       const view = await this.applyRevoke(
         operator,
         'PERMISSION_REVOKE',
         job,
         msp,
       );
-      await this.setSync(ref, { state: 'REVOKED', lastTxId: view.txId });
+      await this.setSync(job, sync, { state: 'REVOKED', lastTxId: view.txId });
       return view;
     }
     // Emergency: revoke now, keep the hold until a reviewer resolves it.
     if (sync.state === 'REVOKED_REVIEW_REQUIRED')
       return { outcome: 'ALREADY_REVOKED' };
-    if (sync.state === 'EMERGENCY_HOLD')
-      await this.setSync(ref, { state: 'PENDING_EMERGENCY_REVOKE' });
+    if (sync.state === 'EMERGENCY_HOLD') {
+      const pending = await this.setSync(job, sync, { state: 'PENDING_EMERGENCY_REVOKE' });
+      if (!pending) return { outcome: 'SUPERSEDED' };
+      sync = pending;
+    }
+    if (sync.state !== 'PENDING_EMERGENCY_REVOKE')
+      return { outcome: 'SUPERSEDED' };
     const view = await this.applyRevoke(
       operator,
       'PERMISSION_EMERGENCY_REVOKE',
       job,
       msp,
     );
-    await this.setSync(ref, {
+    await this.setSync(job, sync, {
       state: 'REVOKED_REVIEW_REQUIRED',
       lastTxId: view.txId,
     });
@@ -302,16 +324,71 @@ export class LedgerControlService {
   }
 
   private async setSync(
-    ref: string,
+    job: Job,
+    expected: Sync,
     data: {
       state?: Prisma.LedgerPermissionSyncUpdateInput['state'];
       confirmedEpoch?: number;
       lastTxId?: string | null;
     },
-  ) {
-    await this.prisma.ledgerPermissionSync.update({
-      where: { permissionRef: ref },
-      data: { ...data, version: { increment: 1 }, updatedAt: new Date() },
+  ): Promise<Sync | null> {
+    return this.prisma.$transaction(async (tx) => {
+      // API revoke/regrant uses permission -> control-job lock order too.
+      // Keep that order so a network completion cannot deadlock or overwrite
+      // a newer hold/epoch, even if its job claim is still current.
+      await tx.$queryRaw`SELECT permission_ref FROM ledger_permission_sync
+        WHERE permission_ref = ${expected.permissionRef}::uuid FOR UPDATE`;
+      const [owned] = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT job_id AS id FROM ledger_control_job
+        WHERE job_id = ${job.id}::uuid AND status = 'PROCESSING'::ledger_control_status
+          AND lease_token = ${job.leaseToken}::uuid AND lease_expires_at > clock_timestamp()
+        FOR UPDATE`;
+      if (!owned) return null;
+      const updated = await tx.ledgerPermissionSync.updateMany({
+        where: {
+          permissionRef: expected.permissionRef,
+          requestedEpoch: expected.requestedEpoch,
+          state: expected.state,
+          version: expected.version,
+        },
+        data: { ...data, version: { increment: 1 }, updatedAt: new Date() },
+      });
+      if (updated.count !== 1) return null;
+      return tx.ledgerPermissionSync.findUniqueOrThrow({
+        where: { permissionRef: expected.permissionRef },
+      });
+    });
+  }
+
+  private owned(job: Job): Prisma.LedgerControlJobWhereInput {
+    return {
+      id: job.id,
+      status: 'PROCESSING',
+      leaseToken: job.leaseToken,
+    };
+  }
+
+  private async renew(job: Job): Promise<boolean> {
+    if (!job.leaseToken) return false;
+    const lease = this.number('FABRIC_CLAIM_LEASE_MS', 120_000);
+    const count = await this.prisma.$executeRaw`UPDATE ledger_control_job
+      SET lease_expires_at = clock_timestamp() + ${lease} * interval '1 millisecond',
+          updated_at = clock_timestamp()
+      WHERE job_id = ${job.id}::uuid AND status = 'PROCESSING'::ledger_control_status
+        AND lease_token = ${job.leaseToken}::uuid AND lease_expires_at > clock_timestamp()`;
+    return count === 1;
+  }
+
+  private async writeOwned(job: Job, data: Prisma.LedgerControlJobUpdateManyMutationInput) {
+    if (!job.leaseToken) return { count: 0 };
+    return this.prisma.$transaction(async (tx) => {
+      const [row] = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT job_id AS id FROM ledger_control_job
+        WHERE job_id = ${job.id}::uuid AND status = 'PROCESSING'::ledger_control_status
+          AND lease_token = ${job.leaseToken}::uuid AND lease_expires_at > clock_timestamp()
+        FOR UPDATE`;
+      if (!row) return { count: 0 };
+      return tx.ledgerControlJob.updateMany({ where: this.owned(job), data });
     });
   }
 
@@ -321,9 +398,7 @@ export class LedgerControlService {
     reason: string,
     spendNothing: boolean,
   ) {
-    await this.prisma.ledgerControlJob.update({
-      where: { id: job.id },
-      data: {
+    await this.writeOwned(job, {
         status: 'PENDING',
         attemptCount: spendNothing ? { decrement: 1 } : undefined,
         nextAttemptAt: new Date(Date.now() + delayMs),
@@ -331,7 +406,6 @@ export class LedgerControlService {
         leaseExpiresAt: null,
         lastError: reason,
         updatedAt: new Date(),
-      },
     });
   }
 
@@ -350,11 +424,8 @@ export class LedgerControlService {
         'APPROVALS_MISSING',
         'UNAUTHORIZED_CONTROL',
       ].includes(failure.chaincodeCode ?? '');
-    this.pool.invalidate(job.bindingDigest);
     const exhausted = job.attemptCount >= MAX_ATTEMPTS;
-    await this.prisma.ledgerControlJob.update({
-      where: { id: job.id },
-      data: {
+    const updated = await this.writeOwned(job, {
         status: permanent || exhausted ? 'FAILED' : 'PENDING',
         nextAttemptAt: new Date(
           Date.now() + Math.min(120_000, 2 ** job.attemptCount * 1000),
@@ -363,8 +434,9 @@ export class LedgerControlService {
         leaseExpiresAt: null,
         lastError: message,
         updatedAt: new Date(),
-      },
     });
+    if (updated.count !== 1) return;
+    this.pool.invalidate(job.bindingDigest);
     this.logger.warn(
       `Control job ${job.id} ${permanent || exhausted ? 'failed' : 'will retry'}: ${message}`,
     );

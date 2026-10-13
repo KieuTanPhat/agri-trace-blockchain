@@ -1,6 +1,9 @@
 # Disposable Fabric integration stack; use together with docker-compose.yml.
 # The test network creates fabric_test. Only Worker needs ledger access.
 services:
+  api:
+    environment:
+      HYBRID_WRITES_MODE: OPEN
   worker:
     # Match the runner's UID/GID so a generated key can stay private (0600).
     user: ${CI_WORKER_UID:-1000}:${CI_WORKER_GID:-1000}

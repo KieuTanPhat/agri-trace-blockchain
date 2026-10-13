@@ -23,6 +23,7 @@ import {
  */
 export type PreparedIntentInput = {
   intentId: string;
+  operation: 'HANDOVER_OFFER' | 'HANDOVER_CONFIRM';
   keyRef: string;
   expiresAt: string;
   intent: IntentBody;
@@ -32,6 +33,9 @@ export type PreparedIntentInput = {
 };
 
 export class SignerRefusal extends Error {}
+
+export type SigningExpectation = Pick<IntentBody,
+  'chainRef' | 'bindingDigest' | 'signerOrgRef' | 'keyRef' | 'entityType' | 'entityId' | 'operation'>;
 
 export function generateSignerKey(): { privatePem: string; publicKey: string } {
   const { privateKey } = generateKeyPairSync('ed25519');
@@ -77,6 +81,7 @@ export function signPreparedIntent(
   privatePem: string,
   prepared: PreparedIntentInput,
   now = Date.now(),
+  expected?: SigningExpectation,
 ): { signature: string; intentDigest: string } {
   const { intent, payload } = prepared;
   try {
@@ -96,7 +101,12 @@ export function signPreparedIntent(
     intent.intentId !== prepared.intentId
   )
     throw new SignerRefusal('Intent names another key or request');
-  if (Date.parse(intent.notAfter) <= now)
+  if (prepared.operation !== intent.operation || prepared.expiresAt !== intent.notAfter)
+    throw new SignerRefusal('Displayed operation or expiry differs from the intent');
+  if (expected && Object.entries(expected).some(([field, value]) =>
+    intent[field as keyof IntentBody] !== value))
+    throw new SignerRefusal('Intent differs from the independently reviewed context');
+  if (!Number.isFinite(Date.parse(intent.notAfter)) || Date.parse(intent.notAfter) <= now)
     throw new SignerRefusal('Intent has expired');
   return {
     signature: sign(

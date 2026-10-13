@@ -68,6 +68,8 @@ export class SigningKeyDto {
 
 export class SigningContextDto {
   @ApiProperty({ type: String, format: 'uuid' }) chainId!: string;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  chainRef!: string | null;
   @ApiProperty({ type: String, format: 'uuid' }) organizationId!: string;
   @ApiProperty({
     type: String,
@@ -81,6 +83,16 @@ export class SigningContextDto {
 }
 
 export class PrepareIntentOptionsDto {
+  @ApiProperty({
+    type: String,
+    format: 'uuid',
+    required: false,
+    description: 'Mã của lần chuẩn bị mới; giữ nguyên khi đối soát một kết quả chưa rõ',
+  })
+  @IsOptional()
+  @IsUUID()
+  preparationRef?: string;
+
   @ApiProperty({
     type: String,
     format: 'uuid',

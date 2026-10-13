@@ -4,6 +4,7 @@ import type {
   Prisma,
 } from '../../generated/prisma/client.js';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
+import { historicalEventRoute } from './legacy-ledger-descriptor.js';
 
 export const ROUTE_PROTOCOL = 'agritrace-ledger-route/1';
 /** Release B routes pin the chain reference and the logical binding digest. */
@@ -24,7 +25,9 @@ export type RouteDefinition = Pick<
 export type PinnedRoute = RouteDefinition & { digest: string };
 export type RoutedEvent = {
   id?: string;
+  schemaVersion?: string;
   dataHash: string;
+  ledgerRouteExemption?: null | { eventId: string };
   ledgerRoute?: null | {
     definitionDigest: string;
     definition: PinnedRoute;
@@ -153,6 +156,7 @@ export function configuredWriteRoute(
 export function verifiedEventRoute(event: RoutedEvent): PinnedRoute | null {
   try {
     const sidecar = event.ledgerRoute;
+    if (sidecar === null) return historicalEventRoute(event);
     if (!sidecar || sidecar.definitionDigest !== sidecar.definition.digest)
       return null;
     if (ledgerRouteDigest(sidecar.definition) !== sidecar.definition.digest)
@@ -174,14 +178,12 @@ export function sameLedgerDestination(
   );
 }
 
-/** Pre-release-A events (loaded route sidecar is `null`) are verified as
- * before: their proof carries the destination. An unloaded sidecar
- * (`undefined`) never verifies, so a query cannot silently downgrade. */
+/** Historical events use their independently pinned baseline descriptor.
+ * An unloaded sidecar or exemption never silently downgrades verification. */
 export function routeProofMatches(
   event: RoutedEvent,
   proof: { network?: string; channelId?: string; dataHash: string },
 ): boolean {
-  if (event.ledgerRoute === null) return proof.dataHash === event.dataHash;
   const route = verifiedEventRoute(event);
   return Boolean(
     route &&

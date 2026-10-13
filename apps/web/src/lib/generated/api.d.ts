@@ -2347,7 +2347,7 @@ export interface components {
         };
         InspectCommandRequestDto: {
             /** @enum {string} */
-            operation: "CREATE_PRODUCTION_CYCLE" | "PLANT_PRODUCTION_CYCLE" | "RECORD_CARE" | "RECORD_SENSOR" | "CLOSE_PRODUCTION_CYCLE" | "CANCEL_PRODUCTION_CYCLE" | "RECORD_HARVEST" | "CREATE_SHIPMENT" | "START_SHIPMENT" | "ARRIVE_SHIPMENT" | "RECEIVE_SHIPMENT" | "REJECT_SHIPMENT" | "DAMAGE_SHIPMENT" | "DAMAGE_LOT" | "MARK_FOR_SALE" | "MARK_SOLD" | "RECALL_LOT" | "EXPIRE_LOT" | "CREATE_INSPECTION" | "CREATE_CERTIFICATE" | "REVIEW_CERTIFICATE" | "CREATE_SENSOR_DIGEST" | "RECONCILE_CYCLE_SENSOR" | "BIND_SHIPMENT_DEVICE" | "UNBIND_SHIPMENT_DEVICE" | "CREATE_SHIPMENT_TELEMETRY_DIGEST" | "HYB_CREATE_CHAIN" | "HYB_ACTIVATE_BUSINESS_PROFILE" | "HYB_INVITE_MEMBERSHIP" | "HYB_ACCEPT_MEMBERSHIP" | "HYB_CHANGE_MEMBERSHIP" | "HYB_GRANT_ROLE" | "HYB_REVOKE_ROLE" | "HYB_SET_CAPABILITY" | "SCOPE_CREATE_SHIPMENT_PLAN" | "SCOPE_REVISE_SHIPMENT_PLAN" | "SCOPE_ACCEPT_SHIPMENT_PLAN" | "SCOPE_CANCEL_SHIPMENT_PLAN" | "SCOPE_FINALIZE_SHIPMENT_PLAN" | "SCOPE_REGISTER_LEGACY_MANIFEST" | "SCOPE_CONFIRM_LEGACY_ASSIGNMENT" | "SCOPE_APPLY_LEGACY_ROOT";
+            operation: "CREATE_PRODUCTION_CYCLE" | "PLANT_PRODUCTION_CYCLE" | "RECORD_CARE" | "RECORD_SENSOR" | "CLOSE_PRODUCTION_CYCLE" | "CANCEL_PRODUCTION_CYCLE" | "RECORD_HARVEST" | "CREATE_SHIPMENT" | "START_SHIPMENT" | "ARRIVE_SHIPMENT" | "RECEIVE_SHIPMENT" | "REJECT_SHIPMENT" | "DAMAGE_SHIPMENT" | "DAMAGE_LOT" | "MARK_FOR_SALE" | "MARK_SOLD" | "RECALL_LOT" | "EXPIRE_LOT" | "CREATE_INSPECTION" | "CREATE_CERTIFICATE" | "REVIEW_CERTIFICATE" | "CREATE_SENSOR_DIGEST" | "RECONCILE_CYCLE_SENSOR" | "BIND_SHIPMENT_DEVICE" | "UNBIND_SHIPMENT_DEVICE" | "CREATE_SHIPMENT_TELEMETRY_DIGEST" | "HYB_CREATE_CHAIN" | "HYB_ACTIVATE_BUSINESS_PROFILE" | "HYB_INVITE_MEMBERSHIP" | "HYB_ACCEPT_MEMBERSHIP" | "HYB_CHANGE_MEMBERSHIP" | "HYB_GRANT_ROLE" | "HYB_REVOKE_ROLE" | "HYB_SET_CAPABILITY" | "SCOPE_CREATE_SHIPMENT_PLAN" | "SCOPE_REVISE_SHIPMENT_PLAN" | "SCOPE_ACCEPT_SHIPMENT_PLAN" | "SCOPE_CANCEL_SHIPMENT_PLAN" | "SCOPE_FINALIZE_SHIPMENT_PLAN" | "PREPARE_HANDOVER_OFFER" | "PREPARE_HANDOVER_CONFIRM" | "SUBMIT_SIGNED_INTENT" | "REJECT_HANDOVER" | "CANCEL_HANDOVER" | "HYB_REGISTER_SIGNING_KEY" | "HYB_REVOKE_SIGNING_KEY";
             /** @description Payload gốc của command, gồm resource IDs như controller chuẩn hóa */
             payload: {
                 [key: string]: unknown;
@@ -2401,6 +2401,8 @@ export interface components {
             allowedCommands: ("createShipment" | "reportDamage" | "startTransport" | "reportArrival" | "receiveRetail" | "rejectRetail" | "markForSale" | "markSold" | "recall" | "expire")[];
             availableQuantity: number;
             blockchainProof?: components["schemas"]["LotProofDto"];
+            /** Format: uuid */
+            chainId: string | null;
             /** @enum {string} */
             currentState: "HARVESTED" | "IN_TRANSPORT" | "ARRIVED" | "RETAIL_RECEIVED" | "FOR_SALE" | "SOLD" | "RECALLED" | "EXPIRED" | "DAMAGED" | "REJECTED";
             custodian: components["schemas"]["CustodianDto"] | null;
@@ -2504,6 +2506,7 @@ export interface components {
             /** Format: date-time */
             oldestPendingAt: string | null;
             pending: number;
+            pendingAgeSeconds: number | null;
             retry: number;
         };
         LedgerPermissionCountsDto: {
@@ -2521,6 +2524,9 @@ export interface components {
             chainId: string;
             channelId: string | null;
             delivery: components["schemas"]["LedgerDeliveryCountsDto"];
+            failedControlJobs: number;
+            /** Format: date-time */
+            lastControlFailureAt: string | null;
             openHolds: number;
             pendingControlJobs: number;
             permissions: components["schemas"]["LedgerPermissionCountsDto"];
@@ -2529,6 +2535,19 @@ export interface components {
              * @enum {string}
              */
             profile: "RELEASE_A" | "SERVICE" | "MANAGED_ORG" | "SELF_MANAGED_ORG";
+            worker: components["schemas"]["LedgerWorkerObservationDto"];
+        };
+        LedgerWorkerObservationDto: {
+            certificateExpired: boolean;
+            /** Format: date-time */
+            certificateExpiresAt: string | null;
+            healthy: boolean;
+            heartbeatStale: boolean;
+            /** Format: date-time */
+            lastCheckedAt: string | null;
+            lastErrorCode: string | null;
+            /** Format: date-time */
+            lastHealthyAt: string | null;
         };
         ListShipmentLotDto: {
             /** @description Exact decimal serialized as a string */
@@ -2800,6 +2819,11 @@ export interface components {
             note?: string;
             /** @description Thời hạn bên nhận phải xác nhận, mặc định 1440 phút */
             offerValidMinutes?: number;
+            /**
+             * Format: uuid
+             * @description Mã của lần chuẩn bị mới; giữ nguyên khi đối soát một kết quả chưa rõ
+             */
+            preparationRef?: string;
             /** @description Thời gian chờ chữ ký, mặc định 15 phút */
             signingWindowMinutes?: number;
         };
@@ -2809,6 +2833,11 @@ export interface components {
              * @description Chọn khóa khi tổ chức có nhiều khóa hoạt động
              */
             keyRef?: string;
+            /**
+             * Format: uuid
+             * @description Mã của lần chuẩn bị mới; giữ nguyên khi đối soát một kết quả chưa rõ
+             */
+            preparationRef?: string;
             /** @description Thời gian chờ chữ ký, mặc định 15 phút */
             signingWindowMinutes?: number;
         };
@@ -3411,6 +3440,8 @@ export interface components {
             bindingDigest: string | null;
             /** Format: uuid */
             chainId: string;
+            /** Format: uuid */
+            chainRef: string | null;
             /** @enum {string} */
             handoverMode: "STANDARD" | "DUAL_SIGNED";
             keys: components["schemas"]["SigningKeyDto"][];

@@ -32,14 +32,12 @@ beforeEach(() => {
     role: { code: "FARM_STAFF" },
   };
   fixture.auth.privateAccessStatus = "ready";
-  fixture.list
-    .mockReset()
-    .mockResolvedValue([
-      {
-        id: "saved-original-reference",
-        operation: "HYB_ACTIVATE_BUSINESS_PROFILE",
-      },
-    ]);
+  fixture.list.mockReset().mockResolvedValue([
+    {
+      id: "saved-original-reference",
+      operation: "HYB_ACTIVATE_BUSINESS_PROFILE",
+    },
+  ]);
   fixture.retry
     .mockReset()
     .mockResolvedValue({ state: "ACTIVE", privateResult: "discarded" });
@@ -103,5 +101,35 @@ describe("Pending request recovery after a form disappears", () => {
     expect(
       screen.queryByRole("region", { name: "Yêu cầu cần đối soát" }),
     ).not.toBeInTheDocument();
+  });
+  it("does not reload or disclose a late recovered signature result to another account", async () => {
+    let finish!: (value: object) => void;
+    fixture.retry.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    fixture.list.mockResolvedValue([
+      { id: "original-signature", operation: "SUBMIT_SIGNED_INTENT" },
+    ]);
+    const settled = vi.fn();
+    const shown = render(<PendingCommandsPanel onSettled={settled} />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Kiểm tra và thử lại" }),
+    );
+    fixture.auth.user = {
+      id: "two",
+      organizationId: "org-two",
+      role: { code: "FARM_STAFF" },
+    };
+    fixture.list.mockResolvedValue([]);
+    shown.rerender(<PendingCommandsPanel onSettled={settled} />);
+    await act(async () => finish({ privateResult: "previous-account-result" }));
+    expect(settled).not.toHaveBeenCalled();
+    expect(screen.queryByText("previous-account-result")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Kiểm tra và thử lại" }),
+    ).toBeNull();
   });
 });

@@ -62,6 +62,7 @@ const PERMANENT_CODES = new Set([
 const TERMINAL = ['VALID', 'INVALID', 'ABANDONED'];
 
 class PermanentDeliveryError extends Error {}
+class LostDeliveryLeaseError extends Error {}
 
 type LedgerProof = {
   eventId: string;
@@ -120,9 +121,19 @@ export class BindingDeliveryService {
       const hold = this.breaker.get(binding.digest);
       if (hold && hold.until > Date.now()) continue;
       try {
-        processed += await this.processBinding(binding, limit);
+        const connection = await this.pool.get(this.target(binding), 'relayer');
+        const health = (await connection.client.health()) as { status?: string; governanceDigest?: string; channelPolicy?: { strictB?: boolean; allowLegacyV3Writes?: boolean }; callerRole?: string | null };
+        if (health.status !== 'OK' || health.governanceDigest !== binding.governanceDigest ||
+            health.channelPolicy?.strictB !== true || health.channelPolicy.allowLegacyV3Writes !== false || health.callerRole !== 'relayer')
+          throw new Error('BINDING_CAPABILITY_MISMATCH');
+        processed += await this.processBinding(binding, limit, connection);
+        await this.noteHealth(binding.digest, null, connection.certificateExpiresAt);
         this.breaker.delete(binding.digest);
       } catch (error) {
+        const failure = classifyFabricError(error);
+        const code = failure.message.includes('BINDING_CERTIFICATE_EXPIRED') ? 'CERTIFICATE_EXPIRED' :
+          failure.message.includes('BINDING_CAPABILITY_MISMATCH') ? 'CAPABILITY_MISMATCH' : failure.chaincodeCode ?? failure.kind;
+        await this.noteHealth(binding.digest, code);
         const failures = (hold?.failures ?? 0) + 1;
         this.breaker.set(binding.digest, {
           failures,
@@ -136,6 +147,20 @@ export class BindingDeliveryService {
       }
     }
     return { processed, failedBindings };
+  }
+
+  private async noteHealth(digest: string, errorCode: string | null, expiresAt?: Date) {
+    // Server clock and atomic update keep observations monotonic across workers
+    // with different clocks. These fields never authorize a delivery or write.
+    await this.prisma.$executeRaw`INSERT INTO binding_worker_health
+      (binding_digest, last_checked_at, last_healthy_at, last_error_code, certificate_expires_at)
+      VALUES (${digest}, statement_timestamp(), CASE WHEN ${errorCode}::text IS NULL THEN statement_timestamp() ELSE NULL END,
+        ${errorCode}, ${expiresAt ?? null}::timestamptz)
+      ON CONFLICT (binding_digest) DO UPDATE SET
+        last_checked_at = GREATEST(statement_timestamp(), binding_worker_health.last_checked_at),
+        last_healthy_at = CASE WHEN EXCLUDED.last_error_code IS NULL THEN GREATEST(statement_timestamp(), binding_worker_health.last_healthy_at) ELSE binding_worker_health.last_healthy_at END,
+        last_error_code = EXCLUDED.last_error_code,
+        certificate_expires_at = COALESCE(EXCLUDED.certificate_expires_at, binding_worker_health.certificate_expires_at)`;
   }
 
   public target(binding: Binding): BindingTarget {
@@ -152,8 +177,8 @@ export class BindingDeliveryService {
   private async processBinding(
     binding: Binding,
     limit: number,
+    connection: BindingConnection,
   ): Promise<number> {
-    const connection = await this.pool.get(this.target(binding), 'relayer');
     const jobs = await this.claim(binding, limit);
     for (const job of jobs) await this.deliver(job, binding, connection);
     return jobs.length;
@@ -203,16 +228,12 @@ export class BindingDeliveryService {
       `);
       if (!rows.length) return [];
       const ids = rows.map((row) => row.id);
-      await tx.blockchainOutbox.updateMany({
-        where: { id: { in: ids } },
-        data: {
-          status: 'PROCESSING',
-          attemptCount: { increment: 1 },
-          nextAttemptAt: null,
-          leaseToken,
-          leaseExpiresAt: new Date(Date.now() + leaseMs),
-        },
-      });
+      await tx.$executeRaw`UPDATE blockchain_outbox
+        SET status = 'PROCESSING'::blockchain_outbox_status,
+            attempt_count = attempt_count + 1, next_attempt_at = NULL,
+            lease_token = ${leaseToken}::uuid,
+            lease_expires_at = clock_timestamp() + ${leaseMs} * interval '1 millisecond'
+        WHERE outbox_id = ANY(${ids}::uuid[])`;
       return tx.blockchainOutbox.findMany({
         where: { id: { in: ids }, leaseToken },
         include: CLAIM_INCLUDE,
@@ -226,6 +247,13 @@ export class BindingDeliveryService {
     binding: Binding,
     connection: BindingConnection,
   ) {
+    if (!(await this.renew(job))) return;
+    const heartbeat = setInterval(() => {
+      void this.renew(job).catch(() => {
+        this.logger.warn(`Delivery lease renewal failed eventId=${job.eventId}`);
+      });
+    }, Math.max(100, Math.floor(this.number('FABRIC_CLAIM_LEASE_MS', 120_000) / 3)));
+    heartbeat.unref();
     const event = job.traceEvent;
     try {
       const route = verifiedEventRoute(event);
@@ -266,7 +294,9 @@ export class BindingDeliveryService {
       if (state !== 'CLEAR') return;
       await this.attempt(job, binding, connection);
     } catch (error) {
-      await this.fail(job, error);
+      if (!(error instanceof LostDeliveryLeaseError)) await this.fail(job, error);
+    } finally {
+      clearInterval(heartbeat);
     }
   }
 
@@ -292,6 +322,7 @@ export class BindingDeliveryService {
       // Close the unknown attempts truthfully: the committing one is VALID.
       for (const attempt of open)
         await this.outcome(
+          job,
           attempt.id,
           attempt.txId === proof.txId ? 'VALID' : 'ABANDONED',
           attempt.txId === proof.txId
@@ -312,17 +343,18 @@ export class BindingDeliveryService {
       const last = attempt.outcomes[0]?.state ?? 'PREPARED';
       if (last === 'PREPARED' || last === 'ENDORSED') {
         // Never submitted to the orderer: nothing can land later.
-        await this.outcome(attempt.id, 'ABANDONED', 'never submitted');
+        await this.outcome(job, attempt.id, 'ABANDONED', 'never submitted');
         continue;
       }
       const code = await connection.client.transactionValidationCode(
         attempt.txId,
       );
       if (code !== null && code !== 0) {
-        await this.outcome(attempt.id, 'INVALID', `validation code ${code}`);
+        await this.outcome(job, attempt.id, 'INVALID', `validation code ${code}`);
       } else if (code === null && attempt.generation < fenced) {
         // A later fence generation makes this attempt impossible to commit.
         await this.outcome(
+          job,
           attempt.id,
           'ABANDONED',
           `fenced at generation ${fenced}`,
@@ -333,6 +365,7 @@ export class BindingDeliveryService {
     }
     if (!unknown) return 'CLEAR';
     await this.ensureFence(
+      job,
       binding,
       event.id,
       event.dataHash,
@@ -343,12 +376,14 @@ export class BindingDeliveryService {
   }
 
   private async ensureFence(
+    job: Claimed,
     binding: Binding,
     eventId: string,
     dataHash: string,
     revision: number,
   ) {
-    const pending = await this.prisma.ledgerControlJob.findFirst({
+    await this.withOwned(job, async (tx) => {
+    const pending = await tx.ledgerControlJob.findFirst({
       where: {
         eventId,
         operation: 'FENCE_DELIVERY',
@@ -356,7 +391,7 @@ export class BindingDeliveryService {
       },
     });
     if (!pending)
-      await this.prisma.ledgerControlJob.create({
+      await tx.ledgerControlJob.create({
         data: {
           bindingDigest: binding.digest,
           operation: 'FENCE_DELIVERY',
@@ -365,6 +400,7 @@ export class BindingDeliveryService {
           receipt: { dataHash },
         },
       });
+    });
   }
 
   private async attempt(
@@ -382,7 +418,7 @@ export class BindingDeliveryService {
       dataHash?: string;
     };
     if (fence.dataHash && fence.dataHash !== event.dataHash) {
-      await this.prisma.deliveryHold.create({
+      await this.withOwned(job, (tx) => tx.deliveryHold.create({
         data: {
           bindingDigest: binding.digest,
           scope: 'EVENT',
@@ -390,7 +426,7 @@ export class BindingDeliveryService {
           reason:
             'Ledger fence pins a different commitment than the stored event',
         },
-      });
+      }));
       await this.release(
         job,
         300_000,
@@ -455,7 +491,7 @@ export class BindingDeliveryService {
           delivery,
         );
     // Persist the attempt (txId first) before any network traffic.
-    const attempt = await this.prisma.deliveryAttempt.create({
+    const attempt = await this.withOwned(job, (tx) => tx.deliveryAttempt.create({
       data: {
         outboxId: job.id,
         bindingDigest: binding.digest,
@@ -465,12 +501,12 @@ export class BindingDeliveryService {
         generation,
         outcomes: { create: { sequence: 1, state: 'PREPARED' } },
       },
-    });
+    }));
     let sequence = 1;
     const record = async (
-      state: Parameters<BindingDeliveryService['outcome']>[1],
+      state: Parameters<BindingDeliveryService['outcome']>[2],
       detail?: string,
-    ) => this.outcome(attempt.id, state, detail, ++sequence);
+    ) => this.outcome(job, attempt.id, state, detail, ++sequence);
     let submitted = false;
     try {
       const endorsed = await prepared.endorse();
@@ -494,6 +530,9 @@ export class BindingDeliveryService {
       this.assertProof(proof, job, binding);
       await this.complete(job, binding, proof, attempt.id);
     } catch (error) {
+      // A new owner now reconciles the persisted attempt. Never append a stale
+      // outcome or broadcast an endorsed transaction after losing ownership.
+      if (error instanceof LostDeliveryLeaseError) throw error;
       const failure = classifyFabricError(error);
       if (
         failure.kind === 'CHAINCODE' &&
@@ -619,7 +658,7 @@ export class BindingDeliveryService {
     attemptId: string | null,
   ) {
     const recordedAt = new Date(proof.recordedAt);
-    await this.prisma.$transaction(async (tx) => {
+    await this.withOwned(job, async (tx) => {
       const done = await tx.blockchainOutbox.updateMany({
         where: { id: job.id, status: 'PROCESSING', leaseToken: job.leaseToken },
         data: {
@@ -659,6 +698,7 @@ export class BindingDeliveryService {
   }
 
   private async outcome(
+    job: Claimed,
     attemptId: string,
     state:
       | 'PREPARED'
@@ -671,15 +711,16 @@ export class BindingDeliveryService {
     detail?: string,
     sequence?: number,
   ) {
+    await this.withOwned(job, async (tx) => {
     const next =
       sequence ??
       ((
-        await this.prisma.deliveryAttemptOutcome.aggregate({
+        await tx.deliveryAttemptOutcome.aggregate({
           where: { attemptId },
           _max: { sequence: true },
         })
       )._max.sequence ?? 0) + 1;
-    await this.prisma.deliveryAttemptOutcome.create({
+    await tx.deliveryAttemptOutcome.create({
       data: {
         attemptId,
         sequence: next,
@@ -687,12 +728,13 @@ export class BindingDeliveryService {
         detail: detail?.slice(0, 1000),
       },
     });
+    });
   }
 
   private async release(job: Claimed, delayMs: number, reason: string) {
     // Waiting on governance, an outage or an unknown outcome must not spend
     // the retry budget: give the claim's increment back.
-    await this.prisma.blockchainOutbox.updateMany({
+    await this.writeOwned(job, {
       where: { id: job.id, status: 'PROCESSING', leaseToken: job.leaseToken },
       data: {
         status: 'RETRY',
@@ -712,7 +754,7 @@ export class BindingDeliveryService {
     const maxRetries = this.number('FABRIC_MAX_RETRIES', 5);
     const terminal =
       error instanceof PermanentDeliveryError || job.attemptCount >= maxRetries;
-    await this.prisma.blockchainOutbox.updateMany({
+    await this.writeOwned(job, {
       where: { id: job.id, status: 'PROCESSING', leaseToken: job.leaseToken },
       data: {
         status: terminal ? 'DEAD_LETTER' : 'RETRY',
@@ -734,6 +776,37 @@ export class BindingDeliveryService {
     return Math.round(
       Math.min(300_000, 2 ** attempt * 1000) * (0.8 + Math.random() * 0.4),
     );
+  }
+
+  private async renew(job: Claimed): Promise<boolean> {
+    if (!job.leaseToken) return false;
+    const lease = this.number('FABRIC_CLAIM_LEASE_MS', 120_000);
+    return (await this.prisma.$executeRaw`UPDATE blockchain_outbox
+      SET lease_expires_at = clock_timestamp() + ${lease} * interval '1 millisecond'
+      WHERE outbox_id = ${job.id}::uuid AND status = 'PROCESSING'::blockchain_outbox_status
+        AND lease_token = ${job.leaseToken}::uuid AND lease_expires_at > clock_timestamp()`) === 1;
+  }
+
+  private async withOwned<T>(job: Claimed, work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    if (!job.leaseToken) throw new LostDeliveryLeaseError();
+    return this.prisma.$transaction(async (tx) => {
+      const [row] = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT outbox_id AS id FROM blockchain_outbox
+        WHERE outbox_id = ${job.id}::uuid AND status = 'PROCESSING'::blockchain_outbox_status
+          AND lease_token = ${job.leaseToken}::uuid AND lease_expires_at > clock_timestamp()
+        FOR UPDATE`;
+      if (!row) throw new LostDeliveryLeaseError();
+      return work(tx);
+    });
+  }
+
+  private async writeOwned(job: Claimed, args: Prisma.BlockchainOutboxUpdateManyArgs) {
+    try {
+      return await this.withOwned(job, (tx) => tx.blockchainOutbox.updateMany(args));
+    } catch (error) {
+      if (error instanceof LostDeliveryLeaseError) return { count: 0 };
+      throw error;
+    }
   }
 
   private number(name: string, fallback: number): number {

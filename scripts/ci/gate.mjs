@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 
 const selectedJobs = {
   application: { api: 'api', web: 'web', 'container-build': 'containers' },
-  blockchain: { verify: 'blockchain', 'standalone-chaincode': 'blockchain', 'fabric-smoke': 'fabric' },
+  blockchain: { verify: 'blockchain', 'standalone-chaincode': 'blockchain', 'fabric-smoke': 'fabric', 'hybrid-fabric': 'hybrid' },
 };
 
 export function gateErrors(kind, needs) {

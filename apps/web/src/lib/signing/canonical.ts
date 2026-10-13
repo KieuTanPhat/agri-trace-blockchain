@@ -133,12 +133,16 @@ export async function verifyPreparedIntent(
       return { ok: false, reason: "Thông điệp ký của máy chủ không khớp" };
     if (
       intent.keyRef !== prepared.keyRef ||
-      intent.intentId !== prepared.intentId
+      intent.intentId !== prepared.intentId ||
+      intent.operation !== prepared.operation ||
+      intent.notAfter !== prepared.expiresAt
     )
       return {
         ok: false,
         reason: "Yêu cầu ký không khớp khóa hoặc mã yêu cầu",
       };
+    if (!Number.isFinite(Date.parse(intent.notAfter)))
+      return { ok: false, reason: "Thời hạn yêu cầu ký không hợp lệ" };
     if (Date.parse(intent.notAfter) <= now)
       return { ok: false, reason: "Yêu cầu ký đã hết hạn" };
   } catch {

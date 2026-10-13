@@ -1,0 +1,42 @@
+# Applied only to an acknowledged Hybrid release. Legacy identity remains
+# separate; API receives an independently pinned public history descriptor.
+services:
+  api:
+    environment:
+      HYBRID_WRITES_MODE: ${HYBRID_WRITES_MODE:?Start closed or with explicit canary actors}
+      HYBRID_CANARY_ACTOR_IDS: ${HYBRID_CANARY_ACTOR_IDS:-}
+      LEGACY_LEDGER_DESCRIPTOR_FILE: /legacy-ledger/descriptor.json
+      LEGACY_LEDGER_DESCRIPTOR_SHA256: ${LEGACY_LEDGER_DESCRIPTOR_SHA256:?Pin the verified historical descriptor}
+    volumes:
+      - type: bind
+        source: ${LEGACY_LEDGER_DESCRIPTOR_HOST:?Set reviewed public descriptor file}
+        target: /legacy-ledger/descriptor.json
+        read_only: true
+        bind: {create_host_path: false}
+  worker:
+    environment:
+      LEGACY_LEDGER_DESCRIPTOR_FILE: /legacy-ledger/descriptor.json
+      LEGACY_LEDGER_DESCRIPTOR_SHA256: ${LEGACY_LEDGER_DESCRIPTOR_SHA256:?Pin the verified historical descriptor}
+      FABRIC_BINDINGS_CONFIG: /hosted-config/bindings.json
+      LEDGER_WRITER_AUTHORITY: ${LEDGER_WRITER_AUTHORITY:?Pin retained legacy logical authority}
+    volumes:
+      - type: bind
+        source: ${LEGACY_LEDGER_DESCRIPTOR_HOST:?Set reviewed public descriptor file}
+        target: /legacy-ledger/descriptor.json
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${FABRIC_BINDINGS_CONFIG_HOST:?Set own binding connection configuration}
+        target: /hosted-config/bindings.json
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${HOSTED_WORKER_IDENTITIES_HOST:?Set hosted technical identities only}
+        target: /hosted-identities
+        read_only: true
+        bind: {create_host_path: false}
+    networks: [default, fabric, hosted]
+networks:
+  hosted:
+    external: true
+    name: ${HOSTED_FABRIC_DOCKER_NETWORK:?Provision independent hosted network after capacity gates}

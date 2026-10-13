@@ -26,6 +26,7 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
   const latest = traceEvents.at(-1);
   return {
     lotId: lot.id,
+    chainId: lot.harvest.cycle.chainId,
     traceToken: lot.traceQr?.traceToken,
     lotCode: lot.lotCode,
     productName: lot.product.productName,

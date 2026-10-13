@@ -20,6 +20,7 @@ import {
   signedBindingEventCommitment,
 } from './signed-commitment.js';
 import { localEvidence } from './event-evidence.js';
+import { scopedTraceEventReadWhere } from '../supply-chains/business-read-scope.js';
 import { getLotEventProofStatus } from '../lots/lot-proof-status.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import {
@@ -349,7 +350,7 @@ export class TraceService {
   async getLotHistory(lotId: string, actor: Actor) {
     await this.access.assertLotAccess(actor, lotId);
     return this.prisma.traceEvent.findMany({
-      where: { lotId },
+      where: { AND: [{ lotId }, scopedTraceEventReadWhere(actor)] },
       orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
       include: { blockchainProof: true, blockchainOutbox: true },
     });
@@ -357,12 +358,13 @@ export class TraceService {
 
   async getProof(eventId: string, actor: Actor) {
     await this.access.assertTraceEventAccess(actor, eventId);
-    const event = await this.prisma.traceEvent.findUnique({
-      where: { id: eventId },
+    const event = await this.prisma.traceEvent.findFirst({
+      where: { AND: [{ id: eventId }, scopedTraceEventReadWhere(actor)] },
       include: {
         blockchainProof: true,
         blockchainOutbox: true,
         ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
+        ledgerRouteExemption: true,
         bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
       },
     });

@@ -5,13 +5,14 @@ import { AuthModule } from '../auth/auth.module.js';
 import { TraceModule } from '../trace/trace.module.js';
 import { HandoversController } from './handovers.controller.js';
 import { HandoversService } from './handovers.service.js';
+import { HandoverExpiryService } from './handover-expiry.service.js';
 import { ShipmentsController } from './shipments.controller.js';
 import { ShipmentsService } from './shipments.service.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, TraceModule, IdempotencyModule],
   controllers: [ShipmentsController, HandoversController],
-  providers: [ShipmentsService, HandoversService],
+  providers: [ShipmentsService, HandoversService, HandoverExpiryService],
   exports: [ShipmentsService, HandoversService],
 })
 export class ShipmentsModule {}

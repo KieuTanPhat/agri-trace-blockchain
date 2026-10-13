@@ -514,7 +514,8 @@ async function recoveryContext() {
   const user = session?.user;
   if (!user) throw sessionChanged();
   const scope = getAuthorizationScope(user),
-    identity = identityVersion;
+    identity = identityVersion,
+    accessEpoch = businessAccessEpoch();
   return {
     owner: JSON.stringify([user.id, user.organizationId ?? null]),
     assertCurrent() {
@@ -525,6 +526,13 @@ async function recoveryContext() {
         getAuthorizationScope(session?.user) !== scope
       )
         throw sessionChanged();
+      if (businessAccessEpoch() !== accessEpoch)
+        throw {
+          status: 409,
+          code: "ACCESS_CHANGED",
+          message:
+            "Quyền hiện hành đã thay đổi. Kiểm tra kết quả đã ghi trước khi gửi lại.",
+        };
     },
   };
 }

@@ -30,6 +30,7 @@ import {
   signPreparedIntent,
 } from '../src/modules/signing/org-signer.js';
 import { TestSigner } from './support/signer.js';
+import { requestLedgerGrant } from '../src/modules/ledger/ledger-permissions.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 const prisma = new PrismaClient({
@@ -80,7 +81,7 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
 
     async function confirmPermissions() {
       const syncs = await prisma.ledgerPermissionSync.findMany({
-        where: { permission: { bindingDigest: digest } },
+        where: { permission: { bindingDigest: digest }, state: 'REQUESTED' },
       });
       for (const sync of syncs) {
         await sql(
@@ -249,7 +250,7 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
     });
 
     /** Cycle -> harvest -> consented plan -> finalized shipment. */
-    async function newShipment(quantity = 2) {
+    async function newShipment(quantity = 2, sameOrganization = false) {
       const cycle = (
         await post('farm', '/production-cycles', {
           chainId,
@@ -275,8 +276,8 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
       const plan = (
         await post('farm', base, {
           lotId: harvested.lot.id,
-          transporterOrgId: orgs.transporter,
-          retailerOrgId: orgs.retailer,
+          transporterOrgId: sameOrganization ? orgs.farm : orgs.transporter,
+          retailerOrgId: sameOrganization ? orgs.farm : orgs.retailer,
           quantity: quantity.toFixed(3),
           unit: 'kg',
           origin: 'Farm',
@@ -288,7 +289,7 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
         ['TRANSPORTER', 'transporter'],
         ['RETAILER', 'retailer'],
       ] as const)
-        await post(who, `${base}/${plan.id}/accept`, {
+        await post(sameOrganization ? 'farm' : who, `${base}/${plan.id}/accept`, {
           party,
           revision: plan.currentRevision,
           payloadDigest: plan.current.payloadDigest,
@@ -955,6 +956,62 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
       });
       expect(signed.keyRef).toBe(body.keyRef);
       expect((await shipmentRow(shipmentId)).status).toBe('IN_TRANSIT');
+    });
+
+    it('keeps same-organization pickup/arrival labelled internal and derives custody stage independently of organization ID', async () => {
+      for (const code of ['TRANSPORTER', 'RETAILER'] as const) {
+        await prisma.organizationCapability.upsert({
+          where: { organizationId_code: { organizationId: orgs.farm, code } },
+          create: { organizationId: orgs.farm, code }, update: {},
+        });
+        await prisma.$transaction(async (tx) => {
+          const grant = await tx.scopedRoleGrant.create({ data: {
+            userId: users.farm, organizationId: orgs.farm, chainId, scope: 'CHAIN', role: code,
+          } });
+          await requestLedgerGrant(tx, grant);
+        });
+      }
+      // This suite is API+SQL only; confirmed permission fixtures do not claim
+      // real registry acceptance. The Fabric suite verifies those separately.
+      await confirmPermissions();
+      const { shipmentId, lotId } = await newShipment(2, true);
+      for (const kind of ['PICKUP', 'ARRIVAL'] as const) {
+        const offered = await offer('farm', shipmentId, kind);
+        expect(offered.res.status).toBe(201);
+        expect(offered.res.body.data).toMatchObject({ giverOrgId: orgs.farm, receiverOrgId: orgs.farm, custodyLabel: 'INTERNAL_SAME_ORG' });
+        const confirmed = await confirm('farm', offered.res.body.data.id);
+        expect(confirmed.res.status).toBe(201);
+        expect(confirmed.res.body.data).toMatchObject({ state: 'CONFIRMED', custodyLabel: 'INTERNAL_SAME_ORG' });
+      }
+      expect((await shipmentRow(shipmentId)).status).toBe('ARRIVED');
+      const detail = await get('farm', `/lots/${lotId}`).expect(200);
+      expect(detail.body.data.custodian).toMatchObject({ organizationId: orgs.farm, role: 'RETAILER' });
+      expect(await noEvents(shipmentId, 'HANDOVER_CONFIRMED')).toBe(2);
+    });
+
+    it('reconciles signed submit using the original signature/body/key and denies replay after current authority is revoked', async () => {
+      const { shipmentId } = await newShipment();
+      const prepared = (await post('staff', `/shipments/${shipmentId}/handover-offers/intent`, { kind: 'PICKUP', keyRef: keyRefs.farm }).expect(201)).body.data;
+      const body = { signature: signers.farm.signIntent(prepared.intent) };
+      const key = randomUUID();
+      const token = jwt.sign({ sub: users.staff, sid: sessions.staff });
+      const send = (path: string, payload: object) => request(app.getHttpServer()).post(`/api${path}`)
+        .set('Authorization', `Bearer ${token}`).set('Idempotency-Key', key).send(payload);
+      await send(`/signing-intents/${prepared.intentId}/submit`, body).expect(201);
+      const status = await send('/command-requests/status', {
+        operation: 'SUBMIT_SIGNED_INTENT', payload: { intentId: prepared.intentId, ...body },
+      }).expect(200);
+      expect(status.body.data).toMatchObject({ status: 'COMMITTED', result: { shipmentId, state: 'OFFERED' } });
+      expect(await noEvents(shipmentId, 'HANDOVER_OFFERED')).toBe(1);
+      await send(`/signing-intents/${prepared.intentId}/submit`, body).expect(201);
+      expect(await noEvents(shipmentId, 'HANDOVER_OFFERED')).toBe(1);
+      const permission = await prisma.scopedRoleGrant.findFirstOrThrow({ where: {
+        userId: users.staff, chainId, role: 'FARM_STAFF', revokedAt: null,
+      } });
+      await prisma.scopedRoleGrant.update({ where: { id: permission.id }, data: { revokedAt: new Date(), revision: { increment: 1 } } });
+      await send('/command-requests/status', { operation: 'SUBMIT_SIGNED_INTENT', payload: { intentId: prepared.intentId, ...body } }).expect(403);
+      await get('staff', `/signing-intents/${prepared.intentId}`).expect(404);
+      expect(await noEvents(shipmentId, 'HANDOVER_OFFERED')).toBe(1);
     });
 
     it('refuses to switch the chain mode while a handover is open', async () => {

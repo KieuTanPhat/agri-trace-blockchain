@@ -18,9 +18,21 @@ const base: components["schemas"]["LedgerStatusDto"] = {
     retry: 0,
     deadLetter: 0,
     oldestPendingAt: null,
+    pendingAgeSeconds: null,
   },
   openHolds: 0,
   pendingControlJobs: 0,
+  failedControlJobs: 0,
+  lastControlFailureAt: null,
+  worker: {
+    lastCheckedAt: "2026-10-13T00:00:00Z",
+    lastHealthyAt: "2026-10-13T00:00:00Z",
+    lastErrorCode: null,
+    certificateExpiresAt: "2099-01-01T00:00:00Z",
+    heartbeatStale: false,
+    certificateExpired: false,
+    healthy: true,
+  },
 };
 
 afterEach(() => {
@@ -62,6 +74,40 @@ describe("LedgerStatusPanel", () => {
     );
   });
 
+  it("surfaces a silent worker, an expired certificate, failed jobs and a slow backlog", async () => {
+    api.request.mockResolvedValue({
+      ...base,
+      failedControlJobs: 2,
+      lastControlFailureAt: "2026-10-13T01:00:00Z",
+      delivery: { ...base.delivery, pending: 3, pendingAgeSeconds: 1200 },
+      worker: {
+        ...base.worker,
+        lastHealthyAt: null,
+        heartbeatStale: true,
+        certificateExpired: true,
+        lastErrorCode: "ENDORSEMENT",
+        healthy: false,
+      },
+    });
+    render(<LedgerStatusPanel chainId="chain-one" />);
+    const alert = (await screen.findByRole("alert")).textContent ?? "";
+    expect(alert).toMatch(/chưa báo hoạt động/);
+    expect(alert).toMatch(/Chứng thư.*hết hạn/);
+    expect(alert).toMatch(/ENDORSEMENT/);
+    expect(alert).toMatch(/2 tác vụ điều khiển ledger đã thất bại/);
+    expect(alert).toMatch(/20 phút/);
+  });
+
+  it("does not alarm for a short backlog with a live worker", async () => {
+    api.request.mockResolvedValue({
+      ...base,
+      delivery: { ...base.delivery, pending: 1, pendingAgeSeconds: 30 },
+    });
+    render(<LedgerStatusPanel chainId="chain-one" />);
+    await screen.findByText(/Sự kiện đang chờ gửi: 1/);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("describes a chain that still uses the release-A route and hides ledger counters", async () => {
     api.request.mockResolvedValue({
       ...base,
@@ -80,7 +126,11 @@ describe("LedgerStatusPanel", () => {
       .mockImplementationOnce(
         () => new Promise((resolve) => (resolveFirst = resolve)),
       )
-      .mockResolvedValueOnce({ ...base, chainId: "chain-two", channelId: "hybrid-self" });
+      .mockResolvedValueOnce({
+        ...base,
+        chainId: "chain-two",
+        channelId: "hybrid-self",
+      });
     const { rerender } = render(<LedgerStatusPanel chainId="chain-one" />);
     rerender(<LedgerStatusPanel chainId="chain-two" />);
     await screen.findByText(/kênh hybrid-self/);

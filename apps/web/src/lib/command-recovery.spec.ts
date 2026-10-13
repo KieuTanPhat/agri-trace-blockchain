@@ -20,6 +20,108 @@ const command = (
   key,
   body: JSON.stringify({ name }),
 });
+
+describe("Signed handover command reconciliation", () => {
+  const intentId = "00000000-0000-4000-8000-000000000021";
+  const signed = (
+    key = "original-signing-key",
+    signature = "A".repeat(86),
+  ): SavedCommand => ({
+    path: `/signing-intents/${intentId}/submit`,
+    method: "POST",
+    key,
+    body: JSON.stringify({ signature }),
+  });
+  it("stores the original signature/body/key before submission and recovers through reload without signing again", async () => {
+    const wire = transport();
+    wire.send.mockImplementationOnce(async (saved) => {
+      const ledger = JSON.parse(stored());
+      expect(Object.values(ledger.entries)).toContainEqual(
+        expect.objectContaining({
+          body: saved.body,
+          key: saved.key,
+          status: "PENDING",
+        }),
+      );
+      throw { status: 0, message: "Lost signed response" };
+    });
+    await expect(
+      recoverableCommand(context(), signed(), wire),
+    ).rejects.toMatchObject({ recoveryId: expect.any(String) });
+    const pending = await pendingSavedCommands(context());
+    expect(pending).toEqual([
+      { id: expect.any(String), operation: "SUBMIT_SIGNED_INTENT" },
+    ]);
+    expect(JSON.stringify(pending)).not.toContain("A".repeat(86));
+    await retrySavedCommand(context(), pending[0].id, wire);
+    expect(wire.send.mock.calls[1][0]).toEqual(signed());
+    expect(wire.inspect).toHaveBeenCalledWith(
+      signed(),
+      expect.objectContaining({
+        operation: "SUBMIT_SIGNED_INTENT",
+        payload: { intentId, signature: "A".repeat(86) },
+      }),
+    );
+    expect(stored()).not.toContain("A".repeat(86));
+    expect(stored()).not.toContain("committed-chain");
+  });
+  it("never replaces an uncertain signed intent with another signature or request identity", async () => {
+    const wire = transport();
+    wire.send.mockRejectedValueOnce({ status: 0 });
+    await recoverableCommand(context(), signed(), wire).catch(() => {});
+    wire.inspect.mockResolvedValue({ status: "PROCESSING" });
+    const before = stored();
+    await expect(
+      recoverableCommand(context(), signed("new-key", "B".repeat(86)), wire),
+    ).rejects.toMatchObject({ code: "REQUEST_UNRESOLVED" });
+    expect(stored()).toBe(before);
+    expect(wire.send).toHaveBeenCalledTimes(1);
+  });
+  it("serializes signed commands between two tabs and reads the current server journal for the second", async () => {
+    const wire = transport();
+    let finish!: () => void;
+    let entered!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const wait = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    wire.send.mockImplementationOnce(async () => {
+      entered();
+      await wait;
+      return { id: "handover" };
+    });
+    wire.inspect.mockResolvedValue(committed({ id: "handover" }));
+    const first = recoverableCommand(context(), signed(), wire);
+    await ready;
+    const second = recoverableCommand(
+      context(),
+      signed("second-tab-key"),
+      wire,
+    );
+    finish();
+    expect(await Promise.all([first, second])).toEqual([
+      { id: "handover" },
+      { id: "handover" },
+    ]);
+    expect(wire.send).toHaveBeenCalledTimes(1);
+    expect(wire.inspect.mock.calls[0][0]).toEqual(signed());
+  });
+  it("requires current authority before replaying a terminal signed result after a grant revoke", async () => {
+    const wire = transport();
+    await recoverableCommand(context(), signed(), wire);
+    wire.inspect.mockRejectedValue({
+      status: 403,
+      message: "Current grant revoked",
+    });
+    await expect(
+      recoverableCommand(context(), signed("reload-key"), wire),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(wire.send).toHaveBeenCalledTimes(1);
+    expect(stored()).not.toContain("A".repeat(86));
+  });
+});
 const committed = (
   result: Record<string, unknown> = { id: "committed-chain" },
 ) => ({ status: "COMMITTED" as const, responseStatus: 201, result });

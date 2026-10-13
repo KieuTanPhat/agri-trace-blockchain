@@ -206,6 +206,17 @@ export async function requestLedgerRevoke(
       return { permissionRef: ref, outcome: 'CANCELLED_BEFORE_LEDGER' };
     }
     // The grant job may already be in flight: treat it as possibly committed.
+    // Claiming the job and changing REQUESTED -> PENDING_LEDGER are separate
+    // transactions. A revoke can enter between them; preserve the permitted
+    // state-machine path while holding the permission row.
+    await tx.ledgerPermissionSync.update({
+      where: { permissionRef: ref },
+      data: {
+        state: 'PENDING_LEDGER',
+        version: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    });
     return mode === 'EMERGENCY' ? emergency() : normal();
   }
   if (['PENDING_LEDGER', 'ACTIVE'].includes(sync.state))

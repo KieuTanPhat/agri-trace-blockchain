@@ -16,6 +16,7 @@ import {
 } from './chain-policy.js';
 import type { ChangeMemberDto, GrantRoleDto } from './dto.js';
 import { assertBusinessActivationReady } from './business-profile.commands.js';
+import { bindingObservation } from '../ledger/binding-observation.js';
 import {
   requestLedgerGrant,
   requestLedgerRevoke,
@@ -201,6 +202,7 @@ export class SupplyChainsService {
         retry: 0,
         deadLetter: 0,
         oldestPendingAt: null,
+        pendingAgeSeconds: null,
       },
     };
     if (!binding)
@@ -212,8 +214,11 @@ export class SupplyChainsService {
         ...empty,
         openHolds: 0,
         pendingControlJobs: 0,
+        failedControlJobs: 0,
+        lastControlFailureAt: null,
+        worker: bindingObservation(null),
       };
-    const [syncs, outbox, oldest, holds, jobs] = await Promise.all([
+    const [syncs, outbox, oldest, holds, jobs, failedJobs, lastFailure, observation] = await Promise.all([
       this.prisma.ledgerPermissionSync.groupBy({
         by: ['state'],
         where: { permission: { bindingDigest: binding.digest } },
@@ -247,6 +252,14 @@ export class SupplyChainsService {
           status: { in: ['PENDING', 'PROCESSING'] },
         },
       }),
+      this.prisma.ledgerControlJob.count({
+        where: { bindingDigest: binding.digest, status: 'FAILED' },
+      }),
+      this.prisma.ledgerControlJob.findFirst({
+        where: { bindingDigest: binding.digest, status: 'FAILED' },
+        select: { updatedAt: true }, orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.bindingWorkerHealth.findUnique({ where: { bindingDigest: binding.digest } }),
     ]);
     const count = (
       rows: Array<{ _count: number; state?: string; status?: string }>,
@@ -282,9 +295,13 @@ export class SupplyChainsService {
         retry: count(outbox, 'RETRY'),
         deadLetter: count(outbox, 'DEAD_LETTER'),
         oldestPendingAt: oldest?.createdAt ?? null,
+        pendingAgeSeconds: oldest ? Math.max(0, Math.floor((Date.now() - oldest.createdAt.getTime()) / 1000)) : null,
       },
       openHolds: holds,
       pendingControlJobs: jobs,
+      failedControlJobs: failedJobs,
+      lastControlFailureAt: lastFailure?.updatedAt ?? null,
+      worker: bindingObservation(observation),
     };
   }
   async members(actor: CommandActor, id: string) {

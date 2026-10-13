@@ -27,6 +27,8 @@ import {
 } from '../signing/signing-intents.js';
 import { TraceService, type Actor } from '../trace/trace.service.js';
 import { ShipmentsService } from './shipments.service.js';
+import { HandoverExpiryService } from './handover-expiry.service.js';
+import { scopedShipmentReadWhere } from '../supply-chains/business-read-scope.js';
 import type {
   CancelHandoverDto,
   PrepareHandoverOfferDto,
@@ -76,13 +78,13 @@ export class HandoversService {
     private readonly access: OrganizationAccessService,
     private readonly trace: TraceService,
     private readonly shipments: ShipmentsService,
+    private readonly expiry: HandoverExpiryService,
   ) {}
 
   async list(shipmentId: string, actor: Actor) {
     await this.access.assertShipmentAccess(actor, shipmentId);
-    await this.expireDue(shipmentId);
     const rows = await this.prisma.shipmentHandover.findMany({
-      where: { shipmentId },
+      where: { shipmentId, shipment: { is: scopedShipmentReadWhere(actor) } },
       orderBy: { offeredAt: 'desc' },
     });
     return rows.map(handoverView);
@@ -169,6 +171,8 @@ export class HandoversService {
         throw new ForbiddenException('Chỉ bên nhận được xác nhận bàn giao');
       if (h.state !== 'OFFERED')
         throw new ConflictException('Đề nghị bàn giao không còn mở');
+      if (h.expiresAt.getTime() <= Date.now())
+        throw new ConflictException('Đề nghị bàn giao đã hết hạn');
       this.assertUnchanged(h, c);
       const payload = {
         handoverId: h.id,
@@ -213,10 +217,12 @@ export class HandoversService {
     });
     if (
       !intent ||
+      intent.entityType !== 'SHIPMENT' ||
       intent.createdBy !== actor.sub ||
       intent.organizationId !== actor.organizationId
     )
       throw new NotFoundException('Không tìm thấy yêu cầu ký');
+    await this.access.assertShipmentAccess(actor, intent.entityId);
     return viewOf(intent);
   }
 
@@ -256,33 +262,7 @@ export class HandoversService {
   /** Marks overdue offers EXPIRED. Nothing moves: shipment and lot keep the
    * state they had, and the offer's signature can never be used again. */
   async expireDue(shipmentId?: string): Promise<number> {
-    const due = await this.prisma.shipmentHandover.findMany({
-      where: {
-        state: 'OFFERED',
-        expiresAt: { lte: new Date() },
-        ...(shipmentId ? { shipmentId } : {}),
-      },
-      select: { id: true },
-    });
-    for (const { id } of due)
-      await this.prisma.$transaction(async (tx) => {
-        await tx.$queryRaw(
-          Prisma.sql`SELECT handover_id FROM shipment_handover WHERE handover_id = ${id}::uuid FOR UPDATE`,
-        );
-        const row = await tx.shipmentHandover.findUnique({ where: { id } });
-        if (!row || row.state !== 'OFFERED' || row.expiresAt > new Date())
-          return;
-        await tx.shipmentHandover.update({
-          where: { id },
-          data: {
-            state: 'EXPIRED',
-            resolvedAt: new Date(),
-            reason: 'Hết hạn chờ xác nhận',
-            version: { increment: 1 },
-          },
-        });
-      });
-    return due.length;
+    return this.expiry.expireDue(shipmentId);
   }
 
   private async resolve(
@@ -308,6 +288,8 @@ export class HandoversService {
       });
       if (h.state !== 'OFFERED')
         throw new ConflictException('Đề nghị bàn giao không còn mở');
+      if (h.expiresAt.getTime() <= Date.now())
+        throw new ConflictException('Đề nghị bàn giao đã hết hạn');
       const party = state === 'REJECTED' ? h.receiverOrgId : h.giverOrgId;
       if (actor.organizationId !== party)
         throw new ForbiddenException(
@@ -365,6 +347,9 @@ export class HandoversService {
       throw new ConflictException(
         'Chuyến hàng hoặc lô đã thay đổi sau khi chuẩn bị đề nghị',
       );
+    if (!Number.isFinite(Date.parse(payload.offerExpiresAt)) ||
+        Date.parse(payload.offerExpiresAt) <= Date.now())
+      throw new ConflictException('Đề nghị bàn giao đã hết hạn');
     await assertQuantityReconciled(tx, c.lot);
     if (
       await tx.shipmentHandover.findFirst({

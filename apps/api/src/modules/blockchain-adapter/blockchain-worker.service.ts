@@ -11,6 +11,7 @@ import {
   EVENT_BINDING_CONTEXT_INCLUDE,
   EVENT_LEDGER_ROUTE_INCLUDE,
   verifiedEventRoute,
+  sameLedgerDestination,
   type PinnedRoute,
 } from '../trace/ledger-route.js';
 
@@ -175,10 +176,10 @@ export class BlockchainWorkerService {
   private async submit(job: ClaimedOutbox): Promise<void> {
     const event = job.traceEvent;
     const writer = this.fabric.getWriterRoute();
-    const route = event.ledgerRoute ? verifiedEventRoute(event) : null;
+    const route = verifiedEventRoute(event);
     const deliverable = event.ledgerRoute
       ? route?.digest === writer.digest
-      : Boolean(event.ledgerRouteExemption);
+      : Boolean(route?.mode === 'HISTORICAL' && sameLedgerDestination(route, writer));
     if (!deliverable) {
       await this.prisma.blockchainOutbox.updateMany({
         where: { id: job.id, status: 'PROCESSING', leaseToken: job.leaseToken },

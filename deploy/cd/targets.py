@@ -7,6 +7,7 @@ TARGETS = {
                    "project": "agritrace-prod", "ingress": "agritrace-prod-ingress"},
 }
 APP_FILES = {"docker-compose.app.yml", "docker-compose.app-fabric.yml"}
+OPTIONAL_APP_FILES = {"docker-compose.app-hybrid.yml"}
 
 
 def owned_path(value, root):
@@ -54,7 +55,7 @@ def validate_config(config, require):
     require(active is True, "Production requires active Fabric")
     require(not active or bool(fabric), "Fabric binding must be provisioned before activation")
     canary = config.get("canary")
-    require(isinstance(canary, dict) and set(canary) == {"farmId", "plotId", "productId"}, "Dedicated canary catalog is required")
+    require(isinstance(canary, dict) and set(canary) in ({"farmId", "plotId", "productId"}, {"chainId", "farmId", "plotId", "productId"}), "Dedicated canary catalog is required")
     require(all(isinstance(v, str) and re.fullmatch(r"[a-f0-9-]{36}", v) for v in canary.values()), "Invalid canary catalog IDs")
     return config
 

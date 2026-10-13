@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import {
@@ -11,20 +11,21 @@ import {
   type GatewayConnection,
 } from '@agri-trace/fabric-gateway';
 
-/** Local three-organization pilot (blockchain/network/hybrid). The data dir is
- * the Linux side as seen from the Windows host through the WSL UNC share. */
+/** Linux and optional Windows/WSL pilot; never assumes a user's home/UNC path. */
 export const PILOT_ROOT =
-  process.env.FABRIC_ROOT ??
-  '\\\\wsl.localhost\\Ubuntu\\home\\kieup\\agritrace-fabric';
+  process.env.FABRIC_ROOT ?? path.join(homedir(), 'agritrace-fabric');
 export const CHAINCODE = 'agritrace';
 export const CONTRACT = 'AgriTraceContract';
 export const WRITER_AUTHORITY = 'agritrace-relayer-b';
 
 export type Org = 'org1' | 'org2' | 'org3';
+const offset = Number(process.env.AGRI_FABRIC_PORT_OFFSET ?? '0');
+if (!Number.isInteger(offset) || offset < 0 || offset > 50000)
+  throw new Error('Invalid Fabric test port offset');
 const ORGS = {
-  org1: { dir: 'net', msp: 'Org1MSP', endpoint: 'localhost:7051' },
-  org2: { dir: 'net', msp: 'Org2MSP', endpoint: 'localhost:9051' },
-  org3: { dir: 'self', msp: 'Org3MSP', endpoint: 'localhost:11051' },
+  org1: { dir: 'net', msp: 'Org1MSP', endpoint: `localhost:${7051 + offset}` },
+  org2: { dir: 'net', msp: 'Org2MSP', endpoint: `localhost:${9051 + offset}` },
+  org3: { dir: 'self', msp: 'Org3MSP', endpoint: `localhost:${11051 + offset}` },
 } as const;
 
 const orgDir = (org: Org) =>
@@ -42,6 +43,7 @@ export const peerCa = (org: Org) =>
 export const orgMsp = (org: Org) => ORGS[org].msp;
 
 const open: GatewayConnection[] = [];
+const configDirectories = new Set<string>();
 
 export async function pilotClient(org: Org, user: string, channel: string) {
   const msp = userMsp(org, user);
@@ -71,6 +73,12 @@ export async function pilotClient(org: Org, user: string, channel: string) {
 
 export function closePilotConnections() {
   for (const connection of open.splice(0)) connection.close();
+  for (const dir of configDirectories) {
+    if (path.dirname(dir) !== tmpdir() || !path.basename(dir).startsWith('agritrace-bindings-'))
+      throw new Error('Unsafe test config cleanup path');
+    rmSync(dir, { recursive: true, force: true });
+  }
+  configDirectories.clear();
 }
 
 /** Ledger-side operator: the AgriTrace controller plus the admins of the
@@ -98,6 +106,7 @@ export async function pilotOperator(
  * channel, chaincode and MSP). Written to a temp file, never committed. */
 export function writeBindingsConfig(digests: string[]): string {
   const dir = mkdtempSync(path.join(tmpdir(), 'agritrace-bindings-'));
+  configDirectories.add(dir);
   mkdirSync(dir, { recursive: true });
   const identity = (user: string) => ({
     certPath: path.join(userMsp('org1', user), 'signcerts', 'cert.pem'),
@@ -119,13 +128,28 @@ export function writeBindingsConfig(digests: string[]): string {
         admin: identity('Admin'),
       })),
     }),
+    { mode: 0o600 },
   );
   return file;
 }
 
-/** Docker control through WSL (outage injection). */
+/** Outage injection only selects containers owned by this test instance. */
 export function pilotDocker(...args: string[]) {
-  const result = spawnSync('wsl', ['-d', 'Ubuntu', '--', 'docker', ...args], {
+  const instance = process.env.AGRI_FABRIC_INSTANCE;
+  if (!instance || !/^[a-z][a-z0-9-]{3,48}$/.test(instance))
+    throw new Error('Fabric outage injection requires an isolated instance');
+  if (!['stop', 'start'].includes(args[0]) || args.length < 2 ||
+      args.slice(1).some((arg) => !/^peer0\.org[123]\.example\.com$/.test(arg)))
+    throw new Error('Unsupported Fabric outage command');
+  const scoped = args.map((arg) => /^peer0\.org[123]\.example\.com$/.test(arg) ? `${instance}-${arg}` : arg);
+  const executable = process.platform === 'win32' ? 'wsl' : 'docker';
+  const prefix = process.platform === 'win32' ? ['-d', process.env.HYBRID_WSL_DISTRO ?? 'Ubuntu', '--exec', 'docker'] : [];
+  for (const name of scoped.slice(1)) {
+    const ownership = spawnSync(executable, [...prefix, 'inspect', '--format', '{{index .Config.Labels "agritrace.hybrid.instance"}}', name], { encoding: 'utf8' });
+    if (ownership.status !== 0 || ownership.stdout.trim() !== instance)
+      throw new Error('Fabric outage resource ownership mismatch');
+  }
+  const result = spawnSync(executable, [...prefix, ...scoped], {
     encoding: 'utf8',
   });
   if (result.status !== 0)

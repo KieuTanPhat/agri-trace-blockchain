@@ -69,9 +69,9 @@ describe('Immutable logical ledger routes', () => {
       ledgerRouteDigest({ ...historical, writerMspId: 'ForgedMSP' }),
     ).toThrow('authority');
   });
-  it('verifies pre-route history by its stored proof but never an unloaded sidecar', () => {
+  it('requires a trusted descriptor and sealed exemption for pre-route history', () => {
     const legacy = { dataHash: event.dataHash, ledgerRoute: null };
-    expect(routeProofMatches(legacy, { dataHash: event.dataHash })).toBe(true);
+    expect(routeProofMatches(legacy, { dataHash: event.dataHash })).toBe(false);
     expect(routeProofMatches(legacy, { dataHash: 'b'.repeat(64) })).toBe(false);
     expect(
       routeProofMatches(

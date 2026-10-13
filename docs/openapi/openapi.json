@@ -3077,9 +3077,13 @@
               "SCOPE_ACCEPT_SHIPMENT_PLAN",
               "SCOPE_CANCEL_SHIPMENT_PLAN",
               "SCOPE_FINALIZE_SHIPMENT_PLAN",
-              "SCOPE_REGISTER_LEGACY_MANIFEST",
-              "SCOPE_CONFIRM_LEGACY_ASSIGNMENT",
-              "SCOPE_APPLY_LEGACY_ROOT"
+              "PREPARE_HANDOVER_OFFER",
+              "PREPARE_HANDOVER_CONFIRM",
+              "SUBMIT_SIGNED_INTENT",
+              "REJECT_HANDOVER",
+              "CANCEL_HANDOVER",
+              "HYB_REGISTER_SIGNING_KEY",
+              "HYB_REVOKE_SIGNING_KEY"
             ],
             "type": "string"
           },
@@ -3273,6 +3277,11 @@
           "blockchainProof": {
             "$ref": "#/components/schemas/LotProofDto"
           },
+          "chainId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
           "currentState": {
             "enum": [
               "HARVESTED",
@@ -3401,6 +3410,7 @@
           "stateReconciled",
           "warnings",
           "sensorEvidence",
+          "chainId",
           "version",
           "damagedQuantity",
           "quantityMovements",
@@ -3659,6 +3669,10 @@
           "pending": {
             "type": "number"
           },
+          "pendingAgeSeconds": {
+            "nullable": true,
+            "type": "number"
+          },
           "retry": {
             "type": "number"
           }
@@ -3668,7 +3682,8 @@
           "pending",
           "retry",
           "deadLetter",
-          "oldestPendingAt"
+          "oldestPendingAt",
+          "pendingAgeSeconds"
         ],
         "type": "object"
       },
@@ -3715,6 +3730,14 @@
           "delivery": {
             "$ref": "#/components/schemas/LedgerDeliveryCountsDto"
           },
+          "failedControlJobs": {
+            "type": "number"
+          },
+          "lastControlFailureAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
           "openHolds": {
             "type": "number"
           },
@@ -3733,6 +3756,9 @@
               "SELF_MANAGED_ORG"
             ],
             "type": "string"
+          },
+          "worker": {
+            "$ref": "#/components/schemas/LedgerWorkerObservationDto"
           }
         },
         "required": [
@@ -3743,7 +3769,52 @@
           "permissions",
           "delivery",
           "openHolds",
-          "pendingControlJobs"
+          "pendingControlJobs",
+          "failedControlJobs",
+          "lastControlFailureAt",
+          "worker"
+        ],
+        "type": "object"
+      },
+      "LedgerWorkerObservationDto": {
+        "properties": {
+          "certificateExpired": {
+            "type": "boolean"
+          },
+          "certificateExpiresAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "healthy": {
+            "type": "boolean"
+          },
+          "heartbeatStale": {
+            "type": "boolean"
+          },
+          "lastCheckedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "lastErrorCode": {
+            "nullable": true,
+            "type": "string"
+          },
+          "lastHealthyAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "lastCheckedAt",
+          "lastHealthyAt",
+          "lastErrorCode",
+          "certificateExpiresAt",
+          "heartbeatStale",
+          "certificateExpired",
+          "healthy"
         ],
         "type": "object"
       },
@@ -4646,6 +4717,11 @@
             "minimum": 15,
             "type": "number"
           },
+          "preparationRef": {
+            "description": "Mã của lần chuẩn bị mới; giữ nguyên khi đối soát một kết quả chưa rõ",
+            "format": "uuid",
+            "type": "string"
+          },
           "signingWindowMinutes": {
             "description": "Thời gian chờ chữ ký, mặc định 15 phút",
             "maximum": 1440,
@@ -4662,6 +4738,11 @@
         "properties": {
           "keyRef": {
             "description": "Chọn khóa khi tổ chức có nhiều khóa hoạt động",
+            "format": "uuid",
+            "type": "string"
+          },
+          "preparationRef": {
+            "description": "Mã của lần chuẩn bị mới; giữ nguyên khi đối soát một kết quả chưa rõ",
             "format": "uuid",
             "type": "string"
           },
@@ -6756,6 +6837,11 @@
             "format": "uuid",
             "type": "string"
           },
+          "chainRef": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
           "handoverMode": {
             "enum": [
               "STANDARD",
@@ -6776,6 +6862,7 @@
         },
         "required": [
           "chainId",
+          "chainRef",
           "organizationId",
           "bindingDigest",
           "handoverMode",

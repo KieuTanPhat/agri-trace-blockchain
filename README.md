@@ -12,6 +12,13 @@ Production hiện dùng cleanup release `8ae13542`, theo
 
 ## Cấu trúc
 
+Bản phát hành hosted A/B/C đang được hoàn thiện trong
+`feature/hybrid-production-readiness`, theo
+[kế hoạch phát hành hiện hành](docs/plans/hybrid-production-readiness-2026-10-13.md).
+Đọc [PROJECT_CONTEXT](docs/PROJECT_CONTEXT.md) và
+[quy tắc nghiệp vụ](docs/core-business-rules.md) trước khi đổi hành vi.
+Nghiệm thu pilot bên dưới là baseline; production vẫn chờ các gate phát hành.
+
 Hybrid Fabric (chuỗi cung ứng có chủ chuỗi/đối tác) đã triển khai đủ ba bản
 trong nhánh `feature/hybrid-fabric-delivery`: **A** phân quyền theo chuỗi, **B**
 binding Fabric riêng theo chuỗi với quyền ghi đồng bộ ledger, **C** chữ ký độc lập
@@ -116,9 +123,13 @@ backfill một chuỗi legacy cho mỗi org sản xuất, hash/proof/QR không �
 `20261015000000_hybrid_fabric_binding` (B) và `20261016000000_hybrid_signed_handover`
 (C). Các migration tạo kiểu, hàm và trigger nên cổng CD tự động chặn; production phải
 theo quy trình review/cutover thủ công và **chưa được phép chạy** trước khi được duyệt.
-Lệnh nhanh: `ledger-operator.ts` (binding, khóa ký, chế độ bàn giao),
-`org-signer.ts` (bên ký ngoài) và `verify-evidence.ts` (kiểm bằng chứng sau khôi phục) trong
-`apps/api/scripts`; mạng pilot bằng `blockchain/network/hybrid/hybrid-network.sh`.
+Sau khi build API, công cụ vận hành chạy bằng Node trong production image:
+`node dist/operator/ledger-operator.js` (binding, khóa ký, chế độ bàn giao),
+`node dist/operator/org-signer.js` (bên ký ngoài) và
+`node dist/operator/verify-evidence.js` (kiểm bằng chứng sau khôi phục), từ
+`apps/api`. Khóa riêng chỉ ở bên ký/Worker/operator theo vai trò.
+Mạng pilot dùng `blockchain/network/hybrid/hybrid-network.sh`; mạng hosted
+production mới phải qua gate capacity và có channel/MSP/CA/volume riêng.
 
 ## Kiểm tra toàn bộ
 

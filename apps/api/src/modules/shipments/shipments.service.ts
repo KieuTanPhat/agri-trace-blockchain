@@ -65,8 +65,8 @@ export class ShipmentsService {
 
   async get(id: string, actor: Actor) {
     await this.access.assertShipmentAccess(actor, id);
-    const shipment = await this.prisma.shipment.findUnique({
-      where: { id },
+    const shipment = await this.prisma.shipment.findFirst({
+      where: { AND: [{ id }, scopedShipmentReadWhere(actor)] },
       include: {
         transporter: true,
         retailer: true,

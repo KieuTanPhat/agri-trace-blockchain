@@ -18,7 +18,7 @@ def package(sha, api, web, repository, origin, dist, output, target=None):
         for member in source:
             if member.name in {f"deploy/cd/{name}" for name in CONTROLLER_FILES}:
                 controller[member.name.split("/")[-1]] = sha256(source.extractfile(member).read())
-            excluded = FIXED_FILES if target else targets.APP_FILES
+            excluded = FIXED_FILES if target else targets.APP_FILES | targets.OPTIONAL_APP_FILES
             if member.isfile() and allowed_file(member.name) and member.name not in excluded and not "/dist/" in member.name:
                 files[member.name] = source.extractfile(member).read()
     for file in Path(dist).rglob("*"):

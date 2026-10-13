@@ -41,6 +41,7 @@ function prepared(keyRef: string, now = Date.now()): PreparedIntentInput {
   };
   return {
     intentId: intent.intentId,
+    operation: 'HANDOVER_OFFER',
     keyRef,
     expiresAt: intent.notAfter,
     intent,
@@ -108,7 +109,26 @@ describe('Reference organization signer', () => {
     refuse({ ...request, intentDigest: 'cd'.repeat(32) });
     refuse({ ...request, signedMessage: 'AAAA' });
     refuse({ ...request, keyRef: u(99) });
+    refuse({ ...request, operation: 'HANDOVER_CONFIRM' });
+    refuse({ ...request, expiresAt: 'invalid-date' });
     refuse(request, Date.now() + 120_000);
     refuse({ ...request, intent: { ...request.intent, extra: 'x' } as never });
+  });
+  it('refuses a non-finite expiry (the shared encoder cannot even digest it)', () => {
+    const { privatePem } = generateSignerKey();
+    const request = prepared(u(20));
+    const intent = { ...request.intent, notAfter: 'invalid-date' };
+    expect(() =>
+      signPreparedIntent(privatePem, { ...request, intent, expiresAt: intent.notAfter }),
+    ).toThrow(SignerRefusal);
+  });
+  it('checks independently reviewed chain, binding, organization, key, entity and operation', () => {
+    const { privatePem } = generateSignerKey();
+    const request = prepared(u(20));
+    const expected = { chainRef: request.intent.chainRef, bindingDigest: BINDING, signerOrgRef: u(21),
+      keyRef: u(20), entityType: 'SHIPMENT', entityId: u(2), operation: 'HANDOVER_OFFER' };
+    expect(signPreparedIntent(privatePem, request, Date.now(), expected).signature).toBeTruthy();
+    for (const field of Object.keys(expected))
+      expect(() => signPreparedIntent(privatePem, request, Date.now(), { ...expected, [field]: 'another-context' })).toThrow('reviewed context');
   });
 });

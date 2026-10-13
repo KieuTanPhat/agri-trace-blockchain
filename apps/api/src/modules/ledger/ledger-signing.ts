@@ -71,6 +71,7 @@ export async function registerSigningKeyOnLedger(input: {
  * was registering it, the ledger copy is withdrawn through a control job. */
 export async function activateSigningKey(db: Db, keyRef: string) {
   return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT key_ref FROM signing_key WHERE key_ref = ${keyRef}::uuid FOR UPDATE`;
     const key = await tx.signingKey.findUniqueOrThrow({ where: { keyRef } });
     if (key.status === 'ACTIVE') return { status: 'ACTIVE' as const };
     if (key.status === 'REVOKED') {
