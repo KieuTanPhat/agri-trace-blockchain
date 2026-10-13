@@ -184,6 +184,11 @@ class Rehearsal(Controller):
             raise PolicyError("simulated backup failure")
         return "private-backup"
 
+    def quiescent_baseline(self, record, observed):
+        self.calls.append("quiescent-baseline")
+        assert not self.writers_running
+        return dict(observed, writersStopped=True)
+
     def run(self, label, args, **kwargs):
         self.calls.append(label)
         return b""
@@ -230,6 +235,43 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.candidate["legacyQrLotIds"] = ["unreviewed-lot"]
         self.controller.rollout(self.candidate, self.state)
         self.assertEqual(self.controller.record(self.candidate["id"])["legacyQrLotIds"], ["old-lot"])
+
+    def test_snapshot_baseline_is_captured_after_writer_stop(self):
+        self.controller.rollout(self.candidate, self.state)
+        self.assertLess(self.controller.calls.index("stop-" + self.old["id"]), self.controller.calls.index("quiescent-baseline"))
+        self.assertLess(self.controller.calls.index("quiescent-baseline"), self.controller.calls.index("snapshot"))
+
+    def test_hybrid_floor_blocks_recovery_before_old_app_or_lifecycle(self):
+        floor = {"20261014000000_hybrid_chain_scope": "d" * 64}
+        self.state["compatible_migrations"] = list(floor)
+        atomic_json(self.base / "cd/state.json", self.state)
+        atomic_json(self.base / "cd/hybrid-floor.json", {"protocol": "hybrid-abc/1", "migrations": floor})
+        self.controller.journal(self.old, self.candidate, "application", self.controller.data)
+        with self.assertRaisesRegex(PolicyError, "Hybrid migration floor"):
+            self.controller.recover()
+        self.assertNotIn("reconcile-definition", self.controller.calls)
+        self.assertNotIn("start-" + self.old["id"], self.controller.calls)
+        self.assertFalse(self.controller.writers_running)
+        self.assertTrue((self.base / "cd/journal.json").exists())
+
+    def test_fix_forward_without_manifest_approval_keeps_journal_and_writers_stopped(self):
+        self.controller.stop(self.old)
+        self.controller.journal(self.old, self.candidate, "application", self.controller.data)
+        with self.assertRaisesRegex(PolicyError, "exact manifest approval"):
+            self.controller.forward(self.candidate, self.state)
+        self.assertFalse(self.controller.writers_running)
+        self.assertTrue((self.base / "cd/journal.json").exists())
+
+    def test_fix_forward_preserves_failure_journal_and_never_restores_legacy_definition(self):
+        self.controller.stop(self.old)
+        self.controller.journal(self.old, self.candidate, "application", self.controller.data)
+        digest = module.policy.sha256(json.dumps(self.candidate["manifest"], sort_keys=True, separators=(",", ":")).encode())
+        self.controller.config["forward_recovery"] = {"sha": self.candidate["sha"], "manifest_sha256": digest}
+        self.assertEqual(self.controller.forward(self.candidate, self.state)["result"], "forward-verified")
+        self.assertNotIn("reconcile-definition", self.controller.calls)
+        self.assertNotIn("start-" + self.old["id"], self.controller.calls)
+        archived = self.base / "cd/records" / self.candidate["id"] / "recovered-journal.json"
+        self.assertEqual(json.loads(archived.read_text())["previous"], self.old["id"])
 
     def test_candidate_failure_restores_old_app_without_data_restore(self):
         self.controller.fail_candidate = True

@@ -1,0 +1,113 @@
+# Generated for the hybrid pilot. Two collaboration groups, one channel each:
+#   hybrid-b    = AgriTraceMSP (Org1) + OwnerMSP (Org2, hosted by AgriTrace)
+#   hybrid-self = AgriTraceMSP (Org1) + SelfMSP  (Org3, self-managed)
+# Org3 is deliberately absent from hybrid-b and Org2 from hybrid-self, so each
+# organization only ever receives the public history of its own group.
+Organizations:
+  - &OrdererOrg
+    Name: OrdererOrg
+    ID: OrdererMSP
+    MSPDir: @NET@/organizations/ordererOrganizations/example.com/msp
+    Policies:
+      Readers: { Type: Signature, Rule: "OR('OrdererMSP.member')" }
+      Writers: { Type: Signature, Rule: "OR('OrdererMSP.member')" }
+      Admins: { Type: Signature, Rule: "OR('OrdererMSP.admin')" }
+    OrdererEndpoints:
+      - orderer.example.com:7050
+  - &Org1
+    Name: Org1MSP
+    ID: Org1MSP
+    MSPDir: @NET@/organizations/peerOrganizations/org1.example.com/msp
+    Policies:
+      Readers: { Type: Signature, Rule: "OR('Org1MSP.admin', 'Org1MSP.peer', 'Org1MSP.client')" }
+      Writers: { Type: Signature, Rule: "OR('Org1MSP.admin', 'Org1MSP.client')" }
+      Admins: { Type: Signature, Rule: "OR('Org1MSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('Org1MSP.peer')" }
+    AnchorPeers:
+      - { Host: peer0.org1.example.com, Port: 7051 }
+  - &Org2
+    Name: Org2MSP
+    ID: Org2MSP
+    MSPDir: @NET@/organizations/peerOrganizations/org2.example.com/msp
+    Policies:
+      Readers: { Type: Signature, Rule: "OR('Org2MSP.admin', 'Org2MSP.peer', 'Org2MSP.client')" }
+      Writers: { Type: Signature, Rule: "OR('Org2MSP.admin', 'Org2MSP.client')" }
+      Admins: { Type: Signature, Rule: "OR('Org2MSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('Org2MSP.peer')" }
+    AnchorPeers:
+      - { Host: peer0.org2.example.com, Port: 9051 }
+  - &Org3
+    Name: Org3MSP
+    ID: Org3MSP
+    # Public MSP export only; the private keys stay in the self-managed directory.
+    MSPDir: @NET@/public/org3.example.com/msp
+    Policies:
+      Readers: { Type: Signature, Rule: "OR('Org3MSP.admin', 'Org3MSP.peer', 'Org3MSP.client')" }
+      Writers: { Type: Signature, Rule: "OR('Org3MSP.admin', 'Org3MSP.client')" }
+      Admins: { Type: Signature, Rule: "OR('Org3MSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('Org3MSP.peer')" }
+    AnchorPeers:
+      - { Host: peer0.org3.example.com, Port: 11051 }
+
+Capabilities:
+  Channel: &ChannelCapabilities { V2_0: true }
+  Orderer: &OrdererCapabilities { V2_0: true }
+  Application: &ApplicationCapabilities { V2_5: true }
+
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers: { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers: { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins: { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+    LifecycleEndorsement: { Type: ImplicitMeta, Rule: "MAJORITY Endorsement" }
+    Endorsement: { Type: ImplicitMeta, Rule: "MAJORITY Endorsement" }
+  Capabilities: *ApplicationCapabilities
+
+Orderer: &OrdererDefaults
+  Addresses:
+    - orderer.example.com:7050
+  BatchTimeout: 1s
+  BatchSize:
+    MaxMessageCount: 20
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
+  OrdererType: etcdraft
+  EtcdRaft:
+    Consenters:
+      - Host: orderer.example.com
+        Port: 7050
+        ClientTLSCert: @NET@/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+        ServerTLSCert: @NET@/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+  Organizations:
+  Policies:
+    Readers: { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers: { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins: { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+    BlockValidation: { Type: ImplicitMeta, Rule: "ANY Writers" }
+  Capabilities: *OrdererCapabilities
+
+Channel: &ChannelDefaults
+  Policies:
+    Readers: { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers: { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins: { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+  Capabilities: *ChannelCapabilities
+
+Profiles:
+  HybridB:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations: [*OrdererOrg]
+    Application:
+      <<: *ApplicationDefaults
+      Organizations: [*Org1, *Org2]
+  HybridSelf:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations: [*OrdererOrg]
+    Application:
+      <<: *ApplicationDefaults
+      Organizations: [*Org1, *Org3]

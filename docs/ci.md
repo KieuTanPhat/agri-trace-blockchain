@@ -9,7 +9,7 @@ actions được cố định bằng SHA và cập nhật qua Dependabot.
 
 | Check bắt buộc | Kiểm tra |
 | --- | --- |
-| `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; migration và API E2E PostgreSQL; production API, Web và Worker. |
+| `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; migration/API E2E PostgreSQL (gồm guard SQL và bàn giao Hybrid); production API, Web và Worker. |
 | `Blockchain gate` | Gateway/chaincode trên ba phiên bản Node; coverage chaincode; cài/audit/check chaincode độc lập; Worker contract; API → outbox → Worker → Fabric → proof. |
 | `Dependency gate` | Audit hai lockfile và dependency đã cài; kiểm peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. |
 
@@ -53,7 +53,8 @@ tắc PR, chống xóa nhánh và chống force push đang có khi cập nhật 
 | `blockchain/chaincode/**`, `blockchain/network/**` | Gateway/chaincode, tích hợp Fabric. |
 | Compose và các override Compose | Production containers, tích hợp Fabric. |
 | Root manifests/lockfile, cấu hình npm/Node, Docker ignore, CI scripts/workflows, manifest chaincode dùng trong Docker build | Tất cả. |
-| Chỉ tài liệu | Gate vẫn chạy; job nặng được skip có kiểm tra. Audit vẫn chạy. |
+| `docs/sql/**` | API, production containers, tích hợp Fabric; SQL fixtures không coi là tài liệu thuần. |
+| Chỉ tài liệu khác | Gate vẫn chạy; job nặng được skip có kiểm tra. Audit vẫn chạy. |
 
 Mọi push `main`, dispatch và merge queue chạy toàn bộ pipeline. Git diff PR
 không giới hạn 300 file. Đổi tên được xét như xóa và thêm để kiểm tra cả
@@ -62,6 +63,15 @@ Test hồi quy dùng Git repository thật để xác nhận các trường hợ
 Không lấy source từ PR qua
 `pull_request_target`; token workflow chỉ có `contents: read`, checkout
 không giữ credentials.
+
+## Hybrid trong CI
+
+Application CI chạy SQL/binding/dual handover, migration lịch sử và cleanup cài
+mới trên PostgreSQL 18. Blockchain CI có job `Hybrid A B C real Fabric and browser`:
+mạng 3 Org cách ly, API → Worker → ledger, fault/load và Chromium desktop/mobile.
+Job đặt `HYBRID_FABRIC_E2E=1` và từ chối required tests bị skip. Fixture/harness
+không cấp quyền Admin/Auditor ghi nghiệp vụ để vượt test. CI xanh đúng SHA là cổng
+source; smoke thực trên VPS vẫn bắt buộc theo [kế hoạch phát hành](plans/hybrid-production-readiness-2026-10-13.md).
 
 ## Production và Fabric smoke
 
@@ -219,6 +229,6 @@ Compose project và mạng thử nghiệm sau khi hoàn tất.
 [AGT-003](https://github.com/KieuTanPhat/agri-trace-blockchain/issues/15) và
 [AGT-004](https://github.com/KieuTanPhat/agri-trace-blockchain/issues/16).
 Mỗi kết quả phải gắn đúng SHA và môi trường. Kiểm tra local trên Node 22
-không thay bằng chứng matrix 24/26, PostgreSQL 16 trong CI, production
+không thay bằng chứng matrix 24/26, PostgreSQL 18 trong CI, production
 containers hoặc Fabric thật. Không suy ra nghiệm thu toàn bộ các issue
 từ việc thêm workflow; advisory high/critical mới vẫn là điều kiện chặn merge.

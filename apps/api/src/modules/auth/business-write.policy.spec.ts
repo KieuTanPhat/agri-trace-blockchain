@@ -92,14 +92,12 @@ describe('Business service authorization before persistence', () => {
 
   it('requires the custodian role and organization, rather than organization alone', async () => {
     const transaction = vi.fn();
-    const findUnique = vi
-      .fn()
-      .mockResolvedValue({
-        id: 'shipment',
-        status: 'IN_TRANSIT',
-        transporterOrgId: 'carrier',
-        retailerOrgId: 'retailer',
-      });
+    const findUnique = vi.fn().mockResolvedValue({
+      id: 'shipment',
+      status: 'IN_TRANSIT',
+      transporterOrgId: 'carrier',
+      retailerOrgId: 'retailer',
+    });
     const prisma = {
       shipment: { findUnique },
       $transaction: transaction,

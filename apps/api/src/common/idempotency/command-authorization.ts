@@ -7,11 +7,17 @@ import { isUUID } from 'class-validator';
 import { canonicalSha256 } from '../crypto/rfc8785.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { sessionFamilyWhere } from '../../modules/auth/session-family.js';
+import { authorizeChainCommand } from '../../modules/supply-chains/chain-policy.js';
 import {
-  CUSTODY_EVENT_SELECT,
-  resolveLotCustodian,
-} from '../../modules/lots/lot-custody.js';
-import { assertAssignedFarm } from '../../modules/auth/compliance-scope.js';
+  SHIPMENT_PLAN_OPERATIONS,
+  authorizeShipmentPlanCommand,
+  lockShipmentPlanCommand,
+} from '../../modules/supply-chains/shipment-plan.commands.js';
+import {
+  authorizeCoreBusinessCommand,
+  scopedDeviceAuthority,
+} from '../../modules/supply-chains/core-business-policy.js';
+import { lockChainScope } from '../../modules/supply-chains/chain-policy.js';
 
 export interface CommandActor {
   sub: string | null;
@@ -25,6 +31,8 @@ export interface AuthorizedCommand {
   operation: string;
   payload: unknown;
   actor: CommandActor | null;
+  businessActor?: CommandActor;
+  idempotencyKey?: string;
 }
 
 function payloadOf(input: AuthorizedCommand): Record<string, unknown> {
@@ -86,18 +94,6 @@ export async function authorizeCommand(
     if (!found) throw new NotFoundException('Không tìm thấy vụ sản xuất');
     return found;
   };
-  const lot = async (lotId: string) => {
-    const found = await db.lot.findUnique({
-      where: { id: lotId },
-      include: {
-        shipment: true,
-        harvest: true,
-        traceEvents: CUSTODY_EVENT_SELECT,
-      },
-    });
-    if (!found) throw new NotFoundException('Không tìm thấy lô hàng');
-    return found;
-  };
   const shipment = async (shipmentId: string) => {
     const found = await db.shipment.findUnique({ where: { id: shipmentId } });
     if (!found) throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
@@ -111,7 +107,7 @@ export async function authorizeCommand(
       )
     )
       throw new ForbiddenException('Command yêu cầu đăng nhập');
-    const found = await device();
+    let found = await device();
     if (input.requesterId !== `device:${String(payload.deviceId)}`)
       throw new ForbiddenException('Device requester không hợp lệ');
     if (lock) {
@@ -119,6 +115,26 @@ export async function authorizeCommand(
       const current = await device();
       if (current.organizationId !== found.organizationId)
         throw new ForbiddenException('Phạm vi thiết bị đã thay đổi');
+    }
+    const subject =
+      input.operation === 'INGEST_SENSOR_READING'
+        ? { kind: 'cycle' as const, id: id('cycleId') }
+        : { kind: 'shipment' as const, id: id('shipmentId') };
+    const deviceScope = await scopedDeviceAuthority(
+      db,
+      found.organizationId,
+      subject,
+      lock,
+    );
+    if (lock) {
+      await db.$queryRaw`SELECT device_id FROM iot_device WHERE device_id=${found.id}::uuid FOR SHARE`;
+      const current = await device();
+      if (
+        current.id !== found.id ||
+        current.organizationId !== found.organizationId
+      )
+        throw new ForbiddenException('Phạm vi thiết bị đã thay đổi');
+      found = current;
     }
     if (input.operation === 'INGEST_SENSOR_READING') {
       const subject = await cycle(id('cycleId'));
@@ -130,6 +146,8 @@ export async function authorizeCommand(
     } else {
       const subject = await shipment(id('shipmentId'));
       requireOwner(found.organizationId, subject.transporterOrgId);
+      if (lock)
+        await db.$queryRaw`SELECT binding_id FROM shipment_tracking_binding WHERE shipment_id=${subject.id}::uuid AND device_id=${found.id}::uuid AND status='ACTIVE' AND unbound_at IS NULL FOR SHARE`;
       const binding = await db.shipmentTrackingBinding.findFirst({
         where: {
           shipmentId: subject.id,
@@ -147,6 +165,9 @@ export async function authorizeCommand(
       requesterId: input.requesterId,
       deviceId: found.id,
       organizationId: found.organizationId,
+      authorityRevision: found.authorityRevision,
+      protocol: 'scoped-device-v1',
+      deviceScope,
     });
   }
 
@@ -154,11 +175,19 @@ export async function authorizeCommand(
   if (!actor.sub || actor.sub !== input.requesterId || !isUUID(actor.sub))
     throw new UnauthorizedException('Command thiếu định danh hợp lệ');
   if (lock) {
-    // Same organization -> user order as refresh/logout. Shared locks allow
-    // concurrent business commands but serialize account/org revocation.
-    if (actor.organizationId)
-      await db.$queryRaw`SELECT organization_id FROM organization WHERE organization_id = ${actor.organizationId}::uuid FOR SHARE`;
-    await db.$queryRaw`SELECT user_id FROM app_user WHERE user_id = ${actor.sub}::uuid FOR SHARE`;
+    if (
+      SHIPMENT_PLAN_OPERATIONS.some(
+        (operation) => operation === input.operation,
+      )
+    ) {
+      await lockShipmentPlanCommand(db, input);
+    } else {
+      // Same organization -> user order as refresh/logout. Shared locks allow
+      // concurrent business commands but serialize account/org revocation.
+      if (actor.organizationId)
+        await db.$queryRaw`SELECT organization_id FROM organization WHERE organization_id = ${actor.organizationId}::uuid FOR SHARE`;
+      await db.$queryRaw`SELECT user_id FROM app_user WHERE user_id = ${actor.sub}::uuid FOR SHARE`;
+    }
   }
   const user = await db.user.findUnique({
     where: { id: actor.sub },
@@ -186,7 +215,24 @@ export async function authorizeCommand(
   )
     throw new UnauthorizedException('Phiên đăng nhập không còn hợp lệ');
 
-  let assignmentId: string | null = null;
+  if (
+    SHIPMENT_PLAN_OPERATIONS.some((operation) => operation === input.operation)
+  )
+    return authorizeShipmentPlanCommand(db, input, lock);
+  if (input.operation.startsWith('HYB_'))
+    return authorizeChainCommand(db, input, lock);
+
+  if (lock && actor.organizationId)
+    await lockChainScope(db, `org:${actor.organizationId}`);
+  const business = await authorizeCoreBusinessCommand(db, input, lock);
+  if (business) {
+    input.businessActor = business.actor;
+    return business.scope;
+  }
+  input.businessActor = undefined;
+
+  // Only platform administration and organization-level device registration
+  // remain outside chain scope. Business commands never reach this point.
   switch (input.operation) {
     case 'CREATE_PRODUCT':
     case 'CREATE_FARM':
@@ -195,143 +241,13 @@ export async function authorizeCommand(
     case 'CREATE_ORGANIZATIONS':
     case 'GRANT_COMPLIANCE_ASSIGNMENT':
     case 'REVOKE_COMPLIANCE_ASSIGNMENT':
-    case 'RECONCILE_CYCLE_SENSOR':
       requireRole(actor, ['SYSTEM_ADMIN']);
       break;
-    case 'CREATE_PRODUCTION_CYCLE': {
-      requireRole(actor, ['FARM_STAFF']);
-      const farm = await db.farm.findUnique({ where: { id: id('farmId') } });
-      if (!farm || farm.status !== 'ACTIVE')
-        throw new ForbiddenException('Nông trại không hoạt động');
-      requireOwner(actor.organizationId, farm.organizationId);
-      break;
-    }
-    case 'PLANT_PRODUCTION_CYCLE':
-    case 'RECORD_CARE':
-    case 'RECORD_SENSOR':
-    case 'CLOSE_PRODUCTION_CYCLE':
-    case 'CANCEL_PRODUCTION_CYCLE':
-    case 'RECORD_HARVEST':
-    case 'CREATE_SENSOR_DIGEST': {
-      requireRole(actor, ['FARM_STAFF']);
-      const subject = await cycle(id('cycleId' in payload ? 'cycleId' : 'id'));
-      requireOwner(actor.organizationId, subject.farmOrgId);
-      break;
-    }
-    case 'CREATE_SHIPMENT': {
-      requireRole(actor, ['FARM_STAFF']);
-      requireOwner(actor.organizationId, (await lot(id('lotId'))).farmOrgId);
-      break;
-    }
-    case 'DAMAGE_LOT': {
-      requireRole(actor, ['FARM_STAFF']);
-      requireOwner(actor.organizationId, (await lot(id('lotId'))).farmOrgId);
-      break;
-    }
-    case 'MARK_FOR_SALE':
-    case 'MARK_SOLD': {
-      requireRole(actor, ['RETAILER']);
-      const subject = await lot(id('lotId'));
-      if (!subject.shipment)
-        throw new ForbiddenException('Lô chưa có nhà bán lẻ');
-      requireOwner(actor.organizationId, subject.shipment.retailerOrgId);
-      break;
-    }
-    case 'RECALL_LOT':
-    case 'EXPIRE_LOT': {
-      requireRole(actor, ['FARM_STAFF', 'TRANSPORTER', 'RETAILER']);
-      const custodian = resolveLotCustodian(await lot(id('lotId')));
-      if (!custodian || custodian.role !== actor.role)
-        throw new ForbiddenException('Không xác định được custody phù hợp');
-      requireOwner(actor.organizationId, custodian.organizationId);
-      break;
-    }
-    case 'START_SHIPMENT':
-    case 'ARRIVE_SHIPMENT':
-    case 'RECEIVE_SHIPMENT':
-    case 'REJECT_SHIPMENT':
-    case 'DAMAGE_SHIPMENT': {
-      const subject = await shipment(id('id'));
-      const roles =
-        input.operation === 'DAMAGE_SHIPMENT'
-          ? ['TRANSPORTER', 'RETAILER']
-          : ['RECEIVE_SHIPMENT', 'REJECT_SHIPMENT'].includes(input.operation)
-            ? ['RETAILER']
-            : ['TRANSPORTER'];
-      requireRole(actor, roles);
-      requireOwner(
-        actor.organizationId,
-        actor.role === 'TRANSPORTER'
-          ? subject.transporterOrgId
-          : subject.retailerOrgId,
-      );
-      break;
-    }
-    case 'CREATE_CERTIFICATE': {
-      requireRole(actor, ['FARM_STAFF']);
-      if (Boolean(payload.lotId) === Boolean(payload.cycleId))
-        throw new ForbiddenException('Chứng nhận cần đúng một đối tượng');
-      const owner = payload.lotId
-        ? (await lot(id('lotId'))).farmOrgId
-        : (await cycle(id('cycleId'))).farmOrgId;
-      requireOwner(actor.organizationId, owner);
-      break;
-    }
-    case 'CREATE_INSPECTION':
-    case 'REVIEW_CERTIFICATE': {
-      requireRole(actor, ['COMPLIANCE_REVIEWER']);
-      let subjectCycleId: string;
-      if (input.operation === 'CREATE_INSPECTION') {
-        subjectCycleId = (await lot(id('lotId'))).harvest.cycleId;
-      } else {
-        const certificate = await db.certificate.findUnique({
-          where: { id: id('id') },
-        });
-        if (
-          !certificate ||
-          Boolean(certificate.lotId) === Boolean(certificate.cycleId)
-        )
-          throw new NotFoundException(
-            'Không tìm thấy chứng nhận có subject hợp lệ',
-          );
-        subjectCycleId = certificate.lotId
-          ? (await lot(certificate.lotId)).harvest.cycleId
-          : certificate.cycleId!;
-      }
-      assignmentId = await assertAssignedFarm(
-        db,
-        actor,
-        (await cycle(subjectCycleId)).farmId,
-        lock,
-      );
-      break;
-    }
     case 'CREATE_IOT_DEVICE':
       requireRole(actor, ['SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER']);
       if (actor.role !== 'SYSTEM_ADMIN')
         requireOwner(actor.organizationId, id('organizationId'));
       break;
-    case 'INGEST_SENSOR_READING': {
-      requireRole(actor, ['FARM_STAFF']);
-      const found = await device();
-      requireOwner(actor.organizationId, found.organizationId);
-      const subject = await cycle(id('cycleId'));
-      requireOwner(actor.organizationId, subject.farmOrgId);
-      if (found.cycleId !== subject.id)
-        throw new ForbiddenException('Thiết bị không thuộc vụ sản xuất');
-      break;
-    }
-    case 'INGEST_SHIPMENT_TELEMETRY':
-    case 'BIND_SHIPMENT_DEVICE':
-    case 'UNBIND_SHIPMENT_DEVICE':
-    case 'CREATE_SHIPMENT_TELEMETRY_DIGEST': {
-      requireRole(actor, ['TRANSPORTER']);
-      const subject = await shipment(id('shipmentId'));
-      requireOwner(actor.organizationId, subject.transporterOrgId);
-      if (input.operation !== 'CREATE_SHIPMENT_TELEMETRY_DIGEST')
-        requireOwner(actor.organizationId, (await device()).organizationId);
-      break;
-    }
     default:
       // New commands must explicitly define scope before they can be replayed.
       throw new ForbiddenException('Command chưa có policy phân quyền');
@@ -340,6 +256,5 @@ export async function authorizeCommand(
     requesterId: actor.sub,
     role: actor.role,
     organizationId: actor.organizationId,
-    ...(assignmentId ? { assignmentId } : {}),
   });
 }

@@ -1,15 +1,15 @@
 # Vận hành CD UAT Contabo
 
 Origin vận hành hiện hành: `https://agritrace.dev`. Theo
-[runbook chuyển miền và Datadog](agritrace-cutover-runbook.md) khi quản trị
+[runbook chuyển miền và Datadog](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/agritrace-cutover-runbook.md) khi quản trị
 hostname/QR/giám sát. Báo cáo HTTPS của miền cũ được giữ làm lịch sử;
 không dùng lại origin cũ trong cấu hình deploy hiện hành.
 
-Thiết kế và review: [contabo-cd-plan.md](contabo-cd-plan.md). Workflow:
-[UAT CD](../.github/workflows/uat-cd.yml). Release code và evidence thực tế được
-ghi trong [báo cáo chuyển miền hiện hành](agritrace-cutover-status.md).
-Báo cáo [HTTPS của miền cũ](nongtrace-uat-deployment-status.md) là lịch sử.
-Báo cáo [contabo-cd-status.md](contabo-cd-status.md) giữ evidence CD HTTP trước cutover.
+Thiết kế và review: [contabo-cd-plan.md](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/contabo-cd-plan.md). Workflow:
+[UAT CD](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/fd425e9f0047a70a91d1b5bb21198ebc9363e900/.github/workflows/uat-cd.yml). Release code và evidence thực tế được
+ghi trong [báo cáo chuyển miền hiện hành](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/agritrace-cutover-status.md).
+Báo cáo [HTTPS của miền cũ](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/nongtrace-uat-deployment-status.md) là lịch sử.
+Báo cáo [contabo-cd-status.md](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/contabo-cd-status.md) giữ evidence CD HTTP trước cutover.
 
 ## Luồng bình thường
 
@@ -215,7 +215,7 @@ Không dispatch domain release trước khi DNS phân giải đúng và đườn
 được kiểm từ ngoài (dùng listener tạm khi proxy cũ chỉ có HTTP, rồi dừng listener
 trước deploy). Controller chờ TLS hợp lệ và `/login` HTTP 200 trên cả apex và
 `www` trước verify. Verifier kiểm CORS, refresh/logout, PWA assets và lịch sử
-ledger/QR; kế hoạch review ở [nongtrace-uat-release-plan.md](nongtrace-uat-release-plan.md).
+ledger/QR; kế hoạch review ở [nongtrace-uat-release-plan.md](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/nongtrace-uat-release-plan.md).
 
 Rollback về release HTTP IPv4 cũ giữ dịch vụ truy cập qua IP cũ. Release cũ chưa
 được build cho HTTPS domain; nếu cần rollback, kiểm tra lại qua IP và chỉ mở lại
@@ -226,8 +226,8 @@ domain HTTPS sau khi triển khai một release đã build theo origin domain.
 Giữ `PUBLIC_ORIGIN`/`UAT_PUBLIC_ORIGIN=https://agritrace.dev` và QR chuẩn khi
 thêm một alias HTTPS đã được phê duyệt. Dùng `deploy/cd/aliases.py`
 để preview, áp dụng và rollback dưới cùng khóa `delivery.lock` của CD.
-[Runbook alias](agritrace-domain-alias-runbook.md) và
-[báo cáo alias ngày 10/10](agritrace-domain-alias-status.md) ghi bước coexistence
+[Runbook alias](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/agritrace-domain-alias-runbook.md) và
+[báo cáo alias ngày 10/10](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/agritrace-domain-alias-status.md) ghi bước coexistence
 trước cutover; không áp dụng lại danh sách hostname cũ.
 Lệnh quản trị chỉ recreate API/proxy bằng image hiện có; không migrate,
 bootstrap, thay image, dừng Worker/Fabric hoặc promote release khác.
@@ -244,8 +244,8 @@ gọi `API_INTERNAL_BASE_URL`, QR tiếp tục dùng origin chuẩn. Patch Web n
 ## Giới hạn hiện tại
 
 Core UAT đã cutover sang `53bec18`, 14 migration và Fabric sequence 3;
-xem [báo cáo triển khai](uat-core-deployment-2026-10-10.md) và
-[kế hoạch quản trị](plans/uat-core-cutover-2026-10-10.md). Policy auto migration
+xem [báo cáo triển khai](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/uat-core-deployment-2026-10-10.md) và
+[kế hoạch quản trị](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/plans/uat-core-cutover-2026-10-10.md). Policy auto migration
 giữ nguyên. Rollback trước core bị chặn vì schema/envelope không tương thích;
 pause writes và fix forward nếu không có image core tương thích đã được xác minh.
 Không đưa migration core vào `compatible_migrations` để né guard.

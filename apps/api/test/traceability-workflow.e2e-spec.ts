@@ -17,6 +17,7 @@ import { TraceService } from '../src/modules/trace/trace.service.js';
 import { LotHarvestService } from '../src/modules/lots/lot-harvest.service.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
+import { provisionChain } from './support/chain-scope.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 const prisma = new PrismaClient({
@@ -36,6 +37,7 @@ const prisma = new PrismaClient({
     let farmOrgId: string;
     let transporterOrgId: string;
     let retailerOrgId: string;
+    let chainId: string;
     const users: Record<string, string> = {};
     const sessionIds: Record<string, string> = {};
 
@@ -71,7 +73,7 @@ const prisma = new PrismaClient({
         ['transporter', 'TRANSPORTER', transporter.id],
         ['retailer', 'RETAILER', retailer.id],
         ['admin', 'SYSTEM_ADMIN', null],
-        ['auditor', 'AUDITOR', null],
+        ['auditor', 'AUDITOR', reviewerOrg.id],
         ['reviewer', 'COMPLIANCE_REVIEWER', reviewerOrg.id],
         ['unscoped', 'FARM_STAFF', null],
       ] as const) {
@@ -102,6 +104,54 @@ const prisma = new PrismaClient({
           },
         });
       }
+      chainId = await provisionChain(prisma, {
+        name: 'Workflow chain',
+        ownerOrganizationId: farmOrg.id,
+        memberOrganizationIds: [transporter.id, retailer.id, reviewerOrg.id],
+        grants: [
+          { userId: users.farm, organizationId: farmOrg.id, role: 'ORG_ADMIN' },
+          {
+            userId: users.farm,
+            organizationId: farmOrg.id,
+            role: 'CHAIN_MANAGER',
+          },
+          {
+            userId: users.farm,
+            organizationId: farmOrg.id,
+            role: 'FARM_STAFF',
+          },
+          {
+            userId: users.transporter,
+            organizationId: transporter.id,
+            role: 'ORG_ADMIN',
+          },
+          {
+            userId: users.transporter,
+            organizationId: transporter.id,
+            role: 'TRANSPORTER',
+          },
+          {
+            userId: users.retailer,
+            organizationId: retailer.id,
+            role: 'ORG_ADMIN',
+          },
+          {
+            userId: users.retailer,
+            organizationId: retailer.id,
+            role: 'RETAILER',
+          },
+          {
+            userId: users.reviewer,
+            organizationId: reviewerOrg.id,
+            role: 'COMPLIANCE_REVIEWER',
+          },
+          {
+            userId: users.auditor,
+            organizationId: reviewerOrg.id,
+            role: 'AUDITOR',
+          },
+        ],
+      });
       const fixture = await Test.createTestingModule({ imports: [AppModule] })
         .overrideProvider(PrismaService)
         .useValue(prisma)
@@ -165,6 +215,7 @@ const prisma = new PrismaClient({
     }
     async function plantedCycle(quantity = 1) {
       const created = await post('/production-cycles', {
+        chainId,
         farmId,
         productId,
         cycleCode: 'CYCLE-' + randomUUID(),
@@ -187,16 +238,47 @@ const prisma = new PrismaClient({
       }).expect(201);
       return { cycle, ...result.body.data };
     }
+    /** Owner plans, every party consents, owner finalizes: the only way to
+     * create a Shipment for a chain Lot. Returns the finalized Shipment. */
+    async function shipLot(lotId: string, quantity: number | string) {
+      const base = `/supply-chains/${chainId}/shipment-plans`;
+      const plan = (
+        await post(base, {
+          lotId,
+          transporterOrgId,
+          retailerOrgId,
+          quantity: Number(quantity).toFixed(3),
+          unit: 'kg',
+          origin: 'Farm',
+          destination: 'Retailer',
+        }).expect(201)
+      ).body.data;
+      for (const [party, user] of [
+        ['PRODUCER', 'farm'],
+        ['TRANSPORTER', 'transporter'],
+        ['RETAILER', 'retailer'],
+      ])
+        await post(
+          `${base}/${plan.id}/accept`,
+          {
+            party,
+            revision: plan.currentRevision,
+            payloadDigest: plan.current.payloadDigest,
+          },
+          user,
+        ).expect(201);
+      const finalized = (
+        await post(`${base}/${plan.id}/finalize`, {
+          version: plan.version,
+        }).expect(201)
+      ).body.data;
+      return prisma.shipment.findUniqueOrThrow({
+        where: { id: finalized.shipmentId },
+      });
+    }
     async function startedShipment(quantity = 1) {
       const fixture = await harvestedLot(quantity);
-      const created = await post('/shipments', {
-        lotId: fixture.lot.id,
-        transporterOrgId,
-        retailerOrgId,
-        origin: 'Farm',
-        destination: 'Retailer',
-      }).expect(201);
-      const shipment = created.body.data;
+      const shipment = await shipLot(fixture.lot.id, quantity);
       await post(
         `/shipments/${shipment.id}/start`,
         { version: 0, lotVersion: 0 },
@@ -383,7 +465,8 @@ const prisma = new PrismaClient({
         `/trace/events/${event.id}/proof`,
         `/blockchain/events/${event.id}/verify`,
       ]) {
-        await get(path, 'foreign').expect(403);
+        // Out-of-scope and absent resources share one 404 response.
+        await get(path, 'foreign').expect(404);
         await get(path, 'farm').expect(200);
       }
     });
@@ -405,6 +488,7 @@ const prisma = new PrismaClient({
 
     it('validates a missing plot before reaching a foreign-key failure', async () => {
       await post('/production-cycles', {
+        chainId,
         farmId,
         productId,
         plotId: randomUUID(),
@@ -420,7 +504,7 @@ const prisma = new PrismaClient({
         where: { cycleId: cycle.id, entityType: 'PRODUCTION_CYCLE' },
       });
       await get(`/trace/events/${event.id}/proof`, 'transporter').expect(200);
-      await get(`/trace/events/${event.id}/proof`, 'foreign').expect(403);
+      await get(`/trace/events/${event.id}/proof`, 'foreign').expect(404);
     });
 
     it('keeps sibling harvest events out of a lot timeline while retaining cycle history', async () => {
@@ -435,13 +519,7 @@ const prisma = new PrismaClient({
         ).body.data;
       const first = await harvest('2026-09-26T00:00:00.000Z');
       const sibling = await harvest('2026-09-27T00:00:00.000Z');
-      await post('/shipments', {
-        lotId: first.lot.id,
-        transporterOrgId,
-        retailerOrgId,
-        origin: 'Farm',
-        destination: 'Retailer',
-      }).expect(201);
+      await shipLot(first.lot.id, 0.5);
       const siblingEvent = await prisma.traceEvent.findFirstOrThrow({
         where: { lotId: sibling.lot.id },
       });
@@ -473,7 +551,7 @@ const prisma = new PrismaClient({
         ).toBe(true);
       }
       await get(`/trace/events/${siblingEvent.id}/proof`, 'transporter').expect(
-        403,
+        404,
       );
     });
 
@@ -846,7 +924,7 @@ const prisma = new PrismaClient({
           })
         ).deviceSequence,
       ).toBe(maximumSequence);
-      await get(`/shipments/${shipment.id}`, 'foreign').expect(403);
+      await get(`/shipments/${shipment.id}`, 'foreign').expect(404);
     });
 
     it('documents nullable device sequence strings in generated Swagger', () => {
@@ -1032,6 +1110,11 @@ const prisma = new PrismaClient({
           '/inspections',
         ])
           await get(path, user).expect(200);
+        // Platform admins manage master data, not private business records.
+        if (user === 'admin') {
+          await get(`/lots/${lot.id}`, user).expect(404);
+          return;
+        }
         const projection = await get(`/lots/${lot.id}`, user).expect(200);
         expect(projection.body.data.allowedCommands).toEqual([]);
       },
@@ -1228,6 +1311,15 @@ const prisma = new PrismaClient({
         },
       });
       users.colleague = colleague.id;
+      await prisma.scopedRoleGrant.create({
+        data: {
+          userId: colleague.id,
+          organizationId: farmOrgId,
+          chainId,
+          scope: 'CHAIN',
+          role: 'FARM_STAFF',
+        },
+      });
       sessionIds.colleague = randomUUID();
       await prisma.refreshSession.create({
         data: {
@@ -1765,7 +1857,144 @@ const prisma = new PrismaClient({
         retailerOrgId,
         origin: 'Farm',
         destination: 'Retailer',
-      }).expect(409);
+      }).expect(403);
+    });
+
+    it('lets one enterprise with three capabilities run the whole core flow itself (HYB-AC-01)', async () => {
+      const org = await prisma.organization.create({
+        data: { name: `Integrated ${randomUUID()}`, type: 'FARM' },
+      });
+      for (const code of ['TRANSPORTER', 'RETAILER'] as const)
+        await prisma.organizationCapability.create({
+          data: { organizationId: org.id, code },
+        });
+      const role = await prisma.role.findUniqueOrThrow({
+        where: { code: 'FARM_STAFF' },
+      });
+      const user = await prisma.user.create({
+        data: {
+          fullName: 'Integrated operator',
+          email: `integrated-${randomUUID()}@example.test`,
+          roleId: role.id,
+          organizationId: org.id,
+          passwordHash: 'not-a-login-fixture',
+        },
+      });
+      users.integrated = user.id;
+      sessionIds.integrated = randomUUID();
+      await prisma.refreshSession.create({
+        data: {
+          id: sessionIds.integrated,
+          familyId: sessionIds.integrated,
+          userId: user.id,
+          tokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+      const integratedChain = await provisionChain(prisma, {
+        name: 'Integrated chain',
+        ownerOrganizationId: org.id,
+        memberOrganizationIds: [],
+        grants: (
+          [
+            'ORG_ADMIN',
+            'CHAIN_MANAGER',
+            'FARM_STAFF',
+            'TRANSPORTER',
+            'RETAILER',
+          ] as const
+        ).map((r) => ({ userId: user.id, organizationId: org.id, role: r })),
+      });
+      const farm = await prisma.farm.create({
+        data: { organizationId: org.id, name: 'Integrated farm' },
+      });
+      const as = 'integrated';
+      const cycle = (
+        await post(
+          '/production-cycles',
+          {
+            chainId: integratedChain,
+            farmId: farm.id,
+            productId,
+            cycleCode: 'INTEGRATED-' + randomUUID(),
+            maxHarvestQuantity: 2,
+            harvestUnit: 'kg',
+          },
+          as,
+        ).expect(201)
+      ).body.data;
+      await post(
+        `/production-cycles/${cycle.id}/plant`,
+        { version: 0, plantedAt: '2026-09-25T00:00:00.000Z' },
+        as,
+      ).expect(201);
+      const { lot } = (
+        await post(
+          `/production-cycles/${cycle.id}/harvests`,
+          { quantity: 2, unit: 'kg', harvestTime: '2026-09-26T00:00:00.000Z' },
+          as,
+        ).expect(201)
+      ).body.data;
+      const base = `/supply-chains/${integratedChain}/shipment-plans`;
+      const plan = (
+        await post(
+          base,
+          {
+            lotId: lot.id,
+            transporterOrgId: org.id,
+            retailerOrgId: org.id,
+            quantity: '2.000',
+            unit: 'kg',
+            origin: 'Own farm',
+            destination: 'Own shop',
+          },
+          as,
+        ).expect(201)
+      ).body.data;
+      for (const party of ['PRODUCER', 'TRANSPORTER', 'RETAILER'])
+        await post(
+          `${base}/${plan.id}/accept`,
+          {
+            party,
+            revision: plan.currentRevision,
+            payloadDigest: plan.current.payloadDigest,
+          },
+          as,
+        ).expect(201);
+      const { shipmentId } = (
+        await post(
+          `${base}/${plan.id}/finalize`,
+          { version: plan.version },
+          as,
+        ).expect(201)
+      ).body.data;
+      await post(
+        `/shipments/${shipmentId}/start`,
+        { version: 0, lotVersion: 0 },
+        as,
+      ).expect(201);
+      await post(
+        `/shipments/${shipmentId}/arrive`,
+        { version: 1, lotVersion: 1 },
+        as,
+      ).expect(201);
+      await post(
+        `/shipments/${shipmentId}/receive`,
+        { version: 2, lotVersion: 2, receivedQuantity: 2 },
+        as,
+      ).expect(201);
+      const events = await prisma.traceEvent.findMany({
+        where: { lotId: lot.id },
+        select: { actorRole: true, eventType: true },
+        orderBy: { serverRecordedAt: 'asc' },
+      });
+      // The server chose the stage role for each command, not the global role.
+      expect(events.map((e) => e.actorRole)).toEqual(
+        expect.arrayContaining(['FARM_STAFF', 'TRANSPORTER', 'RETAILER']),
+      );
+      expect(
+        await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } }),
+      ).toMatchObject({ currentState: 'RETAIL_RECEIVED' });
     });
 
     it('validates malformed identifiers and blank master-data names at the HTTP boundary', async () => {

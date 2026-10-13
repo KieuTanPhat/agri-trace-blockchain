@@ -40,6 +40,25 @@ describe('Lot action policy', () => {
       }
     },
   );
+  it('never offers the direct start/arrive commands on a DUAL_SIGNED shipment', () => {
+    const signed = { ...shipment, handoverMode: 'DUAL_SIGNED' };
+    expect(
+      getAllowedLotCommands(
+        { ...lot, shipment: signed },
+        { role: 'TRANSPORTER', organizationId: 'carrier' },
+      ),
+    ).toEqual([]);
+    expect(
+      getAllowedLotCommands(
+        {
+          ...lot,
+          currentState: 'IN_TRANSPORT',
+          shipment: { ...signed, status: 'IN_TRANSIT' },
+        },
+        { role: 'TRANSPORTER', organizationId: 'carrier' },
+      ),
+    ).toEqual(['reportDamage', 'recall']);
+  });
   it('offers commands only to the matching role, state and organization', () => {
     expect(
       getAllowedLotCommands(lot, {

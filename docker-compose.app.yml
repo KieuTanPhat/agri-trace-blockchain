@@ -38,6 +38,7 @@ services:
     command: [npm, run, db:migrate, --workspace, apps/api]
     networks: [default]
     mem_limit: 768m
+    cpus: 0.5
 
   api:
     <<: *api
@@ -80,12 +81,12 @@ services:
       NODE_ENV: production
       WORKER_HEALTH_PORT: "8081"
       FABRIC_ENABLED: "false"
-      NODE_OPTIONS: --max-old-space-size=320
+      NODE_OPTIONS: --max-old-space-size=${WORKER_HEAP_MB:-320}
     command: [node, apps/api/dist/worker-main.js]
     depends_on: {api: {condition: service_healthy}}
     networks: [default]
     stop_grace_period: 120s
-    mem_limit: 512m
+    mem_limit: ${WORKER_MEMORY:-512m}
     cpus: 0.5
     labels: {com.datadoghq.tags.env: "${DEPLOY_ENV}", com.datadoghq.tags.service: agritrace-worker}
 

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "./auth-store";
 import {
   readSession,
+  request,
   restoreSession,
   startSessionSynchronization,
 } from "./api-client";
@@ -16,6 +17,7 @@ vi.mock("./api-client", () => ({
   revokeSession: vi.fn(),
   isSessionRestoring: vi.fn().mockReturnValue(false),
   startSessionSynchronization: vi.fn(() => vi.fn()),
+  request: vi.fn(),
 }));
 
 const user = {
@@ -40,6 +42,7 @@ describe("cookie session restoration", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(startSessionSynchronization).mockReturnValue(() => undefined);
+    vi.mocked(request).mockResolvedValue({ accessRevision: "a".repeat(64) });
     localStorage.setItem(
       "agritrace-auth",
       JSON.stringify({ refreshToken: "old" }),

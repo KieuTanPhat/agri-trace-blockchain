@@ -64,6 +64,7 @@ export class ProductRecordDto {
 
 export class ProductionCycleRecordDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true }) chainId!: string | null;
   @ApiProperty({ type: String }) cycleCode!: string;
   @ApiProperty({ type: String, format: 'uuid' }) productId!: string;
   @ApiProperty({ type: String, format: 'uuid' }) farmId!: string;
@@ -123,6 +124,7 @@ export class IotDeviceRecordDto {
   @ApiProperty({ type: String }) name!: string;
   @ApiProperty({ type: String }) type!: string;
   @ApiProperty({ enum: Enums.DeviceStatus }) status!: Enums.DeviceStatus;
+  @ApiProperty({ type: Number, minimum: 0 }) authorityRevision!: number;
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   lastSeenAt!: string | null;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
@@ -574,12 +576,6 @@ export class HarvestSensorWindowRecordDto {
   sealedAt!: string | null;
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   reconciliationId!: string | null;
-}
-
-export class LateSensorReadingRecordDto {
-  @ApiProperty({ type: String, format: 'uuid' }) readingId!: string;
-  @ApiProperty({ type: String, format: 'uuid' }) closedHarvestId!: string;
-  @ApiProperty({ type: String, format: 'date-time' }) detectedAt!: string;
 }
 
 export class CycleSensorReconciliationRecordDto {

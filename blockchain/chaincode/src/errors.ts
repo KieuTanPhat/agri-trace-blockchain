@@ -4,7 +4,22 @@ export type ContractErrorCode =
   | "HASH_CHAIN_CONFLICT"
   | "INVALID_INPUT"
   | "NOT_FOUND"
-  | "UNAUTHORIZED_RELAYER";
+  | "UNAUTHORIZED_RELAYER"
+  | "UNAUTHORIZED_CONTROL"
+  | "GOVERNANCE_UNDEFINED"
+  | "PROPOSAL_NOT_OPEN"
+  | "APPROVALS_MISSING"
+  | "REVISION_CONFLICT"
+  | "CHANNEL_NOT_BOOTSTRAPPED"
+  | "BINDING_UNKNOWN"
+  | "BINDING_MISMATCH"
+  | "PERMISSION_INACTIVE"
+  | "DELIVERY_FENCED"
+  | "LEGACY_WRITES_DISABLED"
+  | "SIGNATURE_REQUIRED"
+  | "SIGNATURE_INVALID"
+  | "SIGNING_KEY_INACTIVE"
+  | "SIGNATURE_REPLAY";
 
 export function contractError(code: ContractErrorCode, message: string): Error {
   return new Error(`${code}: ${message}`);

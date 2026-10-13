@@ -178,13 +178,20 @@ describe("AgriTraceContract", () => {
   it("returns stable health metadata", async () => {
     const contract = new AgriTraceContract();
     const { ctx } = createFakeContext();
-    expect(JSON.parse(await contract.HealthCheck(ctx))).toEqual({
+    const health = JSON.parse(await contract.HealthCheck(ctx));
+    expect(health).toMatchObject({
       contract: "AgriTraceContract",
       schemaVersion: "2.0.0",
       status: "OK",
       envelopeVersion: "3.0.0",
       supportedReadVersions: ["2.0.0", "3.0.0"],
+      supportedWriteVersions: ["3.0.0", "4.0.0", "5.0.0"],
+      registryProtocol: "agritrace-governance/1",
+      callerRole: "relayer",
     });
+    expect(health.governanceDigest).toMatch(/^[a-f0-9]{64}$/);
+    // A channel without a bootstrap policy keeps release-A behavior.
+    expect(health.channelPolicy ?? null).toBeNull();
   });
 
   it.each([

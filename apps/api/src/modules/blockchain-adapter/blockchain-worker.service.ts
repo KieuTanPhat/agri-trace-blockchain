@@ -7,6 +7,12 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { FabricAdapterProvider } from './fabric-adapter.provider.js';
 import { privateTraceEvidenceMatches } from '../trace/trace-evidence.js';
 import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
+import {
+  EVENT_BINDING_CONTEXT_INCLUDE,
+  EVENT_LEDGER_ROUTE_INCLUDE,
+  verifiedEventRoute,
+  type PinnedRoute,
+} from '../trace/ledger-route.js';
 
 type FabricReceipt = {
   txId?: string;
@@ -28,7 +34,15 @@ type FabricReceipt = {
 };
 
 type ClaimedOutbox = Prisma.BlockchainOutboxGetPayload<{
-  include: { traceEvent: true };
+  include: {
+    traceEvent: {
+      include: {
+        ledgerRoute: typeof EVENT_LEDGER_ROUTE_INCLUDE;
+        bindingContext: typeof EVENT_BINDING_CONTEXT_INCLUDE;
+        blockchainProof: true;
+      };
+    };
+  };
 }>;
 
 @Injectable()
@@ -49,6 +63,7 @@ export class BlockchainWorkerService {
     this.running = true;
     let processed = 0;
     try {
+      const writer = this.fabric.getWriterRoute();
       // Capability/network failures must not consume leases or retry budgets.
       const adapter = await this.fabric.getAdapter();
       const health = (await adapter.healthCheck()) as {
@@ -59,7 +74,7 @@ export class BlockchainWorkerService {
         throw new Error(
           'Fabric writer paused: incompatible chaincode envelope',
         );
-      const jobs = await this.claimPending(limit);
+      const jobs = await this.claimPending(limit, writer);
       for (const job of jobs) {
         await this.submit(job);
         processed += 1;
@@ -70,7 +85,10 @@ export class BlockchainWorkerService {
     }
   }
 
-  private async claimPending(limit: number): Promise<ClaimedOutbox[]> {
+  private async claimPending(
+    limit: number,
+    writer: PinnedRoute,
+  ): Promise<ClaimedOutbox[]> {
     const maxRetries = this.numberConfig('FABRIC_MAX_RETRIES', 5);
     const leaseMs = this.numberConfig('FABRIC_CLAIM_LEASE_MS', 120_000);
     const leaseToken = randomUUID();
@@ -80,6 +98,7 @@ export class BlockchainWorkerService {
         SELECT bo.outbox_id AS id
         FROM blockchain_outbox bo
         JOIN trace_event te ON te.event_id = bo.event_id
+        LEFT JOIN event_ledger_route er ON er.event_id = te.event_id
         WHERE (
           (
             bo.status IN (
@@ -94,23 +113,22 @@ export class BlockchainWorkerService {
             AND bo.lease_expires_at <= now()
           )
         )
+          -- Only events routed to this writer.
+          AND er.definition_digest = ${writer.digest}
           AND (
             te.previous_event_hash IS NULL
             OR EXISTS (
               SELECT 1
               FROM trace_event previous_event
-              LEFT JOIN blockchain_outbox previous_outbox
-                ON previous_outbox.event_id = previous_event.event_id
-              LEFT JOIN blockchain_proof previous_proof
+              JOIN blockchain_proof previous_proof
                 ON previous_proof.event_id = previous_event.event_id
               WHERE previous_event.entity_type = te.entity_type
                 AND previous_event.entity_id = te.entity_id
                 AND previous_event.data_hash = te.previous_event_hash
-                AND (
-                  previous_outbox.status = 'COMPLETED'::blockchain_outbox_status
-                  OR previous_proof.transaction_status =
-                    'CONFIRMED'::blockchain_transaction_status
-                )
+                AND previous_proof.transaction_status = 'CONFIRMED'::blockchain_transaction_status
+                AND previous_proof.data_hash = previous_event.data_hash
+                AND previous_proof.network = ${writer.network}
+                AND previous_proof.channel_id = ${writer.channelId}
             )
           )
         ORDER BY te.event_time, te.created_at
@@ -132,7 +150,15 @@ export class BlockchainWorkerService {
       });
       return tx.blockchainOutbox.findMany({
         where: { id: { in: ids }, leaseToken },
-        include: { traceEvent: true },
+        include: {
+          traceEvent: {
+            include: {
+              ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
+              bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
+              blockchainProof: true,
+            },
+          },
+        },
         orderBy: { createdAt: 'asc' },
       });
     });
@@ -140,6 +166,23 @@ export class BlockchainWorkerService {
 
   private async submit(job: ClaimedOutbox): Promise<void> {
     const event = job.traceEvent;
+    const writer = this.fabric.getWriterRoute();
+    const route = verifiedEventRoute(event);
+    const deliverable = route?.digest === writer.digest;
+    if (!deliverable) {
+      await this.prisma.blockchainOutbox.updateMany({
+        where: { id: job.id, status: 'PROCESSING', leaseToken: job.leaseToken },
+        data: {
+          status: 'PENDING',
+          attemptCount: { decrement: 1 },
+          leaseToken: null,
+          leaseExpiresAt: null,
+          nextAttemptAt: new Date(Date.now() + 60000),
+          lastError: 'Ledger route is unverified or has no compatible writer',
+        },
+      });
+      return;
+    }
     try {
       if (
         event.schemaVersion !== '2.0.0' ||
@@ -244,18 +287,24 @@ export class BlockchainWorkerService {
           'Fabric receipt has an invalid recording time',
         );
       }
-      const channelId = this.config.get<string>(
-        'FABRIC_CHANNEL_NAME',
-        'agritrace',
-      );
+      const channelId = writer.channelId;
       if (receipt.channelId !== channelId)
         throw new PermanentBlockchainError(
           'Fabric proof belongs to a different channel',
         );
-      const network = this.config.get<string>(
-        'FABRIC_NETWORK_NAME',
-        'hyperledger-fabric',
-      );
+      const network = writer.network;
+      const existing = event.blockchainProof;
+      if (
+        existing?.transactionStatus === 'CONFIRMED' &&
+        (existing.network !== network ||
+          existing.channelId !== channelId ||
+          existing.dataHash !== event.dataHash ||
+          existing.txId !== receipt.txId ||
+          existing.recordedAt?.getTime() !== recordedAt.getTime())
+      )
+        throw new PermanentBlockchainError(
+          'Committed proof conflicts with the immutable route/receipt',
+        );
 
       await this.prisma.$transaction(async (tx) => {
         const completion = await tx.blockchainOutbox.updateMany({

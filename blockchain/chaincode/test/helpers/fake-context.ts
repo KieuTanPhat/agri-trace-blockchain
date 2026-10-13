@@ -91,9 +91,36 @@ export class FakeClientIdentity {
   public relayer = true;
   public mspId = "Org1MSP";
   public id = "x509::CN=agri-relayer::CN=ca.org1.example.com";
+  /** Extra enrollment attributes; `app.role` falls back to `relayer`. */
+  public attributes: Record<string, string> = {};
+  /** Distinct fake DER bytes per identity (base64 body of the PEM). */
+  public certBody = Buffer.from("fake-relayer-certificate-der").toString("base64");
 
   public assertAttributeValue(name: string, value: string): boolean {
-    return this.relayer && name === "app.role" && value === "relayer";
+    return this.getAttributeValue(name) === value;
+  }
+
+  public getAttributeValue(name: string): string | null {
+    if (name in this.attributes) return this.attributes[name];
+    return name === "app.role" && this.relayer ? "relayer" : null;
+  }
+
+  public getIDBytes(): Uint8Array {
+    return Buffer.from(`-----BEGIN CERTIFICATE-----
+${this.certBody}
+-----END CERTIFICATE-----
+`);
+  }
+
+  public as(identity: { role: string; msp: string; authority?: string; cert?: string }): this {
+    this.attributes = {
+      "app.role": identity.role,
+      ...(identity.authority ? { "app.authority": identity.authority } : {}),
+    };
+    this.mspId = identity.msp;
+    this.id = `x509::CN=${identity.role}-${identity.msp}`;
+    this.certBody = Buffer.from(identity.cert ?? `cert-${identity.role}-${identity.msp}`).toString("base64");
+    return this;
   }
 
   public getMSPID(): string {

@@ -62,6 +62,7 @@ export const mockLots: LotTrace[] = [
   {
     ...sampleEvidence(120, 120, "2026-09-15T02:00:00.000Z"),
     lotId: "11111111-1111-4111-8111-111111111111",
+    chainId: null,
     lotCode: "LOT-RAU-CCH-2026-001",
     productName: "Rau cải ngọt",
     harvestTime: "2026-09-15T02:00:00.000Z",
@@ -143,6 +144,7 @@ export const mockLots: LotTrace[] = [
   {
     ...sampleEvidence(350, 345, "2026-09-16T01:00:00.000Z"),
     lotId: "12222222-2222-4222-8222-222222222222",
+    chainId: null,
     lotCode: "LOT-XOA-NBE-2026-002",
     productName: "Xoài cát",
     harvestTime: "2026-09-16T01:00:00.000Z",

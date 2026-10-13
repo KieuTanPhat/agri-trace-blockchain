@@ -67,6 +67,9 @@ export class CatalogDto {
   @ApiProperty({ type: [CatalogPlotDto] }) plots!: CatalogPlotDto[];
 }
 export class CycleListDto extends ProductionCycleRecordDto {
+  @ApiProperty({ type: Boolean, required: false }) canWriteProduction?: boolean;
+  @ApiProperty({ type: Boolean, required: false })
+  canReviewCompliance?: boolean;
   @ApiProperty({ type: ProductOptionDto }) product!: ProductOptionDto;
   @ApiProperty({ type: NamedDto }) farm!: NamedDto;
   @ApiProperty({ type: NamedDto, nullable: true }) plot!: NamedDto | null;
@@ -82,6 +85,9 @@ class HarvestDetailDto extends HarvestEventRecordDto {
   sensorWindow!: HarvestSensorWindowRecordDto | null;
 }
 export class CycleDetailDto extends ProductionCycleRecordDto {
+  @ApiProperty({ type: Boolean, required: false }) canWriteProduction?: boolean;
+  @ApiProperty({ type: Boolean, required: false })
+  canReviewCompliance?: boolean;
   @ApiProperty({ type: ProductRecordDto }) product!: ProductRecordDto;
   @ApiProperty({ type: FarmRecordDto }) farm!: FarmRecordDto;
   @ApiProperty({ type: PlotRecordDto, nullable: true })
@@ -209,8 +215,8 @@ export class TraceHistoryDto extends TraceEventRecordDto {
 }
 export class TraceProofDto {
   @ApiProperty({ format: 'uuid' }) eventId!: string;
-  @ApiProperty() network!: string;
-  @ApiProperty() channelId!: string;
+  @ApiProperty({ type: String, nullable: true }) network!: string | null;
+  @ApiProperty({ type: String, nullable: true }) channelId!: string | null;
   @ApiProperty({ type: String, nullable: true }) txId!: string | null;
   @ApiProperty() dataHash!: string;
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })

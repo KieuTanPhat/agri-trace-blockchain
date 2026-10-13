@@ -6,6 +6,13 @@ import {
   mockSubmitCommand,
 } from "./mock-api";
 import { getAuthorizationScope } from "./auth-scope";
+import { commandRequest } from "./command-request";
+import {
+  recoverableCommand,
+  retrySavedCommand,
+  pendingSavedCommands,
+  type SavedCommand,
+} from "./command-recovery";
 import {
   AUTH_SYNC_KEY,
   publishAuthChange,
@@ -13,10 +20,14 @@ import {
   withAuthLock,
 } from "./auth-coordination";
 import { clearStoredIotReadings } from "./iot-local-store";
+import {
+  publishPermissionChange,
+  PERMISSION_CHECK_EVENT,
+  businessAccessEpoch,
+} from "./permission-sync";
 import type { components } from "./generated/api";
 import type {
   AllowedCommand,
-  AuthUser,
   CommandInput,
   Dashboard,
   LoginResponse,
@@ -190,10 +201,6 @@ export async function login(
   } finally {
     if (identityMutation === mutation) identityMutation = null;
   }
-}
-
-export async function getProfile(): Promise<AuthUser> {
-  return request("/auth/me");
 }
 
 export async function getDashboard(): Promise<Dashboard> {
@@ -468,6 +475,108 @@ export async function request<T>(
   authenticated = true,
   canRefresh = true,
 ): Promise<T> {
+  const method = init.method?.toUpperCase() ?? "GET";
+  if (
+    !authenticated ||
+    typeof window === "undefined" ||
+    typeof init.body !== "string" ||
+    !commandRequest(path, method, init.body)
+  )
+    return rawRequest<T>(path, init, authenticated, canRefresh);
+  const context = await recoveryContext();
+  const headers = new Headers(init.headers);
+  const command: SavedCommand = {
+    path,
+    method,
+    body: init.body,
+    key: headers.get("idempotency-key") ?? crypto.randomUUID(),
+  };
+  return recoverableCommand(
+    context,
+    command,
+    recoveryTransport(init, canRefresh),
+  ) as Promise<T>;
+}
+
+async function recoveryContext() {
+  if (
+    synchronizeBrowserSession() ||
+    identityMutation ||
+    (!session && isSessionRestoring())
+  )
+    throw sessionChanged();
+  if (!session) await refreshAccessToken();
+  const user = session?.user;
+  if (!user) throw sessionChanged();
+  const scope = getAuthorizationScope(user),
+    identity = identityVersion,
+    accessEpoch = businessAccessEpoch();
+  return {
+    owner: JSON.stringify([user.id, user.organizationId ?? null]),
+    assertCurrent() {
+      if (
+        synchronizeBrowserSession() ||
+        identityMutation ||
+        identityVersion !== identity ||
+        getAuthorizationScope(session?.user) !== scope
+      )
+        throw sessionChanged();
+      if (businessAccessEpoch() !== accessEpoch)
+        throw {
+          status: 409,
+          code: "ACCESS_CHANGED",
+          message:
+            "Quyền hiện hành đã thay đổi. Kiểm tra kết quả đã ghi trước khi gửi lại.",
+        };
+    },
+  };
+}
+function recoveryTransport(init: RequestInit = {}, canRefresh = true) {
+  return {
+    send(command: SavedCommand) {
+      const headers = new Headers(init.headers);
+      headers.set("idempotency-key", command.key);
+      return rawRequest(
+        command.path,
+        { ...init, method: command.method, body: command.body, headers },
+        true,
+        canRefresh,
+      );
+    },
+    inspect(
+      command: SavedCommand,
+      descriptor: components["schemas"]["InspectCommandRequestDto"],
+    ) {
+      return rawRequest<components["schemas"]["CommandRequestStatusDto"]>(
+        "/command-requests/status",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            operation: descriptor.operation,
+            payload: descriptor.payload,
+          }),
+          headers: { "idempotency-key": command.key },
+        },
+        true,
+        canRefresh,
+      );
+    },
+  };
+}
+export async function retryPendingCommand(id: string) {
+  return retrySavedCommand(await recoveryContext(), id, recoveryTransport());
+}
+
+export async function listPendingCommands() {
+  return pendingSavedCommands(await recoveryContext());
+}
+
+async function rawRequest<T>(
+  path: string,
+  init: RequestInit = {},
+  authenticated = true,
+  canRefresh = true,
+): Promise<T> {
   if (authenticated) {
     if (
       synchronizeBrowserSession() ||
@@ -481,9 +590,23 @@ export async function request<T>(
     ? (readAccessToken() ?? (await refreshAccessToken()))
     : null;
   const requestIdentity = identityVersion;
+  const requestAccessEpoch = businessAccessEpoch();
   const requestScope = authenticated
     ? getAuthorizationScope(session?.user)
     : null;
+  const assertBusinessAccess = () => {
+    if (
+      authenticated &&
+      path !== "/chain-permissions" &&
+      businessAccessEpoch() !== requestAccessEpoch
+    )
+      throw {
+        status: 409,
+        code: "ACCESS_CHANGED",
+        message:
+          "Quyền hiện hành đã thay đổi. Kiểm tra kết quả đã ghi trước khi gửi lại.",
+      };
+  };
   const headers = new Headers(init.headers);
   if (init.body) headers.set("content-type", "application/json");
   if (token) headers.set("authorization", `Bearer ${token}`);
@@ -524,6 +647,7 @@ export async function request<T>(
       code: "SESSION_CHANGED",
       message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
     };
+  assertBusinessAccess();
   if (response.status === 401 && authenticated && canRefresh) {
     if (readAccessToken() === token) await refreshAccessToken();
     if (
@@ -536,9 +660,19 @@ export async function request<T>(
         message: "Phiên đăng nhập đã thay đổi. Vui lòng thử lại.",
       };
     }
-    return request<T>(path, { ...init, headers }, authenticated, false);
+    // Refresh is asynchronous. Keep the original access epoch across it;
+    // recursively retrying would otherwise silently adopt a different scope.
+    assertBusinessAccess();
+    return rawRequest<T>(path, { ...init, headers }, authenticated, false);
   }
   if (!response.ok) {
+    if (
+      authenticated &&
+      (response.status === 403 || response.status === 404) &&
+      path !== "/chain-permissions" &&
+      typeof window !== "undefined"
+    )
+      window.dispatchEvent(new Event(PERMISSION_CHECK_EVENT));
     if (response.status === 401 && authenticated) {
       clearSession();
     }
@@ -569,6 +703,25 @@ export async function request<T>(
         "Yêu cầu thất bại. Vui lòng thử lại.",
     };
   }
+  if (
+    authenticated &&
+    typeof init.body === "string" &&
+    commandRequest(path, method, init.body) &&
+    (!payload || !("success" in payload) || !payload.success)
+  )
+    throw {
+      status: 0,
+      code: "UNREADABLE_RESPONSE",
+      message: "Chưa đọc được kết quả. Kiểm tra yêu cầu trước khi thử lại.",
+    };
+  if (
+    authenticated &&
+    method !== "GET" &&
+    /^\/(supply-chains|chain-memberships|organizations\/[^/]+\/(scoped-grants|capabilities)|scoped-grants|compliance-assignments)(\/|$)/.test(
+      path,
+    )
+  )
+    publishPermissionChange();
   if (payload && "success" in payload) return payload.data;
   return payload as T;
 }

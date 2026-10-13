@@ -10,7 +10,7 @@ import { gateErrors } from './gate.mjs';
 
 test('Gateway changes run API, containers and real Fabric integration', () => {
   assert.deepEqual(classifyChanges(['blockchain/gateway/src/adapter.ts']), {
-    api: true, web: false, containers: true, blockchain: true, fabric: true,
+    api: true, web: false, containers: true, blockchain: true, fabric: true, hybrid: true,
   });
 });
 
@@ -38,7 +38,7 @@ test('manifests and CI changes select all checks', () => {
 
 test('Web changes select its checks and the production stack', () => {
   assert.deepEqual(classifyChanges(['apps/web/src/app/page.tsx']), {
-    api: false, web: true, containers: true, blockchain: false, fabric: false,
+    api: false, web: true, containers: true, blockchain: false, fabric: false, hybrid: true,
   });
 });
 
@@ -131,8 +131,8 @@ test('main pushes with a valid baseline still require every check for the deploy
 test('gate rejects failures, cancellation and unexpected skips for selected jobs', () => {
   for (const result of ['failure', 'cancelled', 'skipped']) {
     assert.ok(gateErrors('blockchain', {
-      changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true' } },
-      verify: { result: 'success' }, 'standalone-chaincode': { result: 'success' }, 'fabric-smoke': { result },
+      changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true', hybrid: 'true' } },
+      verify: { result: 'success' }, 'standalone-chaincode': { result: 'success' }, 'hybrid-fabric': { result: 'success' }, 'fabric-smoke': { result },
     }).length > 0);
   }
 });
@@ -145,18 +145,18 @@ test('gate fails closed on failed detection, absent outputs and missing jobs', (
 
 test('blockchain gate requires the selected standalone check and permits documentation skips', () => {
   const needs = {
-    changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true' } },
+    changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true', hybrid: 'true' } },
     verify: { result: 'success' }, 'fabric-smoke': { result: 'success' },
-    'standalone-chaincode': { result: 'success' },
+    'standalone-chaincode': { result: 'success' }, 'hybrid-fabric': { result: 'success' },
   };
   assert.deepEqual(gateErrors('blockchain', needs), []);
   for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
     assert.ok(gateErrors('blockchain', { ...needs, 'standalone-chaincode': { result } }).length > 0);
   }
   assert.deepEqual(gateErrors('blockchain', {
-    changes: { result: 'success', outputs: { blockchain: 'false', fabric: 'false' } },
+    changes: { result: 'success', outputs: { blockchain: 'false', fabric: 'false', hybrid: 'false' } },
     verify: { result: 'skipped' }, 'fabric-smoke': { result: 'skipped' },
-    'standalone-chaincode': { result: 'skipped' },
+    'standalone-chaincode': { result: 'skipped' }, 'hybrid-fabric': { result: 'skipped' },
   }), []);
 });
 

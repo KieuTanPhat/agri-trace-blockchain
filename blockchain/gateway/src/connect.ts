@@ -10,6 +10,8 @@ import type { GatewayConfig } from "./config.js";
 export interface GatewayConnection {
   gateway: Gateway;
   client: grpc.Client;
+  /** Exact public certificate used by this connection; no signing key material. */
+  identityCertificate: Uint8Array;
   close(): void;
 }
 
@@ -38,6 +40,7 @@ export async function connectGateway(config: GatewayConfig): Promise<GatewayConn
     return {
       gateway,
       client,
+      identityCertificate: Uint8Array.from(certificate),
       close: () => {
         gateway.close();
         client.close();

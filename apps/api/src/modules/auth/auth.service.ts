@@ -64,7 +64,7 @@ export class AuthService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
-      await lockSessionOwner(tx, user.id, user.organizationId);
+      await lockSessionOwner(tx, user.id, user.organizationId, 'read');
       const current = await tx.user.findUnique({
         where: { id: user.id },
         include: { role: true, organization: { select: { status: true } } },

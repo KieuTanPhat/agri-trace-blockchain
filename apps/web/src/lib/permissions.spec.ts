@@ -17,4 +17,13 @@ describe("Web business permissions", () => {
     expect(canAccessManagementRoute("/admin", "SYSTEM_ADMIN")).toBe(true);
     expect(canAccessManagementRoute("/admin/users", "FARM_STAFF")).toBe(false);
   });
+  it("uses current server production access for the scoped IoT route", () => {
+    expect(
+      canAccessManagementRoute("/iot-simulator", "TRANSPORTER", true),
+    ).toBe(true);
+    expect(
+      canAccessManagementRoute("/iot-simulator", "FARM_STAFF", false),
+    ).toBe(false);
+    expect(canAccessManagementRoute("/admin", "TRANSPORTER", true)).toBe(false);
+  });
 });

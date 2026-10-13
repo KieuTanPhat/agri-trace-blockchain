@@ -40,17 +40,27 @@ export default function IotSimulatorPage() {
   const busy = useRef(false);
 
   useEffect(() => {
+    let activeRequest = true;
     setRecordedAt(new Date().toISOString());
     getProductionCycles()
       .then((items) => {
-        const active = items.filter((item) =>
-          ["PLANTED", "GROWING"].includes(item.currentState),
+        if (!activeRequest) return;
+        const active = items.filter(
+          (item) =>
+            ["PLANTED", "GROWING"].includes(item.currentState) &&
+            (item.canWriteProduction ??
+              (user?.role.code === "FARM_STAFF" && !item.chainId)),
         );
         setCycles(active);
         setCycleId(active[0]?.id ?? "");
       })
-      .catch(() => setCycles([]));
-  }, []);
+      .catch(() => {
+        if (activeRequest) setCycles([]);
+      });
+    return () => {
+      activeRequest = false;
+    };
+  }, [user?.role.code]);
 
   const payload = useMemo(
     () => ({ deviceId, cycleId, sensorType, value, unit, recordedAt }),

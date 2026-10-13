@@ -6,6 +6,12 @@ import { calculateTraceEventHash } from '../trace/public.js';
 import { LotQueryService } from './lot-query.service.js';
 import type { PublicLot } from './lot-query.types.js';
 import { Prisma } from '../../generated/prisma/client.js';
+import {
+  fixtureRoute,
+  useFixtureRoute,
+} from '../../../test/support/ledger-route-fixture.js';
+
+beforeEach(useFixtureRoute);
 
 function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
   const lotId = randomUUID();
@@ -69,6 +75,10 @@ function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
     return {
       ...input,
       dataHash,
+      ledgerRoute: {
+        definitionDigest: fixtureRoute.digest,
+        definition: fixtureRoute,
+      },
       blockchainProof: {
         dataHash,
         transactionStatus: 'CONFIRMED',

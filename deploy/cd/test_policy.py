@@ -179,6 +179,42 @@ class Policies(unittest.TestCase):
                     with self.assertRaisesRegex(PolicyError, "source checksum"):
                         migrations({}, catalog, directory)
 
+    def test_hybrid_floor_cannot_be_bypassed_by_compatible_migrations(self):
+        name = "20261014000000_hybrid_chain_scope"
+        applied = {"20260101_init": "a" * 64, name: "b" * 64}
+        with self.assertRaisesRegex(PolicyError, "Hybrid migration floor"):
+            migrations(applied, {"20260101_init": "a" * 64}, ".", compatible_missing=[name])
+        with self.assertRaisesRegex(PolicyError, "Hybrid migration floor"):
+            migrations({}, {}, ".", floor={name: "b" * 64})
+
+    def test_capacity_includes_all_limits_and_rejects_unbounded_or_overcommitted_runtime(self):
+        from policy import capacity_budget
+        self.assertEqual(capacity_budget(1000, {"legacy": 400, "hosted": 400})["reservedBytes"], 200)
+        for limits in ({"legacy": 801}, {"legacy": 500, "hosted": 301}, {"peer": 0}, {}, {"peer": True}):
+            with self.subTest(limits=limits), self.assertRaises(PolicyError):
+                capacity_budget(1000, limits)
+        with self.assertRaises(PolicyError):
+            capacity_budget(1000, {"peer": 500}, reserve_percent=19)
+
+    def test_nonadditive_review_pins_exact_bytes_without_widening_default_parser(self):
+        name = "20261014000000_hybrid_chain_scope"
+        sql = b'DO $$ BEGIN RAISE NOTICE \'reviewed expansion\'; END $$;\n'
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "apps/api/prisma/migrations" / name / "migration.sql"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(sql)
+            candidate = {name: sha256(sql)}
+            with self.assertRaisesRegex(PolicyError, "installed checksum review"):
+                migrations({}, candidate, directory)
+            reviews = {name: {"checksum": sha256(sql), "protocol": "hybrid-abc/1"}}
+            self.assertEqual(migrations({}, candidate, directory, reviewed=reviews), [name])
+            source.write_bytes(sql + b"-- changed\n")
+            candidate[name] = sha256(source.read_bytes())
+            with self.assertRaisesRegex(PolicyError, "reviewed checksum"):
+                migrations({}, candidate, directory, reviewed=reviews)
+            with self.assertRaises(PolicyError):
+                migrations({}, candidate, directory, reviewed={name: {"checksum": candidate[name], "protocol": "additive"}})
+
 
 if __name__ == "__main__":
     unittest.main()

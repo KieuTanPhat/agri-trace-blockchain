@@ -104,6 +104,31 @@ Các endpoint hiện có:
   Không trim/cắt mật khẩu và không thay hash của tài khoản đã tồn tại.
 - `POST /api/auth/register` đang chủ động trả `501`; tài khoản phải do quản trị viên cấp
 
+## Hybrid A/B/C
+
+Ba migration append-only: `20261014000000_hybrid_chain_scope` (A: phân quyền theo
+chuỗi, backfill một chuỗi legacy cho mỗi org sản xuất, route lịch sử bất biến),
+`20261015000000_hybrid_fabric_binding` (B: binding Fabric, quyền ledger, delivery) và
+`20261016000000_hybrid_signed_handover` (C: khóa ký tổ chức, bàn giao hai bên). Chúng
+tạo kiểu, hàm và trigger nên cổng CD tự động chặn; production chỉ chạy theo quy trình
+review/cutover thủ công. Xem [ADR-004](../../docs/adr-004-hybrid-binding-and-signatures.md),
+[runbook vận hành](../../docs/hybrid-fabric-runbook.md) và
+[bằng chứng nghiệm thu](../../docs/hybrid-acceptance-2026-10-14.md).
+
+Công cụ vận hành (không có endpoint HTTP quản trị; API không giữ khóa Fabric hay khóa ký):
+
+```bash
+npx tsx scripts/ledger-operator.ts <register-binding|onboard|register-signing-key|set-handover-mode|activate|pause|resume|resolve-hold|status>
+npx tsx scripts/org-signer.ts <keygen|register|sign>      # mẫu bên ký ngoài của tổ chức
+DATABASE_URL=<bản sao> npx tsx scripts/verify-evidence.ts # kiểm lại bằng chứng sau khôi phục
+```
+
+Test: `test/hybrid-binding-db.e2e-spec.ts` (guard SQL của B), `test/hybrid-handover.e2e-spec.ts`
+(API + SQL guard của bàn giao có chữ ký), `test/hybrid-migration.e2e-spec.ts` (diễn tập
+backfill) chạy trong `test:e2e` với PostgreSQL thường. `test/hybrid-fabric.e2e-spec.ts`
+chạy API → Worker → Fabric thật và **chỉ chạy khi** `HYBRID_FABRIC_E2E=1` cùng mạng pilot
+(`blockchain/network/hybrid`), nên CI bỏ qua nó. PostgreSQL nên dùng múi giờ UTC.
+
 ## Kiểm tra
 
 ```bash

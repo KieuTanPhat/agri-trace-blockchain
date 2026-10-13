@@ -12,6 +12,7 @@ import re
 import shutil
 import signal
 import subprocess
+import datetime
 from pathlib import Path
 import install as legacy
 
@@ -116,6 +117,59 @@ def install_target(args, config):
     return {"result": "installed", "environment": args.environment, "user": user, "enabled": config["enabled"]}
 
 
+def install_fresh(args, config):
+    """Retire controller metadata only, after an independently restored archive.
+
+    Existing PGDATA/ledger/crypto are never deleted, migrated or reused here.
+    A first CD delivery must still prove that the new database is empty.
+    """
+    policy.targets.validate_config(config, policy.require)
+    policy.require(config["schema"] == 3 and config["enabled"] is False, "Fresh target must start disabled")
+    base = Path(config["base"])
+    previous_file = config_path(args.environment)
+    previous = json.loads(previous_file.read_text())
+    policy.require(previous.get("schema") == 2 and previous.get("enabled") is False, "Disable the old installed target before replacement")
+    policy.require(previous["project"] != config["project"] and previous["postgres_volume"] != config["postgres_volume"], "Fresh target cannot reuse old PGDATA")
+    evidence_file = config.get("restore_evidence", "")
+    policy.require(policy.targets.owned_path(evidence_file, base / "shared"), "Private restoration evidence is required")
+    evidence = json.loads(Path(evidence_file).read_text())
+    policy.require(evidence.get("protocol") == "agritrace-backup-restore/1" and evidence.get("result") == "passed" and
+                   evidence.get("source_project") == previous["project"] and evidence.get("source_volume") == previous["postgres_volume"] and
+                   evidence.get("off_vps") is True and evidence.get("database_restored") is True and evidence.get("ledger_restored") is True,
+                   "Fresh target needs a verified off-VPS database and ledger restoration")
+    archive = Path(evidence.get("encrypted_archive", ""))
+    policy.require(policy.targets.owned_path(archive, base / "backups") and archive.is_file() and
+                   policy.sha256(archive.read_bytes()) == evidence.get("archive_sha256"), "Verified encrypted backup is missing or changed")
+    running = subprocess.check_output(["docker", "ps", "-q", "--filter", "label=com.docker.compose.project=" + previous["project"]], text=True).strip()
+    policy.require(not running, "Stop every old application container before fresh installation")
+    names = previous.get("fabric", {}).get("containers", [])
+    if names:
+        resources = json.loads(subprocess.check_output(["docker", "inspect", *names]))
+        policy.require(all(not resource["State"].get("Running") for resource in resources), "Stop the old Fabric network before fresh installation")
+    policy.require(subprocess.run(["docker", "volume", "inspect", config["postgres_volume"]], stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL).returncode != 0, "Fresh PGDATA already exists; reconcile it without resetting")
+    retired = base / "cd" / "retired" / datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    retired.mkdir(parents=True, mode=0o700)
+    shutil.copyfile(previous_file, retired / "config.json")
+    for name in ("state.json", "hybrid-floor.json", "last-result.json", "target-adoption.json"):
+        source = base / "cd" / name
+        if source.exists():
+            shutil.copyfile(source, retired / name)
+            if name == "hybrid-floor.json":
+                source.unlink()  # Archived old schema floor belongs to the retired DB.
+    current = base / "current"
+    if current.is_symlink():
+        (retired / "previous-release").symlink_to(current.resolve())
+        current.unlink()
+    elif current.exists():
+        policy.require(False, "Current release is not the expected symlink")
+    atomic_json(base / "cd/state.json", {"current": None, "previous": None, "chaincode": {"sequence": 0}, "compatible_migrations": []})
+    installed_helpers(args.environment)
+    atomic_json(previous_file, config)
+    user = provision_identity(args.environment, Path(args.public_key).read_text().strip())
+    return {"result": "fresh-target-installed", "environment": args.environment, "user": user, "enabled": False, "retired": str(retired)}
+
+
 
 
 
@@ -129,7 +183,7 @@ def lifecycle(environment, operation, config):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("install", "adopt-legacy", "enable"))
+    parser.add_argument("operation", choices=("install", "fresh-install", "adopt-legacy", "enable"))
     parser.add_argument("--environment", choices=policy.targets.TARGETS, required=True)
     parser.add_argument("--config")
     parser.add_argument("--public-key")
@@ -140,7 +194,7 @@ def main():
         policy.require(args.environment == "production" and bool(args.public_key), "Legacy adoption only installs the production identity")
         base = "/opt/agri-trace"
     else:
-        config = json.loads(Path(args.config if args.operation == "install" else config_path(args.environment)).read_text())
+        config = json.loads(Path(args.config if args.operation in {"install", "fresh-install"} else config_path(args.environment)).read_text())
         policy.targets.validate_config(config, policy.require)
         policy.require(config["environment"] == args.environment, "Administrator environment mismatch")
         base = config["base"]
@@ -153,9 +207,9 @@ def main():
             raise policy.PolicyError("Another host deployment is running; no configuration was changed")
         if args.operation == "adopt-legacy":
             config = legacy_production_config()
-        if args.operation in {"install", "adopt-legacy"}:
+        if args.operation in {"install", "adopt-legacy", "fresh-install"}:
             policy.require(bool(args.public_key), "Install requires a dedicated CD public key")
-            result = install_target(args, config)
+            result = install_fresh(args, config) if args.operation == "fresh-install" else install_target(args, config)
         else:
             result = lifecycle(args.environment, args.operation, config)
         print(json.dumps(result))

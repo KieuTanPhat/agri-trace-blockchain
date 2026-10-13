@@ -1,13 +1,14 @@
-# Legacy database migration runbook
+# Database migration and restoration
 
-1. Take a consistent backup and stop writes to the legacy database.
-2. Create a clean PostgreSQL database and run `npm run db:migrate --workspace apps/api`.
-3. Run `npm run db:seed --workspace apps/api` only for non-production environments.
-4. Copy and adapt `apps/api/prisma/legacy-migration.sql` to the real legacy table names.
-5. Migrate parent tables first, recording every key conversion in `migration_id_map`.
-6. Rebuild operational events through the new command order; do not invent confirmed blockchain proofs.
-7. Compare counts, ownership links, quantity balances, state transitions and RFC 8785 hashes.
-8. Run the API integration/e2e suite against the migrated copy, then perform a read-only acceptance window.
-9. Switch the application connection string only after acceptance; retain the old database read-only for rollback.
+Fresh production follows [the current runbook](production-runbook.md). The old
+test database/ledger is archived, not imported into the new business model.
 
-The SQL template deliberately ends in `ROLLBACK` so it cannot be executed as a production migration without an explicit review.
+1. Stop writers and capture an encrypted, consistent database/ledger/identity/config backup.
+2. Download outside VPS, decrypt/check checksums and restore to isolated owned resources.
+3. Compare migration bytes/checksums, counts, hashes, transaction IDs and ledger validation.
+4. Provision a separate empty database; apply immutable historical migrations and append-only cleanup.
+5. Cleanup refuses existing business history/exemptions. Never rewrite applied migrations or reset a shared DB.
+6. Bootstrap production through the private operator, then run real VPS smoke. UAT seed remains forbidden in production.
+7. Preserve the Hybrid floor and original command keys on failure; recover the exact candidate.
+
+Database restoration is separate from application rollback. Do not restore only PostgreSQL after ledger commits. Per-run restoration evidence stays private in PR/Issue/local artifacts.

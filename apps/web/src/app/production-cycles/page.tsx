@@ -10,7 +10,7 @@ import { emptyCatalog, type Catalog } from "@/lib/catalog";
 import { ResponsiveTable } from "@/components/responsive-table";
 import { DataForm } from "@/components/data-form";
 import { QrCodeCard } from "@/components/qr-code-card";
-import { canWriteFarm } from "@/lib/permissions";
+import { getAuthorizationScope } from "@/lib/auth-scope";
 type Cycle = components["schemas"]["CycleDetailDto"];
 const states: Record<string, string> = {
   CREATED: "Mới tạo",
@@ -21,7 +21,16 @@ const states: Record<string, string> = {
 };
 export default function CyclesPage() {
   const { user } = useAuth();
-  const canWrite = canWriteFarm(user?.role.code);
+  return user ? <CycleWorkspace key={getAuthorizationScope(user)} /> : null;
+}
+function CycleWorkspace() {
+  const { user } = useAuth();
+  const [permissions, setPermissions] = useState<
+    components["schemas"]["ChainContextDto"] | null
+  >(null);
+  const [selectedChain, setSelectedChain] = useState("");
+  const productionChains = permissions?.productionChains ?? [];
+  const canWrite = productionChains.length > 0;
   const [cycles, setCycles] = useState<ProductionCycleOption[]>([]);
   const [catalog, setCatalog] = useState<Catalog>(emptyCatalog);
   const [selected, setSelected] = useState("");
@@ -38,15 +47,20 @@ export default function CyclesPage() {
     setLoading(true);
     setError("");
     try {
-      const items = await getProductionCycles();
+      const [items, scope] = await Promise.all([
+        getProductionCycles(),
+        request<components["schemas"]["ChainContextDto"]>("/chain-permissions"),
+      ]);
       setCycles(items);
-      if (canWrite) setCatalog(await request<Catalog>("/catalog"));
+      setPermissions(scope);
+      if ((scope.productionChains?.length ?? 0) > 0)
+        setCatalog(await request<Catalog>("/catalog"));
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [canWrite]);
+  }, []);
   useEffect(() => {
     void load();
   }, [load]);
@@ -71,6 +85,7 @@ export default function CyclesPage() {
     void load();
   };
   const active = detail && ["PLANTED", "GROWING"].includes(detail.currentState);
+  const canWriteDetail = detail?.canWriteProduction ?? false;
   return (
     <div className="grid cycles-page">
       <section className="page-header">
@@ -105,58 +120,82 @@ export default function CyclesPage() {
         </p>
       )}
       {canWrite && (
-        <DataForm
-          title="Tạo vụ trồng"
-          path="/production-cycles"
-          fields={[
-            { name: "cycleCode", label: "Mã vụ trồng", required: true },
-            {
-              name: "farmId",
-              label: "Nông trại",
-              required: true,
-              options: catalog.farms
-                .filter((f) => f.status === "ACTIVE")
-                .map((f) => ({ value: f.id, label: f.name })),
-            },
-            {
-              name: "plotId",
-              dependsOn: "farmId",
-              label: "Thửa đất (thuộc nông trại đã chọn)",
-              options: catalog.plots
-                .filter((p) => p.status === "ACTIVE")
-                .map((p) => ({
-                  value: p.id,
-                  parentValue: p.farmId,
-                  label: (p.farm?.name ?? "") + " — " + p.name,
-                })),
-            },
-            {
-              name: "productId",
-              label: "Sản phẩm",
-              required: true,
-              options: catalog.products
-                .filter((p) => p.status === "ACTIVE")
-                .map((p) => ({ value: p.id, label: p.productName })),
-            },
-            { name: "startDate", label: "Ngày bắt đầu", type: "date" },
-            {
-              name: "plannedHarvest",
-              label: "Dự kiến thu hoạch",
-              type: "date",
-            },
-            {
-              name: "maxHarvestQuantity",
-              label: "Tổng sản lượng tối đa",
-              type: "number",
-              min: 0.001,
-              required: true,
-            },
-            { name: "harvestUnit", label: "Đơn vị thu hoạch", required: true },
-            { name: "note", label: "Ghi chú" },
-          ]}
-          onSaved={saved}
-        />
+        <label className="field">
+          <span>Chuỗi sản xuất</span>
+          <select
+            className="select"
+            value={selectedChain}
+            onChange={(event) => setSelectedChain(event.target.value)}
+          >
+            <option value="">Chọn chuỗi…</option>
+            {productionChains.map((chain) => (
+              <option key={chain.id} value={chain.id}>
+                {chain.name}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
+      {canWrite &&
+        productionChains.some((chain) => chain.id === selectedChain) && (
+          <DataForm
+            key={selectedChain}
+            title="Tạo vụ trồng"
+            path="/production-cycles"
+            extra={{ chainId: selectedChain }}
+            fields={[
+              { name: "cycleCode", label: "Mã vụ trồng", required: true },
+              {
+                name: "farmId",
+                label: "Nông trại",
+                required: true,
+                options: catalog.farms
+                  .filter((f) => f.status === "ACTIVE")
+                  .map((f) => ({ value: f.id, label: f.name })),
+              },
+              {
+                name: "plotId",
+                dependsOn: "farmId",
+                label: "Thửa đất (thuộc nông trại đã chọn)",
+                options: catalog.plots
+                  .filter((p) => p.status === "ACTIVE")
+                  .map((p) => ({
+                    value: p.id,
+                    parentValue: p.farmId,
+                    label: (p.farm?.name ?? "") + " — " + p.name,
+                  })),
+              },
+              {
+                name: "productId",
+                label: "Sản phẩm",
+                required: true,
+                options: catalog.products
+                  .filter((p) => p.status === "ACTIVE")
+                  .map((p) => ({ value: p.id, label: p.productName })),
+              },
+              { name: "startDate", label: "Ngày bắt đầu", type: "date" },
+              {
+                name: "plannedHarvest",
+                label: "Dự kiến thu hoạch",
+                type: "date",
+              },
+              {
+                name: "maxHarvestQuantity",
+                label: "Tổng sản lượng tối đa",
+                type: "number",
+                min: 0.001,
+                required: true,
+              },
+              {
+                name: "harvestUnit",
+                label: "Đơn vị thu hoạch",
+                required: true,
+              },
+              { name: "note", label: "Ghi chú" },
+            ]}
+            onSaved={saved}
+          />
+        )}
       <section className="panel">
         <h2>Danh sách vụ trồng</h2>
         {loading ? (
@@ -230,7 +269,7 @@ export default function CyclesPage() {
               / {detail.maxHarvestQuantity ?? "—"} {detail.harvestUnit}
             </p>
           </div>
-          {canWrite && detail.currentState === "CREATED" && (
+          {canWriteDetail && detail.currentState === "CREATED" && (
             <DataForm
               key={detail.id + "plant"}
               title="Ghi nhận gieo trồng"
@@ -247,7 +286,7 @@ export default function CyclesPage() {
               onSaved={saved}
             />
           )}
-          {canWrite && active && (
+          {canWriteDetail && active && (
             <>
               <DataForm
                 key={detail.id + "care"}
