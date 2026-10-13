@@ -1,5 +1,5 @@
-import { createPrivateKey, createPublicKey, sign } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
+import { TestSigner } from '../../../test/support/signer.js';
 import {
   assertionDigest,
   intentDigest,
@@ -15,25 +15,13 @@ import {
   type SignatureAssertion,
 } from './signed-commitment.js';
 
-const PKCS8_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
-const u = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const u = (n: number) =>
+  `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 // Same fixed binding as the chaincode design vectors.
-const BINDING = 'f34a78fd87c5dd0ef133144774c919732c8c81095903d4e2f352a3b0756a4ce0';
+const BINDING =
+  'f34a78fd87c5dd0ef133144774c919732c8c81095903d4e2f352a3b0756a4ce0';
 
-export function testKey(seedByte: number) {
-  const privateKey = createPrivateKey({
-    key: Buffer.concat([PKCS8_PREFIX, Buffer.alloc(32, seedByte)]),
-    format: 'der',
-    type: 'pkcs8',
-  });
-  return {
-    publicKey: createPublicKey(privateKey)
-      .export({ format: 'der', type: 'spki' })
-      .toString('base64url'),
-    sign: (message: Buffer) =>
-      sign(null, message, privateKey).toString('base64url'),
-  };
-}
+const testKey = (seed: number) => TestSigner.fromSeed(seed);
 
 describe('Release C commitments (API side)', () => {
   // Literals below are the chaincode design vectors (blockchain/chaincode

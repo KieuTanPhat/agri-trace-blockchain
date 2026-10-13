@@ -18,6 +18,9 @@ ALTER TYPE ledger_control_operation ADD VALUE 'SIGNING_KEY_REVOKE';
 -------------------------------------------------------------------------------
 -- Organization signing keys (Ed25519, proof of possession, ledger registry)
 -------------------------------------------------------------------------------
+-- Expiry is enforced by the API with its own clock. The database never compares
+-- an application timestamp with now(): the PostgreSQL driver sends timestamps
+-- without an offset, so such a comparison would depend on the session time zone.
 -- The private key never reaches this database: only the SPKI public key and
 -- the proof-of-possession signature are stored. A key is scoped to one binding
 -- and one organization, mirrors the ledger registry record, and is rotated by
@@ -145,7 +148,7 @@ CREATE TABLE shipment_handover (
   note text,
   reason text,
   version integer NOT NULL DEFAULT 0 CHECK (version >= 0),
-  offered_at timestamptz(6) NOT NULL DEFAULT now(),
+  offered_at timestamptz(6) NOT NULL,
   expires_at timestamptz(6) NOT NULL,
   resolved_at timestamptz(6),
   CONSTRAINT ck_handover_label CHECK ((custody_label = 'INTERNAL_SAME_ORG') = (giver_org_id = receiver_org_id)),
@@ -207,9 +210,6 @@ BEGIN
     END IF;
     SELECT status INTO key_status FROM signing_key WHERE key_ref = NEW.key_ref;
     IF key_status IS DISTINCT FROM 'ACTIVE' THEN RAISE EXCEPTION 'Signing key is not ACTIVE'; END IF;
-    IF NEW.expires_at <= now() OR NEW.expires_at > now() + interval '7 days' THEN
-      RAISE EXCEPTION 'Intent expiry must be within the next 7 days';
-    END IF;
     RETURN NEW;
   END IF;
   IF ROW(NEW.intent_id, NEW.chain_id, NEW.binding_digest, NEW.organization_id, NEW.key_ref, NEW.created_by,
@@ -225,9 +225,7 @@ BEGIN
   IF NEW.status = 'CONSUMED' THEN
     SELECT status INTO key_status FROM signing_key WHERE key_ref = NEW.key_ref;
     IF key_status IS DISTINCT FROM 'ACTIVE' THEN RAISE EXCEPTION 'Signing key is no longer ACTIVE'; END IF;
-    IF now() >= NEW.expires_at THEN RAISE EXCEPTION 'Signing intent has expired'; END IF;
   ELSIF NEW.status = 'EXPIRED' THEN
-    IF now() < NEW.expires_at THEN RAISE EXCEPTION 'Signing intent has not expired yet'; END IF;
     IF NEW.signature IS NOT NULL THEN RAISE EXCEPTION 'An expired intent carries no signature'; END IF;
   ELSE
     RAISE EXCEPTION 'Illegal signing intent transition';

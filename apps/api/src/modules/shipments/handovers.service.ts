@@ -418,6 +418,7 @@ export class HandoversService {
         offerEventId: event.id,
         offeredBy: actor.sub!,
         note: payload.note || null,
+        offeredAt: new Date(),
         expiresAt: new Date(payload.offerExpiresAt),
       },
     });

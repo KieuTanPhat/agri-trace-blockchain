@@ -1671,7 +1671,7 @@ model ShipmentHandover {
   note            String?
   reason          String?
   version         Int                  @default(0)
-  offeredAt       DateTime             @default(now()) @map("offered_at") @db.Timestamptz(6)
+  offeredAt       DateTime             @map("offered_at") @db.Timestamptz(6)
   expiresAt       DateTime             @map("expires_at") @db.Timestamptz(6)
   resolvedAt      DateTime?            @map("resolved_at") @db.Timestamptz(6)
   shipment        Shipment             @relation(fields: [shipmentId], references: [id], onDelete: Restrict, onUpdate: NoAction)

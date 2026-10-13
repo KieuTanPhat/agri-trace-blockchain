@@ -13,7 +13,6 @@ import { ApiDataResponse } from '../../common/api/openapi.js';
 import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
-import { CommandPolicy } from '../auth/command-policy.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import {
   PrepareIntentOptionsDto,
@@ -34,7 +33,6 @@ import { HandoversService } from './handovers.service.js';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller()
-@CommandPolicy()
 export class HandoversController {
   constructor(
     private readonly service: HandoversService,
