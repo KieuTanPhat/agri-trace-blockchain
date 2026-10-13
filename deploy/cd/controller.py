@@ -1247,7 +1247,7 @@ class Controller:
         bootstrap = json.loads(Path(self.config["bootstrap"]).read_text())
         payload = {"environment": "production", "sha": record["sha"], "origin": self.origin_for(record), "catalog": self.config["smoke"],
                    "accounts": json.loads(Path(self.config["accounts"]).read_text()), "corsOrigins": self.environment["CORS_ORIGINS"].split(","),
-                   "channel": self.fabric["channel"], "chaincode": self.fabric["chaincode"], "connection": bootstrap["connections"]["relayer"],
+                   "channel": self.fabric["channel"], "channels": list(self.fabric["channels"]), "chaincode": self.fabric["chaincode"], "connection": bootstrap["connections"]["relayer"],
                    "workerReadyUrl": f"http://{address}:8081/health/ready"}
         script = Path(__file__).with_name("session-auth.mjs").read_text() + "\n" + Path(__file__).with_name("verify-hosted.mjs").read_text()
         program = ["node", "--input-type=module", "-e", script]

@@ -30,7 +30,8 @@ const tokens = {}, sessions = {}, refresh = [];
 const accounts = Object.fromEntries(input.accounts.map(a => [a.role, a]));
 const authFile = '/smoke/auth-session.json';
 const cachedAuth = existsSync(authFile) ? JSON.parse(readFileSync(authFile, 'utf8')) : {};
-let phase = 'health', connection;
+let phase = 'health';
+const connections = [];
 const db = new pg.Client({ connectionString: input.databaseUrl });
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: input.databaseUrl }) });
 async function http(route, role, body, expected = body === undefined ? 200 : 201, key, options = {}) {
@@ -159,25 +160,59 @@ try {
     const report = await verifyStoredEvidence(prisma);
     assert.equal(report.failed.length, 0);
     const reference = input.connection;
-    connection = await connectGateway({ channelName: input.channel, chaincodeName: input.chaincode, contractName: 'AgriTraceContract',
-      mspId: reference.mspId, peerEndpoint: reference.peerEndpoint, peerHostAlias: reference.peerHostAlias,
-      tlsCertPath: reference.tlsCertPath, identityCertPath: reference.certPath, identityKeyDirectory: reference.keyDir });
-    const ledger = new BindingLedgerClient(connection.gateway, { channelName: input.channel, chaincodeName: input.chaincode, contractName: 'AgriTraceContract' });
+    const clients = new Map();
+    const ledgerFor = async event => {
+      assert.ok(input.channels.includes(event.route_channel));
+      assert.equal(event.route_chaincode, input.chaincode); assert.equal(event.route_msp, reference.mspId);
+      const key = event.route_channel;
+      if (!clients.has(key)) {
+        const connection = await connectGateway({ channelName: key, chaincodeName: input.chaincode, contractName: 'AgriTraceContract',
+          mspId: reference.mspId, peerEndpoint: reference.peerEndpoint, peerHostAlias: reference.peerHostAlias,
+          tlsCertPath: reference.tlsCertPath, identityCertPath: reference.certPath, identityKeyDirectory: reference.keyDir });
+        connections.push(connection);
+        clients.set(key, new BindingLedgerClient(connection.gateway, { channelName: key, chaincodeName: input.chaincode, contractName: 'AgriTraceContract' }));
+      }
+      return clients.get(key);
+    };
     const events = (await db.query(`SELECT e.event_id,e.data_hash,e.previous_event_hash,e.entity_type,e.entity_id,to_jsonb(e)::text AS immutable_row,
-      p.tx_id,p.channel_id,d.chain_ref FROM trace_event e JOIN blockchain_proof p USING(event_id) JOIN event_ledger_route r USING(event_id)
+      p.tx_id,p.channel_id,d.chain_ref,d.channel_id AS route_channel,d.chaincode_name AS route_chaincode,d.writer_msp_id AS route_msp
+      FROM trace_event e JOIN blockchain_proof p USING(event_id) JOIN event_ledger_route r USING(event_id)
       JOIN ledger_route_definition d ON d.digest=r.definition_digest ORDER BY e.created_at,e.event_id`)).rows;
     assert.ok(events.length > 0 && events.length <= 10000);
-    const fingerprints = {};
+    const fingerprints = {}, groups = new Map();
     for (const event of events) {
+      const ledger = await ledgerFor(event);
       const [actual, proof, status, apiProof] = await Promise.all([ledger.queryBindingEvent(event.chain_ref, event.event_id),
-        ledger.getBindingProof(event.chain_ref, event.event_id), ledger.transactionValidationCode(event.tx_id), http(`/blockchain/events/${event.event_id}/verify`, 'FARM_STAFF')]);
+        ledger.getBindingProof(event.chain_ref, event.event_id), ledger.transactionValidationCode(event.tx_id),
+        event.chain_ref === profile.chain_ref ? http(`/blockchain/events/${event.event_id}/verify`, 'FARM_STAFF') : undefined]);
       assert.equal(actual.eventId, event.event_id); assert.equal(actual.dataHash, event.data_hash);
       assert.equal(actual.previousEventHash ?? null, event.previous_event_hash ?? null);
       assert.equal(proof.txId, event.tx_id); assert.equal(proof.dataHash, event.data_hash); assert.equal(status, 0);
-      assert.equal(event.channel_id, input.channel); assert.equal(apiProof.localHashMatches, true);
-      assert.equal(apiProof.status, 'CONFIRMED'); assert.equal(apiProof.deliveryStatus, 'COMPLETED'); assert.equal(apiProof.txId, event.tx_id);
+      assert.equal(event.channel_id, event.route_channel);
+      if (apiProof) {
+        assert.equal(apiProof.localHashMatches, true); assert.equal(apiProof.status, 'CONFIRMED');
+        assert.equal(apiProof.deliveryStatus, 'COMPLETED'); assert.equal(apiProof.txId, event.tx_id);
+      }
       fingerprints['event:' + event.event_id] = createHash('sha256').update(event.immutable_row).digest('hex');
       fingerprints['proof:' + event.event_id] = createHash('sha256').update(JSON.stringify([event.tx_id, event.data_hash, event.channel_id])).digest('hex');
+      const key = [event.chain_ref, event.entity_type, event.entity_id].join(':');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(event);
+    }
+    for (const events of groups.values()) {
+      const first = events[0], ledger = await ledgerFor(first);
+      const head = await ledger.getBindingHead(first.chain_ref, first.entity_type, first.entity_id);
+      const history = []; let bookmark = '';
+      do {
+        const page = await ledger.queryBindingHistoryPage(first.chain_ref, first.entity_type, first.entity_id, 100, bookmark);
+        history.push(...page.records); assert.ok(history.length <= events.length);
+        const next = page.bookmark ?? '';
+        assert.ok(!next || next !== bookmark, 'History pagination did not advance');
+        bookmark = page.records.length ? next : '';
+      } while (bookmark);
+      assert.equal(head.eventCount, events.length);
+      assert.deepEqual(history.map(e => e.eventId).sort(), events.map(e => e.event_id).sort());
+      assert.ok(events.some(e => e.event_id === head.lastEventId && e.data_hash === head.lastDataHash));
     }
     phase = 'public-qr';
     const qrs = (await db.query('SELECT lot_id,trace_token FROM trace_qr')).rows;
@@ -194,14 +229,15 @@ try {
       counts[table] = Number((await db.query('SELECT count(*) FROM ' + table)).rows[0].count);
     state.completed = true; persist();
     console.log(JSON.stringify({ result: 'passed', counts, fingerprints, smoke: input.sha, canary: null,
-      directLedgerEvents: events.length, verifiedQR: qrs.length, pendingEvents: 0, roles: 5, signedHandovers: input.stage === 'verify' ? 2 : null,
+      directLedgerEvents: events.length, entityHistories: groups.size, verifiedQR: qrs.length, pendingEvents: 0, roles: 5, signedHandovers: input.stage === 'verify' ? 2 : null,
       externalPartnerAuthority: 'NotEvaluated', refreshLogout: true, storedEvidence: 'passed' }));
   }
 } catch (error) {
   console.error(`Hosted production smoke failed at ${phase}; ${error instanceof assert.AssertionError ? error.message : 'inspect private state and reconcile original command keys'}`);
   process.exitCode = 1;
 } finally {
-  connection?.close(); await db.end().catch(() => {}); await prisma.$disconnect();
+  for (const connection of connections) connection.close();
+  await db.end().catch(() => {}); await prisma.$disconnect();
   if (input.stage !== 'enroll' || process.exitCode) {
     for (const credential of refresh) {
       const request = sessionRequest(credential);
