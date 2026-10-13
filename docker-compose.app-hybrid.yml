@@ -1,30 +1,17 @@
-# Applied only to an acknowledged Hybrid release. Legacy identity remains
-# separate; API receives an independently pinned public history descriptor.
+# Hosted-only production. API has no signing identity or historical mounts.
 services:
   api:
     environment:
-      HYBRID_WRITES_MODE: ${HYBRID_WRITES_MODE:?Start closed or with explicit canary actors}
-      HYBRID_CANARY_ACTOR_IDS: ${HYBRID_CANARY_ACTOR_IDS:-}
-      LEGACY_LEDGER_DESCRIPTOR_FILE: /legacy-ledger/descriptor.json
-      LEGACY_LEDGER_DESCRIPTOR_SHA256: ${LEGACY_LEDGER_DESCRIPTOR_SHA256:?Pin the verified historical descriptor}
-    volumes:
-      - type: bind
-        source: ${LEGACY_LEDGER_DESCRIPTOR_HOST:?Set reviewed public descriptor file}
-        target: /legacy-ledger/descriptor.json
-        read_only: true
-        bind: {create_host_path: false}
+      HYBRID_WRITES_MODE: ${HYBRID_WRITES_MODE:-CLOSED}
+      FABRIC_LEGACY_WRITER: "false"
   worker:
     environment:
-      LEGACY_LEDGER_DESCRIPTOR_FILE: /legacy-ledger/descriptor.json
-      LEGACY_LEDGER_DESCRIPTOR_SHA256: ${LEGACY_LEDGER_DESCRIPTOR_SHA256:?Pin the verified historical descriptor}
+      FABRIC_ENABLED: "true"
+      FABRIC_LEGACY_WRITER: "false"
       FABRIC_BINDINGS_CONFIG: /hosted-config/bindings.json
-      LEDGER_WRITER_AUTHORITY: ${LEDGER_WRITER_AUTHORITY:?Pin retained legacy logical authority}
+      FABRIC_WORKER_INTERVAL_MS: "2000"
+    user: ${WORKER_UID:?Set signer UID}:${WORKER_GID:?Set signer GID}
     volumes:
-      - type: bind
-        source: ${LEGACY_LEDGER_DESCRIPTOR_HOST:?Set reviewed public descriptor file}
-        target: /legacy-ledger/descriptor.json
-        read_only: true
-        bind: {create_host_path: false}
       - type: bind
         source: ${FABRIC_BINDINGS_CONFIG_HOST:?Set own binding connection configuration}
         target: /hosted-config/bindings.json
@@ -35,8 +22,14 @@ services:
         target: /hosted-identities
         read_only: true
         bind: {create_host_path: false}
-    networks: [default, fabric, hosted]
+    networks: [default, hosted]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8081/health/ready').then(async r=>{const h=await r.json();if(!r.ok||!h.runtime.enabled||!h.runtime.running||h.runtime.lastError||h.backlog.deadLetter)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 networks:
   hosted:
     external: true
-    name: ${HOSTED_FABRIC_DOCKER_NETWORK:?Provision independent hosted network after capacity gates}
+    name: ${HOSTED_FABRIC_DOCKER_NETWORK:?Provision production hosted network}

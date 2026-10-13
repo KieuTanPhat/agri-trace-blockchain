@@ -1,0 +1,18 @@
+{
+  "protocol": "agritrace-hosted-network/1",
+  "instance": "agritrace-prod-20261014",
+  "root": "/opt/agri-trace/hosted/production-20261014",
+  "bind": "127.0.0.1",
+  "port_offset": 22000,
+  "tools_source": "/opt/agri-trace/shared/fabric-tools",
+  "images": {
+    "ca": "hyperledger/fabric-ca@sha256:a70b6ba64a08b4d856802fe1fa66af9f2e03a26a63ceaff0de7c852ca7178b72",
+    "peer": "hyperledger/fabric-peer@sha256:09ee75042de9983bfde31ca88a5bf033386351f10a990e4c48264ee50172dee0",
+    "orderer": "hyperledger/fabric-orderer@sha256:e322c57331d37e0a35ffae3cb3d3265a0e852211c0f801f2514cc15b964ffc93",
+    "chaincode": "ghcr.io/kieutanphat/agri-trace-blockchain/chaincode@sha256:REPLACE_FROM_VERIFIED_RELEASE"
+  },
+  "channels": {"hybrid-b": [1, 2], "hybrid-self": [1, 3]},
+  "writer_authority": "agritrace-relayer-b",
+  "chaincode_fingerprint": "REPLACE_FROM_VERIFIED_MANIFEST",
+  "governance_digest": "REPLACE_FROM_VERIFIED_GOVERNANCE"
+}

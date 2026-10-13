@@ -140,5 +140,25 @@ class ProductionController(unittest.TestCase):
         self.assertEqual(stream.tell(), 0)
 
 
+class FreshTargetBinding(unittest.TestCase):
+    def config(self):
+        config = binding()
+        hosted = config.pop('fabric')
+        hosted = json.loads(json.dumps(hosted).replace('/opt/agri-trace/fabric', '/opt/agri-trace/hosted/production'))
+        config.update(schema=3, hosted=hosted, writes_mode='CLOSED', open_after_smoke=True,
+                      bootstrap='/opt/agri-trace/shared/config/bootstrap.json',
+                      smoke=dict(config.pop('canary'), chainId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'))
+        return config
+
+    def test_fresh_target_has_new_database_mapping_and_no_legacy_network(self):
+        config = self.config()
+        targets.validate_config(config, require)
+        for change in [dict(fabric=binding()['fabric']), dict(project='agri-trace-uat', postgres_volume='agri-trace-uat_postgres-data'),
+                       dict(writes_mode='CANARY'), dict(open_after_smoke='true'), dict(bootstrap='/tmp/bootstrap.json'),
+                       dict(smoke=binding()['canary'])]:
+            with self.subTest(change=list(change)), self.assertRaises(PolicyError):
+                targets.validate_config(dict(config, **change), require)
+
+
 if __name__ == '__main__':
     unittest.main()

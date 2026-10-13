@@ -38,6 +38,7 @@ services:
     command: [npm, run, db:migrate, --workspace, apps/api]
     networks: [default]
     mem_limit: 768m
+    cpus: 0.5
 
   api:
     <<: *api

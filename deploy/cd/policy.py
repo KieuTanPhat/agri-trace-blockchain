@@ -17,7 +17,7 @@ DIGEST = re.compile(r"^[a-f0-9]{64}$")
 OPERATIONS = {"deploy", "upgrade", "forward", "rollback", "recover", "status", "backup"}
 FIXED_FILES = {"docker-compose.uat.yml", "docker-compose.uat-https.yml", "docker-compose.uat-fabric.yml", "deploy/Caddyfile.uat"}
 MAX_AUTH_HEADER = 16 * 1024
-CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify.mjs", "session-auth.mjs", "entry")
+CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify.mjs", "verify-hosted.mjs", "session-auth.mjs", "entry")
 
 
 class PolicyError(Exception):
@@ -153,6 +153,8 @@ def validate_manifest(manifest, sha, repository, origin, target=None):
     require("blockchain/chaincode/dist/index.js" in manifest["files"], "Compiled chaincode is missing")
     image(manifest.get("api"), repository, "api")
     image(manifest.get("web"), repository, "web")
+    if "chaincodeImage" in manifest:
+        image(manifest["chaincodeImage"], repository, "chaincode")
     controller = manifest.get("controller", {})
     require(set(controller) == set(CONTROLLER_FILES) and
             all(isinstance(value, str) and DIGEST.fullmatch(value) for value in controller.values()), "Controller version metadata is missing")

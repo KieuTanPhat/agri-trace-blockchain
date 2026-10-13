@@ -46,12 +46,13 @@ def atomic_json(filename, data):
 class Controller:
     def __init__(self, config):
         self.config = config
-        require(config.get("schema") in (None, 2) and ("environment" not in config or config.get("schema") == 2), "Unsupported installed config schema")
-        self.target = policy.targets.validate_config(config, require) if config.get("schema") == 2 else None
+        require(config.get("schema") in (None, 2, 3) and ("environment" not in config or config.get("schema") in (2, 3)), "Unsupported installed config schema")
+        self.fresh = config.get("schema") == 3
+        self.target = policy.targets.validate_config(config, require) if config.get("schema") in (2, 3) else None
         self.fabric_active = True  # Production and retained UAT releases require Fabric.
         self.project = config["project"] if self.target else "agri-trace-uat"
         self.prefix = policy.targets.TARGETS[config["environment"]]["prefix"] if self.target else "uat"
-        self.fabric = config.get("fabric") or {}
+        self.fabric = config.get("hosted", {}) if self.fresh else config.get("fabric") or {}
         self.base = Path(config["base"])
         self.storage = self.base / "cd"
         self.environment = policy.read_env(config["env"])
@@ -73,6 +74,13 @@ class Controller:
 
     def state(self):
         return json.loads((self.storage / "state.json").read_text())
+
+    def fresh_write_mode(self, record):
+        if getattr(self, "smoke_writes", False):
+            return "OPEN"
+        if (self.storage / "journal.json").exists() or not record.get("verified"):
+            return "CLOSED"
+        return "OPEN" if self.config.get("open_after_smoke") is True else self.config.get("writes_mode", "CLOSED")
 
     def record(self, release):
         prefixes = {self.prefix + "-"}
@@ -111,7 +119,10 @@ class Controller:
                           WEB_MEMORY="768m",
                           WEB_HEAP_MB="512")
             values["FABRIC_DOCKER_NETWORK"] = self.fabric["network"]
-            if any(policy.HYBRID_MIGRATION.match(name) for name in record["manifest"]["migrations"]):
+            if self.fresh:
+                values["HYBRID_WRITES_MODE"] = self.fresh_write_mode(record)
+                values["FABRIC_LEGACY_WRITER"] = "false"
+            elif any(policy.HYBRID_MIGRATION.match(name) for name in record["manifest"]["migrations"]):
                 # First activation is always canary. A verified release opens
                 # ordinary writes only with a separate installed acknowledgement.
                 acknowledgement = self.config.get("hybrid_open_ack", {})
@@ -144,7 +155,8 @@ class Controller:
         self.write_release_environment(record)
         if self.target and record["manifest"].get("format") == 2:
             compose_files = ["-f", str(root / "docker-compose.app.yml")]
-            compose_files += ["-f", str(root / "docker-compose.app-fabric.yml")]
+            if not self.fresh:
+                compose_files += ["-f", str(root / "docker-compose.app-fabric.yml")]
             if any(policy.HYBRID_MIGRATION.match(name) for name in record["manifest"]["migrations"]):
                 require("docker-compose.app-hybrid.yml" in record["manifest"]["files"], "Hybrid connection overlay is missing")
                 compose_files += ["-f", str(root / "docker-compose.app-hybrid.yml")]
@@ -243,6 +255,8 @@ class Controller:
         require(model["networks"]["fabric"]["external"] and model["networks"]["fabric"]["name"] == "fabric_test", "Fabric network changed")
 
     def target_preflight(self, record, model):
+        if self.fresh:
+            return self.hosted_preflight(record, model)
         policy.validate_manifest(record["manifest"], record["sha"], self.config["repository"], self.config["origin"], self.target)
         require(model["name"] == self.project, "Compose project changed")
         services = model["services"]
@@ -310,6 +324,55 @@ class Controller:
             require(mounts[path]["source"] == self.environment[key] and mounts[path].get("read_only") and
                     not mounts[path].get("bind", {}).get("create_host_path"), "Worker signing mount changed")
 
+    def hosted_preflight(self, record, model):
+        policy.validate_manifest(record["manifest"], record["sha"], self.config["repository"], self.config["origin"], self.target)
+        require(model["name"] == self.project, "Compose project changed")
+        services = model["services"]
+        require(set(services) == {"postgres", "migrate", "api", "worker", "web"}, "Unexpected hosted app services")
+        require(set(model["networks"]) == {"default", "ingress", "hosted"}, "Fresh app must use only its hosted network")
+        require(model["volumes"]["postgres-data"]["name"] == self.config["postgres_volume"], "Database volume changed")
+        require(model["networks"]["default"]["name"] == self.project + "_default" and
+                model["networks"]["ingress"]["external"] and model["networks"]["ingress"]["name"] == self.config["ingress"] and
+                model["networks"]["hosted"]["external"] and model["networks"]["hosted"]["name"] == self.fabric["network"], "Hosted app network changed")
+        database = f"postgresql://{self.environment['POSTGRES_USER']}:{self.environment['POSTGRES_PASSWORD']}@postgres:5432/{self.environment['POSTGRES_DB']}?schema=public"
+        for name, service in services.items():
+            require(not any(service.get(k) for k in ("ports", "privileged", "cap_add", "devices", "network_mode", "pid", "extra_hosts", "secrets")), "Unexpected container privilege or public port")
+            expected = {"default", "ingress"} if name in {"api", "web"} else {"default", "hosted"} if name == "worker" else {"default"}
+            require(set(service.get("networks", {})) == expected, "Unexpected hosted service network")
+            if name not in {"web", "postgres"}:
+                require(service["environment"]["DATABASE_URL"] == database, "Database configuration changed")
+            if name in {"api", "web", "migrate"}:
+                require(not service.get("volumes"), "Public/tool service received host identities")
+            if name in {"api", "worker", "migrate", "web"}:
+                expected_image = record["manifest"]["web" if name == "web" else "api"]
+                require(service["image"] == expected_image, "Hosted app image differs from release")
+        require(services["postgres"]["image"] == self.environment["POSTGRES_IMAGE"], "Database image changed")
+        for key in ("POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD"):
+            require(services["postgres"]["environment"][key] == self.environment[key], "Hosted database initialization changed")
+        mounts = services["postgres"].get("volumes", [])
+        require(len(mounts) == 1 and mounts[0].get("source") == "postgres-data" and mounts[0].get("target") == "/var/lib/postgresql", "Database mount changed")
+        api = services["api"]["environment"]
+        require(api["FABRIC_ENABLED"] == "false" and api["FABRIC_LEGACY_WRITER"] == "false" and
+                api["HYBRID_WRITES_MODE"] == self.fresh_write_mode(record) and
+                api["JWT_SECRET"] == self.environment["JWT_SECRET"] and
+                api["CORS_ORIGIN"] == self.environment["CORS_ORIGINS"] and
+                api["PUBLIC_TRACE_BASE_URL"] == self.config["origin"] + "/trace", "Hosted API maintenance/auth boundary changed")
+        require(set(self.environment["CORS_ORIGINS"].split(",")) == set(policy.https_origins(self.config["origin"])), "Cross-environment CORS is forbidden")
+        require(services["web"]["environment"]["API_INTERNAL_BASE_URL"] == "http://api:8080/api", "SSR API boundary changed")
+        for name in ("api", "web"):
+            require(services[name]["networks"]["ingress"].get("aliases", []) == [self.prefix + "-" + name], "Ingress alias changed")
+        worker = services["worker"]
+        require(worker["environment"]["FABRIC_ENABLED"] == "true" and worker["environment"]["FABRIC_LEGACY_WRITER"] == "false" and
+                worker["user"] == f"{self.environment['WORKER_UID']}:{self.environment['WORKER_GID']}", "Hosted Worker identity boundary changed")
+        expected_mounts = {"/hosted-config/bindings.json": "FABRIC_BINDINGS_CONFIG_HOST", "/hosted-identities": "HOSTED_WORKER_IDENTITIES_HOST"}
+        mounted = {mount["target"]: mount for mount in worker.get("volumes", [])}
+        require(set(mounted) == set(expected_mounts), "Hosted Worker mount set changed")
+        for target, key in expected_mounts.items():
+            mount = mounted[target]
+            require(mount["source"] == self.environment[key] and mount.get("read_only") and
+                    not mount.get("bind", {}).get("create_host_path"), "Hosted identity mount changed")
+        self.capacity_preflight(services)
+
     def capacity_preflight(self, services):
         memory = re.search(r"^MemTotal:\s+(\d+) kB$", Path("/proc/meminfo").read_text(), re.M)
         require(memory is not None, "Host capacity could not be established")
@@ -330,6 +393,8 @@ class Controller:
                 continue  # Migration is separate from the stopped-writer runtime.
             require(float(service.get("cpus", 0)) > 0, "Candidate app CPU quota is missing")
             limits["candidate:" + name] = service.get("mem_limit", 0)
+        if self.fresh:
+            limits["candidate:temporary-operator"] = 384 * 1024 * 1024
         admitted = policy.capacity_budget(int(memory[1]) * 1024, limits)
         atomic_json(self.storage / "capacity-admission.json", admitted)
 
@@ -377,6 +442,8 @@ class Controller:
         return record.get("legacyChaincodeFingerprint", record["manifest"]["chaincode"])
 
     def admit_hybrid_release(self, record, state):
+        if self.fresh:
+            return self.admit_fresh_release(record, state)
         if not any(policy.HYBRID_MIGRATION.match(name) for name in record["manifest"]["migrations"]):
             return
         acknowledgement = self.config.get("hybrid_release_ack", {})
@@ -410,7 +477,30 @@ class Controller:
             require(actual["Config"]["Image"] == image and actual["State"].get("Running"), "Hosted resource image/readiness mismatch")
         record["legacyChaincodeFingerprint"] = state["chaincode"]["fingerprint"]
 
+    def admit_fresh_release(self, record, state):
+        require("docker-compose.app-hybrid.yml" in record["manifest"]["files"], "Hosted overlay is missing")
+        if state["current"] is None:
+            ack = self.config.get("fresh_release_ack", {})
+            digest = policy.sha256(json.dumps(record["manifest"], sort_keys=True, separators=(",", ":")).encode())
+            require(ack.get("protocol") == "agritrace-fresh-install/1" and ack.get("sha") == record["sha"] and
+                    ack.get("manifest_sha256") == digest, "Fresh installation requires exact manifest acknowledgement")
+        descriptor = Path(record["directory"]) / "blockchain/chaincode/dist/governance.json"
+        require(descriptor.is_file(), "Hosted governance descriptor is missing")
+        governance = json.loads(descriptor.read_text())
+        digest = policy.sha256(json.dumps(governance, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode())
+        require(digest == self.fabric.get("governance_digest") and self.fabric["channel"] in governance.get("channels", {}), "Hosted governance differs from installed network")
+        require(record["manifest"]["chaincode"] == self.fabric.get("chaincode_fingerprint"), "Hosted chaincode source differs; use a separately reviewed hosted lifecycle")
+        require(set(self.fabric.get("images", {})) == set(self.fabric["containers"]), "Hosted image catalog is incomplete")
+        for name, image in self.fabric["images"].items():
+            require(isinstance(image, str) and re.fullmatch(r"[^\s]+@sha256:[a-f0-9]{64}", image), "Hosted images must be immutable")
+            actual = json.loads(self.run("hosted-image-identity", ["docker", "inspect", name]))[0]
+            require(actual["Config"]["Image"] == image and actual["State"].get("Running"), "Hosted image/readiness mismatch")
+            if name.endswith(("-cc-org1", "-cc-org2", "-cc-org3")):
+                require(actual["Config"].get("Labels", {}).get("agritrace.chaincode-fingerprint") == record["manifest"]["chaincode"], "Hosted executable source fingerprint differs")
+
     def verify(self, record, canary=None):
+        if self.fresh:
+            return self.verify_hosted(record, bool(canary))
         self.write_release_environment(record)
         values = policy.read_env(self.storage / "records" / record["id"] / "origin.env")
         payload = {"origin": self.origin_for(record), "corsOrigins": values["CORS_ORIGINS"].split(","),
@@ -418,7 +508,7 @@ class Controller:
                    "requireSessionFamily": bool(canary) or record.get("sessionContract") == "family-v1",
                    "legacyQrLotIds": record.get("legacyQrLotIds", [])}
         if self.target:
-            payload.update(profile="fabric", canaryCatalog=self.config["canary"], environment=self.config["environment"])
+            payload.update(profile="fabric", canaryCatalog=self.config["smoke"] if self.fresh else self.config["canary"], environment=self.config["environment"])
         script = (Path(__file__).with_name("session-auth.mjs").read_text() + "\n" +
                   Path(__file__).with_name("verify.mjs").read_text())
         output = self.run("release-verification", self.dc(record, "exec", "-T", "worker", "node", "--input-type=module", "-e", script),
@@ -567,7 +657,7 @@ class Controller:
         try:
             if self.fabric:
                 stopped = True
-                hosted = self.config.get("hosted", {})
+                hosted = {} if self.fresh else self.config.get("hosted", {})
                 containers = self.fabric["containers"] + hosted.get("containers", [])
                 volumes = self.fabric["volumes"] + hosted.get("volumes", [])
                 require(len(containers) == len(set(containers)) and len(volumes) == len(set(volumes)), "Hosted/legacy backup resources overlap")
@@ -603,7 +693,7 @@ class Controller:
 
 
     def resume_fabric(self):
-        containers = self.fabric["containers"] + self.config.get("hosted", {}).get("containers", []) if self.target else FABRIC
+        containers = self.fabric["containers"] + (self.config.get("hosted", {}).get("containers", []) if not self.fresh else []) if self.target else FABRIC
         self.run("fabric-resume", ["docker", "start", *containers], timeout=180)
         self.phase = "fabric-readiness"
         deadline = time.monotonic() + 180
@@ -803,7 +893,13 @@ class Controller:
                 chaincode["fingerprint"] = candidate["manifest"]["chaincode"]
             self.journal(old, candidate, "application")
             self.start(candidate)
-            evidence = self.verify(candidate, candidate["sha"])
+            self.smoke_writes = self.fresh
+            try:
+                if self.fresh:
+                    self.start(candidate)
+                evidence = self.verify(candidate, candidate["sha"])
+            finally:
+                self.smoke_writes = False
             self.preserve(before, evidence)
             candidate["verified"] = True
             candidate["sessionContract"] = "family-v1"
@@ -815,6 +911,8 @@ class Controller:
             atomic_json(self.storage / "last-result.json", {"result": "passed", "sha": candidate["sha"], "release": candidate["id"], "snapshot": snapshot,
                        "counts": evidence["counts"], "canary": evidence["canary"], "chaincode": chaincode})
             (self.storage / "journal.json").unlink()
+            if self.fresh:
+                self.start(candidate)
             return {"result": "passed", "release": candidate["id"], "counts": evidence["counts"], "chaincodeSequence": chaincode["sequence"]}
         except Exception as error:
             failed_phase = self.phase
@@ -831,6 +929,8 @@ class Controller:
                     restored_state = dict(state, chaincode=restored, compatible_migrations=compatible)
                     self.switch(old, restored_state)
                     (self.storage / "journal.json").unlink()
+                    if self.fresh:
+                        self.start(old)
                 rollback = "verified"
             except Exception:
                 rollback = "recovery-required"
@@ -898,12 +998,17 @@ class Controller:
             # Archive the failure journal rather than discarding its provenance.
             atomic_json(self.storage / "records" / candidate["id"] / "recovered-journal.json", journal)
             filename.unlink()
+            if self.fresh:
+                self.start(candidate)
         return {"result": "forward-verified", "release": candidate["id"]}
 
     def recover(self):
         if not (self.storage / "journal.json").exists():
             return {"result": "no-recovery-required", "release": self.state()["current"]}
         journal = json.loads((self.storage / "journal.json").read_text())
+        if self.fresh and journal.get("previous") is None:
+            candidate = self.record(journal["candidate"])
+            return self.first_install(candidate, self.state(), resume=True)
         require(journal.get("previous") is not None, "Production recovery requires a verified previous release")
         state = self.state()
         previous = self.record(journal["previous"])
@@ -922,6 +1027,8 @@ class Controller:
                         previous=state["current"] if state["current"] != previous["id"] else state.get("previous"), chaincode=chaincode,
                         compatible_migrations=compatible))
             (self.storage / "journal.json").unlink()
+            if self.fresh:
+                self.start(previous)
         return {"result": "recovered", "release": previous["id"], "counts": evidence["counts"]}
 
 
@@ -945,7 +1052,7 @@ class Controller:
         require(self.config.get("enabled", True), "Deployment is disabled for this environment")
         require(not (self.storage / "runtime-toggle.json").exists(), "Administrator must finish the interrupted Fabric runtime switch")
         state = self.state()
-        require(state["current"] is not None, "Production requires an adopted verified release")
+        require(state["current"] is not None or (self.fresh and op == "deploy"), "Production requires an adopted verified release")
         if op == "rollback":
             require(not (self.storage / "journal.json").exists(), "Recover interrupted rollout before rollback")
             target = self.prefix + "-" + parts[1]
@@ -970,6 +1077,8 @@ class Controller:
                         self.snapshot(old, parts[1], before)
                         _, evidence = self.rollback_to(target, state, before)
                         (self.storage / "journal.json").unlink()
+                        if self.fresh:
+                            self.start(self.record(target))
                     return {"result": "rolled-back", "release": target, "counts": evidence["counts"]}
                 except Exception:
                     # Journal preserves an explicit recover path; no implicit data restore.
@@ -1009,7 +1118,7 @@ class Controller:
                 self.save_record(record)
             self.server_gate(record, auth)
             if state["current"] == release and op == "deploy":
-                if self.config.get("hybrid_open_ack", {}).get("sha") == record["sha"]:
+                if self.fresh or self.config.get("hybrid_open_ack", {}).get("sha") == record["sha"]:
                     self.preflight(record)
                     self.admit_hybrid_release(record, state)
                     self.migration_policy(self.applied(record), record, state.get("compatible_migrations", []))
@@ -1017,10 +1126,124 @@ class Controller:
                 evidence = self.verify(record)
                 return {"result": "unchanged", "release": release, "counts": evidence["counts"]}
             self.registry(record, auth)
-            require(state["current"] is not None, "Production requires an adopted verified release")
+            if self.fresh and state["current"] is None:
+                return self.first_install(record, state)
             if op == "forward":
                 return self.forward(record, state)
             return self.rollout(record, state, int(parts[3]) if op == "upgrade" else None)
+
+    def first_install(self, candidate, state, resume=False):
+        require(self.fresh and (state["current"] is None or (resume and state["current"] == candidate["id"] and candidate.get("verified"))),
+                "Initial installation requires a fresh uninitialized target or its interrupted promotion")
+        filename = self.storage / "journal.json"
+        if resume:
+            journal = json.loads(filename.read_text())
+            require(journal.get("previous") is None and journal.get("candidate") == candidate["id"], "Initial recovery candidate differs")
+        else:
+            require(not filename.exists(), "Initial installation needs recovery before retry")
+            journal = {"previous": None, "candidate": candidate["id"], "stage": "fresh-database", "emptyDatabaseVerified": False}
+        self.preflight(candidate)
+        self.admit_fresh_release(candidate, state)
+        if not resume:
+            self.migration_policy({}, candidate)
+        atomic_json(filename, journal)
+        with self.stop_on_failure(candidate):
+            if resume:
+                self.stop(candidate)
+            self.run("fresh-postgres-readiness", self.dc(candidate, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "postgres"), timeout=240)
+            if not journal.get("emptyDatabaseVerified"):
+                query = "SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname='public'"
+                count = self.run("fresh-empty-database", self.dc(candidate, "exec", "-T", "postgres", "psql", "-U", self.environment["POSTGRES_USER"], "-d", self.environment["POSTGRES_DB"], "-At", "-c", query)).decode().strip()
+                require(count == "0", "First installation refuses an existing schema; no database is reset")
+                journal["emptyDatabaseVerified"] = True
+                journal["stage"] = "fresh-migration"
+                atomic_json(filename, journal)
+            if resume:
+                query = "SELECT to_regclass('public._prisma_migrations') IS NOT NULL"
+                exists = self.run("fresh-migration-table", self.dc(candidate, "exec", "-T", "postgres", "psql", "-U", self.environment["POSTGRES_USER"], "-d", self.environment["POSTGRES_DB"], "-At", "-c", query)).decode().strip()
+                self.migration_policy(self.applied(candidate) if exists == "t" else {}, candidate)
+            self.protect_hybrid_schema(candidate)
+            self.migrate(candidate)
+            journal["stage"] = "fresh-bootstrap"
+            atomic_json(filename, journal)
+            self.bootstrap_hosted(candidate)
+            self.start(candidate)
+            journal["stage"] = "fresh-smoke"
+            atomic_json(filename, journal)
+            self.smoke_writes = True
+            try:
+                self.start(candidate)
+                evidence = self.verify(candidate, candidate["sha"])
+            finally:
+                self.smoke_writes = False
+            definition = self.definition()
+            definition["fingerprint"] = candidate["manifest"]["chaincode"]
+            candidate.update(verified=True, sessionContract="family-v1", chaincode=definition)
+            self.save_record(candidate)
+            self.switch(candidate, dict(state, current=candidate["id"], previous=None, chaincode=definition))
+            atomic_json(self.storage / "last-result.json", {"result": "fresh-installed", "sha": candidate["sha"], "smoke": evidence})
+            journal["stage"] = "verified"
+            atomic_json(filename, journal)
+            self.smoke_writes = self.config.get("open_after_smoke") is True or self.config.get("writes_mode") == "OPEN"
+            try:
+                self.start(candidate)
+            finally:
+                self.smoke_writes = False
+            atomic_json(self.storage / "records" / candidate["id"] / "installation-journal.json", journal)
+            filename.unlink()
+        return {"result": "fresh-installed", "release": candidate["id"], "counts": evidence["counts"]}
+
+    def bootstrap_hosted(self, record, key_refs=None):
+        filename = self.config.get("bootstrap")
+        require(filename and policy.targets.owned_path(filename, self.base / "shared"), "Hosted bootstrap configuration is missing")
+        payload = json.loads(Path(filename).read_text())
+        payload["accounts"] = json.loads(Path(self.config["accounts"]).read_text())
+        if key_refs is not None:
+            payload.update(operation="activate-keys", keyRefs=key_refs)
+        return self.hosted_operator(record, payload, ["node", "apps/api/scripts/bootstrap-production.mjs"], "hosted-production-bootstrap")
+
+    def hosted_operator(self, record, payload, program, label, smoke_directory=None):
+        image = record["manifest"]["api"]
+        # Owner approval identities belong to this one-off operator, never the
+        # API or persistent Worker. Configuration and credentials use stdin.
+        metadata = json.loads(self.run("bootstrap-database-target", ["docker", "inspect", self.project + "-postgres-1"]))[0]
+        require(metadata["Config"]["Labels"].get("com.docker.compose.project") == self.project, "Bootstrap database ownership differs")
+        address = metadata["NetworkSettings"]["Networks"][self.project + "_default"]["IPAddress"]
+        require(re.fullmatch(r"[0-9.]{7,15}", address), "Bootstrap database address is invalid")
+        command = ["docker", "run", "--rm", "-i", "--user", "0:0", "--network", "host", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+                   "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m", "--mount", f"type=bind,src={self.fabric['root']},dst=/operator,readonly",
+                   "--mount", f"type=bind,src={self.environment['FABRIC_BINDINGS_CONFIG_HOST']},dst=/worker-bindings.json",
+                   "--memory", "384m", "--cpus", "0.5", "--env", "APP_ENV=production", "--env", "PRODUCTION_BOOTSTRAP_ENABLED=true"]
+        if smoke_directory:
+            command += ["--mount", f"type=bind,src={smoke_directory},dst=/smoke"]
+        command += [image, *program]
+        payload["databaseUrl"] = f"postgresql://{self.environment['POSTGRES_USER']}:{self.environment['POSTGRES_PASSWORD']}@{address}:5432/{self.environment['POSTGRES_DB']}?schema=public"
+        return json.loads(self.run(label, command, json.dumps(payload).encode(), timeout=720))
+
+    def verify_hosted(self, record, write=False):
+        directory = self.base / "shared" / "smoke" / record["sha"]
+        filename = directory / "state.json"
+        if not filename.exists():
+            atomic_json(filename, {"sha": record["sha"], "chainId": self.config["smoke"]["chainId"], "commands": {}, "keys": {}})
+        metadata = json.loads(self.run("smoke-worker-target", ["docker", "inspect", self.project + "-worker-1"]))[0]
+        require(metadata["Config"]["Labels"].get("com.docker.compose.project") == self.project, "Smoke Worker ownership differs")
+        address = metadata["NetworkSettings"]["Networks"][self.project + "_default"]["IPAddress"]
+        require(re.fullmatch(r"[0-9.]{7,15}", address), "Smoke Worker address is invalid")
+        bootstrap = json.loads(Path(self.config["bootstrap"]).read_text())
+        payload = {"environment": "production", "sha": record["sha"], "origin": self.origin_for(record), "catalog": self.config["smoke"],
+                   "accounts": json.loads(Path(self.config["accounts"]).read_text()), "corsOrigins": self.environment["CORS_ORIGINS"].split(","),
+                   "channel": self.fabric["channel"], "chaincode": self.fabric["chaincode"], "connection": bootstrap["connections"]["relayer"],
+                   "workerReadyUrl": f"http://{address}:8081/health/ready"}
+        script = Path(__file__).with_name("session-auth.mjs").read_text() + "\n" + Path(__file__).with_name("verify-hosted.mjs").read_text()
+        program = ["node", "--input-type=module", "-e", script]
+        if write:
+            require(self.fresh_write_mode(record) == "OPEN", "Business smoke requires an explicitly opened deployment session")
+            enrolled = self.hosted_operator(record, dict(payload, stage="enroll"), program, "smoke-key-enrollment", directory)
+            require(enrolled.get("result") == "passed", "Smoke key enrollment failed")
+            self.bootstrap_hosted(record, enrolled["keyRefs"])
+        result = self.hosted_operator(record, dict(payload, stage="verify" if write else "read"), program, "hosted-production-smoke", directory)
+        require(result.get("result") == "passed", "Hosted production smoke failed")
+        return result
 
 
 def main():
