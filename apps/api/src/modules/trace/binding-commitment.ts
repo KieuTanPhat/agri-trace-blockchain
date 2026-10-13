@@ -106,6 +106,10 @@ export function privateBodyDigest(event: TraceHashInput): string {
 export function unsignedBindingBody(
   context: BindingEventContext,
   bodyDigest: string,
+  versions: { envelope: string; schema: string } = {
+    envelope: B_ENVELOPE_VERSION,
+    schema: B_SCHEMA_VERSION,
+  },
 ) {
   if (!UUID.test(context.eventId)) throw new Error('Invalid eventId');
   for (const hash of [bodyDigest, context.bindingDigest])
@@ -133,8 +137,8 @@ export function unsignedBindingBody(
     if (permissions[i].permissionRef === permissions[i - 1].permissionRef)
       throw new Error('Duplicate permissionRef');
   return {
-    envelopeVersion: B_ENVELOPE_VERSION,
-    schemaVersion: B_SCHEMA_VERSION,
+    envelopeVersion: versions.envelope,
+    schemaVersion: versions.schema,
     canonicalizationVersion: 'RFC8785',
     eventId: context.eventId,
     nonce: context.eventId,

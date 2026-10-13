@@ -194,6 +194,23 @@ export class BindingLedgerClient {
     return this.prepare("RecordBindingEvent", [eventJson, deliveryJson], { endorsingOrganizations });
   }
 
+  /** Release C: the signature assertion travels beside, not inside, the
+   * committed event; the chaincode recomputes its digest from dataHash. */
+  public recordSignedBindingEvent(
+    eventJson: string,
+    assertionJson: string,
+    deliveryJson: string,
+    endorsingOrganizations?: string[],
+  ) {
+    return this.prepare("RecordSignedBindingEvent", [eventJson, assertionJson, deliveryJson], {
+      endorsingOrganizations,
+    });
+  }
+
+  public getRegistrySigningKey(bindingDigest: string, keyRef: string) {
+    return this.query("GetRegistrySigningKey", bindingDigest, keyRef);
+  }
+
   public health() {
     return this.query("HealthCheck");
   }

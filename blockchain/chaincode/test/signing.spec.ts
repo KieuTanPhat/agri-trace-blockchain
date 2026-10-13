@@ -148,25 +148,70 @@ const recordSigned = (
     JSON.stringify({ generation }),
   );
 
+/** Fixed design vectors, independent of the reviewed governance digest, so the
+ * API encoder (apps/api binding-commitment spec) can assert the same literals. */
+export const DESIGN_BINDING_DIGEST = "f34a78fd87c5dd0ef133144774c919732c8c81095903d4e2f352a3b0756a4ce0";
+export function designSignedEvent() {
+  const signer = testKey(7);
+  const intentDigest = "aa".repeat(32);
+  const assertion: SignatureAssertion = {
+    algorithm: "Ed25519",
+    keyRef: u(20),
+    intentDigest,
+    signature: signer.sign(
+      intentSignedMessage({
+        intentDigest,
+        chainRef: u(3),
+        eventId: u(1),
+        entityType: "SHIPMENT",
+        entityId: u(2),
+        eventType: "HANDOVER_OFFERED",
+        bindingDigest: DESIGN_BINDING_DIGEST,
+        keyRef: u(20),
+      }),
+    ),
+  };
+  const base: SignedBindingEventInput = {
+    envelopeVersion: C_ENVELOPE_VERSION,
+    schemaVersion: C_SCHEMA_VERSION,
+    canonicalizationVersion: "RFC8785",
+    eventId: u(1),
+    nonce: u(1),
+    entityType: "SHIPMENT",
+    entityId: u(2),
+    cycleId: u(7),
+    lotId: u(8),
+    eventType: "HANDOVER_OFFERED",
+    eventTime: "2026-10-13T00:00:00.000Z",
+    previousEventHash: null,
+    privateBodyDigest: "cd".repeat(32),
+    bindingDigest: DESIGN_BINDING_DIGEST,
+    chainRef: u(3),
+    permissions: [{ permissionRef: u(5), epoch: "1", ordinal: "1" }],
+    dataHash: "",
+    signature: { keyRef: u(20), intentDigest, assertionDigest: assertionDigest(assertion) },
+  };
+  return { signer, assertion, event: { ...base, dataHash: signedBindingEventCommitment(base) } };
+}
+
 describe("Release C commitment vectors (ledger side)", () => {
   // These literals are asserted by apps/api binding-commitment.spec.ts as well.
   it("matches the shared proof-of-possession, signature, assertion and commitment vectors", () => {
-    const signer = testKey(7);
+    const { signer, assertion, event } = designSignedEvent();
     expect(signer.publicKey).toMatchInlineSnapshot(`"MCowBQYDK2VwAyEA6kpsY-KcUgq-9VB7Ey7F-ZVHdq6-vnuSQh7qaRRG0iw"`);
     const pop = signer.sign(
       keyPopMessage({
-        bindingDigest: "11".repeat(32),
+        bindingDigest: DESIGN_BINDING_DIGEST,
         keyRef: u(20),
         orgRef: u(21),
         algorithm: "Ed25519",
         publicKey: signer.publicKey,
       }),
     );
-    expect(pop).toMatchInlineSnapshot(`"x2-cvLeLERmsqP9ef3XfbSBxnjJktB6mIAShViMsB-kLcp9bHU-RnYf_svmHewiDIW7GnYTBgqJuK431-MYvDA"`);
-    const built = signedEvent({}, { intentDigest: "aa".repeat(32) });
-    expect(built.assertion.signature).toMatchInlineSnapshot(`"w4Sbo6WV3ng7iLNNSUF4tsQWi4PceBu70uPMBU49Mz_6zN4qPWa3AjIzCLwLvCulgOoqZ8mG0nGSEVzaqVHlCg"`);
-    expect(assertionDigest(built.assertion)).toMatchInlineSnapshot(`"cc70c473da3a6c28f5f7711288796fd8b7eebd4c6a57a6808cb699f20a665ea2"`);
-    expect(built.event.dataHash).toMatchInlineSnapshot(`"5c11c72dcb3144ae976d3a0ea781f1ab16b3d1622f4e38000ee4484b2ec9a95a"`);
+    expect(pop).toMatchInlineSnapshot(`"CMhZFan-e2_lrh2vVmrPuTt8S1GaROSKEqtHANDyTtoBJRLJiX8mygXGIh4JByrfIjQoGp4fhu-Pji7kC7CnCg"`);
+    expect(assertion.signature).toMatchInlineSnapshot(`"vTr8BYI5j0z1tMW7R35pw7Nq1duFt5pfKvETCM8HHnWYg6oVOXGMb_MGvG4pQYGUMJNKCx-7YuOFtEI6C7JyCA"`);
+    expect(assertionDigest(assertion)).toMatchInlineSnapshot(`"e7134283211249c385eeea22d98e92dbe6443a33420c7d43b3acc8a5662391bb"`);
+    expect(event.dataHash).toMatchInlineSnapshot(`"3c7b39789afc0f7d3ac1da7dd5c593c0d5f3c022a60160489db7c7cc9cd43c65"`);
   });
 
   it("commits to the signature so the signed dataHash differs from the unsigned B commitment", () => {

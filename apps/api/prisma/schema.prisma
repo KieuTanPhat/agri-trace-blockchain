@@ -42,6 +42,10 @@ model User {
   scopedGrants               ScopedRoleGrant[]
   chainAudits                ChainAudit[]
   shipmentPlanAcceptances    ShipmentPlanAcceptance[]
+  signingKeysRegistered      SigningKey[]                @relation("SigningKeyRegistrant")
+  signingIntents             SigningIntent[]             @relation("SigningIntentCreator")
+  handoversOffered           ShipmentHandover[]          @relation("HandoverOfferer")
+  handoversResolved          ShipmentHandover[]          @relation("HandoverResolver")
 
   @@unique([id, organizationId], map: "uq_user_org_scope")
   @@map("app_user")
@@ -89,6 +93,9 @@ model Organization {
   planTransportRevisions  ShipmentPlanRevision[]    @relation("PlanTransporter")
   planRetailRevisions     ShipmentPlanRevision[]    @relation("PlanRetailer")
   shipmentPlanAcceptances ShipmentPlanAcceptance[]
+  signingKeys             SigningKey[]
+  handoversGiven          ShipmentHandover[]        @relation("HandoverGiver")
+  handoversReceived       ShipmentHandover[]        @relation("HandoverReceiver")
 
   @@map("organization")
 }
@@ -123,6 +130,8 @@ model SupplyChain {
   assignments         StageAssignment[]
   shipmentPlans       ShipmentPlan[]
   eventContexts       EventChainContext[]
+  signingIntents      SigningIntent[]
+  handovers           ShipmentHandover[]
 
   @@index([ownerOrganizationId])
   @@map("supply_chain")
@@ -635,6 +644,8 @@ model Shipment {
   telemetry         ShipmentTelemetry[]
   telemetryDigest   ShipmentTelemetryDigest?
   trackingBindings  ShipmentTrackingBinding[]
+  handoverMode      HandoverMode              @default(STANDARD) @map("handover_mode")
+  handovers         ShipmentHandover[]
 
   @@index([retailerOrgId], map: "ix_shipment_retailer")
   @@index([status], map: "ix_shipment_status")
@@ -766,6 +777,9 @@ model TraceEvent {
   supersededEvent         TraceEvent?           @relation("TraceSupersession", fields: [supersedesEventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   supersedingEvents       TraceEvent[]          @relation("TraceSupersession")
   ledgerControlJobs       LedgerControlJob[]
+  actorSignature          EventActorSignature?
+  handoverOffers          ShipmentHandover[]    @relation("HandoverOfferEvent")
+  handoverResolutions     ShipmentHandover[]    @relation("HandoverResolveEvent")
 
   @@index([cycleId, eventTime], map: "ix_trace_event_cycle_time")
   @@index([entityType, entityId], map: "ix_trace_event_entity")
@@ -1220,6 +1234,7 @@ enum LedgerControlOperation {
   PERMISSION_REVOKE
   PERMISSION_EMERGENCY_REVOKE
   FENCE_DELIVERY
+  SIGNING_KEY_REVOKE
 
   @@map("ledger_control_operation")
 }
@@ -1262,6 +1277,7 @@ model ChainLedgerProfile {
   chain               SupplyChain            @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   bindings            FabricNetworkBinding[] @relation("BindingProfile")
   activeBinding       FabricNetworkBinding?  @relation("ProfileActiveBinding", fields: [activeBindingDigest, chainId], references: [digest, chainId], onDelete: Restrict, onUpdate: NoAction, map: "fk_profile_active_binding")
+  handoverMode        HandoverMode           @default(STANDARD) @map("handover_mode")
 
   @@unique([chainId, chainRef], map: "uq_chain_ledger_profile_ref")
   @@map("chain_ledger_profile")
@@ -1295,6 +1311,7 @@ model FabricNetworkBinding {
   controlJobs      LedgerControlJob[]
   attempts         DeliveryAttempt[]
   holds            DeliveryHold[]
+  signingKeys      SigningKey[]
 
   @@unique([digest, chainId], map: "uq_fabric_binding_chain")
   @@index([chainId], map: "ix_fabric_binding_chain")
@@ -1435,6 +1452,8 @@ model LedgerControlJob {
   permission       LedgerPermission?      @relation(fields: [permissionRef], references: [permissionRef], onDelete: Restrict, onUpdate: NoAction)
   permissionEpoch  LedgerPermissionEpoch? @relation(fields: [permissionRef, epoch], references: [permissionRef, epoch], onDelete: Restrict, onUpdate: NoAction)
   event            TraceEvent?            @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  signingKeyRef    String?                @map("signing_key_ref") @db.Uuid
+  signingKey       SigningKey?            @relation(fields: [signingKeyRef], references: [keyRef], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([status, nextAttemptAt], map: "ix_ledger_control_job_due")
   @@map("ledger_control_job")
@@ -1486,4 +1505,188 @@ model DeliveryHold {
 
   @@index([bindingDigest], map: "ix_delivery_hold_open", where: raw("(resolved_at IS NULL)"))
   @@map("delivery_hold")
+}
+
+enum SigningKeyStatus {
+  PENDING_LEDGER
+  ACTIVE
+  REVOKED
+
+  @@map("signing_key_status")
+}
+
+enum SigningOperation {
+  HANDOVER_OFFER
+  HANDOVER_CONFIRM
+
+  @@map("signing_operation")
+}
+
+enum SigningIntentStatus {
+  PENDING
+  CONSUMED
+  EXPIRED
+
+  @@map("signing_intent_status")
+}
+
+enum HandoverMode {
+  STANDARD
+  DUAL_SIGNED
+
+  @@map("handover_mode")
+}
+
+enum HandoverKind {
+  PICKUP
+  ARRIVAL
+
+  @@map("handover_kind")
+}
+
+enum HandoverState {
+  OFFERED
+  CONFIRMED
+  REJECTED
+  EXPIRED
+  CANCELLED
+
+  @@map("handover_state")
+}
+
+enum HandoverCustodyLabel {
+  CROSS_ORG
+  INTERNAL_SAME_ORG
+
+  @@map("handover_custody_label")
+}
+
+/// Organization-controlled Ed25519 public key (the private key never reaches
+/// the API). Mirrors the ledger registry record of the same binding.
+model SigningKey {
+  keyRef         String                @id @default(dbgenerated("gen_random_uuid()")) @map("key_ref") @db.Uuid
+  chainId        String                @map("chain_id") @db.Uuid
+  bindingDigest  String                @map("binding_digest") @db.VarChar(64)
+  organizationId String                @map("organization_id") @db.Uuid
+  label          String                @db.VarChar(100)
+  algorithm      String                @default("Ed25519") @db.VarChar(10)
+  publicKey      String                @map("public_key") @db.VarChar(59)
+  publicKeyHash  String                @map("public_key_hash") @db.VarChar(64)
+  popSignature   String                @map("pop_signature") @db.VarChar(86)
+  status         SigningKeyStatus      @default(PENDING_LEDGER)
+  registeredBy   String                @map("registered_by") @db.Uuid
+  version        Int                   @default(0)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  activatedAt    DateTime?             @map("activated_at") @db.Timestamptz(6)
+  revokedAt      DateTime?             @map("revoked_at") @db.Timestamptz(6)
+  revokeReason   String?               @map("revoke_reason")
+  binding        FabricNetworkBinding  @relation(fields: [bindingDigest, chainId], references: [digest, chainId], onDelete: Restrict, onUpdate: NoAction)
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  registrant     User                  @relation("SigningKeyRegistrant", fields: [registeredBy, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  intents        SigningIntent[]
+  signatures     EventActorSignature[]
+  controlJobs    LedgerControlJob[]
+
+  @@unique([bindingDigest, publicKeyHash], map: "uq_signing_key_public")
+  @@unique([keyRef, bindingDigest, organizationId], map: "uq_signing_key_scope")
+  @@index([chainId, organizationId, status], map: "ix_signing_key_org")
+  @@map("signing_key")
+}
+
+/// What the signer was shown and signed. Consumed exactly once with the write.
+model SigningIntent {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @map("intent_id") @db.Uuid
+  chainId         String               @map("chain_id") @db.Uuid
+  bindingDigest   String               @map("binding_digest") @db.VarChar(64)
+  organizationId  String               @map("organization_id") @db.Uuid
+  keyRef          String               @map("key_ref") @db.Uuid
+  createdBy       String               @map("created_by") @db.Uuid
+  operation       SigningOperation
+  entityType      String               @map("entity_type") @db.VarChar(50)
+  entityId        String               @map("entity_id") @db.Uuid
+  eventId         String               @unique @map("event_id") @db.Uuid
+  eventType       String               @map("event_type") @db.VarChar(100)
+  expectedVersion Int                  @map("expected_version")
+  payload         Json
+  payloadDigest   String               @map("payload_digest") @db.VarChar(64)
+  intent          Json
+  intentDigest    String               @unique @map("intent_digest") @db.VarChar(64)
+  policyVersion   String               @map("policy_version") @db.VarChar(10)
+  expiresAt       DateTime             @map("expires_at") @db.Timestamptz(6)
+  status          SigningIntentStatus  @default(PENDING)
+  signature       String?              @db.VarChar(86)
+  consumedAt      DateTime?            @map("consumed_at") @db.Timestamptz(6)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  chain           SupplyChain          @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  key             SigningKey           @relation(fields: [keyRef, bindingDigest, organizationId], references: [keyRef, bindingDigest, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  creator         User                 @relation("SigningIntentCreator", fields: [createdBy, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  eventSignature  EventActorSignature?
+  offerFor        ShipmentHandover?    @relation("HandoverOfferIntent")
+  confirmFor      ShipmentHandover?    @relation("HandoverConfirmIntent")
+
+  @@index([entityType, entityId, createdAt], map: "ix_signing_intent_entity")
+  @@map("signing_intent")
+}
+
+/// Independent organization signature carried by a release-C event.
+model EventActorSignature {
+  eventId         String        @id @map("event_id") @db.Uuid
+  intentId        String        @unique @map("intent_id") @db.Uuid
+  keyRef          String        @map("key_ref") @db.Uuid
+  bindingDigest   String        @map("binding_digest") @db.VarChar(64)
+  organizationId  String        @map("organization_id") @db.Uuid
+  algorithm       String        @default("Ed25519") @db.VarChar(10)
+  intentDigest    String        @map("intent_digest") @db.VarChar(64)
+  assertionDigest String        @map("assertion_digest") @db.VarChar(64)
+  signature       String        @db.VarChar(86)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  event           TraceEvent    @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  intent          SigningIntent @relation(fields: [intentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  key             SigningKey    @relation(fields: [keyRef, bindingDigest, organizationId], references: [keyRef, bindingDigest, organizationId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("event_actor_signature")
+}
+
+/// Two-party custody transfer. Custody changes only when the receiver confirms
+/// the giver's signed offer for the exact shipment/lot version and quantity.
+model ShipmentHandover {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @map("handover_id") @db.Uuid
+  shipmentId      String               @map("shipment_id") @db.Uuid
+  chainId         String               @map("chain_id") @db.Uuid
+  kind            HandoverKind
+  state           HandoverState        @default(OFFERED)
+  giverOrgId      String               @map("giver_org_id") @db.Uuid
+  receiverOrgId   String               @map("receiver_org_id") @db.Uuid
+  custodyLabel    HandoverCustodyLabel @map("custody_label")
+  quantity        Decimal              @db.Decimal(14, 3)
+  unit            String               @db.VarChar(30)
+  shipmentVersion Int                  @map("shipment_version")
+  lotVersion      Int                  @map("lot_version")
+  offerIntentId   String               @unique @map("offer_intent_id") @db.Uuid
+  confirmIntentId String?              @unique @map("confirm_intent_id") @db.Uuid
+  offerEventId    String               @unique @map("offer_event_id") @db.Uuid
+  resolveEventId  String?              @unique @map("resolve_event_id") @db.Uuid
+  offeredBy       String               @map("offered_by") @db.Uuid
+  resolvedBy      String?              @map("resolved_by") @db.Uuid
+  note            String?
+  reason          String?
+  version         Int                  @default(0)
+  offeredAt       DateTime             @default(now()) @map("offered_at") @db.Timestamptz(6)
+  expiresAt       DateTime             @map("expires_at") @db.Timestamptz(6)
+  resolvedAt      DateTime?            @map("resolved_at") @db.Timestamptz(6)
+  shipment        Shipment             @relation(fields: [shipmentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  chain           SupplyChain          @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  giver           Organization         @relation("HandoverGiver", fields: [giverOrgId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  receiver        Organization         @relation("HandoverReceiver", fields: [receiverOrgId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  offerIntent     SigningIntent        @relation("HandoverOfferIntent", fields: [offerIntentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  confirmIntent   SigningIntent?       @relation("HandoverConfirmIntent", fields: [confirmIntentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  offerEvent      TraceEvent           @relation("HandoverOfferEvent", fields: [offerEventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  resolveEvent    TraceEvent?          @relation("HandoverResolveEvent", fields: [resolveEventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  offerer         User                 @relation("HandoverOfferer", fields: [offeredBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  resolver        User?                @relation("HandoverResolver", fields: [resolvedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([shipmentId], map: "ux_handover_open", where: raw("(state = 'OFFERED'::handover_state)"))
+  @@unique([shipmentId, kind], map: "ux_handover_confirmed", where: raw("(state = 'CONFIRMED'::handover_state)"))
+  @@index([chainId, state], map: "ix_handover_chain")
+  @@map("shipment_handover")
 }
