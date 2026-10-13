@@ -21,6 +21,28 @@ const browser = await chromium.launch({ headless: true });
 let lastPage;
 let ownerChainName;
 const browserEvents = [];
+function observeContext(context) {
+  context.on("response", (response) => {
+    if (response.url().includes("/api/"))
+      browserEvents.push({
+        time: Date.now(),
+        kind: "response",
+        method: response.request().method(),
+        status: response.status(),
+        url: response.url(),
+      });
+  });
+  context.on("page", (item) =>
+    item.on("framenavigated", (frame) => {
+      if (frame === item.mainFrame())
+        browserEvents.push({
+          time: Date.now(),
+          kind: "navigation",
+          url: frame.url(),
+        });
+    }),
+  );
+}
 async function until(work, label, timeout = 20000) {
   const started = Date.now();
   let last;
@@ -116,6 +138,7 @@ try {
   const context = await browser.newContext({
     viewport: { width: 1365, height: 900 },
   });
+  observeContext(context);
   let blockInspection = true;
   let lost = true;
   let writes = 0;
@@ -142,34 +165,6 @@ try {
     await route.abort("failed");
   });
   const page = (lastPage = await context.newPage());
-  context.on("page", (item) =>
-    item.on("framenavigated", (frame) => {
-      if (frame === item.mainFrame())
-        browserEvents.push({
-          time: Date.now(),
-          kind: "navigation",
-          url: frame.url(),
-        });
-    }),
-  );
-  page.on("framenavigated", (frame) => {
-    if (frame === page.mainFrame())
-      browserEvents.push({
-        time: Date.now(),
-        kind: "navigation",
-        url: frame.url(),
-      });
-  });
-  context.on("response", (response) => {
-    if (response.url().includes("/api/"))
-      browserEvents.push({
-        time: Date.now(),
-        kind: "response",
-        method: response.request().method(),
-        status: response.status(),
-        url: response.url(),
-      });
-  });
   await login(page, owner);
   const name = `Recovered browser chain ${randomUUID()}`;
   ownerChainName = name;
@@ -292,12 +287,14 @@ try {
     until,
     cases,
     control,
+    observeContext,
     setLastPage: (target) => {
       lastPage = target;
     },
   });
 
   const mobile = await browser.newContext({ ...devices["iPhone 13"] });
+  observeContext(mobile);
   const phone = (lastPage = await mobile.newPage());
   await login(phone, owner);
   await phone
@@ -427,6 +424,10 @@ try {
   );
   assert(!(await page.content()).includes(unknownName));
   cases.push("account-switch-private-pending-queue-isolation");
+  assert(
+    !browserEvents.some((event) => event.status === 429),
+    "Browser rehearsal must respect the unchanged request limits",
+  );
   await context.close();
   writeFileSync(
     control + "/browser-result.json",

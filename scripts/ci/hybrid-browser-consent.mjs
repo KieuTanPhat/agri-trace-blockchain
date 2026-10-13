@@ -18,6 +18,7 @@ export async function checkPartyConsent({
   cases,
   control,
   setLastPage,
+  observeContext,
 }) {
   const contexts = [];
   const form = (target, title) =>
@@ -25,7 +26,17 @@ export async function checkPartyConsent({
       has: target.getByRole("button", { name: title, exact: true }),
     });
   async function select(target) {
-    await target.reload();
+    const [permissions] = await Promise.all([
+      target.waitForResponse(
+        (reply) =>
+          reply.request().method() === "GET" &&
+          reply.url().endsWith("/api/chain-permissions"),
+      ),
+      target
+        .getByRole("button", { name: "Tải lại quyền và dữ liệu", exact: true })
+        .click(),
+    ]);
+    assert.equal(permissions.status(), 200);
     await target
       .getByRole("combobox", { name: /^Chọn chuỗi/ })
       .locator(`option[value="${chain.id}"]`)
@@ -73,6 +84,7 @@ export async function checkPartyConsent({
       const context = await browser.newContext({
         viewport: { width: 1365, height: 900 },
       });
+      observeContext(context);
       contexts.push(context);
       const partner = await context.newPage();
       setLastPage(partner);

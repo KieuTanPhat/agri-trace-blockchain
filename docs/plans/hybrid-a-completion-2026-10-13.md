@@ -148,6 +148,18 @@ bỏ qua migration scope/route. Policy thêm floor bắt buộc cho hai migratio
 kể cả receipt compatibility chung; recovery phải giữ journal/writers stopped
 khi target thiếu floor. Chưa thêm checksum allowlist hoặc chạy migration thật.
 
+`0c846e1` đã đạt 76 CD regressions trên Linux, không skips. Browser lượt đó đã
+qua real three-party finalize/regrant/revision/reconciliation, nhưng mobile reload
+về login rồi timeout. Diagnostics cũ chỉ theo desktop nên chưa đủ kết luận nguyên
+nhân. Bổ sung theo dõi network của mọi context và assertion không có 429; fixture
+dùng nút tải lại quyền/data giữa các thao tác consent thay reload toàn trang lặp
+lại. Giữ riêng các reload/remount/unknown/account/mobile gates; không nới throttle.
+Cleanup mọi process/container/network/port/keeper đã xác nhận ở lượt fail.
+
+Observation production UTC01:29:31 ngày13/10 (08:29:31 VN) pass same8ae/sequence3,
+60ledger/Pending0/QR2+6/118old fingerprints/current120/209identities/noDev.
+Elapsed7,762h, gap21224,924s; window chưa đạt, không suy healthy trong gap.
+
 Chỉ đạo bổ sung: sau toàn bộ A → B → C, quét toàn dự án và lặp review → plan →
 sửa → kiểm chứng cho mọi phát hiện có căn cứ. Chỉ shutdown máy local sau khi
 nghiệm thu toàn bộ, lưu MD/evidence/commits và cleanup mọi job; không ép đóng
