@@ -1,7 +1,10 @@
 import 'dotenv/config';
 import { hash } from 'bcrypt';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../src/generated/prisma/client.js';
+import {
+  PrismaClient,
+  type ScopedRole,
+} from '../src/generated/prisma/client.js';
 
 if (process.env.NODE_ENV === 'production') {
   throw new Error('Demo seeding is disabled in production');
@@ -132,7 +135,7 @@ async function main() {
     passwordHash,
   );
 
-  await upsertUser(
+  const farmStaffUser = await upsertUser(
     'farm.staff@agritrace.local',
     {
       fullName: 'Nguyễn Văn Nông',
@@ -143,7 +146,7 @@ async function main() {
     passwordHash,
   );
 
-  await upsertUser(
+  const transporterUser = await upsertUser(
     'transporter@agritrace.local',
     {
       fullName: 'Trần Minh Vận',
@@ -154,7 +157,7 @@ async function main() {
     passwordHash,
   );
 
-  await upsertUser(
+  const retailerUser = await upsertUser(
     'retailer@agritrace.local',
     {
       fullName: 'Lê An Tâm',
@@ -165,7 +168,7 @@ async function main() {
     passwordHash,
   );
 
-  await upsertUser(
+  const auditorUser = await upsertUser(
     'auditor@agritrace.local',
     {
       fullName: 'Phạm Minh Kiểm',
@@ -250,8 +253,109 @@ async function main() {
     },
   });
 
+  await seedDemoChain({
+    farm: { organizationId: farmOrganization.id, userId: farmStaffUser.id },
+    transporter: {
+      organizationId: transporterOrganization.id,
+      userId: transporterUser.id,
+    },
+    retailer: {
+      organizationId: retailerOrganization.id,
+      userId: retailerUser.id,
+    },
+    auditor: { organizationId: auditorOrganization.id, userId: auditorUser.id },
+    farmId: farm.id,
+  });
+
   console.log(`Seed hoàn tất. Product mẫu: ${product.productName}`);
   console.log(`Tài khoản test dùng mật khẩu: ${DEFAULT_PASSWORD}`);
+}
+
+type Party = { organizationId: string; userId: string };
+
+/** Local demo scope: one ACTIVE chain owned by the farm cooperative, with the
+ * partners as members and the minimum grants for every stage. Idempotent. */
+async function seedDemoChain(input: {
+  farm: Party;
+  transporter: Party;
+  retailer: Party;
+  auditor: Party;
+  farmId: string;
+}) {
+  const name = 'Chuỗi rau sạch Tân Phú';
+  const existing = await prisma.supplyChain.findFirst({
+    where: { name, ownerOrganizationId: input.farm.organizationId },
+  });
+  const chainId =
+    existing?.id ??
+    (await prisma.$transaction(async (tx) => {
+      const chain = await tx.supplyChain.create({
+        data: { name, ownerOrganizationId: input.farm.organizationId },
+      });
+      for (const party of [
+        input.farm,
+        input.transporter,
+        input.retailer,
+        input.auditor,
+      ])
+        await tx.chainMembership.create({
+          data: {
+            chainId: chain.id,
+            organizationId: party.organizationId,
+            status: 'ACTIVE',
+          },
+        });
+      await tx.chainBusinessProfile.create({ data: { chainId: chain.id } });
+      await tx.chainBusinessProfile.update({
+        where: { chainId: chain.id },
+        data: { state: 'ACTIVE', version: { increment: 1 } },
+      });
+      return chain.id;
+    }));
+  const grants: Array<[Party, ScopedRole, boolean]> = [
+    [input.farm, 'ORG_ADMIN', false],
+    [input.farm, 'CREATE_CHAIN', false],
+    [input.farm, 'CHAIN_MANAGER', true],
+    [input.farm, 'FARM_STAFF', true],
+    [input.transporter, 'ORG_ADMIN', false],
+    [input.transporter, 'TRANSPORTER', true],
+    [input.retailer, 'ORG_ADMIN', false],
+    [input.retailer, 'RETAILER', true],
+    [input.auditor, 'ORG_ADMIN', false],
+    [input.auditor, 'AUDITOR', true],
+    [input.auditor, 'COMPLIANCE_REVIEWER', true],
+  ];
+  for (const [party, role, chained] of grants) {
+    const where = {
+      userId: party.userId,
+      organizationId: party.organizationId,
+      chainId: chained ? chainId : null,
+      role,
+      revokedAt: null,
+    };
+    if (!(await prisma.scopedRoleGrant.findFirst({ where })))
+      await prisma.scopedRoleGrant.create({
+        data: {
+          userId: party.userId,
+          organizationId: party.organizationId,
+          chainId: chained ? chainId : null,
+          scope: chained ? 'CHAIN' : 'ORGANIZATION',
+          role,
+        },
+      });
+  }
+  if (
+    !(await prisma.complianceAssignment.findFirst({
+      where: {
+        reviewerUserId: input.auditor.userId,
+        farmId: input.farmId,
+        revokedAt: null,
+      },
+    }))
+  )
+    await prisma.complianceAssignment.create({
+      data: { reviewerUserId: input.auditor.userId, farmId: input.farmId },
+    });
 }
 
 async function upsertUser(
