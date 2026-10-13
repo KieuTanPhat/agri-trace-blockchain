@@ -136,5 +136,24 @@ SHA (job `Hybrid A B C real Fabric and browser`) trước khi merge.
 
 **Quan sát sau release.** Panel Ledger và `GET /supply-chains/:id/ledger-status` hiện
 heartbeat Worker, chứng thư sắp/đã hết hạn, tác vụ điều khiển lỗi và tuổi backlog.
-Cửa sổ quan sát ≥24h bằng collector phía server mỗi phút (khoảng trống tối đa 5
-phút) **chưa được cài**; phải có trước khi bắt đầu window.
+Cửa sổ quan sát ≥24h dùng collector phía server mỗi phút (khoảng trống tối đa 5
+phút): `deploy/cd/observe.py`, chỉ dùng thư viện chuẩn Python. Collector **chưa được cài
+trên VPS**; phải cài và có mẫu đầu tiên trước khi bắt đầu window.
+
+- `observe.py collect --config <file> --ledger <file>` ghi một dòng JSON vào ledger
+  append-only (mode `0600`, từ chối symlink) rồi `fsync`. Probe gồm: SHA release
+  (`release.file`), HTTP (`api/health`, `health/ready` của Worker), container
+  (`docker inspect`: trạng thái, health, OOM, `RestartCount`, `StartedAt`, image id) và
+  lệnh tùy chọn in ra một JSON object (ví dụ đếm outbox/dead-letter bằng role chỉ-đọc,
+  ngưỡng `max`). Chỉ giá trị vô hướng được ghi; không có shell, không đọc secret. Mẫu cấu
+  hình: `deploy/observability/collector.example.json` (tên container/đường dẫn phải đổi
+  theo VPS). Lập lịch bằng `systemd` timer hoặc cron của root, mỗi phút.
+- `observe.py report --ledger <file>` đánh giá cửa sổ đang chạy, tính từ lần đổi
+  release/image gần nhất (đổi có chủ ý = window mới, ghi nguyên nhân ở `previousChanges`).
+  Đạt khi: ≥24h, khoảng trống lớn nhất ≤300s (tính cả khoảng từ mẫu cuối đến lúc báo cáo,
+  nên collector dừng sẽ lộ ra), không mẫu nào có probe lỗi, không restart/OOM ngoài ý
+  muốn trong cùng release, ledger không có dòng hỏng hay lùi thời gian. Thoát mã 0 khi đạt,
+  1 khi chưa đạt (kèm `reasons`), 2 khi lỗi cấu hình/đọc ledger.
+- Các điều kiện P0/P1, lỗi toàn vẹn hoặc phạm vi (scope) cần probe `commands` tương ứng;
+  collector không tự suy ra chúng. Mẫu thiếu được ghi nhận là khoảng trống, không suy
+  diễn là healthy.

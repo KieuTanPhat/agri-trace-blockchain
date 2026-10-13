@@ -1,0 +1,24 @@
+{
+  "release": { "file": "/opt/agri-trace/current/RELEASE_SHA" },
+  "http": [
+    { "name": "api-health", "url": "http://127.0.0.1:8080/api/health", "timeoutSeconds": 5 },
+    { "name": "worker-ready", "url": "http://127.0.0.1:8081/health/ready", "timeoutSeconds": 5 }
+  ],
+  "containers": [
+    { "name": "api", "container": "agri-trace-api-1" },
+    { "name": "worker", "container": "agri-trace-worker-1" },
+    { "name": "web", "container": "agri-trace-web-1" },
+    { "name": "postgres", "container": "agri-trace-postgres-1" }
+  ],
+  "commands": [
+    {
+      "name": "outbox",
+      "argv": [
+        "docker", "exec", "agri-trace-postgres-1", "psql", "-U", "agri_readonly", "-d", "agri_trace", "-At", "-c",
+        "SELECT json_build_object('pending', count(*) FILTER (WHERE status <> 'COMPLETED'), 'deadLetter', count(*) FILTER (WHERE status = 'DEAD_LETTER'))::text FROM blockchain_outbox"
+      ],
+      "timeoutSeconds": 20,
+      "max": { "deadLetter": 0 }
+    }
+  ]
+}
