@@ -201,11 +201,38 @@ export class UserStatusDto extends PickType(UserCreatedDto, [
 ] as const) {
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
 }
-export class TraceHistoryDto extends TraceEventRecordDto {
-  @ApiProperty({ type: BlockchainProofRecordDto, nullable: true })
-  blockchainProof!: BlockchainProofRecordDto | null;
-  @ApiProperty({ type: BlockchainOutboxRecordDto, nullable: true })
-  blockchainOutbox!: BlockchainOutboxRecordDto | null;
+class TraceHistoryProofDto extends PickType(BlockchainProofRecordDto, [
+  'eventId',
+  'network',
+  'channelId',
+  'txId',
+  'dataHash',
+  'recordedAt',
+  'transactionStatus',
+] as const) {}
+class TraceHistoryOutboxDto extends PickType(BlockchainOutboxRecordDto, [
+  'status',
+  'attemptCount',
+  'nextAttemptAt',
+] as const) {}
+export class TraceHistoryDto extends PickType(TraceEventRecordDto, [
+  'id',
+  'entityType',
+  'entityId',
+  'cycleId',
+  'lotId',
+  'eventType',
+  'eventTime',
+  'schemaVersion',
+  'canonicalizationVersion',
+  'dataHash',
+  'previousEventHash',
+  'createdAt',
+] as const) {
+  @ApiProperty({ type: TraceHistoryProofDto, nullable: true })
+  blockchainProof!: TraceHistoryProofDto | null;
+  @ApiProperty({ type: TraceHistoryOutboxDto, nullable: true })
+  blockchainOutbox!: TraceHistoryOutboxDto | null;
 }
 export class TraceProofDto {
   @ApiProperty({ format: 'uuid' }) eventId!: string;

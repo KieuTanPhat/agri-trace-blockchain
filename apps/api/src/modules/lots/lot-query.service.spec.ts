@@ -238,11 +238,12 @@ describe('Public lot proof projection', () => {
     expect(JSON.stringify(result)).not.toContain('businessData');
   });
 
-  it.each(['payload', 'receipt', 'unhashable'] as const)(
+  it.each(['payload', 'actor', 'receipt', 'unhashable'] as const)(
     'does not hide an earlier %s integrity problem behind a verified latest event',
     async (problem) => {
       const { service, events } = publicFixture();
       if (problem === 'payload') events[0].businessData.quantity = '99';
+      if (problem === 'actor') events[0].actorRole = 'RETAILER';
       if (problem === 'receipt')
         events[0].blockchainProof.dataHash = 'b'.repeat(64);
       if (problem === 'unhashable') events[0].eventTime = new Date('invalid');

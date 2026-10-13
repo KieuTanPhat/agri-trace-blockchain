@@ -7,7 +7,10 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { calculateTraceEventHash } from './trace-hash.js';
-import { privateTraceEvidenceMatches } from './trace-evidence.js';
+import {
+  privateTraceEvidenceMatches,
+  publicBlockchainDeliveryError,
+} from './trace-evidence.js';
 import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
 import { getLotEventProofStatus } from '../lots/lot-proof-status.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
@@ -67,6 +70,9 @@ export class TraceService {
     if (heads.length > 1)
       throw new ConflictException('Trace event chain has multiple heads');
     const previous = heads[0];
+    // Server-generated actor fingerprint, not a user signature or a hash of
+    // the raw JWT. It currently identifies the selected user and role only;
+    // it does not prove which login session initiated this command.
     const actorAuthProof = createHash('sha256')
       .update(`${input.actor.sub}:${input.actor.role}`, 'utf8')
       .digest('hex');
@@ -128,7 +134,38 @@ export class TraceService {
     return this.prisma.traceEvent.findMany({
       where: { lotId },
       orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
-      include: { blockchainProof: true, blockchainOutbox: true },
+      select: {
+        id: true,
+        entityType: true,
+        entityId: true,
+        cycleId: true,
+        lotId: true,
+        eventType: true,
+        eventTime: true,
+        schemaVersion: true,
+        canonicalizationVersion: true,
+        dataHash: true,
+        previousEventHash: true,
+        createdAt: true,
+        blockchainProof: {
+          select: {
+            eventId: true,
+            network: true,
+            channelId: true,
+            txId: true,
+            dataHash: true,
+            recordedAt: true,
+            transactionStatus: true,
+          },
+        },
+        blockchainOutbox: {
+          select: {
+            status: true,
+            attemptCount: true,
+            nextAttemptAt: true,
+          },
+        },
+      },
     });
   }
 
@@ -162,7 +199,11 @@ export class TraceService {
           : 'PENDING',
       attemptCount: event.blockchainOutbox?.attemptCount ?? 0,
       nextAttemptAt: event.blockchainOutbox?.nextAttemptAt ?? null,
-      lastError: event.blockchainOutbox?.lastError ?? null,
+      // Gateway/chaincode errors are diagnostic data and may contain details
+      // that should remain in PostgreSQL rather than an API response.
+      lastError: publicBlockchainDeliveryError(
+        event.blockchainOutbox?.lastError,
+      ),
       localHashMatches:
         (!proof || proof.dataHash === event.dataHash) &&
         privateTraceEvidenceMatches(event) &&

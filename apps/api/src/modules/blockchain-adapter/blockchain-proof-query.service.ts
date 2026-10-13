@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { privateTraceEvidenceMatches } from '../trace/trace-evidence.js';
+import {
+  privateTraceEvidenceMatches,
+  publicBlockchainDeliveryError,
+} from '../trace/trace-evidence.js';
 import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
 import { getLotEventProofStatus } from '../lots/lot-proof-status.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
@@ -47,7 +50,9 @@ export class BlockchainProofQueryService {
         proof?.channelId ?? process.env.FABRIC_CHANNEL_NAME ?? 'agritrace',
       recordedAt: proof?.recordedAt ?? null,
       attemptCount: event.blockchainOutbox?.attemptCount ?? 0,
-      lastError: event.blockchainOutbox?.lastError ?? null,
+      lastError: publicBlockchainDeliveryError(
+        event.blockchainOutbox?.lastError,
+      ),
     };
   }
 }

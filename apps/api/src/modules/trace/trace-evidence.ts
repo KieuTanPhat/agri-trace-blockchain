@@ -1,5 +1,13 @@
 import { calculateTraceEventHash, type TraceHashInput } from './trace-hash.js';
 
+export function publicBlockchainDeliveryError(
+  diagnostic: string | null | undefined,
+): string | null {
+  return diagnostic
+    ? 'Blockchain delivery failed; contact support with eventId'
+    : null;
+}
+
 export function privateTraceEvidenceMatches(
   event: TraceHashInput & { dataHash: string },
 ): boolean {

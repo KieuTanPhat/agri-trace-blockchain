@@ -34,4 +34,18 @@ describe('trace event hash', () => {
       }),
     );
   });
+
+  it.each([
+    { actorUserId: '55555555-5555-5555-5555-555555555555' },
+    { actorOrganizationId: '66666666-6666-6666-6666-666666666666' },
+    { actorRole: 'RETAILER' },
+    { authProofType: 'SYSTEM_ASSERTION' },
+    { actorAuthProof: 'different-proof' },
+    { schemaVersion: '3.0.0' },
+    { canonicalizationVersion: 'different-canonicalization' },
+  ])('detects actor or version mutation %j', (change) => {
+    expect(calculateTraceEventHash(event)).not.toBe(
+      calculateTraceEventHash({ ...event, ...change }),
+    );
+  });
 });
