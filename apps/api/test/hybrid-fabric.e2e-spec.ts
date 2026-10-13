@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomUUID } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { ApiResponseInterceptor } from '../src/common/api/api-response.interceptor.js';
@@ -72,6 +73,8 @@ interface World {
     let delivery: BindingDeliveryService;
     let control: LedgerControlService;
     let pool: BindingConnectionPool;
+    let config: ConfigService;
+    let service: PrismaService;
     const worlds: Record<string, World> = {};
 
     const post = (
@@ -289,13 +292,13 @@ interface World {
         worlds.self.bindingDigest,
         worlds.signed.bindingDigest,
       ]);
-      const config = new ConfigService({
+      config = new ConfigService({
         FABRIC_MAX_RETRIES: '8',
         FABRIC_CLAIM_LEASE_MS: '120000',
       });
       pool = new BindingConnectionPool();
       pool.environment = { FABRIC_BINDINGS_CONFIG: file };
-      const service = prisma as unknown as PrismaService;
+      service = prisma as unknown as PrismaService;
       delivery = new BindingDeliveryService(service, config, pool);
       control = new LedgerControlService(service, config, pool);
       const fixture = await Test.createTestingModule({ imports: [AppModule] })
@@ -1074,5 +1077,213 @@ interface World {
           .status,
       ).toBe('CREATED');
     }, 300_000);
+
+    // ---------------------------------------------------- faults and load
+    /** A second Worker process: its own pool and services over the same database. */
+    function secondWorker() {
+      const pool2 = new BindingConnectionPool();
+      pool2.environment = pool.environment;
+      return {
+        pool: pool2,
+        delivery: new BindingDeliveryService(service, config, pool2),
+        control: new LedgerControlService(service, config, pool2),
+      };
+    }
+    const outboxFor = (w: World) => ({
+      traceEvent: { chainContext: { chainId: w.chainId } },
+    });
+
+    it('lets two Workers drain one backlog exactly once, including a crashed Worker lease', async () => {
+      const w = worlds.b;
+      const other = secondWorker();
+      try {
+        for (let i = 0; i < 12; i += 1) await cycleFlow(w);
+        // Two real processes would race on the same rows from here on.
+        for (
+          let round = 0;
+          round < 40 && !(await unconfirmed(w)());
+          round += 1
+        ) {
+          await Promise.all([
+            delivery.processAll(),
+            other.delivery.processAll(),
+          ]);
+          await expedite();
+        }
+        expect(await unconfirmed(w)()).toBe(true);
+        const rows = await prisma.blockchainOutbox.findMany({
+          where: outboxFor(w),
+          include: {
+            deliveryAttempts: { include: { outcomes: true } },
+            traceEvent: { include: { blockchainProof: true } },
+          },
+        });
+        expect(rows.length).toBeGreaterThanOrEqual(12);
+        for (const row of rows) {
+          expect(row.status).toBe('COMPLETED');
+          expect(row.traceEvent.blockchainProof?.transactionStatus).toBe(
+            'CONFIRMED',
+          );
+          // One claim owner at a time: a single attempt and a single VALID outcome.
+          const valid = row.deliveryAttempts
+            .flatMap((a) => a.outcomes)
+            .filter((o) => o.state === 'VALID');
+          expect(valid).toHaveLength(1);
+        }
+
+        // A crashed Worker leaves PROCESSING rows with an expired lease and no attempt.
+        for (let i = 0; i < 3; i += 1) await cycleFlow(w);
+        const stale = await prisma.blockchainOutbox.findMany({
+          where: { ...outboxFor(w), status: { not: 'COMPLETED' } },
+          select: { id: true },
+        });
+        expect(stale.length).toBeGreaterThanOrEqual(3);
+        for (const row of stale)
+          await prisma.$executeRaw`UPDATE blockchain_outbox SET status = 'PROCESSING'::blockchain_outbox_status,
+            lease_token = gen_random_uuid(), lease_expires_at = clock_timestamp() - interval '1 minute'
+            WHERE outbox_id = ${row.id}::uuid`;
+        for (
+          let round = 0;
+          round < 40 && !(await unconfirmed(w)());
+          round += 1
+        ) {
+          await Promise.all([
+            other.delivery.processAll(),
+            delivery.processAll(),
+          ]);
+          await expedite();
+        }
+        expect(await unconfirmed(w)()).toBe(true);
+        const proofs = await prisma.blockchainProof.count({
+          where: { traceEvent: { chainContext: { chainId: w.chainId } } },
+        });
+        const events = await prisma.traceEvent.count({
+          where: { chainContext: { chainId: w.chainId } },
+        });
+        expect(proofs).toBe(events);
+      } finally {
+        other.pool.onModuleDestroy();
+      }
+    }, 360_000);
+
+    const load = process.env.HYBRID_LOAD_E2E === '1' ? it : it.skip;
+    load(
+      'keeps the API responsive under 10 clients and 200 Pending events on two bindings, then drains',
+      async () => {
+        // 10 clients share one test IP; the per-IP throttle (default 120/min)
+        // is a separate control, so this scenario needs it raised.
+        expect(
+          Number(process.env.RATE_LIMIT_REQUESTS ?? 120),
+          'Run the load scenario with RATE_LIMIT_REQUESTS=100000',
+        ).toBeGreaterThanOrEqual(1000);
+        const clients = 10;
+        const perClient = 20;
+        const targets = [worlds.b, worlds.self];
+        // One cycle per client: care commands on a cycle are optimistic-version ordered.
+        const lanes: Array<{ w: World; id: string; version: number }> = [];
+        for (let i = 0; i < clients; i += 1) {
+          const w = targets[i % targets.length];
+          const cycle = await cycleFlow(w);
+          const planted = await post(
+            w,
+            `/production-cycles/${cycle.id}/plant`,
+            {
+              version: 0,
+              plantedAt: '2026-09-25T00:00:00.000Z',
+            },
+          ).expect(201);
+          lanes.push({ w, id: cycle.id, version: planted.body.data.version });
+        }
+        await settle(
+          async () =>
+            (await unconfirmed(worlds.b)()) &&
+            (await unconfirmed(worlds.self)()),
+          60,
+        );
+
+        // Both ledgers are unreachable for endorsement: events accumulate Pending.
+        pilotDocker('stop', 'peer0.org2.example.com', 'peer0.org3.example.com');
+        const latencies: number[] = [];
+        try {
+          await Promise.all(
+            lanes.map(async (lane) => {
+              for (let n = 0; n < perClient; n += 1) {
+                const started = performance.now();
+                const res = await post(
+                  lane.w,
+                  `/production-cycles/${lane.id}/care`,
+                  {
+                    version: lane.version,
+                    careType: 'WATERING',
+                    eventTime: new Date(Date.now() - 1_000).toISOString(),
+                  },
+                );
+                latencies.push(performance.now() - started);
+                expect(res.status).toBe(201);
+                lane.version = res.body.data.version;
+              }
+            }),
+          );
+        } finally {
+          pilotDocker(
+            'start',
+            'peer0.org2.example.com',
+            'peer0.org3.example.com',
+          );
+        }
+        latencies.sort((a, b) => a - b);
+        const p95 = latencies[Math.ceil(latencies.length * 0.95) - 1];
+        expect(latencies).toHaveLength(clients * perClient);
+        expect(p95).toBeLessThanOrEqual(2000);
+        const pending = await prisma.blockchainOutbox.count({
+          where: { status: { not: 'COMPLETED' }, OR: targets.map(outboxFor) },
+        });
+        expect(pending).toBeGreaterThanOrEqual(clients * perClient);
+
+        // Recovery: two Workers drain everything within the 15 minute bound.
+        await new Promise((r) => setTimeout(r, 12_000));
+        for (const w of targets) pool.invalidate(w.bindingDigest);
+        const other = secondWorker();
+        const started = Date.now();
+        try {
+          for (let round = 0; Date.now() - started < 15 * 60_000; round += 1) {
+            await Promise.all([
+              control.processAll(),
+              delivery.processAll(),
+              other.delivery.processAll(),
+            ]);
+            if (
+              (await unconfirmed(worlds.b)()) &&
+              (await unconfirmed(worlds.self)())
+            )
+              break;
+            await expedite();
+            await new Promise((r) => setTimeout(r, 400));
+          }
+        } finally {
+          other.pool.onModuleDestroy();
+        }
+        const drainMs = Date.now() - started;
+        expect(await unconfirmed(worlds.b)()).toBe(true);
+        expect(await unconfirmed(worlds.self)()).toBe(true);
+        expect(drainMs).toBeLessThanOrEqual(15 * 60_000);
+        const dead = await prisma.blockchainOutbox.count({
+          where: { status: 'DEAD_LETTER', OR: targets.map(outboxFor) },
+        });
+        expect(dead).toBe(0);
+        const report = {
+          events: clients * perClient,
+          clients,
+          bindings: targets.length,
+          p95Ms: Math.round(p95),
+          maxMs: Math.round(latencies[latencies.length - 1]),
+          drainSeconds: Math.round(drainMs / 1000),
+        };
+        if (process.env.HYBRID_LOAD_REPORT)
+          writeFileSync(process.env.HYBRID_LOAD_REPORT, JSON.stringify(report));
+        console.info('hybrid-load', JSON.stringify(report));
+      },
+      1_200_000,
+    );
   },
 );
