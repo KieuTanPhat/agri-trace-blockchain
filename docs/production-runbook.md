@@ -1,159 +1,102 @@
-# Vận hành production — quyết định 12/10/2026
+# Vận hành production Hybrid
 
-`main` triển khai vào `https://agritrace.dev`. Dev deployment và domain
-`nongtrace.site` được retire theo chỉ đạo người dùng. Giữ nhánh `dev` như lịch
-sử Git; nhánh đó không có quyền delivery hoặc bằng chứng CI được chấp nhận.
-Kế hoạch và receipt chuyển ở
-[production-only transition](plans/production-only-transition-2026-10-12.md).
+Cập nhật 14/10/2026 theo [kế hoạch cài mới](plans/fresh-install-cleanup-2026-10-13.md).
+`main` triển khai vào `https://agritrace.dev`. Chủ dự án đã cho phép merge/deploy
+sau kiểm thử; không yêu cầu duyệt lại, giới hạn 2 giờ hay canary riêng.
 
-## Binding hiện hành
+## Target và chuẩn bị
 
-| Thành phần | Production |
+| Thành phần | Cấu hình cài mới |
 | --- | --- |
-| GitHub environment / branch | `production` / `main` |
-| SSH delivery identity | `agri-cd-prod`, forced command, không shell/root key |
-| Root config | `/etc/agri-trace-cd/prod/config.json`, schema 2 |
-| Base / state | `/opt/agri-trace`, `cd/state.json` |
-| App project / PGDATA đã adopt | `agri-trace-uat` / `agri-trace-uat_postgres-data` |
-| App ingress / Edge | `agritrace-prod-ingress` / `agritrace-edge` |
-| Fabric đã giữ | `fabric_test`, channel `agritrace`, sequence đọc từ ledger |
-| Profile bắt buộc | `fabric`; API không signer, Worker giữ identity riêng |
+| GitHub / delivery | `production` / `main`; `agri-cd-prod` forced command |
+| Root config / state | `/etc/agri-trace-cd/prod/config.json`, schema 3; `/opt/agri-trace/cd/state.json` |
+| App / PGDATA | `agritrace-prod` / `agritrace-prod_postgres-data` |
+| Ingress / Edge | `agritrace-prod-ingress` / `agritrace-edge` |
+| Fabric | Một mạng hosted; `hybrid-b` Org1/2, `hybrid-self` Org1/3 |
+| API / Worker | API không có khóa; Worker chỉ giữ technical identity Org1 |
 
-Tên UAT của project/release/volume cũ là compatibility để giữ dữ liệu đang
-chạy. Không đổi tên PGDATA, seed lại hoặc reset ledger khi nâng cấp. Topology
-Fabric hiện có vẫn cần nghiệm thu doanh nghiệp theo kế hoạch Hybrid B/C.
+Schema 2 / `agri-trace-uat` thuộc dữ liệu test đã retire. Giữ release record,
+volume và archive cũ; không nhập history/accounts/QR vào DB mới. Không trộn lệnh
+adopt cũ với cài schema 3. [Runbook cũ](contabo-cd-runbook.md) phục vụ bản lưu.
 
-## Cài helper và bật delivery
-
-1. Kiểm Git SHA, GitHub runs, delivery/host locks, `journal.json` và
-   `runtime-toggle.json`; xử lý recovery đang mở trước thay đổi. Kiểm backup,
-   dung lượng và identity mounts. Không đọc/ghi secrets vào log công khai.
-2. Cài các file trong `policy.CONTROLLER_FILES` từ source đã commit/review bằng
-   quản trị viên. Release bundle ghi checksum helper; delivery key không tự
-   thay helper root. Giữ file config/secrets/accounts root-only và khóa giải mã
-   backup ngoài VPS/GitHub. Giữ đúng recipient certificate hiện hành.
-3. Nếu đã adopt, giữ binding hiện tại. Cài lại bằng config đã review và public
-   delivery key hiện hành; không chạy `adopt-legacy` để thay tài nguyên đã adopt.
+1. Tắt `CD_DEPLOY_ENABLED`; kiểm SHA/CI, journal, delivery/host locks, installed
+   helpers và ownership từng resource/path. Không prune rộng hoặc reset DB chung.
+2. Khóa giải mã backup nằm ngoài VPS/GitHub. Dừng writers, chụp DB và ledger/CA/
+   MSP/config/controller/image nhất quán, mã hóa rồi tải khỏi VPS. Giải mã, kiểm
+   checksum, khôi phục DB và ledger vào môi trường cách ly; đối chiếu counts,
+   hash/txId/history/identity. Giữ evidence trước khi chuyển target.
+3. Dừng toàn bộ app/Fabric/chaincode cũ theo catalog, đặt root config cũ
+   `enabled=false`. File private `restore_evidence` dùng protocol
+   `agritrace-backup-restore/1`, checksum archive và kết quả DB/ledger restore
+   ngoài VPS. Installer từ chối thiếu bằng chứng hoặc reuse PGDATA.
+4. Dựng mạng bằng `blockchain/network/production/provision.py --spec <private-json>`.
+   Spec `agritrace-hosted-network/1` pin images, source fingerprint, governance,
+   tools/root/instance/ports. Mẫu [network](../deploy/hosted-network.example.json).
+   CA secrets ngẫu nhiên; enrollment/TLS CA riêng mỗi Org, TLS transport/chaincode,
+   persistent CA/MSP/ledger, cổng admin loopback. Script Hybrid pilot chỉ phục vụ
+   test; không dùng làm bộ cài production.
+5. Cài `policy.CONTROLLER_FILES` từ source đã kiểm vào root-owned helper directory;
+   checksum phải khớp manifest. Tạo env/accounts/bootstrap/smoke/binding/identity
+   export riêng tư. DB mới tên `agri_trace_prod`, mật khẩu ngẫu nhiên >=24 ký tự.
+   Bootstrap không gọi seed UAT hoặc đổi account hiện có.
 
    ```bash
-   sudo python3 deploy/cd/install-target.py install --environment production \
-     --config /etc/agri-trace-cd/prod/config.json --public-key /root/reviewed-prod-delivery.pub
+   sudo python3 deploy/cd/install-target.py fresh-install --environment production \
+     --config /root/reviewed-fresh-production.json --public-key /root/prod-delivery.pub
    sudo python3 deploy/cd/install-target.py enable --environment production
    ```
 
-4. GitHub environment giữ `CD_PUBLIC_ORIGIN=https://agritrace.dev`,
-   `CD_PROJECT=agri-trace-uat`, `CD_PROFILE=fabric`, pinned `CD_KNOWN_HOSTS` và
-   `CD_SSH_PRIVATE_KEY` riêng. Chỉ bật `CD_DEPLOY_ENABLED=true` sau gates.
-   Revoke legacy/dev delivery authority để chỉ một controller quản lý production.
+6. Config schema 3 dùng `hosted`, `smoke`, `bootstrap`; `migration_reviews` pin
+   checksum + `hybrid-abc/1`. `fresh_release_ack` pin protocol
+   `agritrace-fresh-install/1`, SHA và manifest digest. `open_after_smoke=true`
+   mở ghi sau nghiệm thu, mặc định CLOSED. Đây là kiểm kỹ thuật trong quyền đã giao.
+7. GitHub đặt `CD_PROJECT=agritrace-prod`, `CD_PROFILE=fabric`, origin
+   `https://agritrace.dev`, known-hosts và delivery key đã pin. Bật CD khi sẵn sàng.
+   Khi cần digest/bundle để provision lần đầu, dispatch operation `publish` sau
+   full main CI trong lúc delivery còn tắt; operation này chỉ xuất image/bundle,
+   không kết nối VPS. Sau cài target, bật delivery và dispatch `deploy` cùng SHA.
 
-## Release, rollback và recovery
+## Delivery và smoke trên VPS
 
-`Production CD` nhận push main hoặc dispatch trên main. `deploy` chờ ba CI
-push thành công cho đúng SHA/branch/lần chạy mới nhất, kiểm main HEAD vẫn là
-candidate, build image có revision/origin/environment labels và dùng digest
-bất biến. Server kiểm lại CI, helper checksums, Compose/signing mounts và
-migration catalog trước thao tác. Unknown/destructive migration bị chặn;
-official expansion cần compatibility review và checksum được pin riêng.
+`Production CD` kiểm ba CI push thành công đúng main SHA, HEAD hiện hành, immutable
+API/Web/chaincode images, helper checksums, Compose/mounts/quotas, governance và
+migration catalog. Không thay byte migration đã áp hoặc bỏ parser default-deny.
 
-Controller chụp baseline, dừng writers, snapshot PostgreSQL + ledger + identity
-nhất quán, mã hóa archive, migrate, khởi động rồi xác minh health, roles,
-session refresh/logout, canary thật, outbox/dead-letter, direct ledger/history,
-proof/hash và QR. Download archive off-VPS phải hoàn chỉnh và có checksum;
-failure receipts phải được giữ. Tối đa hai full auth smoke trong 60 giây.
+Lần đầu bắt đầu từ DB trống, ghi floor trước migrate rồi operator tạo account/
+catalog/chain/binding/approvals. Owner MSP chỉ cấp cho operator một lần; API/Worker
+thường trực không nhận owner/CA/orderer keys. Bootstrap có thể đối soát/tiếp tục.
 
-`upgrade` cần expected Fabric sequence và package đã kiểm; không đổi channel
-hoặc khóa để vượt kiểm chứng. `rollback` chỉ tới release đã verified và giữ
-compatible migrations/core rollback floor. Rollback application không tự
-restore dữ liệu/ledger. Khi journal đang mở, dùng `recover`; không xóa journal
-hoặc tạo deployment key mới để bỏ qua trạng thái chưa biết.
+API/Web/Worker khởi động CLOSED; smoke mở ghi trong delivery cho actor kỹ thuật
+scope đúng. Kiểm health/Web/PWA/login/roles/refresh/logout/CORS; care, harvest/Lot/
+QR, ShipmentPlan consent, pickup/arrival có chữ ký Ed25519 hai bên, receive,
+original-key replay, outbox, stored evidence, direct Fabric event/proof/VALID và
+public QR. Private keys/command receipts nằm trong `shared/smoke/<sha>` root-only.
 
-Restore là một thao tác quản trị riêng: giải mã backup ngoài VPS, kiểm mọi
-checksum, rehearsal trên database trống/copy đã sanitize và đối chiếu counts,
-hash/proof, identities rồi mới lập cutover. Không restore đè database production
-đang nhận writes. Local test và runner không dùng production credentials.
+Sau smoke thành công đánh dấu verified/current và mở ghi theo policy. Kiểm runtime
+SHA/images, OOM/restarts, Pending/dead-letter và HTTPS sau deploy. Đây là hậu kiểm
+trong lần triển khai; không có giai đoạn canary hay giám sát định kỳ riêng.
 
-## Tài nguyên và quan sát
+## Recovery, tài nguyên và bàn giao
 
-VPS chỉ chạy production cùng Edge/giám sát cần thiết. Dev app, Fabric, chaincode
-và test job thường trực không được resume. Không dùng `docker system prune`
-để dọn dev; chỉ gỡ tài nguyên có ownership xác minh và snapshot khôi phục.
-Resource caps vẫn được đặt theo ngân sách RAM/CPU, chừa hệ điều hành/Edge và
-worker; việc bỏ dev giải phóng tải thực tế, không có nghĩa container được nhận
-toàn bộ RAM host không giới hạn.
+Lỗi giữ writers đóng/dừng, journal, DB/outbox/ledger và original command keys.
+`recover` lần đầu tiếp tục đúng candidate; không reset DB, giả verified release
+cũ hoặc tự resolve migration chưa hoàn tất. `hybrid-floor.json` chặn image thiếu
+schema/protocol. Rollback ứng dụng chỉ tới image verified tương thích; không
+restore DB riêng sau ledger commit. Hosted chaincode thay đổi cần lifecycle review,
+không gọi `upgrade` để thay B/C vào channel legacy.
 
-Sau mỗi release kiểm image/release SHA, OOM/restarts, health, outbox/dead-letter,
-ledger/channel/history/QR, identity fingerprints và độ trễ. Ghi downtime/gaps,
-không suy healthy trong khoảng thiếu quan sát. Chỉ bắt đầu window mới khi
-release/runtime đổi có chủ ý và ghi nguyên nhân. Legacy dev observation giữ
-nguyên gaps/failures và kết thúc do retire, không được ghi thành nghiệm thu 24h.
+Mọi container có CPU/RAM quota, chừa >=20% RAM host. Mẫu
+[capacity](../deploy/hosted-capacity.example.json) cần kiểm tải/OOM/restarts thực.
+Chỉ một mạng Fabric hoạt động; retired resources không tự resume. Không bỏ quota
+để vượt preflight. Giữ secret/CA/MSP/archive riêng tư.
 
-## Hybrid A/B/C (chuỗi, binding Fabric, chữ ký tổ chức)
+Chủ dự án quản lý VPS và sự cố sau bàn giao. Agent kết thúc khi production mới
+qua smoke, CI/CD thành công và bàn giao SHA/digests, backup/restore, resource
+catalog, credentials riêng tư và lệnh vận hành. Không cài collector mỗi phút,
+systemd timer, quan sát liên tục 24 giờ hoặc trực sự cố sau hoàn thành.
 
-Phạm vi là hosted A/B/C. Chữ ký độc lập chỉ bao phủ bàn giao hai bên; ghi nhận
-chăm sóc/thu hoạch giữ cơ chế xác thực hiện tại. Quyền của đối tác ngoài thật là
-**NotEvaluated**. Channel legacy `agritrace` (sequence 3), lịch sử, identity và
-khóa hiện có được giữ nguyên; B/C chỉ chạy trên một network/channel hosted tách
-biệt (container, volume, MSP/CA riêng). Chi tiết giao thức và vận hành ledger nằm
-ở [runbook Hybrid](hybrid-fabric-runbook.md) và
-[ADR-004](adr-004-hybrid-binding-and-signatures.md).
-
-**Chế độ ghi.** API đọc `HYBRID_WRITES_MODE`: `CLOSED` (mặc định khi
-`NODE_ENV=production` và biến chưa đặt), `CANARY` (chỉ các UUID trong
-`HYBRID_CANARY_ACTOR_IDS`, tối đa 32; vẫn qua đủ kiểm tra phiên/phạm vi) hoặc `OPEN`.
-Đăng nhập, refresh, logout và đọc trạng thái command vẫn hoạt động khi đóng. Lần
-cutover đầu mở ở `CLOSED`/`CANARY`; chỉ `OPEN` sau xác nhận cài đặt riêng
-(`hybrid_open_ack` theo đúng SHA và checksum manifest).
-
-**Điều kiện cài đặt (cấu hình root-owned, bundle release không tự cấp được).**
-Danh mục `migration_reviews` (checksum chính xác + `protocol: hybrid-abc/1`) cho ba
-migration non-additive; `hybrid_release_ack` (SHA, manifest, vân tay legacy, digest
-mapping); cấu hình `hosted` (network/channel khác legacy, container và volume
-độc lập, image pin theo digest, đường dẫn backup identity/config, digest governance
-khớp descriptor đóng gói); mô tả lịch sử legacy do API/Worker đọc (`LEGACY_LEDGER_DESCRIPTOR_*`,
-chỉ-đọc, pin SHA-256 của byte gốc); `FABRIC_BINDINGS_CONFIG_HOST`,
-`HOSTED_WORKER_IDENTITIES_HOST` (chỉ danh tính kỹ thuật của hosted, gắn chỉ-đọc cho
-Worker), `HOSTED_FABRIC_DOCKER_NETWORK`, `LEDGER_WRITER_AUTHORITY`. API không nhận
-signer hay khóa điều khiển. Ví dụ biến ở `.env.deploy.example`; compose bổ sung ở
-`docker-compose.app-hybrid.yml`.
-
-**Dung lượng.** Trước khi dựng hosted, preflight cộng hạn mức bộ nhớ của mọi
-container legacy và hosted, yêu cầu quota CPU/RAM tường minh và chừa tối thiểu 20%
-RAM host. `deploy/hosted-capacity.example.json` chỉ là đề xuất cần diễn tập tải và
-bảo toàn chứng cứ; thiếu bằng chứng thì giữ nguyên, không bỏ quota hay mua thêm.
-
-**Sàn schema và phục hồi.** Sau khi áp migration Hybrid, `hybrid-floor.json` ghi
-checksum đã bảo vệ; image cũ (như `8ae`) không còn chạy được dù danh sách tương
-thích chung có tên migration. Triển khai lỗi giữ writer đóng và journal; dùng image
-tương thích đã xác minh hoặc `forward` (fix-forward có manifest được duyệt, không
-restore PostgreSQL/ledger, không đổi channel/package legacy). Không dùng restore DB
-làm rollback ứng dụng.
-
-**Bằng chứng đã có trước release** (cục bộ, chưa phải acceptance trên runner/prod):
-30/30 kiểm tra ledger, 13 kịch bản API→Worker→Fabric thật (gồm hai Worker chia một
-backlog đúng một lần, lease Worker treo được nhận lại, và tải 10 client/200 sự
-kiện Pending trên hai binding: p95 741 ms, drain 126 s). Cần chạy lại trên CI đúng
-SHA (job `Hybrid A B C real Fabric and browser`) trước khi merge.
-
-**Quan sát sau release.** Panel Ledger và `GET /supply-chains/:id/ledger-status` hiện
-heartbeat Worker, chứng thư sắp/đã hết hạn, tác vụ điều khiển lỗi và tuổi backlog.
-Cửa sổ quan sát ≥24h dùng collector phía server mỗi phút (khoảng trống tối đa 5
-phút): `deploy/cd/observe.py`, chỉ dùng thư viện chuẩn Python. Collector **chưa được cài
-trên VPS**; phải cài và có mẫu đầu tiên trước khi bắt đầu window.
-
-- `observe.py collect --config <file> --ledger <file>` ghi một dòng JSON vào ledger
-  append-only (mode `0600`, từ chối symlink) rồi `fsync`. Probe gồm: SHA release
-  (`release.file`), HTTP (`api/health`, `health/ready` của Worker), container
-  (`docker inspect`: trạng thái, health, OOM, `RestartCount`, `StartedAt`, image id) và
-  lệnh tùy chọn in ra một JSON object (ví dụ đếm outbox/dead-letter bằng role chỉ-đọc,
-  ngưỡng `max`). Chỉ giá trị vô hướng được ghi; không có shell, không đọc secret. Mẫu cấu
-  hình: `deploy/observability/collector.example.json` (tên container/đường dẫn phải đổi
-  theo VPS). Lập lịch bằng `systemd` timer hoặc cron của root, mỗi phút.
-- `observe.py report --ledger <file>` đánh giá cửa sổ đang chạy, tính từ lần đổi
-  release/image gần nhất (đổi có chủ ý = window mới, ghi nguyên nhân ở `previousChanges`).
-  Đạt khi: ≥24h, khoảng trống lớn nhất ≤300s (tính cả khoảng từ mẫu cuối đến lúc báo cáo,
-  nên collector dừng sẽ lộ ra), không mẫu nào có probe lỗi, không restart/OOM ngoài ý
-  muốn trong cùng release, ledger không có dòng hỏng hay lùi thời gian. Thoát mã 0 khi đạt,
-  1 khi chưa đạt (kèm `reasons`), 2 khi lỗi cấu hình/đọc ledger.
-- Các điều kiện P0/P1, lỗi toàn vẹn hoặc phạm vi (scope) cần probe `commands` tương ứng;
-  collector không tự suy ra chúng. Mẫu thiếu được ghi nhận là khoảng trống, không suy
-  diễn là healthy.
+Chữ ký độc lập bắt buộc ở bàn giao khác tổ chức; care/harvest là ghi nhận có xác
+thực nền tảng. Khóa Ed25519 thật nên do tổ chức giữ (Web không trích xuất hoặc
+thiết bị/dịch vụ ký riêng); API chỉ giữ public key/PoP. Kích hoạt ledger cần đủ
+writer/owner MSP. Khóa smoke chứng minh giao thức kỹ thuật; quyền CA/admin/peer/
+signer của đối tác ngoài là **NotEvaluated**. Single VPS/orderer không có HA/SLA.

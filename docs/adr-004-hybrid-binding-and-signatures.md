@@ -1,8 +1,8 @@
 # ADR-004 — Binding Fabric theo chuỗi (B) và chữ ký độc lập (C)
 
-Ngày 13/10/2026. Hoàn tất phần B và C của kế hoạch Hybrid, kế tiếp ADR-002
+Ngày 13/10/2026, bổ sung phạm vi cài mới 14/10. Source B/C kế tiếp ADR-002
 (phạm vi chuỗi) và ADR-003 (route lịch sử). Bằng chứng nghiệm thu ở
-[hybrid-acceptance-2026-10-14.md](hybrid-acceptance-2026-10-14.md); vận hành ở
+[hybrid-acceptance-2026-10-14.md](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/hybrid-acceptance-2026-10-14.md); vận hành ở
 [hybrid-fabric-runbook.md](hybrid-fabric-runbook.md). Mạng pilot là 3 Org cách
 ly trên một máy: quyền của doanh nghiệp đối tác thật vẫn là **NotEvaluated**.
 
@@ -75,7 +75,10 @@ có thể kiểm soát quyền ghi, và (C) bằng chứng rằng chính tổ ch
   và **fail closed** với phiên bản lạ; bằng chứng legacy 64-hex vẫn đúng, chữ ký thật
   không bao giờ đi qua trường vân tay.
 - Migration của A/B/C tạo kiểu, hàm và trigger nên cổng CD tự động chặn và cần quy
-  trình cutover thủ công đã review.
+  trình review checksum trong root config. Bản cài mới thêm migration cleanup
+  append-only, giữ byte A/B/C, từ chối history hiện có; không import history cũ.
+  Merge/deploy đã được chủ dự án giao sau các checks; smoke trên VPS là cổng cuối,
+  không có giai đoạn canary/quan sát liên tục riêng.
 - Pilot chưa chứng minh: doanh nghiệp thật giữ khóa/peer ở host khác, availability
   khi mất orderer, ủy quyền ký qua AgriTrace, timestamp authority độc lập, chữ ký
   cho sự kiện ngoài bàn giao. Các mục này là **Deferred/NotEvaluated**, không ghi
@@ -87,4 +90,6 @@ có thể kiểm soát quyền ghi, và (C) bằng chứng rằng chính tổ ch
   tránh một bước chuyển đổi giữa chừng; chế độ ghim theo chuyến rõ ràng hơn.
 - *Chaincode tự kiểm payload nghiệp vụ*: sẽ đưa dữ liệu riêng tư lên ledger; commitment
   công khai + digest thân riêng tư đạt cùng mục tiêu mà không lộ dữ liệu.
-- *Khóa tổ chức do AgriTrace sinh và giữ*: không còn là xác nhận độc lập.
+- *Khóa tổ chức thật do AgriTrace sinh và giữ*: không là xác nhận độc lập. Khóa
+  kỹ thuật của smoke được giữ riêng trong operator, chỉ chứng minh giao thức và
+  không nâng external partner authority khỏi NotEvaluated.

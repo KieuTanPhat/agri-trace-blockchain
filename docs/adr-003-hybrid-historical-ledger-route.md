@@ -1,7 +1,7 @@
 # ADR-003 — Route lịch sử và ranh giới phát hành A/B
 
 Ngày 13/10/2026. Source route/import đã promote vào
-[migration append-only](../apps/api/prisma/migrations/20261013011000_immutable_ledger_routes/migration.sql),
+[migration append-only](../apps/api/prisma/migrations/20261014000000_hybrid_chain_scope/migration.sql),
 chưa có rehearsal trên catalog chính thức hoặc production acceptance. Mở rộng
 ADR-001 và kế hoạch Hybrid đã review. Production-only là policy hiện hành.
 
@@ -99,7 +99,7 @@ hash/history/QR/journal trước khi resume. Chưa có receipt thì chưa nghi�
 
 ## Source promotion và evidence hiện tại
 
-Migration `20261013011000_immutable_ledger_routes` chứa registry/sidecar immutable,
+Migration `20261014000000_hybrid_chain_scope` chứa registry/sidecar immutable,
 sealed legacy inventory, deferred guard cho event mới, predecessor destination và
 proof destination/hash guards. SQL body khớp candidate sau khi bỏ comments và
 transaction wrappers; checksum approval/rehearsal/rollout vẫn là gate riêng.
@@ -118,7 +118,7 @@ Adapter/synthetic proofs trong suite này không phải Fabric VALID acceptance.
 
 Browser `5bc74773cbadc845ea53485e6f8977a123844baf` đạt bảy nhóm trên Next
 production build, Nest API và DB thật; receipt/cleanup được ghi trong
-[review migration](hybrid-migration-review-2026-10-13.md). Mobile là Chromium với
+[review migration](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/hybrid-migration-review-2026-10-13.md). Mobile là Chromium với
 iPhone 13 viewport/touch emulation, chưa phải Safari/iOS thật. Hai receipts này
 đứng trước source promotion; không chuyển kết quả sang SHA/migration mới.
 
@@ -158,3 +158,10 @@ network, port và WSL keeper cleanup verified. Receipt:
 19 route cases đã đạt cùng các legacy suites; không dùng mock adapter này làm
 Fabric commit acceptance. Controlled import, browser, migration/restore và CI
 exact SHA vẫn phải nghiệm thu riêng trước promotion.
+
+## Phạm vi cài mới 14/10/2026
+
+Thiết kế import/pins lịch sử bên trên phục vụ migration bất biến và bản lưu cũ.
+Production mới không import lịch sử, exemption hoặc đổi trust của proof cũ.
+API không nhận descriptor lịch sử; stream mới phải được sinh trong binding ACTIVE.
+Cleanup không reset hoặc rehash dữ liệu đã tồn tại. Xem [kế hoạch cài mới](plans/fresh-install-cleanup-2026-10-13.md).

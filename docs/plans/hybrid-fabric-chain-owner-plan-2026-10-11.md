@@ -1,10 +1,18 @@
 # Kế hoạch triển khai Hybrid Fabric và doanh nghiệp chủ chuỗi
 
+> Cập nhật phạm vi 14/10/2026: [kế hoạch cài mới](fresh-install-cleanup-2026-10-13.md)
+> và [ADR-004](../adr-004-hybrid-binding-and-signatures.md) quyết định bản phát hành
+> hiện tại. Giữ bảng HYB-AC và business decisions bên dưới; các đề xuất crypto/
+> topology chưa được ADR-004 chọn không được mô tả là đã triển khai. Production
+> cài DB/mạng mới, giữ backup đã restore; không backfill dữ liệu test cũ. Chủ dự án
+> đã cho phép merge/deploy sau kiểm thử, không giới hạn 2 giờ, không canary riêng,
+> collector/24 giờ hoặc Agent trực sau bàn giao. Smoke trên VPS vẫn bắt buộc.
+
 | Trường | Giá trị |
 | --- | --- |
 | Ngày lập | 11/10/2026, giờ Việt Nam |
 | Review | R1 ngày 11/10/2026: sửa 10 khoảng trống/mâu thuẫn trong thiết kế; kiểm thử implementation vẫn là cổng riêng |
-| Trạng thái | Đang triển khai theo từng cổng trên dev; xem implementation record, chưa nghiệm thu toàn bộ A/B/C |
+| Trạng thái | Hosted A/B/C đang qua cổng cài mới production; kết quả từng lần chạy ở PR/Issue hoặc artifact |
 | Yêu cầu | Chủ chuỗi tự thực hiện một số công đoạn và thuê đối tác; doanh nghiệp dùng peer do AgriTrace quản lý hoặc peer tự quản |
 | Baseline | Checkout `fd425e9f0047a70a91d1b5bb21198ebc9363e900`, cùng tài liệu đang được sửa trong working tree |
 | Kiến trúc nền | NestJS modular monolith, PostgreSQL transactional outbox, Worker riêng, Fabric Gateway, Next.js/PWA |
@@ -13,7 +21,7 @@
 ## 1. Mục tiêu, phạm vi và các bản bàn giao
 
 Tiến độ và bằng chứng được ghi tại
-[implementation record](../hybrid-chain-management-implementation.md).
+[implementation record](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/hybrid-chain-management-implementation.md).
 
 AgriTrace cung cấp ứng dụng và dịch vụ Fabric. Mỗi chuỗi có một doanh nghiệp
 điều phối; mỗi doanh nghiệp có thể làm nhiều công đoạn và tham gia nhiều chuỗi.
@@ -459,7 +467,7 @@ là deadline đã được team nhận.
 | G2 | Sau G1; 17–27 ngày, Web chuẩn bị từ G1 | 04–07, 13/14 cho A | Chủ chuỗi/đối tác, migration và QR lịch sử đạt |
 | G3 | Sau A và HYB-08; 18–31 ngày | 09–11, kiểm thử B | Hosted + self-managed thật, rotation/barrier/privacy/governance đạt |
 | G4 | Sau B và crypto vectors; 11–18 ngày | 12 và kiểm thử C | Chữ ký-event binding và handover state machine đạt |
-| G5 | Sau candidate cuối; 2–3 ngày | Handoff/evidence/monitor | Runbook/signoff; đủ cửa sổ theo dõi ít nhất 24 giờ |
+| G5 | Sau candidate cuối | Deploy/smoke/handoff | CI/CD đúng SHA và smoke thực trên VPS; kết thúc sau bàn giao |
 
 Shared Prisma/OpenAPI/actor/proof types có thứ tự merge và người điều phối.
 Một người làm toàn bộ cần lập lại lịch theo effort toàn bộ task; không dùng
@@ -585,10 +593,9 @@ downgrade sang SERVICE hoặc bỏ signature khi signer/peer lỗi.
 4. Apply schema/backfill đã review; kiểm mapping/constraints; deploy API →
    Worker → Web tương thích. Canary A rồi pilot B/C, kiểm scope/route/replay/
    Pending drain/public QR trước mở rộng.
-5. Theo dõi ít nhất 24 giờ sau candidate cuối; không P0/P1, proof sai route hoặc
-   rò scope. Alert theo binding: oldest Pending/dead-letter/stale lease,
-   endorsement/signer error/cert expiry/peer lag. HYB-01/08 chốt workload/ngưỡng/
-   RPO/RTO và đo thực tế; plan chưa tuyên bố SLA.
+5. Chạy smoke sau deploy, đối chiếu scope/route/signatures/outbox/proof/QR,
+   runtime SHA và OOM/restarts. Không có cửa sổ quan sát liên tục hoặc Agent trực
+   vận hành sau bàn giao. Workload/RPO/RTO/SLA chưa được đo không được tuyên bố đạt.
 6. Quyền/route/privacy sai: dừng writes chain liên quan, pause binding, giữ
    evidence/backlog; đối soát journal/resource/ledger rồi sửa. Image rollback
    phải hiểu scope/envelope mới; nếu không dùng bridge/fix forward. Không xóa
@@ -611,7 +618,7 @@ migration draft và fixtures. Tiếp theo tách scope/replay, membership, core
 commands, backfill, Web, Fabric protocol/router, chaincode/hosted, self-managed,
 signer và evidence. PR behavior cập nhật docs và Swagger/generated consumers.
 
-Theo [branch naming](../branch-naming.md), ví dụ `feature/hybrid-chain-scope`,
+Theo quy tắc đặt tên nhánh theo mục đích, ví dụ `feature/hybrid-chain-scope`,
 `feature/hybrid-fabric-routing`, `feature/hybrid-actor-signatures`; thêm AGT ID
 khi có Issue thực. Dùng checkout/worktree phù hợp, giữ dirty changes người dùng
 và không mang file ngoài scope vào PR hoặc reset để tạo baseline.
@@ -637,9 +644,9 @@ chỉ vì plan có tên bảng hoặc thuật ngữ chữ ký.
 
 - [PROJECT_CONTEXT — hiện trạng](../PROJECT_CONTEXT.md).
 - [ADR-001 — API/Worker/outbox](../adr-001-modular-monolith-dedicated-worker.md).
-- [Core implementation/evidence](../core-implementation-2026-10-10.md).
-- [Core completion plan](core-completion-plan-2026-10-10.md).
-- [API/Worker](../../apps/api/README.md), [Blockchain](../../blockchain/README.md).
+- [Core implementation/evidence](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/core-implementation-2026-10-10.md).
+- [Core completion plan](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/plans/core-completion-plan-2026-10-10.md).
+- [API/Worker](../../apps/api/README.md), [Fabric runbook](../hybrid-fabric-runbook.md).
 - [Fabric MSP](https://hyperledger-fabric.readthedocs.io/en/release-2.5/membership/membership.html): danh tính và quyền admin theo org/policy.
 - [Thêm Org vào channel](https://hyperledger-fabric.readthedocs.io/en/release-2.5/channel_update_tutorial.html): cấu hình/chữ ký khi onboarding.
 - [Fabric Gateway](https://hyperledger-fabric.readthedocs.io/en/release-2.5/gateway.html): endorsement/submit/commit integration.

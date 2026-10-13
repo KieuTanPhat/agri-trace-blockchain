@@ -1,13 +1,13 @@
 # Current business rules and acceptance boundaries
 
-Updated 2026-10-13. Use current source, SQL guards and generated Swagger for the
+Updated 2026-10-14. Use current source, SQL guards and generated Swagger for the
 implemented API, and current AGT issues for acceptance. The hosted Hybrid release
 is still undergoing validation; the rules below are requirements to preserve.
 
 - A current authenticated account and session, organization, capability,
   membership, grant and accepted assignment authorize business actions. Check
   under locks and before replay. Read/list/count/proof/allowedCommands use the
-  same scope. Admin backfill requires explicit operator review before writes open.
+  same scope. Production bootstrap is a private operator action, never a business write permission for Admin.
 - Immutable ShipmentPlan revisions require current consent from every relevant
   party; changing a revision or revoking/regranting permission invalidates old
   consent. Finalize and domain changes are atomic.
@@ -41,9 +41,11 @@ is still undergoing validation; the rules below are requirements to preserve.
   event/entity, payload, nonce, expiry and expected versions. Intent is single use.
   DUAL_SIGNED custody changes only after matching offer and confirmation; reject,
   cancel and expiry preserve custody. Same-org confirmation is labelled internal.
-- Historical events keep original hash/txId/channel/proof/QR trust. Missing route
-  sidecars need an independently pinned finite baseline inventory plus immutable
-  exemption. A chain backfill does not establish old organizational signatures.
+- Historical migrations and archived events keep their original bytes/hash/txId/
+  channel/proof/QR trust. Fresh production imports none of this business history.
+  Cleanup refuses existing business data or historical route exemptions; it never
+  rewrites hashes. New streams require an ACTIVE binding at cycle creation and
+  cannot fall back to a technical legacy stream when binding metadata is missing.
 - Public and authenticated readers fail closed for unsupported versions or scope.
   Show recall/expiry/integrity/missing-sensor warnings alongside proof state.
 - API contains no signer private key. Web signer retains a non-extractable device

@@ -66,14 +66,12 @@ không giữ credentials.
 
 ## Hybrid trong CI
 
-Không còn job Hybrid riêng. Các kịch bản Hybrid chạy trong `test:e2e` của API trên
-PostgreSQL 18 của Application CI: guard SQL của binding và bàn giao có chữ ký, API bàn
-giao hai bên, diễn tập migration backfill. Bản chuyển đổi dữ liệu dùng một
-migration duy nhất cho A, nên không còn bước chuẩn bị catalog "trước route seal".
-Kịch bản API → Worker → Fabric thật (`hybrid-fabric.e2e-spec.ts`) cần mạng pilot 3 Org
-và `HYBRID_FABRIC_E2E=1`, nên bị bỏ qua trong CI; bằng chứng chạy thật nằm ở
-[nghiệm thu Hybrid](hybrid-acceptance-2026-10-14.md). Chưa có bộ test trình duyệt tự
-động cho bản Hybrid: giao diện được kiểm bằng test component và kiểm tay.
+Application CI chạy SQL/binding/dual handover, migration lịch sử và cleanup cài
+mới trên PostgreSQL 18. Blockchain CI có job `Hybrid A B C real Fabric and browser`:
+mạng 3 Org cách ly, API → Worker → ledger, fault/load và Chromium desktop/mobile.
+Job đặt `HYBRID_FABRIC_E2E=1` và từ chối required tests bị skip. Fixture/harness
+không cấp quyền Admin/Auditor ghi nghiệp vụ để vượt test. CI xanh đúng SHA là cổng
+source; smoke thực trên VPS vẫn bắt buộc theo [kế hoạch phát hành](plans/hybrid-production-readiness-2026-10-13.md).
 
 ## Production và Fabric smoke
 

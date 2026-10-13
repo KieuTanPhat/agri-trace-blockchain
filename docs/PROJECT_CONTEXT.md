@@ -1,6 +1,6 @@
 # Current project context
 
-Updated 2026-10-13 for the hosted Hybrid release. This file describes source and
+Updated 2026-10-14 for the fresh hosted Hybrid release. This file describes source and
 release limits separately. Swagger generated from NestJS is the API contract;
 current AGT issues and the approved Hybrid plan define acceptance and ownership.
 
@@ -41,10 +41,10 @@ are unchanged. Repairs append migrations rather than changing these inputs.
 
 Source completion is not production acceptance. The current worktree is
 `feature/hybrid-production-readiness`. Remaining release safeguards, tests,
-restore/fix-forward and observation are tracked in
+restore/recovery and VPS smoke are tracked in
 [the current execution plan](plans/hybrid-production-readiness-2026-10-13.md).
-The [Claude acceptance](hybrid-acceptance-2026-10-14.md) is a historical local
-receipt, including unsupported npm11 and skipped checks; it is not the final gate.
+Per-run acceptance belongs in PR/Issue evidence and local artifacts. Earlier
+receipts are historical and cannot close the final candidate gates.
 
 ## Operations
 
@@ -53,8 +53,10 @@ Blockchain and Dependency CI. Dev deployment and nongtrace.site remain retired.
 The previous production receipt reports cleanup release8ae, channel agritrace
 sequence3. Re-read runtime and the migration catalog before rollout.
 
-The new hosted network uses separate channel/MSP/CA/keys/volumes. Never migrate
-legacy history or reuse legacy authority. API receives only metadata; Fabric
+The new hosted network uses separate channel/MSP/CA/keys/volumes and a fresh DB.
+Migration 20261017000000_hybrid_fresh_install appends cleanup, refuses existing
+business history and removes empty historical exemptions. Never migrate legacy
+history or reuse legacy authority. API receives only metadata; Fabric
 signing/control identities belong to the Worker/operator with readonly mounts.
 
 After Hybrid SQL apply, the compatibility floor prevents old app rollback.
@@ -64,5 +66,6 @@ ordinary app rollback. Preserve hashes, keys, failed attempts and backup evidenc
 
 Read [current business rules](core-business-rules.md), [ADR-004](adr-004-hybrid-binding-and-signatures.md),
 [Hybrid runbook](hybrid-fabric-runbook.md) and [production runbook](production-runbook.md).
-Older business-specification-v1.2/main-integration-audit and retired dev/cutover
-documents are dated history, not evidence of the current release.
+The owner authorized merge/deploy after validation. There is no two-hour cap,
+separate production canary or continuous observation/agent on-call obligation.
+The archived Batch specification and retired cutover receipts are dated history.
