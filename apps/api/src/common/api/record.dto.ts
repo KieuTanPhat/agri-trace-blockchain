@@ -578,12 +578,6 @@ export class HarvestSensorWindowRecordDto {
   reconciliationId!: string | null;
 }
 
-export class LateSensorReadingRecordDto {
-  @ApiProperty({ type: String, format: 'uuid' }) readingId!: string;
-  @ApiProperty({ type: String, format: 'uuid' }) closedHarvestId!: string;
-  @ApiProperty({ type: String, format: 'date-time' }) detectedAt!: string;
-}
-
 export class CycleSensorReconciliationRecordDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
   @ApiProperty({ type: String, format: 'uuid' }) cycleId!: string;

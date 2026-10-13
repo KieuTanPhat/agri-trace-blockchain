@@ -191,6 +191,18 @@ export class ProductionCyclesService {
         throw new UnprocessableEntityException(
           'Dữ liệu nông trại/sản phẩm/thửa đất không còn hợp lệ',
         );
+      // A stream keeps its birth binding for life. Hosted-only production must
+      // reject an unbound stream before any domain or trace/outbox write.
+      if (process.env.FABRIC_LEGACY_WRITER === 'false')
+        await tx.$queryRaw`SELECT chain_id FROM chain_ledger_profile WHERE chain_id = ${input.chainId}::uuid FOR SHARE`;
+      const bindingDigest = await activeChainBindingDigest(tx, input.chainId);
+      if (process.env.FABRIC_LEGACY_WRITER === 'false' && !bindingDigest)
+        throw new ConflictException('Chuỗi cần binding Fabric hoạt động trước khi tạo vụ sản xuất');
+      if (process.env.FABRIC_LEGACY_WRITER === 'false' && bindingDigest) {
+        const states = await tx.$queryRaw<Array<{ status: string }>>`SELECT status::text AS status FROM fabric_binding_state WHERE binding_digest = ${bindingDigest} FOR SHARE`;
+        if (states[0]?.status !== 'ACTIVE')
+          throw new ConflictException('Binding Fabric chưa hoạt động');
+      }
       const cycle = await tx.productionCycle.create({
         data: {
           cycleCode: input.cycleCode.trim(),
@@ -215,7 +227,6 @@ export class ProductionCyclesService {
       });
       // Release B: a cycle created while its chain has an ACTIVE binding is a
       // B stream for life (route, commitment and permissions follow the binding).
-      const bindingDigest = await activeChainBindingDigest(tx, input.chainId);
       if (bindingDigest)
         await tx.cycleLedgerContext.create({
           data: { cycleId: cycle.id, chainId: input.chainId, bindingDigest },

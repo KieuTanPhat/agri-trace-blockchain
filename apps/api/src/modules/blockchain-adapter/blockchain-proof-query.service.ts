@@ -28,7 +28,6 @@ export class BlockchainProofQueryService {
         blockchainProof: true,
         blockchainOutbox: true,
         ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
-        ledgerRouteExemption: true,
         bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
       },
     });

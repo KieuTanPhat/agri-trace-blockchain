@@ -4,10 +4,10 @@ import { TraceService } from './trace.service.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import {
   fixtureRoute,
-  fixtureRoutePins,
+  useFixtureRoute,
 } from '../../../test/support/ledger-route-fixture.js';
 
-beforeEach(fixtureRoutePins);
+beforeEach(useFixtureRoute);
 
 describe('TraceService transactional outbox', () => {
   it('creates the trace event and outbox row without creating a pending proof', async () => {

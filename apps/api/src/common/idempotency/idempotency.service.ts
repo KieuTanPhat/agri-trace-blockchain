@@ -17,7 +17,6 @@ import {
   type CommandActor,
 } from './command-authorization.js';
 import { commandContext, commandResponseJson } from './command-transaction.js';
-import { legacyCreationInspection } from './legacy-command-inspection.js';
 
 export interface CommandRequestInspection {
   status:
@@ -98,10 +97,8 @@ export class IdempotencyService {
           throw new ConflictException(
             'Idempotency-Key đã được dùng cho payload khác',
           );
-        const legacy = await legacyCreationInspection(tx, input, record?.commandCommit ?? null);
-        const scope = legacy?.scope ?? await authorizeCommand(tx, input, true);
+        const scope = await authorizeCommand(tx, input, true);
         if (!record) return { status: 'NOT_FOUND' };
-        if (legacy?.reconciliationRequired) return { status: 'RECONCILIATION_REQUIRED' };
         if (record.authorizationScope !== scope) {
           if (!record.commandCommit)
             return { status: 'RECONCILIATION_REQUIRED' };

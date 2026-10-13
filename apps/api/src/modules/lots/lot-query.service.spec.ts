@@ -8,10 +8,10 @@ import type { PublicLot } from './lot-query.types.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import {
   fixtureRoute,
-  fixtureRoutePins,
+  useFixtureRoute,
 } from '../../../test/support/ledger-route-fixture.js';
 
-beforeEach(fixtureRoutePins);
+beforeEach(useFixtureRoute);
 
 function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
   const lotId = randomUUID();

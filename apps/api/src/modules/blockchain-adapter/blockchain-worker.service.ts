@@ -11,7 +11,6 @@ import {
   EVENT_BINDING_CONTEXT_INCLUDE,
   EVENT_LEDGER_ROUTE_INCLUDE,
   verifiedEventRoute,
-  sameLedgerDestination,
   type PinnedRoute,
 } from '../trace/ledger-route.js';
 
@@ -40,7 +39,6 @@ type ClaimedOutbox = Prisma.BlockchainOutboxGetPayload<{
       include: {
         ledgerRoute: typeof EVENT_LEDGER_ROUTE_INCLUDE;
         bindingContext: typeof EVENT_BINDING_CONTEXT_INCLUDE;
-        ledgerRouteExemption: true;
         blockchainProof: true;
       };
     };
@@ -115,14 +113,8 @@ export class BlockchainWorkerService {
             AND bo.lease_expires_at <= now()
           )
         )
-          -- Only events routed to this writer, or sealed pre-route history
-          -- (which was always delivered by the configured legacy writer).
-          AND (
-            er.definition_digest = ${writer.digest}
-            OR (er.event_id IS NULL AND EXISTS (
-              SELECT 1 FROM ledger_route_exemption ex WHERE ex.event_id = te.event_id
-            ))
-          )
+          -- Only events routed to this writer.
+          AND er.definition_digest = ${writer.digest}
           AND (
             te.previous_event_hash IS NULL
             OR EXISTS (
@@ -163,7 +155,6 @@ export class BlockchainWorkerService {
             include: {
               ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
               bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
-              ledgerRouteExemption: true,
               blockchainProof: true,
             },
           },
@@ -177,9 +168,7 @@ export class BlockchainWorkerService {
     const event = job.traceEvent;
     const writer = this.fabric.getWriterRoute();
     const route = verifiedEventRoute(event);
-    const deliverable = event.ledgerRoute
-      ? route?.digest === writer.digest
-      : Boolean(route?.mode === 'HISTORICAL' && sameLedgerDestination(route, writer));
+    const deliverable = route?.digest === writer.digest;
     if (!deliverable) {
       await this.prisma.blockchainOutbox.updateMany({
         where: { id: job.id, status: 'PROCESSING', leaseToken: job.leaseToken },

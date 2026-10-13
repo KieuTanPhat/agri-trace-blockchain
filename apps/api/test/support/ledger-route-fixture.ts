@@ -13,6 +13,6 @@ export const FIXTURE_ROUTE_ENV = {
 export const fixtureRoute = configuredWriteRoute({ ...FIXTURE_ROUTE_ENV });
 
 /** Point the process at the fixture route (API TraceService and Worker). */
-export function fixtureRoutePins() {
+export function useFixtureRoute() {
   Object.assign(process.env, FIXTURE_ROUTE_ENV);
 }

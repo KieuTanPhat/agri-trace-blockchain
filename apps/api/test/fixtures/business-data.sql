@@ -1,5 +1,5 @@
--- Minimal pre-release-A dataset (schema of migration 20261010140000).
--- Used only by the migration rehearsal test on a disposable database.
+-- Minimal business dataset in the schema that precedes the Hybrid baseline (migration 20261010140000).
+-- Used only to prove the baseline refuses a database that already holds business data.
 INSERT INTO app_role (role_id, code, name) VALUES
   ('10000000-0000-4000-8000-000000000001', 'SYSTEM_ADMIN', 'Admin'),
   ('10000000-0000-4000-8000-000000000002', 'FARM_STAFF', 'Farm'),

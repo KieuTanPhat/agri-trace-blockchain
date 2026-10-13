@@ -14,7 +14,6 @@ const SENSOR_WINDOW = {
 
 export const LOT_TRACE_INCLUDE = {
   ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
-  ledgerRouteExemption: true,
   bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
   blockchainProof: true,
   blockchainOutbox: { select: { status: true } },
@@ -117,7 +116,6 @@ export function publicLotInclude(now = new Date()): typeof PUBLIC_LOT_INCLUDE {
 }
 export const PUBLIC_TRACE_INCLUDE = {
   ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
-  ledgerRouteExemption: true,
   bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
   blockchainProof: {
     select: {

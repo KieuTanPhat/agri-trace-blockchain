@@ -742,7 +742,6 @@ model TraceEvent {
   deliveryHolds           DeliveryHold[]
   chainContext            EventChainContext?
   ledgerRoute             EventLedgerRoute?
-  ledgerRouteExemption    LedgerRouteExemption?
   id                      String                @id @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
   entityType              String                @map("entity_type") @db.VarChar(50)
   entityId                String                @map("entity_id") @db.Uuid
@@ -812,7 +811,7 @@ model LedgerRouteDefinition {
   @@map("ledger_route_definition")
 }
 
-/// Immutable sidecar; adding a historical route never changes the event commitment.
+/// Immutable sidecar: the destination is fixed when the event is created and never changes the event commitment.
 model EventLedgerRoute {
   eventId          String                @id @map("event_id") @db.Uuid
   definitionDigest String                @map("definition_digest") @db.VarChar(64)
@@ -822,15 +821,6 @@ model EventLedgerRoute {
 
   @@index([definitionDigest], map: "ix_event_ledger_route_definition")
   @@map("event_ledger_route")
-}
-
-/// Events recorded before release A. They keep their stored proof destination
-/// and are delivered by the legacy writer; the set is sealed by the migration.
-model LedgerRouteExemption {
-  eventId    String     @id @map("event_id") @db.Uuid
-  traceEvent TraceEvent @relation(fields: [eventId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-
-  @@map("ledger_route_exemption")
 }
 
 model BlockchainProof {

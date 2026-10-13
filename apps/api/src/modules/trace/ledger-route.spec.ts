@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fixtureRoute,
-  fixtureRoutePins,
+  useFixtureRoute,
 } from '../../../test/support/ledger-route-fixture.js';
 import { FabricAdapterProvider } from '../blockchain-adapter/fabric-adapter.provider.js';
 import {
@@ -11,7 +11,7 @@ import {
   verifiedEventRoute,
 } from './ledger-route.js';
 
-beforeEach(() => fixtureRoutePins());
+beforeEach(() => useFixtureRoute());
 afterEach(() => vi.unstubAllEnvs());
 
 describe('Immutable logical ledger routes', () => {
@@ -22,7 +22,7 @@ describe('Immutable logical ledger routes', () => {
       definition: fixtureRoute,
     },
   };
-  it('checks historical proofs against their route after current channel configuration changes', () => {
+  it('checks proofs against their own route after current channel configuration changes', () => {
     vi.stubEnv('FABRIC_CHANNEL_NAME', 'another-channel');
     vi.stubEnv('FABRIC_NETWORK_NAME', 'another-network');
     expect(
@@ -52,24 +52,16 @@ describe('Immutable logical ledger routes', () => {
     ).toBeNull();
     expect(verifiedEventRoute({ dataHash: event.dataHash })).toBeNull();
   });
-  it('keeps unattested historical authority nullable and rejects it as a writer', () => {
-    const historical = {
-      ...fixtureRoute,
-      mode: 'HISTORICAL',
-      envelopeVersion: null,
-      writerAuthority: null,
-      writerMspId: null,
-      writerRole: null,
-    };
-    expect(ledgerRouteDigest(historical)).toMatch(/^[a-f0-9]{64}$/);
-    expect(() => ledgerRouteDigest({ ...historical, mode: 'WRITE' })).toThrow(
-      'Incompatible',
-    );
+  it('accepts only a WRITE route with a complete writer authority', () => {
+    expect(ledgerRouteDigest(fixtureRoute)).toMatch(/^[a-f0-9]{64}$/);
     expect(() =>
-      ledgerRouteDigest({ ...historical, writerMspId: 'ForgedMSP' }),
+      ledgerRouteDigest({ ...fixtureRoute, mode: 'HISTORICAL' }),
+    ).toThrow('Unsupported');
+    expect(() =>
+      ledgerRouteDigest({ ...fixtureRoute, writerMspId: null }),
     ).toThrow('authority');
   });
-  it('requires a trusted descriptor and sealed exemption for pre-route history', () => {
+  it('never verifies an event that has no route of its own', () => {
     const legacy = { dataHash: event.dataHash, ledgerRoute: null };
     expect(routeProofMatches(legacy, { dataHash: event.dataHash })).toBe(false);
     expect(routeProofMatches(legacy, { dataHash: 'b'.repeat(64) })).toBe(false);

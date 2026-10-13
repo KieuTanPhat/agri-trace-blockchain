@@ -14,7 +14,7 @@ import { verifyStoredEvidence } from '../modules/trace/event-evidence.js';
 
 const url = process.env.DATABASE_URL;
 if (process.argv.includes('--help')) {
-  console.log('Usage: node dist/operator/verify-evidence.js [--chain <uuid>] (DATABASE_URL; pinned LEGACY_LEDGER_DESCRIPTOR_FILE/SHA256 for historical events)');
+  console.log('Usage: node dist/operator/verify-evidence.js [--chain <uuid>] (reads DATABASE_URL)');
   process.exit(0);
 }
 if (!url) {

@@ -220,20 +220,6 @@ export async function finalizeHarvestSensorWindow(
   });
 }
 
-export async function harvestSensorEvidenceMatches(
-  db: Prisma.TransactionClient,
-  windowId: string,
-): Promise<boolean> {
-  const window = await db.harvestSensorWindow.findUnique({
-    where: { id: windowId },
-    include: {
-      readings: { include: { reading: true } },
-      harvest: { select: { cycleId: true, harvestTime: true } },
-    },
-  });
-  return harvestSensorSnapshotMatches(window);
-}
-
 export type HarvestSensorSnapshot = Prisma.HarvestSensorWindowGetPayload<{
   include: {
     readings: { include: { reading: true } };

@@ -4,7 +4,6 @@ import type {
   Prisma,
 } from '../../generated/prisma/client.js';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
-import { historicalEventRoute } from './legacy-ledger-descriptor.js';
 
 export const ROUTE_PROTOCOL = 'agritrace-ledger-route/1';
 /** Release B routes pin the chain reference and the logical binding digest. */
@@ -27,7 +26,6 @@ export type RoutedEvent = {
   id?: string;
   schemaVersion?: string;
   dataHash: string;
-  ledgerRouteExemption?: null | { eventId: string };
   ledgerRoute?: null | {
     definitionDigest: string;
     definition: PinnedRoute;
@@ -86,7 +84,7 @@ export function ledgerRouteDigest(route: RouteDefinition): string {
   const isBinding = payload.protocol === BINDING_ROUTE_PROTOCOL;
   if (
     (payload.protocol !== ROUTE_PROTOCOL && !isBinding) ||
-    !['WRITE', 'HISTORICAL'].includes(payload.mode)
+    payload.mode !== 'WRITE'
   )
     throw new Error('Unsupported ledger route protocol');
   if (isBinding) {
@@ -156,7 +154,6 @@ export function configuredWriteRoute(
 export function verifiedEventRoute(event: RoutedEvent): PinnedRoute | null {
   try {
     const sidecar = event.ledgerRoute;
-    if (sidecar === null) return historicalEventRoute(event);
     if (!sidecar || sidecar.definitionDigest !== sidecar.definition.digest)
       return null;
     if (ledgerRouteDigest(sidecar.definition) !== sidecar.definition.digest)
@@ -178,8 +175,8 @@ export function sameLedgerDestination(
   );
 }
 
-/** Historical events use their independently pinned baseline descriptor.
- * An unloaded sidecar or exemption never silently downgrades verification. */
+/** A proof is valid only for the destination fixed by the event's own route;
+ * an event without a verified route never matches. */
 export function routeProofMatches(
   event: RoutedEvent,
   proof: { network?: string; channelId?: string; dataHash: string },

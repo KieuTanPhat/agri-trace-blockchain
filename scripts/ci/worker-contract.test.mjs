@@ -14,7 +14,6 @@ test('the production Worker submits an event accepted by the actual chaincode va
     envelopeVersion: '3.0.0', writerAuthority: 'isolated:technical-relayer', writerMspId: 'FixtureMSP', writerRole: 'relayer',
   };
   definition.digest = ledgerRouteDigest(definition);
-  process.env.LEDGER_ROUTE_PINS = JSON.stringify([definition.digest]);
   const event = {
     id: randomUUID(), entityType: 'PRODUCTION_CYCLE', entityId: randomUUID(),
     eventType: 'PRODUCTION_CYCLE_CREATED', eventTime: new Date(),

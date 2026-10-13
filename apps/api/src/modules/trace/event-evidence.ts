@@ -11,7 +11,6 @@ import { privateTraceEvidenceMatches } from './trace-evidence.js';
 /** Everything needed to re-verify an event from the database alone. */
 export const EVENT_EVIDENCE_INCLUDE = {
   ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
-  ledgerRouteExemption: true,
   bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
   blockchainProof: true,
 } as const;

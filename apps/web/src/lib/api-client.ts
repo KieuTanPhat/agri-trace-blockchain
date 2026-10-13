@@ -28,7 +28,6 @@ import {
 import type { components } from "./generated/api";
 import type {
   AllowedCommand,
-  AuthUser,
   CommandInput,
   Dashboard,
   LoginResponse,
@@ -202,10 +201,6 @@ export async function login(
   } finally {
     if (identityMutation === mutation) identityMutation = null;
   }
-}
-
-export async function getProfile(): Promise<AuthUser> {
-  return request("/auth/me");
 }
 
 export async function getDashboard(): Promise<Dashboard> {

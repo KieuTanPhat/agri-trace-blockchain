@@ -38,7 +38,7 @@ function urlFor(name: string) {
         await db.query(
           readFileSync(path.join(migrationsDir, name, 'migration.sql'), 'utf8'),
         );
-      await db.query(readFileSync('test/fixtures/legacy-core.sql', 'utf8'));
+      await db.query(readFileSync('test/fixtures/business-data.sql', 'utf8'));
       hashesBefore = (
         await db.query(
           'SELECT event_id, data_hash, previous_event_hash FROM trace_event ORDER BY event_id',

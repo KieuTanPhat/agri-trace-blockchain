@@ -6,10 +6,10 @@ import { BlockchainWorkerService } from './blockchain-worker.service.js';
 import { calculateTraceEventHash } from '../trace/trace-hash.js';
 import {
   fixtureRoute,
-  fixtureRoutePins,
+  useFixtureRoute,
 } from '../../../test/support/ledger-route-fixture.js';
 
-beforeEach(fixtureRoutePins);
+beforeEach(useFixtureRoute);
 
 describe('BlockchainWorkerService distributed claim', () => {
   it('claims due proofs under a PostgreSQL SKIP LOCKED transaction', async () => {
@@ -51,7 +51,8 @@ describe('BlockchainWorkerService distributed claim', () => {
     expect(sql.strings.join(' ')).toContain(
       'previous_proof.transaction_status',
     );
-    expect(sql.strings.join(' ')).toContain('ledger_route_exemption');
+    expect(sql.strings.join(' ')).toContain('er.definition_digest');
+    expect(sql.strings.join(' ')).not.toContain('ledger_route_exemption');
   });
 
   it('completes the leased outbox row and creates a confirmed proof atomically', async () => {

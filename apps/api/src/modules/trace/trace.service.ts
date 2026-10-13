@@ -130,6 +130,8 @@ export class TraceService {
       : null;
     if (origin && origin.binding.state?.status !== 'ACTIVE')
       throw new ServiceUnavailableException('Binding ledger đang tạm dừng');
+    if (!origin && process.env.FABRIC_LEGACY_WRITER === 'false')
+      throw new ConflictException('Sự kiện cần binding Fabric; route ghi cũ đã bị vô hiệu hóa');
     const route: PinnedRoute = origin
       ? (origin.binding.route as PinnedRoute)
       : await activeWriteRoute(tx);
@@ -364,7 +366,6 @@ export class TraceService {
         blockchainProof: true,
         blockchainOutbox: true,
         ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
-        ledgerRouteExemption: true,
         bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
       },
     });
