@@ -59,6 +59,17 @@ describe("Chain workspace scope isolation", () => {
             ownerOrganizationId: "owner-org",
           },
         ]);
+      if (path.endsWith("/ledger-status"))
+        return Promise.resolve({
+          chainId: path.split("/")[2],
+          profile: "RELEASE_A",
+          bindingStatus: null,
+          channelId: null,
+          permissions: { active: 0, pending: 0, revoking: 0, held: 0 },
+          delivery: { completed: 0, pending: 0, retry: 0, deadLetter: 0, oldestPendingAt: null },
+          openHolds: 0,
+          pendingControlJobs: 0,
+        });
       if (path.endsWith("/business-profile"))
         return Promise.resolve({
           state: "ACTIVE",
@@ -124,6 +135,17 @@ describe("Chain workspace scope isolation", () => {
             version: 0,
           },
         ]);
+      if (path.endsWith("/ledger-status"))
+        return Promise.resolve({
+          chainId: path.split("/")[2],
+          profile: "RELEASE_A",
+          bindingStatus: null,
+          channelId: null,
+          permissions: { active: 0, pending: 0, revoking: 0, held: 0 },
+          delivery: { completed: 0, pending: 0, retry: 0, deadLetter: 0, oldestPendingAt: null },
+          openHolds: 0,
+          pendingControlJobs: 0,
+        });
       if (path.endsWith("/business-profile"))
         return Promise.resolve({
           chainId: path.split("/")[2],
