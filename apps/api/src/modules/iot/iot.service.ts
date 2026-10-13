@@ -47,14 +47,17 @@ export class IotService {
   ) {}
 
   async listDevices(actor: Actor) {
-    // Device metadata belongs to its organization (platform admins manage all
-    // devices). Business linkage is disclosed only through chain scope below.
+    // Unassigned devices are organization assets (platform admins manage all
+    // of them). A device bound to a cycle or Shipment is disclosed only
+    // through that subject's chain scope below.
     const owned: Prisma.IotDeviceWhereInput =
       actor.role === 'SYSTEM_ADMIN'
         ? {}
         : {
             organizationId:
               actor.organizationId ?? '00000000-0000-0000-0000-000000000000',
+            cycleId: null,
+            trackingBindings: { none: { status: 'ACTIVE', unboundAt: null } },
           };
     const devices = await this.prisma.iotDevice.findMany({
       where: {

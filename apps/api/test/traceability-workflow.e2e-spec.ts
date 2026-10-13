@@ -1860,6 +1860,143 @@ const prisma = new PrismaClient({
       }).expect(403);
     });
 
+    it('lets one enterprise with three capabilities run the whole core flow itself (HYB-AC-01)', async () => {
+      const org = await prisma.organization.create({
+        data: { name: `Integrated ${randomUUID()}`, type: 'FARM' },
+      });
+      for (const code of ['TRANSPORTER', 'RETAILER'] as const)
+        await prisma.organizationCapability.create({
+          data: { organizationId: org.id, code },
+        });
+      const role = await prisma.role.findUniqueOrThrow({
+        where: { code: 'FARM_STAFF' },
+      });
+      const user = await prisma.user.create({
+        data: {
+          fullName: 'Integrated operator',
+          email: `integrated-${randomUUID()}@example.test`,
+          roleId: role.id,
+          organizationId: org.id,
+          passwordHash: 'not-a-login-fixture',
+        },
+      });
+      users.integrated = user.id;
+      sessionIds.integrated = randomUUID();
+      await prisma.refreshSession.create({
+        data: {
+          id: sessionIds.integrated,
+          familyId: sessionIds.integrated,
+          userId: user.id,
+          tokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+      const integratedChain = await provisionChain(prisma, {
+        name: 'Integrated chain',
+        ownerOrganizationId: org.id,
+        memberOrganizationIds: [],
+        grants: (
+          [
+            'ORG_ADMIN',
+            'CHAIN_MANAGER',
+            'FARM_STAFF',
+            'TRANSPORTER',
+            'RETAILER',
+          ] as const
+        ).map((r) => ({ userId: user.id, organizationId: org.id, role: r })),
+      });
+      const farm = await prisma.farm.create({
+        data: { organizationId: org.id, name: 'Integrated farm' },
+      });
+      const as = 'integrated';
+      const cycle = (
+        await post(
+          '/production-cycles',
+          {
+            chainId: integratedChain,
+            farmId: farm.id,
+            productId,
+            cycleCode: 'INTEGRATED-' + randomUUID(),
+            maxHarvestQuantity: 2,
+            harvestUnit: 'kg',
+          },
+          as,
+        ).expect(201)
+      ).body.data;
+      await post(
+        `/production-cycles/${cycle.id}/plant`,
+        { version: 0, plantedAt: '2026-09-25T00:00:00.000Z' },
+        as,
+      ).expect(201);
+      const { lot } = (
+        await post(
+          `/production-cycles/${cycle.id}/harvests`,
+          { quantity: 2, unit: 'kg', harvestTime: '2026-09-26T00:00:00.000Z' },
+          as,
+        ).expect(201)
+      ).body.data;
+      const base = `/supply-chains/${integratedChain}/shipment-plans`;
+      const plan = (
+        await post(
+          base,
+          {
+            lotId: lot.id,
+            transporterOrgId: org.id,
+            retailerOrgId: org.id,
+            quantity: '2.000',
+            unit: 'kg',
+            origin: 'Own farm',
+            destination: 'Own shop',
+          },
+          as,
+        ).expect(201)
+      ).body.data;
+      for (const party of ['PRODUCER', 'TRANSPORTER', 'RETAILER'])
+        await post(
+          `${base}/${plan.id}/accept`,
+          {
+            party,
+            revision: plan.currentRevision,
+            payloadDigest: plan.current.payloadDigest,
+          },
+          as,
+        ).expect(201);
+      const { shipmentId } = (
+        await post(
+          `${base}/${plan.id}/finalize`,
+          { version: plan.version },
+          as,
+        ).expect(201)
+      ).body.data;
+      await post(
+        `/shipments/${shipmentId}/start`,
+        { version: 0, lotVersion: 0 },
+        as,
+      ).expect(201);
+      await post(
+        `/shipments/${shipmentId}/arrive`,
+        { version: 1, lotVersion: 1 },
+        as,
+      ).expect(201);
+      await post(
+        `/shipments/${shipmentId}/receive`,
+        { version: 2, lotVersion: 2, receivedQuantity: 2 },
+        as,
+      ).expect(201);
+      const events = await prisma.traceEvent.findMany({
+        where: { lotId: lot.id },
+        select: { actorRole: true, eventType: true },
+        orderBy: { serverRecordedAt: 'asc' },
+      });
+      // The server chose the stage role for each command, not the global role.
+      expect(events.map((e) => e.actorRole)).toEqual(
+        expect.arrayContaining(['FARM_STAFF', 'TRANSPORTER', 'RETAILER']),
+      );
+      expect(
+        await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } }),
+      ).toMatchObject({ currentState: 'RETAIL_RECEIVED' });
+    });
+
     it('validates malformed identifiers and blank master-data names at the HTTP boundary', async () => {
       await get('/inspections?lotId=not-a-uuid').expect(400);
       await get('/certificates?cycleId=not-a-uuid').expect(400);

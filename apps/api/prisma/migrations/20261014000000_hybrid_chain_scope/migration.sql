@@ -460,6 +460,7 @@ BEGIN
     END IF;
     RETURN NEW;
   END IF;
+  IF NEW.chain_id IS NULL THEN RAISE EXCEPTION 'Cycle chain scope is required'; END IF;
   PERFORM fn_hybrid_participant(NEW.chain_id, NEW.farm_org_id, 'FARM');
   RETURN NEW;
 END;

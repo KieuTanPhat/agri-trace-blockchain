@@ -1,5 +1,5 @@
--- Behavioral schema scenarios for a fresh, dedicated PostgreSQL database.
--- Never execute against a shared database. These synthetic fixtures are not UAT.
+-- Behavioral schema scenarios for release A. Run only against a dedicated test
+-- database. Fixtures are synthetic and keyed in the session table scope_fixture.
 CREATE TEMP TABLE scope_assertion (name text PRIMARY KEY);
 CREATE TEMP TABLE scope_fixture (key text PRIMARY KEY, id uuid NOT NULL);
 CREATE FUNCTION pg_temp.fixture(p_key text) RETURNS uuid LANGUAGE sql AS $$
@@ -54,24 +54,14 @@ BEGIN
   INSERT INTO farm(organization_id,name) VALUES (pg_temp.fixture('producer'),'Schema farm') RETURNING farm_id INTO v_farm;
   INSERT INTO product(product_name,default_unit) VALUES ('Schema crop','kg') RETURNING product_id INTO v_product;
   INSERT INTO scope_fixture VALUES ('farm',v_farm),('product',v_product);
-  INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id)
-    VALUES ('legacy-before-cutover',v_product,v_farm,pg_temp.fixture('producer')) RETURNING cycle_id INTO v_cycle;
-  INSERT INTO scope_fixture VALUES ('legacy_cycle',v_cycle);
   PERFORM pg_temp.reject('profile-preparing-denies-cycle',format(
     'INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id,chain_id) VALUES (%L,%L,%L,%L,%L)',
     'blocked',v_product,v_farm,pg_temp.fixture('producer'),pg_temp.fixture('chain_a')),'Hybrid business profile not active');
-  PERFORM pg_temp.reject('active-unmapped-root-blocks-activation',format(
-    'UPDATE chain_business_profile SET state=%L,version=1 WHERE chain_id=%L','ACTIVE',pg_temp.fixture('chain_a')),'Active unresolved legacy root blocks activation');
-  -- Remaining assertions use a closed historical unresolved root. It stays
-  -- readable only before cutover; closing it does not exempt legacy write guards.
-  UPDATE production_cycle SET current_state='CANCELLED',version=version+1 WHERE cycle_id=pg_temp.fixture('legacy_cycle');
   UPDATE chain_business_profile SET state='ACTIVE',version=1
     WHERE chain_id IN(pg_temp.fixture('chain_a'),pg_temp.fixture('chain_b'));
-  PERFORM pg_temp.reject('omitting-chain-cannot-bypass-cutover',format(
+  PERFORM pg_temp.reject('cycle-requires-chain',format(
     'INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id) VALUES (%L,%L,%L,%L)',
-    'legacy-after-cutover',v_product,v_farm,pg_temp.fixture('producer')),'Chain scope required after cutover');
-  PERFORM pg_temp.reject('unresolved-legacy-write-denied',format(
-    'UPDATE production_cycle SET note=%L WHERE cycle_id=%L','bypass',pg_temp.fixture('legacy_cycle')),'Unresolved legacy cycle blocks writes');
+    'unscoped',v_product,v_farm,pg_temp.fixture('producer')),'Cycle chain scope is required');
   INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id,chain_id)
     VALUES ('scoped',v_product,v_farm,pg_temp.fixture('producer'),pg_temp.fixture('chain_a')) RETURNING cycle_id INTO v_cycle;
   INSERT INTO scope_fixture VALUES ('cycle',v_cycle);
@@ -87,10 +77,10 @@ BEGIN
   PERFORM pg_temp.reject('assignment-party-immutable',format(
     'UPDATE stage_assignment SET organization_id=%L,version=1 WHERE assignment_id=%L',pg_temp.fixture('transporter'),v_assignment),'Assignment subject/party immutable');
   PERFORM pg_temp.reject('cycle-scope-immutable',format(
-    'UPDATE production_cycle SET chain_id=%L WHERE cycle_id=%L',pg_temp.fixture('chain_b'),v_cycle),'Cycle scope immutable');
+    'UPDATE production_cycle SET chain_id=%L WHERE cycle_id=%L',pg_temp.fixture('chain_b'),v_cycle),'Cycle chain scope is immutable');
   INSERT INTO harvest_event(cycle_id,harvest_time,quantity,unit) VALUES (v_cycle,now(),10,'kg') RETURNING harvest_id INTO v_harvest;
   INSERT INTO lot(lot_code,harvest_id,product_id,farm_org_id,initial_quantity,available_quantity,unit)
-    VALUES ('scope-lot',v_harvest,v_product,pg_temp.fixture('producer'),10,10,'kg') RETURNING lot_id INTO v_lot;
+    VALUES ('scope-lot-'||gen_random_uuid(),v_harvest,v_product,pg_temp.fixture('producer'),10,10,'kg') RETURNING lot_id INTO v_lot;
   INSERT INTO scope_fixture VALUES ('lot',v_lot);
   PERFORM pg_temp.reject('plan-cross-chain',format('INSERT INTO shipment_plan(chain_id,lot_id) VALUES (%L,%L)',pg_temp.fixture('chain_b'),v_lot),'Plan Lot belongs to another chain');
   INSERT INTO shipment_plan(chain_id,lot_id) VALUES (pg_temp.fixture('chain_a'),v_lot) RETURNING plan_id INTO v_plan;
@@ -194,18 +184,13 @@ DECLARE v_org uuid; v_farm uuid; v_member uuid;
 BEGIN
   INSERT INTO organization(name,type) VALUES ('Late partner','FARM') RETURNING organization_id INTO v_org;
   INSERT INTO chain_membership(chain_id,organization_id) VALUES (pg_temp.fixture('chain_a'),v_org) RETURNING membership_id INTO v_member;
-  PERFORM pg_temp.check('invitation-does-not-cutover-org',NOT EXISTS(SELECT 1 FROM organization_business_scope WHERE organization_id=v_org));
   UPDATE chain_membership SET status='ACTIVE',version=1 WHERE membership_id=v_member;
-  PERFORM pg_temp.check('late-acceptance-records-cutover',EXISTS(SELECT 1 FROM organization_business_scope WHERE organization_id=v_org));
   UPDATE chain_membership SET status='REVOKED',version=2 WHERE membership_id=v_member;
-  PERFORM pg_temp.check('revocation-retains-cutover',EXISTS(SELECT 1 FROM organization_business_scope WHERE organization_id=v_org));
   INSERT INTO farm(organization_id,name) VALUES (v_org,'Late partner farm') RETURNING farm_id INTO v_farm;
-  PERFORM pg_temp.reject('revoked-member-cannot-use-legacy-create',format(
-    'INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id) VALUES (%L,%L,%L,%L)',
-    'legacy-bypass',pg_temp.fixture('product'),v_farm,v_org),'Chain scope required after cutover');
-  PERFORM pg_temp.reject('cutover-marker-immutable',format('DELETE FROM organization_business_scope WHERE organization_id=%L',v_org),'immutable');
+  PERFORM pg_temp.reject('revoked-member-cannot-create-cycle',format(
+    'INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id,chain_id) VALUES (%L,%L,%L,%L,%L)',
+    'revoked',pg_temp.fixture('product'),v_farm,v_org,pg_temp.fixture('chain_a')),'Hybrid membership inactive');
   UPDATE chain_business_profile SET state='SUSPENDED',version=2 WHERE chain_id=pg_temp.fixture('chain_a');
-  PERFORM pg_temp.check('profile-suspension-retains-cutover',EXISTS(SELECT 1 FROM organization_business_scope WHERE organization_id=v_org));
   PERFORM pg_temp.reject('suspended-profile-denies-scoped-cycle',format(
     'INSERT INTO production_cycle(cycle_code,product_id,farm_id,farm_org_id,chain_id) VALUES (%L,%L,%L,%L,%L)',
     'suspended',pg_temp.fixture('product'),pg_temp.fixture('farm'),pg_temp.fixture('producer'),pg_temp.fixture('chain_a')),'Hybrid business profile not active');
