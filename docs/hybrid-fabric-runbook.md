@@ -1,4 +1,4 @@
-# Runbook Hybrid Fabric (bản B) — mạng pilot 3 Org local
+# Runbook Hybrid Fabric (bản B và C) — mạng pilot 3 Org local
 
 Tài liệu vận hành cho nền tảng **bản B**: mỗi chuỗi cung ứng có thể gắn với một
 *binding* Fabric riêng (channel, chaincode, writer authority, governance).
@@ -161,11 +161,11 @@ EMERGENCY_HOLD → PENDING_EMERGENCY_REVOKE → REVOKED_REVIEW_REQUIRED
 npm test --workspace blockchain/chaincode
 npm test --workspace blockchain/gateway
 
-# Nghiệm thu mức ledger trên Fabric thật (21 kiểm tra)
+# Nghiệm thu mức ledger trên Fabric thật (30 kiểm tra, gồm 9 kiểm tra chữ ký bản C)
 FABRIC_ROOT='\\wsl.localhost\Ubuntu\home\<user>\agritrace-fabric' \
   npx tsx blockchain/network/hybrid/acceptance/ledger-acceptance.mts
 
-# API → Worker → Fabric thật (9 kịch bản)
+# API → Worker → Fabric thật (11 kịch bản, gồm 2 kịch bản bản C)
 cd apps/api
 HYBRID_FABRIC_E2E=1 TEST_DATABASE_URL=<db test đã migrate> \
   npx vitest run --config vitest.config.e2e.ts test/hybrid-fabric.e2e-spec.ts
@@ -173,15 +173,147 @@ HYBRID_FABRIC_E2E=1 TEST_DATABASE_URL=<db test đã migrate> \
 
 Các kịch bản E2E thật: luồng đầy đủ, revoke/regrant, cô lập outage giữa hai
 binding, mất response + đối soát, fence, emergency hold. Test SQL guard chạy
-với DB thường (`hybrid-binding-db.e2e-spec.ts`).
+với DB thường (`hybrid-binding-db.e2e-spec.ts`) và bàn giao có chữ ký (`hybrid-handover.e2e-spec.ts`).
 
-## 8. Giới hạn đã biết
+## 8. Bản C — chữ ký độc lập và bàn giao hai bên
+
+Bản C thêm **chữ ký của tổ chức** (khóa Ed25519 do tổ chức giữ) cho các bước
+chuyển quyền giữ hàng. Chữ ký này tách khỏi chữ ký giao dịch của relayer và
+endorsement của peer: nó chứng minh *ý định* của tổ chức, không chứng minh
+chất lượng hàng.
+
+### 8.1. Khóa ký
+
+| Bước | Ai làm | Cách làm |
+| --- | --- | --- |
+| Tạo khóa | Tổ chức (ORG_ADMIN) | Web: panel "Khóa ký của tổ chức" tạo khóa **không trích xuất** trong trình duyệt; hoặc `scripts/org-signer.ts keygen` cho dịch vụ ký ngoài |
+| Đăng ký | ORG_ADMIN | `POST /api/supply-chains/:chainId/signing-keys` với `keyRef`, khóa công khai và **bằng chứng sở hữu** (khóa ký lên binding + keyRef + org). Khóa ở trạng thái `PENDING_LEDGER`, chưa dùng được |
+| Kích hoạt trên ledger | Vận hành viên | `ledger-operator.ts register-signing-key --key <keyRef> --config operator.json`: đề xuất, **admin của writer MSP và owner MSP cùng duyệt**, thực thi, đọc lại ledger rồi mới đặt `ACTIVE` trong DB |
+| Thu hồi | ORG_ADMIN | `POST .../signing-keys/:keyRef/revoke`. DB thu hồi **ngay** (không chuẩn bị/ký thêm được); Worker tạo job `SIGNING_KEY_REVOKE` để rút khỏi registry ledger |
+| Xoay khóa | ORG_ADMIN | Đăng ký khóa mới (`keyRef` mới) rồi thu hồi khóa cũ. Khóa đã thu hồi không bao giờ kích hoạt lại |
+
+Khóa riêng không bao giờ vào DB, API hay Worker. Nếu tổ chức có nhiều khóa
+hoạt động, request chuẩn bị ký phải chọn `keyRef`.
+
+### 8.2. Bật chế độ bàn giao có chữ ký
+
+```bash
+cd apps/api
+npx tsx scripts/ledger-operator.ts set-handover-mode --chain <uuid> --mode DUAL_SIGNED
+```
+
+- Chỉ đổi được khi chuỗi có binding hoạt động, có ít nhất một khóa `ACTIVE`, và
+  **không có đề nghị bàn giao đang mở** (DB từ chối trong các trường hợp khác).
+- Chế độ **ghim theo chuyến hàng lúc tạo**, chỉ cho vụ trồng đã sinh trên binding
+  hiện hoạt. Chuyến cũ vẫn dùng `start`/`arrive`; chuyến `DUAL_SIGNED` bị DB
+  chặn mọi cách đổi trạng thái giao nhận nếu thiếu bàn giao đã xác nhận.
+
+### 8.3. Luồng bàn giao
+
+```
+bên giao: chuẩn bị đề nghị → xem lại → ký (khóa tổ chức) → gửi        => OFFERED
+bên nhận: chuẩn bị xác nhận → xem lại → ký (khóa tổ chức) → gửi       => CONFIRMED
+          (cùng giao dịch: shipment/lot đổi trạng thái, START hoặc ARRIVE)
+```
+
+| Bàn giao | Bên giao | Bên nhận | Khi xác nhận |
+| --- | --- | --- | --- |
+| `PICKUP` | Nông trại (chuyến `CREATED`) | Vận chuyển | `SHIPMENT_STARTED`, lô `IN_TRANSPORT` |
+| `ARRIVAL` | Vận chuyển (chuyến `IN_TRANSIT`) | Bán lẻ | `SHIPMENT_ARRIVED`, lô `ARRIVED` |
+
+Quy tắc:
+
+- Chữ ký ràng vào **số lượng, phiên bản shipment/lot** và nội dung đề nghị. Nếu
+  chuyến hoặc lô đổi sau khi đề nghị (hư hỏng, thu hồi…), xác nhận bị từ chối
+  và phải hủy rồi tạo đề nghị mới.
+- Từ chối (bên nhận), hủy (bên giao) và hết hạn **không đổi quyền giữ hàng**.
+  Hết hạn chỉ ghi trạng thái `EXPIRED` (không có sự kiện ledger vì không ai hành động).
+- `receive` vẫn là bước nghiệm thu lượng/chất lượng **sau** khi bên bán lẻ giữ hàng.
+- Bàn giao cùng tổ chức mang nhãn `INTERNAL_SAME_ORG`; ủy quyền ký qua dịch vụ
+  của AgriTrace **chưa hỗ trợ** (Deferred).
+- Yêu cầu ký (`signing intent`) hết hạn mặc định sau 15 phút, dùng một lần,
+  chỉ người đã chuẩn bị mới nộp được.
+
+### 8.4. Bên ký
+
+- **Web**: `SigningKeysPanel` và `HandoverPanel`. Trước khi ký, thiết bị **tự
+  tính lại** payload/intent/thông điệp ký từ nội dung hiển thị và từ chối nếu
+  máy chủ gửi nội dung khác (`apps/web/src/lib/signing`). Cần trình duyệt có
+  WebCrypto Ed25519 (Chrome/Edge mới, Firefox 129+, Safari 17+).
+- **Dịch vụ ký ngoài** (mẫu): `apps/api/scripts/org-signer.ts`
+
+```bash
+npx tsx scripts/org-signer.ts keygen --out org-key.pem
+npx tsx scripts/org-signer.ts register --key org-key.pem --binding <digest> --org <orgId> --label "Dịch vụ ký"
+npx tsx scripts/org-signer.ts sign --key org-key.pem --intent intent.json   # in ra {"signature": "..."}
+```
+
+`sign` cũng tính lại mọi digest và từ chối nếu không khớp hoặc đã hết hạn.
+
+### 8.5. Giao thức (tham chiếu nhanh)
+
+- Envelope `5.0.0`, hash riêng tư `4.0.0`; commitment
+  `SHA256("agritrace:binding-event:c1" 0x00 JCS(thân công khai + chữ ký))`.
+- Thông điệp khóa ký:
+  `"agritrace:intent-signature:c1" 0x00 JCS({intentDigest, chainRef, eventId, entityType, entityId, eventType, bindingDigest, keyRef})`
+  nên chữ ký không thể chuyển sang sự kiện, thực thể, chuỗi, binding hay khóa khác.
+- Chaincode kiểm: khóa `ACTIVE` trong registry, chữ ký Ed25519, assertion khớp
+  commitment, intent chỉ dùng một lần, hash chain, quyền, fence. Sự kiện
+  `HANDOVER_OFFERED/CONFIRMED` **không thể** ghi bằng đường không chữ ký.
+- Chaincode không dùng đồng hồ: `eventTime` do actor khai **không** chứng minh
+  chữ ký có trước khi thu hồi. Sự kiện đã ký nhưng chuyển sau khi khóa bị thu
+  hồi bị ledger từ chối (`SIGNING_KEY_INACTIVE`) và thành dead letter cần rà soát;
+  bàn giao trong DB vẫn ở trạng thái đã xác nhận nhưng sự kiện **không** được báo
+  là đã xác minh.
+
+## 9. Sao lưu, khôi phục và diễn tập
+
+```bash
+# Ledger pilot (dừng ngắn peer/orderer để chép nhất quán; archive chứa khóa CA, giữ riêng tư)
+bash blockchain/network/hybrid/hybrid-network.sh backup ~/agritrace-backup
+# Khôi phục (hoặc chuyển sang host khác với cùng MSP/TLS) một peer, rồi chờ bắt kịp
+bash blockchain/network/hybrid/hybrid-network.sh restore-peer org2 ~/agritrace-backup
+
+# CSDL: sao lưu, khôi phục vào DB riêng, kiểm toàn bộ bằng chứng từ DB đã khôi phục
+pg_dump --format=custom --file restore.dump "$DATABASE_URL"
+createdb restore_check && pg_restore --no-owner --dbname restore_check restore.dump
+cd apps/api && DATABASE_URL=<restore_check> npx tsx scripts/verify-evidence.ts   # thoát 1 nếu có sự kiện hỏng
+```
+
+`verify-evidence.ts` kiểm route đã ghim, proof lưu, hash riêng tư theo phiên bản
+(A/B/C, gồm chữ ký tổ chức) và bằng chứng cảm biến — chỉ đọc DB. Material của
+Org3 (tự quản) do chủ của nó sao lưu; archive của AgriTrace không bao giờ có nó.
+
+Đã diễn tập ngày 13/10/2026: khôi phục peer Org2 từ bản sao ở khối 632 trong khi
+ledger đã tới 725, peer bắt kịp 725 và nghiệm thu ledger 30/30 sau đó (owner
+endorse đúng); khôi phục DB sang DB riêng cho cùng số bản ghi (31 sự kiện, 30
+proof, 5 chữ ký, 3 bàn giao, 17 migration) và `verify-evidence` 31/31.
+
+## 10. Lưu ý vận hành
+
+- **Múi giờ PostgreSQL**: driver ghi timestamp không kèm offset, nên session
+  PostgreSQL nên là `UTC` (mặc định của image Docker). Các ràng buộc mới
+  **không** so sánh timestamp ứng dụng với `now()` của DB; hết hạn do API kiểm bằng
+  đồng hồ của nó. Máy dev Windows múi giờ khác UTC vẫn chạy được nhưng truy vấn
+  SQL tay với `now()` sẽ lệch.
+- **Migration không "chỉ thêm"**: ba migration (`20261014…`, `20261015…`, `20261016…`)
+  tạo kiểu, hàm và trigger nên cổng CD tự động (`deploy/cd/policy.py`) sẽ chặn với
+  thông báo cần review tương thích. Triển khai production phải theo quy trình
+  review/cutover thủ công; không nới lỏng cổng.
+- Job điều khiển ledger chỉ được Worker nhận nếu Worker có identity
+  controller và admin cho binding đó, để binding cấu hình thiếu không làm đói binding khác.
+
+## 11. Giới hạn đã biết
 
 - Org tự quản chạy cùng máy chỉ chứng minh **cách ly logic**; peer ở host khác
-  và doanh nghiệp giữ khóa thật là **NotEvaluated**.
+  và doanh nghiệp giữ khóa thật là **NotEvaluated**. Khóa ký trong pilot do test
+  sinh trên cùng máy, chưa phải khóa của doanh nghiệp thật.
 - AgriTrace vẫn vận hành ordering service (một orderer Raft) trong pilot; chưa
   kiểm availability khi mất orderer.
 - Binding không có `channelPolicy` giữ hành vi channel kiểu legacy (ghi nhận
   là lệch có chủ đích khỏi mô hình strict; channel strict chặn writer V3).
-- Chưa diễn tập backup/restore peer và chuyển peer sang host khác (xem tiến độ
-  trong `docs/plans/hybrid-delivery-plan-2026-10-14.md`).
+- Chưa có: ủy quyền ký qua dịch vụ AgriTrace, bằng chứng thời điểm ký độc lập
+  (timestamp authority), chữ ký cho các sự kiện ngoài bàn giao (care, thu hoạch…),
+  cảnh báo/health tự động cho dead letter (hiện chỉ hiện ở panel Ledger và CLI `status`).
+- Hết hạn đề nghị chỉ được đánh dấu khi có truy cập liên quan (xem, chuẩn bị,
+  nộp); chưa có tác vụ quét định kỳ trong Worker.

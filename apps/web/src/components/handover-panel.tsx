@@ -89,7 +89,9 @@ export function HandoverPanel({
       setReview({ prepared, title });
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Không chuẩn bị được yêu cầu ký.",
+        cause instanceof Error
+          ? cause.message
+          : "Không chuẩn bị được yêu cầu ký.",
       );
     } finally {
       setBusy(false);
@@ -188,6 +190,7 @@ export function HandoverPanel({
                     {" "}
                     <button
                       type="button"
+                      className="button"
                       disabled={busy}
                       onClick={() =>
                         prepare(
@@ -201,7 +204,7 @@ export function HandoverPanel({
                     </button>{" "}
                     <button
                       type="button"
-                      className="secondary"
+                      className="button secondary"
                       disabled={busy}
                       onClick={() => resolve(item.id, "reject")}
                     >
@@ -214,7 +217,7 @@ export function HandoverPanel({
                     {" "}
                     <button
                       type="button"
-                      className="secondary"
+                      className="button secondary"
                       disabled={busy}
                       onClick={() => resolve(item.id, "cancel")}
                     >
@@ -231,6 +234,7 @@ export function HandoverPanel({
       {offerKind && !review && (
         <form
           aria-label="Đề nghị bàn giao"
+          className="form-grid"
           onSubmit={(event) => {
             event.preventDefault();
             void prepare(
@@ -240,17 +244,20 @@ export function HandoverPanel({
             );
           }}
         >
-          <label>
-            Ghi chú (không bắt buộc)
+          <label className="field">
+            <span>Ghi chú (không bắt buộc)</span>
             <input
+              className="input"
               value={note}
               onChange={(event) => setNote(event.target.value)}
               maxLength={500}
             />
           </label>
-          <button type="submit" disabled={busy}>
-            Đề nghị bàn giao: {kindLabels[offerKind].toLowerCase()}
-          </button>
+          <div className="actions">
+            <button type="submit" className="button" disabled={busy}>
+              Đề nghị bàn giao: {kindLabels[offerKind].toLowerCase()}
+            </button>
+          </div>
         </form>
       )}
       {review && (
@@ -281,14 +288,27 @@ export function HandoverPanel({
               </>
             )}
             <dt>Hết hạn yêu cầu ký</dt>
-            <dd>{new Date(review.prepared.expiresAt).toLocaleString("vi-VN")}</dd>
+            <dd>
+              {new Date(review.prepared.expiresAt).toLocaleString("vi-VN")}
+            </dd>
           </dl>
-          <button type="button" disabled={busy} onClick={signAndSubmit}>
-            Ký và gửi
-          </button>{" "}
-          <button type="button" onClick={() => setReview(null)}>
-            Không ký
-          </button>
+          <div className="actions">
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={signAndSubmit}
+            >
+              Ký và gửi
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => setReview(null)}
+            >
+              Không ký
+            </button>
+          </div>
         </section>
       )}
       {error && (

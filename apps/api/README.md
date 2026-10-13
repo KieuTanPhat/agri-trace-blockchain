@@ -104,58 +104,30 @@ Các endpoint hiện có:
   Không trim/cắt mật khẩu và không thay hash của tài khoản đã tồn tại.
 - `POST /api/auth/register` đang chủ động trả `501`; tài khoản phải do quản trị viên cấp
 
-## Hybrid scope và route import
+## Hybrid A/B/C
 
-Source Hybrid A dùng hai migration append-only:
-[business/legacy scope](prisma/migrations/20261013010000_hybrid_business_scope/migration.sql)
-và [immutable ledger routes](prisma/migrations/20261013011000_immutable_ledger_routes/migration.sql).
-Hai migration mới chưa được phép triển khai production. Xem
-[review/checksum/gates](../../docs/hybrid-migration-review-2026-10-13.md) và
-[migration/release plan](../../docs/plans/hybrid-migration-and-release-2026-10-13.md).
-Không chạy `db:migrate` của nhánh feature lên DB dùng chung khi gates còn thiếu.
+Ba migration append-only: `20261014000000_hybrid_chain_scope` (A: phân quyền theo
+chuỗi, backfill một chuỗi legacy cho mỗi org sản xuất, route lịch sử bất biến),
+`20261015000000_hybrid_fabric_binding` (B: binding Fabric, quyền ledger, delivery) và
+`20261016000000_hybrid_signed_handover` (C: khóa ký tổ chức, bàn giao hai bên). Chúng
+tạo kiểu, hàm và trigger nên cổng CD tự động chặn; production chỉ chạy theo quy trình
+review/cutover thủ công. Xem [ADR-004](../../docs/adr-004-hybrid-binding-and-signatures.md),
+[runbook vận hành](../../docs/hybrid-fabric-runbook.md) và
+[bằng chứng nghiệm thu](../../docs/hybrid-acceptance-2026-10-14.md).
 
-Harness chuẩn bị DB cách ly, chạy từ root sau khi source đã commit:
-
-```bash
-node scripts/ci/hybrid-db-prepare.mjs legacy
-node scripts/ci/hybrid-policy-run.mjs
-```
-
-Preparer cần `NODE_ENV=test`, `HYBRID_DRAFT_TESTS=1`, `HYBRID_CI_TESTS=1`,
-`FABRIC_ENABLED=false`, `HYBRID_CI_SHA` đúng `git rev-parse HEAD`, và
-`DATABASE_URL` bằng `TEST_DATABASE_URL`. Mode `legacy` chỉ nhận DB test loopback
-`127.0.0.1:25488/scope_test`; `HYBRID_CI_CONTROL` phải là thư mục output tuyệt đối
-chưa tồn tại bên dưới `.codex/evidence`, với parent đã có sẵn. Không đưa URL hoặc
-credentials vào command line/log. Preparer áp catalog đến trước route migration,
-ghi 28 synthetic events rồi áp migration cuối để kiểm sealed legacy inventory.
-Trước policy runner, đặt `HYBRID_CI_PREPARATION` trỏ tới `preparation.json` đã
-sinh và đổi `HYBRID_CI_CONTROL` sang output path mới. Runner kiểm alignment/
-[31 SQL scenarios](../../docs/sql/hybrid-business-scope.test.sql), rồi gọi
-`node --import tsx scripts/ci/hybrid-orm-check.mjs`, policy/HTTP và legacy E2E.
-Không gọi ORM checker ngay sau preparer vì nó cần baseline từ SQL scenarios.
-
-Mode `browser` dùng DB riêng `127.0.0.1:25489/browser_test`, áp toàn bộ catalog
-rồi đăng ký route tổng hợp và xuất pins metadata. Nó không tạo legacy fixture.
-Sau khi build API và Web thật với `NEXT_PUBLIC_API_SAME_ORIGIN=true`,
-`NEXT_PUBLIC_MOCK_API=false`, chạy `npm run test:hybrid:browser` tại root. Browser
-runner còn yêu cầu `HYBRID_BROWSER_TESTS=1`, `HYBRID_BROWSER_SHA` đúng HEAD và
-`HYBRID_BROWSER_CONTROL` là output path tuyệt đối mới. Receipt giữ SHA, actual
-counts, checksums, synthetic flag và cleanup; không thay Fabric acceptance.
-
-Route operator dùng API đã build, không có HTTP endpoint quản trị import:
+Công cụ vận hành (không có endpoint HTTP quản trị; API không giữ khóa Fabric hay khóa ký):
 
 ```bash
-node apps/api/scripts/ledger-route-operator.mjs inventory /absolute/input.json /absolute/inventory.json
-node apps/api/scripts/ledger-route-operator.mjs register /absolute/definition.json
-node apps/api/scripts/ledger-route-operator.mjs apply /absolute/import.json
+npx tsx scripts/ledger-operator.ts <register-binding|onboard|register-signing-key|set-handover-mode|activate|pause|resume|resolve-hold|status>
+npx tsx scripts/org-signer.ts <keygen|register|sign>      # mẫu bên ký ngoài của tổ chức
+DATABASE_URL=<bản sao> npx tsx scripts/verify-evidence.ts # kiểm lại bằng chứng sau khôi phục
 ```
 
-Đây là lệnh vận hành cần artifact/pins được review và writer pause theo plan;
-không chạy chúng trên production từ ví dụ. Operator cần explicit environment và
-release SHA; apply không tự chọn active route thay evidence lịch sử. Unknown hoặc
-expired PROCESSING giữ hold, không đổi lease/key hoặc execute lại. Definition,
-import artifact và paused-writer evidence có pins độc lập với DB. API không nhận
-signer; Worker mới được cấp credential của logical authority đã review.
+Test: `test/hybrid-binding-db.e2e-spec.ts` (guard SQL của B), `test/hybrid-handover.e2e-spec.ts`
+(API + SQL guard của bàn giao có chữ ký), `test/hybrid-migration.e2e-spec.ts` (diễn tập
+backfill) chạy trong `test:e2e` với PostgreSQL thường. `test/hybrid-fabric.e2e-spec.ts`
+chạy API → Worker → Fabric thật và **chỉ chạy khi** `HYBRID_FABRIC_E2E=1` cùng mạng pilot
+(`blockchain/network/hybrid`), nên CI bỏ qua nó. PostgreSQL nên dùng múi giờ UTC.
 
 ## Kiểm tra
 

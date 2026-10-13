@@ -107,11 +107,14 @@ export function SigningKeysPanel({
     setBusy(true);
     setError("");
     try {
-      await request(`/supply-chains/${chainId}/signing-keys/${revoking}/revoke`, {
-        method: "POST",
-        headers: { "idempotency-key": crypto.randomUUID() },
-        body: JSON.stringify({ reason: reason.trim() }),
-      });
+      await request(
+        `/supply-chains/${chainId}/signing-keys/${revoking}/revoke`,
+        {
+          method: "POST",
+          headers: { "idempotency-key": crypto.randomUUID() },
+          body: JSON.stringify({ reason: reason.trim() }),
+        },
+      );
       setRevoking("");
       setReason("");
       refresh();
@@ -136,7 +139,8 @@ export function SigningKeysPanel({
       <h2>Khóa ký của tổ chức</h2>
       <p className="muted">
         Khóa riêng nằm trên thiết bị của bạn và không bao giờ được gửi lên máy
-        chủ. Chế độ bàn giao: {context.handoverMode === "DUAL_SIGNED"
+        chủ. Chế độ bàn giao:{" "}
+        {context.handoverMode === "DUAL_SIGNED"
           ? "hai bên có chữ ký"
           : "tiêu chuẩn"}
         .
@@ -155,7 +159,7 @@ export function SigningKeysPanel({
                 {" "}
                 <button
                   type="button"
-                  className="secondary"
+                  className="button secondary"
                   onClick={() => setRevoking(key.keyRef)}
                 >
                   Thu hồi
@@ -166,10 +170,11 @@ export function SigningKeysPanel({
         ))}
       </ul>
       {revoking && (
-        <form onSubmit={revoke} aria-label="Thu hồi khóa">
-          <label>
-            Lý do thu hồi
+        <form onSubmit={revoke} aria-label="Thu hồi khóa" className="form-grid">
+          <label className="field">
+            <span>Lý do thu hồi</span>
             <input
+              className="input"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               minLength={3}
@@ -177,28 +182,37 @@ export function SigningKeysPanel({
               required
             />
           </label>
-          <button type="submit" disabled={busy}>
-            Xác nhận thu hồi
-          </button>{" "}
-          <button type="button" onClick={() => setRevoking("")}>
-            Hủy
-          </button>
+          <div className="actions">
+            <button type="submit" className="button danger" disabled={busy}>
+              Xác nhận thu hồi
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => setRevoking("")}
+            >
+              Hủy
+            </button>
+          </div>
         </form>
       )}
       {orgAdmin && context.bindingDigest && supported === true && (
-        <form onSubmit={enroll} aria-label="Tạo khóa ký">
-          <label>
-            Tên khóa
+        <form onSubmit={enroll} aria-label="Tạo khóa ký" className="form-grid">
+          <label className="field">
+            <span>Tên khóa</span>
             <input
+              className="input"
               value={label}
               onChange={(event) => setLabel(event.target.value)}
               maxLength={100}
               required
             />
           </label>
-          <button type="submit" disabled={busy}>
-            Tạo khóa ký trên thiết bị này
-          </button>
+          <div className="actions">
+            <button type="submit" className="button" disabled={busy}>
+              Tạo khóa ký trên thiết bị này
+            </button>
+          </div>
         </form>
       )}
       {orgAdmin && context.bindingDigest && supported === false && (
@@ -212,7 +226,11 @@ export function SigningKeysPanel({
           Chuỗi chưa có kết nối ledger riêng nên chưa dùng chữ ký tổ chức.
         </p>
       )}
-      {notice && <p role="status">{notice}</p>}
+      {notice && (
+        <p className="notice" role="status">
+          {notice}
+        </p>
+      )}
       {error && (
         <p className="notice error" role="alert">
           {error}

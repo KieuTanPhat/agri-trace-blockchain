@@ -12,14 +12,17 @@ Production hiện dùng cleanup release `8ae13542`, theo
 
 ## Cấu trúc
 
-Đang triển khai nền quản lý chủ chuỗi/đối tác trong worktree Hybrid;
-[phạm vi và kiểm chứng](docs/hybrid-chain-management-implementation.md).
-Evidence pilot Fabric dev trước khi retire nằm trong
-[báo cáo lịch sử](docs/fabric-dev-pilot-2026-10-11.md).
-Candidate controlled legacy apply, consent và journal bridge được mô tả tại
-[implementation legacy scope](docs/hybrid-legacy-scope-implementation-2026-10-12.md);
-[quyết định tiếp tục A → B → C](docs/plans/hybrid-recovery-and-completion-plan-2026-10-12.md)
-ghi phương án sửa có cấu trúc, review test và các gate còn thiếu.
+Hybrid Fabric (chuỗi cung ứng có chủ chuỗi/đối tác) đã triển khai đủ ba bản
+trong nhánh `feature/hybrid-fabric-delivery`: **A** phân quyền theo chuỗi, **B**
+binding Fabric riêng theo chuỗi với quyền ghi đồng bộ ledger, **C** chữ ký độc lập
+của tổ chức và bàn giao hai bên. Đọc theo thứ tự:
+[kế hoạch thực hiện và tiến độ](docs/plans/hybrid-delivery-plan-2026-10-14.md),
+[ADR-004](docs/adr-004-hybrid-binding-and-signatures.md),
+[runbook vận hành B/C](docs/hybrid-fabric-runbook.md) và
+[bằng chứng nghiệm thu](docs/hybrid-acceptance-2026-10-14.md). Mạng Fabric pilot
+chạy 3 Org cách ly trên một máy; quyền của doanh nghiệp đối tác thật là
+**NotEvaluated**. Các tài liệu `hybrid-*-2026-10-12`, cutover/legacy-scope và
+`fabric-dev-pilot` mô tả cơ chế đã bỏ hoặc pilot đã retire, chỉ còn là lịch sử.
 
 ```text
 apps/
@@ -108,15 +111,14 @@ báo cáo cutover và implementation record ở đầu tài liệu.
 Module lots tách `LotHarvestService` (transaction + outbox), `LotQueryService`
 (query), presenter (projection), action policy (role/org/state) và proof status.
 
-Hybrid A → B → C tiếp tục theo [kế hoạch hoàn thiện A](docs/plans/hybrid-a-completion-2026-10-13.md),
-[ADR route lịch sử](docs/adr-003-hybrid-historical-ledger-route.md) và
-[controlled import plan](docs/plans/hybrid-ledger-route-import-2026-10-13.md).
-Source business scope và route đã được đưa vào hai migration append-only
-`20261013010000_hybrid_business_scope` và `20261013011000_immutable_ledger_routes`.
-Đây là promotion source trong nhánh Hybrid; chưa được phép chạy trên production.
-[Review migration và các gate](docs/hybrid-migration-review-2026-10-13.md) ghi
-checksum, evidence đúng SHA và phần rehearsal/CI/CD còn thiếu. Evidence local
-không thay exact SHA CI, backup/restore, compatible rollback hoặc rollout gates.
+Hybrid A/B/C nằm trong ba migration: `20261014000000_hybrid_chain_scope` (A, gồm
+backfill một chuỗi legacy cho mỗi org sản xuất, hash/proof/QR không đổi),
+`20261015000000_hybrid_fabric_binding` (B) và `20261016000000_hybrid_signed_handover`
+(C). Các migration tạo kiểu, hàm và trigger nên cổng CD tự động chặn; production phải
+theo quy trình review/cutover thủ công và **chưa được phép chạy** trước khi được duyệt.
+Lệnh nhanh: `ledger-operator.ts` (binding, khóa ký, chế độ bàn giao),
+`org-signer.ts` (bên ký ngoài) và `verify-evidence.ts` (kiểm bằng chứng sau khôi phục) trong
+`apps/api/scripts`; mạng pilot bằng `blockchain/network/hybrid/hybrid-network.sh`.
 
 ## Kiểm tra toàn bộ
 

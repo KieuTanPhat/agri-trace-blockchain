@@ -9,7 +9,7 @@ actions được cố định bằng SHA và cập nhật qua Dependabot.
 
 | Check bắt buộc | Kiểm tra |
 | --- | --- |
-| `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; migration/API E2E PostgreSQL; Hybrid DB + browser thật; production API, Web và Worker. |
+| `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; migration/API E2E PostgreSQL (gồm guard SQL và bàn giao Hybrid); production API, Web và Worker. |
 | `Blockchain gate` | Gateway/chaincode trên ba phiên bản Node; coverage chaincode; cài/audit/check chaincode độc lập; Worker contract; API → outbox → Worker → Fabric → proof. |
 | `Dependency gate` | Audit hai lockfile và dependency đã cài; kiểm peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. |
 
@@ -47,13 +47,13 @@ tắc PR, chống xóa nhánh và chống force push đang có khi cập nhật 
 
 | Thay đổi | Các kiểm tra được chọn |
 | --- | --- |
-| `apps/api/**`, gồm Worker và migration | API, Hybrid DB/browser, production containers, tích hợp Fabric. |
-| `apps/web/**` | Web, Hybrid DB/browser, production containers. |
-| `blockchain/gateway/**` | API là consumer, Hybrid DB/browser, Gateway/chaincode, production containers, tích hợp Fabric. |
+| `apps/api/**`, gồm Worker và migration | API, production containers, tích hợp Fabric. |
+| `apps/web/**` | Web, production containers. |
+| `blockchain/gateway/**` | API là consumer, Gateway/chaincode, production containers, tích hợp Fabric. |
 | `blockchain/chaincode/**`, `blockchain/network/**` | Gateway/chaincode, tích hợp Fabric. |
 | Compose và các override Compose | Production containers, tích hợp Fabric. |
 | Root manifests/lockfile, cấu hình npm/Node, Docker ignore, CI scripts/workflows, manifest chaincode dùng trong Docker build | Tất cả. |
-| `docs/sql/**` | API, Hybrid DB/browser, production containers, tích hợp Fabric; SQL fixtures không coi là tài liệu thuần. |
+| `docs/sql/**` | API, production containers, tích hợp Fabric; SQL fixtures không coi là tài liệu thuần. |
 | Chỉ tài liệu khác | Gate vẫn chạy; job nặng được skip có kiểm tra. Audit vẫn chạy. |
 
 Mọi push `main`, dispatch và merge queue chạy toàn bộ pipeline. Git diff PR
@@ -64,45 +64,16 @@ Không lấy source từ PR qua
 `pull_request_target`; token workflow chỉ có `contents: read`, checkout
 không giữ credentials.
 
-## Hybrid DB và browser gate
+## Hybrid trong CI
 
-Job `hybrid` có tên `Hybrid / PostgreSQL 18 and real browser`, chọn khi API **hoặc**
-Web được chọn. `Application gate` yêu cầu job này thành công trong cả hai trường
-hợp, kiểm từng selection output là boolean hợp lệ; missing/skip/cancel/failure
-không được chuyển thành success. Wiring source đã bổ sung ngày 13/10/2026;
-chưa có exact-SHA CI acceptance cho source migration mới. Không gọi việc thêm
-workflow hoặc logic tests xanh là DB/browser suite đã chạy thành công trên runner.
-
-Hai PostgreSQL 18 services dùng image pinned, mỗi container quota 384 MiB/1 CPU,
-tmpfs 256 MiB và ownership label. Policy dùng loopback `25488/scope_test`, browser
-`25489/browser_test`; không dùng DB của người dùng hoặc test job trên VPS. Chạy
-Node 22.22.3/npm 12.1.0. Policy và browser chạy tuần tự để hạn chế peak RAM:
-
-1. `node scripts/ci/hybrid-db-prepare.mjs legacy` áp catalog đến trước route seal,
-   ghi 28 synthetic legacy events, rồi áp migration cuối. Preparation receipt
-   giữ exact SHA, 17 actual migration checksums, guards không bị disable và
-   `synthetic=true`/`fabricAcceptance=false`.
-2. `node scripts/ci/hybrid-policy-run.mjs` kiểm preparation trước khi chạy full
-   Prisma diff chỉ đọc + sáu guards, 31 SQL scenarios, ORM, 132 policy/DB cases
-   (26 actual HTTP assertions) và 112 legacy E2E. Runner kiểm từng assertion và
-   aggregate totals, không chấp nhận pending/todo/skipped hoặc count thiếu.
-3. Mode preparation `browser` áp fresh catalog trên DB riêng và xuất route pins
-   tổng hợp. Sau API/Web production build với same-origin và mock API tắt,
-   `node scripts/ci/hybrid-browser-run.mjs` chạy bảy nhóm bằng Next/Nest/DB thật.
-   Playwright 1.62.1 dùng Chromium; iPhone 13 viewport/touch là emulation, không
-   phải Safari/iOS thật. Fabric tắt trong gate này.
-4. Cleanup luôn kiểm container ID + ownership label và ports đã trả lại; browser
-   runner dừng đúng process trees đã tạo. Network service riêng do GitHub runner
-   dọn cuối job; receipt bên trong job không được tuyên bố đã quan sát network
-   teardown chưa diễn ra.
-
-Artifact `hybrid-acceptance-<SHA>-<attempt>` chỉ upload receipts và sanitized
-`acceptance.log`; không upload raw reports/logs, HTML hoặc screenshots có thể
-chứa dữ liệu test riêng. Các receipts thiếu hoặc cleanup chưa đầy đủ không là
-acceptance hoàn chỉnh. Guard source fence từ chối source code thay đổi trong run;
-SQL diff sinh ra không được execute. Biến opt-in, URL/path và lệnh local được ghi
-trong [API README](../apps/api/README.md); fresh/restore/compatible image rollback
-và production cutover vẫn theo [migration review](hybrid-migration-review-2026-10-13.md).
+Không còn job Hybrid riêng. Các kịch bản Hybrid chạy trong `test:e2e` của API trên
+PostgreSQL 18 của Application CI: guard SQL của binding và bàn giao có chữ ký, API bàn
+giao hai bên, diễn tập migration backfill. Bản chuyển đổi dữ liệu dùng một
+migration duy nhất cho A, nên không còn bước chuẩn bị catalog "trước route seal".
+Kịch bản API → Worker → Fabric thật (`hybrid-fabric.e2e-spec.ts`) cần mạng pilot 3 Org
+và `HYBRID_FABRIC_E2E=1`, nên bị bỏ qua trong CI; bằng chứng chạy thật nằm ở
+[nghiệm thu Hybrid](hybrid-acceptance-2026-10-14.md). Chưa có bộ test trình duyệt tự
+động cho bản Hybrid: giao diện được kiểm bằng test component và kiểm tay.
 
 ## Production và Fabric smoke
 
