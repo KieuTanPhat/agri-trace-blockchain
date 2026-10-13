@@ -1,7 +1,7 @@
 import { pathToFileURL } from 'node:url';
 
 const selectedJobs = {
-  application: { api: 'api', web: 'web', 'container-build': 'containers', hybrid: ['api', 'web'] },
+  application: { api: 'api', web: 'web', 'container-build': 'containers' },
   blockchain: { verify: 'blockchain', 'standalone-chaincode': 'blockchain', 'fabric-smoke': 'fabric' },
 };
 
@@ -14,14 +14,13 @@ export function gateErrors(kind, needs) {
   if (!jobs) throw new Error(`Unknown CI gate: ${kind}`);
   if (needs.changes?.result !== 'success') return ['Change detection did not succeed'];
   const errors = [];
-  for (const [job, selection] of Object.entries(jobs)) {
-    const outputs = Array.isArray(selection) ? selection : [selection];
-    const invalid = outputs.filter(output => !['true', 'false'].includes(needs.changes.outputs?.[output]));
-    if (invalid.length) {
-      for (const output of invalid) errors.push(`Missing or invalid change selection: ${output}`);
+  for (const [job, output] of Object.entries(jobs)) {
+    const selected = needs.changes.outputs?.[output];
+    if (!['true', 'false'].includes(selected)) {
+      errors.push(`Missing or invalid change selection: ${output}`);
       continue;
     }
-    const expected = outputs.some(output => needs.changes.outputs[output] === 'true') ? 'success' : 'skipped';
+    const expected = selected === 'true' ? 'success' : 'skipped';
     if (needs[job]?.result !== expected) {
       errors.push(`${job}: expected ${expected}, got ${needs[job]?.result ?? 'missing'}`);
     }

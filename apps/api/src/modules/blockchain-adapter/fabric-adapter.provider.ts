@@ -7,9 +7,8 @@ import {
   type GatewayConfig,
 } from '@agri-trace/fabric-gateway';
 import {
-  ROUTE_PROTOCOL,
-  ledgerRouteDigest,
-  type RouteDefinition,
+  configuredWriteRoute,
+  type PinnedRoute,
 } from '../trace/ledger-route.js';
 
 @Injectable()
@@ -18,28 +17,23 @@ export class FabricAdapterProvider implements OnModuleDestroy {
   private adapter?: FabricBlockchainAdapter;
   private connecting?: Promise<FabricBlockchainAdapter>;
   private gatewayConfig?: GatewayConfig;
-  private writerIdentity?: RouteDefinition;
+  private writerIdentity?: PinnedRoute;
 
   /** Capture the destination used by this connection, including cached adapters.
    * A changed process env cannot label an existing gateway as a new ledger. */
-  getWriterRoute(): RouteDefinition {
+  getWriterRoute(): PinnedRoute {
     if (this.writerIdentity) return this.writerIdentity;
     const config = loadConfig();
-    const route: RouteDefinition = {
-      protocol: ROUTE_PROTOCOL,
-      mode: 'WRITE',
-      network: process.env.FABRIC_NETWORK_NAME ?? '',
-      channelId: config.channelName,
-      chaincodeName: config.chaincodeName,
-      contractName: config.contractName,
-      envelopeVersion: '3.0.0',
-      writerAuthority: process.env.LEDGER_WRITER_AUTHORITY ?? '',
-      writerMspId: config.mspId,
-      writerRole: 'relayer',
-    };
-    ledgerRouteDigest(route);
+    const route = configuredWriteRoute();
+    if (
+      route.channelId !== config.channelName ||
+      route.chaincodeName !== config.chaincodeName ||
+      route.contractName !== config.contractName ||
+      route.writerMspId !== config.mspId
+    )
+      throw new Error('Fabric gateway config differs from the write route');
     this.gatewayConfig = config;
-    this.writerIdentity = Object.freeze(route);
+    this.writerIdentity = route;
     return this.writerIdentity;
   }
 

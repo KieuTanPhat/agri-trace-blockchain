@@ -5,20 +5,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { assertAssignedFarm } from './compliance-scope.js';
 import {
   scopedCycleReadWhere,
   scopedLotReadWhere,
   scopedShipmentReadWhere,
 } from '../supply-chains/business-read-scope.js';
-import { legacyCycleHasCutover } from '../supply-chains/legacy-cutover-policy.js';
 type Actor = {
   sub?: string | null;
   role: string;
   organizationId: string | null;
-  organizationScopeActivated?: boolean;
 };
 
+/** Private business reads are always resolved through chain scope. Absent and
+ * out-of-scope resources share one response so IDs cannot be probed. */
 @Injectable()
 export class OrganizationAccessService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
@@ -42,61 +41,33 @@ export class OrganizationAccessService {
   }
 
   async assertProductionCycleAccess(actor: Actor, cycleId: string) {
-    const cycle = await this.prisma.productionCycle.findUnique({
-      where: { id: cycleId },
+    const cycle = await this.prisma.productionCycle.findFirst({
+      where: {
+        AND: [
+          { id: cycleId },
+          scopedCycleReadWhere({ ...actor, sub: actor.sub ?? null }),
+        ],
+      },
       select: {
         id: true,
         currentState: true,
         farmOrgId: true,
         chainId: true,
-        farm: {
-          select: { id: true, organizationId: true },
-        },
+        farm: { select: { id: true, organizationId: true } },
       },
     });
-
-    if (!cycle) {
-      throw new NotFoundException('Không tìm thấy vụ sản xuất');
-    }
-
-    if (cycle.chainId) {
-      if (
-        !(await this.prisma.productionCycle.findFirst({
-          where: {
-            AND: [
-              { id: cycleId },
-              scopedCycleReadWhere({ ...actor, sub: actor.sub ?? null }),
-            ],
-          },
-          select: { id: true },
-        }))
-      )
-        throw new NotFoundException('Không tìm thấy vụ sản xuất');
-      return cycle;
-    }
-
-    if (await legacyCycleHasCutover(this.prisma, cycleId, actor.organizationId))
-      throw new NotFoundException('Vụ legacy chưa resolve scope sau cutover');
-    if (actor.role === 'COMPLIANCE_REVIEWER') {
-      await assertAssignedFarm(
-        this.prisma,
-        { ...actor, sub: actor.sub ?? null },
-        cycle.farm.id,
-      );
-      return cycle;
-    }
-    this.assertOrganizationAccess(
-      actor,
-      cycle.farm.organizationId,
-      'vụ sản xuất này',
-    );
-
+    if (!cycle) throw new NotFoundException('Không tìm thấy vụ sản xuất');
     return cycle;
   }
 
   async assertLotAccess(actor: Actor, lotId: string) {
-    const lot = await this.prisma.lot.findUnique({
-      where: { id: lotId },
+    const lot = await this.prisma.lot.findFirst({
+      where: {
+        AND: [
+          { id: lotId },
+          scopedLotReadWhere({ ...actor, sub: actor.sub ?? null }),
+        ],
+      },
       select: {
         id: true,
         farmOrgId: true,
@@ -110,59 +81,18 @@ export class OrganizationAccessService {
         },
       },
     });
-
-    if (!lot) {
-      throw new NotFoundException('Không tìm thấy lô hàng');
-    }
-
-    if (lot.harvest.cycle.chainId) {
-      if (
-        !(await this.prisma.lot.findFirst({
-          where: {
-            AND: [
-              { id: lotId },
-              scopedLotReadWhere({ ...actor, sub: actor.sub ?? null }),
-            ],
-          },
-          select: { id: true },
-        }))
-      )
-        throw new NotFoundException('Không tìm thấy lô hàng');
-      return lot;
-    }
-
-    if (
-      await legacyCycleHasCutover(
-        this.prisma,
-        lot.harvest.cycle.id,
-        actor.organizationId,
-      )
-    )
-      throw new NotFoundException('Lô legacy chưa resolve scope sau cutover');
-    if (actor.role === 'COMPLIANCE_REVIEWER') {
-      await assertAssignedFarm(
-        this.prisma,
-        { ...actor, sub: actor.sub ?? null },
-        lot.harvest.cycle.farmId,
-      );
-      return lot;
-    }
-    if (!['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) {
-      const allowed = [
-        lot.farmOrgId,
-        lot.shipment?.transporterOrgId,
-        lot.shipment?.retailerOrgId,
-      ];
-      if (!actor.organizationId || !allowed.includes(actor.organizationId)) {
-        throw new ForbiddenException('Bạn không có quyền truy cập lô hàng này');
-      }
-    }
+    if (!lot) throw new NotFoundException('Không tìm thấy lô hàng');
     return lot;
   }
 
   async assertShipmentAccess(actor: Actor, shipmentId: string) {
-    const shipment = await this.prisma.shipment.findUnique({
-      where: { id: shipmentId },
+    const shipment = await this.prisma.shipment.findFirst({
+      where: {
+        AND: [
+          { id: shipmentId },
+          scopedShipmentReadWhere({ ...actor, sub: actor.sub ?? null }),
+        ],
+      },
       select: {
         id: true,
         transporterOrgId: true,
@@ -179,65 +109,8 @@ export class OrganizationAccessService {
         },
       },
     });
-
-    if (!shipment) {
+    if (!shipment)
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
-    }
-
-    if (shipment.lot.harvest.cycle.chainId) {
-      if (
-        !(await this.prisma.shipment.findFirst({
-          where: {
-            AND: [
-              { id: shipmentId },
-              scopedShipmentReadWhere({ ...actor, sub: actor.sub ?? null }),
-            ],
-          },
-          select: { id: true },
-        }))
-      )
-        throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
-      return shipment;
-    }
-
-    if (
-      await legacyCycleHasCutover(
-        this.prisma,
-        shipment.lot.harvest.cycle.id,
-        actor.organizationId,
-      )
-    )
-      throw new NotFoundException(
-        'Shipment legacy chưa resolve scope sau cutover',
-      );
-    if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) {
-      return shipment;
-    }
-
-    const allowedOrganizationIds = [
-      shipment.lot.farmOrgId,
-      shipment.transporterOrgId,
-      shipment.retailerOrgId,
-    ];
-
-    if (actor.role === 'COMPLIANCE_REVIEWER') {
-      await assertAssignedFarm(
-        this.prisma,
-        { ...actor, sub: actor.sub ?? null },
-        shipment.lot.harvest.cycle.farmId,
-      );
-      return shipment;
-    }
-
-    if (
-      !actor.organizationId ||
-      !allowedOrganizationIds.includes(actor.organizationId)
-    ) {
-      throw new ForbiddenException(
-        'Bạn không thuộc tổ chức được phép truy cập chuyến vận chuyển này',
-      );
-    }
-
     return shipment;
   }
 
@@ -252,53 +125,8 @@ export class OrganizationAccessService {
       return;
     }
     if (event.cycleId) {
-      const root = await this.prisma.productionCycle.findUnique({
-        where: { id: event.cycleId },
-        select: { chainId: true, farmOrgId: true },
-      });
-      if (
-        root?.chainId ||
-        (root &&
-          (await legacyCycleHasCutover(
-            this.prisma,
-            event.cycleId,
-            actor.organizationId,
-          )))
-      ) {
-        await this.assertProductionCycleAccess(actor, event.cycleId);
-        return;
-      }
-      if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) return;
-      if (!actor.organizationId)
-        throw new ForbiddenException('Organization required');
-      if (actor.role === 'COMPLIANCE_REVIEWER') {
-        await this.assertProductionCycleAccess(actor, event.cycleId);
-        return;
-      }
-      const cycle = await this.prisma.productionCycle.findFirst({
-        where: {
-          id: event.cycleId,
-          OR: [
-            { farmOrgId: actor.organizationId },
-            {
-              harvestEvents: {
-                some: {
-                  lot: { shipment: { transporterOrgId: actor.organizationId } },
-                },
-              },
-            },
-            {
-              harvestEvents: {
-                some: {
-                  lot: { shipment: { retailerOrgId: actor.organizationId } },
-                },
-              },
-            },
-          ],
-        },
-        select: { id: true },
-      });
-      if (cycle) return;
+      await this.assertProductionCycleAccess(actor, event.cycleId);
+      return;
     }
     throw new ForbiddenException('No access to this trace event');
   }

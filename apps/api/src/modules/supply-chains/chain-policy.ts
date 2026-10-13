@@ -65,7 +65,7 @@ export async function chainAccess(
   return { chain, membership, grants, admin };
 }
 
-/** New management commands are deliberately isolated from legacy global roles.
+/** Management commands are isolated from global roles.
  * The caller's relevant grant and membership revision, not the whole role set,
  * determine replay scope. commandTransaction rechecks this under the scope lock. */
 export async function authorizeChainCommand(

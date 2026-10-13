@@ -23,7 +23,6 @@ import {
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
 import {
-  legacyOrScopedCycle,
   scopedCycleReadWhere,
   scopedShipmentReadWhere,
 } from '../supply-chains/business-read-scope.js';
@@ -48,42 +47,19 @@ export class IotService {
   ) {}
 
   async listDevices(actor: Actor) {
-    const legacy = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)
-      ? undefined
-      : {
-          organizationId:
-            actor.organizationId ?? '00000000-0000-0000-0000-000000000000',
-        };
+    // Device metadata belongs to its organization (platform admins manage all
+    // devices). Business linkage is disclosed only through chain scope below.
+    const owned: Prisma.IotDeviceWhereInput =
+      actor.role === 'SYSTEM_ADMIN'
+        ? {}
+        : {
+            organizationId:
+              actor.organizationId ?? '00000000-0000-0000-0000-000000000000',
+          };
     const devices = await this.prisma.iotDevice.findMany({
       where: {
         OR: [
-          {
-            AND: [
-              legacy ?? {},
-              {
-                OR: [
-                  { cycleId: null },
-                  {
-                    cycle: {
-                      is: {
-                        chainId: null,
-                        organization: { businessScope: { is: null } },
-                      },
-                    },
-                  },
-                ],
-              },
-              {
-                trackingBindings: {
-                  none: {
-                    shipment: {
-                      lot: { harvest: { cycle: { chainId: { not: null } } } },
-                    },
-                  },
-                },
-              },
-            ],
-          },
+          owned,
           { cycle: { is: scopedCycleReadWhere(actor) } },
           {
             trackingBindings: {
@@ -105,19 +81,7 @@ export class IotService {
     const ids = devices.flatMap((d) => (d.cycleId ? [d.cycleId] : []));
     const cycles = await this.prisma.productionCycle.findMany({
       where: {
-        AND: [
-          { id: { in: ids } },
-          legacyOrScopedCycle(
-            actor,
-            ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)
-              ? {}
-              : {
-                  farmOrgId:
-                    actor.organizationId ??
-                    '00000000-0000-0000-0000-000000000000',
-                },
-          ),
-        ],
+        AND: [{ id: { in: ids } }, scopedCycleReadWhere(actor)],
       },
       select: { id: true },
     });

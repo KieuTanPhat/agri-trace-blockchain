@@ -22,12 +22,11 @@ import { assertQuantityReconciled, quantity } from '../../common/quantity.js';
 import { businessTimestamp } from '../../common/timestamp.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
-import { assignedFarmWhere } from '../auth/compliance-scope.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
 import {
-  legacyOrScopedShipment,
-  legacyOrScopedCycle,
+  scopedShipmentReadWhere,
+  scopedCycleReadWhere,
 } from '../supply-chains/business-read-scope.js';
 import type {
   CreateShipmentDto,
@@ -46,38 +45,8 @@ export class ShipmentsService {
   ) {}
 
   list(actor: Actor) {
-    const unrestricted = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role);
     return this.prisma.shipment.findMany({
-      where: legacyOrScopedShipment(
-        actor,
-        unrestricted
-          ? undefined
-          : actor.role === 'COMPLIANCE_REVIEWER'
-            ? {
-                lot: { harvest: { cycle: { farm: assignedFarmWhere(actor) } } },
-              }
-            : {
-                OR: [
-                  {
-                    transporterOrgId:
-                      actor.organizationId ??
-                      '00000000-0000-0000-0000-000000000000',
-                  },
-                  {
-                    retailerOrgId:
-                      actor.organizationId ??
-                      '00000000-0000-0000-0000-000000000000',
-                  },
-                  {
-                    lot: {
-                      farmOrgId:
-                        actor.organizationId ??
-                        '00000000-0000-0000-0000-000000000000',
-                    },
-                  },
-                ],
-              },
-      ),
+      where: scopedShipmentReadWhere(actor),
       include: {
         transporter: { select: { id: true, name: true, type: true } },
         retailer: { select: { id: true, name: true, type: true } },
@@ -115,19 +84,7 @@ export class ShipmentsService {
     const visibleCycles = ids.length
       ? await this.prisma.productionCycle.findMany({
           where: {
-            AND: [
-              { id: { in: ids } },
-              legacyOrScopedCycle(
-                actor,
-                ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)
-                  ? {}
-                  : {
-                      farmOrgId:
-                        actor.organizationId ??
-                        '00000000-0000-0000-0000-000000000000',
-                    },
-              ),
-            ],
+            AND: [{ id: { in: ids } }, scopedCycleReadWhere(actor)],
           },
           select: { id: true },
         })

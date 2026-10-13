@@ -16,10 +16,6 @@ import {
   type CommandActor,
 } from './command-authorization.js';
 import { commandContext, commandResponseJson } from './command-transaction.js';
-import {
-  ensureLegacyCommandBridge,
-  ensureLegacyCommandBridgeInTransaction,
-} from './legacy-command-bridge.js';
 
 export interface CommandRequestInspection {
   status:
@@ -95,20 +91,13 @@ export class IdempotencyService {
         if (record.authorizationScope !== scope) {
           if (!record.commandCommit)
             return { status: 'RECONCILIATION_REQUIRED' };
-          const journal = await ensureLegacyCommandBridgeInTransaction(
-            tx,
-            {
-              ...input,
-              idempotencyKey: key,
-              authorizationScope: scope,
-              requestHash,
-            },
-            record.id,
-          );
+          // Same requester and payload, authorized under current scope: the
+          // journal is replayed as stored and never rewritten.
+          this.assertJournalIdentity(record.commandCommit, input);
           return {
             status: 'COMMITTED',
-            responseStatus: journal.responseStatus,
-            result: journal.responseBody,
+            responseStatus: record.commandCommit.responseStatus,
+            result: record.commandCommit.responseBody,
           };
         }
         const journal = record.commandCommit;
@@ -325,16 +314,11 @@ export class IdempotencyService {
       input.authorizationScope &&
       record.authorizationScope !== input.authorizationScope
     ) {
-      if (input.actor !== undefined) {
-        const journal = await ensureLegacyCommandBridge(
-          this.prisma,
-          {
-            ...input,
-            actor: input.actor,
-            authorizationScope: input.authorizationScope,
-          },
-          record.id,
-        );
+      const journal = await this.prisma.commandCommit.findUnique({
+        where: { idempotencyRecordId: record.id },
+      });
+      if (journal && input.actor !== undefined) {
+        this.assertJournalIdentity(journal, input);
         return {
           type: 'REPLAY',
           status: journal.responseStatus,
@@ -342,7 +326,7 @@ export class IdempotencyService {
         };
       }
       throw new ConflictException(
-        'Idempotency-Key thuộc phạm vi khác hoặc bản ghi legacy cần đối soát',
+        'Idempotency-Key thuộc phạm vi khác hoặc cần đối soát',
       );
     }
 
@@ -412,5 +396,18 @@ export class IdempotencyService {
       'code' in error &&
       error.code === 'P2002'
     );
+  }
+
+  /** A scope fingerprint may change (grant revision, new release protocol);
+   * the journal still has to belong to the same requester and operation. */
+  private assertJournalIdentity(
+    journal: { requesterId: string; operation: string },
+    input: { requesterId: string; operation: string },
+  ) {
+    if (
+      journal.requesterId !== input.requesterId ||
+      journal.operation !== input.operation
+    )
+      throw new ConflictException('Journal không khớp phạm vi command');
   }
 }

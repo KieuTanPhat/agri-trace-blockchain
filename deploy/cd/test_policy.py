@@ -5,7 +5,6 @@ import tempfile
 import unittest
 from pathlib import Path
 from policy import CONTROLLER_FILES, PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth, valid_public_origin, https_origins
-from policy import REQUIRED_RELEASE_MIGRATIONS, scope_floor_admission
 
 SHA = "a" * 40
 REPO = "KieuTanPhat/agri-trace-blockchain"
@@ -44,28 +43,6 @@ def bundle(directory, extra=None, mutate=None):
 
 
 class Policies(unittest.TestCase):
-    def test_reviewed_chain_expansion_is_exact_and_does_not_widen_the_parser(self):
-        name = "20261011140000_chain_management_foundation"
-        source = Path(__file__).resolve().parents[2] / "apps/api/prisma/migrations" / name / "migration.sql"
-        script = source.read_bytes().replace(b"\r\n", b"\n")
-        with self.assertRaises(PolicyError):
-            additive_sql(script.decode())
-        with tempfile.TemporaryDirectory() as directory:
-            target = Path(directory) / "apps/api/prisma/migrations" / name / "migration.sql"
-            target.parent.mkdir(parents=True)
-            for variant in (script, script.replace(b"\n", b"\r\n")):
-                target.write_bytes(variant)
-                self.assertEqual(migrations({}, {name: sha256(variant)}, directory), [name])
-            changed = script + b"DELETE FROM trace_event;\n"
-            target.write_bytes(changed)
-            with self.assertRaisesRegex(PolicyError, "Reviewed expansion migration was modified"):
-                migrations({}, {name: sha256(changed)}, directory)
-            unknown = target.parent.with_name(name + "_unreviewed") / "migration.sql"
-            unknown.parent.mkdir()
-            unknown.write_bytes(script)
-            with self.assertRaises(PolicyError):
-                migrations({}, {unknown.parent.name: sha256(script)}, directory)
-
     def test_historical_platform_line_endings_match_without_accepting_sql_changes(self):
         name = "20260101_init"
         lf = b'CREATE TABLE "example" ("id" INTEGER);\n-- original history\n'
@@ -117,23 +94,9 @@ class Policies(unittest.TestCase):
 
     def test_commands(self):
         self.assertEqual(command(f"upgrade {SHA} {'b' * 64} 1")[0], "upgrade")
-        self.assertEqual(command(f"forward {SHA} {'b' * 64}"), ["forward", SHA, "b" * 64])
         for value in ("bash", "status; id", "status\nwhoami", "rollback ../../etc", f"deploy {SHA} {'b' * 64} ;id", f"upgrade {SHA} {'b' * 64} 0"):
             with self.subTest(value=value), self.assertRaises(PolicyError):
                 command(value)
-
-    def test_first_schema_floor_requires_independent_exact_sha_acknowledgement(self):
-        catalog = {name: "c" * 64 for name in REQUIRED_RELEASE_MIGRATIONS}
-        manifest = {"migrations": catalog}
-        for applied in ({}, {next(iter(catalog)): "c" * 64}):
-            for acknowledgement in (None, "", "b" * 40):
-                with self.subTest(applied=applied, acknowledgement=acknowledgement), self.assertRaises(PolicyError):
-                    scope_floor_admission(manifest, SHA, applied, {"HYBRID_SCOPE_CUTOVER_SHA": acknowledgement})
-            self.assertTrue(scope_floor_admission(manifest, SHA, applied, {"HYBRID_SCOPE_CUTOVER_SHA": SHA}))
-        self.assertFalse(scope_floor_admission(manifest, SHA, catalog, {}))
-        self.assertFalse(scope_floor_admission({"migrations": {}}, SHA, {}, {}))
-        with self.assertRaises(PolicyError):
-            scope_floor_admission({"migrations": {next(iter(catalog)): "c" * 64}}, SHA, {}, {"HYBRID_SCOPE_CUTOVER_SHA": SHA})
 
     def test_good_archive(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -201,13 +164,6 @@ class Policies(unittest.TestCase):
             new = dict(old, **{"20260102_note": sha256(sql.encode())})
             self.assertEqual(migrations(old, new, directory), ["20260102_note"])
             self.assertEqual(migrations(new, old, directory, ["20260102_note"]), [])
-
-    def test_scope_and_route_floor_cannot_be_waived_by_generic_compatibility(self):
-        for name in REQUIRED_RELEASE_MIGRATIONS:
-            applied = {"20260101_init": "a" * 64, name: "b" * 64}
-            with self.subTest(name=name), self.assertRaisesRegex(PolicyError, "schema floor"):
-                migrations(applied, {"20260101_init": "a" * 64}, ".", [name])
-            self.assertEqual(migrations(applied, dict(applied), ".", [name]), [])
 
     def test_new_migration_checks_exact_bytes_before_decoding_sql(self):
         with tempfile.TemporaryDirectory() as directory:

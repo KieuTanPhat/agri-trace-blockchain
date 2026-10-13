@@ -16,18 +16,15 @@ import {
   lockAggregate,
   effectiveCommandActor,
 } from '../../common/idempotency/command-transaction.js';
-import {
-  assignedFarmWhere,
-  assertAssignedFarm,
-} from '../auth/compliance-scope.js';
+import { assertAssignedFarm } from '../auth/compliance-scope.js';
 import type { Prisma, Certificate } from '../../generated/prisma/client.js';
 import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import { businessTimestamp } from '../../common/timestamp.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
 import {
-  legacyOrScopedLot,
-  legacyOrScopedCycle,
+  scopedLotReadWhere,
+  scopedCycleReadWhere,
 } from '../supply-chains/business-read-scope.js';
 import type {
   CreateCertificateDto,
@@ -43,39 +40,9 @@ export class ComplianceService {
   ) {}
 
   listInspections(actor: Actor, lotId?: string) {
-    const unrestricted = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role);
     return this.prisma.inspection.findMany({
       where: {
-        lot: legacyOrScopedLot(
-          actor,
-          unrestricted
-            ? {}
-            : actor.role === 'COMPLIANCE_REVIEWER'
-              ? { harvest: { cycle: { farm: assignedFarmWhere(actor) } } }
-              : {
-                  OR: [
-                    {
-                      farmOrgId:
-                        actor.organizationId ??
-                        '00000000-0000-0000-0000-000000000000',
-                    },
-                    {
-                      shipment: {
-                        transporterOrgId:
-                          actor.organizationId ??
-                          '00000000-0000-0000-0000-000000000000',
-                      },
-                    },
-                    {
-                      shipment: {
-                        retailerOrgId:
-                          actor.organizationId ??
-                          '00000000-0000-0000-0000-000000000000',
-                      },
-                    },
-                  ],
-                },
-        ),
+        lot: scopedLotReadWhere(actor),
         lotId: lotId || undefined,
       },
       include: {
@@ -155,31 +122,13 @@ export class ComplianceService {
   }
 
   listCertificates(actor: Actor, lotId?: string, cycleId?: string) {
-    const unrestricted = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role);
-    const org = actor.organizationId ?? '00000000-0000-0000-0000-000000000000';
-    const legacyLot: Prisma.LotWhereInput = unrestricted
-      ? {}
-      : actor.role === 'COMPLIANCE_REVIEWER'
-        ? { harvest: { cycle: { farm: assignedFarmWhere(actor) } } }
-        : {
-            OR: [
-              { farmOrgId: org },
-              { shipment: { transporterOrgId: org } },
-              { shipment: { retailerOrgId: org } },
-            ],
-          };
-    const legacyCycle: Prisma.ProductionCycleWhereInput = unrestricted
-      ? {}
-      : actor.role === 'COMPLIANCE_REVIEWER'
-        ? { farm: assignedFarmWhere(actor) }
-        : { farmOrgId: org };
     return this.prisma.certificate.findMany({
       where: {
         lotId: lotId || undefined,
         cycleId: cycleId || undefined,
         OR: [
-          { lot: { is: legacyOrScopedLot(actor, legacyLot) } },
-          { cycle: { is: legacyOrScopedCycle(actor, legacyCycle) } },
+          { lot: { is: scopedLotReadWhere(actor) } },
+          { cycle: { is: scopedCycleReadWhere(actor) } },
         ],
       },
       orderBy: { issueDate: 'desc' },

@@ -1,8 +1,6 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { BUSINESS_CAPABILITIES } from './chain-policy.js';
-import { trustedLegacyCycleWhere } from './legacy-scope-pins.js';
-import { uncutoverLegacyCycleWhere } from './legacy-cutover-policy.js';
 
 const NONE = '00000000-0000-0000-0000-000000000000';
 const READ_ROLES = [
@@ -57,7 +55,6 @@ function cycleForRole(
   role: ReadRole,
 ): Prisma.ProductionCycleWhereInput {
   return {
-    AND: [trustedLegacyCycleWhere()],
     chain: { is: chainAuthority(actor, role) },
     ...(role === 'FARM_STAFF'
       ? { assignments: { some: assignment(actor, 'PRODUCTION') } }
@@ -134,63 +131,4 @@ export function scopedCycleRoleReadWhere(
   role: 'FARM_STAFF' | 'COMPLIANCE_REVIEWER',
 ): Prisma.ProductionCycleWhereInput {
   return permitted(actor) ? cycleForRole(actor, role) : { id: NONE };
-}
-
-export function legacyOrScopedCycle(
-  actor: CommandActor,
-  legacy: Prisma.ProductionCycleWhereInput = {},
-): Prisma.ProductionCycleWhereInput {
-  return {
-    OR: [
-      {
-        AND: [
-          uncutoverLegacyCycleWhere(actor),
-          legacy,
-        ],
-      },
-      scopedCycleReadWhere(actor),
-    ],
-  };
-}
-export function legacyOrScopedLot(
-  actor: CommandActor,
-  legacy: Prisma.LotWhereInput = {},
-): Prisma.LotWhereInput {
-  return {
-    OR: [
-      {
-        AND: [
-          {
-            harvest: {
-              cycle: uncutoverLegacyCycleWhere(actor),
-            },
-          },
-          legacy,
-        ],
-      },
-      scopedLotReadWhere(actor),
-    ],
-  };
-}
-export function legacyOrScopedShipment(
-  actor: CommandActor,
-  legacy: Prisma.ShipmentWhereInput = {},
-): Prisma.ShipmentWhereInput {
-  return {
-    OR: [
-      {
-        AND: [
-          {
-            lot: {
-              harvest: {
-                cycle: uncutoverLegacyCycleWhere(actor),
-              },
-            },
-          },
-          legacy,
-        ],
-      },
-      scopedShipmentReadWhere(actor),
-    ],
-  };
 }

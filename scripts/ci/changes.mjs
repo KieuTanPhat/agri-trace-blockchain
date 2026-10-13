@@ -28,7 +28,7 @@ export function classifyChanges(files, force = false) {
     if (sharedFiles.has(file) || file.startsWith('.github/') || file.startsWith('scripts/ci/') || file.startsWith('deploy/')) {
       for (const key of Object.keys(result)) result[key] = true;
     }
-    if (file.startsWith('apps/api/') || file.startsWith('blockchain/gateway/') || file.startsWith('docs/sql/')) {
+    if (file.startsWith('apps/api/') || file.startsWith('blockchain/gateway/')) {
       result.api = result.containers = result.fabric = true;
     }
     if (file.startsWith('apps/web/')) result.web = result.containers = true;
@@ -41,7 +41,7 @@ export function classifyChanges(files, force = false) {
 }
 
 export function changedFiles(eventName, event, sha) {
-  // Every main push is a potential CD candidate. Its exact SHA must pass the
+  // Every main/dev push is a potential CD candidate. Its exact SHA must pass the
   // full pipeline, even when a documentation commit follows unverified code.
   // Only PRs use path selection; dispatches and merge queues also run in full.
   if (eventName !== 'pull_request') return null;

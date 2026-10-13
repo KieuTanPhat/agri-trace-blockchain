@@ -14,7 +14,6 @@ import {
 } from './shipment-plan.commands.js';
 import type { AcceptShipmentPlanDto } from './shipment-plan.dto.js';
 import { authorizeBusinessCommand } from './business-policy.js';
-import { trustedLegacyCycleWhere } from './legacy-scope-pins.js';
 
 const currentSelect = {
   revision: true,
@@ -63,7 +62,6 @@ export function shipmentPlanReadWhere(
   });
   return {
     chainId,
-    lot: { harvest: { cycle: trustedLegacyCycleWhere() } },
     chain: {
       is: {
         businessProfile: { is: { state: 'ACTIVE', scopeVersion: 1 } },
@@ -123,7 +121,6 @@ export class ShipmentPlansService {
         harvest: {
           cycle: {
             chainId,
-            AND: [trustedLegacyCycleWhere()],
             assignments: { some: { stage: 'PRODUCTION', status: 'ACCEPTED' } },
           },
         },

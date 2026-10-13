@@ -14,22 +14,10 @@ _spec.loader.exec_module(targets)
 
 SHA = re.compile(r"^[a-f0-9]{40}$")
 DIGEST = re.compile(r"^[a-f0-9]{64}$")
-OPERATIONS = {"deploy", "upgrade", "forward", "rollback", "recover", "status", "backup"}
+OPERATIONS = {"deploy", "upgrade", "rollback", "recover", "status", "backup"}
 FIXED_FILES = {"docker-compose.uat.yml", "docker-compose.uat-https.yml", "docker-compose.uat-fabric.yml", "deploy/Caddyfile.uat"}
 MAX_AUTH_HEADER = 16 * 1024
 CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify.mjs", "session-auth.mjs", "entry")
-# Exact, separately reviewed expansion migrations. The parser for arbitrary SQL
-# remains restrictive. See docs/hybrid-chain-management-implementation.md for
-# compatibility boundaries and rollback verification of this particular script.
-REVIEWED_EXPANSIONS = {
-    "20261011140000_chain_management_foundation": "9beb5342bb4dbb7eae9f221d6fe1b6dbfd648bae7ba46cb3e580a6e69e26ac28",
-}
-# These guards change the application's authorization/route contract. A generic
-# additive compatibility receipt cannot make a legacy image understand it.
-REQUIRED_RELEASE_MIGRATIONS = frozenset({
-    "20261013010000_hybrid_business_scope",
-    "20261013011000_immutable_ledger_routes",
-})
 
 
 class PolicyError(Exception):
@@ -77,11 +65,11 @@ def command(value):
     parts = value.split(" ")
     require(all(parts) and parts[0] in OPERATIONS, "Unsupported CD command")
     op = parts[0]
-    expected = {"status": 1, "recover": 1, "rollback": 2, "backup": 2, "deploy": 3, "forward": 3, "upgrade": 4}[op]
+    expected = {"status": 1, "recover": 1, "rollback": 2, "backup": 2, "deploy": 3, "upgrade": 4}[op]
     require(len(parts) == expected, "Invalid CD command arguments")
     if expected > 1:
         require(bool(SHA.fullmatch(parts[1])), "Invalid commit SHA")
-    if op in {"deploy", "upgrade", "forward"}:
+    if op in {"deploy", "upgrade"}:
         require(bool(DIGEST.fullmatch(parts[2])), "Invalid archive checksum")
     if op == "upgrade":
         require(bool(re.fullmatch(r"[1-9][0-9]{0,8}", parts[3])), "Invalid expected sequence")
@@ -225,130 +213,6 @@ def read_env(filename):
     return result
 
 
-LEGACY_PINS_TARGET = "/run/agritrace/legacy-scope-pins.json"
-
-
-def legacy_pin_metadata(environment, base):
-    """Read the independent authority file without deriving trust from the DB."""
-    filename = environment.get("HYBRID_LEGACY_MANIFEST_PINS_HOST", "")
-    require(isinstance(filename, str) and targets.owned_path(filename, Path(base) / "shared" / "hybrid"),
-            "Legacy pins file must belong to the production metadata directory")
-    path = Path(filename)
-    require(not path.is_symlink() and path.is_file() and path.stat().st_size <= 8 * 1024 * 1024 and
-            path.resolve().is_relative_to((Path(base) / "shared" / "hybrid").resolve()),
-            "Legacy pins must be a bounded regular metadata file")
-    require(not (path.stat().st_mode & 0o022), "Legacy pins metadata is writable by another account")
-    require(path.stat().st_mode & 0o777 in (0o444, 0o644),
-            "Nonsecret legacy pin metadata must be readable by both nonroot services (0444/0644)")
-    try:
-        content = path.read_bytes()
-        require(len(content) <= 8 * 1024 * 1024, "Legacy pins metadata exceeded its bound")
-        legacy = json.loads(content)
-    except (ValueError, OSError):
-        raise PolicyError("Invalid legacy pins metadata") from None
-    require(isinstance(legacy, dict) and legacy.get("schema") == "agritrace-legacy-scope-pins-1" and
-            isinstance(legacy.get("pins"), list) and len(legacy["pins"]) <= 100 and
-            all(isinstance(pin, dict) and isinstance(pin.get("manifest"), dict) and
-                pin["manifest"].get("environment") == "production" for pin in legacy["pins"]),
-            "Invalid production legacy pins metadata")
-    return path, content
-
-
-def hybrid_metadata_digest(environment, base):
-    _, content = legacy_pin_metadata(environment, base)
-    keys = ("LEDGER_ROUTE_PINS", "LEDGER_ACTIVE_ROUTE_DIGEST", "LEDGER_ROUTE_IMPORT_PINS",
-            "LEDGER_PAUSED_WRITER_PINS", "LEDGER_WRITER_AUTHORITY")
-    values = {key: environment.get(key, "") for key in keys}
-    require(all(isinstance(value, str) and len(value) <= 65536 for value in values.values()),
-            "Invalid independent Hybrid metadata")
-    values["legacyFileSha256"] = sha256(content)
-    return sha256(json.dumps(values, sort_keys=True, separators=(",", ":")).encode())
-
-
-def scope_floor_admission(manifest, sha, applied, environment):
-    present = REQUIRED_RELEASE_MIGRATIONS.intersection(manifest.get("migrations", {}))
-    if not present or REQUIRED_RELEASE_MIGRATIONS <= set(applied):
-        return False
-    require(present == REQUIRED_RELEASE_MIGRATIONS, "First cutover needs the full scope/ledger schema floor")
-    require(environment.get("HYBRID_SCOPE_CUTOVER_SHA") == sha and bool(SHA.fullmatch(sha)),
-            "First schema-floor cutover requires independent SHA acknowledgement")
-    return True
-
-
-def hybrid_environment(manifest, sha, services, environment, base):
-    """Check deployment-owned metadata before any migration or writer stop."""
-    present = REQUIRED_RELEASE_MIGRATIONS.intersection(manifest.get("migrations", {}))
-    if not present:
-        return False
-    require(present == REQUIRED_RELEASE_MIGRATIONS and manifest.get("format") == 2,
-            "Hybrid release requires the complete scope/ledger schema floor")
-
-    def array(key, limit, byte_limit=20000):
-        raw = environment.get(key, "[]")
-        require(isinstance(raw, str) and len(raw) <= byte_limit, "Invalid Hybrid pin metadata")
-        try:
-            value = json.loads(raw)
-        except (ValueError, TypeError):
-            raise PolicyError("Invalid Hybrid pin metadata") from None
-        require(isinstance(value, list) and len(value) <= limit, "Invalid Hybrid pin metadata")
-        return value
-
-    routes = array("LEDGER_ROUTE_PINS", 256)
-    require(bool(routes) and all(isinstance(pin, str) and DIGEST.fullmatch(pin) for pin in routes) and
-            len(set(routes)) == len(routes), "Missing or invalid route pins")
-    require(environment.get("LEDGER_ACTIVE_ROUTE_DIGEST") in routes, "Active route is not independently pinned")
-    imports = array("LEDGER_ROUTE_IMPORT_PINS", 256, 65536)
-    require(all(isinstance(pin, dict) and set(pin) == {"digest", "environment", "sourceSha"} and
-                isinstance(pin["digest"], str) and DIGEST.fullmatch(pin["digest"]) and
-                pin["environment"] == "production" and isinstance(pin["sourceSha"], str) and
-                SHA.fullmatch(pin["sourceSha"]) for pin in imports), "Invalid production route import pins")
-    require(len({pin["digest"] for pin in imports}) == len(imports), "Duplicate route import pins")
-    writers = array("LEDGER_PAUSED_WRITER_PINS", 256)
-    require(all(isinstance(pin, str) and DIGEST.fullmatch(pin) for pin in writers) and
-            len(set(writers)) == len(writers), "Invalid paused writer pins")
-    authority = environment.get("LEDGER_WRITER_AUTHORITY", "")
-    require(isinstance(authority, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,99}", authority),
-            "Missing logical Worker authority")
-    path, _ = legacy_pin_metadata(environment, base)
-    filename = str(path)
-    for name in ("api", "worker"):
-        service = services.get(name, {})
-        values = service.get("environment", {})
-        require(values.get("NODE_ENV") == "production", "Hybrid application services must use production metadata authority")
-        require(values.get("APP_RELEASE_SHA") == sha and bool(SHA.fullmatch(sha)), "Runtime release SHA differs from candidate")
-        for key in ("LEDGER_ROUTE_PINS", "LEDGER_ACTIVE_ROUTE_DIGEST", "LEDGER_ROUTE_IMPORT_PINS", "LEDGER_PAUSED_WRITER_PINS"):
-            expected = environment.get(key, "[]" if key.endswith("_PINS") else "")
-            require(values.get(key) == expected, "Runtime trust pins differ from deployment-owned metadata")
-        require(values.get("HYBRID_LEGACY_MANIFEST_PINS_FILE") == LEGACY_PINS_TARGET and
-                values.get("LEDGER_ROUTE_IMPORT_ENABLED", "false") == "false", "Operator import is enabled in an application service")
-        mounts = service.get("volumes", [])
-        pins = [mount for mount in mounts if mount.get("target") == LEGACY_PINS_TARGET]
-        require(len(pins) == 1 and pins[0].get("type") == "bind" and pins[0].get("source") == filename and
-                pins[0].get("read_only") and not pins[0].get("bind", {}).get("create_host_path"),
-                "Runtime legacy pins mount is not the reviewed read-only file")
-        if name == "api":
-            require(len(mounts) == 1 and values.get("FABRIC_ENABLED") == "false" and
-                    not any(key.startswith("FABRIC_IDENTITY_") or key == "RELAYER_MSP_DIR" for key in values),
-                    "API received signing material")
-        else:
-            require(values.get("LEDGER_WRITER_AUTHORITY") == authority, "Worker logical authority differs from deployment metadata")
-            route = {"protocol": "agritrace-ledger-route/1", "mode": "WRITE", "envelopeVersion": "3.0.0",
-                     "writerAuthority": authority, "writerRole": "relayer"}
-            for field, key in (("network", "FABRIC_NETWORK_NAME"), ("channelId", "FABRIC_CHANNEL_NAME"),
-                               ("chaincodeName", "FABRIC_CHAINCODE_NAME"), ("contractName", "FABRIC_CONTRACT_NAME"),
-                               ("writerMspId", "FABRIC_MSP_ID")):
-                value = values.get(key)
-                require(isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,99}", value),
-                        "Missing explicit Worker route binding")
-                route[field] = value
-            # This fixed protocol contains only ASCII keys/string values, so
-            # sorted compact JSON has the same bytes as its RFC8785 payload.
-            digest = sha256(json.dumps(route, sort_keys=True, separators=(",", ":")).encode())
-            require(digest == environment["LEDGER_ACTIVE_ROUTE_DIGEST"],
-                    "Active route digest differs from the logical Worker binding")
-    return True
-
-
 def statements(sql):
     # Tokenize quoted values/identifiers and comments before splitting statements.
     token = re.compile(r"--[^\n]*(?:\n|$)|/\*.*?\*/|'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|[^'\"/-]+|[-/](?![-*])", re.S)
@@ -384,8 +248,6 @@ def additive_sql(sql):
 def migrations(applied, candidate, directory, compatible_missing=()):
     for name, digest in applied.items():
         if name not in candidate:
-            require(name not in REQUIRED_RELEASE_MIGRATIONS,
-                    "Release is below the required scope/ledger schema floor")
             require(name in compatible_missing, "Applied migration is absent from release")
         else:
             if candidate[name] != digest:
@@ -404,9 +266,5 @@ def migrations(applied, candidate, directory, compatible_missing=()):
         require(not applied or name > max(applied), "New migrations must append to history")
         script = (Path(directory) / "apps/api/prisma/migrations" / name / "migration.sql").read_bytes()
         require(sha256(script) == candidate[name], "Migration source checksum mismatch")
-        if name in REVIEWED_EXPANSIONS:
-            require(sha256(script.replace(b"\r\n", b"\n")) == REVIEWED_EXPANSIONS[name],
-                    "Reviewed expansion migration was modified")
-        else:
-            additive_sql(script.decode("utf-8"))
+        additive_sql(script.decode("utf-8"))
     return new

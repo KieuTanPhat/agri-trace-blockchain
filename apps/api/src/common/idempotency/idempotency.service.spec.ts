@@ -82,16 +82,14 @@ describe('Idempotency error replay', () => {
     const service = new IdempotencyService({
       idempotencyRecord: {
         create: vi.fn().mockRejectedValue({ code: 'P2002' }),
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'record',
-            status: 'PROCESSING',
-            responseStatus: null,
-            requestHash:
-              '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a',
-            expiresAt: new Date(0),
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'record',
+          status: 'PROCESSING',
+          responseStatus: null,
+          requestHash:
+            '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a',
+          expiresAt: new Date(0),
+        }),
         update,
       },
     } as unknown as PrismaService);

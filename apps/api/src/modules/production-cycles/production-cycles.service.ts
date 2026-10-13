@@ -21,10 +21,9 @@ import { businessTimestamp } from '../../common/timestamp.js';
 import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
-import { assignedFarmWhere } from '../auth/compliance-scope.js';
 import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
 import {
-  legacyOrScopedCycle,
+  scopedCycleReadWhere,
   scopedLotReadWhere,
   scopedCycleRoleReadWhere,
 } from '../supply-chains/business-read-scope.js';
@@ -77,9 +76,7 @@ export class ProductionCyclesService {
       cycles.map(async (cycle) => ({
         ...cycle,
         canWriteProduction: await this.canWriteCycle(actor, cycle),
-        canReviewCompliance:
-          reviewIds.has(cycle.id) ||
-          (!cycle.chainId && actor.role === 'COMPLIANCE_REVIEWER'),
+        canReviewCompliance: reviewIds.has(cycle.id),
       })),
     );
   }
@@ -96,35 +93,7 @@ export class ProductionCyclesService {
         sensorDigests: { orderBy: { periodEnd: 'desc' } },
         certificates: true,
         harvestEvents: {
-          where: {
-            OR: [
-              {
-                cycle: { chainId: null },
-                ...(actor.role === 'TRANSPORTER'
-                  ? {
-                      lot: {
-                        shipment: {
-                          transporterOrgId:
-                            actor.organizationId ??
-                            '00000000-0000-0000-0000-000000000000',
-                        },
-                      },
-                    }
-                  : actor.role === 'RETAILER'
-                    ? {
-                        lot: {
-                          shipment: {
-                            retailerOrgId:
-                              actor.organizationId ??
-                              '00000000-0000-0000-0000-000000000000',
-                          },
-                        },
-                      }
-                    : {}),
-              },
-              { lot: { is: scopedLotReadWhere(actor) } },
-            ],
-          },
+          where: { lot: { is: scopedLotReadWhere(actor) } },
           include: { lot: { include: { shipment: true } }, sensorWindow: true },
           orderBy: { harvestTime: 'asc' },
         },
@@ -134,30 +103,24 @@ export class ProductionCyclesService {
     return {
       ...cycle,
       canWriteProduction: await this.canWriteCycle(actor, cycle),
-      canReviewCompliance:
-        Boolean(
-          await this.prisma.productionCycle.findFirst({
-            where: {
-              AND: [
-                { id: cycle.id },
-                scopedCycleRoleReadWhere(actor, 'COMPLIANCE_REVIEWER'),
-              ],
-            },
-            select: { id: true },
-          }),
-        ) ||
-        (!cycle.chainId && actor.role === 'COMPLIANCE_REVIEWER'),
+      canReviewCompliance: Boolean(
+        await this.prisma.productionCycle.findFirst({
+          where: {
+            AND: [
+              { id: cycle.id },
+              scopedCycleRoleReadWhere(actor, 'COMPLIANCE_REVIEWER'),
+            ],
+          },
+          select: { id: true },
+        }),
+      ),
     };
   }
 
   private async canWriteCycle(
     actor: Actor,
-    cycle: { id: string; chainId: string | null; farmOrgId: string },
+    cycle: { id: string; chainId: string },
   ) {
-    if (!cycle.chainId)
-      return (
-        actor.role === 'FARM_STAFF' && actor.organizationId === cycle.farmOrgId
-      );
     try {
       await authorizeBusinessCommand(this.prisma, actor, {
         chainId: cycle.chainId,
@@ -176,47 +139,7 @@ export class ProductionCyclesService {
   }
 
   private visibleWhere(actor: Actor): Prisma.ProductionCycleWhereInput {
-    return legacyOrScopedCycle(actor, this.legacyVisibleWhere(actor));
-  }
-
-  private legacyVisibleWhere(actor: Actor): Prisma.ProductionCycleWhereInput {
-    if (['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)) return {};
-    if (actor.role === 'COMPLIANCE_REVIEWER')
-      return { farm: assignedFarmWhere(actor) };
-    if (actor.role === 'FARM_STAFF')
-      return {
-        farmOrgId:
-          actor.organizationId ?? '00000000-0000-0000-0000-000000000000',
-      };
-    if (actor.role === 'TRANSPORTER')
-      return {
-        harvestEvents: {
-          some: {
-            lot: {
-              shipment: {
-                transporterOrgId:
-                  actor.organizationId ??
-                  '00000000-0000-0000-0000-000000000000',
-              },
-            },
-          },
-        },
-      };
-    if (actor.role === 'RETAILER')
-      return {
-        harvestEvents: {
-          some: {
-            lot: {
-              shipment: {
-                retailerOrgId:
-                  actor.organizationId ??
-                  '00000000-0000-0000-0000-000000000000',
-              },
-            },
-          },
-        },
-      };
-    return { id: '00000000-0000-0000-0000-000000000000' };
+    return scopedCycleReadWhere(actor);
   }
 
   async create(input: CreateProductionCycleDto, actor: Actor) {
@@ -289,16 +212,15 @@ export class ProductionCyclesService {
           note: input.note,
         },
       });
-      if (input.chainId)
-        await tx.stageAssignment.create({
-          data: {
-            chainId: input.chainId,
-            organizationId: farm.organizationId,
-            stage: 'PRODUCTION',
-            cycleId: cycle.id,
-            status: 'ACCEPTED',
-          },
-        });
+      await tx.stageAssignment.create({
+        data: {
+          chainId: input.chainId,
+          organizationId: farm.organizationId,
+          stage: 'PRODUCTION',
+          cycleId: cycle.id,
+          status: 'ACCEPTED',
+        },
+      });
       await this.trace.createInTransaction(tx, {
         entityType: 'PRODUCTION_CYCLE',
         entityId: cycle.id,

@@ -7,11 +7,10 @@ import { SupplyChainsService } from './supply-chains.service.js';
 import { ShipmentPlansController } from './shipment-plans.controller.js';
 import { ShipmentPlansService } from './shipment-plans.service.js';
 import { TraceModule } from '../trace/trace.module.js';
-import { LegacyScopeController } from './legacy-scope.controller.js';
 
 @Module({
   imports: [AuthModule, PrismaModule, IdempotencyModule, TraceModule],
-  controllers: [SupplyChainsController, ShipmentPlansController, LegacyScopeController],
+  controllers: [SupplyChainsController, ShipmentPlansController],
   providers: [SupplyChainsService, ShipmentPlansService],
 })
 export class SupplyChainsModule {}

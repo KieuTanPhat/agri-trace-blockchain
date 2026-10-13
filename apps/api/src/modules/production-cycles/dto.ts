@@ -16,13 +16,11 @@ import {
 export class CreateProductionCycleDto {
   @ApiProperty({
     type: String,
-    required: false,
     format: 'uuid',
-    description: 'Bắt buộc sau cutover sang quản lý theo chuỗi',
+    description: 'Chuỗi cung ứng chứa vụ sản xuất',
   })
-  @IsOptional()
   @IsUUID()
-  chainId?: string;
+  chainId!: string;
   @ApiProperty({ type: String, format: 'uuid' })
   @IsUUID()
   farmId!: string;

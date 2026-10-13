@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
-import { assignedFarmWhere } from '../auth/compliance-scope.js';
 import type { Actor } from '../trace/trace.service.js';
 import {
   INTERNAL_LOT_INCLUDE,
@@ -14,7 +13,7 @@ import {
   type InternalLot,
 } from './lot-query.types.js';
 import { toInternalLotDto, toPublicLotDto } from './lot.presenter.js';
-import { legacyOrScopedLot } from '../supply-chains/business-read-scope.js';
+import { scopedLotReadWhere } from '../supply-chains/business-read-scope.js';
 import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
 import { getAllowedLotCommands, type LotCommand } from './lot-action.policy.js';
 
@@ -37,36 +36,7 @@ export class LotQueryService {
 
   async getList(actor: Actor) {
     const lots = await this.prisma.lot.findMany({
-      where: legacyOrScopedLot(
-        actor,
-        ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)
-          ? undefined
-          : actor.role === 'COMPLIANCE_REVIEWER'
-            ? { harvest: { cycle: { farm: assignedFarmWhere(actor) } } }
-            : {
-                OR: [
-                  {
-                    farmOrgId:
-                      actor.organizationId ??
-                      '00000000-0000-0000-0000-000000000000',
-                  },
-                  {
-                    shipment: {
-                      transporterOrgId:
-                        actor.organizationId ??
-                        '00000000-0000-0000-0000-000000000000',
-                    },
-                  },
-                  {
-                    shipment: {
-                      retailerOrgId:
-                        actor.organizationId ??
-                        '00000000-0000-0000-0000-000000000000',
-                    },
-                  },
-                ],
-              },
-      ),
+      where: scopedLotReadWhere(actor),
       include: INTERNAL_LOT_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });

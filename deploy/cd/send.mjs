@@ -18,18 +18,18 @@ try {
   assert.ok(typeof setting('KNOWN_HOSTS')==='string'&&setting('KNOWN_HOSTS').trim(),'CD SSH host pin is unavailable');
   writeFileSync(key,setting('SSH_PRIVATE_KEY').trim()+'\n',{mode:0o600});
   writeFileSync(path.join(temp,'known_hosts'),setting('KNOWN_HOSTS').trim()+'\n',{mode:0o600});
-  assert.ok(['deploy','upgrade','forward','rollback','recover','status','backup'].includes(operation));
+  assert.ok(['deploy','upgrade','rollback','recover','status','backup'].includes(operation));
   assert.match(setting('HOST'),/^\d{1,3}(?:\.\d{1,3}){3}$/);
   assert.match(setting('USER'),/^[a-z][a-z0-9-]*$/);
   if(targetEnvironment)assert.equal(setting('USER'),`agri-cd-${prefix}`,'SSH identity does not match environment');
   let command = operation;
   if (!['status','recover'].includes(operation)) {assert.match(value,/^[a-f0-9]{40}$/);command += ` ${value}`;}
-  if (['deploy','upgrade','forward'].includes(operation)) {
+  if (['deploy','upgrade'].includes(operation)) {
     command += ` ${createHash('sha256').update(readFileSync(archive)).digest('hex')}`;
     if(operation==='upgrade'){assert.match(process.env.EXPECTED_SEQUENCE,/^[1-9][0-9]{0,8}$/);command+=` ${process.env.EXPECTED_SEQUENCE}`;}
   }
   let auth;
-  if(['deploy','upgrade','forward'].includes(operation)){
+  if(['deploy','upgrade'].includes(operation)){
     auth={username:process.env.REGISTRY_USERNAME ?? process.env.GITHUB_ACTOR,token:process.env.GH_TOKEN};
     assert.ok(typeof auth.username==='string'&&auth.username.length>0,'Registry username is unavailable');
     assert.ok(typeof auth.token==='string'&&auth.token.length>=16,'Registry credential is unavailable');
@@ -39,7 +39,7 @@ try {
     '-o','ServerAliveCountMax=4',`${setting('USER')}@${setting('HOST')}`,command],{stdio:['pipe','pipe','inherit']});
   const completion = new Promise((resolve,reject)=>{child.on('error',()=>reject(new Error('SSH could not start')));child.on('close',code=>code===0?resolve():reject(new Error(`CD ${operation} failed (SSH exit ${code}); see server evidence`)));});
   completion.catch(()=>{});
-  if(['deploy','upgrade','forward'].includes(operation)){
+  if(['deploy','upgrade'].includes(operation)){
     child.stdin.write(JSON.stringify(auth)+'\n');
     await pipeline(createReadStream(archive),child.stdin);
   } else child.stdin.end();

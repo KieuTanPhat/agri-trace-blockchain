@@ -81,19 +81,7 @@ describe('Current account authorization', () => {
       role: current.role.code,
       organizationId: current.organizationId,
       accountStatus: 'ACTIVE',
-      organizationScopeActivated: false,
     });
-    findUnique.mockResolvedValue({
-      ...current,
-      organization: {
-        status: 'ACTIVE',
-        businessScope: { organizationId: current.organizationId },
-      },
-    });
-    const cutover = context();
-    await expect(guard.canActivate(cutover.ctx)).resolves.toBe(true);
-    expect(cutover.request.user.organizationScopeActivated).toBe(true);
-    findUnique.mockResolvedValue(current);
 
     current.accountStatus = 'LOCKED';
 

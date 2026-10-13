@@ -4,10 +4,6 @@ import type {
   Prisma,
 } from '../../generated/prisma/client.js';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
-import {
-  routeImportEntryMatches,
-  type RouteImportRecord,
-} from './ledger-route-import-artifact.js';
 
 export const ROUTE_PROTOCOL = 'agritrace-ledger-route/1';
 export type RouteDefinition = Pick<
@@ -30,13 +26,13 @@ export type RoutedEvent = {
   ledgerRoute?: null | {
     definitionDigest: string;
     definition: PinnedRoute;
-    importDigest?: string | null;
-    import?: RouteImportRecord | null;
   };
 };
 export const EVENT_LEDGER_ROUTE_INCLUDE = {
-  include: { definition: true, import: true },
+  include: { definition: true },
 } as const;
+
+const NAME = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
 
 export function routePayload(route: RouteDefinition): RouteDefinition {
   return {
@@ -53,6 +49,8 @@ export function routePayload(route: RouteDefinition): RouteDefinition {
   };
 }
 
+/** Canonical digest of the logical destination and writer authority. It never
+ * includes endpoints, credential paths or certificate revisions. */
 export function ledgerRouteDigest(route: RouteDefinition): string {
   const payload = routePayload(route);
   for (const field of [
@@ -61,10 +59,7 @@ export function ledgerRouteDigest(route: RouteDefinition): string {
     'chaincodeName',
     'contractName',
   ] as const)
-    if (
-      typeof payload[field] !== 'string' ||
-      !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/.test(payload[field])
-    )
+    if (typeof payload[field] !== 'string' || !NAME.test(payload[field]))
       throw new Error('Invalid ledger destination');
   if (
     payload.protocol !== ROUTE_PROTOCOL ||
@@ -76,14 +71,12 @@ export function ledgerRouteDigest(route: RouteDefinition): string {
     payload.writerMspId,
     payload.writerRole,
   ];
-  if (!(
-    authority.every((value) => value === null) ||
-    authority.every(
-      (value) =>
-        typeof value === 'string' &&
-        /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/.test(value),
+  if (
+    !(
+      authority.every((value) => value === null) ||
+      authority.every((value) => typeof value === 'string' && NAME.test(value))
     )
-  ))
+  )
     throw new Error('Invalid ledger writer authority');
   if (payload.writerRole !== null && payload.writerRole.length > 50)
     throw new Error('Invalid ledger writer role');
@@ -102,53 +95,37 @@ export function ledgerRouteDigest(route: RouteDefinition): string {
   return canonicalSha256(payload);
 }
 
-/** Deployment-owned metadata, independent of database rows; no credential paths. */
-export function ledgerRoutePins(
-  environment: NodeJS.ProcessEnv = process.env,
-): Set<string> {
-  const raw = environment.LEDGER_ROUTE_PINS;
-  if (!raw || raw.length > 20000) throw new Error('Missing ledger route pins');
-  const pins: unknown = JSON.parse(raw);
-  if (
-    !Array.isArray(pins) ||
-    pins.length === 0 ||
-    pins.length > 256 ||
-    pins.some(
-      (pin) => typeof pin !== 'string' || !/^[a-f0-9]{64}$/.test(pin),
-    ) ||
-    new Set(pins).size !== pins.length
-  )
-    throw new Error('Invalid ledger route pins');
-  return new Set(pins as string[]);
-}
-
-export function assertPinnedLedgerRoute(
-  route: PinnedRoute,
-  pins = ledgerRoutePins(),
+/** The single release-A write destination, shared by API and Worker. Both
+ * processes derive it from the same deployment variables; the Worker only
+ * delivers events whose immutable route equals its own destination. */
+export function configuredWriteRoute(
+  env: NodeJS.ProcessEnv = process.env,
 ): PinnedRoute {
-  if (!pins.has(route.digest) || ledgerRouteDigest(route) !== route.digest)
-    throw new Error('Unverified ledger route definition');
-  return route;
+  const route: RouteDefinition = {
+    protocol: ROUTE_PROTOCOL,
+    mode: 'WRITE',
+    network: env.FABRIC_NETWORK_NAME || 'hyperledger-fabric',
+    channelId: env.FABRIC_CHANNEL_NAME || 'agritrace',
+    chaincodeName: env.FABRIC_CHAINCODE_NAME || 'agritrace',
+    contractName: env.FABRIC_CONTRACT_NAME || 'AgriTraceContract',
+    envelopeVersion: '3.0.0',
+    writerAuthority: env.LEDGER_WRITER_AUTHORITY || 'agritrace-relayer',
+    writerMspId: env.FABRIC_MSP_ID || 'Org1MSP',
+    writerRole: 'relayer',
+  };
+  return Object.freeze({ ...route, digest: ledgerRouteDigest(route) });
 }
 
+/** Recompute the digest of a stored route; a mismatch means the row is not
+ * the definition it claims to be and the event must not be delivered. */
 export function verifiedEventRoute(event: RoutedEvent): PinnedRoute | null {
   try {
     const sidecar = event.ledgerRoute;
     if (!sidecar || sidecar.definitionDigest !== sidecar.definition.digest)
       return null;
-    if (sidecar.importDigest) {
-      if (
-        !sidecar.import ||
-        sidecar.import.digest !== sidecar.importDigest ||
-        !routeImportEntryMatches(
-          sidecar.import,
-          event,
-          sidecar.definitionDigest,
-        )
-      )
-        return null;
-    } else if (sidecar.import) return null;
-    return assertPinnedLedgerRoute(sidecar.definition);
+    if (ledgerRouteDigest(sidecar.definition) !== sidecar.definition.digest)
+      return null;
+    return sidecar.definition;
   } catch {
     return null;
   }
@@ -165,10 +142,14 @@ export function sameLedgerDestination(
   );
 }
 
+/** Pre-release-A events (loaded route sidecar is `null`) are verified as
+ * before: their proof carries the destination. An unloaded sidecar
+ * (`undefined`) never verifies, so a query cannot silently downgrade. */
 export function routeProofMatches(
   event: RoutedEvent,
   proof: { network?: string; channelId?: string; dataHash: string },
 ): boolean {
+  if (event.ledgerRoute === null) return proof.dataHash === event.dataHash;
   const route = verifiedEventRoute(event);
   return Boolean(
     route &&
@@ -178,28 +159,24 @@ export function routeProofMatches(
   );
 }
 
+/** Register (idempotently) and return the current write route. Definitions
+ * are immutable rows keyed by digest, so concurrent registration is safe. */
 export async function activeWriteRoute(
   tx: Prisma.TransactionClient,
 ): Promise<PinnedRoute> {
+  let route: PinnedRoute;
   try {
-    const digest = process.env.LEDGER_ACTIVE_ROUTE_DIGEST;
-    if (
-      !digest ||
-      !/^[a-f0-9]{64}$/.test(digest) ||
-      !ledgerRoutePins().has(digest)
-    )
-      throw new Error('Missing active ledger route');
-    await tx.$queryRaw`SELECT digest FROM ledger_route_definition WHERE digest=${digest} FOR SHARE`;
-    const route = await tx.ledgerRouteDefinition.findUniqueOrThrow({
-      where: { digest },
-    });
-    assertPinnedLedgerRoute(route);
-    if (route.mode !== 'WRITE')
-      throw new Error('Historical route is read only');
-    return route;
+    route = configuredWriteRoute();
   } catch {
-    throw new ServiceUnavailableException(
-      'Ledger route chưa được đăng ký và pin hợp lệ',
-    );
+    throw new ServiceUnavailableException('Ledger route cấu hình không hợp lệ');
   }
+  await tx.$executeRaw`INSERT INTO ledger_route_definition
+    (digest, protocol, mode, network, channel_id, chaincode_name, contract_name,
+     envelope_version, writer_authority, writer_msp_id, writer_role)
+    VALUES (${route.digest}, ${route.protocol}, ${route.mode}, ${route.network},
+      ${route.channelId}, ${route.chaincodeName}, ${route.contractName},
+      ${route.envelopeVersion}, ${route.writerAuthority}, ${route.writerMspId},
+      ${route.writerRole})
+    ON CONFLICT (digest) DO NOTHING`;
+  return route;
 }

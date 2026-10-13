@@ -15,12 +15,7 @@ import {
   organizationGrant,
 } from './chain-policy.js';
 import type { ChangeMemberDto, GrantRoleDto } from './dto.js';
-import { legacyScopePins } from './legacy-scope-pins.js';
 import { assertBusinessActivationReady } from './business-profile.commands.js';
-import {
-  authorizeLegacyScopeCommand,
-  legacyReviewKeys,
-} from './legacy-scope.commands.js';
 
 @Injectable()
 export class SupplyChainsService {
@@ -81,11 +76,6 @@ export class SupplyChainsService {
     const capabilities = await this.prisma.organizationCapability.findMany({
       where: { organizationId, revokedAt: null },
     });
-    const businessScopeActivated = Boolean(
-      await this.prisma.organizationBusinessScope.findUnique({
-        where: { organizationId },
-      }),
-    );
     const productionChains =
       actor.role === 'SYSTEM_ADMIN' ||
       !capabilities.some((c) => c.code === 'FARM')
@@ -145,45 +135,6 @@ export class SupplyChainsService {
       throw new ConflictException(
         'Permission context cần phân trang trước khi mở rộng',
       );
-    const legacyPendingManifests: Array<{ manifestId: string }> = [];
-    if (actor.role !== 'SYSTEM_ADMIN')
-      for (const pin of legacyScopePins()) {
-        const keys = [
-          ...new Map(
-            pin.plan.proposals
-              .filter(
-                (p) =>
-                  p.organizationId === organizationId &&
-                  memberships.some(
-                    (m) => m.chainId === p.chainId && m.status === 'ACTIVE',
-                  ),
-              )
-              .map((p) => [`${p.chainId}:${p.stage}`, p.key]),
-          ).values(),
-          ...(pin.manifest.reviewerId === actor.sub
-            ? Object.keys(legacyReviewKeys(pin))
-            : []),
-        ];
-        for (const proposalKey of keys) {
-          try {
-            await authorizeLegacyScopeCommand(this.prisma, {
-              actor,
-              requesterId: actor.sub!,
-              operation: 'SCOPE_CONFIRM_LEGACY_ASSIGNMENT',
-              payload: { manifestId: pin.manifest.id, proposalKey },
-            });
-            legacyPendingManifests.push({ manifestId: pin.manifest.id });
-            break;
-          } catch (error) {
-            if (!(
-              error instanceof ForbiddenException ||
-              error instanceof NotFoundException
-            ))
-              throw error;
-            if (error instanceof NotFoundException) break;
-          }
-        }
-      }
     // UI invalidation only. Never use this complete role set as command/replay
     // authority: business fingerprints bind only the command's actual grant.
     const accessRevision = canonicalSha256({
@@ -194,31 +145,19 @@ export class SupplyChainsService {
       capabilities: capabilities
         .map((capability) => [capability.code, capability.revision])
         .sort(),
-      businessScopeActivated,
       profiles: businessChains
         .map((profile) => [profile.chainId, profile.version])
         .sort(),
       assignments,
       reviewAssignments,
-      legacyPendingManifests,
-      legacyPins: legacyScopePins()
-        .filter((pin) =>
-          pin.manifest.entries.some((entry) =>
-            memberships.some((member) => member.chainId === entry.chainId),
-          ),
-        )
-        .map((pin) => [pin.manifest.id, pin.digest, pin.plan.digest])
-        .sort(),
     });
     return {
       accessRevision,
       grants,
       memberships,
       capabilities,
-      businessScopeActivated,
       productionChains,
       businessChains: businessChains.map((p) => p.chainId),
-      legacyPendingManifests,
     };
   }
 

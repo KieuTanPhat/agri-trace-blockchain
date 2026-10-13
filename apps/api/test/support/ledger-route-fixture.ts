@@ -1,39 +1,18 @@
-import type { Prisma } from '../../src/generated/prisma/client.js';
-import {
-  ledgerRouteDigest,
-  ROUTE_PROTOCOL,
-  type RouteDefinition,
-} from '../../src/modules/trace/ledger-route.js';
+import { configuredWriteRoute } from '../../src/modules/trace/ledger-route.js';
 
-/** Synthetic metadata only. These definitions/proofs are never Fabric acceptance. */
-export const fixtureRoutePayload: RouteDefinition = {
-  protocol: ROUTE_PROTOCOL,
-  mode: 'WRITE',
-  network: 'audit-fixture',
-  channelId: 'agritrace',
-  chaincodeName: 'agritrace',
-  contractName: 'AgriTraceContract',
-  envelopeVersion: '3.0.0',
-  writerAuthority: 'isolated:technical-relayer',
-  writerMspId: 'FixtureMSP',
-  writerRole: 'relayer',
-};
-export const fixtureRoute = {
-  ...fixtureRoutePayload,
-  digest: ledgerRouteDigest(fixtureRoutePayload),
-};
+/** Synthetic write route for tests. Not Fabric acceptance evidence. */
+export const FIXTURE_ROUTE_ENV = {
+  FABRIC_NETWORK_NAME: 'audit-fixture',
+  FABRIC_CHANNEL_NAME: 'agritrace',
+  FABRIC_CHAINCODE_NAME: 'agritrace',
+  FABRIC_CONTRACT_NAME: 'AgriTraceContract',
+  FABRIC_MSP_ID: 'FixtureMSP',
+  LEDGER_WRITER_AUTHORITY: 'isolated:technical-relayer',
+} as const;
+
+export const fixtureRoute = configuredWriteRoute({ ...FIXTURE_ROUTE_ENV });
+
+/** Point the process at the fixture route (API TraceService and Worker). */
 export function fixtureRoutePins() {
-  process.env.LEDGER_ROUTE_PINS = JSON.stringify([fixtureRoute.digest]);
-  process.env.LEDGER_ACTIVE_ROUTE_DIGEST = fixtureRoute.digest;
-}
-export async function registerFixtureRoute(db: Prisma.TransactionClient) {
-  if (process.env.NODE_ENV !== 'test' || !process.env.TEST_DATABASE_URL)
-    throw new Error(
-      'Ledger fixture requires an explicit isolated test database',
-    );
-  fixtureRoutePins();
-  await db.ledgerRouteDefinition.createMany({
-    data: [fixtureRoute],
-    skipDuplicates: true,
-  });
+  Object.assign(process.env, FIXTURE_ROUTE_ENV);
 }

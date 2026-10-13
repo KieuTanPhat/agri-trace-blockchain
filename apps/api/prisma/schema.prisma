@@ -19,32 +19,30 @@ model Role {
 }
 
 model User {
-  id               String                    @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
-  organizationId   String?                   @map("organization_id") @db.Uuid
-  roleId           String                    @map("role_id") @db.Uuid
-  email            String                    @db.VarChar(255)
-  passwordHash     String                    @map("password_hash")
-  fullName         String                    @map("full_name") @db.VarChar(255)
-  accountStatus    AccountStatus             @default(ACTIVE) @map("account_status")
-  createdAt        DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime                  @default(now()) @map("updated_at") @db.Timestamptz(6)
-  organization     Organization?             @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  role             Role                      @relation(fields: [roleId], references: [id], onUpdate: NoAction)
-  trackingBindings ShipmentTrackingBinding[]
-  traceEvents      TraceEvent[]
-  refreshSessions  RefreshSession[]
-  complianceAssignments ComplianceAssignment[]
+  id                         String                      @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
+  organizationId             String?                     @map("organization_id") @db.Uuid
+  roleId                     String                      @map("role_id") @db.Uuid
+  email                      String                      @db.VarChar(255)
+  passwordHash               String                      @map("password_hash")
+  fullName                   String                      @map("full_name") @db.VarChar(255)
+  accountStatus              AccountStatus               @default(ACTIVE) @map("account_status")
+  createdAt                  DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                    @default(now()) @map("updated_at") @db.Timestamptz(6)
+  organization               Organization?               @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  role                       Role                        @relation(fields: [roleId], references: [id], onUpdate: NoAction)
+  trackingBindings           ShipmentTrackingBinding[]
+  traceEvents                TraceEvent[]
+  refreshSessions            RefreshSession[]
+  complianceAssignments      ComplianceAssignment[]
   complianceAssignmentAudits ComplianceAssignmentAudit[]
-  sensorReconciliations CycleSensorReconciliation[]
-  submittedCertificates Certificate[]
-  recordedInspections Inspection[]
-  scopedGrants ScopedRoleGrant[]
-  chainAudits ChainAudit[]
-  shipmentPlanAcceptances ShipmentPlanAcceptance[]
-  legacyScopeConsents LegacyScopeConsent[]
+  sensorReconciliations      CycleSensorReconciliation[]
+  submittedCertificates      Certificate[]
+  recordedInspections        Inspection[]
+  scopedGrants               ScopedRoleGrant[]
+  chainAudits                ChainAudit[]
+  shipmentPlanAcceptances    ShipmentPlanAcceptance[]
 
   @@unique([id, organizationId], map: "uq_user_org_scope")
-
   @@map("app_user")
 }
 
@@ -65,85 +63,82 @@ model RefreshSession {
 }
 
 model Organization {
-  id                     String                    @id @default(dbgenerated("gen_random_uuid()")) @map("organization_id") @db.Uuid
-  name                   String                    @db.VarChar(255)
-  type                   OrganizationType
-  status                 OrganizationStatus        @default(ACTIVE)
-  createdAt              DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime                  @default(now()) @map("updated_at") @db.Timestamptz(6)
-  users                  User[]
-  farms                  Farm[]
-  inspections            Inspection[]
-  devices                IotDevice[]
-  lots                   Lot[]
-  productionCycles       ProductionCycle[]
-  shipmentsAsRetailer    Shipment[]                @relation("ShipmentRetailer")
-  shipmentsAsTransporter Shipment[]                @relation("ShipmentTransporter")
-  trackingBindings       ShipmentTrackingBinding[]
-  traceEvents            TraceEvent[]
-  capabilities           OrganizationCapability[]
-  ownedChains            SupplyChain[]
-  chainMemberships       ChainMembership[]
-  scopedGrants           ScopedRoleGrant[]
-  stageAssignments       StageAssignment[]
-  businessScope          OrganizationBusinessScope?
-  planProducerRevisions  ShipmentPlanRevision[] @relation("PlanProducer")
-  planTransportRevisions ShipmentPlanRevision[] @relation("PlanTransporter")
-  planRetailRevisions    ShipmentPlanRevision[] @relation("PlanRetailer")
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @map("organization_id") @db.Uuid
+  name                    String                    @db.VarChar(255)
+  type                    OrganizationType
+  status                  OrganizationStatus        @default(ACTIVE)
+  createdAt               DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  users                   User[]
+  farms                   Farm[]
+  inspections             Inspection[]
+  devices                 IotDevice[]
+  lots                    Lot[]
+  productionCycles        ProductionCycle[]
+  shipmentsAsRetailer     Shipment[]                @relation("ShipmentRetailer")
+  shipmentsAsTransporter  Shipment[]                @relation("ShipmentTransporter")
+  trackingBindings        ShipmentTrackingBinding[]
+  traceEvents             TraceEvent[]
+  capabilities            OrganizationCapability[]
+  ownedChains             SupplyChain[]
+  chainMemberships        ChainMembership[]
+  scopedGrants            ScopedRoleGrant[]
+  stageAssignments        StageAssignment[]
+  planProducerRevisions   ShipmentPlanRevision[]    @relation("PlanProducer")
+  planTransportRevisions  ShipmentPlanRevision[]    @relation("PlanTransporter")
+  planRetailRevisions     ShipmentPlanRevision[]    @relation("PlanRetailer")
   shipmentPlanAcceptances ShipmentPlanAcceptance[]
 
   @@map("organization")
 }
 
-/// Additive rollout: these grants apply only to the supply-chain management API.
-/// Legacy business endpoints continue to enforce their current core policies.
+/// Business capability of an organization. A capability never grants user
+/// permissions or chain data access by itself.
 model OrganizationCapability {
-  organizationId String @map("organization_id") @db.Uuid
-  code OrganizationType
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
-  revision Int @default(0)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  organizationId String           @map("organization_id") @db.Uuid
+  code           OrganizationType
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt      DateTime?        @map("revoked_at") @db.Timestamptz(6)
+  revision       Int              @default(0)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([organizationId, code])
   @@map("organization_capability")
 }
 
 model SupplyChain {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("chain_id") @db.Uuid
-  ownerOrganizationId String @map("owner_organization_id") @db.Uuid
-  name String @db.VarChar(255)
-  version Int @default(0)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  owner Organization @relation(fields: [ownerOrganizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  memberships ChainMembership[]
-  grants ScopedRoleGrant[]
-  audits ChainAudit[]
-  businessProfile ChainBusinessProfile?
-  cycles ProductionCycle[]
-  assignments StageAssignment[]
-  shipmentPlans ShipmentPlan[]
-  eventContexts EventChainContext[]
-  legacyScopeMappings LegacyScopeMapping[]
-  legacyScopeCheckpoints LegacyScopeCheckpoint[]
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @map("chain_id") @db.Uuid
+  ownerOrganizationId String                @map("owner_organization_id") @db.Uuid
+  name                String                @db.VarChar(255)
+  version             Int                   @default(0)
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  owner               Organization          @relation(fields: [ownerOrganizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  memberships         ChainMembership[]
+  grants              ScopedRoleGrant[]
+  audits              ChainAudit[]
+  businessProfile     ChainBusinessProfile?
+  cycles              ProductionCycle[]
+  assignments         StageAssignment[]
+  shipmentPlans       ShipmentPlan[]
+  eventContexts       EventChainContext[]
 
   @@index([ownerOrganizationId])
   @@map("supply_chain")
 }
 
 model ChainMembership {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("membership_id") @db.Uuid
-  chainId String @map("chain_id") @db.Uuid
-  organizationId String @map("organization_id") @db.Uuid
-  status ChainMembershipStatus @default(INVITED)
-  version Int @default(0)
-  invitationRevision Int @default(0) @map("invitation_revision")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-  chain SupplyChain @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  grants ScopedRoleGrant[]
-  assignments StageAssignment[]
+  id                 String                @id @default(dbgenerated("gen_random_uuid()")) @map("membership_id") @db.Uuid
+  chainId            String                @map("chain_id") @db.Uuid
+  organizationId     String                @map("organization_id") @db.Uuid
+  status             ChainMembershipStatus @default(INVITED)
+  version            Int                   @default(0)
+  invitationRevision Int                   @default(0) @map("invitation_revision")
+  createdAt          DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime              @default(now()) @map("updated_at") @db.Timestamptz(6)
+  chain              SupplyChain           @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  grants             ScopedRoleGrant[]
+  assignments        StageAssignment[]
 
   @@unique([chainId, organizationId], map: "uq_chain_membership_org")
   @@index([organizationId, status])
@@ -151,39 +146,38 @@ model ChainMembership {
 }
 
 model ScopedRoleGrant {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("grant_id") @db.Uuid
-  userId String @map("user_id") @db.Uuid
-  organizationId String @map("organization_id") @db.Uuid
-  chainId String? @map("chain_id") @db.Uuid
-  scope GrantScope
-  role ScopedRole
-  revision Int @default(0)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
-  user User @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  chain SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  membership ChainMembership? @relation(fields: [chainId, organizationId], references: [chainId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  id              String                   @id @default(dbgenerated("gen_random_uuid()")) @map("grant_id") @db.Uuid
+  userId          String                   @map("user_id") @db.Uuid
+  organizationId  String                   @map("organization_id") @db.Uuid
+  chainId         String?                  @map("chain_id") @db.Uuid
+  scope           GrantScope
+  role            ScopedRole
+  revision        Int                      @default(0)
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt       DateTime?                @map("revoked_at") @db.Timestamptz(6)
+  user            User                     @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  chain           SupplyChain?             @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  membership      ChainMembership?         @relation(fields: [chainId, organizationId], references: [chainId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   planAcceptances ShipmentPlanAcceptance[]
-  legacyScopeConsents LegacyScopeConsent[]
 
-  @@index([userId, revokedAt])
-  @@index([chainId, organizationId])
   @@unique([userId, organizationId, role], map: "uq_scoped_role_org_active", where: raw("((chain_id IS NULL) AND (revoked_at IS NULL))"))
   @@unique([userId, organizationId, chainId, role], map: "uq_scoped_role_chain_active", where: raw("((chain_id IS NOT NULL) AND (revoked_at IS NULL))"))
+  @@index([userId, revokedAt])
+  @@index([chainId, organizationId])
   @@map("scoped_role_grant")
 }
 
 model ChainAudit {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("audit_id") @db.Uuid
-  chainId String? @map("chain_id") @db.Uuid
-  actorUserId String @map("actor_user_id") @db.Uuid
-  operation String @db.VarChar(80)
-  subjectId String @map("subject_id") @db.Uuid
-  revision Int
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  chain SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  actor User @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @map("audit_id") @db.Uuid
+  chainId     String?      @map("chain_id") @db.Uuid
+  actorUserId String       @map("actor_user_id") @db.Uuid
+  operation   String       @db.VarChar(80)
+  subjectId   String       @map("subject_id") @db.Uuid
+  revision    Int
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  chain       SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  actor       User         @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([chainId, createdAt])
   @@map("chain_audit")
@@ -218,69 +212,72 @@ enum ChainBusinessProfileState {
   PREPARING
   ACTIVE
   SUSPENDED
+
   @@map("hybrid_business_profile_state")
 }
+
 enum BusinessStage {
   PRODUCTION
   TRANSPORT
   RETAIL
+
   @@map("hybrid_stage")
 }
+
 enum StageAssignmentState {
   PROPOSED
   ACCEPTED
   REJECTED
   CANCELLED
+
   @@map("hybrid_assignment_state")
 }
+
 enum ShipmentPlanState {
   DRAFT
   FINALIZED
   CANCELLED
+
   @@map("hybrid_shipment_plan_state")
 }
+
 enum ShipmentPlanParty {
   PRODUCER
   TRANSPORTER
   RETAILER
+
   @@map("hybrid_plan_party")
 }
 
 model ChainBusinessProfile {
-  chainId String @id @map("chain_id") @db.Uuid
-  state ChainBusinessProfileState @default(PREPARING)
-  scopeVersion Int @default(1) @map("scope_version")
-  version Int @default(0)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  chain SupplyChain @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  chainId      String                    @id @map("chain_id") @db.Uuid
+  state        ChainBusinessProfileState @default(PREPARING)
+  scopeVersion Int                       @default(1) @map("scope_version")
+  version      Int                       @default(0)
+  createdAt    DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  chain        SupplyChain               @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+
   @@map("chain_business_profile")
 }
 
-model OrganizationBusinessScope {
-  organizationId String @id @map("organization_id") @db.Uuid
-  scopeVersion Int @default(1) @map("scope_version")
-  activatedAt DateTime @default(now()) @map("activated_at") @db.Timestamptz(6)
-  organization Organization @relation(fields: [organizationId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  @@map("organization_business_scope")
-}
-
 model StageAssignment {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("assignment_id") @db.Uuid
-  chainId String @map("chain_id") @db.Uuid
-  organizationId String @map("organization_id") @db.Uuid
-  stage BusinessStage
-  cycleId String? @map("cycle_id") @db.Uuid
-  lotId String? @map("lot_id") @db.Uuid
-  shipmentId String? @map("shipment_id") @db.Uuid
-  status StageAssignmentState @default(PROPOSED)
-  version Int @default(0)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  chain SupplyChain @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  organization Organization @relation(fields: [organizationId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  membership ChainMembership @relation(fields: [chainId, organizationId], references: [chainId, organizationId], onUpdate: NoAction, onDelete: Restrict)
-  cycle ProductionCycle? @relation(fields: [cycleId, chainId], references: [id, chainId], onUpdate: NoAction, onDelete: Restrict)
-  lot Lot? @relation(fields: [lotId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  shipment Shipment? @relation(fields: [shipmentId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @map("assignment_id") @db.Uuid
+  chainId        String               @map("chain_id") @db.Uuid
+  organizationId String               @map("organization_id") @db.Uuid
+  stage          BusinessStage
+  cycleId        String?              @map("cycle_id") @db.Uuid
+  lotId          String?              @map("lot_id") @db.Uuid
+  shipmentId     String?              @map("shipment_id") @db.Uuid
+  status         StageAssignmentState @default(PROPOSED)
+  version        Int                  @default(0)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  chain          SupplyChain          @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  organization   Organization         @relation(fields: [organizationId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  membership     ChainMembership      @relation(fields: [chainId, organizationId], references: [chainId, organizationId], onUpdate: NoAction, onDelete: Restrict)
+  cycle          ProductionCycle?     @relation(fields: [cycleId, chainId], references: [id, chainId], onUpdate: NoAction, onDelete: Restrict)
+  lot            Lot?                 @relation(fields: [lotId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  shipment       Shipment?            @relation(fields: [shipmentId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+
   @@unique([chainId, cycleId, stage], map: "uq_stage_cycle_active", where: raw("(status = ANY (ARRAY['PROPOSED'::hybrid_assignment_state, 'ACCEPTED'::hybrid_assignment_state]))"))
   @@unique([chainId, lotId, stage], map: "uq_stage_lot_active", where: raw("(status = ANY (ARRAY['PROPOSED'::hybrid_assignment_state, 'ACCEPTED'::hybrid_assignment_state]))"))
   @@unique([chainId, shipmentId, stage], map: "uq_stage_shipment_active", where: raw("(status = ANY (ARRAY['PROPOSED'::hybrid_assignment_state, 'ACCEPTED'::hybrid_assignment_state]))"))
@@ -289,89 +286,93 @@ model StageAssignment {
 }
 
 model ShipmentPlan {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("plan_id") @db.Uuid
-  chainId String @map("chain_id") @db.Uuid
-  lotId String @map("lot_id") @db.Uuid
-  currentRevision Int @default(0) @map("current_revision")
-  version Int @default(0)
-  status ShipmentPlanState @default(DRAFT)
-  shipmentId String? @unique @map("shipment_id") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  chain SupplyChain @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  lot Lot @relation(fields: [lotId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  shipment Shipment? @relation(fields: [shipmentId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  current ShipmentPlanRevision @relation("PlanCurrent", fields: [id, currentRevision], references: [planId, revision], onUpdate: NoAction, onDelete: Restrict, map: "fk_plan_current_revision")
-  revisions ShipmentPlanRevision[] @relation("PlanHistory")
+  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @map("plan_id") @db.Uuid
+  chainId         String                 @map("chain_id") @db.Uuid
+  lotId           String                 @map("lot_id") @db.Uuid
+  currentRevision Int                    @default(0) @map("current_revision")
+  version         Int                    @default(0)
+  status          ShipmentPlanState      @default(DRAFT)
+  shipmentId      String?                @unique @map("shipment_id") @db.Uuid
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  chain           SupplyChain            @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  lot             Lot                    @relation(fields: [lotId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  shipment        Shipment?              @relation(fields: [shipmentId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  current         ShipmentPlanRevision   @relation("PlanCurrent", fields: [id, currentRevision], references: [planId, revision], onUpdate: NoAction, onDelete: Restrict, map: "fk_plan_current_revision")
+  revisions       ShipmentPlanRevision[] @relation("PlanHistory")
+
   @@index([chainId, lotId, status], map: "ix_plan_chain_lot")
   @@map("shipment_plan")
 }
 
 model ShipmentPlanRevision {
-  planId String @map("plan_id") @db.Uuid
-  revision Int
-  producerOrgId String @map("producer_org_id") @db.Uuid
-  transporterOrgId String @map("transporter_org_id") @db.Uuid
-  retailerOrgId String @map("retailer_org_id") @db.Uuid
-  quantity Decimal @db.Decimal(14,3)
-  unit String @db.VarChar(30)
-  origin String
-  destination String
-  vehicleRef String? @map("vehicle_ref")
-  plannedPickupTime DateTime? @map("planned_pickup_time") @db.Timestamptz(6)
-  expectedArrivalTime DateTime? @map("expected_arrival_time") @db.Timestamptz(6)
-  payloadDigest String @map("payload_digest") @db.VarChar(64)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  plan ShipmentPlan @relation("PlanHistory", fields: [planId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  currentFor ShipmentPlan[] @relation("PlanCurrent")
-  producer Organization @relation("PlanProducer", fields: [producerOrgId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  transporter Organization @relation("PlanTransporter", fields: [transporterOrgId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  retailer Organization @relation("PlanRetailer", fields: [retailerOrgId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  acceptances ShipmentPlanAcceptance[]
+  planId              String                   @map("plan_id") @db.Uuid
+  revision            Int
+  producerOrgId       String                   @map("producer_org_id") @db.Uuid
+  transporterOrgId    String                   @map("transporter_org_id") @db.Uuid
+  retailerOrgId       String                   @map("retailer_org_id") @db.Uuid
+  quantity            Decimal                  @db.Decimal(14, 3)
+  unit                String                   @db.VarChar(30)
+  origin              String
+  destination         String
+  vehicleRef          String?                  @map("vehicle_ref")
+  plannedPickupTime   DateTime?                @map("planned_pickup_time") @db.Timestamptz(6)
+  expectedArrivalTime DateTime?                @map("expected_arrival_time") @db.Timestamptz(6)
+  payloadDigest       String                   @map("payload_digest") @db.VarChar(64)
+  createdAt           DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan                ShipmentPlan             @relation("PlanHistory", fields: [planId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  currentFor          ShipmentPlan[]           @relation("PlanCurrent")
+  producer            Organization             @relation("PlanProducer", fields: [producerOrgId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  transporter         Organization             @relation("PlanTransporter", fields: [transporterOrgId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  retailer            Organization             @relation("PlanRetailer", fields: [retailerOrgId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  acceptances         ShipmentPlanAcceptance[]
+
   @@id([planId, revision])
   @@map("shipment_plan_revision")
 }
 
 model ShipmentPlanAcceptance {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("acceptance_id") @db.Uuid
-  planId String @map("plan_id") @db.Uuid
-  revision Int
-  party ShipmentPlanParty
-  organizationId String @map("organization_id") @db.Uuid
-  userId String @map("user_id") @db.Uuid
-  grantId String @map("grant_id") @db.Uuid
-  grantRevision Int @map("grant_revision")
-  acceptedAt DateTime @default(now()) @map("accepted_at") @db.Timestamptz(6)
-  planRevision ShipmentPlanRevision @relation(fields: [planId, revision], references: [planId, revision], onUpdate: NoAction, onDelete: Restrict)
-  organization Organization @relation(fields: [organizationId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  user User @relation(fields: [userId, organizationId], references: [id, organizationId], onUpdate: NoAction, onDelete: Restrict)
-  grant ScopedRoleGrant @relation(fields: [grantId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @map("acceptance_id") @db.Uuid
+  planId         String               @map("plan_id") @db.Uuid
+  revision       Int
+  party          ShipmentPlanParty
+  organizationId String               @map("organization_id") @db.Uuid
+  userId         String               @map("user_id") @db.Uuid
+  grantId        String               @map("grant_id") @db.Uuid
+  grantRevision  Int                  @map("grant_revision")
+  acceptedAt     DateTime             @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  planRevision   ShipmentPlanRevision @relation(fields: [planId, revision], references: [planId, revision], onUpdate: NoAction, onDelete: Restrict)
+  organization   Organization         @relation(fields: [organizationId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  user           User                 @relation(fields: [userId, organizationId], references: [id, organizationId], onUpdate: NoAction, onDelete: Restrict)
+  grant          ScopedRoleGrant      @relation(fields: [grantId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+
   @@unique([planId, revision, party])
   @@map("shipment_plan_acceptance")
 }
 
 model EventChainContext {
-  eventId String @id @map("event_id") @db.Uuid
-  chainId String @map("chain_id") @db.Uuid
-  scopeVersion Int @default(1) @map("scope_version")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  event TraceEvent @relation(fields: [eventId], references: [id], onUpdate: NoAction, onDelete: Restrict)
-  chain SupplyChain @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  eventId      String      @id @map("event_id") @db.Uuid
+  chainId      String      @map("chain_id") @db.Uuid
+  scopeVersion Int         @default(1) @map("scope_version")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  event        TraceEvent  @relation(fields: [eventId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  chain        SupplyChain @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+
   @@map("event_chain_context")
 }
 
 model Farm {
   /// The owning organization must have type FARM; enforced by
   /// trg_validate_farm_organization_type in the database migration history.
-  id             String             @id @default(dbgenerated("gen_random_uuid()")) @map("farm_id") @db.Uuid
-  organizationId String             @map("organization_id") @db.Uuid
-  name           String             @db.VarChar(255)
-  location       String?
-  status         OrganizationStatus @default(ACTIVE)
-  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
-  organization   Organization       @relation(fields: [organizationId], references: [id], onUpdate: NoAction)
-  plots          Plot[]
-  cycles         ProductionCycle[]
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @map("farm_id") @db.Uuid
+  organizationId        String                 @map("organization_id") @db.Uuid
+  name                  String                 @db.VarChar(255)
+  location              String?
+  status                OrganizationStatus     @default(ACTIVE)
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime               @default(now()) @map("updated_at") @db.Timestamptz(6)
+  organization          Organization           @relation(fields: [organizationId], references: [id], onUpdate: NoAction)
+  plots                 Plot[]
+  cycles                ProductionCycle[]
   complianceAssignments ComplianceAssignment[]
 
   @@index([organizationId], map: "ix_farm_organization")
@@ -417,7 +418,7 @@ model ProductionCycle {
   productId          String               @map("product_id") @db.Uuid
   farmId             String               @map("farm_id") @db.Uuid
   farmOrgId          String               @map("farm_org_id") @db.Uuid
-  chainId            String?              @map("chain_id") @db.Uuid
+  chainId            String               @map("chain_id") @db.Uuid
   plotId             String?              @map("plot_id") @db.Uuid
   startDate          DateTime?            @map("start_date") @db.Date
   plannedHarvest     DateTime?            @map("planned_harvest") @db.Date
@@ -439,13 +440,10 @@ model ProductionCycle {
   sensorDigests      SensorDigest[]
   sensorReadings     SensorReading[]
   traceEvents        TraceEvent[]
-  chain              SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  chain              SupplyChain          @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   assignments        StageAssignment[]
-  legacyScopeMapping LegacyScopeMapping?
-  legacyScopeCheckpoints LegacyScopeCheckpoint[]
-  legacyScopeSupersessions LegacyScopeSupersession[]
 
-  harvestSensorWindows HarvestSensorWindow[]
+  harvestSensorWindows  HarvestSensorWindow[]
   sensorReconciliations CycleSensorReconciliation[]
 
   @@unique([farmId, cycleCode], map: "uq_production_cycle_farm_code")
@@ -503,19 +501,19 @@ model IotDevice {
 }
 
 model SensorReading {
-  id         String          @id @default(dbgenerated("gen_random_uuid()")) @map("reading_id") @db.Uuid
-  deviceId   String          @map("device_id") @db.Uuid
-  cycleId    String          @map("cycle_id") @db.Uuid
-  sensorType String          @map("sensor_type") @db.VarChar(100)
-  value      Decimal         @db.Decimal(16, 6)
-  unit       String          @db.VarChar(30)
-  recordedAt DateTime        @map("recorded_at") @db.Timestamptz(6)
-  ingestTime DateTime        @default(now()) @map("ingest_time") @db.Timestamptz(6)
-  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  cycle      ProductionCycle @relation(fields: [cycleId], references: [id], onUpdate: NoAction)
-  device     IotDevice       @relation(fields: [deviceId], references: [id], onUpdate: NoAction)
+  id                String                   @id @default(dbgenerated("gen_random_uuid()")) @map("reading_id") @db.Uuid
+  deviceId          String                   @map("device_id") @db.Uuid
+  cycleId           String                   @map("cycle_id") @db.Uuid
+  sensorType        String                   @map("sensor_type") @db.VarChar(100)
+  value             Decimal                  @db.Decimal(16, 6)
+  unit              String                   @db.VarChar(30)
+  recordedAt        DateTime                 @map("recorded_at") @db.Timestamptz(6)
+  ingestTime        DateTime                 @default(now()) @map("ingest_time") @db.Timestamptz(6)
+  createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  cycle             ProductionCycle          @relation(fields: [cycleId], references: [id], onUpdate: NoAction)
+  device            IotDevice                @relation(fields: [deviceId], references: [id], onUpdate: NoAction)
   harvestMembership HarvestSensorMembership?
-  lateMarker LateSensorReading?
+  lateMarker        LateSensorReading?
 
   @@index([cycleId, recordedAt], map: "ix_sensor_reading_cycle_time")
   @@index([deviceId, recordedAt], map: "ix_sensor_reading_device_time")
@@ -544,21 +542,21 @@ model SensorDigest {
 }
 
 model HarvestEvent {
-  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @map("harvest_id") @db.Uuid
-  cycleId             String          @map("cycle_id") @db.Uuid
-  finalSensorDigestId String?         @unique @map("final_sensor_digest_id") @db.Uuid
-  harvestTime         DateTime        @map("harvest_time") @db.Timestamptz(6)
-  quantity            Decimal         @db.Decimal(14, 3)
-  unit                String          @db.VarChar(30)
-  qualityNote         String?         @map("quality_note")
-  grade               String?         @db.VarChar(100)
-  harvestArea         String?         @map("harvest_area") @db.VarChar(255)
-  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  cycle               ProductionCycle @relation(fields: [cycleId], references: [id], onUpdate: NoAction)
-  finalSensorDigest   SensorDigest?   @relation(fields: [finalSensorDigestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  lot                 Lot?
-  sensorWindow HarvestSensorWindow?
-  lateReadings LateSensorReading[]
+  id                    String                      @id @default(dbgenerated("gen_random_uuid()")) @map("harvest_id") @db.Uuid
+  cycleId               String                      @map("cycle_id") @db.Uuid
+  finalSensorDigestId   String?                     @unique @map("final_sensor_digest_id") @db.Uuid
+  harvestTime           DateTime                    @map("harvest_time") @db.Timestamptz(6)
+  quantity              Decimal                     @db.Decimal(14, 3)
+  unit                  String                      @db.VarChar(30)
+  qualityNote           String?                     @map("quality_note")
+  grade                 String?                     @db.VarChar(100)
+  harvestArea           String?                     @map("harvest_area") @db.VarChar(255)
+  createdAt             DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  cycle                 ProductionCycle             @relation(fields: [cycleId], references: [id], onUpdate: NoAction)
+  finalSensorDigest     SensorDigest?               @relation(fields: [finalSensorDigestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  lot                   Lot?
+  sensorWindow          HarvestSensorWindow?
+  lateReadings          LateSensorReading[]
   sensorReconciliations CycleSensorReconciliation[]
 
   @@index([cycleId, harvestTime], map: "ix_harvest_cycle_time")
@@ -725,42 +723,42 @@ model ShipmentTelemetryDigest {
 }
 
 model TraceEvent {
-  chainContext EventChainContext?
-  ledgerRoute EventLedgerRoute?
-  legacyRouteRequirement LedgerRouteLegacyRequirement?
-  id                      String             @id @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
-  entityType              String             @map("entity_type") @db.VarChar(50)
-  entityId                String             @map("entity_id") @db.Uuid
-  cycleId                 String?            @map("cycle_id") @db.Uuid
-  lotId                   String?            @map("lot_id") @db.Uuid
-  eventType               String             @map("event_type") @db.VarChar(100)
-  actorUserId             String?            @map("actor_user_id") @db.Uuid
-  actorOrganizationId     String?            @map("actor_organization_id") @db.Uuid
-  actorRole               String             @map("actor_role") @db.VarChar(50)
-  authProofType           String?            @map("auth_proof_type") @db.VarChar(100)
-  actorAuthProof          String?            @map("actor_auth_proof")
-  eventTime               DateTime           @map("event_time") @db.Timestamptz(6)
-  serverRecordedAt        DateTime           @default(now()) @map("server_recorded_at") @db.Timestamptz(6)
-  businessData            Json               @map("business_data")
+  chainContext            EventChainContext?
+  ledgerRoute             EventLedgerRoute?
+  ledgerRouteExemption    LedgerRouteExemption?
+  id                      String                @id @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
+  entityType              String                @map("entity_type") @db.VarChar(50)
+  entityId                String                @map("entity_id") @db.Uuid
+  cycleId                 String?               @map("cycle_id") @db.Uuid
+  lotId                   String?               @map("lot_id") @db.Uuid
+  eventType               String                @map("event_type") @db.VarChar(100)
+  actorUserId             String?               @map("actor_user_id") @db.Uuid
+  actorOrganizationId     String?               @map("actor_organization_id") @db.Uuid
+  actorRole               String                @map("actor_role") @db.VarChar(50)
+  authProofType           String?               @map("auth_proof_type") @db.VarChar(100)
+  actorAuthProof          String?               @map("actor_auth_proof")
+  eventTime               DateTime              @map("event_time") @db.Timestamptz(6)
+  serverRecordedAt        DateTime              @default(now()) @map("server_recorded_at") @db.Timestamptz(6)
+  businessData            Json                  @map("business_data")
   // Migration defaults remain legacy; TraceService explicitly writes v2/RFC8785.
-  schemaVersion           String             @default("trace-event-1") @map("schema_version") @db.VarChar(50)
-  canonicalizationVersion String             @default("RFC8785-JCS-v1") @map("canonicalization_version") @db.VarChar(50)
-  dataHash                String             @map("data_hash") @db.VarChar(64)
-  previousEventHash       String?            @map("previous_event_hash") @db.VarChar(64)
-  supersedesEventId       String?            @map("supersedes_event_id") @db.Uuid
-  causationEventId        String?            @map("causation_event_id") @db.Uuid
-  createdAt               DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  schemaVersion           String                @default("trace-event-1") @map("schema_version") @db.VarChar(50)
+  canonicalizationVersion String                @default("RFC8785-JCS-v1") @map("canonicalization_version") @db.VarChar(50)
+  dataHash                String                @map("data_hash") @db.VarChar(64)
+  previousEventHash       String?               @map("previous_event_hash") @db.VarChar(64)
+  supersedesEventId       String?               @map("supersedes_event_id") @db.Uuid
+  causationEventId        String?               @map("causation_event_id") @db.Uuid
+  createdAt               DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   blockchainProof         BlockchainProof?
   blockchainOutbox        BlockchainOutbox?
   quantityMovements       QuantityMovement[]
-  organization            Organization?      @relation(fields: [actorOrganizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  actor                   User?              @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  causationEvent          TraceEvent?        @relation("TraceCausation", fields: [causationEventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  causedEvents            TraceEvent[]       @relation("TraceCausation")
-  cycle                   ProductionCycle?   @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  lot                     Lot?               @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  supersededEvent         TraceEvent?        @relation("TraceSupersession", fields: [supersedesEventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  supersedingEvents       TraceEvent[]       @relation("TraceSupersession")
+  organization            Organization?         @relation(fields: [actorOrganizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  actor                   User?                 @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  causationEvent          TraceEvent?           @relation("TraceCausation", fields: [causationEventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  causedEvents            TraceEvent[]          @relation("TraceCausation")
+  cycle                   ProductionCycle?      @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  lot                     Lot?                  @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  supersededEvent         TraceEvent?           @relation("TraceSupersession", fields: [supersedesEventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  supersedingEvents       TraceEvent[]          @relation("TraceSupersession")
 
   @@index([cycleId, eventTime], map: "ix_trace_event_cycle_time")
   @@index([entityType, entityId], map: "ix_trace_event_entity")
@@ -793,37 +791,21 @@ model LedgerRouteDefinition {
 model EventLedgerRoute {
   eventId          String                @id @map("event_id") @db.Uuid
   definitionDigest String                @map("definition_digest") @db.VarChar(64)
-  importDigest     String?               @map("import_digest") @db.VarChar(64)
   createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   traceEvent       TraceEvent            @relation(fields: [eventId], references: [id], onUpdate: NoAction, onDelete: Restrict)
   definition       LedgerRouteDefinition @relation(fields: [definitionDigest], references: [digest], onUpdate: NoAction, onDelete: Restrict)
-  import           LedgerRouteImport?    @relation(fields: [importDigest], references: [digest], onUpdate: NoAction, onDelete: Restrict)
 
   @@index([definitionDigest], map: "ix_event_ledger_route_definition")
-  @@index([importDigest], map: "ix_event_ledger_route_import")
   @@map("event_ledger_route")
 }
 
-/// Independently pinned review artifact; never contains private trace payloads.
-model LedgerRouteImport {
-  digest      String             @id @db.VarChar(64)
-  sourceSha   String             @map("source_sha") @db.VarChar(40)
-  environment String             @db.VarChar(16)
-  artifact    Json               @db.JsonB
-  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  routes      EventLedgerRoute[]
-
-  @@map("ledger_route_import")
-}
-
-/// Sealed migration inventory; only preexisting events can receive an import.
-model LedgerRouteLegacyRequirement {
+/// Events recorded before release A. They keep their stored proof destination
+/// and are delivered by the legacy writer; the set is sealed by the migration.
+model LedgerRouteExemption {
   eventId    String     @id @map("event_id") @db.Uuid
-  dataHash   String     @map("data_hash") @db.VarChar(64)
-  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   traceEvent TraceEvent @relation(fields: [eventId], references: [id], onUpdate: NoAction, onDelete: Restrict)
 
-  @@map("ledger_route_legacy_requirement")
+  @@map("ledger_route_exemption")
 }
 
 model BlockchainProof {
@@ -851,18 +833,18 @@ model BlockchainProof {
 /// Transactional outbox entry consumed only by the dedicated blockchain worker.
 /// Business transactions create this row atomically with the immutable TraceEvent.
 model BlockchainOutbox {
-  id             String                  @id @default(dbgenerated("gen_random_uuid()")) @map("outbox_id") @db.Uuid
-  eventId        String                  @unique @map("event_id") @db.Uuid
+  id             String                 @id @default(dbgenerated("gen_random_uuid()")) @map("outbox_id") @db.Uuid
+  eventId        String                 @unique @map("event_id") @db.Uuid
   status         BlockchainOutboxStatus @default(PENDING)
-  attemptCount   Int                     @default(0) @map("attempt_count")
-  nextAttemptAt  DateTime?               @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
-  leaseToken     String?                 @map("lease_token") @db.Uuid
-  leaseExpiresAt DateTime?               @map("lease_expires_at") @db.Timestamptz(6)
-  lastError      String?                 @map("last_error")
-  completedAt    DateTime?               @map("completed_at") @db.Timestamptz(6)
-  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime                @default(now()) @map("updated_at") @db.Timestamptz(6)
-  traceEvent     TraceEvent              @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  attemptCount   Int                    @default(0) @map("attempt_count")
+  nextAttemptAt  DateTime?              @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  leaseToken     String?                @map("lease_token") @db.Uuid
+  leaseExpiresAt DateTime?              @map("lease_expires_at") @db.Timestamptz(6)
+  lastError      String?                @map("last_error")
+  completedAt    DateTime?              @map("completed_at") @db.Timestamptz(6)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime               @default(now()) @map("updated_at") @db.Timestamptz(6)
+  traceEvent     TraceEvent             @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([status, nextAttemptAt], map: "ix_blockchain_outbox_due")
   @@index([status, leaseExpiresAt], map: "ix_blockchain_outbox_lease")
@@ -889,57 +871,57 @@ model QuantityMovement {
 }
 
 model Certificate {
-  id           String           @id @default(dbgenerated("gen_random_uuid()")) @map("certificate_id") @db.Uuid
-  lotId        String?          @map("lot_id") @db.Uuid
-  cycleId      String?          @map("cycle_id") @db.Uuid
-  type         String           @db.VarChar(120)
-  issuer       String           @db.VarChar(255)
-  issueDate    DateTime         @map("issue_date") @db.Date
-  expiryDate   DateTime?        @map("expiry_date") @db.Date
-  documentRef  String           @map("document_ref")
-  documentHash String           @map("document_hash") @db.VarChar(128)
-  isPublic     Boolean          @default(false) @map("is_public")
-  status       String           @default("PENDING") @db.VarChar(30)
-  reviewedBy   String?          @map("reviewed_by") @db.Uuid
-  reviewedAt   DateTime?        @map("reviewed_at") @db.Timestamptz(6)
-  reviewNote   String?          @map("review_note")
-  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  version      Int              @default(0)
-  submittedByUserId String?      @map("submitted_by_user_id") @db.Uuid
-  submitter User?               @relation(fields: [submittedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  supersedesId String?          @map("supersedes_id") @db.Uuid
-  correctionReason String?      @map("correction_reason")
-  supersedes Certificate?       @relation("CertificateCorrection", fields: [supersedesId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  replacements Certificate[]    @relation("CertificateCorrection")
-  cycle        ProductionCycle? @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  lot          Lot?             @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @map("certificate_id") @db.Uuid
+  lotId             String?          @map("lot_id") @db.Uuid
+  cycleId           String?          @map("cycle_id") @db.Uuid
+  type              String           @db.VarChar(120)
+  issuer            String           @db.VarChar(255)
+  issueDate         DateTime         @map("issue_date") @db.Date
+  expiryDate        DateTime?        @map("expiry_date") @db.Date
+  documentRef       String           @map("document_ref")
+  documentHash      String           @map("document_hash") @db.VarChar(128)
+  isPublic          Boolean          @default(false) @map("is_public")
+  status            String           @default("PENDING") @db.VarChar(30)
+  reviewedBy        String?          @map("reviewed_by") @db.Uuid
+  reviewedAt        DateTime?        @map("reviewed_at") @db.Timestamptz(6)
+  reviewNote        String?          @map("review_note")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  version           Int              @default(0)
+  submittedByUserId String?          @map("submitted_by_user_id") @db.Uuid
+  submitter         User?            @relation(fields: [submittedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  supersedesId      String?          @map("supersedes_id") @db.Uuid
+  correctionReason  String?          @map("correction_reason")
+  supersedes        Certificate?     @relation("CertificateCorrection", fields: [supersedesId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  replacements      Certificate[]    @relation("CertificateCorrection")
+  cycle             ProductionCycle? @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  lot               Lot?             @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
+  @@unique([supersedesId], map: "uq_certificate_pending_correction", where: raw("((supersedes_id IS NOT NULL) AND ((status)::text = 'PENDING'::text))"))
+  @@unique([supersedesId], map: "uq_certificate_approved_correction", where: raw("((supersedes_id IS NOT NULL) AND ((status)::text = 'APPROVED'::text))"))
   @@index([cycleId], map: "ix_certificate_cycle")
   @@index([lotId], map: "ix_certificate_lot")
   @@index([status], map: "ix_certificate_status")
   @@index([supersedesId], map: "ix_certificate_supersedes")
-  @@unique([supersedesId], map: "uq_certificate_pending_correction", where: raw("((supersedes_id IS NOT NULL) AND ((status)::text = 'PENDING'::text))"))
-  @@unique([supersedesId], map: "uq_certificate_approved_correction", where: raw("((supersedes_id IS NOT NULL) AND ((status)::text = 'APPROVED'::text))"))
   @@map("certificate")
 }
 
 model Inspection {
-  id             String           @id @default(dbgenerated("gen_random_uuid()")) @map("inspection_id") @db.Uuid
-  lotId          String           @map("lot_id") @db.Uuid
-  inspectorOrgId String?          @map("inspector_org_id") @db.Uuid
-  result         InspectionResult
-  note           String?
-  inspectedAt    DateTime         @map("inspected_at") @db.Timestamptz(6)
-  evidenceRef    String?          @map("evidence_ref")
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  recordedByUserId String?        @map("recorded_by_user_id") @db.Uuid
-  recorder User?                 @relation(fields: [recordedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  supersedesId String?            @unique @map("supersedes_id") @db.Uuid
-  correctionReason String?        @map("correction_reason")
-  supersedes Inspection?          @relation("InspectionCorrection", fields: [supersedesId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  replacement Inspection?         @relation("InspectionCorrection")
-  organization   Organization?    @relation(fields: [inspectorOrgId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  lot            Lot              @relation(fields: [lotId], references: [id], onUpdate: NoAction)
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @map("inspection_id") @db.Uuid
+  lotId            String           @map("lot_id") @db.Uuid
+  inspectorOrgId   String?          @map("inspector_org_id") @db.Uuid
+  result           InspectionResult
+  note             String?
+  inspectedAt      DateTime         @map("inspected_at") @db.Timestamptz(6)
+  evidenceRef      String?          @map("evidence_ref")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  recordedByUserId String?          @map("recorded_by_user_id") @db.Uuid
+  recorder         User?            @relation(fields: [recordedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  supersedesId     String?          @unique @map("supersedes_id") @db.Uuid
+  correctionReason String?          @map("correction_reason")
+  supersedes       Inspection?      @relation("InspectionCorrection", fields: [supersedesId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  replacement      Inspection?      @relation("InspectionCorrection")
+  organization     Organization?    @relation(fields: [inspectorOrgId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  lot              Lot              @relation(fields: [lotId], references: [id], onUpdate: NoAction)
 
   @@index([lotId, inspectedAt], map: "ix_inspection_lot_time")
   @@map("inspection")
@@ -957,21 +939,21 @@ model TraceQr {
 }
 
 model IdempotencyRecord {
-  id             String            @id @default(dbgenerated("gen_random_uuid()")) @map("idempotency_record_id") @db.Uuid
-  idempotencyKey String            @map("idempotency_key") @db.VarChar(255)
-  operation      String            @db.VarChar(100)
-  requestType    String            @map("request_type") @db.VarChar(100)
-  requestHash    String            @map("request_hash") @db.VarChar(64)
-  status         IdempotencyStatus @default(PROCESSING)
-  responseStatus Int?              @map("response_status")
-  responseBody   Json?             @map("response_body")
-  resourceId     String?           @map("resource_id") @db.VarChar(255)
-  requesterId    String            @map("requester_id") @db.VarChar(255)
-  authorizationScope String?       @map("authorization_scope") @db.VarChar(64)
-  commandCommit  CommandCommit?
-  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime          @default(now()) @map("updated_at") @db.Timestamptz(6)
-  expiresAt      DateTime?         @map("expires_at") @db.Timestamptz(6)
+  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @map("idempotency_record_id") @db.Uuid
+  idempotencyKey     String            @map("idempotency_key") @db.VarChar(255)
+  operation          String            @db.VarChar(100)
+  requestType        String            @map("request_type") @db.VarChar(100)
+  requestHash        String            @map("request_hash") @db.VarChar(64)
+  status             IdempotencyStatus @default(PROCESSING)
+  responseStatus     Int?              @map("response_status")
+  responseBody       Json?             @map("response_body")
+  resourceId         String?           @map("resource_id") @db.VarChar(255)
+  requesterId        String            @map("requester_id") @db.VarChar(255)
+  authorizationScope String?           @map("authorization_scope") @db.VarChar(64)
+  commandCommit      CommandCommit?
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime          @default(now()) @map("updated_at") @db.Timestamptz(6)
+  expiresAt          DateTime?         @map("expires_at") @db.Timestamptz(6)
 
   @@unique([requesterId, operation, idempotencyKey], map: "uq_idempotency_request")
   @@index([expiresAt], map: "ix_idempotency_expires")
@@ -981,122 +963,31 @@ model IdempotencyRecord {
 
 /// Immutable result journal; never stores authentication responses or secrets.
 model CommandCommit {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("command_commit_id") @db.Uuid
-  idempotencyRecordId String @unique @map("idempotency_record_id") @db.Uuid
-  requesterId String @map("requester_id") @db.VarChar(255)
-  operation String @db.VarChar(100)
-  authorizationScope String @map("authorization_scope") @db.VarChar(64)
-  actorScope Json @map("actor_scope")
-  resourceIds Json @map("resource_ids")
-  responseStatus Int @map("response_status")
-  responseBody Json @map("response_body")
-  committedAt DateTime @default(now()) @map("committed_at") @db.Timestamptz(6)
-  idempotencyRecord IdempotencyRecord @relation(fields: [idempotencyRecordId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  legacyBridge LegacyCommandBridge?
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @map("command_commit_id") @db.Uuid
+  idempotencyRecordId String            @unique @map("idempotency_record_id") @db.Uuid
+  requesterId         String            @map("requester_id") @db.VarChar(255)
+  operation           String            @db.VarChar(100)
+  authorizationScope  String            @map("authorization_scope") @db.VarChar(64)
+  actorScope          Json              @map("actor_scope")
+  resourceIds         Json              @map("resource_ids")
+  responseStatus      Int               @map("response_status")
+  responseBody        Json              @map("response_body")
+  committedAt         DateTime          @default(now()) @map("committed_at") @db.Timestamptz(6)
+  idempotencyRecord   IdempotencyRecord @relation(fields: [idempotencyRecordId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([requesterId, committedAt], map: "ix_command_commit_requester_time")
   @@map("command_commit")
 }
 
-// Controlled legacy cutover candidate; isolated draft only.
-model LegacyScopeManifestRecord {
-  id String @id @map("manifest_id") @db.Uuid
-  digest String @unique @db.VarChar(64)
-  document Json
-  inventory Json
-  plan Json
-  reviewKeys Json @map("review_keys")
-  registeredAt DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
-  consents LegacyScopeConsent[]
-  mappings LegacyScopeMapping[]
-  checkpoints LegacyScopeCheckpoint[]
-  replacedRoots LegacyScopeSupersession[] @relation("legacy_replaced_manifest")
-  replacementRoots LegacyScopeSupersession[] @relation("legacy_replacement_manifest")
-  bridges LegacyCommandBridge[]
-  @@map("legacy_scope_manifest")
-}
-
-model LegacyScopeConsent {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("consent_id") @db.Uuid
-  manifestId String @map("manifest_id") @db.Uuid
-  proposalKey String @map("proposal_key") @db.VarChar(64)
-  userId String @map("user_id") @db.Uuid
-  organizationId String @map("organization_id") @db.Uuid
-  grantId String @map("grant_id") @db.Uuid
-  grantRevision Int @map("grant_revision")
-  acceptedAt DateTime @default(now()) @map("accepted_at") @db.Timestamptz(6)
-  manifest LegacyScopeManifestRecord @relation(fields: [manifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  user User @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  grant ScopedRoleGrant @relation(fields: [grantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  @@unique([manifestId, proposalKey], map: "uq_legacy_scope_consent_proposal")
-  @@map("legacy_scope_consent")
-}
-
-model LegacyScopeCheckpoint {
-  cycleId String @map("cycle_id") @db.Uuid
-  manifestId String @map("manifest_id") @db.Uuid
-  chainId String? @map("chain_id") @db.Uuid
-  checkpointDigest String @map("checkpoint_digest") @db.VarChar(64)
-  actorGrants Json @map("actor_grants")
-  originalUpdatedAt DateTime @map("original_updated_at") @db.Timestamptz(6)
-  appliedAt DateTime @default(now()) @map("applied_at") @db.Timestamptz(6)
-  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  chain SupplyChain? @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  manifest LegacyScopeManifestRecord @relation(fields: [manifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  mapping LegacyScopeMapping?
-  @@id([manifestId, cycleId])
-  @@map("legacy_scope_checkpoint")
-}
-
-model LegacyScopeMapping {
-  cycleId String @id @map("cycle_id") @db.Uuid
-  manifestId String @map("manifest_id") @db.Uuid
-  chainId String @map("chain_id") @db.Uuid
-  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  chain SupplyChain @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  manifest LegacyScopeManifestRecord @relation(fields: [manifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  checkpoint LegacyScopeCheckpoint @relation(fields: [manifestId, cycleId], references: [manifestId, cycleId], onDelete: Restrict, onUpdate: NoAction)
-  bridges LegacyCommandBridge[]
-  @@unique([manifestId, cycleId], map: "uq_legacy_scope_mapping_checkpoint")
-  @@index([manifestId], map: "ix_legacy_scope_mapping_manifest")
-  @@map("legacy_scope_mapping")
-}
-
-model LegacyScopeSupersession {
-  fromManifestId String @map("from_manifest_id") @db.Uuid
-  cycleId String @map("cycle_id") @db.Uuid
-  toManifestId String @map("to_manifest_id") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  fromManifest LegacyScopeManifestRecord @relation("legacy_replaced_manifest", fields: [fromManifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  toManifest LegacyScopeManifestRecord @relation("legacy_replacement_manifest", fields: [toManifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  @@id([fromManifestId, cycleId])
-  @@map("legacy_scope_supersession")
-}
-
-model LegacyCommandBridge {
-  commandCommitId String @id @map("command_commit_id") @db.Uuid
-  manifestId String @map("manifest_id") @db.Uuid
-  cycleId String @map("cycle_id") @db.Uuid
-  protocolVersion Int @default(1) @map("protocol_version")
-  targetScope String @map("target_scope") @db.VarChar(64)
-  journalDigest String @map("journal_digest") @db.VarChar(64)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  commit CommandCommit @relation(fields: [commandCommitId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  manifest LegacyScopeManifestRecord @relation(fields: [manifestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  mapping LegacyScopeMapping @relation(fields: [cycleId], references: [cycleId], onDelete: Restrict, onUpdate: NoAction)
-  @@map("legacy_command_bridge")
-}
-
 model ComplianceAssignment {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("assignment_id") @db.Uuid
-  reviewerUserId String @map("reviewer_user_id") @db.Uuid
-  farmId String @map("farm_id") @db.Uuid
-  grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(6)
-  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
-  reviewer User @relation(fields: [reviewerUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  farm Farm @relation(fields: [farmId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  audits ComplianceAssignmentAudit[]
+  id             String                      @id @default(dbgenerated("gen_random_uuid()")) @map("assignment_id") @db.Uuid
+  reviewerUserId String                      @map("reviewer_user_id") @db.Uuid
+  farmId         String                      @map("farm_id") @db.Uuid
+  grantedAt      DateTime                    @default(now()) @map("granted_at") @db.Timestamptz(6)
+  revokedAt      DateTime?                   @map("revoked_at") @db.Timestamptz(6)
+  reviewer       User                        @relation(fields: [reviewerUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  farm           Farm                        @relation(fields: [farmId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  audits         ComplianceAssignmentAudit[]
 
   @@unique([reviewerUserId, farmId], map: "ux_compliance_assignment_active", where: raw("(revoked_at IS NULL)"))
   @@index([farmId, revokedAt], map: "ix_compliance_assignment_farm")
@@ -1104,37 +995,37 @@ model ComplianceAssignment {
 }
 
 model ComplianceAssignmentAudit {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("assignment_audit_id") @db.Uuid
-  assignmentId String @map("assignment_id") @db.Uuid
-  action String @db.VarChar(30)
-  actorUserId String @map("actor_user_id") @db.Uuid
-  reason String
-  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
-  assignment ComplianceAssignment @relation(fields: [assignmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  actor User @relation(fields: [actorUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id           String               @id @default(dbgenerated("gen_random_uuid()")) @map("assignment_audit_id") @db.Uuid
+  assignmentId String               @map("assignment_id") @db.Uuid
+  action       String               @db.VarChar(30)
+  actorUserId  String               @map("actor_user_id") @db.Uuid
+  reason       String
+  recordedAt   DateTime             @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  assignment   ComplianceAssignment @relation(fields: [assignmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  actor        User                 @relation(fields: [actorUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([assignmentId, recordedAt], map: "ix_compliance_assignment_audit_time")
   @@map("compliance_assignment_audit")
 }
 
 model HarvestSensorWindow {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("window_id") @db.Uuid
-  cycleId String @map("cycle_id") @db.Uuid
-  harvestId String @unique @map("harvest_id") @db.Uuid
-  periodStart DateTime @map("period_start") @db.Timestamptz(6)
-  periodEnd DateTime @map("period_end") @db.Timestamptz(6)
-  includeStart Boolean @map("include_start")
-  status String @db.VarChar(30)
-  readingCount Int @map("reading_count")
-  digestHash String? @map("digest_hash") @db.VarChar(64)
-  schemaVersion String @default("harvest-sensor-1") @map("schema_version") @db.VarChar(50)
-  finalizedAt DateTime @default(now()) @map("finalized_at") @db.Timestamptz(6)
-  sealedAt DateTime? @map("sealed_at") @db.Timestamptz(6)
-  reconciliationId String? @map("reconciliation_id") @db.Uuid
-  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  harvest HarvestEvent @relation(fields: [harvestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  reconciliation CycleSensorReconciliation? @relation(fields: [reconciliationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  readings HarvestSensorMembership[]
+  id               String                     @id @default(dbgenerated("gen_random_uuid()")) @map("window_id") @db.Uuid
+  cycleId          String                     @map("cycle_id") @db.Uuid
+  harvestId        String                     @unique @map("harvest_id") @db.Uuid
+  periodStart      DateTime                   @map("period_start") @db.Timestamptz(6)
+  periodEnd        DateTime                   @map("period_end") @db.Timestamptz(6)
+  includeStart     Boolean                    @map("include_start")
+  status           String                     @db.VarChar(30)
+  readingCount     Int                        @map("reading_count")
+  digestHash       String?                    @map("digest_hash") @db.VarChar(64)
+  schemaVersion    String                     @default("harvest-sensor-1") @map("schema_version") @db.VarChar(50)
+  finalizedAt      DateTime                   @default(now()) @map("finalized_at") @db.Timestamptz(6)
+  sealedAt         DateTime?                  @map("sealed_at") @db.Timestamptz(6)
+  reconciliationId String?                    @map("reconciliation_id") @db.Uuid
+  cycle            ProductionCycle            @relation(fields: [cycleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  harvest          HarvestEvent               @relation(fields: [harvestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reconciliation   CycleSensorReconciliation? @relation(fields: [reconciliationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  readings         HarvestSensorMembership[]
 
   @@unique([cycleId, periodEnd], map: "uq_harvest_sensor_window_cutoff")
   @@index([cycleId, periodEnd], map: "ix_harvest_sensor_window_cycle")
@@ -1142,39 +1033,39 @@ model HarvestSensorWindow {
 }
 
 model HarvestSensorMembership {
-  windowId String @map("window_id") @db.Uuid
-  readingId String @unique @map("reading_id") @db.Uuid
-  window HarvestSensorWindow @relation(fields: [windowId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  reading SensorReading @relation(fields: [readingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  windowId  String              @map("window_id") @db.Uuid
+  readingId String              @unique @map("reading_id") @db.Uuid
+  window    HarvestSensorWindow @relation(fields: [windowId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reading   SensorReading       @relation(fields: [readingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([windowId, readingId])
   @@map("harvest_sensor_membership")
 }
 
 model LateSensorReading {
-  readingId String @id @map("reading_id") @db.Uuid
-  closedHarvestId String @map("closed_harvest_id") @db.Uuid
-  detectedAt DateTime @default(now()) @map("detected_at") @db.Timestamptz(6)
-  reading SensorReading @relation(fields: [readingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  closedHarvest HarvestEvent @relation(fields: [closedHarvestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  readingId       String        @id @map("reading_id") @db.Uuid
+  closedHarvestId String        @map("closed_harvest_id") @db.Uuid
+  detectedAt      DateTime      @default(now()) @map("detected_at") @db.Timestamptz(6)
+  reading         SensorReading @relation(fields: [readingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  closedHarvest   HarvestEvent  @relation(fields: [closedHarvestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("late_sensor_reading")
 }
 
 model CycleSensorReconciliation {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @map("reconciliation_id") @db.Uuid
-  cycleId String @map("cycle_id") @db.Uuid
-  revision Int
-  throughHarvestId String? @map("through_harvest_id") @db.Uuid
-  plantedAt DateTime @map("planted_at") @db.Timestamptz(6)
-  cutoffEnd DateTime? @map("cutoff_end") @db.Timestamptz(6)
-  recordedById String @map("recorded_by_id") @db.Uuid
-  reason String
-  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
-  cycle ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  throughHarvest HarvestEvent? @relation(fields: [throughHarvestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  recordedBy User @relation(fields: [recordedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  windows HarvestSensorWindow[]
+  id               String                @id @default(dbgenerated("gen_random_uuid()")) @map("reconciliation_id") @db.Uuid
+  cycleId          String                @map("cycle_id") @db.Uuid
+  revision         Int
+  throughHarvestId String?               @map("through_harvest_id") @db.Uuid
+  plantedAt        DateTime              @map("planted_at") @db.Timestamptz(6)
+  cutoffEnd        DateTime?             @map("cutoff_end") @db.Timestamptz(6)
+  recordedById     String                @map("recorded_by_id") @db.Uuid
+  reason           String
+  recordedAt       DateTime              @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  cycle            ProductionCycle       @relation(fields: [cycleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  throughHarvest   HarvestEvent?         @relation(fields: [throughHarvestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recordedBy       User                  @relation(fields: [recordedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  windows          HarvestSensorWindow[]
 
   @@unique([cycleId, revision], map: "uq_cycle_sensor_reconciliation_revision")
   @@map("cycle_sensor_reconciliation")

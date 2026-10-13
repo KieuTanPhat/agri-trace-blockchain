@@ -22,7 +22,6 @@ function actor(
 
 describe('OrganizationAccessService', () => {
   const prisma = {
-    organizationBusinessScope: { findUnique: vi.fn().mockResolvedValue(null) },
     farm: {
       findUnique: vi.fn(),
     },
@@ -31,10 +30,10 @@ describe('OrganizationAccessService', () => {
       findFirst: vi.fn().mockResolvedValue({ id: 'cycle-id' }),
     },
     lot: {
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
     },
     shipment: {
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
     },
   };
 
@@ -89,45 +88,38 @@ describe('OrganizationAccessService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('allows a retailer participating in a shipment', async () => {
-    prisma.shipment.findUnique.mockResolvedValue({
-      id: 'shipment-id',
-      transporterOrgId: 'transporter-org-id',
-      retailerOrgId: 'retailer-org-id',
-      lot: {
-        farmOrgId: 'farm-org-id',
-        harvest: {
-          cycle: { id: 'cycle-id', farmId: 'farm-id', chainId: null },
-        },
-      },
-    });
+  it('returns a shipment only through the scoped chain read filter', async () => {
+    prisma.shipment.findFirst.mockResolvedValue({ id: 'shipment-id' });
 
     await expect(
       service.assertShipmentAccess(
         actor('RETAILER', 'retailer-org-id'),
         'shipment-id',
       ),
-    ).resolves.toBeDefined();
+    ).resolves.toEqual({ id: 'shipment-id' });
+    const where = prisma.shipment.findFirst.mock.calls[0][0].where;
+    expect(where.AND[0]).toEqual({ id: 'shipment-id' });
+    expect(JSON.stringify(where.AND[1])).toContain('stageAssignments');
   });
 
-  it('rejects an organization outside the shipment participants', async () => {
-    prisma.shipment.findUnique.mockResolvedValue({
-      id: 'shipment-id',
-      transporterOrgId: 'transporter-org-id',
-      retailerOrgId: 'retailer-org-id',
-      lot: {
-        farmOrgId: 'farm-org-id',
-        harvest: {
-          cycle: { id: 'cycle-id', farmId: 'farm-id', chainId: null },
-        },
-      },
-    });
+  it('hides out-of-scope and missing shipments behind the same 404', async () => {
+    prisma.shipment.findFirst.mockResolvedValue(null);
 
     await expect(
       service.assertShipmentAccess(
         actor('FARM_STAFF', 'unrelated-org-id'),
         'shipment-id',
       ),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('never grants platform admins raw business reads', async () => {
+    prisma.lot.findFirst.mockResolvedValue(null);
+    await expect(
+      service.assertLotAccess(actor('SYSTEM_ADMIN', null), 'lot-id'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.lot.findFirst.mock.calls[0][0].where.AND[1]).toEqual({
+      id: '00000000-0000-0000-0000-000000000000',
+    });
   });
 });

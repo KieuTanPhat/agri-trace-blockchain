@@ -5,17 +5,13 @@ import {
 } from '../../../test/support/ledger-route-fixture.js';
 import { FabricAdapterProvider } from '../blockchain-adapter/fabric-adapter.provider.js';
 import {
+  configuredWriteRoute,
   ledgerRouteDigest,
-  ledgerRoutePins,
   routeProofMatches,
   verifiedEventRoute,
 } from './ledger-route.js';
 
-beforeEach(() => {
-  vi.stubEnv('LEDGER_ROUTE_PINS', JSON.stringify([fixtureRoute.digest]));
-  vi.stubEnv('LEDGER_ACTIVE_ROUTE_DIGEST', fixtureRoute.digest);
-  fixtureRoutePins();
-});
+beforeEach(() => fixtureRoutePins());
 afterEach(() => vi.unstubAllEnvs());
 
 describe('Immutable logical ledger routes', () => {
@@ -44,7 +40,7 @@ describe('Immutable logical ledger routes', () => {
       }),
     ).toBe(false);
   });
-  it('rejects database content changed under a pinned digest and missing historical pins', () => {
+  it('rejects database content changed under a stored digest', () => {
     expect(
       verifiedEventRoute({
         ...event,
@@ -54,8 +50,6 @@ describe('Immutable logical ledger routes', () => {
         },
       }),
     ).toBeNull();
-    vi.stubEnv('LEDGER_ROUTE_PINS', JSON.stringify(['b'.repeat(64)]));
-    expect(verifiedEventRoute(event)).toBeNull();
     expect(verifiedEventRoute({ dataHash: event.dataHash })).toBeNull();
   });
   it('keeps unattested historical authority nullable and rejects it as a writer', () => {
@@ -75,18 +69,33 @@ describe('Immutable logical ledger routes', () => {
       ledgerRouteDigest({ ...historical, writerMspId: 'ForgedMSP' }),
     ).toThrow('authority');
   });
-  it('rejects missing, duplicate and malformed independent pins without defaults', () => {
-    for (const value of [
-      undefined,
-      '[]',
-      '{}',
-      JSON.stringify([fixtureRoute.digest, fixtureRoute.digest]),
-      JSON.stringify(['not-a-digest']),
-    ])
-      expect(() => ledgerRoutePins({ LEDGER_ROUTE_PINS: value })).toThrow();
+  it('verifies pre-route history by its stored proof but never an unloaded sidecar', () => {
+    const legacy = { dataHash: event.dataHash, ledgerRoute: null };
+    expect(routeProofMatches(legacy, { dataHash: event.dataHash })).toBe(true);
+    expect(routeProofMatches(legacy, { dataHash: 'b'.repeat(64) })).toBe(false);
+    expect(
+      routeProofMatches(
+        { dataHash: event.dataHash },
+        { dataHash: event.dataHash },
+      ),
+    ).toBe(false);
+  });
+  it('derives a different digest when the configured destination changes', () => {
+    const moved = configuredWriteRoute({
+      ...process.env,
+      FABRIC_CHANNEL_NAME: 'another-channel',
+    });
+    expect(moved.digest).not.toBe(fixtureRoute.digest);
+    expect(() =>
+      configuredWriteRoute({
+        ...process.env,
+        FABRIC_CHANNEL_NAME: 'bad channel',
+      }),
+    ).toThrow('destination');
   });
   it('captures the gateway destination once so changed env cannot relabel a cached connection', () => {
     vi.stubEnv('FABRIC_SAMPLES_DIR', 'isolated-network');
+    vi.stubEnv('FABRIC_MSP_ID', fixtureRoute.writerMspId!);
     vi.stubEnv('RELAYER_MSP_DIR', 'isolated-identity-reference');
     vi.stubEnv('FABRIC_NETWORK_NAME', fixtureRoute.network);
     vi.stubEnv('FABRIC_CHANNEL_NAME', fixtureRoute.channelId);

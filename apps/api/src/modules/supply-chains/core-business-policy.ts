@@ -13,8 +13,6 @@ import {
   type BusinessSubject,
 } from './business-policy.js';
 import { lockChainScope } from './chain-policy.js';
-import { legacyCreationReplayRoot } from './legacy-creation-replay.js';
-import { legacyCycleHasCutover } from './legacy-cutover-policy.js';
 
 const CYCLE_WRITES = [
   'PLANT_PRODUCTION_CYCLE',
@@ -48,8 +46,9 @@ const SHIPMENT_WRITES = [
   'CREATE_SHIPMENT_TELEMETRY_DIGEST',
 ];
 
-/** `null` means the subject is legacy and keeps the original policy. A scoped
- * subject never falls back to a global role or organization-only authority. */
+/** Business commands are always authorized inside the subject's chain.
+ * `null` means the operation is not a business command (platform
+ * administration); it never means a fallback to a global role. */
 export async function authorizeCoreBusinessCommand(
   db: Prisma.TransactionClient,
   input: AuthorizedCommand,
@@ -64,31 +63,7 @@ export async function authorizeCoreBusinessCommand(
     return value;
   };
   const operation = input.operation;
-  if (['CREATE_PRODUCTION_CYCLE', 'CREATE_SHIPMENT'].includes(operation)) {
-    const replay = await legacyCreationReplayRoot(db, input);
-    if (replay)
-      return authorizeBusinessCommand(
-        db,
-        actor,
-        {
-          chainId: replay.cycle.chainId!,
-          role: 'FARM_STAFF',
-          subject: { kind: 'cycle', id: replay.cycle.id },
-        },
-        lock,
-      );
-  }
   if (operation === 'CREATE_PRODUCTION_CYCLE') {
-    if (!data.chainId) {
-      if (
-        actor.organizationId &&
-        (await db.organizationBusinessScope.findUnique({
-          where: { organizationId: actor.organizationId },
-        }))
-      )
-        throw new ForbiddenException('Tạo vụ sau cutover cần chọn chuỗi');
-      return null;
-    }
     const farm = await db.farm.findUnique({ where: { id: id('farmId') } });
     if (
       !farm ||
@@ -152,24 +127,6 @@ export async function authorizeCoreBusinessCommand(
       throw new ForbiddenException('Không đăng ký thiết bị thay tổ chức khác');
   } else return null;
   const root = await businessRoot(db, subject);
-  if (!root.cycle.chainId) {
-    if (await legacyCycleHasCutover(db, root.cycle.id, actor.organizationId))
-      throw new ForbiddenException(
-        'Subject legacy chưa mapping chuỗi; cần đối soát trước khi ghi',
-      );
-    if (operation === 'CREATE_SHIPMENT') {
-      const party = await db.organizationBusinessScope.findFirst({
-        where: {
-          organizationId: { in: [id('transporterOrgId'), id('retailerOrgId')] },
-        },
-      });
-      if (party)
-        throw new ForbiddenException(
-          'Bên nhận đã cutover; Shipment cần mapping chuỗi và consent',
-        );
-    }
-    return null;
-  }
   if (operation === 'CREATE_SHIPMENT')
     throw new ForbiddenException('Lô thuộc chuỗi phải finalize ShipmentPlan');
   if (data.chainId && data.chainId !== root.cycle.chainId)
@@ -246,13 +203,6 @@ export async function scopedDeviceAuthority(
 ) {
   const root = await businessRoot(db, subject);
   const chainId = root.cycle.chainId;
-  if (!chainId) {
-    if (await legacyCycleHasCutover(db, root.cycle.id, organizationId))
-      throw new ForbiddenException(
-        'Thiết bị legacy chưa resolve scope sau cutover',
-      );
-    return null;
-  }
   if (lock) {
     await lockChainScope(db, `org:${organizationId}`);
     await lockChainScope(db, chainId);
