@@ -3,9 +3,12 @@ import {
   Logger,
   OnApplicationBootstrap,
   OnApplicationShutdown,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BlockchainWorkerService } from './blockchain-worker.service.js';
+import { BindingDeliveryService } from '../ledger/binding-delivery.service.js';
+import { LedgerControlService } from '../ledger/ledger-control.service.js';
 
 export type WorkerRuntimeState = {
   enabled: boolean;
@@ -33,6 +36,8 @@ export class BlockchainWorkerRunner
   constructor(
     private readonly worker: BlockchainWorkerService,
     private readonly config: ConfigService,
+    @Optional() private readonly bindings?: BindingDeliveryService,
+    @Optional() private readonly control?: LedgerControlService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -59,15 +64,30 @@ export class BlockchainWorkerRunner
   private async runLoop(): Promise<void> {
     const interval = this.positiveNumber('FABRIC_WORKER_INTERVAL_MS', 10_000);
     while (!this.abortController.signal.aborted) {
-      try {
-        await this.worker.processPending();
-        this.state.lastCompletedAt = new Date();
-        this.state.lastError = null;
-      } catch (error) {
-        this.state.lastError =
-          error instanceof Error ? error.message : 'Unknown worker loop error';
-        this.logger.error(`Worker loop failed: ${this.state.lastError}`);
+      // Release A writer, release B binding delivery and the ledger control
+      // plane are independent: one failing never stalls the others.
+      const steps: Array<[string, () => Promise<unknown>]> = [];
+      if (this.config.get<string>('FABRIC_LEGACY_WRITER') !== 'false')
+        steps.push(['legacy-writer', () => this.worker.processPending()]);
+      if (this.control)
+        steps.push(['ledger-control', () => this.control!.processAll()]);
+      if (this.bindings)
+        steps.push(['binding-delivery', () => this.bindings!.processAll()]);
+      const errors: string[] = [];
+      for (const [name, step] of steps) {
+        try {
+          await step();
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Unknown worker loop error';
+          errors.push(`${name}: ${message}`);
+          this.logger.error(`Worker step ${name} failed: ${message}`);
+        }
       }
+      this.state.lastCompletedAt = new Date();
+      this.state.lastError = errors.length ? errors.join('; ') : null;
       await this.wait(interval);
     }
   }
