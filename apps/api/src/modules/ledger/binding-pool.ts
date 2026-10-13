@@ -125,6 +125,7 @@ export class BindingConnectionPool implements OnModuleDestroy {
       if (
         health.status !== 'OK' ||
         !health.supportedWriteVersions?.includes('4.0.0') ||
+        !health.supportedWriteVersions?.includes('5.0.0') ||
         health.channelPolicy?.strictB !== true ||
         health.callerRole !== 'relayer' ||
         health.governanceDigest !== target.governanceDigest

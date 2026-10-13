@@ -323,7 +323,8 @@ $$;
 CREATE TRIGGER trg_chain_ledger_profile_mode BEFORE UPDATE ON chain_ledger_profile
   FOR EACH ROW EXECUTE FUNCTION fn_c_profile_mode_guard();
 
--- A shipment pins the chain's mode when it is created; it cannot change, and a
+-- A shipment pins the chain's mode when it is created, but only for cycles born
+-- on the chain's active binding (earlier streams keep the A/B endpoints); it cannot change, and a
 -- DUAL_SIGNED shipment only moves through custody transitions that a confirmed
 -- handover authorizes. Direct updates (including the A/B endpoints) fail here.
 CREATE FUNCTION fn_c_shipment_mode() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -334,6 +335,7 @@ BEGIN
       FROM lot l JOIN harvest_event h ON h.harvest_id = l.harvest_id
       JOIN production_cycle c ON c.cycle_id = h.cycle_id
       JOIN chain_ledger_profile p ON p.chain_id = c.chain_id
+      JOIN cycle_ledger_context x ON x.cycle_id = c.cycle_id AND x.binding_digest = p.active_binding_digest
       WHERE l.lot_id = NEW.lot_id;
     NEW.handover_mode := coalesce(chain_mode, 'STANDARD');
     RETURN NEW;
@@ -385,7 +387,7 @@ BEGIN
       END IF;
     END IF;
     IF NEW.shipment_version <> s.version OR NEW.lot_version <> l.version
-       OR NEW.quantity <> s.shipped_quantity OR NEW.quantity <> l.available_quantity OR NEW.unit <> s.unit THEN
+       OR NEW.quantity <> l.available_quantity OR NEW.unit <> s.unit THEN
       RAISE EXCEPTION 'The offer must restate the current shipment version, lot version and quantity';
     END IF;
     SELECT * INTO offer FROM signing_intent WHERE intent_id = NEW.offer_intent_id;
@@ -407,8 +409,11 @@ BEGIN
     RAISE EXCEPTION 'The offered handover terms are immutable';
   END IF;
   IF OLD.state <> 'OFFERED' THEN RAISE EXCEPTION 'A resolved handover cannot change'; END IF;
-  IF NEW.version <> OLD.version + 1 OR NEW.resolved_at IS NULL OR NEW.resolved_by IS NULL THEN
-    RAISE EXCEPTION 'A resolution needs a version, a time and a user';
+  -- Expiry is the only resolution without a user: nobody acted.
+  IF NEW.version <> OLD.version + 1 OR NEW.resolved_at IS NULL
+     OR (NEW.state <> 'EXPIRED' AND NEW.resolved_by IS NULL)
+     OR (NEW.state = 'EXPIRED' AND (NEW.resolved_by IS NOT NULL OR NEW.resolve_event_id IS NOT NULL)) THEN
+    RAISE EXCEPTION 'A resolution needs a version, a time and (except expiry) a user';
   END IF;
   SELECT organization_id INTO actor_org FROM app_user WHERE user_id = NEW.resolved_by;
   IF NEW.state = 'CONFIRMED' THEN

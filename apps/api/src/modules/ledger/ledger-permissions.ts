@@ -13,6 +13,8 @@ const ROLE_ENTITY_TYPES: Partial<Record<ScopedRole, readonly string[]>> = {
     'PRODUCTION_CYCLE',
     'SENSOR',
     'SENSOR_DIGEST',
+    // Release C: the producer offers the pickup handover of its own shipment.
+    'SHIPMENT',
   ],
   TRANSPORTER: ['LOT', 'SHIPMENT', 'SHIPMENT_TELEMETRY'],
   RETAILER: ['LOT', 'SHIPMENT'],

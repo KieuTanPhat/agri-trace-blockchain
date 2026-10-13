@@ -157,6 +157,18 @@ export class LedgerControlService {
         txId: view.executedTxId ?? null,
       };
     }
+    if (job.operation === 'SIGNING_KEY_REVOKE') {
+      // The DB revoked the key first, so no new intent can use it; this
+      // withdraws it from the ledger registry. Either MSP may revoke.
+      const view = await operator.apply(
+        'SIGNING_KEY_REVOKE',
+        { bindingDigest: job.bindingDigest, keyRef: job.signingKeyRef! },
+        [msp],
+        String(job.expectedRevision),
+        job.nonce,
+      );
+      return { proposalId: view.proposalId, txId: view.executedTxId ?? null };
+    }
     const ref = job.permissionRef!;
     const epoch = job.epoch!;
     const sync = await this.prisma.ledgerPermissionSync.findUniqueOrThrow({

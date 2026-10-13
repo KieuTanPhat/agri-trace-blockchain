@@ -35,7 +35,12 @@ export const EVENT_LEDGER_ROUTE_INCLUDE = {
 } as const;
 /** Release B events carry their binding and captured permission epochs. */
 export const EVENT_BINDING_CONTEXT_INCLUDE = {
-  include: { binding: true, permissions: true },
+  include: {
+    binding: true,
+    permissions: true,
+    // Release C: independent organization signature, when the event has one.
+    event: { select: { actorSignature: { include: { key: true } } } },
+  },
 } as const;
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;

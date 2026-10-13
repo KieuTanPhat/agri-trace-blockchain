@@ -203,6 +203,7 @@ export class ShipmentsService {
   async start(id: string, input: ShipmentTransitionDto, actor: Actor) {
     actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertOrg(id, actor, 'transporter');
+    this.assertStandardHandover(shipment);
     return this.transition(
       shipment.id,
       shipment.lotId,
@@ -219,6 +220,7 @@ export class ShipmentsService {
   async arrive(id: string, input: ShipmentTransitionDto, actor: Actor) {
     actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertOrg(id, actor, 'transporter');
+    this.assertStandardHandover(shipment);
     return this.transition(
       shipment.id,
       shipment.lotId,
@@ -480,66 +482,149 @@ export class ShipmentsService {
     eventType: string,
     actor: Actor,
   ) {
-    return commandTransaction(this.prisma, async (tx) => {
-      await lockAggregate(tx, 'lot', lotId);
-      const currentShipment = await this.getAndAssertOrg(
+    return commandTransaction(this.prisma, (tx) =>
+      this.transitionInTransaction(tx, {
         shipmentId,
-        actor,
-        'transporter',
-        tx,
-      );
-      const lot = await tx.lot.findUniqueOrThrow({
-        where: { id: lotId },
-        include: { harvest: { select: { harvestTime: true } } },
-      });
-      if (currentShipment.status !== fromShipment)
-        throw new ConflictException('Trạng thái chuyến hàng đã thay đổi');
-      const previousTime =
-        fromShipment === 'CREATED'
-          ? lot.harvest.harvestTime
-          : currentShipment.pickupTime;
-      if (!previousTime)
-        throw new ConflictException('Chưa có mốc bàn giao trước đó hợp lệ');
-      const occurredAt = this.time(input, previousTime);
-      await assertQuantityReconciled(tx, lot);
-      if (!lot.availableQuantity.greaterThan(0))
-        throw new ConflictException('Lô không còn lượng khả dụng');
-      const s = await tx.shipment.updateMany({
-        where: { id: shipmentId, version: input.version, status: fromShipment },
-        data: {
-          status: toShipment,
-          version: { increment: 1 },
-          ...(toShipment === 'IN_TRANSIT'
-            ? { pickupTime: occurredAt }
-            : { arrivalTime: occurredAt }),
-        },
-      });
-      const l = await tx.lot.updateMany({
-        where: { id: lotId, version: input.lotVersion, currentState: fromLot },
-        data: { currentState: toLot, version: { increment: 1 } },
-      });
-      if (s.count !== 1 || l.count !== 1)
-        throw new ConflictException('Version hoặc trạng thái đã thay đổi');
-      await this.trace.createInTransaction(tx, {
-        entityType: 'SHIPMENT',
-        entityId: shipmentId,
         lotId,
+        input,
+        fromShipment,
+        toShipment,
+        fromLot,
+        toLot,
         eventType,
         actor,
-        eventTime: occurredAt,
-        businessData: {
-          shipmentStateBefore: fromShipment,
-          shipmentStateAfter: toShipment,
-          lotStateBefore: fromLot,
-          lotStateAfter: toLot,
-          lotVersionBefore: lot.version,
-          lotVersionAfter: lot.version + 1,
-          shipmentVersionBefore: currentShipment.version,
-          shipmentVersionAfter: currentShipment.version + 1,
-        },
-      });
-      return tx.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+        party: 'transporter',
+      }),
+    );
+  }
+
+  /** Release C: the receiver's confirmation of a signed offer is the only
+   * thing that may start or complete a DUAL_SIGNED shipment. The caller (the
+   * handover service) has already authorized the receiver and verified the
+   * versions; the database trigger independently requires the confirmed row. */
+  async applyHandoverTransition(
+    tx: Prisma.TransactionClient,
+    args: {
+      shipmentId: string;
+      kind: 'PICKUP' | 'ARRIVAL';
+      actor: Actor;
+      shipmentVersion: number;
+      lotVersion: number;
+      handoverId: string;
+      confirmEventId: string;
+    },
+  ) {
+    const shipment = await tx.shipment.findUniqueOrThrow({
+      where: { id: args.shipmentId },
     });
+    const pickup = args.kind === 'PICKUP';
+    return this.transitionInTransaction(tx, {
+      shipmentId: shipment.id,
+      lotId: shipment.lotId,
+      input: {
+        version: args.shipmentVersion,
+        lotVersion: args.lotVersion,
+      } as ShipmentTransitionDto,
+      fromShipment: pickup ? 'CREATED' : 'IN_TRANSIT',
+      toShipment: pickup ? 'IN_TRANSIT' : 'ARRIVED',
+      fromLot: pickup ? 'HARVESTED' : 'IN_TRANSPORT',
+      toLot: pickup ? 'IN_TRANSPORT' : 'ARRIVED',
+      eventType: pickup ? 'SHIPMENT_STARTED' : 'SHIPMENT_ARRIVED',
+      actor: args.actor,
+      party: null,
+      handover: {
+        handoverId: args.handoverId,
+        confirmEventId: args.confirmEventId,
+      },
+    });
+  }
+
+  private assertStandardHandover(shipment: { handoverMode: string }) {
+    if (shipment.handoverMode === 'DUAL_SIGNED')
+      throw new ConflictException(
+        'Chuyến hàng này yêu cầu bàn giao hai bên có chữ ký (HANDOVER_REQUIRED)',
+      );
+  }
+
+  private async transitionInTransaction(
+    tx: Prisma.TransactionClient,
+    a: {
+      shipmentId: string;
+      lotId: string;
+      input: ShipmentTransitionDto;
+      fromShipment: 'CREATED' | 'IN_TRANSIT';
+      toShipment: 'IN_TRANSIT' | 'ARRIVED';
+      fromLot: 'HARVESTED' | 'IN_TRANSPORT';
+      toLot: 'IN_TRANSPORT' | 'ARRIVED';
+      eventType: string;
+      actor: Actor;
+      party: 'transporter' | null;
+      handover?: { handoverId: string; confirmEventId: string };
+    },
+  ) {
+    const { shipmentId, lotId, input, fromShipment, toShipment } = a;
+    await lockAggregate(tx, 'lot', lotId);
+    const currentShipment = a.party
+      ? await this.getAndAssertOrg(shipmentId, a.actor, a.party, tx)
+      : await tx.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+    if (!a.handover) this.assertStandardHandover(currentShipment);
+    const lot = await tx.lot.findUniqueOrThrow({
+      where: { id: lotId },
+      include: { harvest: { select: { harvestTime: true } } },
+    });
+    if (currentShipment.status !== fromShipment)
+      throw new ConflictException('Trạng thái chuyến hàng đã thay đổi');
+    const previousTime =
+      fromShipment === 'CREATED'
+        ? lot.harvest.harvestTime
+        : currentShipment.pickupTime;
+    if (!previousTime)
+      throw new ConflictException('Chưa có mốc bàn giao trước đó hợp lệ');
+    const occurredAt = this.time(input, previousTime);
+    await assertQuantityReconciled(tx, lot);
+    if (!lot.availableQuantity.greaterThan(0))
+      throw new ConflictException('Lô không còn lượng khả dụng');
+    const s = await tx.shipment.updateMany({
+      where: { id: shipmentId, version: input.version, status: fromShipment },
+      data: {
+        status: toShipment,
+        version: { increment: 1 },
+        ...(toShipment === 'IN_TRANSIT'
+          ? { pickupTime: occurredAt }
+          : { arrivalTime: occurredAt }),
+      },
+    });
+    const l = await tx.lot.updateMany({
+      where: { id: lotId, version: input.lotVersion, currentState: a.fromLot },
+      data: { currentState: a.toLot, version: { increment: 1 } },
+    });
+    if (s.count !== 1 || l.count !== 1)
+      throw new ConflictException('Version hoặc trạng thái đã thay đổi');
+    await this.trace.createInTransaction(tx, {
+      entityType: 'SHIPMENT',
+      entityId: shipmentId,
+      lotId,
+      eventType: a.eventType,
+      actor: a.actor,
+      eventTime: occurredAt,
+      businessData: {
+        shipmentStateBefore: fromShipment,
+        shipmentStateAfter: toShipment,
+        lotStateBefore: a.fromLot,
+        lotStateAfter: a.toLot,
+        lotVersionBefore: lot.version,
+        lotVersionAfter: lot.version + 1,
+        shipmentVersionBefore: currentShipment.version,
+        shipmentVersionAfter: currentShipment.version + 1,
+        ...(a.handover
+          ? {
+              handoverId: a.handover.handoverId,
+              handoverConfirmEventId: a.handover.confirmEventId,
+            }
+          : {}),
+      },
+    });
+    return tx.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
   }
 
   private async getAndAssertOrg(

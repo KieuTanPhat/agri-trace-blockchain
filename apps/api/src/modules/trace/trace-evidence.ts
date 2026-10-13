@@ -4,6 +4,17 @@ import {
   B_SCHEMA_VERSION,
   type PermissionRef,
 } from './binding-commitment.js';
+import {
+  assertionDigest,
+  C_SCHEMA_VERSION,
+  intentDigest,
+  payloadDigest,
+  signedBindingEventCommitment,
+  signedMessageForIntent,
+  verifyEd25519,
+  type IntentBody,
+  type IntentPayload,
+} from './signed-commitment.js';
 import { calculateTraceEventHash, type TraceHashInput } from './trace-hash.js';
 
 const AUTH_PROOF_TYPES = [
@@ -25,6 +36,17 @@ export type EventBindingEvidence = {
     epoch: number;
     ordinal: bigint | number | string;
   }>;
+  /** Release C: signature sidecar of the same event. */
+  event?: {
+    actorSignature: {
+      keyRef: string;
+      intentDigest: string;
+      assertionDigest: string;
+      signature: string;
+      algorithm: string;
+      key: { publicKey: string; organizationId: string };
+    } | null;
+  } | null;
 } | null;
 
 export type EvidenceEvent = TraceHashInput & {
@@ -87,8 +109,89 @@ export function privateTraceEvidenceMatches(event: EvidenceEvent): boolean {
         ) === event.dataHash
       );
     }
+    if (event.schemaVersion === C_SCHEMA_VERSION)
+      return signedEvidenceMatches(event);
     return false;
   } catch {
     return false;
   }
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Release C: the private row hashes to the recorded digest, the embedded
+ * intent is exactly what was signed, the signature verifies against the
+ * registered key, and the public commitment (dataHash) covers all of it. */
+function signedEvidenceMatches(event: EvidenceEvent): boolean {
+  const context = event.bindingContext;
+  const stored = context?.event?.actorSignature;
+  if (!context || !stored || context.commitmentVersion !== 'c1') return false;
+  if (privateBodyDigest(event) !== context.privateBodyDigest) return false;
+  const data = event.businessData;
+  if (!isRecord(data) || !isRecord(data.actorSignature)) return false;
+  const embedded = data.actorSignature;
+  if (!isRecord(embedded.intent) || !isRecord(embedded.payload)) return false;
+  const intent = embedded.intent as unknown as IntentBody;
+  const payload = embedded.payload as IntentPayload;
+  const assertion = {
+    algorithm: 'Ed25519' as const,
+    keyRef: stored.keyRef,
+    intentDigest: stored.intentDigest,
+    signature: stored.signature,
+  };
+  // 1. The embedded intent is the one that was digested and signed, and it
+  //    names this very event, entity, chain, binding and key.
+  if (
+    stored.algorithm !== 'Ed25519' ||
+    intentDigest(intent) !== stored.intentDigest ||
+    payloadDigest(payload) !== intent.payloadDigest ||
+    intent.eventId !== event.id ||
+    intent.entityType !== event.entityType ||
+    intent.entityId !== event.entityId ||
+    intent.eventType !== event.eventType ||
+    intent.bindingDigest !== context.bindingDigest ||
+    intent.chainRef !== context.binding.chainRef ||
+    intent.keyRef !== stored.keyRef ||
+    intent.signerOrgRef !== stored.key.organizationId
+  )
+    return false;
+  // 2. The signature verifies for the registered key over that exact intent.
+  if (
+    !verifyEd25519(
+      stored.key.publicKey,
+      signedMessageForIntent(intent),
+      stored.signature,
+    )
+  )
+    return false;
+  // 3. The public commitment binds the body digest, context and assertion.
+  const permissions: PermissionRef[] = context.permissions.map((item) => ({
+    permissionRef: item.permissionRef,
+    epoch: String(item.epoch),
+    ordinal: String(item.ordinal),
+  }));
+  return (
+    signedBindingEventCommitment(
+      {
+        eventId: event.id,
+        entityType: event.entityType,
+        entityId: event.entityId,
+        cycleId: event.cycleId,
+        lotId: event.lotId,
+        eventType: event.eventType,
+        eventTime: event.eventTime,
+        previousEventHash: event.previousEventHash,
+        bindingDigest: context.bindingDigest,
+        chainRef: context.binding.chainRef,
+        permissions,
+      },
+      context.privateBodyDigest,
+      {
+        keyRef: stored.keyRef,
+        intentDigest: stored.intentDigest,
+        assertionDigest: assertionDigest(assertion),
+      },
+    ) === event.dataHash
+  );
 }

@@ -10,6 +10,8 @@
  *   npx tsx scripts/ledger-operator.ts activate --binding <digest>
  *   npx tsx scripts/ledger-operator.ts pause|resume --binding <digest>
  *   npx tsx scripts/ledger-operator.ts resolve-hold --hold <uuid> --resolution "<text>"
+ *   npx tsx scripts/ledger-operator.ts register-signing-key --key <keyRef> --config operator.json
+ *   npx tsx scripts/ledger-operator.ts set-handover-mode --chain <uuid> --mode STANDARD|DUAL_SIGNED
  *   npx tsx scripts/ledger-operator.ts status [--chain <uuid>]
  *
  * operator.json: { "controller": CONN, "reader": CONN, "relayer": CONN,
@@ -29,8 +31,14 @@ import {
 } from '@agri-trace/fabric-gateway';
 import {
   PrismaClient,
+  type HandoverMode,
   type LedgerProfile,
 } from '../src/generated/prisma/client.js';
+import {
+  activateSigningKey,
+  registerSigningKeyOnLedger,
+  setHandoverMode,
+} from '../src/modules/ledger/ledger-signing.js';
 import {
   activateBinding,
   registerBinding,
@@ -177,6 +185,61 @@ async function main() {
         );
         break;
       }
+      case 'register-signing-key': {
+        // The owner MSP admin approves too (SIGNING_KEY_REGISTER needs writer
+        // and owner), so this runs where that admin identity is available.
+        const keyRef = need(options, 'key');
+        const config = JSON.parse(
+          readFileSync(need(options, 'config'), 'utf8'),
+        ) as {
+          controller: Conn;
+          reader: Conn;
+          admins: Record<string, Conn>;
+        };
+        const key = await prisma.signingKey.findUniqueOrThrow({
+          where: { keyRef },
+          include: { binding: true },
+        });
+        if (key.status === 'REVOKED') throw new Error('The key is revoked');
+        const open1 = (c: Conn) =>
+          client(
+            c,
+            key.binding.channelId,
+            key.binding.chaincodeName,
+            key.binding.contractName,
+          );
+        const controller = await open1(config.controller);
+        const admins: Record<string, BindingLedgerClient> = {};
+        for (const [msp, conn] of Object.entries(config.admins))
+          admins[msp] = (await open1(conn)).client;
+        const reader = await open1(config.reader);
+        const ledger = await registerSigningKeyOnLedger({
+          operator: new RegistryOperator(controller.client, admins),
+          reader: reader.client,
+          approvers: Object.keys(config.admins),
+          key,
+        });
+        const activated = await activateSigningKey(prisma, keyRef);
+        console.log(
+          JSON.stringify({ keyRef, ...ledger, ...activated }, null, 2),
+        );
+        break;
+      }
+      case 'set-handover-mode': {
+        const profile = await setHandoverMode(
+          prisma,
+          need(options, 'chain'),
+          need(options, 'mode') as HandoverMode,
+        );
+        console.log(
+          JSON.stringify({
+            chainId: profile.chainId,
+            handoverMode: profile.handoverMode,
+            version: profile.version,
+          }),
+        );
+        break;
+      }
       case 'activate':
         console.log(
           JSON.stringify(
@@ -267,7 +330,7 @@ async function main() {
       }
       default:
         throw new Error(
-          'Usage: ledger-operator <register-binding|onboard|activate|pause|resume|resolve-hold|status> [--option value ...]',
+          'Usage: ledger-operator <register-binding|onboard|register-signing-key|set-handover-mode|activate|pause|resume|resolve-hold|status> [--option value ...]',
         );
     }
   } finally {

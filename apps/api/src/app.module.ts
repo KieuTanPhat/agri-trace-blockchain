@@ -12,6 +12,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { LotsModule } from './modules/lots/lots.module.js';
 import { ProductionCyclesModule } from './modules/production-cycles/production-cycles.module.js';
 import { ShipmentsModule } from './modules/shipments/shipments.module.js';
+import { SigningModule } from './modules/signing/signing.module.js';
 import { TraceModule } from './modules/trace/trace.module.js';
 import { IotModule } from './modules/iot/iot.module.js';
 import { BlockchainAdapterModule } from './modules/blockchain-adapter/blockchain-adapter.module.js';
@@ -38,6 +39,7 @@ import { SupplyChainsModule } from './modules/supply-chains/supply-chains.module
     ProductionCyclesModule,
     LotsModule,
     ShipmentsModule,
+    SigningModule,
     TraceModule,
     IotModule,
     ComplianceModule,

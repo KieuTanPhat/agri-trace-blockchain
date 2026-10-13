@@ -12,6 +12,10 @@ import {
 } from '../trace/ledger-route.js';
 import { privateTraceEvidenceMatches } from '../trace/trace-evidence.js';
 import {
+  C_ENVELOPE_VERSION,
+  C_SCHEMA_VERSION,
+} from '../trace/signed-commitment.js';
+import {
   BindingConnectionPool,
   type BindingConnection,
   type BindingTarget,
@@ -44,6 +48,12 @@ const WAIT_CODES = new Set([
   'CHANNEL_NOT_BOOTSTRAPPED',
 ]);
 const PERMANENT_CODES = new Set([
+  // A revoked or unknown signing key never becomes valid again, and a bad or
+  // reused signature is never fixed by retrying: the event needs review.
+  'SIGNING_KEY_INACTIVE',
+  'SIGNATURE_INVALID',
+  'SIGNATURE_REPLAY',
+  'SIGNATURE_REQUIRED',
   'INVALID_INPUT',
   'HASH_CHAIN_CONFLICT',
   'DUPLICATE_EVENT_CONFLICT',
@@ -65,6 +75,12 @@ type LedgerProof = {
   previousEventHash: string | null;
   privateBodyDigest: string;
   permissions: Array<{ permissionRef: string; epoch: string; ordinal: string }>;
+  signature?: {
+    keyRef: string;
+    intentDigest: string;
+    assertionDigest: string;
+    orgRef: string;
+  };
   txId: string;
   channelId: string;
   recordedAt: string;
@@ -383,9 +399,14 @@ export class BindingDeliveryService {
       return;
     }
     const generation = Number(fence.generation);
+    const signed = event.bindingContext?.event?.actorSignature ?? null;
+    if ((context.commitmentVersion === 'c1') !== Boolean(signed))
+      throw new PermanentDeliveryError(
+        'Signed event context does not match its signature sidecar',
+      );
     const envelope = {
-      envelopeVersion: '4.0.0',
-      schemaVersion: '3.0.0',
+      envelopeVersion: signed ? C_ENVELOPE_VERSION : '4.0.0',
+      schemaVersion: signed ? C_SCHEMA_VERSION : '3.0.0',
       canonicalizationVersion: 'RFC8785',
       eventId: event.id,
       nonce: event.id,
@@ -407,11 +428,32 @@ export class BindingDeliveryService {
           ordinal: String(item.ordinal),
         })),
       dataHash: event.dataHash,
+      ...(signed
+        ? {
+            signature: {
+              keyRef: signed.keyRef,
+              intentDigest: signed.intentDigest,
+              assertionDigest: signed.assertionDigest,
+            },
+          }
+        : {}),
     };
-    const prepared = connection.client.recordBindingEvent(
-      JSON.stringify(envelope),
-      JSON.stringify({ generation: String(generation) }),
-    );
+    const delivery = JSON.stringify({ generation: String(generation) });
+    const prepared = signed
+      ? connection.client.recordSignedBindingEvent(
+          JSON.stringify(envelope),
+          JSON.stringify({
+            algorithm: 'Ed25519',
+            keyRef: signed.keyRef,
+            intentDigest: signed.intentDigest,
+            signature: signed.signature,
+          }),
+          delivery,
+        )
+      : connection.client.recordBindingEvent(
+          JSON.stringify(envelope),
+          delivery,
+        );
     // Persist the attempt (txId first) before any network traffic.
     const attempt = await this.prisma.deliveryAttempt.create({
       data: {
@@ -538,10 +580,19 @@ export class BindingDeliveryService {
       previousEventHash: event.previousEventHash ?? null,
       privateBodyDigest: context.privateBodyDigest,
     };
-    const mismatch = Object.entries(expected).find(
-      ([key, value]) =>
-        (proof as unknown as Record<string, unknown>)[key] !== value,
-    );
+    const signature = event.bindingContext?.event?.actorSignature ?? null;
+    const signatureMismatch = signature
+      ? proof.signature?.keyRef !== signature.keyRef ||
+        proof.signature?.intentDigest !== signature.intentDigest ||
+        proof.signature?.assertionDigest !== signature.assertionDigest ||
+        proof.signature?.orgRef !== signature.organizationId
+      : proof.signature !== undefined;
+    const mismatch = signatureMismatch
+      ? (['signature', true] as [string, unknown])
+      : Object.entries(expected).find(
+          ([key, value]) =>
+            (proof as unknown as Record<string, unknown>)[key] !== value,
+        );
     const permissions = [...context.permissions]
       .sort((a, b) => (a.permissionRef < b.permissionRef ? -1 : 1))
       .map((item) => `${item.permissionRef}:${item.epoch}:${item.ordinal}`)

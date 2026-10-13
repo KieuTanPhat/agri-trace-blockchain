@@ -34,6 +34,13 @@ const LOT_WRITES = [
   'EXPIRE_LOT',
   'CREATE_INSPECTION',
 ];
+/** Two-party handover (release C). The acting role comes from the persisted
+ * intent or handover, never from the request body. */
+const HANDOVER_WRITES = [
+  'SUBMIT_SIGNED_INTENT',
+  'REJECT_HANDOVER',
+  'CANCEL_HANDOVER',
+];
 const SHIPMENT_WRITES = [
   'START_SHIPMENT',
   'ARRIVE_SHIPMENT',
@@ -45,6 +52,48 @@ const SHIPMENT_WRITES = [
   'UNBIND_SHIPMENT_DEVICE',
   'CREATE_SHIPMENT_TELEMETRY_DIGEST',
 ];
+
+async function handoverTarget(
+  db: Prisma.TransactionClient,
+  operation: string,
+  data: Record<string, unknown>,
+  id: (field: string) => string,
+): Promise<{ shipmentId: string; role: BusinessRole }> {
+  const roleOf = (kind: string, side: 'giver' | 'receiver'): BusinessRole =>
+    kind === 'PICKUP'
+      ? side === 'giver'
+        ? 'FARM_STAFF'
+        : 'TRANSPORTER'
+      : side === 'giver'
+        ? 'TRANSPORTER'
+        : 'RETAILER';
+  if (operation === 'SUBMIT_SIGNED_INTENT') {
+    const intent = await db.signingIntent.findUnique({
+      where: { id: id('intentId') },
+    });
+    const payload = intent?.payload as Record<string, string> | undefined;
+    if (!intent || intent.entityType !== 'SHIPMENT' || !payload?.kind)
+      throw new NotFoundException('Không tìm thấy yêu cầu ký');
+    return {
+      shipmentId: intent.entityId,
+      role: roleOf(
+        payload.kind,
+        intent.operation === 'HANDOVER_OFFER' ? 'giver' : 'receiver',
+      ),
+    };
+  }
+  const handover = await db.shipmentHandover.findUnique({
+    where: { id: id('handoverId') },
+  });
+  if (!handover) throw new NotFoundException('Không tìm thấy bàn giao');
+  return {
+    shipmentId: handover.shipmentId,
+    role: roleOf(
+      handover.kind,
+      operation === 'REJECT_HANDOVER' ? 'receiver' : 'giver',
+    ),
+  };
+}
 
 /** Business commands are always authorized inside the subject's chain.
  * `null` means the operation is not a business command (platform
@@ -80,7 +129,11 @@ export async function authorizeCoreBusinessCommand(
   }
   let subject: BusinessSubject;
   let role: BusinessRole;
-  if (CYCLE_WRITES.includes(operation)) {
+  if (HANDOVER_WRITES.includes(operation)) {
+    const target = await handoverTarget(db, operation, data, id);
+    subject = { kind: 'shipment', id: target.shipmentId };
+    role = target.role;
+  } else if (CYCLE_WRITES.includes(operation)) {
     subject = { kind: 'cycle', id: id('cycleId' in data ? 'cycleId' : 'id') };
     role =
       operation === 'RECONCILE_CYCLE_SENSOR'

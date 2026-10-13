@@ -169,6 +169,18 @@ export async function authorizeChainCommand(
         throw new ForbiddenException('Chỉ chủ chuỗi được điều phối thành viên');
       permission =
         access.grants.find((g) => g.role === 'CHAIN_MANAGER') ?? null;
+    } else if (
+      ['HYB_REGISTER_SIGNING_KEY', 'HYB_REVOKE_SIGNING_KEY'].includes(
+        input.operation,
+      )
+    ) {
+      // A key speaks for an organization: only its ORG_ADMIN may enroll or
+      // withdraw it, and only while the organization is an active member.
+      if (payload.organizationId !== actor.organizationId)
+        throw new ForbiddenException('Không quản lý khóa thay tổ chức khác');
+      if (access.membership.status !== 'ACTIVE')
+        throw new ForbiddenException('Tổ chức chưa là thành viên hoạt động');
+      permission = access.admin;
     } else throw new ForbiddenException('Command chuỗi chưa có policy');
   }
   if (!permission)

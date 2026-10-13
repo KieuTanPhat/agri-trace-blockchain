@@ -14,6 +14,11 @@ import {
   privateBodyDigest,
 } from './binding-commitment.js';
 import { reserveEventPermission } from '../ledger/ledger-permissions.js';
+import {
+  assertionDigest,
+  C_SCHEMA_VERSION,
+  signedBindingEventCommitment,
+} from './signed-commitment.js';
 import { privateTraceEvidenceMatches } from './trace-evidence.js';
 import { harvestSensorTraceEvidenceMatches } from '../iot/harvest-sensor-evidence.js';
 import { getLotEventProofStatus } from '../lots/lot-proof-status.js';
@@ -44,6 +49,10 @@ export interface CreateTraceEventInput {
   eventTime?: Date;
   businessData: Prisma.InputJsonValue;
   supersedesEventId?: string;
+  /** Pre-allocated event id (a signing intent names the event it authorizes). */
+  eventId?: string;
+  /** Release C: attach the already consumed organization signature. */
+  signature?: { intentId: string };
 }
 
 @Injectable()
@@ -89,7 +98,7 @@ export class TraceService {
     await tx.$executeRaw(
       Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${input.entityType}:${input.entityId}`}, 0))`,
     );
-    const id = randomUUID();
+    const id = input.eventId ?? randomUUID();
     const eventTime = input.eventTime ?? new Date();
     // Business timestamps may be backdated, and transaction timestamps may tie.
     // The predecessor is the chain's leaf, not the newest business timestamp.
@@ -144,6 +153,49 @@ export class TraceService {
           'Ledger predecessor cần route cùng destination đã xác minh',
         );
     }
+    // Release C: a signed event must come from a binding stream and from an
+    // intent that was consumed for exactly this event, entity and binding.
+    const signed = input.signature
+      ? await tx.signingIntent.findUnique({
+          where: { id: input.signature.intentId },
+          include: { key: true },
+        })
+      : null;
+    if (input.signature) {
+      if (
+        !origin ||
+        !signed ||
+        signed.status !== 'CONSUMED' ||
+        !signed.signature ||
+        signed.eventId !== id ||
+        signed.entityType !== input.entityType ||
+        signed.entityId !== input.entityId ||
+        signed.eventType !== input.eventType ||
+        signed.bindingDigest !== origin.bindingDigest ||
+        signed.chainId !== chainId ||
+        signed.key.status !== 'ACTIVE'
+      )
+        throw new ConflictException(
+          'Chữ ký không khớp sự kiện, thực thể hoặc binding',
+        );
+      input = {
+        ...input,
+        businessData: {
+          ...(input.businessData as Prisma.InputJsonObject),
+          actorSignature: {
+            intent: signed.intent,
+            payload: signed.payload,
+            assertion: {
+              algorithm: 'Ed25519',
+              keyRef: signed.keyRef,
+              intentDigest: signed.intentDigest,
+              signature: signed.signature,
+            },
+            signerOrgId: signed.organizationId,
+          },
+        } as Prisma.InputJsonObject,
+      };
+    }
     const actorAuthProof = createHash('sha256')
       .update(`${input.actor.sub}:${input.actor.role}`, 'utf8')
       .digest('hex');
@@ -179,30 +231,46 @@ export class TraceService {
         )
       : null;
     const bodyDigest = origin ? privateBodyDigest(hashInput) : null;
-    const dataHash =
+    const assertion = signed
+      ? {
+          algorithm: 'Ed25519' as const,
+          keyRef: signed.keyRef,
+          intentDigest: signed.intentDigest,
+          signature: signed.signature!,
+        }
+      : null;
+    const commit =
       origin && captured && bodyDigest
-        ? bindingEventCommitment(
-            {
-              eventId: id,
-              entityType: input.entityType,
-              entityId: input.entityId,
-              cycleId: input.cycleId ?? null,
-              lotId: input.lotId ?? null,
-              eventType: input.eventType,
-              eventTime,
-              previousEventHash: previous?.dataHash ?? null,
-              bindingDigest: origin.bindingDigest,
-              chainRef: origin.binding.chainRef,
-              permissions: [
-                {
-                  permissionRef: captured.permissionRef,
-                  epoch: String(captured.epoch),
-                  ordinal: String(captured.ordinal),
-                },
-              ],
-            },
-            bodyDigest,
-          )
+        ? (context: Parameters<typeof bindingEventCommitment>[0]) =>
+            assertion
+              ? signedBindingEventCommitment(context, bodyDigest, {
+                  keyRef: assertion.keyRef,
+                  intentDigest: assertion.intentDigest,
+                  assertionDigest: assertionDigest(assertion),
+                })
+              : bindingEventCommitment(context, bodyDigest)
+        : null;
+    const dataHash =
+      origin && captured && bodyDigest && commit
+        ? commit({
+            eventId: id,
+            entityType: input.entityType,
+            entityId: input.entityId,
+            cycleId: input.cycleId ?? null,
+            lotId: input.lotId ?? null,
+            eventType: input.eventType,
+            eventTime,
+            previousEventHash: previous?.dataHash ?? null,
+            bindingDigest: origin.bindingDigest,
+            chainRef: origin.binding.chainRef,
+            permissions: [
+              {
+                permissionRef: captured.permissionRef,
+                epoch: String(captured.epoch),
+                ordinal: String(captured.ordinal),
+              },
+            ],
+          })
         : calculateTraceEventHash(hashInput);
 
     const event = await tx.traceEvent.create({
@@ -218,7 +286,11 @@ export class TraceService {
         actorRole: input.actor.role,
         authProofType,
         actorAuthProof,
-        schemaVersion: origin ? B_SCHEMA_VERSION : '2.0.0',
+        schemaVersion: origin
+          ? signed
+            ? C_SCHEMA_VERSION
+            : B_SCHEMA_VERSION
+          : '2.0.0',
         canonicalizationVersion: 'RFC8785',
         eventTime,
         businessData: input.businessData,
@@ -248,6 +320,7 @@ export class TraceService {
           eventId: event.id,
           bindingDigest: origin.bindingDigest,
           privateBodyDigest: bodyDigest,
+          ...(signed ? { commitmentVersion: 'c1' } : {}),
         },
       });
       await tx.eventPermissionEpoch.create({
@@ -258,6 +331,19 @@ export class TraceService {
           ordinal: captured.ordinal,
         },
       });
+      if (signed && assertion)
+        await tx.eventActorSignature.create({
+          data: {
+            eventId: event.id,
+            intentId: signed.id,
+            keyRef: signed.keyRef,
+            bindingDigest: signed.bindingDigest,
+            organizationId: signed.organizationId,
+            intentDigest: signed.intentDigest,
+            assertionDigest: assertionDigest(assertion),
+            signature: assertion.signature,
+          },
+        });
     }
     return event;
   }
