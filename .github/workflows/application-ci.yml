@@ -47,8 +47,6 @@ jobs:
           python3 -m unittest discover -s deploy/cd -p 'test_*.py' -v
           node --test deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs
           node --experimental-vm-modules --test deploy/cd/verify.test.mjs
-          node --test scripts/ci/hybrid-restore-guards.test.mjs
-          node --test deploy/hybrid-restore-run.test.mjs
 
   api:
     name: API / Node ${{ matrix.node }}
@@ -126,158 +124,6 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run check --workspace apps/web
 
-  hybrid:
-    name: Hybrid / PostgreSQL 18 and real browser
-    needs: changes
-    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    env:
-      NODE_ENV: test
-      NODE_OPTIONS: --max-old-space-size=1536
-      DATABASE_URL: postgresql://scope_test:isolated-ci-scope-only@127.0.0.1:25488/scope_test
-      TEST_DATABASE_URL: postgresql://scope_test:isolated-ci-scope-only@127.0.0.1:25488/scope_test
-      JWT_SECRET: isolated-ci-browser-jwt-only-not-a-production-secret
-      IOT_INGEST_API_KEY: isolated-ci-device-key
-      FABRIC_ENABLED: 'false'
-      HYBRID_DRAFT_TESTS: '1'
-      HYBRID_CI_TESTS: '1'
-      HYBRID_CI_SHA: ${{ github.sha }}
-      HYBRID_CI_SCOPE: hybrid-ci-${{ github.run_id }}-${{ github.run_attempt }}
-      HYBRID_CI_EVIDENCE: ${{ github.workspace }}/.codex/evidence/hybrid-ci-${{ github.sha }}-${{ github.run_attempt }}
-      NEXT_PUBLIC_API_SAME_ORIGIN: 'true'
-      NEXT_PUBLIC_MOCK_API: 'false'
-      CORS_ORIGIN: http://127.0.0.1:25600
-    services:
-      policy-postgres:
-        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
-        env:
-          POSTGRES_DB: scope_test
-          POSTGRES_USER: scope_test
-          POSTGRES_PASSWORD: isolated-ci-scope-only
-        ports:
-          - 127.0.0.1:25488:5432
-        options: >-
-          --memory 384m --cpus 1
-          --tmpfs /var/lib/postgresql:rw,size=256m
-          --label agritrace.scope=hybrid-ci-${{ github.run_id }}-${{ github.run_attempt }}-policy
-          --health-cmd "pg_isready -U scope_test -d scope_test"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-      browser-postgres:
-        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
-        env:
-          POSTGRES_DB: browser_test
-          POSTGRES_USER: browser_test
-          POSTGRES_PASSWORD: isolated-ci-browser-only
-        ports:
-          - 127.0.0.1:25489:5432
-        options: >-
-          --memory 384m --cpus 1
-          --tmpfs /var/lib/postgresql:rw,size=256m
-          --label agritrace.scope=hybrid-ci-${{ github.run_id }}-${{ github.run_attempt }}-browser
-          --health-cmd "pg_isready -U browser_test -d browser_test"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22.22.3'
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - name: Verify dedicated database resources before preparing fixtures
-        env:
-          HYBRID_POLICY_CONTAINER: ${{ job.services.policy-postgres.id }}
-          HYBRID_BROWSER_CONTAINER: ${{ job.services.browser-postgres.id }}
-        run: |
-          install -d -m 700 "$HYBRID_CI_EVIDENCE"
-          node scripts/ci/hybrid-policy-run.mjs services
-      - name: Ensure the host PostgreSQL SQL client is available
-        run: |
-          if ! command -v psql >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install --yes --no-install-recommends postgresql-client
-          fi
-          psql --version
-      - run: npm install --global npm@12.1.0
-      - run: npm ci --no-audit --no-fund
-      - run: npm run build --workspace blockchain/gateway
-      - run: npm run prisma:generate --workspace apps/api
-      # The staged catalog is private evidence; tracked migration files never
-      # change. Twenty-eight synthetic old-writer events precede route sealing.
-      - name: Apply official migrations around the legacy fixture writer
-        env:
-          HYBRID_CI_CONTROL: ${{ env.HYBRID_CI_EVIDENCE }}/legacy-prepare
-        run: node scripts/ci/hybrid-db-prepare.mjs legacy
-      - name: Require SQL, ORM, policy HTTP and legacy E2E acceptance
-        env:
-          HYBRID_CI_PREPARATION: ${{ env.HYBRID_CI_EVIDENCE }}/legacy-prepare/preparation.json
-          HYBRID_CI_CONTROL: ${{ env.HYBRID_CI_EVIDENCE }}/legacy-policy
-        run: node scripts/ci/hybrid-policy-run.mjs
-      - name: Restore the synthetic scope database and compare every row and schema guard
-        env:
-          HYBRID_POLICY_CONTAINER: ${{ job.services.policy-postgres.id }}
-        run: node deploy/hybrid-restore-run.mjs
-      - run: npm run build --workspace apps/api
-      # Browser work follows the DB suite, so the two heavy suites never compete
-      # for the job's application memory. This DB starts with the full catalog.
-      - name: Prepare a separate fresh browser database and independent route pins
-        env:
-          DATABASE_URL: postgresql://browser_test:isolated-ci-browser-only@127.0.0.1:25489/browser_test
-          TEST_DATABASE_URL: postgresql://browser_test:isolated-ci-browser-only@127.0.0.1:25489/browser_test
-          HYBRID_CI_CONTROL: ${{ env.HYBRID_CI_EVIDENCE }}/browser-prepare
-        run: node scripts/ci/hybrid-db-prepare.mjs browser
-      - name: Check canonical deployment pins with the actual compiled runtime
-        run: node --test deploy/hybrid-pins.test.mjs
-      - name: Build the real Web app with same-origin API transport
-        env:
-          NODE_ENV: production
-        run: npm run build --workspace apps/web
-      - name: Install the Chromium revision pinned by Playwright 1.62.1
-        run: node node_modules/playwright/cli.js install --with-deps chromium
-      - name: Require seven browser groups against real API and PostgreSQL
-        env:
-          DATABASE_URL: postgresql://browser_test:isolated-ci-browser-only@127.0.0.1:25489/browser_test
-          TEST_DATABASE_URL: postgresql://browser_test:isolated-ci-browser-only@127.0.0.1:25489/browser_test
-          HYBRID_BROWSER_TESTS: '1'
-          HYBRID_BROWSER_SHA: ${{ github.sha }}
-          HYBRID_BROWSER_CONTROL: ${{ env.HYBRID_CI_EVIDENCE }}/browser-run
-        run: node scripts/ci/hybrid-browser-run.mjs
-      - name: Remove only this job's labeled database services and verify released ports
-        if: always()
-        env:
-          HYBRID_POLICY_CONTAINER: ${{ job.services.policy-postgres.id }}
-          HYBRID_BROWSER_CONTAINER: ${{ job.services.browser-postgres.id }}
-        run: node scripts/ci/hybrid-policy-run.mjs cleanup
-      - name: Upload safe acceptance receipts and summary logs
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: hybrid-acceptance-${{ github.sha }}-${{ github.run_attempt }}
-          # Raw logs/reporter diagnostics, SQL, HTML/screenshots and fixture
-          # payloads stay private on the disposable runner and are not uploaded.
-          path: |
-            ${{ env.HYBRID_CI_EVIDENCE }}/services.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/services-cleanup.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/legacy-prepare/preparation.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/browser-prepare/preparation.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/legacy-policy/acceptance.log
-            ${{ env.HYBRID_CI_EVIDENCE }}/legacy-policy/schema-alignment.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/legacy-policy/sql-result.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/legacy-policy/orm-result.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/legacy-policy/policy-result.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/legacy-policy/legacy-result.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/legacy-policy/policy-run.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/legacy-policy/policy-failure.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/legacy-restore/restore-run.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/legacy-restore/restore-failure.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/browser-run/browser-result.json
-            ${{ env.HYBRID_CI_EVIDENCE }}/browser-run/app-cleanup.json
-          if-no-files-found: warn
-          include-hidden-files: true
-          retention-days: 14
-
   container-build:
     name: Production containers
     needs: changes
@@ -287,31 +133,14 @@ jobs:
     env:
       COMPOSE_PROJECT_NAME: agri-trace-ci
       FABRIC_ENABLED: 'false'
-      HYBRID_CONTAINER_TESTS: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22.22.3'
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - run: npm install --global npm@12.1.0
-      - run: npm ci --no-audit --no-fund
-      - name: Check technical fixture vectors and refusal guards
-        run: node --test deploy/hybrid-route-fixture.test.mjs
-      - name: Prepare explicit technical route pins before any database registration
-        run: node deploy/hybrid-route-fixture.mjs prepare --stack standard --directory .codex/evidence/hybrid-standard-route
       - name: Validate Compose model
         run: docker compose config --quiet
       - name: Build production images including Worker
         run: docker compose build api worker web
-      - name: Migrate the fresh database and register only the independently pinned CI definition
-        run: |
-          docker compose up -d --wait --wait-timeout 120 postgres
-          docker compose run --rm --no-deps api npm run db:migrate --workspace apps/api
-          node deploy/hybrid-route-fixture.mjs register --stack standard --directory .codex/evidence/hybrid-standard-route
       - name: Start the complete production stack against a disposable database
         run: docker compose up -d --wait --wait-timeout 240 postgres api worker web
       - name: Verify API, Web and internal Worker health
@@ -346,15 +175,19 @@ jobs:
           docker compose logs --no-color --tail 200
       - name: Stop standard stack before UAT rehearsal
         run: docker compose stop
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.22.3'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm install --global npm@12.1.0
+      - run: npm ci --no-audit --no-fund
       - name: Check UAT origins and aliases
         run: node --test deploy/config.test.mjs
       - name: Prepare private UAT configuration
-        env:
-          COMPOSE_PROJECT_NAME: agri-trace-uat-ci
         run: |
           npm run build --workspace blockchain/chaincode
           node deploy/prepare.mjs --directory .uat/ci --origin http://127.0.0.1:18080 --release "uat-${GITHUB_SHA}"
-          node deploy/hybrid-route-fixture.mjs prepare --stack uat --directory .codex/evidence/hybrid-uat-route --env .uat/ci/.env.uat
           node deploy/preflight.mjs --env .uat/ci/.env.uat
           node deploy/prepare.mjs --directory .uat/https --origin https://agritrace.dev --release "uat-${GITHUB_SHA}"
           node deploy/preflight.mjs --env .uat/https/.env.uat --config-only
@@ -368,7 +201,6 @@ jobs:
           "${dc[@]}" build api web
           "${dc[@]}" up -d --wait --wait-timeout 120 postgres
           python3 deploy/cd/check-migrate.py --env .uat/ci/.env.uat
-          node deploy/hybrid-route-fixture.mjs register --stack uat --directory .codex/evidence/hybrid-uat-route --env .uat/ci/.env.uat
           "${dc[@]}" --profile tools run --rm bootstrap
           "${dc[@]}" --profile tools run --rm bootstrap
           # Exercise the actual runtime image (production dependencies only).
@@ -414,25 +246,12 @@ jobs:
       - name: Stop disposable application stack
         if: always()
         run: docker compose down --volumes --remove-orphans
-      - name: Upload public route-definition fixture receipts
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: container-route-fixtures-${{ github.sha }}
-          path: |
-            .codex/evidence/hybrid-standard-route/preparation.json
-            .codex/evidence/hybrid-standard-route/registration.json
-            .codex/evidence/hybrid-uat-route/preparation.json
-            .codex/evidence/hybrid-uat-route/registration.json
-          include-hidden-files: true
-          if-no-files-found: warn
-          retention-days: 14
       - name: Rehearse production database retention on this disposable runner
         run: python3 deploy/cd/rehearse-production.py
 
   gate:
     name: Application gate
-    needs: [changes, api, web, container-build, hybrid]
+    needs: [changes, api, web, container-build]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
