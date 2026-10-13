@@ -117,7 +117,8 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: [CMD, node, -e, "fetch('http://127.0.0.1:8081/health/ready').then(async r=>{const h=await r.json();if(!r.ok||h.runtime.fabricEnabled||!h.runtime.running)process.exit(1)}).catch(()=>process.exit(1))"]
+      # Fabric is off here by design, so pending events are expected and /health/ready would report them as degraded.
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8081/health/live').then(async r=>{if(!r.ok)process.exit(1);const h=await fetch('http://127.0.0.1:8081/health/ready').then(r=>r.json());if(h.runtime.fabricEnabled||!h.runtime.enabled||!h.runtime.running)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 12

@@ -14,6 +14,8 @@ assert.equal(new URL(process.env.DATABASE_URL).pathname, '/hybrid');
 const worker = process.argv.includes('--worker');
 const app = await NestFactory.create(worker ? WorkerModule : AppModule, { logger: false });
 if (!worker) {
+  // One hop, as in production: the proxy below forwards the client address supplied by the browser context.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.useGlobalFilters(new GlobalExceptionFilter());

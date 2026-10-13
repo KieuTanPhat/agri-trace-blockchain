@@ -103,7 +103,11 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
   const command = async (party, route, body) => {
     const response = await fetch(`${origin}/api${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': randomUUID(),
       Authorization: `Bearer ${jwt.sign({ sub: users[party].id, sid: sessions[party] })}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(20_000) });
-    assert.equal(response.status, 201, `Fixture business command rejected at ${route}`);
+    if (response.status !== 201) {
+      // Only the API error code and message (no request body, token or credential) explain a rejection.
+      const error = (await response.json().catch(() => ({}))).error ?? {};
+      assert.fail(`Fixture business command rejected at ${route}: ${response.status} ${error.code ?? ''} ${error.message ?? ''}`);
+    }
     return (await response.json()).data;
   };
   async function createPlan({ sameOrg = false } = {}) {
@@ -134,6 +138,15 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
     restoreGrant: async (actor, role) => {
       const party = typeof actor === 'string' ? actor : Object.keys(users).find(key => users[key].id === actor.id);
       assert.ok(party && users[party]);
+      // DB revocation denies commands immediately; the normal ledger revoke
+      // drains the old epoch asynchronously. A new grant must wait for that
+      // epoch to be revoked, rather than race the real Worker with a new key.
+      const permission = await db.ledgerPermission.findUniqueOrThrow({
+        where: { bindingDigest_userId_role: { bindingDigest: binding.digest, userId: users[party].id, role } },
+      });
+      await wait(async () => (await db.ledgerPermissionSync.findUniqueOrThrow({
+        where: { permissionRef: permission.permissionRef },
+      })).state === 'REVOKED');
       const result = await command(party, `/organizations/${users[party].organizationId}/scoped-grants`,
         { userId: users[party].id, chainId: chain.id, role });
       await wait(async () => (await db.ledgerPermissionSync.count({ where: { permission: { binding: { digest: binding.digest } }, state: { not: 'ACTIVE' } } })) === 0);

@@ -6,11 +6,22 @@ const loginTimes = [];
 const storagePrefix = "agritrace-command:v1:";
 const timeout = 45_000;
 const api = (pathname) => `**/api${pathname}`;
+// Each simulated person is a distinct client, as behind the production proxy (TRUST_PROXY_HOPS=1):
+// the per-client throttles stay unchanged and one shared loopback address cannot exhaust them.
+const clientAddress = (variant, party) =>
+  `198.51.100.${(variant === "mobile" ? 120 : 20) + ["farm", "transporter", "retailer", "other"].indexOf(party)}`;
 
 async function until(check, description, limit = timeout) {
   const deadline = Date.now() + limit;
   while (Date.now() < deadline) {
-    const value = await check();
+    let value;
+    try {
+      value = await check();
+    } catch (error) {
+      // A reload or redirect can destroy the page between two polls: poll again.
+      if (!/Execution context was destroyed|navigation/i.test(String(error?.message)))
+        throw error;
+    }
     if (value) return value;
     await delay(150);
   }
@@ -33,7 +44,7 @@ async function selectChain(page, options) {
   await page.goto(`${options.origin}/supply-chains`, {
     waitUntil: "domcontentloaded",
   });
-  const select = page.getByLabel("Chọn chuỗi", { exact: true });
+  const select = page.getByLabel("Chọn chuỗi");
   await select.waitFor({ state: "visible", timeout });
   await until(
     async () =>
@@ -64,17 +75,25 @@ async function requestResult(page, pattern, work) {
   return envelope.data;
 }
 
-async function openLot(page, options, lotId) {
+async function openLot(page, options, lotId, { revoked = false } = {}) {
   await page.goto(`${options.origin}/lots/${lotId}`, {
     waitUntil: "domcontentloaded",
   });
+  const panel = page.getByRole("region", {
+    name: "Bàn giao hai bên",
+    exact: true,
+  });
+  if (!revoked) return panel.waitFor({ state: "visible", timeout });
+  // Without a current grant the API hides the lot (404): the page settles on the
+  // not-found state and must never render the handover panel.
   await page
-    .getByRole("region", { name: "Bàn giao hai bên", exact: true })
+    .getByText("Không tìm thấy lô hàng")
     .waitFor({ state: "visible", timeout });
+  assert.equal(await panel.count(), 0, "Revoked actor must not see the panel");
 }
 
 async function chooseKey(page, keyRef) {
-  const select = page.getByLabel("Khóa ký cho bàn giao", { exact: true });
+  const select = page.getByLabel("Khóa ký cho bàn giao");
   await select.waitFor({ state: "visible", timeout });
   await until(() => select.isEnabled(), "signing queue ready");
   await select.selectOption(keyRef);
@@ -203,7 +222,12 @@ async function createSession(options) {
       : { viewport: { width: 1365, height: 900 } };
   try {
     for (const party of ["farm", "transporter", "retailer", "other"]) {
-      contexts[party] = await browser.newContext(contextOptions);
+      contexts[party] = await browser.newContext({
+        ...contextOptions,
+        extraHTTPHeaders: {
+          "X-Forwarded-For": clientAddress(options.variant, party),
+        },
+      });
       pages[party] = await contexts[party].newPage();
       pages[party].on("request", (request) => {
         if (request.url().startsWith(`${options.origin}/api/`)) {
@@ -627,7 +651,10 @@ async function lostResponseAndTabs(options, session, shipment) {
         (await commandMetadata(page, pathname))?.status === "COMMITTED",
       "positive signed journal recovered",
     );
-    const metadata = await commandMetadata(page, pathname);
+    const metadata = await until(
+      () => commandMetadata(page, pathname),
+      "terminal command metadata readable after the page settles",
+    );
     assert.equal(
       metadata.hasBody,
       false,
@@ -836,9 +863,7 @@ export async function runHybridBrowserScenarios(options) {
       );
       const shipment = await options.createShipment();
       await openLot(session.pages.farm, options, shipment.lotId);
-      const selector = session.pages.farm.getByLabel("Khóa ký cho bàn giao", {
-        exact: true,
-      });
+      const selector = session.pages.farm.getByLabel("Khóa ký cho bàn giao");
       assert.equal(
         await selector.inputValue(),
         "",
@@ -925,7 +950,7 @@ export async function runHybridBrowserScenarios(options) {
       );
       await options.waitForProofs();
       await options.revokeGrant(options.fixture.users.farm, "FARM_STAFF");
-      await openLot(session.pages.farm, options, flow.lotId);
+      await openLot(session.pages.farm, options, flow.lotId, { revoked: true });
       assert.equal(
         await session.pages.farm
           .getByRole("button", { name: /^Đề nghị bàn giao:|^Ký và gửi$/ })
