@@ -72,7 +72,7 @@ export async function runSmoke({ origin, fixture, full = true, expectedLots = []
   if (!full) {
     for (const lotId of expectedLots) {
       const lot = await request(`/lots/${lotId}`, 'FARM_STAFF');
-      assert.equal(lot.id, lotId, 'A restored lot is unavailable');
+      assert.equal(lot.lotId, lotId, 'A restored lot is unavailable');
     }
     for (const token of expectedTraceTokens) {
       assert.equal((await request(`/public/trace/${token}`)).proofStatus, 'PENDING', 'A restored public QR must still resolve as PENDING');
