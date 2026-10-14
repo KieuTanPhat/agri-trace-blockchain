@@ -36,54 +36,63 @@ export function validateBootstrap(input, environment = process.env) {
   return input;
 }
 
+const parties = [['FARM_STAFF', 'FARM'], ['TRANSPORTER', 'TRANSPORTER'], ['RETAILER', 'RETAILER'], ['AUDITOR', 'AUDITOR']];
+
+// Database half of the `provision` operation. It is exported so a real PostgreSQL test can exercise the
+// exact production transaction; bootstrapProduction() below remains its only production caller.
+export async function provisionBusinessCatalog(db, input) {
+  const byRole = Object.fromEntries(input.accounts.map(a => [a.role, a]));
+  const catalog = input.catalog;
+  await db.$transaction(async tx => {
+    for (const [code, type] of parties) {
+      const account = byRole[code];
+      const existing = await tx.organization.findUnique({ where: { id: account.organizationId } });
+      if (existing) assert.equal(existing.type, type, 'Existing bootstrap organization differs');
+      else await tx.organization.create({ data: { id: account.organizationId, name: `Production smoke ${type}`, type } });
+    }
+    for (const account of input.accounts) {
+      const role = await tx.role.upsert({ where: { code: account.role }, create: { code: account.role, name: account.role }, update: {} });
+      const existing = await tx.user.findUnique({ where: { id: account.id } });
+      if (existing) {
+        assert.equal(existing.email, account.email);
+        assert.equal(existing.roleId, role.id);
+        assert.equal(existing.organizationId, account.organizationId ?? null);
+        assert.ok(await compare(account.password, existing.passwordHash), 'Existing bootstrap credentials differ');
+      } else await tx.user.create({ data: { id: account.id, email: account.email, fullName: `Production ${account.role}`,
+        passwordHash: await hash(account.password, 12), roleId: role.id, organizationId: account.organizationId } });
+      if (account.organizationId) {
+        for (const scoped of ['ORG_ADMIN', ...(account.role === 'FARM_STAFF' ? ['CREATE_CHAIN'] : [])]) {
+          if (!await tx.scopedRoleGrant.findFirst({ where: { userId: account.id, organizationId: account.organizationId, role: scoped, scope: 'ORGANIZATION', revokedAt: null } }))
+            await tx.scopedRoleGrant.create({ data: { userId: account.id, organizationId: account.organizationId, role: scoped, scope: 'ORGANIZATION' } });
+        }
+      }
+    }
+    if (!await tx.supplyChain.findUnique({ where: { id: catalog.chainId } })) {
+      await tx.supplyChain.create({ data: { id: catalog.chainId, name: 'Production technical acceptance', ownerOrganizationId: byRole.FARM_STAFF.organizationId } });
+      for (const [code] of parties) await tx.chainMembership.create({ data: { chainId: catalog.chainId, organizationId: byRole[code].organizationId, status: 'ACTIVE' } });
+      await tx.chainBusinessProfile.create({ data: { chainId: catalog.chainId } });
+      await tx.chainBusinessProfile.update({ where: { chainId: catalog.chainId }, data: { state: 'ACTIVE', version: { increment: 1 } } });
+    }
+    for (const code of ['FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR', 'CHAIN_MANAGER']) {
+      const account = byRole[code === 'CHAIN_MANAGER' ? 'FARM_STAFF' : code];
+      if (!await tx.scopedRoleGrant.findFirst({ where: { userId: account.id, chainId: catalog.chainId, role: code, revokedAt: null } }))
+        await tx.scopedRoleGrant.create({ data: { userId: account.id, organizationId: account.organizationId, chainId: catalog.chainId, scope: 'CHAIN', role: code } });
+    }
+    if (!await tx.farm.findUnique({ where: { id: catalog.farmId } })) await tx.farm.create({ data: { id: catalog.farmId, name: 'Production technical farm', organizationId: byRole.FARM_STAFF.organizationId } });
+    if (!await tx.product.findUnique({ where: { id: catalog.productId } })) await tx.product.create({ data: { id: catalog.productId, productName: 'Production technical product', defaultUnit: 'kg' } });
+    if (!await tx.plot.findUnique({ where: { id: catalog.plotId } })) await tx.plot.create({ data: { id: catalog.plotId, farmId: catalog.farmId, name: 'Production technical plot' } });
+  }, { timeout: 60_000 });
+}
+
 export async function bootstrapProduction(input) {
   validateBootstrap(input);
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: input.databaseUrl }) });
   const connections = [];
   const byRole = Object.fromEntries(input.accounts.map(a => [a.role, a]));
-  const parties = [['FARM_STAFF', 'FARM'], ['TRANSPORTER', 'TRANSPORTER'], ['RETAILER', 'RETAILER'], ['AUDITOR', 'AUDITOR']];
   const catalog = input.catalog;
   try {
     if ((input.operation ?? 'provision') === 'provision') {
-      await db.$transaction(async tx => {
-        for (const [code, type] of parties) {
-          const account = byRole[code];
-          const existing = await tx.organization.findUnique({ where: { id: account.organizationId } });
-          if (existing) assert.equal(existing.type, type, 'Existing bootstrap organization differs');
-          else await tx.organization.create({ data: { id: account.organizationId, name: `Production smoke ${type}`, type } });
-        }
-        for (const account of input.accounts) {
-          const role = await tx.role.upsert({ where: { code: account.role }, create: { code: account.role, name: account.role }, update: {} });
-          const existing = await tx.user.findUnique({ where: { id: account.id } });
-          if (existing) {
-            assert.equal(existing.email, account.email);
-            assert.equal(existing.roleId, role.id);
-            assert.equal(existing.organizationId, account.organizationId ?? null);
-            assert.ok(await compare(account.password, existing.passwordHash), 'Existing bootstrap credentials differ');
-          } else await tx.user.create({ data: { id: account.id, email: account.email, fullName: `Production ${account.role}`,
-            passwordHash: await hash(account.password, 12), roleId: role.id, organizationId: account.organizationId } });
-          if (account.organizationId) {
-            for (const scoped of ['ORG_ADMIN', ...(account.role === 'FARM_STAFF' ? ['CREATE_CHAIN'] : [])]) {
-              if (!await tx.scopedRoleGrant.findFirst({ where: { userId: account.id, organizationId: account.organizationId, role: scoped, scope: 'ORGANIZATION', revokedAt: null } }))
-                await tx.scopedRoleGrant.create({ data: { userId: account.id, organizationId: account.organizationId, role: scoped, scope: 'ORGANIZATION' } });
-            }
-          }
-        }
-        if (!await tx.supplyChain.findUnique({ where: { id: catalog.chainId } })) {
-          await tx.supplyChain.create({ data: { id: catalog.chainId, name: 'Production technical acceptance', ownerOrganizationId: byRole.FARM_STAFF.organizationId } });
-          for (const [code] of parties) await tx.chainMembership.create({ data: { chainId: catalog.chainId, organizationId: byRole[code].organizationId, status: 'ACTIVE' } });
-          await tx.chainBusinessProfile.create({ data: { chainId: catalog.chainId } });
-          await tx.chainBusinessProfile.update({ where: { chainId: catalog.chainId }, data: { state: 'ACTIVE', version: { increment: 1 } } });
-        }
-        for (const code of ['FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'AUDITOR', 'CHAIN_MANAGER']) {
-          const account = byRole[code === 'CHAIN_MANAGER' ? 'FARM_STAFF' : code];
-          if (!await tx.scopedRoleGrant.findFirst({ where: { userId: account.id, chainId: catalog.chainId, role: code, revokedAt: null } }))
-            await tx.scopedRoleGrant.create({ data: { userId: account.id, organizationId: account.organizationId, chainId: catalog.chainId, scope: 'CHAIN', role: code } });
-        }
-        if (!await tx.farm.findUnique({ where: { id: catalog.farmId } })) await tx.farm.create({ data: { id: catalog.farmId, name: 'Production technical farm', organizationId: byRole.FARM_STAFF.organizationId } });
-        if (!await tx.product.findUnique({ where: { id: catalog.productId } })) await tx.product.create({ data: { id: catalog.productId, productName: 'Production technical product', defaultUnit: 'kg' } });
-        if (!await tx.plot.findUnique({ where: { id: catalog.plotId } })) await tx.plot.create({ data: { id: catalog.plotId, farmId: catalog.farmId, name: 'Production technical plot' } });
-      }, { timeout: 60_000 });
+      await provisionBusinessCatalog(db, input);
     }
     const client = async name => {
       const ref = input.connections[name];

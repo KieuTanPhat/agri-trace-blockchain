@@ -47,6 +47,10 @@ jobs:
           python3 -m unittest discover -s deploy/cd -p 'test_*.py' -v
           node --test deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs
           node --experimental-vm-modules --test deploy/cd/verify.test.mjs
+      - name: Check rehearsal helpers and require applied migrations to stay immutable
+        run: |
+          node --test deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs
+          node deploy/ci/migrations-immutable.mjs
 
   api:
     name: API / Node ${{ matrix.node }}
@@ -100,6 +104,10 @@ jobs:
         env:
           UAT_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
         run: node --test deploy/bootstrap.test.mjs
+      - name: Verify production provisioning against real PostgreSQL
+        env:
+          BOOTSTRAP_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
+        run: node --test deploy/ci/bootstrap-production.test.mjs
 
   web:
     name: Web / Node ${{ matrix.node }}
@@ -249,9 +257,39 @@ jobs:
       - name: Rehearse production database retention on this disposable runner
         run: python3 deploy/cd/rehearse-production.py
 
+  rehearsal:
+    name: Production rehearsal
+    needs: changes
+    if: needs.changes.outputs.containers == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.22.3'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm install --global npm@12.1.0
+      - run: npm ci --no-audit --no-fund
+      # The compiled chaincode validator is mounted read-only into the event check.
+      - run: npm run build --workspace blockchain/chaincode
+      - name: Rehearse the production application model on an isolated PostgreSQL 18
+        run: node deploy/ci/rehearse.mjs
+      - name: Upload rehearsal evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-rehearsal-${{ github.sha }}
+          path: artifacts/production-rehearsal.json
+          if-no-files-found: warn
+          retention-days: 14
+
   gate:
     name: Application gate
-    needs: [changes, api, web, container-build]
+    needs: [changes, api, web, container-build, rehearsal]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

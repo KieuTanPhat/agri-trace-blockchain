@@ -60,7 +60,7 @@ test('documentation-only PRs skip expensive jobs without leaving gates pending',
   assert.ok(Object.values(classifyChanges(['README.md', 'docs/ci.md'])).every(value => value === false));
   assert.deepEqual(gateErrors('application', {
     changes: { result: 'success', outputs: { api: 'false', web: 'false', containers: 'false' } },
-    api: { result: 'skipped' }, web: { result: 'skipped' }, 'container-build': { result: 'skipped' },
+    api: { result: 'skipped' }, web: { result: 'skipped' }, 'container-build': { result: 'skipped' }, rehearsal: { result: 'skipped' },
   }), []);
 });
 
@@ -168,5 +168,16 @@ test('dependency gate requires both lockfile audits and the installed graph', ()
     for (const job of ['audit', 'workspace-peers']) {
       assert.ok(gateErrors('dependency', { ...needs, [job]: { result } }).length > 0);
     }
+  }
+});
+
+test('application gate requires the production rehearsal whenever containers are selected', () => {
+  const needs = {
+    changes: { result: 'success', outputs: { api: 'true', web: 'true', containers: 'true' } },
+    api: { result: 'success' }, web: { result: 'success' }, 'container-build': { result: 'success' }, rehearsal: { result: 'success' },
+  };
+  assert.deepEqual(gateErrors('application', needs), []);
+  for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+    assert.ok(gateErrors('application', { ...needs, rehearsal: { result } }).length > 0);
   }
 });
