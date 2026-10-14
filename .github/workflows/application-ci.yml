@@ -70,7 +70,7 @@ jobs:
       FABRIC_ENABLED: 'false'
     services:
       postgres:
-        # Exercise domain/journal recovery on the same PostgreSQL major as UAT.
+        # Exercise domain/journal recovery on the same PostgreSQL major as production.
         image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_DB: agri_trace_ci
@@ -100,10 +100,6 @@ jobs:
       - run: npm run check --workspace apps/api
       - name: Require Swagger and generated Web types to match the current API
         run: node scripts/generate-api-contract.mjs --check
-      - name: Verify UAT bootstrap against real PostgreSQL
-        env:
-          UAT_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
-        run: node --test deploy/bootstrap.test.mjs
       - name: Verify production provisioning against real PostgreSQL
         env:
           BOOTSTRAP_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
@@ -181,76 +177,6 @@ jobs:
         run: |
           docker compose ps --all
           docker compose logs --no-color --tail 200
-      - name: Stop standard stack before UAT rehearsal
-        run: docker compose stop
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22.22.3'
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - run: npm install --global npm@12.1.0
-      - run: npm ci --no-audit --no-fund
-      - name: Check UAT origins and aliases
-        run: node --test deploy/config.test.mjs
-      - name: Prepare private UAT configuration
-        run: |
-          npm run build --workspace blockchain/chaincode
-          node deploy/prepare.mjs --directory .uat/ci --origin http://127.0.0.1:18080 --release "uat-${GITHUB_SHA}"
-          node deploy/preflight.mjs --env .uat/ci/.env.uat
-          node deploy/prepare.mjs --directory .uat/https --origin https://agritrace.dev --release "uat-${GITHUB_SHA}"
-          node deploy/preflight.mjs --env .uat/https/.env.uat --config-only
-          https_dc=(docker compose --env-file .uat/https/.env.uat -f docker-compose.uat.yml -f docker-compose.uat-https.yml)
-          "${https_dc[@]}" run --rm --no-deps proxy caddy validate --config /etc/caddy/Caddyfile
-      - name: Build and start UAT through the HTTP proxy
-        env:
-          COMPOSE_PROJECT_NAME: agri-trace-uat-ci
-        run: |
-          dc=(docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml)
-          "${dc[@]}" build api web
-          "${dc[@]}" up -d --wait --wait-timeout 120 postgres
-          python3 deploy/cd/check-migrate.py --env .uat/ci/.env.uat
-          "${dc[@]}" --profile tools run --rm bootstrap
-          "${dc[@]}" --profile tools run --rm bootstrap
-          # Exercise the actual runtime image (production dependencies only).
-          "${dc[@]}" run --rm --no-deps api npm run db:provision-compliance-role --workspace apps/api | tee .uat/ci/role-first.log
-          "${dc[@]}" run --rm --no-deps api npm run db:provision-compliance-role --workspace apps/api | tee .uat/ci/role-replay.log
-          grep -Fx 'COMPLIANCE_REVIEWER provisioned; created=1' .uat/ci/role-first.log
-          grep -Fx 'COMPLIANCE_REVIEWER provisioned; created=0' .uat/ci/role-replay.log
-          "${dc[@]}" up -d --wait --wait-timeout 240 api worker web proxy
-          node deploy/smoke.mjs --env .uat/ci/.env.uat --expect-proof PENDING
-          "${dc[@]}" run --rm --no-deps -e APP_ENV=uat -e UAT_VALIDATOR_PATH=/validator/validation.js -v "$PWD/blockchain/chaincode/dist:/validator:ro" --entrypoint node api apps/api/scripts/check-uat-events.mjs
-      - name: Rehearse UAT backup and restore into an empty disposable database
-        env:
-          COMPOSE_PROJECT_NAME: agri-trace-uat-ci
-        run: |
-          dc=(docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml)
-          "${dc[@]}" stop api worker
-          node deploy/database.mjs backup-uat --env .uat/ci/.env.uat --file .uat/ci/rehearsal.dump
-          # This project exists only in this CI job; never use this reset on a VPS.
-          "${dc[@]}" down --volumes --remove-orphans
-          "${dc[@]}" up -d --wait --wait-timeout 120 postgres
-          node deploy/database.mjs restore-empty --env .uat/ci/.env.uat --file .uat/ci/rehearsal.dump
-          "${dc[@]}" --profile tools run --rm migrate
-          "${dc[@]}" --profile tools run --rm bootstrap
-          "${dc[@]}" up -d --wait --wait-timeout 240 api worker web proxy
-          node deploy/smoke.mjs --env .uat/ci/.env.uat --expect-proof PENDING
-      - name: Collect UAT HTTP diagnostics
-        if: failure()
-        env:
-          COMPOSE_PROJECT_NAME: agri-trace-uat-ci
-        run: |
-          if [ -f .uat/ci/.env.uat ]; then
-            docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml ps --all
-            docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml logs --no-color --tail 80 web proxy
-          fi
-      - name: Stop disposable UAT stack
-        if: always()
-        env:
-          COMPOSE_PROJECT_NAME: agri-trace-uat-ci
-        run: |
-          if [ -f .uat/ci/.env.uat ]; then
-            docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml down --volumes --remove-orphans
-          fi
       - name: Stop disposable application stack
         if: always()
         run: docker compose down --volumes --remove-orphans

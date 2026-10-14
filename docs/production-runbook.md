@@ -17,7 +17,7 @@ sau kiểm thử; không yêu cầu duyệt lại, giới hạn 2 giờ hay cana
 
 Schema 2 / `agri-trace-uat` thuộc dữ liệu test đã retire. Giữ release record,
 volume và archive cũ; không nhập history/accounts/QR vào DB mới. Không trộn lệnh
-adopt cũ với cài schema 3. [Runbook cũ](contabo-cd-runbook.md) phục vụ bản lưu.
+adopt cũ với cài schema 3. Công cụ và runbook của controller cũ đã bị gỡ; lịch sử nằm trong Git.
 
 Edge chuyển HTTP trên địa chỉ IP sang HTTPS `agritrace.dev` bằng 308, giữ nguyên
 path/query. Không phục vụ form đăng nhập qua HTTP. Kiểm route này sau reload.
