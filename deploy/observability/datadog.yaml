@@ -1,5 +1,6 @@
 site: us5.datadoghq.com
 env: infrastructure
+# Stable monitoring identity from the original deployment; renaming it would create a new Datadog host.
 hostname: agritrace-uat
 logs_enabled: true
 logs_config:

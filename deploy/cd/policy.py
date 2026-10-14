@@ -15,9 +15,8 @@ _spec.loader.exec_module(targets)
 SHA = re.compile(r"^[a-f0-9]{40}$")
 DIGEST = re.compile(r"^[a-f0-9]{64}$")
 OPERATIONS = {"deploy", "upgrade", "forward", "rollback", "recover", "status", "backup"}
-FIXED_FILES = {"docker-compose.uat.yml", "docker-compose.uat-https.yml", "docker-compose.uat-fabric.yml", "deploy/Caddyfile.uat"}
 MAX_AUTH_HEADER = 16 * 1024
-CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify.mjs", "verify-hosted.mjs", "session-auth.mjs", "entry")
+CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify-hosted.mjs", "session-auth.mjs", "entry")
 
 
 class PolicyError(Exception):
@@ -115,7 +114,7 @@ def https_origins(origin):
 
 
 def allowed_file(name):
-    if name in FIXED_FILES | targets.APP_FILES | targets.OPTIONAL_APP_FILES:
+    if name in targets.APP_FILES | targets.OPTIONAL_APP_FILES:
         return True
     if re.fullmatch(r"apps/api/prisma/migrations/[a-zA-Z0-9_-]+/migration.sql", name):
         return True
@@ -133,20 +132,15 @@ def fingerprint(files):
     return sha256(json.dumps(selected, sort_keys=True, separators=(",", ":")).encode())
 
 
-def validate_manifest(manifest, sha, repository, origin, target=None):
-    require(manifest.get("format") == (2 if target else 1) and manifest.get("sha") == sha, "Manifest commit/format mismatch")
+def validate_manifest(manifest, sha, repository, origin, target):
+    require(manifest.get("format") == 2 and manifest.get("sha") == sha, "Manifest commit/format mismatch")
     require(manifest.get("repository") == repository and manifest.get("origin") == origin, "Manifest deployment target mismatch")
     require(valid_public_origin(origin), "Invalid public deployment origin")
     require(isinstance(manifest.get("files"), dict) and 3 <= len(manifest["files"]) <= 1000, "Invalid manifest file list")
-    if target:
-        targets.validate_target(target, require)
-        for name in ("environment", "branch", "project", "profile"):
-            require(manifest.get(name) == target[name], "Manifest environment binding mismatch")
-        required = targets.APP_FILES
-        require(not FIXED_FILES.intersection(manifest["files"]), "Legacy proxy configuration is not an app delivery")
-    else:
-        required = FIXED_FILES
-    require(required <= manifest["files"].keys(), "Missing deployment configuration")
+    targets.validate_target(target, require)
+    for name in ("environment", "branch", "project", "profile"):
+        require(manifest.get(name) == target[name], "Manifest environment binding mismatch")
+    require(targets.APP_FILES <= manifest["files"].keys(), "Missing deployment configuration")
     for name, digest in manifest["files"].items():
         require(allowed_file(name) and isinstance(digest, str) and bool(DIGEST.fullmatch(digest)), "Invalid release file")
     require(manifest.get("chaincode") == fingerprint(manifest["files"]), "Chaincode fingerprint mismatch")
@@ -163,7 +157,7 @@ def validate_manifest(manifest, sha, repository, origin, target=None):
     return manifest
 
 
-def extract(archive, destination, sha, repository, origin, target=None):
+def extract(archive, destination, sha, repository, origin, target):
     """Extract only validated regular files; never tarfile.extractall."""
     destination = Path(destination)
     require(not destination.exists(), "Release directory already exists")

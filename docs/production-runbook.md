@@ -16,11 +16,17 @@ sau kiểm thử; không yêu cầu duyệt lại, giới hạn 2 giờ hay cana
 | API / Worker | API không có khóa; Worker chỉ giữ technical identity Org1 |
 
 Schema 2 / `agri-trace-uat` thuộc dữ liệu test đã retire. Giữ release record,
-volume và archive cũ; không nhập history/accounts/QR vào DB mới. Không trộn lệnh
-adopt cũ với cài schema 3. Công cụ và runbook của controller cũ đã bị gỡ; lịch sử nằm trong Git.
+volume và archive cũ trên VPS; không nhập history/accounts/QR vào DB mới. Controller
+chỉ nhận config schema 3, manifest format 2 và release `prod-*`; config schema cũ,
+project `agri-trace-uat` và release `uat-*` bị từ chối. Công cụ cutover/alias/adopt và
+runbook của controller cũ đã bị gỡ khỏi source; lịch sử nằm trong Git (`git show 28d1f9c:<path>`).
 
 Edge chuyển HTTP trên địa chỉ IP sang HTTPS `agritrace.dev` bằng 308, giữ nguyên
 path/query. Không phục vụ form đăng nhập qua HTTP. Kiểm route này sau reload.
+`deploy/edge/admin.py` có ba thao tác: `prepare` (kiểm file môi trường Edge đã duyệt và hai
+volume chứng chỉ có sẵn, cập nhật compose/Caddyfile, validate), `start` và `reload`. Hai volume
+Caddy mang tên lịch sử `agri-trace-uat_caddy-data` và `agri-trace-uat_caddy-config` đang giữ chứng
+chỉ HTTPS: không xóa hoặc đổi tên chúng.
 
 1. Tắt `CD_DEPLOY_ENABLED`; kiểm SHA/CI, journal, delivery/host locks, installed
    helpers và ownership từng resource/path. Không prune rộng hoặc reset DB chung.
@@ -41,7 +47,7 @@ path/query. Không phục vụ form đăng nhập qua HTTP. Kiểm route này sa
 5. Cài `policy.CONTROLLER_FILES` từ source đã kiểm vào root-owned helper directory;
    checksum phải khớp manifest. Tạo env/accounts/bootstrap/smoke/binding/identity
    export riêng tư. DB mới tên `agri_trace_prod`, mật khẩu ngẫu nhiên >=24 ký tự.
-   Bootstrap không gọi seed UAT hoặc đổi account hiện có.
+   Bootstrap chỉ nhận cấu hình riêng tư và không đổi account hiện có.
 
    ```bash
    sudo python3 deploy/cd/install-target.py fresh-install --environment production \
@@ -78,6 +84,34 @@ public QR. Private keys/command receipts nằm trong `shared/smoke/<sha>` root-o
 Sau smoke thành công đánh dấu verified/current và mở ghi theo policy. Kiểm runtime
 SHA/images, OOM/restarts, Pending/dead-letter và HTTPS sau deploy. Đây là hậu kiểm
 trong lần triển khai; không có giai đoạn canary hay giám sát định kỳ riêng.
+
+## Cập nhật controller
+
+Controller được cài thành thư mục bất biến theo digest
+(`/usr/local/lib/agri-trace-cd/prod-versions/<digest>`); symlink
+`/usr/local/lib/agri-trace-cd/prod` chọn bản đang dùng. Khi một PR đổi `controller.py`,
+`policy.py`, `targets.py`, `verify-hosted.mjs`, `session-auth.mjs` hoặc `entry`, preflight
+của Production CD từ chối giao bản mới cho tới khi operator cài đúng bản đã review.
+Quy trình, từ checkout đã review ở đúng SHA:
+
+```bash
+python3 deploy/cd/install-target.py controller-digest
+```
+
+```bash
+sudo python3 deploy/cd/install-target.py update-controller --environment production --expected-digest <digest>
+```
+
+Lệnh dừng trước khi đổi gì nếu digest không khớp, nếu có delivery đang chạy hoặc journal chưa
+recover. Nó chỉ đổi controller: không đổi config production, quyền SSH, database, mạng hay container.
+Kiểm `readlink /usr/local/lib/agri-trace-cd/prod`, trạng thái CD và health, rồi mới merge. Bản trước
+được giữ lại; quay về bằng:
+
+```bash
+sudo python3 deploy/cd/install-target.py restore-controller --environment production
+```
+
+Chỉ merge PR đổi controller sau khi bước cập nhật hoàn tất; bản đang chạy vẫn tiếp tục phục vụ trong lúc cập nhật.
 
 ## Recovery, tài nguyên và bàn giao
 

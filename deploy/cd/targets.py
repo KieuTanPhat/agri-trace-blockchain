@@ -20,18 +20,14 @@ def validate_target(value, require):
     selected = TARGETS[value["environment"]]
     for key in ("branch", "origin"):
         require(value.get(key) == selected[key], "Environment branch/origin mismatch")
-    projects = {selected["project"]}
-    if value["environment"] == "production":
-        projects.add("agri-trace-uat")  # Adoption preserves the existing PGDATA.
-    require(value.get("project") in projects, "Environment project mismatch")
+    require(value.get("project") == selected["project"], "Environment project mismatch")
     require(value.get("profile") == "fabric", "Production requires Fabric")
     return selected
 
 
 def validate_config(config, require):
     selected = validate_target(config, require)
-    require(config.get("schema") in (2, 3) and type(config.get("enabled")) is bool, "Invalid installed target config")
-    fresh = config["schema"] == 3
+    require(config.get("schema") == 3 and type(config.get("enabled")) is bool, "Invalid installed target config")
     expected_base = "/opt/agri-trace"
     require(config.get("base") == expected_base, "Environment workspace mismatch")
     require(config.get("ingress") == selected["ingress"], "Environment ingress mismatch")
@@ -44,32 +40,18 @@ def validate_config(config, require):
         require(owned_path(path, root / "shared"), "Private config must belong to its environment")
     require(type(config.get("min_available_mib", 1536)) is int and config.get("min_available_mib", 1536) >= 1536,
             "Invalid memory admission threshold")
-    aliases = config.get("legacy_cors_origins", [])
-    require(isinstance(aliases, list) and set(aliases) <= ({"http://13.140.170.166"} if config["environment"] == "production" else set()),
-            "Unapproved cross-environment CORS origin")
-    fabric = config.get("fabric")
-    if fresh:
-        require(not fabric, "Fresh production must not bind a retained legacy network")
-        hosted = config.get("hosted")
-        require(isinstance(hosted, dict), "Hosted production network is required")
-        validate_fabric(dict(config, fabric=hosted), require)
-        require(owned_path(hosted["root"], root / "hosted"), "Hosted root must belong to production")
-        require(config["project"] == selected["project"], "Fresh installation needs a new production resource mapping")
-        require(config.get("writes_mode", "CLOSED") in {"CLOSED", "OPEN"}, "Fresh production supports CLOSED or OPEN writes")
-        require(type(config.get("open_after_smoke", False)) is bool, "Invalid post-smoke writer policy")
-        require(owned_path(config.get("bootstrap", ""), root / "shared"), "Fresh bootstrap must be private environment configuration")
-        fabric = hosted
-    if fabric and not fresh:
-        validate_fabric(config, require)
-    if config["profile"] == "fabric":
-        require(bool(fabric), "Fabric binding must be provisioned before activation")
-    active = config.get("fabric_enabled", config["profile"] == "fabric")
-    require(active is True, "Production requires active Fabric")
-    require(not active or bool(fabric), "Fabric binding must be provisioned before activation")
-    canary = config.get("smoke") if fresh else config.get("canary")
-    require(isinstance(canary, dict) and set(canary) in ({"farmId", "plotId", "productId"}, {"chainId", "farmId", "plotId", "productId"}), "Dedicated verification catalog is required")
-    require(not fresh or "chainId" in canary, "Hosted smoke needs an active chain")
-    require(all(isinstance(v, str) and re.fullmatch(r"[a-f0-9-]{36}", v) for v in canary.values()), "Invalid canary catalog IDs")
+    require(not config.get("fabric"), "Production must not bind a retained legacy network")
+    hosted = config.get("hosted")
+    require(isinstance(hosted, dict), "Hosted production network is required")
+    validate_fabric(dict(config, fabric=hosted), require)
+    require(owned_path(hosted["root"], root / "hosted"), "Hosted root must belong to production")
+    require(config.get("writes_mode", "CLOSED") in {"CLOSED", "OPEN"}, "Production supports CLOSED or OPEN writes")
+    require(type(config.get("open_after_smoke", False)) is bool, "Invalid post-smoke writer policy")
+    require(owned_path(config.get("bootstrap", ""), root / "shared"), "Bootstrap must be private environment configuration")
+    require(config["profile"] == "fabric" and config.get("fabric_enabled", True) is True, "Production requires active Fabric")
+    smoke = config.get("smoke")
+    require(isinstance(smoke, dict) and set(smoke) == {"chainId", "farmId", "plotId", "productId"}, "Dedicated verification catalog is required")
+    require(all(isinstance(v, str) and re.fullmatch(r"[a-f0-9-]{36}", v) for v in smoke.values()), "Invalid smoke catalog IDs")
     return config
 
 

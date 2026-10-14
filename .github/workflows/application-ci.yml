@@ -46,7 +46,6 @@ jobs:
         run: |
           python3 -m unittest discover -s deploy/cd -p 'test_*.py' -v
           node --test deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs
-          node --experimental-vm-modules --test deploy/cd/verify.test.mjs
       - name: Check rehearsal helpers and require applied migrations to stay immutable
         run: |
           node --test deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs

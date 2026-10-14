@@ -8,7 +8,7 @@ test database/ledger is archived, not imported into the new business model.
 3. Compare migration bytes/checksums, counts, hashes, transaction IDs and ledger validation.
 4. Provision a separate empty database; apply immutable historical migrations and append-only cleanup.
 5. Cleanup refuses existing business history/exemptions. Never rewrite applied migrations or reset a shared DB.
-6. Bootstrap production through the private operator, then run real VPS smoke. UAT seed remains forbidden in production.
+6. Bootstrap production through the private operator, then run real VPS smoke. Production never receives fixture accounts or default credentials.
 7. Preserve the Hybrid floor and original command keys on failure; recover the exact candidate.
 
 Database restoration is separate from application rollback. Do not restore only PostgreSQL after ledger commits. Per-run restoration evidence stays private in PR/Issue/local artifacts.

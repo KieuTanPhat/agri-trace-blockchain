@@ -8,7 +8,9 @@ import unittest
 from pathlib import Path
 
 from package import package
-from policy import CONTROLLER_FILES, PolicyError, extract, sha256
+from policy import CONTROLLER_FILES, PolicyError, extract, sha256, targets
+
+TARGET = dict(targets.TARGETS["production"], environment="production", project="agritrace-prod", profile="fabric")
 
 
 class TrustedHelpers(unittest.TestCase):
@@ -19,10 +21,9 @@ class TrustedHelpers(unittest.TestCase):
             # Windows user's global core.autocrlf setting.
             (root / '.gitattributes').write_bytes(b'* text eol=lf\n')
             files = {
+                "docker-compose.app.yml": "services: {}\n",
+                "docker-compose.app-fabric.yml": "services: {}\n",
                 "docker-compose.uat.yml": "services: {}\n",
-                "docker-compose.uat-https.yml": "services: {}\n",
-                "docker-compose.uat-fabric.yml": "services: {}\n",
-                "deploy/Caddyfile.uat": ":80 {}\n",
                 "apps/api/prisma/migrations/20260101_init/migration.sql": "CREATE TABLE x (id INT);\n",
                 "blockchain/chaincode/src/index.ts": "export {};\n",
             }
@@ -44,8 +45,10 @@ class TrustedHelpers(unittest.TestCase):
             repository, origin = "test/agritrace", "https://agritrace.dev"
             with contextlib.chdir(root), contextlib.redirect_stdout(io.StringIO()):
                 package(sha, f"ghcr.io/{repository}/api@sha256:{'a' * 64}",
-                        f"ghcr.io/{repository}/web@sha256:{'b' * 64}", repository, origin, dist, archive)
-            manifest = extract(archive, root / "validated", sha, repository, origin)
+                        f"ghcr.io/{repository}/web@sha256:{'b' * 64}", repository, origin, dist, archive, TARGET)
+            manifest = extract(archive, root / "validated", sha, repository, origin, TARGET)
+            self.assertEqual(manifest["format"], 2)
+            self.assertNotIn("docker-compose.uat.yml", manifest["files"], "Retired UAT files must not ship in a release")
             self.assertEqual(manifest["controller"], {
                 name: sha256(files[f"deploy/cd/{name}"].encode()) for name in CONTROLLER_FILES})
             self.assertNotIn("deploy/cd/session-auth.mjs", manifest["files"])
@@ -61,7 +64,7 @@ class TrustedHelpers(unittest.TestCase):
                     entry.size = len(data)
                     target.addfile(entry, io.BytesIO(data))
             with self.assertRaisesRegex(PolicyError, "Controller version"):
-                extract(root / "incomplete.tar.gz", root / "rejected", sha, repository, origin)
+                extract(root / "incomplete.tar.gz", root / "rejected", sha, repository, origin, TARGET)
 
 
 if __name__ == "__main__":

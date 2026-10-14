@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {deploymentTarget,requireImage} from './publish.mjs';
 const env={CD_ENVIRONMENT:'production',GITHUB_REF:'refs/heads/main',PUBLIC_ORIGIN:'https://agritrace.dev',GITHUB_SHA:'a'.repeat(40)};
-test('production publishes only main with Fabric and may retain adopted PGDATA',()=>{
+test('production publishes only main with Fabric into its own project',()=>{
   const prod=deploymentTarget(env);
   assert.equal(prod.prefix,'prod');assert.equal(prod.profile,'fabric');assert.equal(prod.project,'agritrace-prod');
-  assert.equal(deploymentTarget({...env,CD_PROJECT:'agri-trace-uat'}).project,'agri-trace-uat');
+  assert.throws(()=>deploymentTarget({...env,CD_PROJECT:'agri-trace-uat'}),/project mismatch/);
 });
 test('wrong branch, domain, project or production light profile cannot publish',()=>{
   for(const change of [{CD_ENVIRONMENT:'development'},{CD_ENVIRONMENT:'uat'},{GITHUB_REF:'refs/heads/dev'},

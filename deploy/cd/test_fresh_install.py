@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
+from cd_testing import build, hosted_config
 from controller import Controller, atomic_json, PolicyError
 
 
@@ -15,9 +16,7 @@ class FirstInstallation(unittest.TestCase):
         base = Path(temporary.name)
         env = base / '.env'
         env.write_text('POSTGRES_USER=test\nPOSTGRES_DB=agri_trace_prod\n')
-        self.cd = Controller({'base': str(base), 'env': str(env), 'accounts': str(base / 'accounts.json')})
-        self.cd.fresh = True
-        self.cd.config.update(open_after_smoke=True)
+        self.cd = build(Controller, hosted_config(base, env, open_after_smoke=True))
         self.cd.storage.mkdir()
         self.candidate = {'id': 'prod-' + 'a' * 40, 'sha': 'a' * 40, 'verified': False, 'manifest': {'chaincode': 'b' * 64}}
         self.state = {'current': None, 'previous': None, 'chaincode': {'sequence': 0}}
