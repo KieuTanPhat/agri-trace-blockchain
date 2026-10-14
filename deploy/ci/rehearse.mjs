@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runSmoke } from './smoke.mjs';
+import { runSmoke, waitForEdge } from './smoke.mjs';
 import { CADDY_IMAGE, COUNT_SQL, EVENT_SQL, POSTGRES_IMAGE, composeModelErrors, migrationChecksums, migrationErrors, ownedResources, proxyCaddyfile, rehearsalIdentity } from './lib.mjs';
 
 const repository = fileURLToPath(new URL('../../', import.meta.url));
@@ -129,6 +129,7 @@ async function main() {
   checkpoint('Production provisioning creates five accounts and replays idempotently');
 
   dc(['up', '-d', '--wait', '--wait-timeout', '240', 'api', 'web', 'proxy']);
+  await waitForEdge(origin);
   const smoke = await runSmoke({ origin, fixture });
   evidence.smoke = { flows: smoke.flows, lots: smoke.lotIds.length };
   checkpoint(`Business and session flows pass through the production edge routing (${smoke.flows.length} flows)`);
@@ -158,6 +159,7 @@ async function main() {
   checkpoint('Backup restores into an empty database with identical counts and trace hashes, and migrations stay a no-op');
 
   dc(['up', '-d', '--wait', '--wait-timeout', '240', 'api', 'web', 'proxy']);
+  await waitForEdge(origin);
   const restored = await runSmoke({ origin, fixture, full: false, expectedLots: smoke.lotIds, expectedTraceTokens: smoke.traceTokens });
   assert.equal(restored.restoredLots, smoke.lotIds.length);
   assert.equal(checkEvents(before.counts.trace_event), before.counts.trace_event);

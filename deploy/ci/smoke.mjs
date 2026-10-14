@@ -16,6 +16,21 @@ function refreshCookie(response, previous = '') {
   return [...cookies].map(([name, value]) => `${name}=${value}`).join('; ');
 }
 
+/** Polls the public proxy until it routes to the API; a freshly started container can lag its healthy dependencies. */
+export async function waitForEdge(origin, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  let last = 'no response';
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${origin}/api/health`, { signal: AbortSignal.timeout(3000) });
+      if (response.status === 200) return;
+      last = `HTTP ${response.status}`;
+    } catch (error) { last = error?.cause?.code ?? error?.name ?? 'error'; }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  throw new Error(`The public proxy did not become ready (${last})`);
+}
+
 /**
  * Business and session smoke over the public proxy. `fixture` is what provision.mjs created:
  * { accounts: [{role, email, password}], chainId, farmId, plotId, productId, organizations: {ROLE: id} }.

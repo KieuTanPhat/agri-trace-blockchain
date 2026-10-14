@@ -25,6 +25,12 @@ services:
         target: /etc/caddy/Caddyfile
         read_only: true
     networks: [ingress]
+    healthcheck:
+      # Ready only when the edge actually routes to the API; `up --wait` then covers the proxy too.
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1/api/health"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
     depends_on:
       api: {condition: service_healthy}
       web: {condition: service_healthy}
