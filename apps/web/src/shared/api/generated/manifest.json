@@ -1,0 +1,17 @@
+{
+  "input": "docs/openapi/openapi.json",
+  "version": "2.1.0",
+  "sha256": "9e4f1cc08c2c35c52b3124d19d89c1dae1c8be290784be6bbec03716500abc9f",
+  "generator": "openapi-typescript@7.13.0",
+  "configSha256": "abf7aae29de70f0086967b094a8a928c4075d46b3ff8efb97bf0a5b175efb9be",
+  "clientGeneratorSha256": "3abe72d96330fe2828f72e89c7c28a2a5ebfd30e40b6e6479bf83ee66cc59452",
+  "operations": {
+    "login": "AuthController_login",
+    "getLots": "LotsController_getLots",
+    "getLot": "LotsController_getLot",
+    "getCatalog": "CatalogController_list",
+    "getOrganizations": "OrganizationsController_list",
+    "getPublicTrace": "PublicTraceController_get",
+    "recordHarvest": "LotsController_harvest"
+  }
+}

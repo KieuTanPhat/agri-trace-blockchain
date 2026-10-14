@@ -22,7 +22,7 @@ const sharedFiles = new Set([
 export function classifyChanges(files, force = false) {
   const result = { api: force, web: force, containers: force, blockchain: force, fabric: force, hybrid: force };
   for (const file of files) {
-    if (file.startsWith('docs/openapi/') || file === 'apps/web/src/lib/generated/api.d.ts') {
+    if (file.startsWith('docs/openapi/') || file.startsWith('apps/web/src/shared/api/generated/') || file === 'apps/web/src/lib/generated/api.d.ts') {
       result.api = result.web = result.containers = result.fabric = result.hybrid = true;
     }
     if (sharedFiles.has(file) || file.startsWith('.github/') || file.startsWith('scripts/ci/') || file.startsWith('deploy/')) {

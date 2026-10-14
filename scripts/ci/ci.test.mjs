@@ -42,6 +42,14 @@ test('Web changes select its checks and the production stack', () => {
   });
 });
 
+test('canonical generated contract changes select API and Web checks', () => {
+  for (const file of ['docs/openapi/openapi.json', 'apps/web/src/shared/api/generated/api.d.ts', 'apps/web/src/shared/api/generated/client.ts']) {
+    const selected = classifyChanges([file]);
+    assert.equal(selected.api, true);
+    assert.equal(selected.web, true);
+  }
+});
+
 test('UAT proxy, credentials template and deployment scripts require all integration checks', () => {
   for (const file of ['deploy/Caddyfile.uat', 'deploy/fixtures.mjs', 'deploy/preflight.mjs', '.env.uat.example']) {
     assert.ok(Object.values(classifyChanges([file])).every(Boolean), file);

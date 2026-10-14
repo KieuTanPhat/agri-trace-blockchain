@@ -1,0 +1,18 @@
+{
+  "input": "docs/openapi/openapi.json",
+  "sha256File": "docs/openapi/openapi.sha256",
+  "version": "2.1.0",
+  "generatorVersion": "7.13.0",
+  "output": "apps/web/src/shared/api/generated",
+  "options": { "alphabetize": true, "arrayLength": true },
+  "operations": {
+    "login": "AuthController_login",
+    "getLots": "LotsController_getLots",
+    "getLot": "LotsController_getLot",
+    "getCatalog": "CatalogController_list",
+    "getOrganizations": "OrganizationsController_list",
+    "getPublicTrace": "PublicTraceController_get",
+    "recordHarvest": "LotsController_harvest"
+  },
+  "unauthenticated": ["AuthController_login", "PublicTraceController_get"]
+}

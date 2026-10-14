@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-store";
-import { request } from "@/lib/api-client";
+import { request, getCatalog } from "@/lib/api-client";
 import { ResponsiveTable } from "@/components/responsive-table";
 import { labelForRole } from "@/lib/display-labels";
 import type { Role } from "@/lib/types";
@@ -10,7 +10,8 @@ import { DataForm, type Field } from "@/components/data-form";
 import { emptyCatalog, type Catalog } from "@/lib/catalog";
 import type { components } from "@/lib/generated/api";
 type AdminUser = components["schemas"]["UserListDto"];
-type Org = { id: string; name: string; type: string; status: string };
+type Org = components["schemas"]["OrganizationRecordDto"];
+type RoleRecord = components["schemas"]["RoleRecordDto"];
 const tabs = ["Tổ chức", "Tài khoản", "Sản phẩm", "Nông trại", "Thửa đất"];
 const statusLabels: Record<string, string> = {
   ACTIVE: "Đang hoạt động", INACTIVE: "Ngừng hoạt động", LOCKED: "Đã khóa",
@@ -25,7 +26,7 @@ export default function AdminPage() {
   const [catalog, setCatalog] = useState<Catalog>(emptyCatalog);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [roles, setRoles] = useState<{ code: string; name: string }[]>([]);
+  const [roles, setRoles] = useState<RoleRecord[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
@@ -34,10 +35,10 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const [c, o, u, r] = await Promise.all([
-        request<Catalog>("/catalog"),
+        getCatalog(),
         request<Org[]>("/organizations"),
         request<AdminUser[]>("/users"),
-        request<{ code: string; name: string }[]>("/users/roles"),
+        request<RoleRecord[]>("/users/roles"),
       ]);
       setCatalog(c);
       setOrgs(o);

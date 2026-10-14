@@ -26,6 +26,7 @@ import {
   businessAccessEpoch,
 } from "./permission-sync";
 import type { components } from "./generated/api";
+import { createContractClient } from "../shared/api/generated/client";
 import type {
   AllowedCommand,
   CommandInput,
@@ -54,6 +55,7 @@ const USE_MOCK_API =
 export const AUTH_STORAGE_KEY = "agritrace-auth"; // Legacy key, removed on startup.
 
 type ApiEnvelope<T> = { success: true; data: T };
+const contract = createContractClient(request);
 let session: LoginResponse | null = null;
 let sessionVersion = 0;
 let identityVersion = 0;
@@ -186,11 +188,7 @@ export async function login(
     synchronizeBrowserSession();
     const version = ++sessionVersion;
     const changeId = knownAuthChange?.id;
-    const result = await request<LoginResponse>(
-      "/auth/login",
-      { method: "POST", body: JSON.stringify({ email, password }) },
-      false,
-    );
+    const result = await contract.login({ email, password });
     assertSessionVersion(version, changeId);
     setSession(result);
     return result;
@@ -210,13 +208,13 @@ export async function getDashboard(): Promise<Dashboard> {
 
 export async function getLots(): Promise<LotTrace[]> {
   if (USE_MOCK_API) return mockLots;
-  return request("/lots");
+  return contract.getLots();
 }
 
 export async function getLotById(lotId: string): Promise<LotTrace> {
   if (USE_MOCK_API)
     return mockLots.find((lot) => lot.lotId === lotId) ?? mockLots[0];
-  return request(`/lots/${lotId}`);
+  return contract.getLot({ lotId });
 }
 
 export async function getPublicTrace(
@@ -224,11 +222,7 @@ export async function getPublicTrace(
 ): Promise<PublicLotTrace | null> {
   if (USE_MOCK_API) return mockPublicTrace(traceToken);
   try {
-    return await request(
-      `/public/trace/${encodeURIComponent(traceToken)}`,
-      undefined,
-      false,
-    );
+    return await contract.getPublicTrace({ token: traceToken });
   } catch (error) {
     if (isApiError(error) && error.status === 404) return null;
     throw error;
@@ -236,14 +230,16 @@ export async function getPublicTrace(
 }
 
 export async function getOrganizations(): Promise<Organization[]> {
-  const organizations =
-    await request<
-      Array<{ id: string; name: string; type: Organization["type"] }>
-    >("/organizations");
-  return organizations.map(({ id, ...organization }) => ({
+  const organizations = await contract.getOrganizations();
+  return organizations.map(({ id, name, type }) => ({
     organizationId: id,
-    ...organization,
+    name,
+    type,
   }));
+}
+
+export function getCatalog() {
+  return contract.getCatalog();
 }
 
 export function getProductionCycles(): Promise<ProductionCycleOption[]> {
@@ -253,12 +249,10 @@ export function getProductionCycles(): Promise<ProductionCycleOption[]> {
 export function recordHarvest(
   cycleId: string,
   input: components["schemas"]["RecordHarvestDto"],
-  idempotencyKey = crypto.randomUUID(),
+  idempotencyKey: string = crypto.randomUUID(),
 ): Promise<components["schemas"]["HarvestResultDto"]> {
-  return request(`/production-cycles/${cycleId}/harvests`, {
+  return contract.recordHarvest({ cycleId }, input, {
     headers: { "idempotency-key": idempotencyKey },
-    method: "POST",
-    body: JSON.stringify(input),
   });
 }
 
@@ -275,7 +269,7 @@ export async function submitCommand(
   lot: LotTrace,
   command: AllowedCommand,
   input: CommandInput = {},
-  idempotencyKey = crypto.randomUUID(),
+  idempotencyKey: string = crypto.randomUUID(),
 ): Promise<{ message: string }> {
   if (USE_MOCK_API) return mockSubmitCommand(lot.lotId, command);
 
@@ -289,7 +283,7 @@ export async function submitCommand(
         retailerOrgId: input.retailerOrgId,
         origin: input.origin,
         destination: input.destination,
-      }),
+      } satisfies Partial<components["schemas"]["CreateShipmentDto"]>),
     });
     return { message: "Đã tạo chuyến vận chuyển." };
   }
@@ -319,7 +313,7 @@ export async function submitCommand(
         ...(command === "reportDamage"
           ? { quantity: input.quantity, evidenceRef: input.evidenceRef }
           : {}),
-      }),
+      } satisfies Partial<components["schemas"]["DamageLotDto"]>),
     });
     return { message: "Thao tác đã được ghi nhận thành công." };
   }
@@ -338,7 +332,7 @@ export async function submitCommand(
     rejectRetail: "reject",
     reportDamage: "damage",
   };
-  const body =
+  const body = (
     command === "receiveRetail"
       ? {
           ...base,
@@ -355,7 +349,8 @@ export async function submitCommand(
               reason: input.reason,
               evidenceRef: input.evidenceRef,
             }
-          : base;
+          : base
+  ) satisfies Partial<components["schemas"]["DamageShipmentDto"] & components["schemas"]["ReceiveShipmentDto"]>;
   const action = endpoint[command];
   if (!action) throw new Error("Thao tác không được hỗ trợ");
   await request(`/shipments/${lot.shipment.shipmentId}/${action}`, {
@@ -368,7 +363,7 @@ export async function submitCommand(
 
 export async function sendSensorReading(
   payload: SensorReadingRequest,
-  idempotencyKey = crypto.randomUUID(),
+  idempotencyKey: string = crypto.randomUUID(),
 ): Promise<SensorReadingResponse> {
   if (USE_MOCK_API) return mockSendSensorReading(payload);
   return request("/iot/readings", {
@@ -402,7 +397,7 @@ async function refreshAccessToken(): Promise<string> {
       });
       const envelope = (await response
         .json()
-        .catch(() => null)) as ApiEnvelope<LoginResponse> | null;
+        .catch(() => null)) as components["schemas"]["AuthSessionResponseDto"] | null;
       assertSessionVersion(startedAt, changeId);
       if (response.status === 409) {
         if (attempt < 3) {

@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { DataForm } from "@/components/data-form";
-import { request } from "@/lib/api-client";
+import { request, getCatalog } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
 import type { components } from "@/lib/generated/api";
 import type { Catalog } from "@/lib/catalog";
@@ -25,7 +25,7 @@ export default function AssignmentsPage() {
       const [assignments, users, catalog] = await Promise.all([
         request<Assignment[]>("/compliance/assignments"),
         request<User[]>("/users"),
-        request<Catalog>("/catalog"),
+        getCatalog(),
       ]);
       setData({ assignments, users, catalog });
     } catch (cause) {

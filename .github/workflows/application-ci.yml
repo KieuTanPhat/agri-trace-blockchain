@@ -122,7 +122,30 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm install --global npm@12.1.0
       - run: npm ci --no-audit --no-fund
-      - run: npm run check --workspace apps/web
+      - name: Validate Web contract and consumers
+        run: |
+          mkdir -p artifacts/web-contract
+          npm run check --workspace apps/web 2>&1 | tee artifacts/web-contract/check.log
+      - name: Record contract validation environment
+        if: always()
+        run: |
+          mkdir -p artifacts/web-contract
+          node --version > artifacts/web-contract/environment.txt
+          npm --version >> artifacts/web-contract/environment.txt
+          printf '%s\n' "$GITHUB_SHA" "$RUNNER_OS" >> artifacts/web-contract/environment.txt
+      - name: Upload Web contract and generation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-contract-node-${{ matrix.node }}-${{ github.sha }}
+          path: |
+            docs/openapi/
+            apps/web/scripts/api-typegen.config.json
+            apps/web/scripts/api-typegen.mjs
+            apps/web/scripts/api-typegen.test.mjs
+            apps/web/src/shared/api/generated/
+            artifacts/web-contract/
+          retention-days: 14
 
   container-build:
     name: Production containers

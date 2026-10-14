@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "typegen": "node scripts/api-typegen.mjs",
+    "typegen:check": "node scripts/api-typegen.mjs --check",
+    "test:typegen": "node --test scripts/api-typegen.test.mjs",
     "dev": "node scripts/run-next.mjs dev",
     "build": "npm run lint && node scripts/run-next.mjs build",
     "lint": "eslint --max-warnings 0 src/ && oxlint --max-warnings 0 --config .oxlintrc.json src/",
@@ -11,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm test && npm run lint:contract && npm run test:image-optimizer && npm run build"
+    "check": "npm run typegen:check && npm run test:typegen && npm run typecheck && npm test && npm run lint:contract && npm run test:image-optimizer && npm run build"
   },
   "dependencies": {
     "@next/swc-wasm-nodejs": "^15.5.27",

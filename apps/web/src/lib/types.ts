@@ -1,4 +1,4 @@
-import type { components } from "./generated/api";
+import type { components } from "../shared/api/generated/api";
 type Schemas = components["schemas"];
 export type Role = Schemas["AuthRoleDto"]["code"];
 export type AllowedCommand =
@@ -23,18 +23,13 @@ export type LoginResponse = Pick<
   Schemas["AuthSessionDto"],
   "accessToken" | "tokenType"
 > & { user: AuthUser };
-export type CommandInput = {
-  transporterOrgId?: string;
-  retailerOrgId?: string;
-  origin?: string;
-  destination?: string;
-  quantity?: number;
-  reason?: string;
-  evidenceRef?: string;
-  receivedQuantity?: number;
-  damagedQuantity?: number;
-  note?: string;
-};
+// Form state shared by several commands, not a wire DTO. Endpoint payloads
+// belong to the generated contract; optional fields represent unfilled inputs.
+export type CommandInput = Partial<Pick<
+  Schemas["CreateShipmentDto"] & Schemas["DamageShipmentDto"] & Schemas["ReceiveShipmentDto"],
+  "transporterOrgId" | "retailerOrgId" | "origin" | "destination" |
+  "quantity" | "reason" | "evidenceRef" | "receivedQuantity" | "damagedQuantity" | "note"
+>>;
 export type ApiError = {
   status: number;
   code: string;

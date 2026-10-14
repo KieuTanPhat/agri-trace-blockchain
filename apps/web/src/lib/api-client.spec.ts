@@ -40,6 +40,72 @@ afterEach(() => {
 });
 
 describe("public API", () => {
+  it("unwraps catalog through the generated wrapper and single-flights concurrent refresh", async () => {
+    const catalog = { products: [], farms: [], plots: [] };
+    let refresh!: (response: Response) => void;
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+      if (String(url).endsWith("/auth/refresh"))
+        return new Promise<Response>(resolve => { refresh = resolve; });
+      if (new Headers(init?.headers).get("authorization") === "Bearer old") return json({}, 401);
+      return json({ success: true, data: catalog, requestId: "req-1", timestamp: "2026-10-14T00:00:00Z" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = await import("./api-client");
+    client.setSession(auth);
+    const first = client.getCatalog();
+    const second = client.getCatalog();
+    await vi.waitFor(() => expect(refresh).toBeTypeOf("function"));
+    refresh(json({ success: true, data: { ...auth, accessToken: "new" } }));
+    expect(await Promise.all([first, second])).toEqual([catalog, catalog]);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/refresh"))).toHaveLength(1);
+    for (const [, init] of fetchMock.mock.calls) expect(init?.credentials).toBe("include");
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/catalog"))).toHaveLength(4);
+  });
+
+  it("preserves harvest body, envelope and the caller key across refresh through the generated wrapper", async () => {
+    const result = { lotId: "created" };
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(json({}, 401))
+      .mockResolvedValueOnce(json({ success: true, data: { ...auth, accessToken: "new" } }))
+      .mockResolvedValueOnce(json({ success: true, data: result }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = await import("./api-client");
+    client.setSession(auth);
+    const body = { harvestTime: "2026-10-14T00:00:00Z", quantity: 12.5, unit: "kg" };
+    await expect(client.recordHarvest("00000000-0000-4000-8000-000000000021", body, "original-key")).resolves.toEqual(result);
+    for (const index of [0, 2]) {
+      const [url, init] = fetchMock.mock.calls[index];
+      expect(String(url)).toBe("http://api.test/api/production-cycles/00000000-0000-4000-8000-000000000021/harvests");
+      expect(init?.method).toBe("POST");
+      expect(init?.body).toBe(JSON.stringify(body));
+      expect(init?.credentials).toBe("include");
+      expect(new Headers(init?.headers).get("content-type")).toBe("application/json");
+      expect(new Headers(init?.headers).get("idempotency-key")).toBe("original-key");
+    }
+    expect(new Headers(fetchMock.mock.calls[2][1]?.headers).get("authorization")).toBe("Bearer new");
+  });
+
+  it("discards a late generated catalog response when the session owner changes", async () => {
+    let finish!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockImplementation(() => new Promise(resolve => { finish = resolve; })));
+    const client = await import("./api-client");
+    client.setSession(auth);
+    const pending = client.getCatalog();
+    const rejected = expect(pending).rejects.toMatchObject({ code: "SESSION_CHANGED" });
+    client.setSession({ ...auth, user: { ...user, id: "other-user" } });
+    finish(json({ success: true, data: { products: [], farms: [], plots: [] } }));
+    await rejected;
+  });
+
+  it("maps generated organizations into the separate organization view model", async () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(json({ success: true, data: [
+      { id: "org-1", name: "Farm", type: "FARM", status: "ACTIVE", createdAt: "date" },
+    ] })));
+    const client = await import("./api-client");
+    client.setSession(auth);
+    await expect(client.getOrganizations()).resolves.toEqual([{ organizationId: "org-1", name: "Farm", type: "FARM" }]);
+  });
+
   it("does not claim a saved signed command under a permission revision changed while waiting for another tab", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()

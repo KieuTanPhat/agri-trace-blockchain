@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { request, getProductionCycles } from "@/lib/api-client";
+import { request, getProductionCycles, getCatalog } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
 import type { ProductionCycleOption } from "@/lib/types";
 import type { components } from "@/lib/generated/api";
@@ -54,7 +54,7 @@ function CycleWorkspace() {
       setCycles(items);
       setPermissions(scope);
       if ((scope.productionChains?.length ?? 0) > 0)
-        setCatalog(await request<Catalog>("/catalog"));
+        setCatalog(await getCatalog());
     } catch (e) {
       setError((e as Error).message);
     } finally {
