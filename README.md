@@ -25,9 +25,21 @@ blockchain/
   gateway/             Adapter kết nối Fabric Gateway
   network/             Script dựng mạng Fabric local
 docs/
-  business-specification-v1.2.md
+  archive/business-specification-v1.2.md
   adr-001-modular-monolith-dedicated-worker.md
 ```
+
+Các file cấu hình ở gốc được chia theo nơi sử dụng:
+
+| Nhóm file | Mục đích |
+| --- | --- |
+| `docker-compose.yml`, `.env.docker.example` | Chạy ứng dụng local |
+| `docker-compose.ci.yml` | Nối Worker với Fabric cách ly trong CI |
+| `docker-compose.app*.yml`, `.env.deploy.example` | CD production; overlay Hybrid nối mạng hosted, overlay Fabric phục vụ controller cũ |
+| `docker-compose.uat*.yml`, `.env.uat.example` | Kiểm thử container/HTTPS trong CI và khôi phục bản dùng controller cũ |
+| `package.json`, `package-lock.json`, các file `.git*` và `.dockerignore` | Lệnh, dependency lock và cấu hình công cụ |
+
+Các overlay được ghép bởi workflow/controller; xem tham chiếu trước khi xóa.
 
 ## Cài đặt
 

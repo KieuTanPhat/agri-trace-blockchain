@@ -50,7 +50,7 @@ trong runbook. Không tuyên bố HA hoặc partner authority nếu chưa kiểm
 | 5 | Tài liệu kế nhiệm/AC, contract sinh và cleanup references | Không mất quyết định/AC; không link/file/env mồ côi; generated contract đúng |
 | 6 | Full candidate checks và merge #95 | Application/Blockchain/Dependency cùng revision và không required skip/cancel; khóa CD khi chuẩn bị server |
 | 7 | Full push CI main, images/bundle, backup nhất quán và cài mới production | Final main SHA/image/helper/migration/governance khớp; DB/mạng mới đúng target |
-| 8 | Smoke trên VPS, xử lý lỗi trong lần triển khai và bàn giao | Auth/role/domain/outbox/direct ledger/proof/QR đạt; runtime đúng final SHA; CI/CD success |
+| 8 | Smoke trên VPS, rà quy trình/lỗi tồn đọng/mã chết và bàn giao | Auth/role/domain/outbox/direct ledger/proof/QR đạt; runtime đúng final SHA; CI/CD success; chỉ xóa mã/file đã chứng minh không còn sử dụng |
 
 API/Web/chaincode/gateway check, SQL/domain E2E trên DB test đã migrate,
 API contract, worker-contract, dependency/standalone audit, Python controller
@@ -67,3 +67,7 @@ Kết quả từng lần chạy ở PR/Issue hoặc artifact cục bộ, không 
 trong docs. Khi deploy lỗi giữ journal/DB/outbox/ledger và ghi đóng, đối soát
 txId/attempt; không restore DB độc lập sau ledger commit. Sự cố sau bàn giao
 thuộc vận hành của chủ dự án; Agent chỉ tiếp tục khi có yêu cầu mới.
+
+Theo yêu cầu bổ sung ngày 14/10/2026, sau khi hoàn tất toàn bộ kiểm tra và lưu
+bàn giao của lần thực hiện này, tắt máy Windows cục bộ. Đây là bước kết thúc
+một lần, không phải lịch bảo trì hoặc yêu cầu cho các lần phát hành sau.

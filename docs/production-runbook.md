@@ -19,6 +19,9 @@ Schema 2 / `agri-trace-uat` thuộc dữ liệu test đã retire. Giữ release 
 volume và archive cũ; không nhập history/accounts/QR vào DB mới. Không trộn lệnh
 adopt cũ với cài schema 3. [Runbook cũ](contabo-cd-runbook.md) phục vụ bản lưu.
 
+Edge chuyển HTTP trên địa chỉ IP sang HTTPS `agritrace.dev` bằng 308, giữ nguyên
+path/query. Không phục vụ form đăng nhập qua HTTP. Kiểm route này sau reload.
+
 1. Tắt `CD_DEPLOY_ENABLED`; kiểm SHA/CI, journal, delivery/host locks, installed
    helpers và ownership từng resource/path. Không prune rộng hoặc reset DB chung.
 2. Khóa giải mã backup nằm ngoài VPS/GitHub. Dừng writers, chụp DB và ledger/CA/
@@ -87,6 +90,9 @@ không gọi `upgrade` để thay B/C vào channel legacy.
 
 Mọi container có CPU/RAM quota, chừa >=20% RAM host. Mẫu
 [capacity](../deploy/hosted-capacity.example.json) cần kiểm tải/OOM/restarts thực.
+Compose JSON có thể trả `mem_limit` thành chuỗi số byte; controller chuẩn hóa
+chuỗi thập phân dương trước khi cộng quota. Giá trị thiếu, zero, âm hoặc định
+dạng không hợp lệ vẫn bị chặn; không bỏ cổng capacity khi preflight thất bại.
 Chỉ một mạng Fabric hoạt động; retired resources không tự resume. Không bỏ quota
 để vượt preflight. Giữ secret/CA/MSP/archive riêng tư.
 
