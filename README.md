@@ -35,11 +35,24 @@ Các file cấu hình ở gốc được chia theo nơi sử dụng:
 | --- | --- |
 | `docker-compose.yml`, `.env.docker.example` | Chạy ứng dụng local |
 | `docker-compose.ci.yml` | Nối Worker với Fabric cách ly trong CI |
-| `docker-compose.app*.yml`, `.env.deploy.example` | CD production; overlay Hybrid nối mạng hosted, overlay Fabric phục vụ controller cũ |
-| `docker-compose.uat*.yml`, `.env.uat.example` | Kiểm thử container/HTTPS trong CI và khôi phục bản dùng controller cũ |
+| `docker-compose.app.yml`, `.env.deploy.example` | Ứng dụng production dùng image đã pin qua CD |
+| `docker-compose.app-hybrid.yml` | Overlay kết nối mạng hosted cho production schema 3 và release Hybrid tương thích |
+| `docker-compose.app-fabric.yml` | Overlay signer/network cho target schema 2; vẫn là file bắt buộc trong manifest app delivery |
+| `docker-compose.uat.yml`, `docker-compose.uat-https.yml` | Application CI kiểm container, HTTPS và backup/restore trên database cách ly; controller cũ còn đọc các tên này |
+| `docker-compose.uat-fabric.yml`, `.env.uat.example` | Overlay Fabric của release/controller cũ và mẫu môi trường UAT; thay đổi mẫu chọn đầy đủ các kiểm thử tích hợp trong CI |
 | `package.json`, `package-lock.json`, các file `.git*` và `.dockerignore` | Lệnh, dependency lock và cấu hình công cụ |
 
-Các overlay được ghép bởi workflow/controller; xem tham chiếu trước khi xóa.
+Schema 3 không ghép `docker-compose.app-fabric.yml` khi chạy ứng dụng, nhưng
+`deploy/cd/targets.py` và `policy.validate_manifest` vẫn yêu cầu file trong bundle.
+Giữ file để đóng gói release hiện hành và hỗ trợ target schema 2 còn được controller
+hiểu. `hybrid-floor.json` chỉ cho rollback tới image verified tương thích migration;
+việc giữ overlay không cho phép rollback DB mới về app cũ hoặc tái dùng mạng test cũ.
+
+Giữ tên các file UAT vì workflow, controller, manifest và release cũ tham chiếu
+trực tiếp. CI sinh `.uat/ci/.env.uat` riêng; `.env.uat.example` là mẫu, không phải
+secret production. Không dùng stack/bootstrap UAT để cài production schema 3.
+Xem [runbook production](docs/production-runbook.md) và
+[runbook controller cũ](docs/contabo-cd-runbook.md) theo đúng generation.
 
 ## Cài đặt
 
@@ -108,9 +121,15 @@ build, operator chạy `node dist/operator/ledger-operator.js`, signer độc l�
 `node dist/operator/org-signer.js`, và restore checker chạy
 `node dist/operator/verify-evidence.js` từ `apps/api`.
 
-Chủ dự án đã giao merge/deploy sau CI. Giữ smoke thực trên VPS, không đặt maintenance
-deadline 2 giờ, canary riêng, collector/systemd timer hoặc quan sát liên tục 24 giờ.
-Agent kết thúc sau runtime mới qua smoke và bàn giao; sự cố sau đó do chủ dự án vận hành.
+Thay đổi đi qua PR; chủ dự án quyết định merge và thời điểm triển khai. Push vào
+`main` có đường dẫn thuộc bộ lọc trong `.github/workflows/production-cd.yml` tự
+kích hoạt Production CD. PR chỉ sửa README gốc, `docs/` (ngoài `docs/openapi/`) và
+`.gitignore` không kích hoạt CD; README dưới `apps/` hoặc `blockchain/` vẫn thuộc
+bộ lọc CD. Không coi CI xanh là quyền tự merge hoặc deploy.
+
+Khi triển khai được duyệt, giữ smoke thực trên VPS theo runbook. Không đặt
+maintenance deadline 2 giờ, canary riêng, collector/systemd timer hoặc quan sát
+liên tục 24 giờ; sự cố sau bàn giao do chủ dự án vận hành.
 
 ## Kiểm tra toàn bộ
 
