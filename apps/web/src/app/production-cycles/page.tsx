@@ -87,7 +87,7 @@ function CycleWorkspace() {
   const active = detail && ["PLANTED", "GROWING"].includes(detail.currentState);
   const canWriteDetail = detail?.canWriteProduction ?? false;
   return (
-    <div className="grid cycles-page">
+    <div className="grid">
       <section className="page-header">
         <h1>Quản lý vụ trồng</h1>
         <button

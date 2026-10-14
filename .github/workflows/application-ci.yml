@@ -152,7 +152,7 @@ jobs:
           curl --fail --retry 3 --output /dev/null http://localhost:3000/login
           docker compose exec -T web node --input-type=module -e "
             import assert from 'node:assert/strict';
-            const r = await fetch('http://127.0.0.1:3000/_next/image?url=%2Flogo.png&w=64&q=75', {
+            const r = await fetch('http://127.0.0.1:3000/_next/image?url=%2Fagritrace%2Fbrand%2Fagritrace-logo.png&w=64&q=75', {
               headers: { Accept: 'image/webp' }
             });
             assert.equal(r.status, 200);

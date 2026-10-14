@@ -19,7 +19,7 @@ export function ResponsiveTable<T>({
   caption: string;
 }) {
   return (
-    <div className="responsive-data">
+    <>
       <div className="table-scroll desktop-data">
         <table>
           <caption className="sr-only">{caption}</caption>
@@ -58,6 +58,6 @@ export function ResponsiveTable<T>({
           </li>
         ))}
       </ul>
-    </div>
+    </>
   );
 }

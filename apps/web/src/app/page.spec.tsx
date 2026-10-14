@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import HomePage from "./page";
+import { SITE_CONTACT } from "@/lib/site-contact";
 
 vi.mock("next/image", () => ({ default: () => null }));
 afterEach(cleanup);
@@ -8,7 +9,7 @@ afterEach(cleanup);
 it("presents general information and public scan navigation without demo QR or login links", () => {
   const { container } = render(<HomePage />);
   expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-    "Mỗi nông sản",
+    "Biến dữ liệu nông trại thành truy xuất nguồn gốc",
   );
   const links = screen.getAllByRole("link");
   expect(links.some((link) => link.getAttribute("href") === "/scan")).toBe(
@@ -23,15 +24,25 @@ it("presents general information and public scan navigation without demo QR or l
   expect(container.querySelector(".real-qr")).toBeNull();
 });
 
-it("supports keyboard journey tabs and updates the related panel", () => {
+it("offers email and Zalo contact channels from the shared contact module", () => {
   render(<HomePage />);
-  const tab = screen.getByRole("tab", { name: "Canh tác" });
-  fireEvent.keyDown(tab, { key: "ArrowRight" });
-  expect(screen.getByRole("tab", { name: "Thu hoạch" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-  expect(screen.getByRole("tabpanel")).toHaveTextContent(
-    "Mỗi lần thu hoạch, một lô riêng",
-  );
+  const hrefs = screen.getAllByRole("link").map((link) => link.getAttribute("href"));
+  expect(hrefs).toContain(SITE_CONTACT.emailUrl);
+  expect(hrefs).toContain(SITE_CONTACT.zaloUrl);
+});
+
+it("lists the six steps of the journey in order", () => {
+  render(<HomePage />);
+  const steps = screen
+    .getByRole("heading", { name: /Xây dựng truy xuất khi sản xuất diễn ra/ })
+    .closest(".container")!
+    .querySelectorAll(".lp-steps li h3");
+  expect(Array.from(steps, (step) => step.textContent)).toEqual([
+    "Đăng ký nguồn",
+    "Ghi nhận sản xuất",
+    "Kiểm định, chứng nhận",
+    "Thu hoạch, tạo lô",
+    "Vận chuyển, bàn giao",
+    "Công khai truy xuất",
+  ]);
 });

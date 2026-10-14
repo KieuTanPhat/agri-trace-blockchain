@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { LoaderCircle, LogIn, ShieldCheck } from "lucide-react";
+import { BrandLogo } from "@/components/ui/brand-logo";
 import { useAuth } from "@/lib/auth-store";
 
 export default function LoginPage() {
@@ -60,7 +60,7 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      <div className="login-story">
+      <div className="login-story enter">
         <p className="eyebrow">KHÔNG GIAN LÀM VIỆC</p>
         <h2>
           Ghi nhận hôm nay.
@@ -72,14 +72,8 @@ export default function LoginPage() {
           cùng một hệ thống.
         </p>
       </div>
-      <form className="panel login-card" onSubmit={submit}>
-        <Image
-          src="/agritrace/brand/agritrace-logo.svg"
-          alt="AgriTrace"
-          width={260}
-          height={72}
-          priority
-        />
+      <form className="panel login-card enter" style={{ "--d": "120ms" } as React.CSSProperties} onSubmit={submit}>
+        <BrandLogo height={52} priority />
         <div>
           <p className="eyebrow">Cổng quản trị</p>
           <h1>Đăng nhập</h1>

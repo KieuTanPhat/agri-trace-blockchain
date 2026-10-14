@@ -6,12 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ResponsiveTable } from "@/components/responsive-table";
 import { ActionPanel } from "@/components/action-panel";
 import { LotPicker } from "@/components/lot-picker";
-import {
-  IconPackage,
-  IconClock,
-  IconShield,
-  IconLink,
-} from "@/components/icons";
 import { QrCodeCard } from "@/components/qr-code-card";
 import { StateBadge } from "@/components/state-badge";
 import { TimelineItem } from "@/components/timeline-item";
@@ -24,6 +18,7 @@ import { LotWarnings } from "@/components/lot-warnings";
 import { HandoverPanel } from "@/components/handover-panel";
 import { useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
+import { Clock, Link as LinkIcon, Package, ShieldCheck } from "lucide-react";
 
 export default function LotDetailPage() {
   const { lotId } = useParams<{ lotId: string }>();
@@ -90,7 +85,7 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
     <>
       <section className="page-header">
         <div className="page-header-icon">
-          <IconPackage size={22} />
+          <Package size={22} />
         </div>
         <div>
           <p className="eyebrow">Chi tiết lô</p>
@@ -207,7 +202,7 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
             <div className="panel-title">
               <div className="panel-title-left">
                 <span className="panel-icon info">
-                  <IconPackage size={16} />
+                  <Package size={16} />
                 </span>
                 <h2>Thông tin lô</h2>
               </div>
@@ -236,7 +231,7 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
             </div>
             {traceToken && (
               <Link className="button secondary" href={`/trace/${traceToken}`}>
-                <IconLink size={14} /> Xem trang tra cứu công khai
+                <LinkIcon size={14} /> Xem trang tra cứu công khai
               </Link>
             )}
           </div>
@@ -245,7 +240,7 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
             <div className="panel-title">
               <div className="panel-title-left">
                 <span className="panel-icon warning">
-                  <IconClock size={16} />
+                  <Clock size={16} />
                 </span>
                 <h2>Dòng thời gian</h2>
               </div>
@@ -264,7 +259,7 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
             <div className="panel-title">
               <div className="panel-title-left">
                 <span className="panel-icon success">
-                  <IconShield size={16} />
+                  <ShieldCheck size={16} />
                 </span>
                 <h2>Mã QR truy xuất</h2>
               </div>
