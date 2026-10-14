@@ -129,9 +129,9 @@ release `prod-*`. Đầu vào UAT/schema cũ bị từ chối với thông báo 
 
 **Thao tác `update-controller`** trong `install-target.py`:
 
-- Kiểm source SHA và checksum; giữ khóa delivery và host; từ chối khi có journal
+- Operator đối chiếu SHA checkout đã review; installer kiểm digest helper, giữ khóa delivery và host; từ chối khi có journal
   hoặc delivery đang chạy.
-- Cài helper vào thư mục theo SHA, đổi wrapper quản trị nguyên tử, giữ bản trước để phục hồi.
+- Cài helper vào thư mục theo digest, đổi symlink nguyên tử, giữ bản trước để phục hồi; lỗi đổi symlink hoặc ghi marker previous phải khôi phục bản cũ.
 - Không đổi config production, quyền SSH, database, mạng hay container đang chạy.
 
 ## Điều kiện hoàn thành PR

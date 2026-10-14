@@ -132,6 +132,51 @@ class ControllerUpdate(unittest.TestCase):
         self.assertEqual((self.library / "prod" / "controller.py").read_text(), "plain controller\n")
         self.assertFalse((self.library / "prod.next").is_symlink() or (self.library / "prod.next").exists())
 
+    def test_marker_write_failure_restores_the_plain_directory_with_all_helpers(self):
+        plain = self.library / "prod"
+        plain.mkdir()
+        for name in installer.policy.CONTROLLER_FILES:
+            (plain / name).write_text("plain controller\n")
+        (plain / "verify.mjs").write_text("historical helper\n")
+        source, digest = self.source("v1")
+        real = Path.write_text
+
+        def fail_marker(path, *args, **kwargs):
+            if path == self.versions / "previous.next":
+                raise OSError("simulated marker write failure")
+            return real(path, *args, **kwargs)
+
+        with patch.object(Path, "write_text", fail_marker):
+            with self.assertRaisesRegex(OSError, "marker write"):
+                self.update(source, digest)
+        self.assertFalse(plain.is_symlink())
+        self.assertEqual((plain / "controller.py").read_text(), "plain controller\n")
+        self.assertEqual((plain / "verify.mjs").read_text(), "historical helper\n")
+        self.assertFalse((self.versions / "previous").exists())
+        self.assertFalse((self.versions / "previous.next").exists())
+
+    def test_marker_commit_failure_restores_the_link_and_keeps_the_previous_marker(self):
+        first, first_digest = self.source("v1")
+        second, second_digest = self.source("v2")
+        third, third_digest = self.source("v3")
+        self.update(first, first_digest)
+        self.update(second, second_digest)
+        marker = self.versions / "previous"
+        before = marker.read_bytes()
+        real = installer.os.replace
+
+        def fail_marker(source_path, target):
+            if Path(target) == marker:
+                raise OSError("simulated marker commit failure")
+            return real(source_path, target)
+
+        with patch.object(installer.os, "replace", side_effect=fail_marker):
+            with self.assertRaisesRegex(OSError, "marker commit"):
+                self.update(third, third_digest)
+        self.assertEqual(self.installed(), self.versions / second_digest)
+        self.assertEqual(marker.read_bytes(), before)
+        self.assertFalse((self.versions / "previous.next").exists())
+
     def test_an_installed_version_that_was_modified_is_never_reused(self):
         source, digest = self.source("v1")
         self.update(source, digest)

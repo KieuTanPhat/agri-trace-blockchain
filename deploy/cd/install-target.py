@@ -112,7 +112,7 @@ def _version_directory(versions, digest, source):
 
 
 def activate_controller(prefix, release, library=LIBRARY):
-    """Switch `<library>/<prefix>` to `release` atomically; undo everything if any step fails."""
+    """Switch the controller and its restore marker; undo the switch if either step fails."""
     link = library / prefix
     versions = library / (prefix + "-versions")
     converted = None
@@ -120,26 +120,36 @@ def activate_controller(prefix, release, library=LIBRARY):
     if link.is_symlink():
         previous = Path(os.readlink(link))
     elif link.exists():
-        # First conversion from a plain directory. No delivery can run (the administrator holds its lock).
+        # First conversion preserves every old helper, including files outside the new helper set.
         converted = versions / ("plain-" + datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ"))
         os.rename(link, converted)
         previous = converted
     temporary = library / (prefix + ".next")
+    marker = versions / "previous.next"
     try:
         if temporary.is_symlink() or temporary.exists():
             temporary.unlink()
         temporary.symlink_to(release, target_is_directory=True)
         os.replace(temporary, link)
+        if previous is not None and previous != release:
+            marker.write_text(str(previous) + "\n")
+            os.replace(marker, versions / "previous")
     except BaseException:
-        with contextlib.suppress(OSError):
-            temporary.unlink()
-        if converted is not None and not link.exists() and not link.is_symlink():
-            os.rename(converted, link)
+        for pending in (temporary, marker):
+            with contextlib.suppress(OSError):
+                pending.unlink()
+        if converted is not None:
+            if link.is_symlink() and Path(os.readlink(link)) == release:
+                link.unlink()
+            if not link.exists() and not link.is_symlink():
+                os.rename(converted, link)
+        elif link.is_symlink() and Path(os.readlink(link)) == release and previous != release:
+            if previous is None:
+                link.unlink()
+            else:
+                temporary.symlink_to(previous, target_is_directory=True)
+                os.replace(temporary, link)
         raise
-    if previous is not None and previous != release:
-        marker = versions / "previous.next"
-        marker.write_text(str(previous) + "\n")
-        os.replace(marker, versions / "previous")
     return previous
 
 
