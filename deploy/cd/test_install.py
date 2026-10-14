@@ -1,4 +1,6 @@
 import importlib.util
+import contextlib
+import io
 import os
 import tempfile
 import unittest
@@ -9,6 +11,18 @@ spec = importlib.util.spec_from_file_location("cd_installer", Path(__file__).wit
 installer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(installer)
 PolicyError = installer.policy.PolicyError
+
+
+class RetiredInstallation(unittest.TestCase):
+    def test_schema_two_transition_command_is_rejected_before_reading_or_changing_config(self):
+        with patch("sys.argv", ["install-target.py", "fresh-install", "--environment", "production"]), \
+                contextlib.redirect_stderr(io.StringIO()), patch.object(installer, "config_path") as config, \
+                patch.object(installer, "update_controller") as update:
+            with self.assertRaises(SystemExit) as exit:
+                installer.main()
+        self.assertEqual(exit.exception.code, 2)
+        config.assert_not_called()
+        update.assert_not_called()
 
 
 @unittest.skipIf(os.name == "nt", "Administrator deployment locking uses Linux flock")

@@ -456,7 +456,7 @@ prepare protocol/UI có thể chồng lấp nhưng review, integration và capac
 Tổng đường tuần tự 59–96 ngày làm việc, khoảng 12–20 tuần theo tuần năm ngày.
 HYB-07 ước 8–12 ngày và HYB-08 4–6 ngày chuẩn bị chồng lấp; nếu không đủ
 capacity hoặc protocol chưa đạt gate thì cộng thời gian chờ, không tự trừ khỏi
-critical path. Procurement/onboarding và sửa lỗi sau UAT chưa có dữ liệu để
+critical path. Procurement/onboarding và sửa lỗi sau kiểm thử nghiệm thu chưa có dữ liệu để
 ước lượng chính xác. Phân công hiệu chỉnh trong HYB-01, không coi con số này
 là deadline đã được team nhận.
 
@@ -554,7 +554,7 @@ regression A và 09–13/19/20 cùng phần binding của 22; C chạy lại A/B
 bản release ghi Deferred cho bản đó, không ghi Passed thay năng lực chưa có.
 
 Reuse core suites, thêm behavior/race/DB/integration tests có ý nghĩa. DB test/
-copy riêng có protections thật; không seed/reset UAT/production. Mock dành cho
+copy riêng có protections thật; không seed/reset database dùng chung hoặc production. Mock dành cho
 unit, không thay evidence Fabric/signer/peer tự quản thực tế.
 
 Các lệnh hiện có từ root, chạy khi triển khai code work package:

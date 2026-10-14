@@ -85,6 +85,16 @@ cách ly và image API/Web build từ commit:
    migration vẫn là no-op, tài khoản/lot/QR vẫn dùng được.
 8. Image API không mang script hoặc fixture UAT.
 
+Trước backup, rehearsal dừng writers rồi stop/start PostgreSQL trên cùng volume;
+số lượng dữ liệu ứng dụng, băm trace event và checksum migration phải giữ nguyên.
+Kiểm này thay bài `retained_marker` riêng, nên chỉ còn một bộ backup/restore và
+retention dùng dữ liệu ứng dụng thật.
+
+Hai job container vẫn độc lập: `Production containers` kiểm Web cấu hình local,
+còn rehearsal build Web với same-origin và origin của edge CI. Không dùng chung
+image Web giữa hai cấu hình. Tối ưu cache/build API cần đo thời gian truyền image
+và giữ các gate hiện tại trước khi đưa vào một thay đổi riêng.
+
 Tài nguyên mang nhãn Compose của đúng lần chạy, job từ chối tài nguyên sẵn có, chỉ chạy trên
 GitHub runner và không đọc secret, database, identity hay volume của VPS. Kết quả nằm ở artifact
 `production-rehearsal-<SHA>` (14 ngày). Fabric thật không nằm ở đây mà ở `fabric-smoke` và

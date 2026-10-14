@@ -144,6 +144,11 @@ async function main() {
   dc(['stop', 'api', 'web', 'proxy']);
   const before = fingerprint();
   assert.ok(before.counts.trace_event >= 5 && before.counts.lot >= 2);
+  dc(['stop', 'postgres']);
+  dc(['up', '-d', '--wait', '--wait-timeout', '120', 'postgres']);
+  assert.deepEqual(fingerprint(), before, 'Application data or trace hashes changed across PostgreSQL restart');
+  assert.deepEqual(migrationErrors(JSON.parse(psql(`SELECT coalesce(json_agg(json_build_object('migration_name', migration_name, 'checksum', checksum, 'finished_at', finished_at, 'rolled_back_at', rolled_back_at)), '[]'::json) FROM _prisma_migrations`)), expected), []);
+  checkpoint('PostgreSQL restart retains real application data, trace hashes and migration checksums on the same volume');
   const dump = dc(['exec', '-T', 'postgres', 'pg_dump', '--format=custom', '--no-owner', '--no-acl', '-U', POSTGRES_USER, '-d', POSTGRES_DB], { encoding: 'buffer' });
   assert.ok(dump.length > 0);
   const dumpFile = path.join(rehearsalDir, 'rehearsal.dump');

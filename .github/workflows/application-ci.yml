@@ -179,8 +179,6 @@ jobs:
       - name: Stop disposable application stack
         if: always()
         run: docker compose down --volumes --remove-orphans
-      - name: Rehearse production database retention on this disposable runner
-        run: python3 deploy/cd/rehearse-production.py
 
   rehearsal:
     name: Production rehearsal

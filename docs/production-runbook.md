@@ -15,8 +15,8 @@ sau kiểm thử; không yêu cầu duyệt lại, giới hạn 2 giờ hay cana
 | Fabric | Một mạng hosted; `hybrid-b` Org1/2, `hybrid-self` Org1/3 |
 | API / Worker | API không có khóa; Worker chỉ giữ technical identity Org1 |
 
-Schema 2 / `agri-trace-uat` thuộc dữ liệu test đã retire. Giữ release record,
-volume và archive cũ trên VPS; không nhập history/accounts/QR vào DB mới. Controller
+Schema 2 / `agri-trace-uat` đã retire. Tài nguyên cũ trên VPS do operator kiểm kê
+và xử lý riêng, không thuộc thao tác delivery của production. Controller
 chỉ nhận config schema 3, manifest format 2 và release `prod-*`; config schema cũ,
 project `agri-trace-uat` và release `uat-*` bị từ chối. Công cụ cutover/alias/adopt và
 runbook của controller cũ đã bị gỡ khỏi source; lịch sử nằm trong Git (`git show 28d1f9c:<path>`).
@@ -28,42 +28,26 @@ volume chứng chỉ có sẵn, cập nhật compose/Caddyfile, validate), `star
 Caddy mang tên lịch sử `agri-trace-uat_caddy-data` và `agri-trace-uat_caddy-config` đang giữ chứng
 chỉ HTTPS: không xóa hoặc đổi tên chúng.
 
-1. Tắt `CD_DEPLOY_ENABLED`; kiểm SHA/CI, journal, delivery/host locks, installed
-   helpers và ownership từng resource/path. Không prune rộng hoặc reset DB chung.
-2. Khóa giải mã backup nằm ngoài VPS/GitHub. Dừng writers, chụp DB và ledger/CA/
-   MSP/config/controller/image nhất quán, mã hóa rồi tải khỏi VPS. Giải mã, kiểm
-   checksum, khôi phục DB và ledger vào môi trường cách ly; đối chiếu counts,
-   hash/txId/history/identity. Giữ evidence trước khi chuyển target.
-3. Dừng toàn bộ app/Fabric/chaincode cũ theo catalog, đặt root config cũ
-   `enabled=false`. File private `restore_evidence` dùng protocol
-   `agritrace-backup-restore/1`, checksum archive và kết quả DB/ledger restore
-   ngoài VPS. Installer từ chối thiếu bằng chứng hoặc reuse PGDATA.
-4. Dựng mạng bằng `blockchain/network/production/provision.py --spec <private-json>`.
-   Spec `agritrace-hosted-network/1` pin images, source fingerprint, governance,
-   tools/root/instance/ports. Mẫu [network](../deploy/hosted-network.example.json).
-   CA secrets ngẫu nhiên; enrollment/TLS CA riêng mỗi Org, TLS transport/chaincode,
-   persistent CA/MSP/ledger, cổng admin loopback. Script Hybrid pilot chỉ phục vụ
-   test; không dùng làm bộ cài production.
-5. Cài `policy.CONTROLLER_FILES` từ source đã kiểm vào root-owned helper directory;
-   checksum phải khớp manifest. Tạo env/accounts/bootstrap/smoke/binding/identity
-   export riêng tư. DB mới tên `agri_trace_prod`, mật khẩu ngẫu nhiên >=24 ký tự.
-   Bootstrap chỉ nhận cấu hình riêng tư và không đổi account hiện có.
+Production đã được cài và chạy. Lệnh `fresh-install` của installer chỉ chuyển từ
+schema 2 đã tắt sang schema 3, nên đã gỡ cùng phần cấp identity dành riêng cho lần
+chuyển đó. Không dùng source hiện tại để adopt lại UAT hoặc tạo lại target trên VPS.
+Quyết định/acceptance của lần cài đầu vẫn nằm trong [plan cài mới](plans/fresh-install-cleanup-2026-10-13.md).
+Luồng first-install/recover của controller production vẫn giữ kiểm DB rỗng,
+`fresh_release_ack`, archive phục hồi đã verified và migration floor; không bỏ
+chúng khi đối soát một delivery production bị gián đoạn.
 
-   ```bash
-   sudo python3 deploy/cd/install-target.py fresh-install --environment production \
-     --config /root/reviewed-fresh-production.json --public-key /root/prod-delivery.pub
-   sudo python3 deploy/cd/install-target.py enable --environment production
-   ```
+Config schema 3 dùng `hosted`, `smoke`, `bootstrap`; `migration_reviews` pin checksum
+và `hybrid-abc/1`. `open_after_smoke=true` mở ghi sau nghiệm thu, mặc định CLOSED.
+Bootstrap chỉ nhận cấu hình riêng tư và không đổi account hiện có. Network hosted
+pin image/governance và giữ persistent CA/MSP/ledger; script Hybrid pilot chỉ dùng
+cho test. Cấu trúc binding tham khảo [network](../deploy/hosted-network.example.json).
 
-6. Config schema 3 dùng `hosted`, `smoke`, `bootstrap`; `migration_reviews` pin
-   checksum + `hybrid-abc/1`. `fresh_release_ack` pin protocol
-   `agritrace-fresh-install/1`, SHA và manifest digest. `open_after_smoke=true`
-   mở ghi sau nghiệm thu, mặc định CLOSED. Đây là kiểm kỹ thuật trong quyền đã giao.
-7. GitHub đặt `CD_PROJECT=agritrace-prod`, `CD_PROFILE=fabric`, origin
-   `https://agritrace.dev`, known-hosts và delivery key đã pin. Bật CD khi sẵn sàng.
-   Khi cần digest/bundle để provision lần đầu, dispatch operation `publish` sau
-   full main CI trong lúc delivery còn tắt; operation này chỉ xuất image/bundle,
-   không kết nối VPS. Sau cài target, bật delivery và dispatch `deploy` cùng SHA.
+GitHub đặt `CD_PROJECT=agritrace-prod`, `CD_PROFILE=fabric`, origin
+`https://agritrace.dev`, known-hosts và delivery key đã pin. Giữ công tắc delivery
+hiện có khi giao bản. Trước khi cập nhật helper, đối chiếu SHA/CI, journal,
+delivery/host locks và ownership theo phần *Cập nhật controller*. Không prune hoặc
+reset DB. Khóa giải mã backup nằm ngoài VPS/GitHub; snapshot mã hóa phải có trước
+khi CD đổi bản chạy. Không khôi phục DB riêng sau khi ledger đã commit.
 
 ## Delivery và smoke trên VPS
 

@@ -15,7 +15,6 @@ import os
 import re
 import shutil
 import signal
-import subprocess
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location("cd_controller", Path(__file__).with_name("controller.py"))
@@ -44,34 +43,6 @@ def administrator_lock(base):
 
 def config_path(environment):
     return Path("/etc/agri-trace-cd") / policy.targets.TARGETS[environment]["prefix"] / "config.json"
-
-
-def provision_identity(environment, public_key):
-    prefix = policy.targets.TARGETS[environment]["prefix"]
-    require = policy.require
-    require(bool(re.fullmatch(r"ssh-ed25519 [A-Za-z0-9+/=]+(?: [a-zA-Z0-9_.@-]+)?", public_key)), "Expected one dedicated public key")
-    user = "agri-cd-" + prefix
-    if subprocess.run(["id", user], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
-        subprocess.run(["useradd", "--create-home", "--shell", "/bin/bash", user], check=True)
-    subprocess.run(["passwd", "-l", user], check=True, stdout=subprocess.DEVNULL)
-    wrapper = LIBRARY / ("entry-" + prefix)
-    wrapper.write_text("#!/bin/sh\nexec /usr/bin/python3 -I /usr/local/lib/agri-trace-cd/" + prefix +
-                       '/controller.py --config /etc/agri-trace-cd/' + prefix + '/config.json --command "${1-}"\n')
-    wrapper.chmod(0o755)
-    os.chown(wrapper, 0, 0)
-    ssh = Path("/home") / user / ".ssh"
-    ssh.mkdir(mode=0o755, exist_ok=True)
-    ssh.chmod(0o755)
-    os.chown(ssh, 0, 0)
-    authorized = ssh / "authorized_keys"
-    authorized.write_text('restrict,command="sudo -n ' + str(wrapper) + ' \\"$SSH_ORIGINAL_COMMAND\\"" ' + public_key + "\n")
-    authorized.chmod(0o644)
-    os.chown(authorized, 0, 0)
-    sudo = Path("/etc/sudoers.d") / ("agri-trace-cd-" + prefix)
-    sudo.write_text(user + " ALL=(root) NOPASSWD: " + str(wrapper) + "\n")
-    sudo.chmod(0o440)
-    subprocess.run(["visudo", "-cf", str(sudo)], check=True, stdout=subprocess.DEVNULL)
-    return user
 
 
 def controller_digest(source):
@@ -182,60 +153,6 @@ def restore_controller(environment, library=LIBRARY):
             "replaced": None if replaced is None else replaced.name}
 
 
-def install_fresh(args, config):
-    """Retire controller metadata only, after an independently restored archive.
-
-    Existing PGDATA/ledger/crypto are never deleted, migrated or reused here.
-    A first CD delivery must still prove that the new database is empty.
-    """
-    policy.targets.validate_config(config, policy.require)
-    policy.require(config["schema"] == 3 and config["enabled"] is False, "Fresh target must start disabled")
-    base = Path(config["base"])
-    previous_file = config_path(args.environment)
-    previous = json.loads(previous_file.read_text())
-    policy.require(previous.get("schema") == 2 and previous.get("enabled") is False, "Disable the old installed target before replacement")
-    policy.require(previous["project"] != config["project"] and previous["postgres_volume"] != config["postgres_volume"], "Fresh target cannot reuse old PGDATA")
-    evidence_file = config.get("restore_evidence", "")
-    policy.require(policy.targets.owned_path(evidence_file, base / "shared"), "Private restoration evidence is required")
-    evidence = json.loads(Path(evidence_file).read_text())
-    policy.require(evidence.get("protocol") == "agritrace-backup-restore/1" and evidence.get("result") == "passed" and
-                   evidence.get("source_project") == previous["project"] and evidence.get("source_volume") == previous["postgres_volume"] and
-                   evidence.get("off_vps") is True and evidence.get("database_restored") is True and evidence.get("ledger_restored") is True,
-                   "Fresh target needs a verified off-VPS database and ledger restoration")
-    archive = Path(evidence.get("encrypted_archive", ""))
-    policy.require(policy.targets.owned_path(archive, base / "backups") and archive.is_file() and
-                   policy.sha256(archive.read_bytes()) == evidence.get("archive_sha256"), "Verified encrypted backup is missing or changed")
-    running = subprocess.check_output(["docker", "ps", "-q", "--filter", "label=com.docker.compose.project=" + previous["project"]], text=True).strip()
-    policy.require(not running, "Stop every old application container before fresh installation")
-    names = previous.get("fabric", {}).get("containers", [])
-    if names:
-        resources = json.loads(subprocess.check_output(["docker", "inspect", *names]))
-        policy.require(all(not resource["State"].get("Running") for resource in resources), "Stop the old Fabric network before fresh installation")
-    policy.require(subprocess.run(["docker", "volume", "inspect", config["postgres_volume"]], stdout=subprocess.DEVNULL,
-                                  stderr=subprocess.DEVNULL).returncode != 0, "Fresh PGDATA already exists; reconcile it without resetting")
-    retired = base / "cd" / "retired" / datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    retired.mkdir(parents=True, mode=0o700)
-    shutil.copyfile(previous_file, retired / "config.json")
-    for name in ("state.json", "hybrid-floor.json", "last-result.json", "target-adoption.json"):
-        source = base / "cd" / name
-        if source.exists():
-            shutil.copyfile(source, retired / name)
-            if name == "hybrid-floor.json":
-                source.unlink()  # Archived old schema floor belongs to the retired DB.
-    current = base / "current"
-    if current.is_symlink():
-        (retired / "previous-release").symlink_to(current.resolve())
-        current.unlink()
-    elif current.exists():
-        policy.require(False, "Current release is not the expected symlink")
-    atomic_json(base / "cd/state.json", {"current": None, "previous": None, "chaincode": {"sequence": 0}, "compatible_migrations": []})
-    LIBRARY.mkdir(mode=0o755, parents=True, exist_ok=True)
-    update_controller(args.environment, Path(__file__).parent, controller_digest(Path(__file__).parent)[0])
-    atomic_json(previous_file, config)
-    user = provision_identity(args.environment, Path(args.public_key).read_text().strip())
-    return {"result": "fresh-target-installed", "environment": args.environment, "user": user, "enabled": False, "retired": str(retired)}
-
-
 def lifecycle(environment, operation, config):
     policy.require(environment == "production" and operation == "enable", "Only production activation is supported")
     config["enabled"] = True
@@ -245,10 +162,8 @@ def lifecycle(environment, operation, config):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("fresh-install", "enable", "controller-digest", "update-controller", "restore-controller"))
+    parser.add_argument("operation", choices=("enable", "controller-digest", "update-controller", "restore-controller"))
     parser.add_argument("--environment", choices=policy.targets.TARGETS)
-    parser.add_argument("--config")
-    parser.add_argument("--public-key")
     parser.add_argument("--expected-digest")
     args = parser.parse_args()
     if args.operation == "controller-digest":
@@ -258,7 +173,7 @@ def main():
     policy.require(args.environment is not None, "An environment is required")
     policy.require(os.getuid() == 0, "Run environment administration as root")
     os.umask(0o077)
-    config = json.loads(Path(args.config if args.operation == "fresh-install" else config_path(args.environment)).read_text())
+    config = json.loads(config_path(args.environment).read_text())
     policy.targets.validate_config(config, policy.require)
     policy.require(config["environment"] == args.environment, "Administrator environment mismatch")
     with administrator_lock(config["base"]), contextlib.ExitStack() as stack:
@@ -268,10 +183,7 @@ def main():
             fcntl.flock(host, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise policy.PolicyError("Another host deployment is running; no configuration was changed")
-        if args.operation == "fresh-install":
-            policy.require(bool(args.public_key), "Install requires a dedicated CD public key")
-            result = install_fresh(args, config)
-        elif args.operation == "update-controller":
+        if args.operation == "update-controller":
             result = update_controller(args.environment, Path(__file__).parent, args.expected_digest)
         elif args.operation == "restore-controller":
             result = restore_controller(args.environment)

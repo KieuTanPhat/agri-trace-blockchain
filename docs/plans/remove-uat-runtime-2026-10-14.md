@@ -107,7 +107,10 @@ release `prod-*`. Đầu vào UAT/schema cũ bị từ chối với thông báo 
   Chuyển tiện ích dùng chung (khóa quản trị…) sang phần production trước khi xóa.
 - `controller.py`: bỏ nhánh schema `None`/2, Compose `docker-compose.uat*.yml`,
   project `agri-trace-uat`, prefix `uat-`. `install-target.py`: bỏ `install`,
-  `adopt-legacy`, `legacy_production_config()`. `targets.py`, `publish.mjs`: bỏ ngoại
+  `adopt-legacy`, `legacy_production_config()` và `fresh-install` chỉ chuyển schema 2
+  đã tắt sang schema 3, cùng phần cấp identity chỉ được lệnh đó gọi. Giữ
+  first-install/recover của controller production và kiểm archive/floor của luồng đó.
+  `targets.py`, `publish.mjs`: bỏ ngoại
   lệ `agri-trace-uat`. `policy.py`: bỏ `FIXED_FILES` và `verify.mjs` khỏi `CONTROLLER_FILES`.
   `package.py`: chỉ đóng gói format 2.
 - `app-fabric` được giữ theo quyết định chủ dự án. Sau thay đổi, controller schema 3
@@ -134,6 +137,32 @@ release `prod-*`. Đầu vào UAT/schema cũ bị từ chối với thông báo 
 - Cài helper vào thư mục theo digest, đổi symlink nguyên tử, giữ bản trước để phục hồi; lỗi đổi symlink hoặc ghi marker previous phải khôi phục bản cũ.
 - Không đổi config production, quyền SSH, database, mạng hay container đang chạy.
 
+## Rà soát bổ sung trong cùng PR
+
+Chủ dự án cho phép tự rà và xóa phần chỉ phục vụ UAT hoặc lần gỡ UAT; mỗi mục xóa
+phải có lý do và cách khôi phục trong mô tả PR. Quyền này không bao gồm tài nguyên VPS.
+
+- Bỏ `deploy/cd/rehearse-production.py` và caller trong Application CI sau khi
+  chuyển kiểm stop/start PostgreSQL cùng volume vào rehearsal thật. Giữ TCP
+  readiness, migrate/checksum, provisioning, backup/restore vào DB rỗng và smoke
+  sau restore. Không mất assertion giữ dữ liệu qua restart.
+- Giữ test provisioning PostgreSQL, helper/quota/ownership, migration bất biến và
+  hồi quy smoke: chúng bảo vệ CI và delivery production lâu dài. Không xóa chỉ vì
+  production runtime không trực tiếp chạy test.
+- Thêm test Edge `prepare`, `start` và rollback config của `reload` trên thư mục
+  tạm, mock Docker/health. Kiểm root/locks, volume từ môi trường đã duyệt, thiếu
+  volume/config dừng trước thay đổi; validation dùng storage tạm.
+- Commit `AGENTS.md` bằng tiếng Việt, giữ bất biến và quy tắc nhánh; chỉ dẫn vận
+  hành trỏ vào runbook production hiện hành.
+- Giữ hai job container độc lập vì tham số build Web khác nhau. Chia sẻ image
+  hoặc cache chỉ thực hiện sau khi đo lợi ích và giữ nguyên độ phủ/gate; không
+  gộp mô hình local và same-origin edge để giảm build.
+- Gỡ quy trình chuyển target schema 2 khỏi runbook; giữ quyết định/acceptance trong
+  `docs/plans`, hướng dẫn cập nhật controller và recovery production.
+
+Khôi phục file/đoạn đã gỡ trên một nhánh mới bằng `git restore --source=28d1f9c -- <path>`
+(hoặc SHA trước thay đổi ghi trong PR), rồi review qua PR; không chạy lại UAT trên VPS.
+
 ## Điều kiện hoàn thành PR
 
 - `npm run check`, `api-contract:check`, build Web và toàn bộ test controller đạt.
@@ -141,7 +170,8 @@ release `prod-*`. Đầu vào UAT/schema cũ bị từ chối với thông báo 
 - 20 migration giữ nguyên checksum so với baseline.
 - Image API không chứa script hay fixture UAT.
 - Luồng chạy hiện hành không còn tham chiếu UAT. Ngoại lệ: tài liệu lịch sử, quy tắc
-  ignore bảo vệ dữ liệu cũ, test từ chối UAT và tên hai volume Caddy.
+  ignore bảo vệ dữ liệu cũ, test từ chối UAT, tên hai volume Caddy và hostname
+  Datadog `agritrace-uat` được chủ dự án yêu cầu giữ nguyên.
 - Có test: schema cũ, manifest cũ, project UAT bị từ chối; sai checksum vẫn chặn delivery.
 - Có test: installer gặp khóa/journal dừng trước khi thay đổi; lỗi giữa cập nhật
   phục hồi controller cũ.

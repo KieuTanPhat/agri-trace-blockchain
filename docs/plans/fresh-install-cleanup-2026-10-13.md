@@ -43,7 +43,7 @@ trong runbook. Không tuyên bố HA hoặc partner authority nếu chưa kiểm
 | Pha | Công việc | Điều kiện qua pha |
 | --- | --- | --- |
 | 0 | Bảo toàn patch/staged/untracked, xác minh job và runtime/VPS chỉ đọc | Snapshot mã hóa phục hồi được; target/ownership rõ |
-| 1 | Sửa CI UAT/browser/fixture; chờ đồng bộ thu hồi quyền trước restore grant | Harness giữ assertion và CI candidate thành công |
+| 1 | Sửa CI rehearsal production/browser/fixture; chờ đồng bộ thu hồi quyền trước restore grant | Harness giữ assertion và CI candidate thành công |
 | 2 | Migration append-only, guard binding dưới transaction và cleanup API | DB rỗng migrate được; existing-data/checksum mismatch bị chặn; không orphan/fallback |
 | 3 | Controller schema 3 hosted-only, first-install/bootstrap, chế độ CLOSED/OPEN và recovery | First install từ state rỗng, crash/resume/rollback floor, manifest/helper checksums được kiểm trên Linux |
 | 4 | Bộ cài Fabric production, TLS/CA/identity/channel/caps và backup/restore | Image pin digest; isolated real Fabric/load/restore thành công, không dùng script pilot như bộ cài production |
