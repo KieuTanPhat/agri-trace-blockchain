@@ -9,7 +9,7 @@ actions được cố định bằng SHA và cập nhật qua Dependabot.
 
 | Check bắt buộc | Kiểm tra |
 | --- | --- |
-| `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; migration/API E2E PostgreSQL (gồm guard SQL và bàn giao Hybrid); production API, Web và Worker. |
+| `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |
 | `Blockchain gate` | Gateway/chaincode trên ba phiên bản Node; coverage chaincode; cài/audit/check chaincode độc lập; Worker contract; API → outbox → Worker → Fabric → proof. |
 | `Dependency gate` | Audit hai lockfile và dependency đã cài; kiểm peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. |
 
@@ -47,11 +47,11 @@ tắc PR, chống xóa nhánh và chống force push đang có khi cập nhật 
 
 | Thay đổi | Các kiểm tra được chọn |
 | --- | --- |
-| `apps/api/**`, gồm Worker và migration | API, production containers, tích hợp Fabric. |
-| `apps/web/**` | Web, production containers. |
+| `apps/api/**`, gồm Worker và migration | API, production containers, production rehearsal, tích hợp Fabric. |
+| `apps/web/**` | Web, production containers, production rehearsal. |
 | `blockchain/gateway/**` | API là consumer, Gateway/chaincode, production containers, tích hợp Fabric. |
 | `blockchain/chaincode/**`, `blockchain/network/**` | Gateway/chaincode, tích hợp Fabric. |
-| Compose và các override Compose | Production containers, tích hợp Fabric. |
+| Compose và các override Compose | Production containers, production rehearsal, tích hợp Fabric. |
 | Root manifests/lockfile, cấu hình npm/Node, Docker ignore, CI scripts/workflows, manifest chaincode dùng trong Docker build | Tất cả. |
 | `docs/sql/**` | API, production containers, tích hợp Fabric; SQL fixtures không coi là tài liệu thuần. |
 | Chỉ tài liệu khác | Gate vẫn chạy; job nặng được skip có kiểm tra. Audit vẫn chạy. |
@@ -63,6 +63,35 @@ Test hồi quy dùng Git repository thật để xác nhận các trường hợ
 Không lấy source từ PR qua
 `pull_request_target`; token workflow chỉ có `contents: read`, checkout
 không giữ credentials.
+
+## Production rehearsal
+
+Môi trường UAT cũ đã retire và không còn stack nào của nó trong CI. Job `Production rehearsal`
+(`deploy/ci/rehearse.mjs`, timeout 60 phút, chạy khi `containers` được chọn) kiểm bằng
+chính mô hình ứng dụng production (`docker-compose.app.yml` cộng overlay CI) trên PostgreSQL 18
+cách ly và image API/Web build từ commit:
+
+1. Cả `deploy/edge/Caddyfile` và Caddyfile CI đều qua `caddy validate`. Proxy CI dùng chính
+   snippet `(application)` trích từ file production, nên đổi routing production là đổi bài test.
+   HTTPS chỉ kiểm ở mức cấu hình.
+2. Mô hình Compose còn quota CPU/RAM cho mọi service, chỉ proxy được publish và chỉ ở loopback.
+3. Migration chạy từ DB rỗng, chạy lại là no-op và checksum trong `_prisma_migrations` khớp repo.
+4. `db:provision-compliance-role` tạo một lần rồi replay; provisioning production (cùng
+   transaction với `bootstrap-production.mjs`) tạo năm tài khoản rồi replay không đổi gì.
+5. Luồng nghiệp vụ và phiên qua proxy: đăng nhập, RBAC từ chối, replay idempotency, hai harvest,
+   ShipmentPlan đồng thuận, receive/reject, QR công khai `PENDING`, xoay refresh và logout.
+6. Mọi trace event đã lưu được validator chaincode đã biên dịch chấp nhận (chỉ đọc).
+7. Backup bằng `pg_dump`, xóa volume, restore vào DB rỗng; số lượng bảng và băm event giống hệt,
+   migration vẫn là no-op, tài khoản/lot/QR vẫn dùng được.
+8. Image API không mang script hoặc fixture UAT.
+
+Tài nguyên mang nhãn Compose của đúng lần chạy, job từ chối tài nguyên sẵn có, chỉ chạy trên
+GitHub runner và không đọc secret, database, identity hay volume của VPS. Kết quả nằm ở artifact
+`production-rehearsal-<SHA>` (14 ngày). Fabric thật không nằm ở đây mà ở `fabric-smoke` và
+`hybrid-fabric`. Bài kiểm tra PostgreSQL cho provisioning production
+(`deploy/ci/bootstrap-production.test.mjs`) chạy trong job `API` trên ba phiên bản Node.
+Job `changes` còn chạy `deploy/ci/migrations-immutable.mjs`: PR sửa, xóa hoặc đổi tên migration
+đã có sẽ lỗi, chỉ được thêm migration mới.
 
 ## Hybrid trong CI
 

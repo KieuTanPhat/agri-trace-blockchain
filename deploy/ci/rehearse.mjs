@@ -101,6 +101,10 @@ async function main() {
     '--build-arg', `NEXT_PUBLIC_API_BASE_URL=${origin}/api`, '--build-arg', 'NEXT_PUBLIC_API_SAME_ORIGIN=true',
     '--build-arg', `NEXT_PUBLIC_TRACE_BASE_URL=${origin}/trace`, '--build-arg', 'NEXT_PUBLIC_MOCK_API=false', '.'], { timeout: 1_200_000 });
   checkpoint('Production API and Web images build from this commit');
+  const shipped = run('docker', ['run', '--rm', '--entrypoint', 'sh', apiImage, '-c', 'find /app/apps/api/scripts /app/deploy -type f 2>/dev/null; true']);
+  assert.ok(shipped.includes('bootstrap-production.mjs'), 'The production bootstrap must ship in the API image');
+  assert.ok(!/uat|fixtures/i.test(shipped), 'The API image must not carry UAT scripts or fixtures');
+  checkpoint('The API image ships the production bootstrap and no UAT script or fixture');
 
   const model = JSON.parse(dc(['--profile', 'tools', 'config', '--format', 'json'], { quiet: true }));
   assert.deepEqual(composeModelErrors(model, { project, services: ['postgres', 'migrate', 'api', 'web', 'proxy'] }), []);
