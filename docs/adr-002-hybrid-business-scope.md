@@ -1,12 +1,16 @@
 # ADR-002 — Scope nghiệp vụ và kế hoạch vận chuyển, bản A
 
-Ngày quyết định: 12/10/2026 (UTC+7). Cập nhật source ngày 13/10/2026: business
-scope và controlled legacy scope dùng chung
+Ngày quyết định: 12/10/2026 (UTC+7). Cập nhật trạng thái ngày 14/10/2026: business
+scope và controlled legacy scope trong lịch sử dùng chung
 [migration append-only](../apps/api/prisma/migrations/20261014000000_hybrid_chain_scope/migration.sql).
-Source đã promote; rehearsal trên catalog chính thức, checksum approval của CD
-và production rollout vẫn chưa đạt. Không kích hoạt production từ trạng thái này.
-Theo [plan R1](plans/hybrid-fabric-chain-owner-plan-2026-10-11.md) và
-[review migration hiện hành](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/hybrid-migration-review-2026-10-13.md).
+Production hosted Hybrid đã được cài mới và bàn giao ngày 14/10/2026 theo
+[kế hoạch cài mới](plans/fresh-install-cleanup-2026-10-13.md),
+[PR #95](https://github.com/KieuTanPhat/agri-trace-blockchain/pull/95) và bằng chứng
+CI/CD của revision bàn giao. Trạng thái source promote nhưng chưa đủ gate để
+kích hoạt production thuộc candidate ngày 13/10, được giữ tại
+[review migration lịch sử](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/hybrid-migration-review-2026-10-13.md).
+Các quyết định A bên dưới giữ nguyên; phạm vi cài mới ở cuối ADR và
+[ADR-004](adr-004-hybrid-binding-and-signatures.md) quy định cách áp dụng hiện hành.
 
 Bối cảnh lúc lập ADR: nền quản lý chưa gắn Cycle/Lot/Shipment với chain. Mở quyền core theo
 capability trước khi mọi read/write đều biết chain sẽ làm lộ dữ liệu giữa các
@@ -57,12 +61,13 @@ Các quyết định triển khai:
 
 Source SQL hiện hành nằm trong
 [migration business/legacy scope](../apps/api/prisma/migrations/20261014000000_hybrid_chain_scope/migration.sql);
-route dùng
-[migration kế tiếp](../apps/api/prisma/migrations/20261014000000_hybrid_chain_scope/migration.sql).
-Các file draft trùng source đã được gỡ; bytes của 15 migration trước giữ nguyên.
-Hai migration mới chưa nằm trong CD checksum allowlist và chưa áp production.
-Promotion source không thay rehearsal fresh/legacy-copy/restore, compatible image
-rollback, independent pins, exact-SHA CI hoặc cutover/observation gates.
+binding/route dùng
+[migration Fabric binding kế tiếp](../apps/api/prisma/migrations/20261015000000_hybrid_fabric_binding/migration.sql).
+Các file draft trùng source đã được gỡ; migration lịch sử giữ nguyên byte.
+Nhận định chưa có checksum approval/chưa áp production thuộc candidate 13/10;
+release cài mới 14/10 đi qua migration reviews và exact-SHA CI/CD theo
+[runbook production](production-runbook.md). Việc promote source vẫn không thay
+nghiệm thu runtime, backup/restore, independent pins hoặc rollback floor.
 
 
 ## Phạm vi cài mới 14/10/2026
