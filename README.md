@@ -39,7 +39,7 @@ Các file cấu hình ở gốc được chia theo nơi sử dụng:
 | `docker-compose.app-hybrid.yml` | Overlay kết nối mạng hosted cho production schema 3 và release Hybrid tương thích |
 | `docker-compose.app-fabric.yml` | Overlay signer/network cho target schema 2; vẫn là file bắt buộc trong manifest app delivery |
 | `docker-compose.uat.yml`, `docker-compose.uat-https.yml` | Application CI kiểm container, HTTPS và backup/restore trên database cách ly; controller cũ còn đọc các tên này |
-| `docker-compose.uat-fabric.yml`, `.env.uat.example` | Overlay Fabric của release/controller cũ và mẫu môi trường UAT; CI kiểm sự hiện diện của mẫu |
+| `docker-compose.uat-fabric.yml`, `.env.uat.example` | Overlay Fabric của release/controller cũ và mẫu môi trường UAT; thay đổi mẫu chọn đầy đủ các kiểm thử tích hợp trong CI |
 | `package.json`, `package-lock.json`, các file `.git*` và `.dockerignore` | Lệnh, dependency lock và cấu hình công cụ |
 
 Schema 3 không ghép `docker-compose.app-fabric.yml` khi chạy ứng dụng, nhưng
