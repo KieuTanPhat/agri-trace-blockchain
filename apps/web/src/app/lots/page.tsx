@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { IconPackage } from "@/components/icons";
 import { LotTable } from "@/components/lot-table";
 import { HarvestDialog } from "@/components/harvest-dialog";
 import { LoadingState } from "@/components/loading-state";
@@ -9,6 +8,7 @@ import { ErrorState } from "@/components/error-state";
 import { getLots } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
 import type { LotTrace } from "@/lib/types";
+import { Package } from "lucide-react";
 
 export default function LotsPage() {
   const { user } = useAuth();
@@ -25,10 +25,10 @@ export default function LotsPage() {
   useEffect(load, [load]);
 
   return (
-    <div className="design-page lots-page">
+    <div className="grid">
       <section className="page-header">
         <div className="page-header-icon">
-          <IconPackage size={32} />
+          <Package size={32} />
         </div>
         <div>
           <p className="eyebrow">Quản lý lô</p>

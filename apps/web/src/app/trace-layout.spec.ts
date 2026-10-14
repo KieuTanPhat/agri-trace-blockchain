@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 const stylesheet = readFileSync(
-  path.join(path.dirname(fileURLToPath(import.meta.url)), "globals.css"),
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "../styles/app.css"),
   "utf8",
 );
 
@@ -34,16 +34,16 @@ afterEach(() => {
   document.head.querySelectorAll("style").forEach((element) => element.remove());
 });
 
-describe("public trace responsive header", () => {
+describe("public trace responsive hero", () => {
   it("stacks the photo and text on phones instead of shrinking the title beside the photo", () => {
-    const header = declarations(".trace-page .page-header", "(max-width: 760px)");
+    const header = declarations(".trace-page .trace-hero", "(max-width: 600px)");
     expect(
       header.some((style) => style.getPropertyValue("flex-direction") === "column"),
     ).toBe(true);
     expect(
       header.some((style) => style.getPropertyValue("align-items") === "stretch"),
     ).toBe(true);
-    const photo = declarations(".trace-page .trace-product-photo", "(max-width: 760px)");
+    const photo = declarations(".trace-page .trace-product-photo", "(max-width: 600px)");
     expect(
       photo.some((style) => style.getPropertyValue("width") === "100%"),
     ).toBe(true);
@@ -52,7 +52,7 @@ describe("public trace responsive header", () => {
     ).toBe(true);
   });
 
-  it.each([".trace-page .page-header h1", ".trace-page .page-header .muted"])(
+  it.each([".trace-hero h1", ".trace-hero .muted"])(
     "wraps long product names and identifiers in %s",
     (selector) => {
       expect(

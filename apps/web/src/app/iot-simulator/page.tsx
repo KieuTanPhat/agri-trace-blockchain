@@ -1,17 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  IconThermometer,
-  IconDroplet,
-  IconWifi,
-  IconActivity,
-} from "@/components/icons";
 import { ErrorState } from "@/components/error-state";
 import { getProductionCycles, sendSensorReading } from "@/lib/api-client";
 import { saveStoredIotReading } from "@/lib/iot-local-store";
 import type { ProductionCycleOption, SensorReadingResponse } from "@/lib/types";
-import { ShieldCheck, Code2, Copy, Check } from "lucide-react";
+import { Activity, Check, Code2, Copy, Droplet, ShieldCheck, Thermometer, Wifi } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 
@@ -110,10 +104,10 @@ export default function IotSimulatorPage() {
   }
 
   return (
-    <div className="design-page simulator-page">
+    <div className="grid">
       <section className="page-header">
         <div className="page-header-icon">
-          <IconWifi size={22} />
+          <Wifi size={22} />
         </div>
         <div>
           <p className="eyebrow">IOT-01</p>
@@ -124,13 +118,13 @@ export default function IotSimulatorPage() {
         </div>
         <div className="header-features">
           <span className="header-feature">
-            <IconThermometer size={14} /> Giám sát môi trường
+            <Thermometer size={14} /> Giám sát môi trường
           </span>
           <span className="header-feature">
-            <IconActivity size={14} /> Ghi nhận môi trường
+            <Activity size={14} /> Ghi nhận môi trường
           </span>
           <span className="header-feature">
-            <IconWifi size={14} /> Kết nối minh bạch
+            <Wifi size={14} /> Kết nối minh bạch
           </span>
         </div>
       </section>
@@ -140,7 +134,7 @@ export default function IotSimulatorPage() {
           <div className="panel-title">
             <div className="panel-title-left">
               <span className="panel-icon info">
-                <IconActivity size={16} />
+                <Activity size={16} />
               </span>
               <div>
                 <h2>Cấu hình cảm biến</h2>
@@ -152,7 +146,7 @@ export default function IotSimulatorPage() {
           </div>
           <div className="field">
             <label htmlFor="device">
-              <IconWifi size={12} /> Thiết bị
+              <Wifi size={12} /> Thiết bị
             </label>
             <input
               className="input"
@@ -182,7 +176,7 @@ export default function IotSimulatorPage() {
           <div className="form-row">
             <div className="field">
               <label htmlFor="sensor-type">
-                <IconThermometer size={12} /> Loại cảm biến
+                <Thermometer size={12} /> Loại cảm biến
               </label>
               <select
                 className="select"
@@ -204,7 +198,7 @@ export default function IotSimulatorPage() {
             </div>
             <div className="field">
               <label htmlFor="sensor-value">
-                <IconDroplet size={12} /> Giá trị và đơn vị
+                <Droplet size={12} /> Giá trị và đơn vị
               </label>
               <input
                 className="input"
@@ -242,7 +236,7 @@ export default function IotSimulatorPage() {
                 status === "retrying"
               }
             >
-              <IconActivity size={14} /> Gửi dữ liệu
+              <Activity size={14} /> Gửi dữ liệu
             </button>
             <button
               className="button secondary"

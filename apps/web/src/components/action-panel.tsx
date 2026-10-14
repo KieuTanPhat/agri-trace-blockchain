@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useId, useRef, useState } from "react";
-import { ArrowRight, ClipboardCheck, LoaderCircle, X } from "lucide-react";
+import { ArrowRight, ClipboardCheck, LoaderCircle, X, Zap } from "lucide-react";
 import {
   getOrganizations,
   submitCommand,
@@ -13,7 +13,6 @@ import type {
   LotTrace,
   Organization,
 } from "@/lib/types";
-import { IconZap } from "./icons";
 import { ErrorState } from "./error-state";
 
 const labels: Record<AllowedCommand, string> = {
@@ -145,7 +144,7 @@ export function ActionPanel({
       <div className="panel-title">
         <div className="panel-title-left">
           <span className="panel-icon accent">
-            <IconZap size={18} />
+            <Zap size={18} />
           </span>
           <div>
             <p className="eyebrow">Cổng thao tác</p>

@@ -163,7 +163,7 @@ export default function AdminPage() {
     ["Thửa đất", "Nông trại", "Diện tích", "Trạng thái"],
   ][tab];
   return (
-    <div className="grid admin-page">
+    <div className="grid">
       <section className="page-header">
         <h1>Quản trị hệ thống</h1>
         <Link className="button secondary" href="/admin/compliance-assignments">
