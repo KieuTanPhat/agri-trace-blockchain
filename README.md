@@ -36,15 +36,17 @@ Các file cấu hình ở gốc được chia theo nơi sử dụng:
 | `docker-compose.yml`, `.env.docker.example` | Chạy ứng dụng local |
 | `docker-compose.ci.yml` | Nối Worker với Fabric cách ly trong CI |
 | `docker-compose.app.yml`, `.env.deploy.example` | Ứng dụng production dùng image đã pin qua CD |
-| `docker-compose.app-hybrid.yml` | Overlay kết nối mạng hosted cho production schema 3 và release Hybrid tương thích |
-| `docker-compose.app-fabric.yml` | Overlay signer/network cho target schema 2; vẫn là file bắt buộc trong manifest app delivery |
+| `docker-compose.app-hybrid.yml` | Overlay kết nối mạng hosted của production (config schema 3) |
+| `docker-compose.app-fabric.yml` | Overlay signer/network cũ; controller không còn ghép nó, nhưng vẫn là file bắt buộc trong manifest app delivery |
+| `deploy/ci/`, `deploy/cd/`, `deploy/edge/` | Rehearsal production trong CI; controller, installer và đóng gói CD; Edge (Caddy) dùng chung |
 | `package.json`, `package-lock.json`, các file `.git*` và `.dockerignore` | Lệnh, dependency lock và cấu hình công cụ |
 
-Schema 3 không ghép `docker-compose.app-fabric.yml` khi chạy ứng dụng, nhưng
+Controller chỉ nhận config schema 3, manifest format 2 và release `prod-*`; nó ghép
+`docker-compose.app.yml` và `docker-compose.app-hybrid.yml`, không ghép
+`docker-compose.app-fabric.yml`. Giữ `docker-compose.app-fabric.yml` theo quyết định của chủ dự án:
 `deploy/cd/targets.py` và `policy.validate_manifest` vẫn yêu cầu file trong bundle.
-Giữ file để đóng gói release hiện hành và hỗ trợ target schema 2 còn được controller
-hiểu. `hybrid-floor.json` chỉ cho rollback tới image verified tương thích migration;
-việc giữ overlay không cho phép rollback DB mới về app cũ hoặc tái dùng mạng test cũ.
+`hybrid-floor.json` chỉ cho rollback tới image verified tương thích migration; việc giữ overlay
+không cho phép rollback DB mới về app cũ hoặc tái dùng mạng test cũ.
 
 Môi trường UAT cũ (schema 2, project `agri-trace-uat`) đã retire: stack, bootstrap và
 mẫu môi trường của nó không còn trong repo. Application CI kiểm ứng dụng bằng
