@@ -117,7 +117,7 @@ jobs:
         working-directory: blockchain/network
         run: ./network.sh bootstrap
       - name: Restrict pinned Fabric host bindings
-        # Restrict the same pinned test-network files that UAT uses before startup.
+        # Restrict the pinned test-network host bindings before startup.
         run: node deploy/fabric-ports.mjs --prepare
       - name: Start private network and create channel
         working-directory: blockchain/network

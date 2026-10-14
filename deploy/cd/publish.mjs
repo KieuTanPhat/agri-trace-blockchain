@@ -13,7 +13,7 @@ export function deploymentTarget(env) {
   assert.equal(env.GITHUB_REF,`refs/heads/${target.branch}`,'Deployment branch mismatch');
   assert.equal(env.PUBLIC_ORIGIN,target.origin,'Deployment origin mismatch');
   const project=env.CD_PROJECT||target.project,profile=env.CD_PROFILE||target.profile;
-  assert.ok(project===target.project||(env.CD_ENVIRONMENT==='production'&&project==='agri-trace-uat'),'Deployment project mismatch');
+  assert.equal(project,target.project,'Deployment project mismatch');
   assert.equal(profile,'fabric','Deployment profile mismatch');
   assert.match(env.GITHUB_SHA,/^[a-f0-9]{40}$/);
   return {...target,project,profile,environment:env.CD_ENVIRONMENT};

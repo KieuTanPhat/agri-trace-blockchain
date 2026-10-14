@@ -41,7 +41,7 @@ import type {
 
 const PUBLIC_API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api";
-// The UAT proxy exposes /api on each hostname; keep its cookies on that origin.
+// The production edge proxy exposes /api on each hostname; keep its cookies on that origin.
 const API_BASE_URL =
   typeof window === "undefined"
     ? (process.env.API_INTERNAL_BASE_URL ?? PUBLIC_API_BASE_URL)

@@ -11,7 +11,6 @@ const sharedFiles = new Set([
   '.gitattributes',
   '.dockerignore',
   '.env.docker.example',
-  '.env.uat.example',
   '.env.deploy.example',
   'blockchain/chaincode/package.json',
   'scripts/audit-dependencies.mjs',

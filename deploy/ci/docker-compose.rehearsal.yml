@@ -1,0 +1,38 @@
+# Disposable GitHub-runner project only. Layered over docker-compose.app.yml so the rehearsal runs the
+# production application model: its images, quotas, networks and health checks are not redefined here.
+# Fabric stays disabled (the Worker profile is not started); real Fabric is proven by Blockchain CI.
+services:
+  api:
+    environment:
+      # Production starts CLOSED and opens only through delivery smoke; the rehearsal needs business writes.
+      HYBRID_WRITES_MODE: OPEN
+      CI_REHEARSAL: "1"
+    volumes:
+      # Test-only scripts are mounted, never baked into the production image.
+      - type: bind
+        source: ./deploy/ci
+        target: /app/deploy/ci
+        read_only: true
+
+  proxy:
+    image: ${CADDY_IMAGE:?Set pinned Caddy image}
+    restart: "no"
+    ports:
+      - "127.0.0.1:18080:80"
+    volumes:
+      - type: bind
+        source: ${REHEARSAL_DIR:?Set rehearsal directory}/Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+    networks: [ingress]
+    healthcheck:
+      # Ready only when the edge actually routes to the API; `up --wait` then covers the proxy too.
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1/api/health"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      api: {condition: service_healthy}
+      web: {condition: service_healthy}
+    mem_limit: 128m
+    cpus: 0.5

@@ -221,7 +221,7 @@ describe("public API", () => {
     );
   });
 
-  it("preserves a separate configured API for production Web without the UAT proxy flag", async () => {
+  it("preserves a separate configured API for production Web without the same-origin proxy flag", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const fetchMock = vi
       .fn<typeof fetch>()

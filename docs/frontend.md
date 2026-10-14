@@ -21,7 +21,7 @@ Các trạng thái thu hồi/hết hạn vẫn hiển thị trước phần bằ
 
 Chạy `npm run check --workspace apps/web` trên Node/npm được ghi trong README. Kiểm tra trình duyệt ở 320, 390, 768 và 1440 px: landing, scan, login, dashboard, lô/chi tiết, vụ trồng/chi tiết, admin/phân công, kiểm định, giả lập IoT và các trạng thái lỗi. Kiểm thêm tên dài, mã băm, bộ lọc đổi trang, bàn phím/Escape, camera bị từ chối và ảnh QR sai.
 
-Dữ liệu fixture khi kiểm tra local không phải bằng chứng nghiệm thu nghiệp vụ trên UAT. AGT-028 vẫn cần nghiệm thu theo issue, gồm thiết bị camera thật và người được phân công.
+Dữ liệu fixture khi kiểm tra local không phải bằng chứng nghiệm thu nghiệp vụ trên production. AGT-028 vẫn cần nghiệm thu theo issue, gồm thiết bị camera thật và người được phân công.
 
 ### Kết quả kiểm tra giao diện ngày 2026-10-11
 

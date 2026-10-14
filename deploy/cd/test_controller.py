@@ -11,6 +11,9 @@ spec = importlib.util.spec_from_file_location("cd_controller", Path(__file__).wi
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 Controller, atomic_json, PolicyError = module.Controller, module.atomic_json, module.PolicyError
+from cd_testing import build, hosted_config
+
+SHA_B = "b" * 40
 
 
 class DomainDelivery(unittest.TestCase):
@@ -20,50 +23,67 @@ class DomainDelivery(unittest.TestCase):
         self.base = Path(temporary.name)
         env = self.base / ".env"
         env.write_text("PUBLIC_ORIGIN=https://agritrace.dev\n"
-                       "CORS_ORIGINS=http://13.140.170.166,https://agritrace.dev,https://www.agritrace.dev\n")
-        accounts = self.base / "accounts.json"
-        accounts.write_text("[]")
-        self.controller = Controller({"base": str(self.base), "env": str(env), "accounts": str(accounts),
-                                      "origin": "https://agritrace.dev", "legacy_origin": "http://13.140.170.166"})
-        self.legacy = {"id": "uat-" + "a" * 40, "directory": str(self.base / "old"), "manifest": {}}
-        self.domain = {"id": "uat-" + "b" * 40, "directory": str(self.base / "new"),
-                       "manifest": {"origin": "https://agritrace.dev"}}
+                       "CORS_ORIGINS=https://agritrace.dev,https://www.agritrace.dev\n")
+        (self.base / "accounts.json").write_text("[]")
+        self.controller = build(Controller, hosted_config(self.base, env))
+        self.record = {"id": "prod-" + SHA_B, "directory": str(self.base / "new"),
+                       "manifest": {"origin": "https://agritrace.dev", "api": "api:new", "web": "web:new", "migrations": {}, "files": {}}}
 
-    def test_legacy_http_origin_and_cors_survive_domain_cutover(self):
-        for record, origin, expected_cors, https in (
-                (self.legacy, "http://13.140.170.166", "http://13.140.170.166", False),
-                (self.domain, "https://agritrace.dev", self.controller.environment["CORS_ORIGINS"], True)):
-            command = self.controller.dc(record, "config")
-            values = module.policy.read_env(self.base / "cd/records" / record["id"] / "origin.env")
-            self.assertEqual(values, {"PUBLIC_ORIGIN": origin, "CORS_ORIGINS": expected_cors})
-            self.assertEqual(any(value.endswith("docker-compose.uat-https.yml") for value in command), https)
-            self.assertEqual(command.count("--env-file"), 2)
-        # Switching back must not inherit the new public URL or CORS list.
-        self.controller.dc(self.legacy, "up")
-        self.assertEqual(self.controller.origin_for(self.legacy), "http://13.140.170.166")
+    def environment(self, record):
+        return module.policy.read_env(self.base / "cd/records" / record["id"] / "origin.env")
 
-    def test_verifier_receives_the_release_origin_and_cors(self):
-        self.controller.run = MagicMock(return_value=b'{"result":"passed"}')
-        self.controller.verify(self.domain)
-        payload = json.loads(self.controller.run.call_args.args[2])
-        self.assertEqual(payload["origin"], "https://agritrace.dev")
-        self.assertEqual(payload["corsOrigins"], self.controller.environment["CORS_ORIGINS"].split(","))
+    def test_release_environment_pins_origin_images_network_and_closed_writers(self):
+        command = self.controller.dc(self.record, "config")
+        values = self.environment(self.record)
+        self.assertEqual(values["PUBLIC_ORIGIN"], "https://agritrace.dev")
+        self.assertEqual(values["CORS_ORIGINS"], "https://agritrace.dev,https://www.agritrace.dev")
+        self.assertEqual((values["API_IMAGE"], values["WEB_IMAGE"]), ("api:new", "web:new"))
+        self.assertEqual((values["DEPLOY_ENV"], values["UPSTREAM_PREFIX"]), ("production", "prod"))
+        self.assertEqual(values["INGRESS_NETWORK"], "agritrace-prod-ingress")
+        self.assertEqual(values["POSTGRES_VOLUME"], "agritrace-prod_postgres-data")
+        self.assertEqual(values["FABRIC_DOCKER_NETWORK"], "hosted_test")
+        self.assertEqual((values["HYBRID_WRITES_MODE"], values["FABRIC_LEGACY_WRITER"]), ("CLOSED", "false"))
+        self.assertEqual(command.count("--env-file"), 2)
+        self.assertEqual(command[command.index("--profile") + 1], "fabric")
+        self.assertTrue(any(value.endswith("docker-compose.app.yml") for value in command))
+        self.assertFalse(any("uat" in value for value in command), "Retired UAT compose files must never be selected")
 
-    def test_candidate_and_promoted_release_require_session_family(self):
-        self.controller.run = MagicMock(return_value=b'{"result":"passed"}')
-        for record, canary, expected in ((self.legacy, None, False), (self.domain, "b" * 40, True),
-                                        (dict(self.domain, sessionContract="family-v1"), None, True)):
-            with self.subTest(expected=expected, canary=canary):
-                self.controller.verify(record, canary)
-                payload = json.loads(self.controller.run.call_args.args[2])
-                self.assertEqual(payload["requireSessionFamily"], expected)
+    def test_a_verified_release_opens_writers_only_when_the_installed_policy_says_so(self):
+        for configured, verified, expected in (({}, True, "CLOSED"), ({"open_after_smoke": True}, True, "OPEN"),
+                                               ({"open_after_smoke": True}, False, "CLOSED"), ({"writes_mode": "OPEN"}, True, "OPEN")):
+            with self.subTest(configured=configured, verified=verified):
+                self.controller.config.pop("open_after_smoke", None)
+                self.controller.config.pop("writes_mode", None)
+                self.controller.config.update(configured)
+                record = dict(self.record, verified=verified)
+                self.controller.write_release_environment(record)
+                self.assertEqual(self.environment(record)["HYBRID_WRITES_MODE"], expected)
 
-    def test_legacy_qr_exception_is_supplied_only_from_release_metadata(self):
-        self.controller.run = MagicMock(return_value=b'{"result":"passed"}')
-        for record, expected in ((self.domain, []), (dict(self.domain, legacyQrLotIds=["old-lot"]), ["old-lot"])):
-            self.controller.verify(record)
-            payload = json.loads(self.controller.run.call_args.args[2])
-            self.assertEqual(payload["legacyQrLotIds"], expected)
+    def test_hybrid_release_adds_the_connection_overlay_and_requires_it_in_the_manifest(self):
+        hybrid = dict(self.record, manifest=dict(self.record["manifest"], migrations={"20261014000000_hybrid_chain_scope": "d" * 64}))
+        with self.assertRaisesRegex(PolicyError, "connection overlay"):
+            self.controller.dc(hybrid, "config")
+        hybrid["manifest"]["files"] = {"docker-compose.app-hybrid.yml": "e" * 64}
+        command = self.controller.dc(hybrid, "config")
+        self.assertTrue(any(value.endswith("docker-compose.app-hybrid.yml") for value in command))
+
+    def test_reviewed_resource_profile_is_bounded(self):
+        self.controller.config["resource_profile"] = {"API": 1024, "POSTGRES": 512}
+        self.controller.write_release_environment(self.record)
+        values = self.environment(self.record)
+        self.assertEqual((values["API_MEMORY"], values["API_HEAP_MB"], values["POSTGRES_MEMORY"]), ("1024m", "896", "512m"))
+        for value in (64, 8192, "512", True):
+            with self.subTest(value=value):
+                self.controller.config["resource_profile"] = {"WEB": value}
+                with self.assertRaisesRegex(PolicyError, "resource profile"):
+                    self.controller.write_release_environment(self.record)
+
+    def test_verification_is_always_the_hosted_verifier_and_requests_writes_only_for_a_candidate(self):
+        self.controller.verify_hosted = MagicMock(return_value={"result": "passed"})
+        self.controller.verify(self.record)
+        self.controller.verify_hosted.assert_called_with(self.record, False)
+        self.controller.verify(self.record, SHA_B)
+        self.controller.verify_hosted.assert_called_with(self.record, True)
 
     def test_resume_fabric_waits_for_both_peers_before_reconcile(self):
         self.controller.run = MagicMock(return_value=b"")
@@ -71,7 +91,7 @@ class DomainDelivery(unittest.TestCase):
         with patch.object(module.time, "monotonic", side_effect=[0, 1, 2]), \
                 patch.object(module.time, "sleep") as sleep:
             self.controller.resume_fabric()
-        self.assertEqual(self.controller.run.call_args.args[1], ["docker", "start", *module.FABRIC])
+        self.assertEqual(self.controller.run.call_args.args[1], ["docker", "start", "peer-a", "peer-b", "orderer-a"])
         self.assertEqual(self.controller.definition.call_count, 2)
         sleep.assert_called_once_with(5)
 
@@ -101,9 +121,39 @@ class DomainDelivery(unittest.TestCase):
         self.controller.run = run
         self.controller.resume_fabric = MagicMock(side_effect=lambda: setattr(self.controller, "phase", "fabric-readiness"))
         with patch.object(module, "atomic_json"), self.assertRaisesRegex(PolicyError, "ledger backup"):
-            self.controller.snapshot(self.legacy, "c" * 40, {})
+            self.controller.snapshot(self.record, "c" * 40, {})
         self.controller.resume_fabric.assert_called_once()
         self.assertEqual(self.controller.phase, "ledger-consistent-backup")
+
+    def test_snapshot_catalogs_hosted_ledger_and_private_state_only(self):
+        (self.base / "backups").mkdir()
+        self.controller.environment.update(POSTGRES_USER="test", POSTGRES_DB="test")
+        self.controller.dc = MagicMock(return_value=["docker", "compose"])
+        self.controller.resume_fabric = MagicMock()
+        calls = {}
+
+        def run(label, arguments, **kwargs):
+            calls[label] = arguments
+            if label == "ledger-volume-path":
+                return f"/var/lib/docker/volumes/{arguments[-1]}/_data".encode()
+            if label in {"ledger-consistent-backup", "private-identity-backup", "private-config-backup"}:
+                Path(next(item for item in arguments if item.endswith(".tar.gz"))).write_bytes(b"archive")
+            if label == "snapshot-bundle":
+                Path(arguments[arguments.index("-cf") + 1]).write_bytes(b"bundle")
+            return b""
+
+        self.controller.run = run
+        directory = Path(self.controller.snapshot(self.record, "c" * 40, {}))
+        self.assertEqual(calls["fabric-stop-for-snapshot"][-3:], ["peer-a", "peer-b", "orderer-a"])
+        self.assertEqual([item for item in calls["ledger-consistent-backup"] if item.endswith("/_data")], ["ledger-a/_data", "ledger-b/_data"])
+        private = calls["private-config-backup"]
+        self.assertIn(str((self.base / "shared").relative_to("/")), private)
+        self.assertIn("etc/agri-trace-cd/prod", private)
+        self.assertFalse(any("uat" in item for item in private))
+        self.assertTrue(directory.name.startswith("prod-" + "c" * 40))
+        self.assertFalse((directory / "snapshot.tar").exists(), "The unencrypted bundle must be removed after encryption")
+        self.assertEqual(json.loads((self.base / "cd/backups.json").read_text()), {"c" * 40: str(directory)})
+        self.controller.resume_fabric.assert_called_once()
 
     @staticmethod
     def response():
@@ -117,7 +167,7 @@ class DomainDelivery(unittest.TestCase):
                 patch.object(module.time, "sleep"), \
                 patch.object(module.urllib.request, "urlopen", side_effect=[self.response(), OSError("TLS failure")]) as request:
             with self.assertRaisesRegex(PolicyError, "apex and www"):
-                self.controller.start(self.domain)
+                self.controller.start(self.record)
         self.assertEqual(self.controller.phase, "public-https-readiness")
         self.assertEqual([call.args[0] for call in request.call_args_list],
                          ["https://agritrace.dev/login", "https://www.agritrace.dev/login"])
@@ -128,15 +178,37 @@ class DomainDelivery(unittest.TestCase):
                 patch.object(module.time, "sleep") as sleep, \
                 patch.object(module.urllib.request, "urlopen",
                              side_effect=[self.response(), OSError("not yet ready"), self.response(), self.response()]) as request:
-            self.controller.start(self.domain)
+            self.controller.start(self.record)
         self.assertEqual(request.call_count, 4)
         sleep.assert_called_once_with(5)
 
-    def test_legacy_http_release_does_not_wait_for_domain_tls(self):
+    def test_application_start_never_touches_the_shared_edge_proxy(self):
         self.controller.run = MagicMock(return_value=b"")
-        with patch.object(module.urllib.request, "urlopen") as request:
-            self.controller.start(self.legacy)
-        request.assert_not_called()
+        self.controller.dc = MagicMock(return_value=["docker", "compose"])
+        with patch.object(module.urllib.request, "urlopen", return_value=self.response()):
+            self.controller.start(self.record)
+        services = [call.args for call in self.controller.dc.call_args_list]
+        self.assertTrue(all("proxy" not in args for args in services))
+
+    def test_preflight_blocks_a_release_pinned_to_helpers_this_installation_does_not_ship(self):
+        record = dict(self.record, manifest=dict(self.record["manifest"], controller={"verify.mjs": "0" * 64}))
+        with patch.object(module.shutil, "disk_usage", return_value=MagicMock(free=64 * 1024 ** 3)):
+            with self.assertRaisesRegex(PolicyError, "administrator must install the reviewed version"):
+                self.controller.preflight(record)
+        record["manifest"]["controller"] = {"policy.py": "0" * 64}
+        with patch.object(module.shutil, "disk_usage", return_value=MagicMock(free=64 * 1024 ** 3)):
+            with self.assertRaisesRegex(PolicyError, "administrator must install the reviewed version"):
+                self.controller.preflight(record)
+
+    def test_retired_uat_releases_and_configs_are_rejected(self):
+        with self.assertRaisesRegex(PolicyError, "Unknown release"):
+            self.controller.record("uat-" + SHA_B)
+        env = self.base / ".env"
+        for change in ({"schema": 2}, {"schema": None}):
+            with self.subTest(change=change), self.assertRaisesRegex(PolicyError, "Unsupported installed config schema"):
+                Controller(dict(hosted_config(self.base, env), **change))
+        with self.assertRaisesRegex(PolicyError, "Unsupported installed config schema"):
+            Controller({"base": str(self.base), "env": str(env)})
 
 
 class CapacityAdmission(unittest.TestCase):
@@ -145,7 +217,6 @@ class CapacityAdmission(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.cd = Controller.__new__(Controller)
         self.cd.project = "agritrace-prod"
-        self.cd.fresh = True
         self.cd.storage = Path(temporary.name)
         self.mib = 1024 * 1024
         self.runtime = [
@@ -202,6 +273,9 @@ class Rehearsal(Controller):
     def preflight(self, record):
         self.calls.append("preflight")
 
+    def admit_fresh_release(self, record, state):
+        self.calls.append("admit")
+
     def applied(self, record):
         return {"20260101_init": "a" * 64}
 
@@ -212,7 +286,7 @@ class Rehearsal(Controller):
             raise PolicyError("simulated candidate failure")
         if self.fail_rollback and record["id"].endswith("a" * 40):
             # Only fail rollback after a candidate was started, not the baseline check.
-            if "start-uat-" + "b" * 40 in self.calls:
+            if "start-prod-" + "b" * 40 in self.calls:
                 raise PolicyError("simulated old health failure")
         result = copy.deepcopy(self.data)
         result["canary"] = canary
@@ -259,11 +333,11 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.base = Path(self.temp.name)
         (self.base / "cd").mkdir()
         env = self.base / ".env"
-        env.write_text("PUBLIC_ORIGIN=http://13.140.170.166\n")
-        self.controller = Rehearsal({"base": str(self.base), "env": str(env)})
-        self.old = {"id": "uat-" + "a" * 40, "sha": "a" * 40, "directory": str(self.base / "old"), "verified": True,
-                    "manifest": {"chaincode": "c" * 64, "api": "api:old", "web": "web:old", "migrations": {"20260101_init": "a" * 64}}}
-        self.candidate = dict(copy.deepcopy(self.old), id="uat-" + "b" * 40, sha="b" * 40, directory=str(self.base / "new"), verified=False)
+        env.write_text("PUBLIC_ORIGIN=https://agritrace.dev\nCORS_ORIGINS=https://agritrace.dev,https://www.agritrace.dev\n")
+        self.controller = build(Rehearsal, hosted_config(self.base, env))
+        self.old = {"id": "prod-" + "a" * 40, "sha": "a" * 40, "directory": str(self.base / "old"), "verified": True,
+                    "manifest": {"chaincode": "c" * 64, "api": "api:old", "web": "web:old", "files": {}, "migrations": {"20260101_init": "a" * 64}}}
+        self.candidate = dict(copy.deepcopy(self.old), id="prod-" + "b" * 40, sha="b" * 40, directory=str(self.base / "new"), verified=False)
         self.controller.save_record(self.old)
         self.controller.save_record(self.candidate)
         self.state = {"current": self.old["id"], "chaincode": {"sequence": 1, "version": "1.0", "packages": {"1": "old", "2": "old"}, "fingerprint": "c" * 64}, "compatible_migrations": []}
@@ -278,13 +352,6 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.assertFalse((self.base / "cd/journal.json").exists())
         self.assertLess(self.controller.calls.index("snapshot"), self.controller.calls.index("migration-deploy"))
         self.assertEqual(self.controller.record(self.candidate["id"])["sessionContract"], "family-v1")
-
-    def test_routine_deploy_inherits_the_cutover_legacy_qr_catalog(self):
-        self.old["legacyQrLotIds"] = ["old-lot"]
-        self.controller.save_record(self.old)
-        self.candidate["legacyQrLotIds"] = ["unreviewed-lot"]
-        self.controller.rollout(self.candidate, self.state)
-        self.assertEqual(self.controller.record(self.candidate["id"])["legacyQrLotIds"], ["old-lot"])
 
     def test_snapshot_baseline_is_captured_after_writer_stop(self):
         self.controller.rollout(self.candidate, self.state)
@@ -312,7 +379,7 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.assertFalse(self.controller.writers_running)
         self.assertTrue((self.base / "cd/journal.json").exists())
 
-    def test_fix_forward_preserves_failure_journal_and_never_restores_legacy_definition(self):
+    def test_fix_forward_preserves_failure_journal_and_never_restores_the_previous_definition(self):
         self.controller.stop(self.old)
         self.controller.journal(self.old, self.candidate, "application", self.controller.data)
         digest = module.policy.sha256(json.dumps(self.candidate["manifest"], sort_keys=True, separators=(",", ":")).encode())
