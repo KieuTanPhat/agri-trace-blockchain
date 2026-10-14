@@ -1,17 +1,41 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { renderToString } from "react-dom/server";
 import LoginPage from "./page";
 
-const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
+const { replace, authState } = vi.hoisted(() => ({
+  replace: vi.fn(),
+  authState: { isLoading: false, isAuthenticated: true },
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 vi.mock("next/image", () => ({ default: () => null }));
 vi.mock("@/lib/auth-store", () => ({
-  useAuth: () => ({ isLoading: false, isAuthenticated: true }),
+  useAuth: () => authState,
 }));
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   window.history.replaceState({}, "", "/");
+  authState.isLoading = false;
+  authState.isAuthenticated = true;
+});
+
+it("disables the server-rendered form until hydration installs its handlers", () => {
+  const document = new DOMParser().parseFromString(renderToString(<LoginPage />), "text/html");
+  expect(document.querySelectorAll("input:disabled")).toHaveLength(2);
+  expect(document.querySelector("button[type=submit]")?.hasAttribute("disabled")).toBe(true);
+});
+
+it("waits for session restoration before enabling login", async () => {
+  authState.isAuthenticated = false;
+  authState.isLoading = true;
+  const screen = render(<LoginPage />);
+  expect(screen.getByLabelText("Email", { exact: true })).toBeDisabled();
+  expect(screen.getByRole("button", { name: /^Đăng nhập$/ })).toBeDisabled();
+  authState.isLoading = false;
+  screen.rerender(<LoginPage />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /^Đăng nhập$/ })).toBeEnabled());
+  expect(screen.getByLabelText("Mật khẩu", { exact: true })).toBeEnabled();
 });
 
 it.each([

@@ -8,6 +8,11 @@ Trang giới thiệu chỉ có nội dung tổng quát, không có QR/lô mẫu 
 
 ## Desktop và mobile
 
+Form đăng nhập giữ input và nút submit ở trạng thái disabled trong HTML ban đầu,
+cho đến khi React đã gắn handler và hoàn tất khôi phục phiên. Bài trình duyệt chờ
+nút sẵn sàng, kiểm POST login trả 201 rồi mới kiểm điều hướng; lỗi giữ response
+status/timing, console, ảnh đã che input và trace đã loại credential trong artifact.
+
 Khung quản lý dùng sidebar trên desktop, menu dạng hộp thoại có quản lý focus trên màn hình từ 900 px trở xuống. Bảng lô, vụ trồng, danh mục quản trị và lịch sử số lượng dùng cùng dữ liệu cho bảng desktop và thẻ mobile ở 760 px trở xuống. Bộ lọc và phân trang áp dụng cho cả hai. Biểu mẫu chuyển về một cột, input 16 px, thao tác tối thiểu 44 px, hộp thoại có chiều cao theo viewport và cuộn nội dung.
 
 Các trạng thái thu hồi/hết hạn vẫn hiển thị trước phần bằng chứng. Thao tác ghi dữ liệu theo `allowedCommands` từ API; kiểm toán viên chỉ đọc theo hợp đồng hiện hành. Service worker vẫn chỉ lưu trang giải thích offline, không lưu trang nghiệp vụ, tài khoản hoặc phản hồi API.
