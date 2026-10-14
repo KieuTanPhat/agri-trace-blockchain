@@ -26,6 +26,13 @@ const address = app.getHttpServer().address();
 let proxy;
 if (!worker) {
   proxy = http.createServer((request, response) => {
+    if (request.url.split('?')[0] === '/api/auth/login') {
+      const started = Date.now();
+      response.on('finish', () => console.log(JSON.stringify({
+        method: request.method, path: '/api/auth/login', status: response.statusCode,
+        elapsedMs: Date.now() - started, clientAddress: request.headers['x-forwarded-for'],
+      })));
+    }
     const upstream = http.request({ host: '127.0.0.1', port: request.url.startsWith('/api/') ? address.port : Number(process.env.HYBRID_WEB_PORT),
       path: request.url, method: request.method, headers: request.headers }, reply => {
       response.writeHead(reply.statusCode, reply.headers); reply.pipe(response);

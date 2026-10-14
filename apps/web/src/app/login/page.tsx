@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const ready = nextReady && !auth.isLoading;
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("next");
@@ -38,7 +39,7 @@ export default function LoginPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (busy.current) return;
+    if (!ready || busy.current) return;
     busy.current = true;
     setPending(true);
     setError("");
@@ -95,6 +96,7 @@ export default function LoginPage() {
             type="email"
             autoComplete="username"
             required
+            disabled={!ready}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
@@ -107,6 +109,7 @@ export default function LoginPage() {
             type="password"
             autoComplete="current-password"
             required
+            disabled={!ready}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
@@ -116,7 +119,7 @@ export default function LoginPage() {
             {error}
           </div>
         )}
-        <button className="button" type="submit" disabled={pending}>
+        <button className="button" type="submit" disabled={!ready || pending}>
           {pending ? (
             <LoaderCircle className="spinner" size={18} />
           ) : (

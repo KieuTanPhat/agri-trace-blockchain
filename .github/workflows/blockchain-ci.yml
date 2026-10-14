@@ -185,12 +185,14 @@ jobs:
         run: |
           npx --no-install playwright install --with-deps chromium
           npm run test:hybrid:browser
-      - name: Upload only sanitized provenance receipts
+      - name: Upload sanitized provenance and browser failure diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: hybrid-acceptance-${{ github.sha }}
-          path: artifacts/agri-hybrid-*/receipt.json
+          path: |
+            artifacts/agri-hybrid-*/receipt.json
+            artifacts/agri-hybrid-*/browser-diagnostics/**
           if-no-files-found: error
           retention-days: 90
 

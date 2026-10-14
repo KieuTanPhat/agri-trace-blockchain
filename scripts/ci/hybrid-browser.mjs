@@ -5,6 +5,7 @@ import net from 'node:net';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { repository, withHybridStack } from './hybrid-fabric.mjs';
+import { redactDiagnostic } from './hybrid-browser-login.mjs';
 
 const freePort = async () => {
   const socket = net.createServer();
@@ -14,7 +15,7 @@ const freePort = async () => {
   return port;
 };
 
-await withHybridStack(async ({ env, root, receipt, npm }) => {
+await withHybridStack(async ({ env, root, evidenceDir, receipt, npm }) => {
   env.HYBRID_BROWSER_TESTS = '1';
   env.FABRIC_ENABLED = 'true';
   env.FABRIC_LEGACY_WRITER = 'false';
@@ -29,8 +30,15 @@ await withHybridStack(async ({ env, root, receipt, npm }) => {
   const processes = [];
   const fixtures = [];
   const expiryHandles = [];
+  const processLogs = [];
+  const loginResults = [];
   const start = (args, ipc = false) => {
-    const child = spawn(process.execPath, args, { cwd: repository, env, detached: true, stdio: ['ignore', 'ignore', 'ignore', ...(ipc ? ['ipc'] : [])] });
+    const child = spawn(process.execPath, args, { cwd: repository, env, detached: true, stdio: ['ignore', 'pipe', 'pipe', ...(ipc ? ['ipc'] : [])] });
+    const output = { process: args.includes('--worker') ? 'worker' : ipc ? 'api' : 'web', stdout: '', stderr: '' };
+    processLogs.push(output);
+    for (const stream of ['stdout', 'stderr']) child[stream].on('data', data => {
+      output[stream] = (output[stream] + data.toString()).slice(-128 * 1024);
+    });
     processes.push(child);
     child.once('error', () => {});
     return child;
@@ -65,6 +73,7 @@ await withHybridStack(async ({ env, root, receipt, npm }) => {
       const variant = fixture.variant;
       await fixture.waitForAuthority();
       const options = { origin, ...fixture, variant, workerOrigin: workerReady.origin,
+        diagnosticsDir: path.join(evidenceDir, 'browser-diagnostics'), privateDir: root, loginResults, hydrationDelayMs: 1000,
         chromiumExecutablePath: process.env.HYBRID_CHROMIUM_EXECUTABLE };
       const expiry = await prepareHybridBrowserExpiry(options);
       expiryHandles.push({ variant, options, expiry });
@@ -88,6 +97,14 @@ await withHybridStack(async ({ env, root, receipt, npm }) => {
       receipt.suites.push({ name: `browser-${variant}-expiry`, status: 'passed', results: result });
     }
   } finally {
+    receipt.loginResponses = loginResults.map(({ login, phase, hydrationWaitMs }) => ({ ...login, phase, hydrationWaitMs }));
+    const secrets = [env.JWT_SECRET, env.IOT_INGEST_API_KEY, env.DATABASE_URL,
+      ...fixtures.flatMap(({ fixture }) => [fixture.password, ...Object.values(fixture.users).map(user => user.email)])];
+    receipt.browserProcessLogs = processLogs.map(output => ({
+      process: output.process,
+      stdout: redactDiagnostic(output.stdout, secrets),
+      stderr: redactDiagnostic(output.stderr, secrets),
+    }));
     for (const { expiry } of expiryHandles) await expiry.close();
     for (const fixture of fixtures) await fixture.close();
     for (const child of processes) if (child.exitCode === null) {

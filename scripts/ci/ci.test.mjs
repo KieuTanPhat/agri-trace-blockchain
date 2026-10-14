@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { classifyChanges, changedFiles } from './changes.mjs';
 import { gateErrors } from './gate.mjs';
+import './hybrid-browser-login.test.mjs';
 
 test('Gateway changes run API, containers and real Fabric integration', () => {
   assert.deepEqual(classifyChanges(['blockchain/gateway/src/adapter.ts']), {

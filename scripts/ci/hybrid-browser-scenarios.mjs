@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium, devices } from "playwright";
+import { loginToDashboard } from "./hybrid-browser-login.mjs";
 
 const loginTimes = [];
+const loginOptions = new WeakMap();
+let loginSequence = 0;
 const storagePrefix = "agritrace-command:v1:";
 const timeout = 45_000;
 const api = (pathname) => `**/api${pathname}`;
@@ -32,12 +35,13 @@ async function login(page, origin, user, password) {
   // Keep the application limit. Tests never disable or increase throttling.
   while (loginTimes.filter((time) => Date.now() - time < 60_500).length >= 8)
     await delay(1000);
-  await page.goto(`${origin}/login`, { waitUntil: "domcontentloaded" });
-  await page.getByLabel("Email", { exact: true }).fill(user.email);
-  await page.getByLabel("Mật khẩu", { exact: true }).fill(password);
   loginTimes.push(Date.now());
-  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
-  await page.waitForURL((url) => url.pathname === "/dashboard", { timeout });
+  const options = loginOptions.get(page) ?? {};
+  const result = await loginToDashboard(page, origin, user, password, {
+    ...options,
+    label: `${options.label ?? "login"}-${++loginSequence}`,
+  });
+  options.results?.push(result);
 }
 
 async function selectChain(page, options) {
@@ -229,6 +233,19 @@ async function createSession(options) {
         },
       });
       pages[party] = await contexts[party].newPage();
+      loginOptions.set(pages[party], {
+        evidenceDir: options.diagnosticsDir,
+        privateDir: options.privateDir,
+        label: `${options.variant}-${party}`,
+        results: options.loginResults,
+      });
+      if (party === "farm" && options.hydrationDelayMs) {
+        // Regression: static HTML arrives before the React login handlers.
+        await pages[party].route("**/_next/static/**/*.js", async (route) => {
+          await delay(options.hydrationDelayMs);
+          await route.continue();
+        });
+      }
       pages[party].on("request", (request) => {
         if (request.url().startsWith(`${options.origin}/api/`)) {
           const token = request.headers().authorization;
@@ -241,6 +258,8 @@ async function createSession(options) {
         options.fixture.users[party],
         options.fixture.password,
       );
+      if (party === "farm" && options.hydrationDelayMs)
+        await pages[party].unroute("**/_next/static/**/*.js");
     }
     return {
       browser,
