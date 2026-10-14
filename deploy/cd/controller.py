@@ -146,7 +146,9 @@ class Controller:
     def preflight(self, record):
         require(shutil.disk_usage(self.base).free >= 12 * 1024 ** 3, "At least 12 GiB free disk is required")
         for name, digest in record["manifest"].get("controller", {}).items():
-            require(policy.sha256(Path(__file__).with_name(name).read_bytes()) == digest,
+            installed = Path(__file__).with_name(name)
+            # A helper that a release pins but this installation no longer ships is a controller change too.
+            require(installed.is_file() and policy.sha256(installed.read_bytes()) == digest,
                     "CD controller changed; administrator must install the reviewed version before delivery")
         model = json.loads(self.run("compose-preflight", self.dc(record, "--profile", "tools", "config", "--format", "json")))
         self.hosted_preflight(record, model)

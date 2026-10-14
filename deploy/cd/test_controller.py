@@ -190,6 +190,16 @@ class DomainDelivery(unittest.TestCase):
         services = [call.args for call in self.controller.dc.call_args_list]
         self.assertTrue(all("proxy" not in args for args in services))
 
+    def test_preflight_blocks_a_release_pinned_to_helpers_this_installation_does_not_ship(self):
+        record = dict(self.record, manifest=dict(self.record["manifest"], controller={"verify.mjs": "0" * 64}))
+        with patch.object(module.shutil, "disk_usage", return_value=MagicMock(free=64 * 1024 ** 3)):
+            with self.assertRaisesRegex(PolicyError, "administrator must install the reviewed version"):
+                self.controller.preflight(record)
+        record["manifest"]["controller"] = {"policy.py": "0" * 64}
+        with patch.object(module.shutil, "disk_usage", return_value=MagicMock(free=64 * 1024 ** 3)):
+            with self.assertRaisesRegex(PolicyError, "administrator must install the reviewed version"):
+                self.controller.preflight(record)
+
     def test_retired_uat_releases_and_configs_are_rejected(self):
         with self.assertRaisesRegex(PolicyError, "Unknown release"):
             self.controller.record("uat-" + SHA_B)
