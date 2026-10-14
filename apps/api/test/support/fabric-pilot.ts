@@ -40,7 +40,6 @@ export const userMsp = (org: Org, user: string) =>
   path.join(orgDir(org), 'users', `${user}@${org}.example.com`, 'msp');
 export const peerCa = (org: Org) =>
   path.join(orgDir(org), 'peers', `peer0.${org}.example.com`, 'tls', 'ca.crt');
-export const orgMsp = (org: Org) => ORGS[org].msp;
 
 const open: GatewayConnection[] = [];
 const configDirectories = new Set<string>();
