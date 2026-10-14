@@ -392,7 +392,11 @@ class Controller:
             if name == "migrate":
                 continue  # Migration is separate from the stopped-writer runtime.
             require(float(service.get("cpus", 0)) > 0, "Candidate app CPU quota is missing")
-            limits["candidate:" + name] = service.get("mem_limit", 0)
+            memory_limit = service.get("mem_limit", 0)
+            # Compose JSON encodes normalized byte quantities as decimal strings.
+            if isinstance(memory_limit, str) and re.fullmatch(r"[1-9][0-9]*", memory_limit):
+                memory_limit = int(memory_limit)
+            limits["candidate:" + name] = memory_limit
         if self.fresh:
             limits["candidate:temporary-operator"] = 384 * 1024 * 1024
         admitted = policy.capacity_budget(int(memory[1]) * 1024, limits)

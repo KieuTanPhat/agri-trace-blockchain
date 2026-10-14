@@ -139,6 +139,56 @@ class DomainDelivery(unittest.TestCase):
         request.assert_not_called()
 
 
+class CapacityAdmission(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.cd = Controller.__new__(Controller)
+        self.cd.project = "agritrace-prod"
+        self.cd.fresh = True
+        self.cd.storage = Path(temporary.name)
+        self.mib = 1024 * 1024
+        self.runtime = [
+            {"Name": "/hosted", "Config": {"Labels": {}},
+             "HostConfig": {"Memory": 2944 * self.mib, "NanoCpus": 1_000_000_000}},
+            {"Name": "/retained", "Config": {"Labels": {}},
+             "HostConfig": {"Memory": 1024 * self.mib, "NanoCpus": 1_000_000_000}},
+        ]
+        self.cd.run = MagicMock(side_effect=lambda label, *args: b"hosted retained" if label == "capacity-runtime-catalog"
+                                else json.dumps(self.runtime).encode())
+        self.services = {name: {"cpus": cpu, "mem_limit": str(memory * self.mib)} for name, cpu, memory in
+                         [("api", 1, 512), ("postgres", 1, 512), ("web", 1, 512), ("worker", .5, 384)]}
+
+    def admit(self):
+        with patch.object(module.Path, "read_text", return_value="MemTotal: 8131584 kB\n"):
+            self.cd.capacity_preflight(self.services)
+
+    def test_compose_decimal_byte_strings_and_integer_limits_share_the_full_host_budget(self):
+        self.services["web"]["mem_limit"] = 512 * self.mib
+        self.admit()
+        receipt = json.loads((self.cd.storage / "capacity-admission.json").read_text())
+        self.assertEqual(receipt["containerBytes"], 6272 * self.mib)
+        self.assertEqual(receipt["reservedBytes"], (7941 - 6272) * self.mib)
+        self.assertEqual(receipt["minimumReservePercent"], 20)
+
+    def test_invalid_or_unbounded_compose_quantities_are_rejected(self):
+        for value in (None, 0, -1, True, 1.5, "0", "-1", "512m", "1.0", " 123", "١٢"):
+            with self.subTest(value=value):
+                self.services["api"]["mem_limit"] = value
+                with self.assertRaisesRegex(PolicyError, "positive memory quota"):
+                    self.admit()
+
+    def test_decimal_string_does_not_bypass_twenty_percent_reserve(self):
+        self.services["api"]["mem_limit"] = str(1024 * self.mib)
+        with self.assertRaisesRegex(PolicyError, "reserved host capacity"):
+            self.admit()
+
+    def test_unbounded_retained_container_still_blocks_bounded_candidate(self):
+        self.runtime[0]["HostConfig"]["Memory"] = 0
+        with self.assertRaisesRegex(PolicyError, "positive memory quota"):
+            self.admit()
+
+
 class Rehearsal(Controller):
     def __init__(self, config):
         super().__init__(config)
