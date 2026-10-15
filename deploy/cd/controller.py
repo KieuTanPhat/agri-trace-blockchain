@@ -427,7 +427,8 @@ class Controller:
                          "-C", "/", *[str(Path(p).relative_to("/")) for p in self.fabric["backup_paths"]]])
                 files += ["fabric-ledger.tar.gz", "fabric-identities.tar.gz"]
             private_paths = [str((self.base / "shared").relative_to("/")), str(self.storage.relative_to("/")),
-                             "etc/agri-trace-cd/prod", "usr/local/lib/agri-trace-cd/prod"]
+                             "etc/agri-trace-cd/prod", "usr/local/lib/agri-trace-cd/prod",
+                             str(Path(__file__).resolve().parent.relative_to("/"))]
             self.run("private-config-backup", ["tar", "--exclude=operations.log", "--exclude=delivery.lock", "-czf", str(directory / "private-config.tar.gz"), "-C", "/", *private_paths])
             atomic_json(directory / "checksums.json", {name: policy.sha256((directory / name).read_bytes()) for name in files})
             plain = directory / "snapshot.tar"

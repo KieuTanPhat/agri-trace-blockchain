@@ -200,6 +200,8 @@ class DomainDelivery(unittest.TestCase):
         private = calls["private-config-backup"]
         self.assertIn(str((self.base / "shared").relative_to("/")), private)
         self.assertIn("etc/agri-trace-cd/prod", private)
+        self.assertIn(str(Path(module.__file__).resolve().parent.relative_to('/')), private,
+                      'The immutable helper generation must be archived as well as its selection symlink')
         self.assertFalse(any("uat" in item for item in private))
         self.assertTrue(directory.name.startswith("prod-" + "c" * 40))
         self.assertFalse((directory / "snapshot.tar").exists(), "The unencrypted bundle must be removed after encryption")
