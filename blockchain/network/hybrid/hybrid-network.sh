@@ -361,7 +361,8 @@ build_cc_image() {
 }
 
 package_cc() { # org -> path
-  local org="$1" dir="${ROOT}/cc-package/${org}"
+  local org="$1" dir
+  dir="${ROOT}/cc-package/${org}"
   rm -rf "${dir}"; mkdir -p "${dir}"
   printf '{"address":"cc-%s:9999","dial_timeout":"10s","tls_required":false}' "${org}" > "${dir}/connection.json"
   ( cd "${dir}" && tar cfz code.tar.gz connection.json )
