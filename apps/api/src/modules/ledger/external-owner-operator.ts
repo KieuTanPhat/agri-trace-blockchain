@@ -1,5 +1,6 @@
 import {
   RegistryOperator,
+  classifyFabricError,
   type BindingLedgerClient,
   type RegistryProposalView,
 } from '@agri-trace/fabric-gateway';
@@ -40,7 +41,7 @@ export class ExternalOwnerRegistryOperator extends RegistryOperator {
     try {
       return await this.execute(id);
     } catch (error) {
-      if (!String(error).includes('APPROVALS_MISSING')) throw error;
+      if (classifyFabricError(error).chaincodeCode !== 'APPROVALS_MISSING') throw error;
       throw new AwaitingOwnerApproval({
         ...this.context,
         proposal: await this.reader.getRegistryProposal(id),

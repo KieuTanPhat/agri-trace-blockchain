@@ -203,7 +203,8 @@ export class EnterpriseConnectionWorker {
           row.challenge,
         )) as Record<string, unknown>;
       } catch (error) {
-        if (!/NOT_FOUND|does not exist/.test(String(error))) throw error;
+        const details = JSON.stringify((error as {details?:unknown}).details ?? '');
+        if (!/\bNOT_FOUND:/.test(String(error)+details)) throw error;
       }
       if (!proof && !row.txId) {
         const prepared = connection.client.prepare(

@@ -132,7 +132,7 @@ async function main() {
     execute(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'blockchain/network/hybrid/acceptance/ledger-acceptance.mts'], { stdio: 'inherit' });
     receipt.suites.at(-1).status = 'passed';
     receipt.suites.push({ name: 'api-worker-fabric', status: 'running' });
-    npm('run', 'test:e2e', '--workspace', 'apps/api', '--', 'test/hybrid-fabric.e2e-spec.ts', '--reporter=json',
+    npm('run', 'test:e2e', '--workspace', 'apps/api', '--', 'test/hybrid-fabric.e2e-spec.ts', '--reporter=default', '--reporter=json',
       '--outputFile=../../artifacts/hybrid-fabric-vitest.json');
     const result = JSON.parse(readFileSync(path.join(repository, 'artifacts/hybrid-fabric-vitest.json')));
     assert.ok(result.numPassedTests > 0);
