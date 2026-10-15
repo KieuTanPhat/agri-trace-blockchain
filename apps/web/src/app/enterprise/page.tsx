@@ -52,6 +52,14 @@ export default function EnterprisePage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+  const availableChains = chains.filter(
+    (chain) =>
+      !row?.connections.some(
+        (connection) =>
+          connection.chainId === chain.id &&
+          !["REJECTED", "FAILED"].includes(connection.status),
+      ),
+  );
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending || !row) return;
@@ -81,8 +89,11 @@ export default function EnterprisePage() {
       await refresh();
     } catch (cause) {
       setError(onboardingError(cause));
-      const status = (cause as { status?: number }).status;
-      if (status && [400, 403, 404, 422].includes(status))
+      const { status, canRestart } = cause as {
+        status?: number;
+        canRestart?: boolean;
+      };
+      if (canRestart || (status && [400, 403, 404, 422].includes(status)))
         original.current = null;
     } finally {
       setPending(false);
@@ -137,6 +148,11 @@ export default function EnterprisePage() {
                   </Link>{" "}
                   trước khi gửi yêu cầu kết nối.
                 </p>
+              ) : !availableChains.length && !original.current ? (
+                <p>
+                  Các chuỗi hiện có đã có yêu cầu kết nối. Theo dõi trạng thái
+                  bên dưới.
+                </p>
               ) : (
                 <form onSubmit={submit} className="grid">
                   <fieldset
@@ -146,7 +162,7 @@ export default function EnterprisePage() {
                     <label className="field">
                       Chuỗi của doanh nghiệp
                       <select className="input" name="chainId" required>
-                        {chains.map((c) => (
+                        {availableChains.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.name}
                           </option>

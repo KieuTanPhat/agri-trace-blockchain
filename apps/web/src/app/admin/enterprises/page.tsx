@@ -48,6 +48,10 @@ function Review({
       await onDone();
     } catch (cause) {
       setError(onboardingError(cause));
+      if ((cause as { canRestart?: boolean }).canRestart) {
+        original.current = null;
+        await onDone();
+      }
     } finally {
       setPending(false);
     }
@@ -136,6 +140,17 @@ export default function EnterpriseAdminPage() {
               {row.businessId} · {hostingLabels[row.hostingMode]}
             </p>
             <p>{statusLabels[row.status]}</p>
+            <p>
+              {
+                (
+                  {
+                    FARM: "Sản xuất nông nghiệp",
+                    TRANSPORTER: "Vận chuyển",
+                    RETAILER: "Bán lẻ",
+                  } as Record<string, string>
+                )[row.organizationType]
+              }
+            </p>
             <p>
               {row.representativeName} · {row.representativeEmail}
             </p>

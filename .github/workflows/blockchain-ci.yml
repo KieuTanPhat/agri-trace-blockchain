@@ -181,6 +181,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Real three-organization ledger and Worker acceptance
         run: node scripts/ci/hybrid-fabric.mjs
+      - name: Enterprise-owned peer lifecycle and approvals on separated Docker networks
+        run: node scripts/ci/enterprise-peer.mjs
       - name: Desktop and mobile viewport browser with real API DB Worker
         run: |
           npx --no-install playwright install --with-deps chromium
@@ -192,6 +194,7 @@ jobs:
           name: hybrid-acceptance-${{ github.sha }}
           path: |
             artifacts/agri-hybrid-*/receipt.json
+            artifacts/enterprise-onboarding/receipt.json
             artifacts/agri-hybrid-*/browser-diagnostics/**
           if-no-files-found: error
           retention-days: 90

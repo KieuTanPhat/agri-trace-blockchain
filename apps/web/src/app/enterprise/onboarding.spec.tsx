@@ -154,6 +154,28 @@ it("shows public peer fields for self-managed hosting and never requests a priva
   expect(container.querySelector('input[type="file"]')).toBeNull();
   expect(container.querySelector('input[name*="key" i]')).toBeNull();
 });
+it("prevents duplicate requests for a chain with an open connection, but allows retry after a known failure", async () => {
+  current.connections = [
+    {
+      id: "connection",
+      chainId: "own-chain",
+      hostingMode: "MANAGED_ORG",
+      status: "UNKNOWN",
+      version: 1,
+      publicConfig: {},
+      createdAt: new Date().toISOString(),
+    },
+  ];
+  const view = render(<EnterprisePage />);
+  await screen.findByText(/Các chuỗi hiện có đã có yêu cầu/);
+  expect(
+    screen.queryByRole("button", { name: "Gửi yêu cầu kết nối" }),
+  ).toBeNull();
+  view.unmount();
+  current.connections[0].status = "FAILED";
+  render(<EnterprisePage />);
+  await screen.findByRole("button", { name: "Gửi yêu cầu kết nối" });
+});
 it("limits administration to the system admin", async () => {
   render(<EnterpriseAdminPage />);
   expect(await screen.findByRole("alert")).toHaveTextContent("không có quyền");

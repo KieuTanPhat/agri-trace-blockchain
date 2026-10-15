@@ -430,7 +430,10 @@ thiểu đã được đo.
    ```
 
    Platform chạy `hybrid-network.sh commit-remote`. Mỗi bên dùng admin ở host của
-   mình. Không chuyển thư mục `ca`, `crypto`, credentials hoặc keystore sang bên kia.
+   mình. `join` giữ hash block gốc; `install` giữ package ID. Chạy lại `approve`
+   chỉ thành công khi kiểm chứng đúng definition/policy và package đã được duyệt;
+   lỗi không rõ kết quả không được xử lý bằng đổi spec hoặc tạo identity mới.
+   Không chuyển thư mục `ca`, `crypto`, credentials hoặc keystore sang bên kia.
    Script không tự xóa dữ liệu khi lỗi. Backup/restore của split-host cần procedure
    riêng cho mỗi bên; lệnh backup/restore local pilot sẽ từ chối chế độ này.
 
@@ -456,6 +459,15 @@ thiểu đã được đo.
    `/enterprise`, đối chiếu txId/VALID trên hai peer. Nghiệm thu thêm outage,
    restart, lost-response và tài nguyên tại tải demo trước khi kết luận về VPS.
    Kiểm thử Docker cùng máy không thay thế mục nghiệm thu qua hai VPS thật.
+
+CI chạy `node scripts/ci/enterprise-peer.mjs` sau `hybrid-fabric.mjs` (hoặc
+`npm run test:enterprise:peer` khi đã có image/tooling của cùng SHA). Bài kiểm tra
+dùng hai Docker network, relay chỉ bind trên Docker host bridge và các root,
+CA, identity, volume riêng; platform không tạo private Org3 material. Nó thử
+join/install/approve lặp lại, doanh nghiệp inspect/approve registry tại root
+của mình, rồi kiểm probe VALID và cùng proof trên hai peer. Receipt chỉ chứa
+SHA, txId, quota và snapshot tài nguyên; không có khóa riêng. Đây vẫn là kiểm
+tra cùng host, không đóng acceptance TLS/WAN hoặc cấu hình VPS tối thiểu.
 
 Tài liệu Fabric gốc: [Fabric CA identity attributes](https://hyperledger-fabric-ca.readthedocs.io/en/latest/users-guide.html#attribute-based-access-control)
 và [chaincode as an external service](https://hyperledger-fabric.readthedocs.io/en/release-2.5/cc_service.html).
