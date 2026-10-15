@@ -543,9 +543,12 @@ async function main() {
   );
   // Encode the exact reviewed policy with the pinned Fabric tool, rather than
   // accepting any policy merely because an organization approved something.
-  const validationParameter = run("configtxlator", ["proto_encode", "--type", "common.ApplicationPolicy"], {
-    input: JSON.stringify(approvalPolicy(spec)), stdio: ["pipe", "pipe", "pipe"],
-  }).toString("base64");
+  const policyInput = path.join(root, "approval-policy.json"), policyOutput = path.join(root, "approval-policy.pb");
+  json(policyInput, approvalPolicy(spec));
+  // configtxlator opens its input/output paths itself; Node's socket-backed
+  // stdio cannot be reopened as /dev/stdin on every Linux runtime.
+  run("configtxlator", ["proto_encode", "--type", "common.ApplicationPolicy", "--input", policyInput, "--output", policyOutput], { stdio: "pipe" });
+  const validationParameter = readFileSync(policyOutput).toString("base64");
   const query = (operation, flags = []) => JSON.parse(cli([
     "lifecycle", "chaincode", operation, "--channelID", spec.channelId,
     "--name", spec.chaincodeName, ...flags, "--output", "json",
