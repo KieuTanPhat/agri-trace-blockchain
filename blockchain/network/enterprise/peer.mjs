@@ -66,6 +66,28 @@ export function validateSpec(spec) {
   }
   return spec;
 }
+export function approvalPolicy(spec) {
+  const match = /^AND\('([A-Za-z][A-Za-z0-9]*)\.peer','([A-Za-z][A-Za-z0-9]*)\.peer'\)$/.exec(spec.endorsementPolicy);
+  assert.ok(match, "Only the reviewed two-peer AND policy is supported");
+  assert.notEqual(match[1], match[2], "The endorsement organizations must differ");
+  return { signature_policy: { version: 0,
+    rule: { n_out_of: { n: 2, rules: [{ signed_by: 0 }, { signed_by: 1 }] } },
+    identities: match.slice(1).map(msp_identifier => ({ principal_classification: "ROLE",
+      principal: { msp_identifier, role: "PEER" } })) } };
+}
+function verifyDefinition(spec, value, validationParameter) {
+  assert.equal(value.version, spec.chaincodeVersion, "Approved chaincode version differs");
+  assert.equal(Number(value.sequence), spec.chaincodeSequence, "Approved chaincode sequence differs");
+  assert.equal(value.endorsement_plugin, "escc", "Unexpected endorsement plugin");
+  assert.equal(value.validation_plugin, "vscc", "Unexpected validation plugin");
+  assert.equal(value.init_required ?? false, false, "Unexpected init requirement");
+  assert.deepEqual(value.collections ?? {}, {}, "Unexpected private collection definition");
+  assert.equal(value.validation_parameter, validationParameter, "Approved endorsement policy differs");
+}
+export function verifyApprovedDefinition(spec, approved, packageId, validationParameter) {
+  verifyDefinition(spec, approved, validationParameter);
+  assert.equal(approved.source?.Type?.LocalPackage?.package_id, packageId, "Approved local package differs");
+}
 const run = (file, args, options = {}) =>
   execFileSync(file, args, { stdio: "inherit", timeout: 180000, ...options });
 const json = (file, value) =>
@@ -519,18 +541,39 @@ async function main() {
     existsSync(path.join(root, "public/orderer-ca.crt")),
     "Operator must provide the orderer public TLS root",
   );
-  const definition = [
-    "--channelID",
-    spec.channelId,
-    "--name",
-    spec.chaincodeName,
-    "--version",
-    spec.chaincodeVersion,
-    "--sequence",
-    String(spec.chaincodeSequence),
-    "--signature-policy",
-    spec.endorsementPolicy,
-  ];
+  // Encode the exact reviewed policy with the pinned Fabric tool, rather than
+  // accepting any policy merely because an organization approved something.
+  const validationParameter = run("configtxlator", ["proto_encode", "--type", "common.ApplicationPolicy"], {
+    input: JSON.stringify(approvalPolicy(spec)), stdio: ["pipe", "pipe", "pipe"],
+  }).toString("base64");
+  const query = (operation, flags = []) => JSON.parse(cli([
+    "lifecycle", "chaincode", operation, "--channelID", spec.channelId,
+    "--name", spec.chaincodeName, ...flags, "--output", "json",
+  ], { stdio: "pipe", encoding: "utf8" }));
+  const sameApproval = () => {
+    let approved;
+    try { approved = query("queryapproved", ["--sequence", String(spec.chaincodeSequence)]); }
+    catch (error) {
+      const missing = `could not fetch approved chaincode definition (name: '${spec.chaincodeName}', sequence: '${spec.chaincodeSequence}') on channel '${spec.channelId}'`;
+      if (String(error.stderr).includes(missing)) return false;
+      throw error; // Outage or an unreadable result is never proof of absence.
+    }
+    verifyApprovedDefinition(spec, approved, packageId, validationParameter);
+    let committed;
+    try { committed = query("querycommitted"); }
+    catch (error) {
+      if (!String(error.stderr).includes(`namespace ${spec.chaincodeName} is not defined`)) throw error;
+    }
+    if (committed && Number(committed.sequence) >= spec.chaincodeSequence) {
+      verifyDefinition(spec, committed, validationParameter);
+      assert.equal(committed.approvals?.[spec.mspId], true, "Committed definition lacks this organization's approval");
+    }
+    console.log("The same chaincode definition, policy and package are already approved by this organization.");
+    return true;
+  };
+  // checkcommitreadiness only accepts the NEXT sequence; it cannot reconcile a
+  // definition already committed. Both retries and restart use read-only queries.
+  if (sameApproval()) return;
   try {
     cli([
       "lifecycle",
@@ -557,48 +600,10 @@ async function main() {
       spec.endorsementPolicy,
     ]);
   } catch (error) {
-    // Lost responses and an unchanged pending definition can be reconciled
-    // locally. Verify both definition parameters and this org's package before
-    // treating a repeated approval as success; never hide an unrelated error.
+    // A lost response is successful only when the original approval can be read
+    // back with the exact definition, policy and local package.
     try {
-      const ready = JSON.parse(
-        cli(
-          [
-            "lifecycle",
-            "chaincode",
-            "checkcommitreadiness",
-            ...definition,
-            "--output",
-            "json",
-          ],
-          { stdio: "pipe", encoding: "utf8" },
-        ),
-      );
-      const approved = JSON.parse(
-        cli(
-          [
-            "lifecycle",
-            "chaincode",
-            "queryapproved",
-            "--channelID",
-            spec.channelId,
-            "--name",
-            spec.chaincodeName,
-            "--sequence",
-            String(spec.chaincodeSequence),
-            "--output",
-            "json",
-          ],
-          { stdio: "pipe", encoding: "utf8" },
-        ),
-      );
-      assert.equal((ready.Approvals ?? ready.approvals)?.[spec.mspId], true);
-      assert.equal(approved.version, spec.chaincodeVersion);
-      assert.equal(Number(approved.sequence), spec.chaincodeSequence);
-      assert.equal(approved.source?.Type?.LocalPackage?.package_id, packageId);
-      console.log(
-        "The same chaincode definition and package are already approved by this organization.",
-      );
+      if (!sameApproval()) throw error;
     } catch {
       throw error;
     }

@@ -378,7 +378,7 @@ sai scope/MSP không được phép trỏ sang một doanh nghiệp khác.
 
 ### Demo peer tự quản trên máy doanh nghiệp
 
-Cần Linux, Docker Engine, Node/npm theo README, `fabric-ca-client` và `peer` đúng
+Cần Linux, Docker Engine, Node/npm theo README, `fabric-ca-client`, `peer` và `configtxlator` đúng
 phiên bản pilot. Không cần Docker Compose. Hai host cần tuyến VPN/private IP hai
 chiều; chỉ mở peer/orderer trên tuyến đã review. Tên TLS/discovery của platform
 phải phân giải về platform trên máy và container doanh nghiệp. Đánh giá dung
@@ -431,7 +431,9 @@ thiểu đã được đo.
 
    Platform chạy `hybrid-network.sh commit-remote`. Mỗi bên dùng admin ở host của
    mình. `join` giữ hash block gốc; `install` giữ package ID. Chạy lại `approve`
-   chỉ thành công khi kiểm chứng đúng definition/policy và package đã được duyệt;
+   chỉ thành công khi đọc `queryapproved`/`querycommitted`, đối chiếu đúng version,
+   sequence, plugin, policy AND hai peer và package đã được duyệt. Retry definition
+   đã commit không dùng `checkcommitreadiness` dành cho sequence kế tiếp;
    lỗi không rõ kết quả không được xử lý bằng đổi spec hoặc tạo identity mới.
    Không chuyển thư mục `ca`, `crypto`, credentials hoặc keystore sang bên kia.
    Script không tự xóa dữ liệu khi lỗi. Backup/restore của split-host cần procedure
