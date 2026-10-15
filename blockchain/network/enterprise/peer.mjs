@@ -80,7 +80,9 @@ const inspect = (kind, name) => {
     )[0];
   } catch (error) {
     if (
-      /No such (?:object|container|network|volume)|network .+ not found/i.test(String(error.stderr))
+      /No such (?:object|container|network|volume)|network .+ not found/i.test(
+        String(error.stderr),
+      )
     )
       return null;
     throw error;
@@ -410,27 +412,49 @@ async function main() {
     owner,
     "Start the owned peer first",
   );
-  const cli = (args) =>
-    run("docker", [
-      "exec",
-      "-e",
-      `CORE_PEER_LOCALMSPID=${spec.mspId}`,
-      "-e",
-      "CORE_PEER_MSPCONFIGPATH=/admin",
-      "-e",
-      `CORE_PEER_ADDRESS=localhost:${spec.peerPort}`,
-      "-e",
-      `CORE_PEER_TLS_SERVERHOSTOVERRIDE=${spec.peerServerName}`,
-      peer,
-      "peer",
-      ...args,
-    ]);
+  const cli = (args, options = {}) =>
+    run(
+      "docker",
+      [
+        "exec",
+        "-e",
+        `CORE_PEER_LOCALMSPID=${spec.mspId}`,
+        "-e",
+        "CORE_PEER_MSPCONFIGPATH=/admin",
+        "-e",
+        `CORE_PEER_ADDRESS=localhost:${spec.peerPort}`,
+        "-e",
+        `CORE_PEER_TLS_SERVERHOSTOVERRIDE=${spec.peerServerName}`,
+        peer,
+        "peer",
+        ...args,
+      ],
+      options,
+    );
   if (operation === "join") {
     assert.ok(
       existsSync(path.join(root, "public/channel.block")),
       "Operator must provide the reviewed channel block",
     );
-    cli(["channel", "join", "-b", "/onboarding/channel.block"]);
+    const digest = createHash("sha256")
+      .update(readFileSync(path.join(root, "public/channel.block")))
+      .digest("hex");
+    const receipt = path.join(root, "channel-block.json");
+    if (existsSync(receipt))
+      assert.equal(
+        JSON.parse(readFileSync(receipt, "utf8")).digest,
+        digest,
+        "Refusing a different channel genesis block",
+      );
+    json(receipt, { digest });
+    let joined = false;
+    try {
+      cli(["channel", "getinfo", "-c", spec.channelId], { stdio: "pipe" });
+      joined = true;
+    } catch {
+      /* Same reviewed block may be retried after a lost join response. */
+    }
+    if (!joined) cli(["channel", "join", "-b", "/onboarding/channel.block"]);
     return;
   }
   if (operation === "install") {
@@ -452,7 +476,15 @@ async function main() {
         packageId,
         "Refusing a different chaincode package",
       );
-    cli(["lifecycle", "chaincode", "install", "/onboarding/chaincode.tgz"]);
+    const installed =
+      JSON.parse(
+        cli(["lifecycle", "chaincode", "queryinstalled", "--output", "json"], {
+          stdio: "pipe",
+          encoding: "utf8",
+        }),
+      ).installed_chaincodes ?? [];
+    if (!installed.some((item) => item.package_id === packageId))
+      cli(["lifecycle", "chaincode", "install", "/onboarding/chaincode.tgz"]);
     startContainer(
       `${spec.instance}-cc`,
       spec.chaincodeImage,

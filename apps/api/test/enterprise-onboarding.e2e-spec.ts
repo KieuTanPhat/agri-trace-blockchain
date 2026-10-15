@@ -72,7 +72,9 @@ const prisma = new PrismaClient({
       );
     beforeAll(async () => {
       process.env.ENTERPRISE_ONBOARDING_ENABLED = 'true';
-      throttleBypass = vi.spyOn(ThrottlerGuard.prototype, 'canActivate').mockResolvedValue(true);
+      throttleBypass = vi
+        .spyOn(ThrottlerGuard.prototype, 'canActivate')
+        .mockResolvedValue(true);
       for (const code of [
         'SYSTEM_ADMIN',
         'FARM_STAFF',
@@ -353,10 +355,13 @@ const prisma = new PrismaClient({
     it('rate limits public registration attempts with the actual global guard', async () => {
       throttleBypass.mockRestore();
       try {
-        for(let i=0;i<5;i++) await post('/auth/register',{}).expect(400);
-        await post('/auth/register',{}).expect(429);
+        for (let i = 0; i < 5; i++)
+          await post('/auth/register', {}).expect(400);
+        await post('/auth/register', {}).expect(429);
       } finally {
-        throttleBypass = vi.spyOn(ThrottlerGuard.prototype, 'canActivate').mockResolvedValue(true);
+        throttleBypass = vi
+          .spyOn(ThrottlerGuard.prototype, 'canActivate')
+          .mockResolvedValue(true);
       }
     });
   },

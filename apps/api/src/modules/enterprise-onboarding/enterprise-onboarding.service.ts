@@ -80,6 +80,13 @@ export async function registerEnterprise(
           type: input.organizationType,
         },
       });
+      // Legacy operator provisioning seeds a primary capability by SQL trigger.
+      // Public signup removes that new, still-uncommitted seed before the
+      // organization or any dependent records can become visible. Existing
+      // organizations/history and operator provisioning are unchanged.
+      await tx.organizationCapability.deleteMany({
+        where: { organizationId: organization.id },
+      });
       const user = await tx.user.create({
         data: {
           organizationId: organization.id,

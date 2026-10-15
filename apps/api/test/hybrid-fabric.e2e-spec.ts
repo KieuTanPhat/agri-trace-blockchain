@@ -16,7 +16,10 @@ import { BindingConnectionPool } from '../src/modules/ledger/binding-pool.js';
 import { BindingDeliveryService } from '../src/modules/ledger/binding-delivery.service.js';
 import { LedgerControlService } from '../src/modules/ledger/ledger-control.service.js';
 import { EnterpriseConnectionWorker } from '../src/modules/enterprise-onboarding/enterprise-connection.worker.js';
-import { AwaitingOwnerApproval, ExternalOwnerRegistryOperator } from '../src/modules/ledger/external-owner-operator.js';
+import {
+  AwaitingOwnerApproval,
+  ExternalOwnerRegistryOperator,
+} from '../src/modules/ledger/external-owner-operator.js';
 import {
   activateBinding,
   registerBinding,
@@ -244,41 +247,64 @@ interface World {
           profile: owner === 'org2' ? 'MANAGED_ORG' : 'SELF_MANAGED_ORG',
         }),
       );
-      const stagedController = owner === 'org3' ? await pilotClient('org1','controller',channel) : null;
-      const stagedAdmin = owner === 'org3' ? await pilotClient('org1','Admin',channel) : null;
-      const ownerAdmin = owner === 'org3' ? await pilotClient('org3','Admin',channel) : null;
-      const operator = stagedController && stagedAdmin
-        ? new ExternalOwnerRegistryOperator(stagedController.client,{Org1MSP:stagedAdmin.client},{channelId:channel,chaincodeName:CHAINCODE,contractName:CONTRACT,governanceDigest:health.governanceDigest})
-        : ledger.operator;
-      const onboarding = () => onboardBindingOnLedger({
-        operator,
-        reader: ledger.reader,
-        channelId: channel,
-        approvers: ledger.approvers,
-        binding: {
-          digest: registered.digest,
-          network: 'agritrace-hybrid-local',
-          chaincodeName: CHAINCODE,
-          contractName: CONTRACT,
-          chainRef: registered.chainRef,
-          writerAuthority: WRITER_AUTHORITY,
-          writerMspId: 'Org1MSP',
-          governanceDigest: health.governanceDigest,
-        },
-        relayerFingerprint: ledger.relayerFingerprint,
-      });
-      let stagedApprovals=0;
-      for(;;) {
-        try { await onboarding(); break; }
-        catch(error) {
-          if(!(error instanceof AwaitingOwnerApproval) || !ownerAdmin) throw error;
-          const review=error.review.proposal as {proposalId:string};
-          await ownerAdmin.client.invoke('ApproveRegistryChange',[review.proposalId]);
-          stagedApprovals+=1;
-          if(stagedApprovals>3) throw new Error('Onboarding did not resume the original proposals');
+      const stagedController =
+        owner === 'org3'
+          ? await pilotClient('org1', 'controller', channel)
+          : null;
+      const stagedAdmin =
+        owner === 'org3' ? await pilotClient('org1', 'Admin', channel) : null;
+      const ownerAdmin =
+        owner === 'org3' ? await pilotClient('org3', 'Admin', channel) : null;
+      const operator =
+        stagedController && stagedAdmin
+          ? new ExternalOwnerRegistryOperator(
+              stagedController.client,
+              { Org1MSP: stagedAdmin.client },
+              {
+                channelId: channel,
+                chaincodeName: CHAINCODE,
+                contractName: CONTRACT,
+                governanceDigest: health.governanceDigest,
+              },
+            )
+          : ledger.operator;
+      const onboarding = () =>
+        onboardBindingOnLedger({
+          operator,
+          reader: ledger.reader,
+          channelId: channel,
+          approvers: ledger.approvers,
+          binding: {
+            digest: registered.digest,
+            network: 'agritrace-hybrid-local',
+            chaincodeName: CHAINCODE,
+            contractName: CONTRACT,
+            chainRef: registered.chainRef,
+            writerAuthority: WRITER_AUTHORITY,
+            writerMspId: 'Org1MSP',
+            governanceDigest: health.governanceDigest,
+          },
+          relayerFingerprint: ledger.relayerFingerprint,
+        });
+      let stagedApprovals = 0;
+      for (;;) {
+        try {
+          await onboarding();
+          break;
+        } catch (error) {
+          if (!(error instanceof AwaitingOwnerApproval) || !ownerAdmin)
+            throw error;
+          const review = error.review.proposal as { proposalId: string };
+          await ownerAdmin.client.invoke('ApproveRegistryChange', [
+            review.proposalId,
+          ]);
+          stagedApprovals += 1;
+          if (stagedApprovals > 3)
+            throw new Error('Onboarding did not resume the original proposals');
         }
       }
-      if(owner==='org3') expect(stagedApprovals).toBe(health.channelPolicy ? 2 : 3);
+      if (owner === 'org3')
+        expect(stagedApprovals).toBe(health.channelPolicy ? 2 : 3);
       await prisma.$transaction((tx) =>
         mirrorCredential(tx, registered.digest, ledger.relayerFingerprint),
       );
@@ -503,6 +529,70 @@ interface World {
       } finally {
         client.prepare = original;
       }
+    }, 120_000);
+
+    it('connects a managed peer but refuses allocating its network MSP to another enterprise', async () => {
+      const inventory =
+        pool.environment.FABRIC_BINDINGS_CONFIG! + '.managed-enterprise';
+      const targets = [];
+      const ids: string[] = [];
+      for (const w of [worlds.b, worlds.signed]) {
+        const enrollment = await prisma.enterpriseEnrollment.create({
+          data: {
+            id: randomUUID(),
+            organizationId: w.orgs.farm,
+            ownerId: w.users.farm,
+            businessId: `MANAGED-${randomUUID().slice(0, 12)}`,
+            registrationDigest: 'b'.repeat(64),
+            hostingMode: 'MANAGED_ORG',
+            status: 'APPROVED',
+          },
+        });
+        const id = randomUUID();
+        ids.push(id);
+        await post(w, '/enterprise-connections', {
+          id,
+          chainId: w.chainId,
+        }).expect(201);
+        await prisma.enterpriseConnection.update({
+          where: { id },
+          data: { status: 'APPROVED', version: { increment: 1 } },
+        });
+        targets.push({
+          connectionId: id,
+          organizationId: enrollment.organizationId,
+          chainId: w.chainId,
+          bindingDigest: w.bindingDigest,
+          ownerMspId: 'Org2MSP',
+          peerEndpoint: `localhost:${9051 + Number(process.env.AGRI_FABRIC_PORT_OFFSET ?? 0)}`,
+          peerHostAlias: 'peer0.org2.example.com',
+          tlsCertPath: peerCa('org2'),
+        });
+      }
+      writeFileSync(inventory, JSON.stringify({ version: 1, targets }), {
+        mode: 0o600,
+      });
+      const worker = new EnterpriseConnectionWorker(service, pool);
+      worker.environment = {
+        ...pool.environment,
+        ENTERPRISE_ONBOARDING_ENABLED: 'true',
+        ENTERPRISE_CONNECTIONS_CONFIG: inventory,
+      };
+      await worker.processAll();
+      const first = await prisma.enterpriseConnection.findUniqueOrThrow({
+        where: { id: ids[0] },
+      });
+      const second = await prisma.enterpriseConnection.findUniqueOrThrow({
+        where: { id: ids[1] },
+      });
+      expect(first.status).toBe('CONNECTED');
+      expect(first.evidence).toMatchObject({
+        ownerMsp: 'Org2MSP',
+        organizationRef: worlds.b.orgs.farm,
+      });
+      expect(second.status).toBe('FAILED');
+      expect(second.errorCode).toBe('CONNECTION_MSP_ALREADY_ASSIGNED');
+      expect(second.txId).toBeNull();
     }, 120_000);
 
     it('confirms every granted permission on the ledger before it opens any write', async () => {
