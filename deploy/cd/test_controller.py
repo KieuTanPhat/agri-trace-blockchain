@@ -165,15 +165,28 @@ class DomainDelivery(unittest.TestCase):
                    'ownerArchiveSha256': 'a' * 64, 'ownerArchiveBytes': 1000, 'offVps': True, 'ledger': ledger,
                    'fingerprintsSha256': module.policy.sha256(json.dumps(baseline['fingerprints'], sort_keys=True, separators=(',', ':')).encode())}
         self.controller.peer_env = MagicMock(return_value=('/peer', {}))
-        self.controller.run = MagicMock(return_value=('Blockchain info: ' + json.dumps(ledger)).encode())
+        def query(label, arguments, **kwargs):
+            if label == 'external-backup-ledger-height':
+                self.assertEqual(arguments[:7], ['/peer', 'chaincode', 'query', '-C', 'hybrid-self', '-n', 'qscc'])
+                self.assertEqual(json.loads(arguments[8]), {'Args': ['GetChainInfo', 'hybrid-self']})
+                self.assertEqual(arguments[9], '--hex')
+                self.assertEqual(kwargs['env']['CORE_PEER_ADDRESS'], '10.77.0.2:11051')
+                return b'0819\n'
+            self.assertEqual(arguments, ['/configtxlator', 'proto_decode', '--type', 'common.BlockchainInfo'])
+            self.assertEqual(kwargs['data'], b'\x08\x19')
+            return json.dumps(dict(ledger, height=str(ledger['height']), bootstrappingSnapshotInfo=None)).encode()
+        self.controller.run = MagicMock(side_effect=query)
         filename.write_text(json.dumps(receipt))
         self.controller.external_backup_preflight(SHA_B, baseline)
         with self.assertRaisesRegex(PolicyError, 'candidate'):
             self.controller.external_backup_preflight('c' * 40, baseline)
         with self.assertRaisesRegex(PolicyError, 'frozen'):
             self.controller.external_backup_preflight(SHA_B, dict(baseline, fingerprints={}))
-        self.controller.run.return_value = json.dumps(dict(ledger, height=26)).encode()
+        ledger['height'] = 26
         with self.assertRaisesRegex(PolicyError, 'advanced'):
+            self.controller.external_backup_preflight(SHA_B, baseline)
+        self.controller.run.side_effect = PolicyError('remote unavailable')
+        with self.assertRaisesRegex(PolicyError, 'remote unavailable'):
             self.controller.external_backup_preflight(SHA_B, baseline)
 
     def test_snapshot_catalogs_hosted_ledger_and_private_state_only(self):

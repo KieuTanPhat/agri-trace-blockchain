@@ -468,9 +468,16 @@ class Controller:
         binary, environment = self.peer_env(1)
         environment.update(CORE_PEER_ADDRESS=owner["endpoint"], CORE_PEER_TLS_ROOTCERT_FILE=owner["tls_ca"],
                            CORE_PEER_TLS_SERVERHOSTOVERRIDE=owner["hostname"])
-        output = self.run("external-backup-ledger-height", [binary, "channel", "getinfo", "-c", owner["channel"]], env=environment)
-        message = output.decode()
-        height = json.loads(message[message.index("{"):])
+        # channel getinfo creates a channel-less proposal and authenticates with
+        # the target peer's local MSP. An Org1 operator must query the Org3 peer
+        # through QSCC with the actual channel, using its channel Readers policy.
+        output = self.run("external-backup-ledger-height", [binary, "chaincode", "query", "-C", owner["channel"],
+                          "-n", "qscc", "-c", json.dumps({"Args": ["GetChainInfo", owner["channel"]]}), "--hex"], env=environment)
+        decoded = json.loads(self.run("external-backup-ledger-decode", [str(Path(binary).with_name("configtxlator")),
+                             "proto_decode", "--type", "common.BlockchainInfo"], data=bytes.fromhex(output.decode().strip())))
+        require(not decoded.get("bootstrappingSnapshotInfo"), "External peer snapshot bootstrap is not supported by this checkpoint")
+        height = {"height": int(decoded["height"]), "currentBlockHash": decoded.get("currentBlockHash", ""),
+                  "previousBlockHash": decoded.get("previousBlockHash", "")}
         require(receipt.get("ledger") == height, "External peer advanced after its recovery archive; create a coordinated backup")
 
 

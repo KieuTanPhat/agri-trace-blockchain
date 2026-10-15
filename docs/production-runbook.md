@@ -170,7 +170,11 @@ mã hóa rồi tải khỏi VPS. Khóa giải mã ở ngoài hai VPS. Controller
 nếu `external_backup_receipt` không trỏ tới receipt private protocol
 `agritrace-coordinated-backup/1` đúng candidate SHA/MSP, archive doanh nghiệp,
 fingerprint baseline và block hiện tại. Nó không có SSH key để tự sao lưu máy
-doanh nghiệp. Khôi phục cách ly và khôi phục peer thật phải giữ cùng khóa,
+doanh nghiệp. Đọc block của peer Org3 bằng QSCC `GetChainInfo` với channel
+`hybrid-self` trong proposal, xác thực TLS bằng public CA và ký bằng operator
+Org1. `peer channel getinfo` tạo proposal không có channel nên chỉ dùng với peer
+cùng MSP; không chuyển khóa Org3 sang platform để vượt giới hạn đó.
+Khôi phục cách ly và khôi phục peer thật phải giữ cùng khóa,
 installation, genesis, txId/proof; không restore database riêng sau ledger commit.
 
 Đo tài nguyên cả host và container cùng thời gian/tải, gồm CPU, peak RAM, đĩa,
