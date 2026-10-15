@@ -4,6 +4,17 @@ Phạm vi bắt đầu ngày 15/10/2026 theo yêu cầu chủ dự án. Nền t�
 `7c8e985` và bản sửa commitment c2. Đây là kế hoạch phát triển, không phải biên bản
 nghiệm thu hoặc tuyên bố đã triển khai production.
 
+Kế hoạch có một mục tiêu triển khai: doanh nghiệp tự đăng ký, chọn peer được quản
+lý hoặc tự vận hành, rồi được kết nối sau xét duyệt và kiểm chứng Fabric. Tên
+“v1” chỉ phạm vi hiện tại có bước operator chuẩn bị hạ tầng; không xác định thêm
+bản v2/v3 hoặc cho phép dừng trước các mục acceptance bên dưới.
+
+Các bước là xây dựng và kiểm thử cách ly, nghiệm thu hai VPS thật và tài nguyên,
+sau đó review/triển khai production. Thiếu VPS doanh nghiệp chỉ để ngỏ những
+kiểm chứng cần host đó; phần source, CI, recovery và chuẩn bị vận hành vẫn tiếp
+tục. Tự mua VPS, billing và mở rộng tùy ý số tổ chức là các nhu cầu mở rộng riêng,
+không phải điều kiện để hoàn thành luồng đã yêu cầu.
+
 ## Luồng v1
 
 1. Doanh nghiệp đăng ký người đại diện, mã doanh nghiệp, hoạt động chính và chọn

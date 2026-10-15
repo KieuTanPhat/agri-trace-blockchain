@@ -460,6 +460,14 @@ thiểu đã được đo.
    restart, lost-response và tài nguyên tại tải demo trước khi kết luận về VPS.
    Kiểm thử Docker cùng máy không thay thế mục nghiệm thu qua hai VPS thật.
 
+`npm run test:hybrid:browser` kiểm thêm luồng Web đăng ký → duyệt doanh nghiệp →
+tạo chuỗi → yêu cầu peer → duyệt → Worker probe trên Fabric thật, cho cả managed
+và self-managed, tại chiều rộng desktop/mobile. Đăng ký mất phản hồi phải retry
+đúng nội dung/UUID, không lưu mật khẩu vào browser storage; admin duyệt chưa đủ
+để báo CONNECTED. Có thể kiểm riêng luồng này bằng
+`node scripts/ci/hybrid-browser.mjs --enterprise-only`; receipt ghi suite riêng,
+không thay acceptance bàn giao hoặc nghiệm thu hai VPS.
+
 CI chạy `node scripts/ci/enterprise-peer.mjs` sau `hybrid-fabric.mjs` (hoặc
 `npm run test:enterprise:peer` khi đã có image/tooling của cùng SHA). Bài kiểm tra
 dùng hai Docker network, relay chỉ bind trên Docker host bridge và các root,
