@@ -185,7 +185,7 @@ describe("AgriTraceContract", () => {
       status: "OK",
       envelopeVersion: "3.0.0",
       supportedReadVersions: ["2.0.0", "3.0.0"],
-      supportedWriteVersions: ["3.0.0", "4.0.0", "5.0.0"],
+      supportedWriteVersions: ["3.0.0", "4.0.0", "6.0.0"],
       registryProtocol: "agritrace-governance/1",
       callerRole: "relayer",
     });

@@ -99,6 +99,27 @@ Chỉ merge PR đổi controller sau khi bước cập nhật hoàn tất; bản
 
 ## Recovery, tài nguyên và bàn giao
 
+### Nâng giao thức chữ ký c1 lên c2
+
+Bản sửa ràng buộc nội dung dùng intent protocol 2, envelope 6.0.0 / private hash
+5.0.0. Review migration append-only `20261019000000_signed_content_commitment`
+và checksum theo quy trình hiện hành. Giữ writers đóng khi nâng chaincode, API,
+Worker và Web; kiểm HealthCheck có write version 6.0.0 trước khi mở lại. Worker
+từ chối writer chỉ hỗ trợ c1. Khóa Ed25519/PoP và binding không đổi.
+
+Trước rollout, kiểm kê intent c1 PENDING, outbox c1 và delivery attempts. Intent
+chưa gửi cần chuẩn bị lại; command đã gửi/kết quả chưa rõ phải giữ original key,
+đối soát proof/attempt/fence. Worker có thể xác nhận proof c1 đã commit và khớp
+toàn bộ bằng chứng; c1 chưa commit sau đối soát dừng ở dead letter, cần rà soát.
+Không rehash, sửa payload/chữ ký lịch sử hoặc tự gửi lại bằng event/key mới.
+Kiểm bằng chứng lịch sử không còn khớp nội dung và xử lý theo quy trình reconcile.
+
+Smoke bản mới phải gồm đổi quantity nhưng giữ chữ ký, tính lại commitment, thử
+ghi c1 và ghi B không chữ ký cho handover: tất cả phải bị từ chối. Một bàn giao
+offer/confirm đúng phải có proof c2 trùng payloadDigest/metadataDigest và VALID.
+
+### Recovery thông thường
+
 Lỗi giữ writers đóng/dừng, journal, DB/outbox/ledger và original command keys.
 `recover` lần đầu tiếp tục đúng candidate; không reset DB, giả verified release
 cũ hoặc tự resolve migration chưa hoàn tất. `hybrid-floor.json` chặn image thiếu

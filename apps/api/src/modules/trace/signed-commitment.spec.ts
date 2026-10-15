@@ -112,7 +112,7 @@ describe('Release C commitments (API side)', () => {
   });
 
   const body = (): IntentBody => ({
-    protocol: 'agritrace-intent/1',
+    protocol: 'agritrace-intent/2',
     intentId: u(30),
     chainRef: u(3),
     bindingDigest: BINDING,
@@ -126,7 +126,7 @@ describe('Release C commitments (API side)', () => {
     expectedVersion: '3',
     payloadDigest: payloadDigest({ handoverId: u(40), quantity: '100.000' }),
     notAfter: '2026-10-14T00:00:00.000Z',
-    policyVersion: '1',
+    policyVersion: '2',
   });
 
   it('digests intents deterministically, independent of key order', () => {
@@ -139,6 +139,24 @@ describe('Release C commitments (API side)', () => {
     );
   });
 
+  it('matches the c2 browser digest and deterministic signature vector', () => {
+    const payload = {
+      handoverId: u(40),
+      quantity: '100.000',
+      note: 'Giao hàng — đợt 1',
+    };
+    const intent = { ...body(), payloadDigest: payloadDigest(payload) };
+    expect(intent.payloadDigest).toBe(
+      'bb162cdfcf06c790a480bea75cecb65e2de9f22afb6f24e45a0e5098d14f151d',
+    );
+    expect(intentDigest(intent)).toBe(
+      'b9af2d5efa90e27b67d036cb0faae7745aae79502d9c0d4f2bc15ea03a026867',
+    );
+    expect(signer.signIntent(intent)).toBe(
+      'e-EvWQotO9C2xU2kf4kKG0O9q1s6-JZccjdK9v3yEZoMsg_Jr2hnhFR6m8o7NGQgBeCzXw1ZUmcccfqxbGd3CQ',
+    );
+  });
+
   it('rejects malformed intents so nothing odd is ever signed', () => {
     const bad = (patch: Partial<IntentBody>) =>
       expect(() => intentDigest({ ...body(), ...patch })).toThrow();
@@ -147,7 +165,7 @@ describe('Release C commitments (API side)', () => {
     bad({ notAfter: '2026-10-14T00:00:00Z' });
     bad({ entityId: 'not-a-uuid' });
     bad({ payloadDigest: 'zz' });
-    bad({ protocol: 'agritrace-intent/2' as never });
+    bad({ protocol: 'agritrace-intent/9' as never });
     expect(() =>
       intentDigest({ ...body(), extra: 'x' } as unknown as IntentBody),
     ).toThrow();

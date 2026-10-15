@@ -15,6 +15,7 @@ import {
   keyPopMessage,
   parseEd25519PublicKey,
   signedBindingEventCommitment,
+  signedPrivateBodyDigest,
   verifyEd25519,
   type SignatureAssertion,
   type SignedBindingEventInput,
@@ -82,6 +83,7 @@ function signedEvent(
   const signer = options.signer ?? SIGNER;
   const keyRef = options.keyRef ?? KEY_REF;
   const intentDigest = options.intentDigest ?? INTENT;
+  const payloadDigest = sha256('business quantity 100.000');
   const basis = {
     eventId: u(1),
     entityType: "SHIPMENT",
@@ -96,6 +98,7 @@ function signedEvent(
     algorithm: "Ed25519" as const,
     keyRef,
     intentDigest,
+    payloadDigest,
     signature: signer.sign(
       intentSignedMessage({
         intentDigest,
@@ -106,6 +109,7 @@ function signedEvent(
         eventType: basis.eventType,
         bindingDigest: basis.bindingDigest,
         keyRef,
+        payloadDigest,
       }),
     ),
   };
@@ -127,9 +131,10 @@ function signedEvent(
     chainRef: u(3),
     permissions: [{ permissionRef: u(5), epoch: "1", ordinal: "1" }],
     dataHash: "",
-    signature: { keyRef, intentDigest, assertionDigest: assertionDigest(assertionBase) },
+    signature: { keyRef, intentDigest, assertionDigest: assertionDigest(assertionBase), payloadDigest, metadataDigest: "cd".repeat(32) },
     ...overrides,
   };
+  base.privateBodyDigest = signedPrivateBodyDigest(base.signature);
   if (overrides.eventId && !overrides.nonce) base.nonce = overrides.eventId;
   const event = { ...base, dataHash: signedBindingEventCommitment(base) };
   return { event, assertion: assertionBase };
@@ -172,8 +177,8 @@ export function designSignedEvent() {
     ),
   };
   const base: SignedBindingEventInput = {
-    envelopeVersion: C_ENVELOPE_VERSION,
-    schemaVersion: C_SCHEMA_VERSION,
+    envelopeVersion: "5.0.0",
+    schemaVersion: "4.0.0",
     canonicalizationVersion: "RFC8785",
     eventId: u(1),
     nonce: u(1),
@@ -324,6 +329,8 @@ describe("RecordSignedBindingEvent", () => {
       keyRef: KEY_REF,
       intentDigest: INTENT,
       assertionDigest: built.event.signature.assertionDigest,
+      payloadDigest: built.event.signature.payloadDigest,
+      metadataDigest: built.event.signature.metadataDigest,
       orgRef: ORG_REF,
     });
     const stored = JSON.parse(await net.contract.QueryBindingEvent(net.ctx("relayer"), u(3), u(1)));
@@ -398,9 +405,21 @@ describe("RecordSignedBindingEvent", () => {
     await expect(
       tamper(built.event, { ...built.assertion, signature: forged.toString("base64url") }),
     ).rejects.toThrow("SIGNATURE_INVALID");
-    // A different privateBodyDigest is covered by dataHash, not by the signature.
+    // Rehashing the public envelope cannot authorize an arbitrary private body.
     const privateSwap = { ...built.event, privateBodyDigest: "ee".repeat(32) };
-    await expect(tamper({ ...privateSwap, dataHash: built.event.dataHash })).rejects.toThrow("INVALID_INPUT");
+    await expect(tamper({ ...privateSwap, dataHash: signedBindingEventCommitment(privateSwap) })).rejects.toThrow("INVALID_INPUT");
+    // Recompute all content hashes and assertion refs, but retain the signature.
+    const changedAssertion = { ...built.assertion, payloadDigest: sha256('business quantity 999.000') };
+    const changedSignature = { ...built.event.signature, payloadDigest: changedAssertion.payloadDigest, assertionDigest: assertionDigest(changedAssertion) };
+    const changed = { ...built.event, signature: changedSignature, privateBodyDigest: signedPrivateBodyDigest(changedSignature) };
+    await expect(tamper({ ...changed, dataHash: signedBindingEventCommitment(changed) }, changedAssertion)).rejects.toThrow("SIGNATURE_INVALID");
+  });
+
+  it('disables legacy c1 writes while preserving their commitment vectors', async () => {
+    const net = await readySigningNetwork();
+    await registerKey(net);
+    const built = signedEvent({ envelopeVersion: '5.0.0', schemaVersion: '4.0.0' });
+    await expect(recordSigned(net, built)).rejects.toThrow('INVALID_INPUT');
   });
 
   it("rejects unregistered and revoked keys, even for events signed earlier (no backdating)", async () => {

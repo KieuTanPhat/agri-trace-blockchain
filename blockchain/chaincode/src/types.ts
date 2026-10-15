@@ -174,7 +174,7 @@ export interface HealthResult {
   schemaVersion: typeof SCHEMA_VERSION;
   envelopeVersion: typeof ENVELOPE_VERSION;
   supportedReadVersions: readonly ["2.0.0", "3.0.0"];
-  supportedWriteVersions: readonly ["3.0.0", "4.0.0", "5.0.0"];
+  supportedWriteVersions: readonly ["3.0.0", "4.0.0", "6.0.0"];
   signingProtocol: "agritrace-signing/1";
   registryProtocol: "agritrace-governance/1";
   governanceDigest: string;

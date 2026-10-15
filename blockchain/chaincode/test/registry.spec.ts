@@ -308,7 +308,7 @@ describe("RecordBindingEvent", () => {
     const net = await readyNetwork();
     const health = JSON.parse(await net.contract.HealthCheck(net.ctx("relayer")));
     expect(health).toMatchObject({
-      supportedWriteVersions: ["3.0.0", "4.0.0", "5.0.0"],
+      supportedWriteVersions: ["3.0.0", "4.0.0", "6.0.0"],
       governanceDigest: GOVERNANCE_DIGEST,
       callerRole: "relayer",
       channelPolicy: { strictB: true, allowLegacyV3Writes: false },

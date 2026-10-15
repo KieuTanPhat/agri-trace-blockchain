@@ -23,7 +23,7 @@ const BINDING = 'ab'.repeat(32);
 function prepared(keyRef: string, now = Date.now()): PreparedIntentInput {
   const payload = { handoverId: u(40), quantity: '2.000' };
   const intent: IntentBody = {
-    protocol: 'agritrace-intent/1',
+    protocol: 'agritrace-intent/2',
     intentId: u(30),
     chainRef: u(3),
     bindingDigest: BINDING,
@@ -37,7 +37,7 @@ function prepared(keyRef: string, now = Date.now()): PreparedIntentInput {
     expectedVersion: '0',
     payloadDigest: payloadDigest(payload),
     notAfter: new Date(now + 60_000).toISOString(),
-    policyVersion: '1',
+    policyVersion: '2',
   };
   return {
     intentId: intent.intentId,
@@ -119,16 +119,34 @@ describe('Reference organization signer', () => {
     const request = prepared(u(20));
     const intent = { ...request.intent, notAfter: 'invalid-date' };
     expect(() =>
-      signPreparedIntent(privatePem, { ...request, intent, expiresAt: intent.notAfter }),
+      signPreparedIntent(privatePem, {
+        ...request,
+        intent,
+        expiresAt: intent.notAfter,
+      }),
     ).toThrow(SignerRefusal);
   });
   it('checks independently reviewed chain, binding, organization, key, entity and operation', () => {
     const { privatePem } = generateSignerKey();
     const request = prepared(u(20));
-    const expected = { chainRef: request.intent.chainRef, bindingDigest: BINDING, signerOrgRef: u(21),
-      keyRef: u(20), entityType: 'SHIPMENT', entityId: u(2), operation: 'HANDOVER_OFFER' };
-    expect(signPreparedIntent(privatePem, request, Date.now(), expected).signature).toBeTruthy();
+    const expected = {
+      chainRef: request.intent.chainRef,
+      bindingDigest: BINDING,
+      signerOrgRef: u(21),
+      keyRef: u(20),
+      entityType: 'SHIPMENT',
+      entityId: u(2),
+      operation: 'HANDOVER_OFFER',
+    };
+    expect(
+      signPreparedIntent(privatePem, request, Date.now(), expected).signature,
+    ).toBeTruthy();
     for (const field of Object.keys(expected))
-      expect(() => signPreparedIntent(privatePem, request, Date.now(), { ...expected, [field]: 'another-context' })).toThrow('reviewed context');
+      expect(() =>
+        signPreparedIntent(privatePem, request, Date.now(), {
+          ...expected,
+          [field]: 'another-context',
+        }),
+      ).toThrow('reviewed context');
   });
 });

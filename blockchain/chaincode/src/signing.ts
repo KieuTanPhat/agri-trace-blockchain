@@ -15,8 +15,8 @@ import { contractError } from "./errors";
 
 /** Release C protocol constants. The API encoder must match byte for byte;
  * test/signing.spec.ts and apps/api binding-commitment.spec.ts share vectors. */
-export const C_ENVELOPE_VERSION = "5.0.0";
-export const C_SCHEMA_VERSION = "4.0.0";
+export const C_ENVELOPE_VERSION = "6.0.0";
+export const C_SCHEMA_VERSION = "5.0.0";
 export const SIGNED_EVENT_DOMAIN = "agritrace:binding-event:c1";
 export const INTENT_SIGNATURE_DOMAIN = "agritrace:intent-signature:c1";
 export const KEY_POP_DOMAIN = "agritrace:signing-key-pop:c1";
@@ -37,6 +37,8 @@ export interface EventSignature {
   keyRef: string;
   intentDigest: string;
   assertionDigest: string;
+  payloadDigest?: string;
+  metadataDigest?: string;
 }
 
 export interface SignedBindingEventInput extends BindingEventInput {
@@ -48,6 +50,7 @@ export interface SignatureAssertion {
   keyRef: string;
   intentDigest: string;
   signature: string;
+  payloadDigest?: string;
 }
 
 function b64url(value: unknown, label: string, bytes?: number): Buffer {
@@ -114,6 +117,7 @@ export interface IntentSignedFields {
   eventType: string;
   bindingDigest: string;
   keyRef: string;
+  payloadDigest?: string;
 }
 
 /** What the organization key signs. It repeats the public identity of the
@@ -121,7 +125,7 @@ export interface IntentSignedFields {
  * binding or key even though the ledger never sees the private intent. */
 export function intentSignedMessage(fields: IntentSignedFields): Buffer {
   return bytesWithDomain(
-    INTENT_SIGNATURE_DOMAIN,
+    fields.payloadDigest === undefined ? INTENT_SIGNATURE_DOMAIN : "agritrace:intent-signature:c2",
     canonicalize({
       intentDigest: fields.intentDigest,
       chainRef: fields.chainRef,
@@ -131,6 +135,7 @@ export function intentSignedMessage(fields: IntentSignedFields): Buffer {
       eventType: fields.eventType,
       bindingDigest: fields.bindingDigest,
       keyRef: fields.keyRef,
+      ...(fields.payloadDigest === undefined ? {} : { payloadDigest: fields.payloadDigest }),
     }),
   );
 }
@@ -139,12 +144,13 @@ export function assertionDigest(assertion: SignatureAssertion): string {
   return createHash("sha256")
     .update(
       bytesWithDomain(
-        ASSERTION_DOMAIN,
+        assertion.payloadDigest === undefined ? ASSERTION_DOMAIN : "agritrace:signature-assertion:c2",
         canonicalize({
           algorithm: assertion.algorithm,
           keyRef: assertion.keyRef,
           intentDigest: assertion.intentDigest,
           signature: assertion.signature,
+          ...(assertion.payloadDigest === undefined ? {} : { payloadDigest: assertion.payloadDigest }),
         }),
       ),
     )
@@ -157,7 +163,7 @@ export function signedEventBody(event: SignedBindingEventInput) {
 
 export function signedBindingEventCommitment(event: SignedBindingEventInput): string {
   return createHash("sha256")
-    .update(bytesWithDomain(SIGNED_EVENT_DOMAIN, canonicalize(signedEventBody(event))))
+    .update(bytesWithDomain(event.envelopeVersion === C_ENVELOPE_VERSION ? "agritrace:binding-event:c2" : SIGNED_EVENT_DOMAIN, canonicalize(signedEventBody(event))))
     .digest("hex");
 }
 
@@ -192,20 +198,22 @@ export function parseSignedBindingEvent(json: string): SignedBindingEventInput {
   if (typeof signature !== "object" || signature === null || Array.isArray(signature))
     throw contractError("INVALID_INPUT", "signature must be an object");
   const sig = signature as Record<string, unknown>;
-  requireExactKeys(sig, ["keyRef", "intentDigest", "assertionDigest"], "signature");
+  requireExactKeys(sig, ["keyRef", "intentDigest", "assertionDigest", "payloadDigest", "metadataDigest"], "signature");
   return {
     ...body,
     signature: {
       keyRef: requireUuid(sig.keyRef, "signature.keyRef"),
       intentDigest: requireHash(sig.intentDigest, "signature.intentDigest"),
       assertionDigest: requireHash(sig.assertionDigest, "signature.assertionDigest"),
+      payloadDigest: requireHash(sig.payloadDigest, "signature.payloadDigest"),
+      metadataDigest: requireHash(sig.metadataDigest, "signature.metadataDigest"),
     },
   };
 }
 
 export function parseSignatureAssertion(json: string): SignatureAssertion {
   const input = parseStrictJson(json, "SignatureAssertion");
-  requireExactKeys(input, ["algorithm", "keyRef", "intentDigest", "signature"], "SignatureAssertion");
+  requireExactKeys(input, ["algorithm", "keyRef", "intentDigest", "signature", "payloadDigest"], "SignatureAssertion");
   if (input.algorithm !== "Ed25519")
     throw contractError("INVALID_INPUT", "algorithm must be Ed25519");
   b64url(input.signature, "signature", 64);
@@ -214,7 +222,19 @@ export function parseSignatureAssertion(json: string): SignatureAssertion {
     keyRef: requireUuid(input.keyRef, "keyRef"),
     intentDigest: requireHash(input.intentDigest, "intentDigest"),
     signature: input.signature as string,
+    payloadDigest: requireHash(input.payloadDigest, "payloadDigest"),
   };
+}
+
+/** Rebuild the private commitment from the signed content and audit metadata.
+ * A relayer cannot attach an arbitrary private digest to a valid signature. */
+export function signedPrivateBodyDigest(parts: EventSignature): string {
+  const body = {
+    payloadDigest: requireHash(parts.payloadDigest, "payloadDigest"),
+    metadataDigest: requireHash(parts.metadataDigest, "metadataDigest"),
+    assertionDigest: requireHash(parts.assertionDigest, "assertionDigest"),
+  };
+  return createHash("sha256").update(bytesWithDomain("agritrace:private-body:c2", canonicalize(body))).digest("hex");
 }
 
 /** Validates the registration payload fields shared by proposal and execution. */

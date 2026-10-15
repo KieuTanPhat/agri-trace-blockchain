@@ -34,7 +34,7 @@ import { createHash, generateKeyPairSync, sign as edSign } from "node:crypto";
 
 // The chaincode package is CommonJS; read its encoders through the default export.
 const { bindingDigest, bindingEventCommitment } = chaincodeBinding as unknown as typeof import("../../../chaincode/src/binding.ts");
-const { assertionDigest, intentSignedMessage, keyPopMessage, signedBindingEventCommitment } =
+const { assertionDigest, intentSignedMessage, keyPopMessage, signedBindingEventCommitment, signedPrivateBodyDigest } =
   chaincodeSigning as unknown as typeof import("../../../chaincode/src/signing.ts");
 
 const ROOT = process.env.FABRIC_ROOT ?? path.join(homedir(), 'agritrace-fabric');
@@ -228,6 +228,7 @@ function signedEventFor(
   ordinal += 1;
   const signedFields = {
     intentDigest,
+    payloadDigest: createHash("sha256").update("quantity:100.000").digest("hex"),
     chainRef: binding.tuple.chainRef,
     eventId,
     entityType: "SHIPMENT",
@@ -241,17 +242,19 @@ function signedEventFor(
     algorithm: "Ed25519",
     keyRef,
     intentDigest,
+    payloadDigest: signedFields.payloadDigest,
     signature: signer.sign(intentSignedMessage(signedFields)),
   };
   const base: SignedBindingEventInput = {
-    envelopeVersion: "5.0.0", schemaVersion: "4.0.0", canonicalizationVersion: "RFC8785",
+    envelopeVersion: "6.0.0", schemaVersion: "5.0.0", canonicalizationVersion: "RFC8785",
     eventId, nonce: eventId, entityType: "SHIPMENT", entityId, cycleId: null, lotId: null,
     eventType: "HANDOVER_OFFERED", eventTime: new Date().toISOString(), previousEventHash: null,
     privateBodyDigest: "ab".repeat(32), bindingDigest: binding.digest, chainRef: binding.tuple.chainRef,
     permissions: [{ permissionRef: binding.permissionRef, epoch: "1", ordinal: String(ordinal) }],
     dataHash: "",
-    signature: { keyRef, intentDigest, assertionDigest: assertionDigest(assertion) },
+    signature: { keyRef, intentDigest, assertionDigest: assertionDigest(assertion), payloadDigest: signedFields.payloadDigest, metadataDigest: "ab".repeat(32) },
   };
+  base.privateBodyDigest = signedPrivateBodyDigest(base.signature);
   return { event: { ...base, dataHash: signedBindingEventCommitment(base) }, assertion };
 }
 
@@ -333,6 +336,12 @@ async function releaseC(b: Channel, s: Channel) {
     const other = newSigner();
     const forged = signedEventFor(bind, other, keyRef);
     expectChaincode(await failure(() => sendSigned(b, forged)), "SIGNATURE_INVALID");
+    const changedAssertion = { ...built.assertion, payloadDigest: createHash("sha256").update("quantity:999.000").digest("hex") };
+    const changedSignature = { ...built.event.signature, payloadDigest: changedAssertion.payloadDigest, assertionDigest: assertionDigest(changedAssertion) };
+    const changed = { ...built.event, signature: changedSignature, privateBodyDigest: signedPrivateBodyDigest(changedSignature) };
+    expectChaincode(await failure(() => sendSigned(b, { assertion: changedAssertion, event: { ...changed, dataHash: signedBindingEventCommitment(changed) } })), "SIGNATURE_INVALID");
+    const legacy = { ...built.event, envelopeVersion: "5.0.0", schemaVersion: "4.0.0" };
+    expectChaincode(await failure(() => sendSigned(b, { ...built, event: { ...legacy, dataHash: signedBindingEventCommitment(legacy) } })), "INVALID_INPUT");
   });
   await check("AC-14", "an intent signed twice for two events can authorize only one (replay)", async () => {
     const intentDigest = createHash("sha256").update("shared-intent").digest("hex");

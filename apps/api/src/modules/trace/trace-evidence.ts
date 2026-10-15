@@ -1,3 +1,4 @@
+import { canonicalize } from 'json-canonicalize';
 import {
   bindingEventCommitment,
   privateBodyDigest,
@@ -7,10 +8,16 @@ import {
 import {
   assertionDigest,
   C_SCHEMA_VERSION,
+  LEGACY_C_SCHEMA_VERSION,
+  INTENT_PROTOCOL,
+  LEGACY_INTENT_PROTOCOL,
   intentDigest,
   payloadDigest,
   signedBindingEventCommitment,
   signedMessageForIntent,
+  signedBusinessPayload,
+  signedMetadataDigest,
+  signedPrivateBodyDigest,
   verifyEd25519,
   type IntentBody,
   type IntentPayload,
@@ -109,7 +116,9 @@ export function privateTraceEvidenceMatches(event: EvidenceEvent): boolean {
         ) === event.dataHash
       );
     }
-    if (event.schemaVersion === C_SCHEMA_VERSION)
+    if (
+      [C_SCHEMA_VERSION, LEGACY_C_SCHEMA_VERSION].includes(event.schemaVersion)
+    )
       return signedEvidenceMatches(event);
     return false;
   } catch {
@@ -126,11 +135,17 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 function signedEvidenceMatches(event: EvidenceEvent): boolean {
   const context = event.bindingContext;
   const stored = context?.event?.actorSignature;
-  if (!context || !stored || context.commitmentVersion !== 'c1') return false;
-  if (privateBodyDigest(event) !== context.privateBodyDigest) return false;
+  const c2 = event.schemaVersion === C_SCHEMA_VERSION;
+  if (!context || !stored || context.commitmentVersion !== (c2 ? 'c2' : 'c1'))
+    return false;
   const data = event.businessData;
   if (!isRecord(data) || !isRecord(data.actorSignature)) return false;
   const embedded = data.actorSignature;
+  if (
+    Object.keys(embedded).sort().join(',') !==
+    'assertion,intent,payload,signerOrgId'
+  )
+    return false;
   if (!isRecord(embedded.intent) || !isRecord(embedded.payload)) return false;
   const intent = embedded.intent as unknown as IntentBody;
   const payload = embedded.payload as IntentPayload;
@@ -139,13 +154,20 @@ function signedEvidenceMatches(event: EvidenceEvent): boolean {
     keyRef: stored.keyRef,
     intentDigest: stored.intentDigest,
     signature: stored.signature,
+    ...(c2 ? { payloadDigest: intent.payloadDigest } : {}),
   };
   // 1. The embedded intent is the one that was digested and signed, and it
   //    names this very event, entity, chain, binding and key.
   if (
     stored.algorithm !== 'Ed25519' ||
+    intent.protocol !== (c2 ? INTENT_PROTOCOL : LEGACY_INTENT_PROTOCOL) ||
     intentDigest(intent) !== stored.intentDigest ||
-    payloadDigest(payload) !== intent.payloadDigest ||
+    payloadDigest(payload, intent.protocol) !== intent.payloadDigest ||
+    canonicalize(signedBusinessPayload(data)) !== canonicalize(payload) ||
+    canonicalize(embedded.assertion) !== canonicalize(assertion) ||
+    embedded.signerOrgId !== stored.key.organizationId ||
+    event.actorOrganizationId !== stored.key.organizationId ||
+    assertionDigest(assertion) !== stored.assertionDigest ||
     intent.eventId !== event.id ||
     intent.entityType !== event.entityType ||
     intent.entityId !== event.entityId ||
@@ -154,6 +176,18 @@ function signedEvidenceMatches(event: EvidenceEvent): boolean {
     intent.chainRef !== context.binding.chainRef ||
     intent.keyRef !== stored.keyRef ||
     intent.signerOrgRef !== stored.key.organizationId
+  )
+    return false;
+  const content = c2
+    ? {
+        payloadDigest: intent.payloadDigest,
+        metadataDigest: signedMetadataDigest(event),
+        assertionDigest: stored.assertionDigest,
+      }
+    : null;
+  if (
+    (content ? signedPrivateBodyDigest(content) : privateBodyDigest(event)) !==
+    context.privateBodyDigest
   )
     return false;
   // 2. The signature verifies for the registered key over that exact intent.
@@ -191,6 +225,7 @@ function signedEvidenceMatches(event: EvidenceEvent): boolean {
         keyRef: stored.keyRef,
         intentDigest: stored.intentDigest,
         assertionDigest: assertionDigest(assertion),
+        ...content,
       },
     ) === event.dataHash
   );
