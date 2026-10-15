@@ -464,7 +464,12 @@ async function main() {
       "Operator must provide the reviewed CaaS package",
     );
     const packageId = cli(
-      ["lifecycle", "chaincode", "calculatepackageid", '/onboarding/chaincode.tgz'],
+      [
+        "lifecycle",
+        "chaincode",
+        "calculatepackageid",
+        "/onboarding/chaincode.tgz",
+      ],
       { stdio: "pipe", encoding: "utf8" },
     ).trim();
     assert.match(packageId, /^[A-Za-z0-9._-]+:[a-f0-9]{64}$/);
@@ -514,17 +519,7 @@ async function main() {
     existsSync(path.join(root, "public/orderer-ca.crt")),
     "Operator must provide the orderer public TLS root",
   );
-  cli([
-    "lifecycle",
-    "chaincode",
-    "approveformyorg",
-    "-o",
-    spec.ordererEndpoint,
-    "--ordererTLSHostnameOverride",
-    spec.ordererServerName,
-    "--tls",
-    "--cafile",
-    "/onboarding/orderer-ca.crt",
+  const definition = [
     "--channelID",
     spec.channelId,
     "--name",
@@ -533,11 +528,81 @@ async function main() {
     spec.chaincodeVersion,
     "--sequence",
     String(spec.chaincodeSequence),
-    "--package-id",
-    packageId,
     "--signature-policy",
     spec.endorsementPolicy,
-  ]);
+  ];
+  try {
+    cli([
+      "lifecycle",
+      "chaincode",
+      "approveformyorg",
+      "-o",
+      spec.ordererEndpoint,
+      "--ordererTLSHostnameOverride",
+      spec.ordererServerName,
+      "--tls",
+      "--cafile",
+      "/onboarding/orderer-ca.crt",
+      "--channelID",
+      spec.channelId,
+      "--name",
+      spec.chaincodeName,
+      "--version",
+      spec.chaincodeVersion,
+      "--sequence",
+      String(spec.chaincodeSequence),
+      "--package-id",
+      packageId,
+      "--signature-policy",
+      spec.endorsementPolicy,
+    ]);
+  } catch (error) {
+    // Lost responses and an unchanged pending definition can be reconciled
+    // locally. Verify both definition parameters and this org's package before
+    // treating a repeated approval as success; never hide an unrelated error.
+    try {
+      const ready = JSON.parse(
+        cli(
+          [
+            "lifecycle",
+            "chaincode",
+            "checkcommitreadiness",
+            ...definition,
+            "--output",
+            "json",
+          ],
+          { stdio: "pipe", encoding: "utf8" },
+        ),
+      );
+      const approved = JSON.parse(
+        cli(
+          [
+            "lifecycle",
+            "chaincode",
+            "queryapproved",
+            "--channelID",
+            spec.channelId,
+            "--name",
+            spec.chaincodeName,
+            "--sequence",
+            String(spec.chaincodeSequence),
+            "--output",
+            "json",
+          ],
+          { stdio: "pipe", encoding: "utf8" },
+        ),
+      );
+      assert.equal((ready.Approvals ?? ready.approvals)?.[spec.mspId], true);
+      assert.equal(approved.version, spec.chaincodeVersion);
+      assert.equal(Number(approved.sequence), spec.chaincodeSequence);
+      assert.equal(approved.source?.Type?.LocalPackage?.package_id, packageId);
+      console.log(
+        "The same chaincode definition and package are already approved by this organization.",
+      );
+    } catch {
+      throw error;
+    }
+  }
 }
 if (
   process.argv[1] &&
