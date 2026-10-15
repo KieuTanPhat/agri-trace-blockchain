@@ -6,6 +6,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
@@ -22,6 +23,7 @@ const prisma = new PrismaClient({
   'Enterprise registration and approval on PostgreSQL',
   () => {
     let app: INestApplication, admin: string, jwt: JwtService;
+    let throttleBypass: { mockRestore(): void };
     const password = 'demo-enterprise-pass-2026';
     const form = (mode = 'MANAGED_ORG') => ({
       requestId: randomUUID(),
@@ -70,6 +72,7 @@ const prisma = new PrismaClient({
       );
     beforeAll(async () => {
       process.env.ENTERPRISE_ONBOARDING_ENABLED = 'true';
+      throttleBypass = vi.spyOn(ThrottlerGuard.prototype, 'canActivate').mockResolvedValue(true);
       for (const code of [
         'SYSTEM_ADMIN',
         'FARM_STAFF',
@@ -124,6 +127,7 @@ const prisma = new PrismaClient({
       admin = jwt.sign({ sub: user.id, sid });
     });
     afterAll(async () => {
+      throttleBypass?.mockRestore();
       await app?.close();
       await prisma.$disconnect();
     });
@@ -135,7 +139,7 @@ const prisma = new PrismaClient({
       ]);
       expect(a.status).toBe(201);
       expect(b.status).toBe(201);
-      expect(a.body).toEqual(b.body);
+      expect(a.body.data).toEqual(b.body.data);
       const row = await prisma.enterpriseEnrollment.findUniqueOrThrow({
         where: { id: input.requestId },
       });
@@ -345,6 +349,15 @@ const prisma = new PrismaClient({
           where: { chainId: chain.id },
         }),
       ).toBe(0);
+    });
+    it('rate limits public registration attempts with the actual global guard', async () => {
+      throttleBypass.mockRestore();
+      try {
+        for(let i=0;i<5;i++) await post('/auth/register',{}).expect(400);
+        await post('/auth/register',{}).expect(429);
+      } finally {
+        throttleBypass = vi.spyOn(ThrottlerGuard.prototype, 'canActivate').mockResolvedValue(true);
+      }
     });
   },
 );

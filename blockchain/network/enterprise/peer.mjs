@@ -80,7 +80,7 @@ const inspect = (kind, name) => {
     )[0];
   } catch (error) {
     if (
-      /No such (?:object|container|network|volume)/i.test(String(error.stderr))
+      /No such (?:object|container|network|volume)|network .+ not found/i.test(String(error.stderr))
     )
       return null;
     throw error;
