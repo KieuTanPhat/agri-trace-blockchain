@@ -741,8 +741,12 @@ class Controller:
             self.migrate(candidate)
             # Fix-forward never changes the legacy channel/package. A hosted
             # channel lifecycle is a separately reviewed network operation.
-            self.start(candidate)
-            evidence = self.verify(candidate, candidate["sha"])
+            self.smoke_writes = True
+            try:
+                self.start(candidate)
+                evidence = self.verify(candidate, candidate["sha"])
+            finally:
+                self.smoke_writes = False
             self.preserve(journal["baseline"], evidence)
             candidate.update(verified=True, sessionContract="family-v1", chaincode=state["chaincode"])
             self.save_record(candidate)

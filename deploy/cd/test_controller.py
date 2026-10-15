@@ -443,6 +443,33 @@ class DeliveryFailureRecovery(unittest.TestCase):
         archived = self.base / "cd/records" / self.candidate["id"] / "recovered-journal.json"
         self.assertEqual(json.loads(archived.read_text())["previous"], self.old["id"])
 
+    def test_fix_forward_opens_its_candidate_only_for_smoke_and_closes_the_session_afterward(self):
+        self.controller.journal(self.old, self.candidate, 'application', self.controller.data)
+        digest = module.policy.sha256(json.dumps(self.candidate['manifest'], sort_keys=True, separators=(',', ':')).encode())
+        self.controller.config['forward_recovery'] = {'sha': self.candidate['sha'], 'manifest_sha256': digest}
+        verify = self.controller.verify
+        def checked(record, canary=None):
+            self.assertEqual(self.controller.fresh_write_mode(record), 'OPEN')
+            return verify(record, canary)
+        self.controller.verify = checked
+        self.controller.forward(self.candidate, self.state)
+        self.assertFalse(self.controller.smoke_writes)
+
+    def test_fix_forward_smoke_failure_keeps_journal_and_stops_the_candidate(self):
+        self.controller.journal(self.old, self.candidate, 'application', self.controller.data)
+        digest = module.policy.sha256(json.dumps(self.candidate['manifest'], sort_keys=True, separators=(',', ':')).encode())
+        self.controller.config['forward_recovery'] = {'sha': self.candidate['sha'], 'manifest_sha256': digest}
+        def failed(record, canary=None):
+            self.assertEqual(self.controller.fresh_write_mode(record), 'OPEN')
+            raise PolicyError('candidate smoke failed')
+        self.controller.verify = failed
+        with self.assertRaisesRegex(PolicyError, 'candidate smoke failed'):
+            self.controller.forward(self.candidate, self.state)
+        self.assertFalse(self.controller.smoke_writes)
+        self.assertFalse(self.controller.writers_running)
+        self.assertTrue((self.base / 'cd/journal.json').exists())
+        self.assertNotIn("start-" + self.old["id"], self.controller.calls)
+
     def test_candidate_failure_restores_old_app_without_data_restore(self):
         self.controller.fail_candidate = True
         with self.assertRaisesRegex(PolicyError, "rollback=verified"):

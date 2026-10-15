@@ -57,6 +57,8 @@ hiện có khi giao bản. Trước khi cập nhật helper, đối chiếu SHA/
 delivery/host locks và ownership theo phần *Cập nhật controller*. Không prune hoặc
 reset DB. Khóa giải mã backup nằm ngoài VPS/GitHub; snapshot mã hóa phải có trước
 khi CD đổi bản chạy. Không khôi phục DB riêng sau khi ledger đã commit.
+Luồng `forward` mở phiên smoke của đúng candidate sau migrate, đóng cờ phiên
+trong `finally`; smoke lỗi vẫn giữ journal và dừng writers để đối soát.
 
 ## Delivery và smoke trên VPS
 
