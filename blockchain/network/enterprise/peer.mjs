@@ -543,12 +543,18 @@ async function main() {
   );
   // Encode the exact reviewed policy with the pinned Fabric tool, rather than
   // accepting any policy merely because an organization approved something.
-  const policyInput = path.join(root, "approval-policy.json"), policyOutput = path.join(root, "approval-policy.pb");
-  json(policyInput, approvalPolicy(spec));
-  // configtxlator opens its input/output paths itself; Node's socket-backed
-  // stdio cannot be reopened as /dev/stdin on every Linux runtime.
-  run("configtxlator", ["proto_encode", "--type", "common.ApplicationPolicy", "--input", policyInput, "--output", policyOutput], { stdio: "pipe" });
-  const validationParameter = readFileSync(policyOutput).toString("base64");
+  const encode = (type, value, name) => {
+    const input = path.join(root, `approval-policy-${name}.json`), output = path.join(root, `approval-policy-${name}.pb`);
+    json(input, value);
+    // Explicit files also work when Node stdio uses sockets rather than pipes.
+    run("configtxlator", ["proto_encode", "--type", type, "--input", input, "--output", output], { stdio: "pipe" });
+    return readFileSync(output).toString("base64");
+  };
+  const policy = approvalPolicy(spec);
+  for (const [index, identity] of policy.signature_policy.identities.entries())
+    // MSPPrincipal.principal is an opaque byte field in ApplicationPolicy JSON.
+    identity.principal = encode("msp.MSPRole", identity.principal, `principal-${index}`);
+  const validationParameter = encode("common.ApplicationPolicy", policy, "application");
   const query = (operation, flags = []) => JSON.parse(cli([
     "lifecycle", "chaincode", operation, "--channelID", spec.channelId,
     "--name", spec.chaincodeName, ...flags, "--output", "json",
