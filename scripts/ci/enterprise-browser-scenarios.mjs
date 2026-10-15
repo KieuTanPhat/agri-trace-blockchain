@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
-import { loginToDashboard } from './hybrid-browser-login.mjs';
+import { loginToDashboard, redactDiagnostic } from './hybrid-browser-login.mjs';
 
 const timeout = 45_000;
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -38,6 +38,8 @@ export async function runEnterpriseBrowserScenarios(options) {
     ...(options.chromiumExecutablePath ? { executablePath: options.chromiumExecutablePath } : {}) });
   const contexts = [];
   const results = [];
+  let activePage, activeMode, phase;
+  const step = value => { phase = value; console.log(JSON.stringify({ suite: 'enterprise-browser', mode: activeMode, phase })); };
   const context = async address => {
     const value = await browser.newContext({ viewport: { width: 1365, height: 900 },
       extraHTTPHeaders: { 'X-Forwarded-For': `198.51.100.${address}` } });
@@ -52,11 +54,16 @@ export async function runEnterpriseBrowserScenarios(options) {
   try {
     const adminContext = await context(200);
     const admin = await adminContext.newPage();
+    activePage = admin;
+    step('admin-login');
     await login(admin, options.operator.admin, 'enterprise-admin');
     let sequence = 201;
     for (const mode of ['MANAGED_ORG', 'SELF_MANAGED_ORG']) {
+      activeMode = mode;
       const ownerContext = await context(sequence++);
       const owner = await ownerContext.newPage();
+      activePage = owner;
+      step('registration');
       const email = `${randomUUID()}@example.test`, organizationName = `UI enterprise ${randomUUID()}`;
       options.secrets.push(email);
       await owner.goto(`${options.origin}/register`, { waitUntil: 'networkidle' });
@@ -85,6 +92,7 @@ export async function runEnterpriseBrowserScenarios(options) {
       await owner.route('**/api/auth/register', registerRoute);
       await owner.getByRole('button', { name: 'Gửi đăng ký', exact: true }).click();
       await owner.getByRole('alert').waitFor({ state: 'visible', timeout });
+      step('registration-recovery');
       assert.equal(await owner.getByLabel('Tên doanh nghiệp', { exact: true }).isDisabled(), true);
       await noPasswordStorage(owner, options.operator.password);
       await owner.getByRole('button', { name: 'Thử lại đăng ký ban đầu', exact: true }).click();
@@ -97,6 +105,7 @@ export async function runEnterpriseBrowserScenarios(options) {
         if (new URL(request.url()).pathname.startsWith('/api/') && request.headers().authorization)
           authorization = request.headers().authorization;
       });
+      step('owner-login');
       await login(owner, { email }, `enterprise-${mode}`);
       await owner.goto(`${options.origin}/enterprise`, { waitUntil: 'domcontentloaded' });
       await owner.getByRole('status').filter({ hasText: 'Chờ xét duyệt' }).waitFor({ timeout });
@@ -106,18 +115,23 @@ export async function runEnterpriseBrowserScenarios(options) {
       const denied = await ownerContext.request.post(`${options.origin}/api/supply-chains`, {
         headers: { authorization, origin: options.origin, 'idempotency-key': randomUUID() }, data: { name: 'Must be denied before approval' } });
       assert.equal(denied.status(), 403, 'Unapproved signup must not create a chain');
+      activePage = admin;
+      step('admin-enrollment-review');
       await admin.goto(`${options.origin}/admin/enterprises`, { waitUntil: 'domcontentloaded' });
       let row = admin.locator('section.panel').filter({ has: admin.getByRole('heading', { name: organizationName, exact: true }) });
       await row.getByLabel('Ghi chú xét duyệt', { exact: true }).fill('Đã kiểm hồ sơ doanh nghiệp demo cách ly');
       await bothLayouts(admin);
       await command(admin, `/enterprise-enrollments/${enrollmentId}/review`, () => row.getByRole('button', { name: 'Phê duyệt', exact: true }).click());
+      activePage = owner;
+      step('owner-create-chain');
       await owner.reload({ waitUntil: 'domcontentloaded' });
       await owner.getByRole('link', { name: 'Tạo chuỗi của doanh nghiệp', exact: true }).click();
       await owner.getByLabel('Tên chuỗi *', { exact: true }).fill(`Enterprise chain ${randomUUID()}`);
       const chain = await command(owner, '/supply-chains', () => owner.getByRole('button', { name: 'Tạo chuỗi cung ứng', exact: true }).click());
       assert.equal(chain.ownerOrganizationId, pending.organizationId);
+      step('owner-connection-request');
       await owner.goto(`${options.origin}/enterprise`, { waitUntil: 'domcontentloaded' });
-      await owner.getByLabel('Chuỗi của doanh nghiệp', { exact: true }).selectOption(chain.id);
+      await owner.getByLabel(/^Chuỗi của doanh nghiệp/).selectOption(chain.id);
       if (mode === 'SELF_MANAGED_ORG') {
         const peer = options.operator.publicPeer;
         await owner.getByLabel('Địa chỉ peer (IP hoặc DNS)', { exact: true }).fill(peer.peerHost);
@@ -130,6 +144,8 @@ export async function runEnterpriseBrowserScenarios(options) {
       const connection = await command(owner, '/enterprise-connections', () => owner.getByRole('button', { name: 'Gửi yêu cầu kết nối', exact: true }).click());
       await owner.getByText('Các chuỗi hiện có đã có yêu cầu kết nối.', { exact: false }).waitFor({ timeout });
       assert.equal(await owner.getByRole('button', { name: 'Gửi yêu cầu kết nối', exact: true }).count(), 0);
+      activePage = admin;
+      step('admin-connection-review');
       await admin.reload({ waitUntil: 'domcontentloaded' });
       row = admin.locator('section.panel').filter({ has: admin.getByRole('heading', { name: organizationName, exact: true }) });
       const request = row.locator('article').filter({ hasText: connection.id });
@@ -140,13 +156,17 @@ export async function runEnterpriseBrowserScenarios(options) {
       assert.equal(approved.txId, null);
       // Test-only provisioning performs real registry approvals and updates the
       // operator-owned inventories; it never edits the connection result.
+      step('operator-provision');
       await options.operator.provision(enrollmentId, chain.id, connection.id);
+      step('worker-proof');
       await until(async () => {
         const value = await options.operator.db.enterpriseConnection.findUniqueOrThrow({ where: { id: connection.id } });
         assert.ok(!['FAILED', 'REJECTED'].includes(value.status), 'Real connection probe failed');
         return value.status === 'CONNECTED';
       }, 'real Fabric connection proof', 120_000);
       const proof = await options.operator.verifyProbe(connection.id);
+      activePage = owner;
+      step('owner-connected');
       await owner.getByRole('button', { name: 'Cập nhật trạng thái', exact: true }).click();
       await owner.getByRole('status').filter({ hasText: 'Đã kiểm chứng kết nối' }).waitFor({ timeout });
       await owner.getByText('Mã giao dịch kiểm chứng', { exact: true }).click();
@@ -157,6 +177,12 @@ export async function runEnterpriseBrowserScenarios(options) {
         signupWithoutGrants: true, reviewBeforeProbe: true, ...proof });
     }
     return { passed: results.length, failed: 0, skipped: 0, browser: 'Chromium desktop/mobile viewport; not physical iOS acceptance', flows: results };
+  } catch (error) {
+    const alerts = await activePage?.getByRole('alert').allTextContents().catch(() => []) ?? [];
+    console.error(JSON.stringify({ suite: 'enterprise-browser', mode: activeMode, phase,
+      path: activePage ? new URL(activePage.url()).pathname : undefined,
+      alerts: alerts.map(value => redactDiagnostic(value, options.secrets)) }));
+    throw error;
   } finally {
     for (const value of contexts) await value.close();
     await browser.close();
