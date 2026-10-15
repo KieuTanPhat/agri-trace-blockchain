@@ -1,12 +1,10 @@
 import {
   ExecutionContext,
-  NotImplementedException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { vi } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { AuthService } from './auth.service.js';
 import type { AuthenticatedRequest } from './auth.types.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 
@@ -121,16 +119,4 @@ describe('Current account authorization', () => {
     expect(request.user).toBeUndefined();
   });
 
-  it('temporarily disables public registration', () => {
-    const service = new AuthService(prisma as unknown as PrismaService, jwt);
-
-    expect(() =>
-      service.register({
-        email: 'new@example.com',
-        password: 'test-password',
-      }),
-    ).toThrow(NotImplementedException);
-
-    expect(prisma.user.create).not.toHaveBeenCalled();
-  });
 });

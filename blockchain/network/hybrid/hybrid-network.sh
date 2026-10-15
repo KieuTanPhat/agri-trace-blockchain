@@ -27,6 +27,12 @@ ROOT="$(realpath -m "${ROOT}")"
 umask 077
 NET="${ROOT}/net"
 SELF="${ROOT}/self"
+REMOTE_SELF_MSP="${AGRI_SELF_PUBLIC_MSP:-}"
+REMOTE_SELF_ENDPOINT="${AGRI_SELF_PEER_ENDPOINT:-}"
+if [[ -n "${REMOTE_SELF_MSP}" ]]; then
+  [[ -d "${REMOTE_SELF_MSP}/cacerts" && -d "${REMOTE_SELF_MSP}/tlscacerts" && -f "${REMOTE_SELF_MSP}/config.yaml" ]] || { echo 'A public MSP export is required' >&2; exit 2; }
+  [[ "${REMOTE_SELF_ENDPOINT}" =~ ^[A-Za-z0-9.-]+:[1-9][0-9]{0,4}$ ]] || { echo 'A reviewed remote peer endpoint is required' >&2; exit 2; }
+fi
 export PATH="${ROOT}/fabric-samples/bin:${PATH}"
 FABRIC_SAMPLES_CFG="${ROOT}/fabric-samples/config"
 
@@ -114,11 +120,16 @@ org_base() { case "$1" in org3) echo "${SELF}" ;; *) echo "${NET}" ;; esac; }
 org_msp() { case "$1" in org1) echo Org1MSP ;; org2) echo Org2MSP ;; org3) echo Org3MSP ;; esac; }
 org_port() { case "$1" in org1) echo 7051 ;; org2) echo 9051 ;; org3) echo 11051 ;; esac; }
 org_dir() { echo "$(org_base "$1")/organizations/peerOrganizations/$1.example.com"; }
-peer_tls_ca() { echo "$(org_dir "$1")/peers/peer0.$1.example.com/tls/ca.crt"; }
+peer_tls_ca() {
+  if [[ "$1" == org3 && -n "${REMOTE_SELF_MSP}" ]]; then
+    local files=("${REMOTE_SELF_MSP}"/tlscacerts/*); [[ ${#files[@]} == 1 ]] || return 2; echo "${files[0]}"
+  else echo "$(org_dir "$1")/peers/peer0.$1.example.com/tls/ca.crt"; fi
+}
 
 # Environment for the `peer` CLI acting as an organization's admin.
 peer_env() {
   local org="$1"
+  [[ "${org}" != org3 || -z "${REMOTE_SELF_MSP}" ]] || { echo 'Org3 admin runs only on the enterprise VPS' >&2; return 2; }
   export FABRIC_CFG_PATH="${FABRIC_SAMPLES_CFG}"
   export CORE_PEER_TLS_ENABLED=true
   export CORE_PEER_LOCALMSPID="$(org_msp "${org}")"
@@ -245,7 +256,7 @@ setup_orderer_org() {
 
 export_public_msp() { # Org3 public MSP for the shared channel configuration
   local src dst
-  src="$(org_dir org3)/msp"; dst="${NET}/public/org3.example.com/msp"
+  src="${REMOTE_SELF_MSP:-$(org_dir org3)/msp}"; dst="${NET}/public/org3.example.com/msp"
   mkdir -p "${dst}"
   cp -r "${src}/cacerts" "${src}/tlscacerts" "${dst}/"
   cp "${src}/config.yaml" "${dst}/config.yaml"
@@ -295,17 +306,21 @@ cmd_up() {
   mkdir -p "${NET}/fabric-ca/orderer" "${NET}/fabric-ca/org1" "${NET}/fabric-ca/org2" \
     "${NET}/channel-artifacts" "${NET}/configtx" "${SELF}/fabric-ca/org3"
   render "${HERE}/templates/configtx.yaml.tmpl" "${NET}/configtx/configtx.yaml"
+  if [[ -n "${REMOTE_SELF_MSP}" ]]; then
+    sed -i "s/Host: peer0.org3.example.com, Port: 11051/Host: ${REMOTE_SELF_ENDPOINT%:*}, Port: ${REMOTE_SELF_ENDPOINT##*:}/" "${NET}/configtx/configtx.yaml"
+  fi
 
   log "starting certificate authorities"
   run_ca orderer 9054 "${NET}"; run_ca org1 7054 "${NET}"; run_ca org2 8054 "${NET}"
-  run_ca org3 11054 "${SELF}"
-  for port in 9054 7054 8054 11054; do wait_for_ca "${port}"; done
+  if [[ -z "${REMOTE_SELF_MSP}" ]]; then run_ca org3 11054 "${SELF}"; fi
+  for port in 9054 7054 8054; do wait_for_ca "${port}"; done
+  if [[ -z "${REMOTE_SELF_MSP}" ]]; then wait_for_ca 11054; fi
 
   log "enrolling identities (Org3 keys stay in ${SELF})"
   setup_orderer_org
   setup_peer_org org1
   setup_peer_org org2
-  setup_peer_org org3
+  if [[ -z "${REMOTE_SELF_MSP}" ]]; then setup_peer_org org3; fi
   export_public_msp
 
   log "creating channel genesis blocks"
@@ -316,7 +331,8 @@ cmd_up() {
 
   log "starting orderer and peers"
   run_orderer
-  run_peer org1; run_peer org2; run_peer org3
+  run_peer org1; run_peer org2
+  if [[ -z "${REMOTE_SELF_MSP}" ]]; then run_peer org3; fi
   sleep 5
   for channel in "${CHANNEL_B}" "${CHANNEL_SELF}"; do
     osnadmin channel join --channelID "${channel}" --config-block "${NET}/channel-artifacts/${channel}.block" \
@@ -327,7 +343,7 @@ cmd_up() {
   as org1 peer channel join -b "${NET}/channel-artifacts/${CHANNEL_B}.block"
   as org2 peer channel join -b "${NET}/channel-artifacts/${CHANNEL_B}.block"
   as org1 peer channel join -b "${NET}/channel-artifacts/${CHANNEL_SELF}.block"
-  as org3 peer channel join -b "${NET}/channel-artifacts/${CHANNEL_SELF}.block"
+  if [[ -z "${REMOTE_SELF_MSP}" ]]; then as org3 peer channel join -b "${NET}/channel-artifacts/${CHANNEL_SELF}.block"; fi
   log "network is up"
 }
 
@@ -385,7 +401,9 @@ commit_cc() { # channel policy org...
   local channel="$1" policy="$2"; shift 2
   local args=() org
   for org in "$@"; do
-    args+=(--peerAddresses "localhost:$(host_port "$(org_port "${org}")")" --tlsRootCertFiles "$(peer_tls_ca "${org}")")
+    if [[ "${org}" == org3 && -n "${REMOTE_SELF_MSP}" ]]; then
+      args+=(--peerAddresses "${REMOTE_SELF_ENDPOINT}" --tlsRootCertFiles "$(peer_tls_ca org3)")
+    else args+=(--peerAddresses "localhost:$(host_port "$(org_port "${org}")")" --tlsRootCertFiles "$(peer_tls_ca "${org}")"); fi
   done
   as "$1" peer lifecycle chaincode commit -o "localhost:$(host_port 7050)" --tls --cafile "${ORDERER_CA}" \
     --channelID "${channel}" --name "${CC_NAME}" --version "${CC_VERSION}" --sequence "${CC_SEQUENCE}" \
@@ -402,11 +420,21 @@ cmd_deploy() {
   install_cc org2
   # The self-managed owner installs and approves with its own identity (`self-deploy`
   # may also be run separately on the owner's machine).
-  install_cc org3
+  if [[ -z "${REMOTE_SELF_MSP}" ]]; then install_cc org3; fi
   approve_cc org1 "${CHANNEL_B}" "${POLICY_B}"
   approve_cc org2 "${CHANNEL_B}" "${POLICY_B}"
   commit_cc "${CHANNEL_B}" "${POLICY_B}" org1 org2
   approve_cc org1 "${CHANNEL_SELF}" "${POLICY_SELF}"
+  if [[ -n "${REMOTE_SELF_MSP}" ]]; then
+    mkdir -p "${ROOT}/remote-bundle"
+    cp "$(package_cc org3)" "${ROOT}/remote-bundle/chaincode.tgz"
+    cp "${NET}/channel-artifacts/${CHANNEL_SELF}.block" "${ROOT}/remote-bundle/channel.block"
+    cp "${ORDERER_CA}" "${ROOT}/remote-bundle/orderer-ca.crt"
+    command docker image save "${CC_IMAGE}" -o "${ROOT}/remote-bundle/chaincode-image.tar"
+    log 'Send only remote-bundle to the enterprise; join/install/approve there, then run commit-remote here'
+    command docker image inspect --format '{{.Id}}' "${CC_IMAGE}"
+    return
+  fi
   approve_cc org3 "${CHANNEL_SELF}" "${POLICY_SELF}"
   commit_cc "${CHANNEL_SELF}" "${POLICY_SELF}" org1 org3
 }
@@ -453,10 +481,14 @@ cmd_rotate_relayer() {
 
 # Starts stopped containers (after a WSL/Docker restart) in dependency order.
 cmd_start() {
-  docker start ca-orderer ca-org1 ca-org2 ca-org3 >/dev/null
+  docker start ca-orderer ca-org1 ca-org2 >/dev/null
   docker start orderer.example.com >/dev/null
-  docker start peer0.org1.example.com peer0.org2.example.com peer0.org3.example.com >/dev/null
-  docker start cc-org1 cc-org2 cc-org3 >/dev/null 2>&1 || true
+  docker start peer0.org1.example.com peer0.org2.example.com >/dev/null
+  docker start cc-org1 cc-org2 >/dev/null 2>&1 || true
+  if [[ -z "${REMOTE_SELF_MSP}" ]]; then
+    docker start ca-org3 peer0.org3.example.com >/dev/null
+    docker start cc-org3 >/dev/null 2>&1 || true
+  fi
   log "containers started"
 }
 
@@ -464,6 +496,7 @@ cmd_start() {
 # material. Org3's keys live in its own directory and are never in this archive;
 # its owner backs them up separately. The archive holds CA keys: keep it private.
 cmd_backup() {
+  [[ -z "${REMOTE_SELF_MSP}" ]] || { echo 'Split-host backups require separate platform and enterprise recovery procedures' >&2; return 2; }
   local out="${1:?usage: backup <dir>}" volume
   mkdir -p "${out}"; chmod 700 "${out}"
   log "stopping peers and the orderer for a consistent copy"
@@ -486,6 +519,7 @@ peer_height() { # org channel
 # steps with the same MSP/TLS material): it starts at the backup height and
 # must catch up from the ordering service before it is trusted again.
 cmd_restore_peer() {
+  [[ -z "${REMOTE_SELF_MSP}" ]] || { echo 'Use the reviewed split-host recovery procedure' >&2; return 2; }
   local org="${1:?usage: restore-peer <org1|org2|org3> <backup-dir>}" from="${2:?backup dir}" volume
   volume="peer0.${org}.example.com"
   [[ -f "${from}/${volume}.tgz" ]] || { echo "No backup of ${volume} in ${from}" >&2; exit 1; }
@@ -534,6 +568,7 @@ cmd_clean() {
 }
 
 case "${1:-}" in
+  commit-remote) [[ -n "${REMOTE_SELF_MSP}" ]] || { echo 'Remote owner MSP not configured' >&2; exit 2; }; commit_cc "${CHANNEL_SELF}" "${POLICY_SELF}" org1 org3 ;;
   up) cmd_up ;;
   deploy) cmd_deploy ;;
   status) cmd_status ;;

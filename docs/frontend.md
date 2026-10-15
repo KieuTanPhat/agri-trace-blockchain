@@ -10,6 +10,16 @@ Trang giới thiệu chỉ có nội dung tổng quát, không có QR/lô mẫu 
 
 ## Hệ thống thiết kế
 
+Đăng ký doanh nghiệp dùng `/register`, chọn AgriTrace quản lý peer hoặc peer tự
+quản trên VPS. `/enterprise` hiển thị hồ sơ, phản hồi xét duyệt, các chuỗi thuộc
+doanh nghiệp và yêu cầu kết nối. `/admin/enterprises` dành cho SYSTEM_ADMIN.
+Mật khẩu đăng ký chỉ ở bộ nhớ trang; khi mất phản hồi, nút thử lại giữ nguyên UUID
+và nội dung. Các lệnh xét duyệt/kết nối cũng giữ nguyên idempotency key. Peer tự
+quản chỉ nhập endpoint, tên TLS, MSP và chứng thư CA công khai; không nhận khóa
+riêng hoặc tài khoản SSH. “Đã duyệt” vẫn chờ vận hành, “Đã kiểm chứng kết nối” là
+kết quả giao dịch Fabric tại thời điểm kiểm tra. Admission API mặc định đóng;
+mở demo theo [runbook](hybrid-fabric-runbook.md#12-đăng-ký-và-kết-nối-doanh-nghiệp-v1).
+
 Mã nằm ở `apps/web/src/styles`, nạp theo thứ tự trong `app/layout.tsx`:
 
 | File | Nội dung |

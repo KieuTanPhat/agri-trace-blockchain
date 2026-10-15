@@ -97,7 +97,8 @@ Không đưa khóa riêng, mật khẩu hay token vào tài liệu hay ví dụ.
 ```
 
 Worker chạy các bước theo thứ tự: writer legacy (nếu bật) → `ledger-control`
-(job quyền) → `binding-delivery` (gửi event). Mỗi binding có circuit breaker
+(job quyền) → `binding-delivery` (gửi event) → `enterprise-connections` khi bật
+admission. Mỗi binding có circuit breaker
 riêng: một binding lỗi không chặn binding khác (HYB-AC-10).
 
 ## 4. Đưa một chuỗi lên binding
@@ -317,3 +318,144 @@ proof, 5 chữ ký, 3 bàn giao, 17 migration) và `verify-evidence` 31/31.
   cảnh báo/health tự động cho dead letter (hiện chỉ hiện ở panel Ledger và CLI `status`).
 - Hết hạn đề nghị chỉ được đánh dấu khi có truy cập liên quan (xem, chuẩn bị,
   nộp); chưa có tác vụ quét định kỳ trong Worker.
+
+## 12. Đăng ký và kết nối doanh nghiệp v1
+
+Đây là ứng viên demo có bước vận hành, chưa phải provisioning đa tổ chức tự động
+hoặc nghiệm thu VPS thật. Mặc định API/Worker đóng admission. Chỉ bật
+`ENTERPRISE_ONBOARDING_ENABLED=true` trên stack cách ly đã migrate khi thử.
+Production cần review migration/lifecycle, backup/restore và nghiệm thu riêng;
+không chạy `up`, `deploy`, `down` của pilot vào stack production.
+
+Doanh nghiệp mở `/register`, chọn hoạt động chính và chế độ peer. Đăng ký tạo
+account, tổ chức và receipt atomically, chưa cấp quyền nghiệp vụ. Đại diện đăng
+nhập vào `/enterprise`; SYSTEM_ADMIN xét duyệt ở `/admin/enterprises`. Duyệt hồ
+sơ cấp capability hoạt động, ORG_ADMIN và CREATE_CHAIN; các write vẫn cần quyền
+đúng scope. Đại diện tạo chuỗi rồi gửi yêu cầu kết nối. Chế độ managed không nhận
+cấu hình peer từ doanh nghiệp. Chế độ self chỉ nhận endpoint, tên TLS, MSP và CA
+công khai. Không gửi SSH credentials, CA/admin/signing private key lên web.
+
+Duyệt yêu cầu kết nối chỉ đưa vào hàng chờ. Operator chuẩn bị binding, lifecycle,
+credential và permission như phần 4; đăng ký từ web không tự sửa channel trust.
+Pilot pin Org1/2/3 và hai channel: **mỗi cặp network/MSP chỉ thuộc một doanh
+nghiệp**, kể cả khi có nhiều chuỗi. Thêm doanh nghiệp cần network độc lập hoặc
+quy trình mở rộng governance/channel được review. Không gán chung Org3MSP của
+cùng mạng cho nhiều doanh nghiệp để vượt giới hạn.
+
+Worker đọc hai inventory ngoài Git, chỉ mount readonly vào Worker:
+
+- `FABRIC_BINDINGS_CONFIG`: kết nối writer như phần 3, có relayer/controller và
+  admin của platform. Có thể thay file atomically để thêm binding khi đang chạy.
+- `ENTERPRISE_CONNECTIONS_CONFIG`: danh sách đích đã được vận hành xác minh.
+  API không đọc file này và không dial địa chỉ browser nhập.
+
+Ví dụ inventory kết nối (UUID/digest/path phải thay bằng giá trị đã review):
+
+```json
+{
+  "version": 1,
+  "targets": [{
+    "connectionId": "<UUID yêu cầu đã duyệt>",
+    "organizationId": "<UUID doanh nghiệp>",
+    "chainId": "<UUID chuỗi>",
+    "bindingDigest": "<64 hex>",
+    "ownerMspId": "Org3MSP",
+    "peerEndpoint": "<VPN IP hoặc DNS>:11051",
+    "peerHostAlias": "peer0.org3.example.com",
+    "tlsCertPath": "/private/operator/public/enterprise-peer-ca.crt"
+  }]
+}
+```
+
+Worker kiểm đúng doanh nghiệp, owner chuỗi, profile, active binding và CA/endpoint
+đã duyệt trước khi nối. Probe dùng writer technical identity, yêu cầu endorsement
+của writer và owner; lưu txId trước traffic, đọc proof từ cả hai peer và kiểm
+validation code VALID. Khi đó UI mới báo CONNECTED kèm thời điểm kiểm tra.
+Không có probe hợp lệ thì health OK hoặc admin bấm duyệt đều không đủ.
+UNKNOWN chỉ đọc đối soát txId/challenge cũ; không tự đổi key để gửi lại. FAILED
+trước broadcast hoặc INVALID cho phép tạo yêu cầu mới sau xử lý. Inventory ghi
+sai scope/MSP không được phép trỏ sang một doanh nghiệp khác.
+
+### Demo peer tự quản trên máy doanh nghiệp
+
+Cần Linux, Docker Engine, Node/npm theo README, `fabric-ca-client` và `peer` đúng
+phiên bản pilot. Không cần Docker Compose. Hai host cần tuyến VPN/private IP hai
+chiều; chỉ mở peer/orderer trên tuyến đã review. Tên TLS/discovery của platform
+phải phân giải về platform trên máy và container doanh nghiệp. Đánh giá dung
+lượng, port đang dùng và quota trước khi khởi động. Giới hạn container peer
+512 MiB, chaincode 256 MiB, CA 256 MiB là quota demo, chưa phải cấu hình VPS tối
+thiểu đã được đo.
+
+1. Doanh nghiệp sao chép `blockchain/network/enterprise/spec.example.json` ra
+   thư mục riêng, thay instance, VPN host, chaincode version/image digest,
+   orderer và host aliases. Giữ Org3MSP/domain/channel theo governance pilot.
+   Private root phải là thư mục mới; script từ chối ghi đè identity/tài nguyên
+   Docker không thuộc installation đó. Khởi tạo CA local, cấp admin có
+   `app.role=admin`, peer identity và TLS; private key ở nguyên máy doanh nghiệp:
+
+   ```bash
+   node blockchain/network/enterprise/peer.mjs init spec.json /srv/agritrace/demo-owner
+   ```
+
+2. Chỉ chuyển `public/msp` và `public/connection.json` cho operator. Doanh nghiệp
+   nhập nội dung connection công khai lên web. Platform nhận public MSP ở một
+   thư mục riêng rồi đặt biến cho **mạng demo mới**, port offset 0:
+
+   ```bash
+   export AGRI_FABRIC_ROOT=/srv/agritrace/demo-platform
+   export AGRI_FABRIC_INSTANCE=agri-enterprise-platform-demo
+   export AGRI_FABRIC_BIND_ADDRESS=<platform-VPN-IP>
+   export AGRI_FABRIC_PORT_OFFSET=0
+   export AGRI_SELF_PUBLIC_MSP=/private/operator/public/owner-msp
+   export AGRI_SELF_PEER_ENDPOINT=<enterprise-VPN-IP>:11051
+   # Chuẩn bị fabric-samples/bin và config theo mục 2 trước khi chạy.
+   bash blockchain/network/hybrid/hybrid-network.sh up
+   bash blockchain/network/hybrid/hybrid-network.sh deploy
+   ```
+
+   Chế độ này không tạo CA/admin/peer Org3 ở platform. `deploy` dừng sau bước
+   platform approve và xuất `remote-bundle` chỉ có channel block, CaaS package,
+   orderer TLS CA và chaincode image. Kiểm image ID được in ra, chuyển bundle
+   cho doanh nghiệp; bản spec phải pin chính image ID/digest đó trước `init`.
+   Image có thể build/pin trước `up`, hoặc dùng image đã review trên registry.
+
+3. Doanh nghiệp kiểm nội dung/digest, đặt ba file công khai vào `private-root/public`,
+   `docker image load -i chaincode-image.tar` nếu dùng image local, rồi tự chạy:
+
+   ```bash
+   node blockchain/network/enterprise/peer.mjs start spec.json /srv/agritrace/demo-owner
+   node blockchain/network/enterprise/peer.mjs join spec.json /srv/agritrace/demo-owner
+   node blockchain/network/enterprise/peer.mjs install spec.json /srv/agritrace/demo-owner
+   node blockchain/network/enterprise/peer.mjs approve spec.json /srv/agritrace/demo-owner
+   ```
+
+   Platform chạy `hybrid-network.sh commit-remote`. Mỗi bên dùng admin ở host của
+   mình. Không chuyển thư mục `ca`, `crypto`, credentials hoặc keystore sang bên kia.
+   Script không tự xóa dữ liệu khi lỗi. Backup/restore của split-host cần procedure
+   riêng cho mỗi bên; lệnh backup/restore local pilot sẽ từ chối chế độ này.
+
+4. Sau lifecycle, platform dùng CLI `register-binding`, rồi `onboard` với
+   `--external-owner true`. File operator chỉ khai admin Org1, không chứa admin
+   Org3. CLI trả exit code 2 và JSON `AWAITING_OWNER_APPROVAL` khi cần chủ mạng
+   duyệt. Chuyển nguyên JSON công khai thành `review.json` cho doanh nghiệp.
+   Sau `npm ci` và build gateway, doanh nghiệp kiểm đề xuất đang nằm trên ledger,
+   đối chiếu nội dung rồi duyệt SHA-256 đã kiểm tại host mình:
+
+   ```bash
+   node blockchain/network/enterprise/approve-registry.mjs inspect spec.json /srv/agritrace/demo-owner review.json
+   node blockchain/network/enterprise/approve-registry.mjs approve spec.json /srv/agritrace/demo-owner review.json <reviewed-sha256>
+   ```
+
+   Platform chạy lại cùng lệnh `onboard`; nonce ổn định giữ nguyên proposal. Lặp
+   cho channel bootstrap, binding và writer credential, rồi `activate`. Đăng ký
+   organization signing key cũng hỗ trợ `register-signing-key --external-owner true`;
+   không bật DUAL_SIGNED trước khi registry key thật sự ACTIVE. CLI trên máy
+   doanh nghiệp không dùng database URL của platform.
+
+5. Cấu hình inventory cho Worker, bật feature trên API/Worker, quan sát
+   `/enterprise`, đối chiếu txId/VALID trên hai peer. Nghiệm thu thêm outage,
+   restart, lost-response và tài nguyên tại tải demo trước khi kết luận về VPS.
+   Kiểm thử Docker cùng máy không thay thế mục nghiệm thu qua hai VPS thật.
+
+Tài liệu Fabric gốc: [Fabric CA identity attributes](https://hyperledger-fabric-ca.readthedocs.io/en/latest/users-guide.html#attribute-based-access-control)
+và [chaincode as an external service](https://hyperledger-fabric.readthedocs.io/en/release-2.5/cc_service.html).

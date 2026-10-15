@@ -50,6 +50,13 @@ are unchanged. Repairs append migrations rather than changing these inputs.
   current authentication, and the UI must describe that trust level accurately.
 - A local three-org pilot proves technical isolation; actual external enterprise
   CA/peer/admin/signer authority remains NotEvaluated.
+- The enterprise onboarding candidate adds public signup, operator review,
+  MANAGED_ORG/SELF_MANAGED_ORG requests and ledger-verified connection probes.
+  Admission defaults closed (`ENTERPRISE_ONBOARDING_ENABLED=false`). Signup does
+  not grant business access. This v1 uses operator-provisioned networks and an
+  exclusive enterprise MSP per network; it does not dynamically admit unlimited
+  Fabric organizations. External-host acceptance and production rollout remain
+  separate gates; see [the onboarding plan](plans/enterprise-onboarding.md).
 
 Source completion is not production acceptance. The current worktree is
 `feature/hybrid-production-readiness`. Remaining release safeguards, tests,

@@ -1,4 +1,5 @@
 import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { EnterpriseOnboardingModule } from './modules/enterprise-onboarding/enterprise-onboarding.module.js';
 import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -34,6 +35,7 @@ import { SupplyChainsModule } from './modules/supply-chains/supply-chains.module
       },
     ]),
     AuthModule,
+    EnterpriseOnboardingModule,
     UsersModule,
     CatalogModule,
     OrganizationsModule,

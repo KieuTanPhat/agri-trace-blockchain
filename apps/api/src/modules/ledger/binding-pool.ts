@@ -1,6 +1,6 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
-import { X509Certificate } from 'node:crypto';
+import { X509Certificate, createHash } from 'node:crypto';
 import {
   BindingLedgerClient,
   certificateFingerprint,
@@ -40,17 +40,26 @@ export class BindingConnectionPool implements OnModuleDestroy {
   private readonly connections = new Map<string, Promise<BindingConnection>>();
   private readonly open: GatewayConnection[] = [];
   private configs?: Map<string, BindingNodeConfig>;
-  /** Overridable for tests; read lazily so the file is parsed once. */
+  private configRevision?: string;
+  /** Overridable for tests; re-read the operator file for new/changed bindings. */
   public environment: NodeJS.ProcessEnv = process.env;
 
   private load(): Map<string, BindingNodeConfig> {
-    this.configs ??= new Map(
-      loadBindingNodeConfigs(this.environment).map((item) => [
-        item.bindingDigest,
-        item,
-      ]),
-    );
-    return this.configs;
+    const parsed = loadBindingNodeConfigs(this.environment);
+    const revision = createHash('sha256')
+      .update(JSON.stringify(parsed))
+      .digest('hex');
+    if (revision !== this.configRevision) {
+      // Existing in-flight work retains its original client/receipt. Future
+      // work sees the atomically replaced operator inventory, including additions.
+      const next = new Map(parsed.map((item) => [item.bindingDigest, item]));
+      for (const [digest, old] of this.configs ?? [])
+        if (JSON.stringify(old) !== JSON.stringify(next.get(digest)))
+          this.invalidate(digest);
+      this.configs = new Map(parsed.map((item) => [item.bindingDigest, item]));
+      this.configRevision = revision;
+    }
+    return this.configs!;
   }
 
   private config(digest: string): BindingNodeConfig | undefined {
@@ -81,12 +90,22 @@ export class BindingConnectionPool implements OnModuleDestroy {
     const certificate = new X509Certificate(bytes);
     const notBefore = Date.parse(certificate.validFrom);
     const notAfter = Date.parse(certificate.validTo);
-    if (!Number.isFinite(notBefore) || !Number.isFinite(notAfter) || Date.now() < notBefore || Date.now() >= notAfter) {
+    if (
+      !Number.isFinite(notBefore) ||
+      !Number.isFinite(notAfter) ||
+      Date.now() < notBefore ||
+      Date.now() >= notAfter
+    ) {
       this.invalidate(target.digest, role);
-      throw new Error('BINDING_CERTIFICATE_EXPIRED: identity is outside its validity window');
+      throw new Error(
+        'BINDING_CERTIFICATE_EXPIRED: identity is outside its validity window',
+      );
     }
     let pending = this.connections.get(key);
-    if (pending && (await pending).fingerprint !== certificateFingerprint(bytes)) {
+    if (
+      pending &&
+      (await pending).fingerprint !== certificateFingerprint(bytes)
+    ) {
       this.invalidate(target.digest, role);
       pending = undefined;
     }
@@ -148,7 +167,10 @@ export class BindingConnectionPool implements OnModuleDestroy {
         supportedWriteVersions?: string[];
         governanceDigest?: string;
         callerRole?: string | null;
-        channelPolicy?: { strictB?: boolean; allowLegacyV3Writes?: boolean } | null;
+        channelPolicy?: {
+          strictB?: boolean;
+          allowLegacyV3Writes?: boolean;
+        } | null;
       };
       if (
         health.status !== 'OK' ||
@@ -167,9 +189,14 @@ export class BindingConnectionPool implements OnModuleDestroy {
     }
     const certificateBytes = connection.identityCertificate;
     const certificate = new X509Certificate(certificateBytes);
-    if (Date.now() < Date.parse(certificate.validFrom) || Date.now() >= Date.parse(certificate.validTo)) {
+    if (
+      Date.now() < Date.parse(certificate.validFrom) ||
+      Date.now() >= Date.parse(certificate.validTo)
+    ) {
       connection.close();
-      throw new Error('BINDING_CERTIFICATE_EXPIRED: connected identity is outside its validity window');
+      throw new Error(
+        'BINDING_CERTIFICATE_EXPIRED: connected identity is outside its validity window',
+      );
     }
     return {
       client,

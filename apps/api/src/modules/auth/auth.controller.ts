@@ -18,7 +18,6 @@ import {
   ApiConflictResponse,
   ApiCookieAuth,
   ApiCreatedResponse,
-  ApiResponse,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
@@ -33,6 +32,9 @@ import {
   SESSION_COOKIE_NAME,
 } from './auth-cookie.js';
 import { AuthService } from './auth.service.js';
+import { ApiDataResponse } from '../../common/api/openapi.js';
+import { EnterpriseRegistrationReceiptDto } from '../enterprise-onboarding/dto.js';
+import { EnterpriseOnboardingGuard } from '../enterprise-onboarding/enterprise-onboarding.guard.js';
 import type { AuthenticatedRequest } from './auth.types.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -49,11 +51,11 @@ export class AuthController {
   constructor(@Inject(AuthService) private readonly authService: AuthService) {}
 
   @Post('register')
-  @ApiResponse({
-    status: 501,
-    description: 'Account registration is disabled; Admin provisions accounts.',
-  })
-  register(@Body() input: RegisterDto) {
+  @UseGuards(EnterpriseOnboardingGuard)
+  @ApiDataResponse(EnterpriseRegistrationReceiptDto,201)
+  @Throttle({default:{limit:5,ttl:60_000}})
+  register(@Body() input: RegisterDto,@Req() request:Request) {
+    this.assertTrustedOrigin(request);
     return this.authService.register(input);
   }
 

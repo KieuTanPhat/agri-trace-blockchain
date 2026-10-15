@@ -166,6 +166,7 @@ export default function AdminPage() {
     <div className="grid">
       <section className="page-header">
         <h1>Quản trị hệ thống</h1>
+        <Link className="button secondary" href="/admin/enterprises">Duyệt doanh nghiệp và kết nối</Link>
         <Link className="button secondary" href="/admin/compliance-assignments">
           Phân công người duyệt
         </Link>

@@ -42,6 +42,7 @@ const navigationGroups: { title: string; items: NavItem[] }[] = [
       { href: "/production-cycles", label: "Vụ trồng", icon: Sprout },
       { href: "/lots", label: "Lô nông sản", icon: Package },
       { href: "/supply-chains", label: "Chuỗi và đối tác", icon: Network },
+      { href: "/enterprise", label: "Kết nối doanh nghiệp", icon: Blocks },
     ],
   },
   {
@@ -77,6 +78,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const isPublic =
     pathname === "/" ||
     pathname === "/login" ||
+    pathname === "/register" ||
     pathname === "/scan" ||
     pathname.startsWith("/trace/");
   const [mobileOpen, setMobileOpen] = useState(false);

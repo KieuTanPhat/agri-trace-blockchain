@@ -78,8 +78,7 @@ export default function LoginPage() {
           <p className="eyebrow">Cổng quản trị</p>
           <h1>Đăng nhập</h1>
           <p className="muted">
-            Dùng tài khoản được quản trị viên cấp để thao tác theo đúng vai trò
-            và tổ chức.
+            Đăng nhập bằng tài khoản doanh nghiệp hoặc tài khoản được cấp để thao tác theo quyền của bạn.
           </p>
         </div>
         <div className="field">
@@ -124,6 +123,7 @@ export default function LoginPage() {
         <Link className="button secondary" href="/scan">
           <ShieldCheck size={18} /> Tra cứu công khai
         </Link>
+        <Link className="text-link" href="/register">Đăng ký doanh nghiệp mới</Link>
       </form>
     </div>
   );
