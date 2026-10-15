@@ -193,7 +193,8 @@ class Controller:
         worker = services["worker"]
         require(worker["environment"]["FABRIC_ENABLED"] == "true" and worker["environment"]["FABRIC_LEGACY_WRITER"] == "false" and
                 worker["user"] == f"{self.environment['WORKER_UID']}:{self.environment['WORKER_GID']}", "Hosted Worker identity boundary changed")
-        expected_mounts = {"/hosted-config/bindings.json": "FABRIC_BINDINGS_CONFIG_HOST", "/hosted-identities": "HOSTED_WORKER_IDENTITIES_HOST"}
+        self.enterprise_admission_preflight(api, worker)
+        expected_mounts = {"/hosted-config": "HOSTED_WORKER_CONFIG_HOST", "/hosted-identities": "HOSTED_WORKER_IDENTITIES_HOST"}
         mounted = {mount["target"]: mount for mount in worker.get("volumes", [])}
         require(set(mounted) == set(expected_mounts), "Hosted Worker mount set changed")
         for target, key in expected_mounts.items():
@@ -201,6 +202,28 @@ class Controller:
             require(mount["source"] == self.environment[key] and mount.get("read_only") and
                     not mount.get("bind", {}).get("create_host_path"), "Hosted identity mount changed")
         self.capacity_preflight(services)
+
+    def enterprise_admission_preflight(self, api, worker):
+        enabled = self.environment.get("ENTERPRISE_ONBOARDING_ENABLED", "false")
+        require(enabled in {"true", "false"}, "Enterprise admission must be explicitly true or false")
+        require(api.get("ENTERPRISE_ONBOARDING_ENABLED") == enabled and
+                worker["environment"].get("ENTERPRISE_ONBOARDING_ENABLED") == enabled,
+                "API/Worker enterprise admission differs from installed policy")
+        require(worker["environment"].get("ENTERPRISE_CONNECTIONS_CONFIG") == "/hosted-config/enterprise-connections.json",
+                "Enterprise inventory is not the reviewed Worker file")
+        directory = self.environment.get("HOSTED_WORKER_CONFIG_HOST", "")
+        require(policy.targets.owned_path(directory, self.base / "shared"), "Enterprise inventory must belong to private production configuration")
+        require(Path(directory).is_dir() and not Path(directory).is_symlink() and
+                {p.name for p in Path(directory).iterdir()} == {"bindings.json", "enterprise-connections.json"},
+                "Worker configuration directory must contain only the two reviewed public configuration files")
+        inventory = self.environment.get("ENTERPRISE_CONNECTIONS_CONFIG_HOST", "")
+        require(inventory == str(Path(directory) / "enterprise-connections.json") and
+                self.environment.get("FABRIC_BINDINGS_CONFIG_HOST") == str(Path(directory) / "bindings.json"),
+                "Worker configuration files must belong to the reviewed directory")
+        for entry in [Path(directory), Path(inventory), Path(directory) / "bindings.json"]:
+            require(not entry.is_symlink() and (entry.is_dir() if entry == Path(directory) else entry.is_file()),
+                    "Enterprise inventory must use existing regular files and directory")
+            require(entry.stat().st_mode & 0o022 == 0, "Enterprise inventory cannot be writable by another user")
 
     def capacity_preflight(self, services):
         memory = re.search(r"^MemTotal:\s+(\d+) kB$", Path("/proc/meminfo").read_text(), re.M)
@@ -377,6 +400,7 @@ class Controller:
         atomic_json(filename, updated)
 
     def snapshot(self, old, attempt_sha, baseline):
+        self.external_backup_preflight(attempt_sha, baseline)
         stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         directory = self.base / "backups" / f"{self.prefix}-{attempt_sha}-{stamp}"
         directory.mkdir(mode=0o700)
@@ -423,6 +447,30 @@ class Controller:
                 self.resume_fabric()
                 self.phase = phase
         return str(directory)
+
+    def external_backup_preflight(self, attempt_sha, baseline):
+        owner = self.fabric.get("external_owner")
+        if not owner:
+            return
+        filename = self.config.get("external_backup_receipt", "")
+        require(policy.targets.owned_path(filename, self.base / "shared"), "External peer needs its coordinated backup receipt")
+        receipt = json.loads(Path(filename).read_text())
+        require(receipt.get("protocol") == "agritrace-coordinated-backup/1" and receipt.get("candidateSha") == attempt_sha and
+                receipt.get("ownerMspId") == owner["msp_id"] and receipt.get("offVps") is True,
+                "Coordinated backup does not authorize this candidate and enterprise")
+        require(re.fullmatch(r"[a-f0-9]{64}", receipt.get("ownerArchiveSha256", "")) and
+                type(receipt.get("ownerArchiveBytes")) is int and receipt["ownerArchiveBytes"] > 512,
+                "Enterprise recovery archive is incomplete")
+        require(baseline.get("writersStopped") is True and
+                receipt.get("fingerprintsSha256") == policy.sha256(json.dumps(baseline["fingerprints"], sort_keys=True, separators=(",", ":")).encode()),
+                "Coordinated backup does not match the frozen business history")
+        binary, environment = self.peer_env(1)
+        environment.update(CORE_PEER_ADDRESS=owner["endpoint"], CORE_PEER_TLS_ROOTCERT_FILE=owner["tls_ca"],
+                           CORE_PEER_TLS_SERVERHOSTOVERRIDE=owner["hostname"])
+        output = self.run("external-backup-ledger-height", [binary, "channel", "getinfo", "-c", owner["channel"]], env=environment)
+        message = output.decode()
+        height = json.loads(message[message.index("{"):])
+        require(receipt.get("ledger") == height, "External peer advanced after its recovery archive; create a coordinated backup")
 
 
     def resume_fabric(self):

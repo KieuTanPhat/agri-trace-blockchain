@@ -42,6 +42,15 @@ Bootstrap chỉ nhận cấu hình riêng tư và không đổi account hiện c
 pin image/governance và giữ persistent CA/MSP/ledger; script Hybrid pilot chỉ dùng
 cho test. Cấu trúc binding tham khảo [network](../deploy/hosted-network.example.json).
 
+Ứng viên onboarding cần `HOSTED_WORKER_CONFIG_HOST` là thư mục riêng chỉ có
+`bindings.json` và `enterprise-connections.json` (inventory khởi đầu
+`{"version":1,"targets":[]}`). `FABRIC_BINDINGS_CONFIG_HOST` và
+`ENTERPRISE_CONNECTIONS_CONFIG_HOST` trỏ tới hai file đó. Worker mount cả thư mục
+readonly ở `/hosted-config` để thấy bản mới sau atomic rename; không mount thư
+mục cha chứa credentials. File không được group/world writable hoặc là symlink.
+`ENTERPRISE_ONBOARDING_ENABLED=false` đóng admission; khi mở phải
+đồng nhất trên API/Worker. Controller kiểm các ranh giới này trước delivery.
+
 GitHub đặt `CD_PROJECT=agritrace-prod`, `CD_PROFILE=fabric`, origin
 `https://agritrace.dev`, known-hosts và delivery key đã pin. Giữ công tắc delivery
 hiện có khi giao bản. Trước khi cập nhật helper, đối chiếu SHA/CI, journal,
@@ -126,6 +135,46 @@ cũ hoặc tự resolve migration chưa hoàn tất. `hybrid-floor.json` chặn 
 schema/protocol. Rollback ứng dụng chỉ tới image verified tương thích; không
 restore DB riêng sau ledger commit. Hosted chaincode thay đổi cần lifecycle review,
 không gọi `upgrade` để thay B/C vào channel legacy.
+
+### Nghiệm thu peer doanh nghiệp trên VPS thứ hai
+
+Chủ dự án cho phép nghiệm thu trên production sau sao lưu. Hai VPS dùng tuyến
+WireGuard riêng (`10.77.0.1` phía platform, `10.77.0.2` phía doanh nghiệp). Relay
+`blockchain/network/production/tcp-relay.py` chỉ chuyển byte TLS từ cổng trên VPN
+tới cổng loopback hiện hữu, không kết thúc TLS hoặc giữ signing key. Security
+group/firewall chỉ cho tuyến đã review; không mở peer/orderer/CA ra Internet.
+
+Doanh nghiệp khởi tạo CA/admin/peer bằng bộ cài enterprise tại máy mình. Chỉ
+chuyển public MSP/TLS sang platform. Với channel `hybrid-self` đã tạo nhưng chưa
+có binding doanh nghiệp, `external-owner.py` chuẩn bị bản đổi root CA/NodeOUs
+và anchor của Org3; nó không ký hoặc gửi cập nhật. Kiểm fingerprint, nội dung
+config update và binding chưa được cấp cho bên khác. Admin hiện hành ký cập nhật
+theo policy, giữ toàn bộ block cũ; kiểm CA cũ không còn được tin cậy cho hành
+động mới. Không gán private identity Org3 cũ cho doanh nghiệp mới.
+
+Sau khi đối soát peer doanh nghiệp, `hosted.external_owner` pin protocol
+`agritrace-external-owner/1`, MSP/channel/hostname, endpoint `10.77.0.2:11051`
+và public `tls_ca` trong hosted root. Bỏ stack Org3 cũ khỏi resource catalog đang
+hoạt động; bản lưu và tài nguyên cũ được giữ riêng. API/Worker không nhận owner
+admin/CA key. Nâng CaaS image và definition trên từng channel là thao tác lifecycle
+riêng được review, tăng sequence và xác minh policy/package/HealthCheck c2.
+Ghi journal và baseline trước thao tác; nếu app cũ không tương thích sau lifecycle,
+giữ writers dừng và giao candidate bằng luồng `forward` hiện hành, không giả
+verified release hoặc sửa receipt lịch sử.
+
+Backup khi đã có peer ngoài phải dừng writers và phối hợp hai host: đóng băng,
+đối chiếu block height/hash, lưu database/config/ledger/danh tính của từng bên,
+mã hóa rồi tải khỏi VPS. Khóa giải mã ở ngoài hai VPS. Controller từ chối snapshot
+nếu `external_backup_receipt` không trỏ tới receipt private protocol
+`agritrace-coordinated-backup/1` đúng candidate SHA/MSP, archive doanh nghiệp,
+fingerprint baseline và block hiện tại. Nó không có SSH key để tự sao lưu máy
+doanh nghiệp. Khôi phục cách ly và khôi phục peer thật phải giữ cùng khóa,
+installation, genesis, txId/proof; không restore database riêng sau ledger commit.
+
+Đo tài nguyên cả host và container cùng thời gian/tải, gồm CPU, peak RAM, đĩa,
+OOM/restart, độ trễ và backlog. Kết luận cấu hình thấp nhất **đã kiểm chứng** ở
+tải đã ghi; quota container hoặc kết quả một VPS không chứng minh mọi VPS nhỏ
+hơn đều đạt. Kết quả mỗi lần chạy nằm trong PR/artifact, không chép vào hướng dẫn.
 
 Mọi container có CPU/RAM quota, chừa >=20% RAM host. Mẫu
 [capacity](../deploy/hosted-capacity.example.json) cần kiểm tải/OOM/restarts thực.

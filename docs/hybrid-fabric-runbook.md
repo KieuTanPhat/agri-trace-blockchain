@@ -326,6 +326,9 @@ hoặc nghiệm thu VPS thật. Mặc định API/Worker đóng admission. Chỉ
 `ENTERPRISE_ONBOARDING_ENABLED=true` trên stack cách ly đã migrate khi thử.
 Production cần review migration/lifecycle, backup/restore và nghiệm thu riêng;
 không chạy `up`, `deploy`, `down` của pilot vào stack production.
+Chủ dự án đã cho phép dùng production và VPS doanh nghiệp để nghiệm thu; đọc
+[quy trình production hai máy](production-runbook.md#nghiệm-thu-peer-doanh-nghiệp-trên-vps-thứ-hai).
+Các lệnh pilot ở dưới chỉ dành cho demo cách ly, không thay quy trình đó.
 
 Doanh nghiệp mở `/register`, chọn hoạt động chính và chế độ peer. Đăng ký tạo
 account, tổ chức và receipt atomically, chưa cấp quyền nghiệp vụ. Đại diện đăng

@@ -42,8 +42,11 @@ không phải điều kiện để hoàn thành luồng đã yêu cầu.
   được review hoặc một network độc lập; không sửa governance đã ghim để lách.
 - Managed do platform vận hành. Self-managed dùng gói peer cài tại host doanh
   nghiệp; public MSP/TLS chuyển sang operator, admin/CA/signing keys ở host đó.
-- Không chạy pilot test vào mạng/DB production. Demo hai máy dùng tài nguyên
-  có tên, mạng, CA, volume và binding riêng. Capacity admission precedes startup.
+- Chủ dự án đã cho phép dùng VPS production và VPS `enterprise-demo` để nghiệm
+  thu hai máy rồi triển khai. Sao lưu nhất quán và kiểm chứng khôi phục trước
+  migration/lifecycle; giữ lịch sử production. Không chạy harness pilot có cleanup
+  vào DB/mạng đang phục vụ. Peer doanh nghiệp dùng CA/khóa riêng; thay đổi trust,
+  endpoint, quota và resource catalog phải được review. Capacity admission precedes startup.
 - Tự động hóa provisioning đa doanh nghiệp không giới hạn và cloud billing nằm
   ngoài v1. UI phải thể hiện rõ bước chờ vận hành; không báo tự cấp peer xong.
 

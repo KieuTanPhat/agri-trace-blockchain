@@ -4,17 +4,20 @@ services:
     environment:
       HYBRID_WRITES_MODE: ${HYBRID_WRITES_MODE:-CLOSED}
       FABRIC_LEGACY_WRITER: "false"
+      ENTERPRISE_ONBOARDING_ENABLED: ${ENTERPRISE_ONBOARDING_ENABLED:-false}
   worker:
     environment:
       FABRIC_ENABLED: "true"
       FABRIC_LEGACY_WRITER: "false"
       FABRIC_BINDINGS_CONFIG: /hosted-config/bindings.json
       FABRIC_WORKER_INTERVAL_MS: "2000"
+      ENTERPRISE_ONBOARDING_ENABLED: ${ENTERPRISE_ONBOARDING_ENABLED:-false}
+      ENTERPRISE_CONNECTIONS_CONFIG: /hosted-config/enterprise-connections.json
     user: ${WORKER_UID:?Set signer UID}:${WORKER_GID:?Set signer GID}
     volumes:
       - type: bind
-        source: ${FABRIC_BINDINGS_CONFIG_HOST:?Set own binding connection configuration}
-        target: /hosted-config/bindings.json
+        source: ${HOSTED_WORKER_CONFIG_HOST:?Set dedicated public Worker configuration directory}
+        target: /hosted-config
         read_only: true
         bind: {create_host_path: false}
       - type: bind
