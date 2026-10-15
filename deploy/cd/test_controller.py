@@ -85,6 +85,33 @@ class DomainDelivery(unittest.TestCase):
         self.controller.verify(self.record, SHA_B)
         self.controller.verify_hosted.assert_called_with(self.record, True)
 
+    def test_enterprise_inventory_is_private_and_admission_agrees_between_api_and_worker(self):
+        directory = self.base / 'shared/worker'
+        inventory = directory / 'enterprise-connections.json'
+        directory.mkdir(parents=True)
+        (directory / 'bindings.json').write_text('{}')
+        inventory.write_text('{"version":1,"targets":[]}')
+        inventory.chmod(0o600)
+        self.controller.environment['HOSTED_WORKER_CONFIG_HOST'] = str(directory)
+        self.controller.environment['FABRIC_BINDINGS_CONFIG_HOST'] = str(directory / 'bindings.json')
+        self.controller.environment['ENTERPRISE_CONNECTIONS_CONFIG_HOST'] = str(inventory)
+        api = {'ENTERPRISE_ONBOARDING_ENABLED': 'false'}
+        worker = {'environment': {'ENTERPRISE_ONBOARDING_ENABLED': 'false',
+                                 'ENTERPRISE_CONNECTIONS_CONFIG': '/hosted-config/enterprise-connections.json'}}
+        self.controller.enterprise_admission_preflight(api, worker)
+        worker['environment']['ENTERPRISE_ONBOARDING_ENABLED'] = 'true'
+        with self.assertRaisesRegex(PolicyError, 'API/Worker enterprise admission'):
+            self.controller.enterprise_admission_preflight(api, worker)
+        worker['environment']['ENTERPRISE_ONBOARDING_ENABLED'] = 'false'
+        self.controller.environment['HOSTED_WORKER_CONFIG_HOST'] = str(self.base / 'outside')
+        with self.assertRaisesRegex(PolicyError, 'private production'):
+            self.controller.enterprise_admission_preflight(api, worker)
+        self.controller.environment['HOSTED_WORKER_CONFIG_HOST'] = str(directory)
+        self.controller.environment['ENTERPRISE_CONNECTIONS_CONFIG_HOST'] = str(inventory)
+        inventory.chmod(0o666)
+        with self.assertRaisesRegex(PolicyError, 'writable'):
+            self.controller.enterprise_admission_preflight(api, worker)
+
     def test_resume_fabric_waits_for_both_peers_before_reconcile(self):
         self.controller.run = MagicMock(return_value=b"")
         self.controller.definition = MagicMock(side_effect=[PolicyError("peer unavailable"), {"sequence": 2}])
@@ -125,6 +152,30 @@ class DomainDelivery(unittest.TestCase):
         self.controller.resume_fabric.assert_called_once()
         self.assertEqual(self.controller.phase, "ledger-consistent-backup")
 
+    def test_external_backup_requires_original_candidate_frozen_rows_and_same_remote_block(self):
+        directory = self.base / 'shared'
+        directory.mkdir()
+        filename = directory / 'coordinated-backup.json'
+        self.controller.fabric['external_owner'] = {'msp_id': 'Org3MSP', 'channel': 'hybrid-self',
+            'hostname': 'peer0.org3.example.com', 'endpoint': '10.77.0.2:11051', 'tls_ca': '/public/owner.crt'}
+        self.controller.config['external_backup_receipt'] = str(filename)
+        baseline = {'writersStopped': True, 'fingerprints': {'event:one': 'unchanged'}}
+        ledger = {'height': 25, 'currentBlockHash': 'same', 'previousBlockHash': 'previous'}
+        receipt = {'protocol': 'agritrace-coordinated-backup/1', 'candidateSha': SHA_B, 'ownerMspId': 'Org3MSP',
+                   'ownerArchiveSha256': 'a' * 64, 'ownerArchiveBytes': 1000, 'offVps': True, 'ledger': ledger,
+                   'fingerprintsSha256': module.policy.sha256(json.dumps(baseline['fingerprints'], sort_keys=True, separators=(',', ':')).encode())}
+        self.controller.peer_env = MagicMock(return_value=('/peer', {}))
+        self.controller.run = MagicMock(return_value=('Blockchain info: ' + json.dumps(ledger)).encode())
+        filename.write_text(json.dumps(receipt))
+        self.controller.external_backup_preflight(SHA_B, baseline)
+        with self.assertRaisesRegex(PolicyError, 'candidate'):
+            self.controller.external_backup_preflight('c' * 40, baseline)
+        with self.assertRaisesRegex(PolicyError, 'frozen'):
+            self.controller.external_backup_preflight(SHA_B, dict(baseline, fingerprints={}))
+        self.controller.run.return_value = json.dumps(dict(ledger, height=26)).encode()
+        with self.assertRaisesRegex(PolicyError, 'advanced'):
+            self.controller.external_backup_preflight(SHA_B, baseline)
+
     def test_snapshot_catalogs_hosted_ledger_and_private_state_only(self):
         (self.base / "backups").mkdir()
         self.controller.environment.update(POSTGRES_USER="test", POSTGRES_DB="test")
@@ -149,6 +200,8 @@ class DomainDelivery(unittest.TestCase):
         private = calls["private-config-backup"]
         self.assertIn(str((self.base / "shared").relative_to("/")), private)
         self.assertIn("etc/agri-trace-cd/prod", private)
+        self.assertIn(str(Path(module.__file__).resolve().parent.relative_to('/')), private,
+                      'The immutable helper generation must be archived as well as its selection symlink')
         self.assertFalse(any("uat" in item for item in private))
         self.assertTrue(directory.name.startswith("prod-" + "c" * 40))
         self.assertFalse((directory / "snapshot.tar").exists(), "The unencrypted bundle must be removed after encryption")
@@ -389,6 +442,33 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.assertNotIn("start-" + self.old["id"], self.controller.calls)
         archived = self.base / "cd/records" / self.candidate["id"] / "recovered-journal.json"
         self.assertEqual(json.loads(archived.read_text())["previous"], self.old["id"])
+
+    def test_fix_forward_opens_its_candidate_only_for_smoke_and_closes_the_session_afterward(self):
+        self.controller.journal(self.old, self.candidate, 'application', self.controller.data)
+        digest = module.policy.sha256(json.dumps(self.candidate['manifest'], sort_keys=True, separators=(',', ':')).encode())
+        self.controller.config['forward_recovery'] = {'sha': self.candidate['sha'], 'manifest_sha256': digest}
+        verify = self.controller.verify
+        def checked(record, canary=None):
+            self.assertEqual(self.controller.fresh_write_mode(record), 'OPEN')
+            return verify(record, canary)
+        self.controller.verify = checked
+        self.controller.forward(self.candidate, self.state)
+        self.assertFalse(self.controller.smoke_writes)
+
+    def test_fix_forward_smoke_failure_keeps_journal_and_stops_the_candidate(self):
+        self.controller.journal(self.old, self.candidate, 'application', self.controller.data)
+        digest = module.policy.sha256(json.dumps(self.candidate['manifest'], sort_keys=True, separators=(',', ':')).encode())
+        self.controller.config['forward_recovery'] = {'sha': self.candidate['sha'], 'manifest_sha256': digest}
+        def failed(record, canary=None):
+            self.assertEqual(self.controller.fresh_write_mode(record), 'OPEN')
+            raise PolicyError('candidate smoke failed')
+        self.controller.verify = failed
+        with self.assertRaisesRegex(PolicyError, 'candidate smoke failed'):
+            self.controller.forward(self.candidate, self.state)
+        self.assertFalse(self.controller.smoke_writes)
+        self.assertFalse(self.controller.writers_running)
+        self.assertTrue((self.base / 'cd/journal.json').exists())
+        self.assertNotIn("start-" + self.old["id"], self.controller.calls)
 
     def test_candidate_failure_restores_old_app_without_data_restore(self):
         self.controller.fail_candidate = True

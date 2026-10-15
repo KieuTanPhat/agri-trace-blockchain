@@ -30,6 +30,7 @@ import {
   proposeChange,
 } from "./registry";
 import { SIGNING_PROTOCOL } from "./signing";
+import { recordConnectionProbe, readConnectionProbe } from './connection-probes';
 import { requireHash, requireName, requireUuid } from "./binding";
 import {
   fromLedgerBytes,
@@ -511,7 +512,7 @@ export class AgriTraceContract extends Contract {
       schemaVersion: SCHEMA_VERSION,
       envelopeVersion: ENVELOPE_VERSION,
       supportedReadVersions: ["2.0.0", "3.0.0"],
-      supportedWriteVersions: ["3.0.0", "4.0.0", "5.0.0"],
+      supportedWriteVersions: ["3.0.0", "4.0.0", "6.0.0"],
       signingProtocol: SIGNING_PROTOCOL,
       registryProtocol: "agritrace-governance/1",
       governanceDigest: GOVERNANCE_DIGEST,
@@ -519,6 +520,18 @@ export class AgriTraceContract extends Contract {
       callerRole: callerRole(ctx),
     };
     return this.stringify(result);
+  }
+
+  @Transaction()
+  @Returns('string')
+  public async RecordConnectionProbe(ctx:Context,bindingDigest:string,challenge:string,organizationRef:string):Promise<string> {
+    return this.stringify(await recordConnectionProbe(ctx,bindingDigest,challenge,organizationRef));
+  }
+
+  @Transaction(false)
+  @Returns('string')
+  public async GetConnectionProbe(ctx:Context,bindingDigest:string,challenge:string):Promise<string> {
+    return this.stringify(await readConnectionProbe(ctx,bindingDigest,challenge));
   }
 
   private assertTechnicalRelayer(ctx: Context): void {

@@ -2,7 +2,6 @@ import {
   ConflictException,
   Injectable,
   Inject,
-  NotImplementedException,
   Optional,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -16,6 +15,7 @@ import type { LoginDto } from './dto/login.dto.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import type { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { lockSessionOwner, sessionFamilyWhere } from './session-family.js';
+import { registerEnterprise } from '../enterprise-onboarding/enterprise-onboarding.service.js';
 
 @Injectable()
 export class AuthService {
@@ -26,10 +26,8 @@ export class AuthService {
     @Optional() @Inject(ConfigService) private readonly config?: ConfigService,
   ) {}
 
-  register(_input: RegisterDto): never {
-    throw new NotImplementedException(
-      'Đăng ký đang tạm khóa; tài khoản sẽ do quản trị viên cấp',
-    );
+  register(input: RegisterDto) {
+    return registerEnterprise(this.prisma,input,this.config?.getOrThrow<string>('JWT_SECRET') ?? process.env.JWT_SECRET!);
   }
 
   async login(input: LoginDto, previousRefreshToken?: string) {

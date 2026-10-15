@@ -15,15 +15,20 @@ const freePort = async () => {
   return port;
 };
 
+const enterpriseOnly = process.argv.includes('--enterprise-only');
+assert.ok(process.argv.slice(2).every(argument => argument === '--enterprise-only'), 'Unknown browser harness argument');
 await withHybridStack(async ({ env, root, evidenceDir, receipt, npm }) => {
   env.HYBRID_BROWSER_TESTS = '1';
   env.FABRIC_ENABLED = 'true';
   env.FABRIC_LEGACY_WRITER = 'false';
   env.FABRIC_WORKER_INTERVAL_MS = '500';
+  env.ENTERPRISE_ONBOARDING_ENABLED = 'true';
   env.NEXT_PUBLIC_API_BASE_URL = '/api';
   env.NEXT_PUBLIC_USE_MOCK_API = 'false';
   env.FABRIC_BINDINGS_CONFIG = path.join(root, 'browser-bindings.json');
   writeFileSync(env.FABRIC_BINDINGS_CONFIG, JSON.stringify({ version: 1, bindings: [] }), { mode: 0o600 });
+  env.ENTERPRISE_CONNECTIONS_CONFIG = path.join(root, 'browser-enterprise-targets.json');
+  writeFileSync(env.ENTERPRISE_CONNECTIONS_CONFIG, JSON.stringify({ version: 1, targets: [] }), { mode: 0o600 });
   env.HYBRID_WEB_PORT = String(await freePort());
   npm('run', 'build', '--workspace', 'apps/api');
   npm('run', 'build', '--workspace', 'apps/web');
@@ -32,6 +37,8 @@ await withHybridStack(async ({ env, root, evidenceDir, receipt, npm }) => {
   const expiryHandles = [];
   const processLogs = [];
   const loginResults = [];
+  const enterpriseSecrets = [];
+  let enterpriseOperator;
   const start = (args, ipc = false) => {
     const child = spawn(process.execPath, args, { cwd: repository, env, detached: true, stdio: ['ignore', 'pipe', 'pipe', ...(ipc ? ['ipc'] : [])] });
     const output = { process: args.includes('--worker') ? 'worker' : ipc ? 'api' : 'web', stdout: '', stderr: '' };
@@ -60,13 +67,13 @@ await withHybridStack(async ({ env, root, evidenceDir, receipt, npm }) => {
     }
     const { createBrowserFixture } = await import('./hybrid-browser-fixture.mjs');
     const { runHybridBrowserScenarios, prepareHybridBrowserExpiry } = await import('./hybrid-browser-scenarios.mjs');
-    for (const variant of ['desktop', 'mobile']) {
+    for (const variant of enterpriseOnly ? [] : ['desktop', 'mobile']) {
       const fixture = await createBrowserFixture(env, origin, `${variant}-${receipt.instance}`, { waitForWorker: false });
       fixture.variant = variant;
       fixtures.push(fixture);
     }
-    // BindingConnectionPool pins its connection inventory on first load. Start
-    // the true Worker only after both immutable fixture bindings are present.
+    // The Worker loads the initial bindings and reloads atomic inventory updates
+    // when the enterprise operator later provisions the newly registered chains.
     const worker = start(['scripts/ci/hybrid-browser-server.mjs', '--worker'], true);
     const workerReady = await ready(worker);
     for (const fixture of fixtures) {
@@ -78,6 +85,18 @@ await withHybridStack(async ({ env, root, evidenceDir, receipt, npm }) => {
       const expiry = await prepareHybridBrowserExpiry(options);
       expiryHandles.push({ variant, options, expiry });
     }
+    const { createEnterpriseBrowserFixture } = await import('./enterprise-browser-fixture.mjs');
+    const { runEnterpriseBrowserScenarios } = await import('./enterprise-browser-scenarios.mjs');
+    enterpriseOperator = await createEnterpriseBrowserFixture(env);
+    enterpriseSecrets.push(enterpriseOperator.password, enterpriseOperator.admin.email);
+    receipt.suites.push({ name: 'enterprise-browser', status: 'running' });
+    const enterpriseResult = await runEnterpriseBrowserScenarios({ origin, operator: enterpriseOperator,
+      diagnosticsDir: path.join(evidenceDir, 'browser-diagnostics'), privateDir: root, loginResults, secrets: enterpriseSecrets,
+      chromiumExecutablePath: process.env.HYBRID_CHROMIUM_EXECUTABLE });
+    assert.equal(enterpriseResult.failed, 0);
+    assert.equal(enterpriseResult.passed, 2);
+    receipt.suites.at(-1).status = 'passed';
+    receipt.suites.at(-1).results = enterpriseResult;
     for (const { variant, options, expiry } of expiryHandles) {
       receipt.suites.push({ name: `browser-${variant}`, status: 'running' });
       const result = await runHybridBrowserScenarios({ ...options, browserSession: expiry.session });
@@ -98,7 +117,7 @@ await withHybridStack(async ({ env, root, evidenceDir, receipt, npm }) => {
     }
   } finally {
     receipt.loginResponses = loginResults.map(({ login, phase, hydrationWaitMs }) => ({ ...login, phase, hydrationWaitMs }));
-    const secrets = [env.JWT_SECRET, env.IOT_INGEST_API_KEY, env.DATABASE_URL,
+    const secrets = [env.JWT_SECRET, env.IOT_INGEST_API_KEY, env.DATABASE_URL, ...enterpriseSecrets,
       ...fixtures.flatMap(({ fixture }) => [fixture.password, ...Object.values(fixture.users).map(user => user.email)])];
     receipt.browserProcessLogs = processLogs.map(output => ({
       process: output.process,
@@ -107,6 +126,7 @@ await withHybridStack(async ({ env, root, evidenceDir, receipt, npm }) => {
     }));
     for (const { expiry } of expiryHandles) await expiry.close();
     for (const fixture of fixtures) await fixture.close();
+    await enterpriseOperator?.close();
     for (const child of processes) if (child.exitCode === null) {
       try { process.kill(-child.pid, 'SIGTERM'); } catch { /* already stopped */ }
     }
@@ -118,4 +138,4 @@ await withHybridStack(async ({ env, root, evidenceDir, receipt, npm }) => {
     receipt.browserProcessCleanup = { verified: processes.every(child => child.exitCode !== null || child.signalCode !== null) };
     assert.ok(receipt.browserProcessCleanup.verified, 'Browser process cleanup incomplete');
   }
-}, { suite: 'hybrid-browser' });
+}, { suite: enterpriseOnly ? 'enterprise-browser' : 'hybrid-browser' });

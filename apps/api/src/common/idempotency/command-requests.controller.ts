@@ -21,6 +21,9 @@ import { IdempotencyService } from './idempotency.service.js';
 import { IdempotencyKey } from './idempotency-key.decorator.js';
 
 const operations = [
+  'ENTERPRISE_REVIEW',
+  'ENTERPRISE_CONNECT',
+  'ENTERPRISE_CONNECTION_REVIEW',
   'CREATE_PRODUCTION_CYCLE',
   'PLANT_PRODUCTION_CYCLE',
   'RECORD_CARE',

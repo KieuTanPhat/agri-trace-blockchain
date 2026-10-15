@@ -42,12 +42,23 @@ Bootstrap chỉ nhận cấu hình riêng tư và không đổi account hiện c
 pin image/governance và giữ persistent CA/MSP/ledger; script Hybrid pilot chỉ dùng
 cho test. Cấu trúc binding tham khảo [network](../deploy/hosted-network.example.json).
 
+Ứng viên onboarding cần `HOSTED_WORKER_CONFIG_HOST` là thư mục riêng chỉ có
+`bindings.json` và `enterprise-connections.json` (inventory khởi đầu
+`{"version":1,"targets":[]}`). `FABRIC_BINDINGS_CONFIG_HOST` và
+`ENTERPRISE_CONNECTIONS_CONFIG_HOST` trỏ tới hai file đó. Worker mount cả thư mục
+readonly ở `/hosted-config` để thấy bản mới sau atomic rename; không mount thư
+mục cha chứa credentials. File không được group/world writable hoặc là symlink.
+`ENTERPRISE_ONBOARDING_ENABLED=false` đóng admission; khi mở phải
+đồng nhất trên API/Worker. Controller kiểm các ranh giới này trước delivery.
+
 GitHub đặt `CD_PROJECT=agritrace-prod`, `CD_PROFILE=fabric`, origin
 `https://agritrace.dev`, known-hosts và delivery key đã pin. Giữ công tắc delivery
 hiện có khi giao bản. Trước khi cập nhật helper, đối chiếu SHA/CI, journal,
 delivery/host locks và ownership theo phần *Cập nhật controller*. Không prune hoặc
 reset DB. Khóa giải mã backup nằm ngoài VPS/GitHub; snapshot mã hóa phải có trước
 khi CD đổi bản chạy. Không khôi phục DB riêng sau khi ledger đã commit.
+Luồng `forward` mở phiên smoke của đúng candidate sau migrate, đóng cờ phiên
+trong `finally`; smoke lỗi vẫn giữ journal và dừng writers để đối soát.
 
 ## Delivery và smoke trên VPS
 
@@ -99,12 +110,73 @@ Chỉ merge PR đổi controller sau khi bước cập nhật hoàn tất; bản
 
 ## Recovery, tài nguyên và bàn giao
 
+### Nâng giao thức chữ ký c1 lên c2
+
+Bản sửa ràng buộc nội dung dùng intent protocol 2, envelope 6.0.0 / private hash
+5.0.0. Review migration append-only `20261019000000_signed_content_commitment`
+và checksum theo quy trình hiện hành. Giữ writers đóng khi nâng chaincode, API,
+Worker và Web; kiểm HealthCheck có write version 6.0.0 trước khi mở lại. Worker
+từ chối writer chỉ hỗ trợ c1. Khóa Ed25519/PoP và binding không đổi.
+
+Trước rollout, kiểm kê intent c1 PENDING, outbox c1 và delivery attempts. Intent
+chưa gửi cần chuẩn bị lại; command đã gửi/kết quả chưa rõ phải giữ original key,
+đối soát proof/attempt/fence. Worker có thể xác nhận proof c1 đã commit và khớp
+toàn bộ bằng chứng; c1 chưa commit sau đối soát dừng ở dead letter, cần rà soát.
+Không rehash, sửa payload/chữ ký lịch sử hoặc tự gửi lại bằng event/key mới.
+Kiểm bằng chứng lịch sử không còn khớp nội dung và xử lý theo quy trình reconcile.
+
+Smoke bản mới phải gồm đổi quantity nhưng giữ chữ ký, tính lại commitment, thử
+ghi c1 và ghi B không chữ ký cho handover: tất cả phải bị từ chối. Một bàn giao
+offer/confirm đúng phải có proof c2 trùng payloadDigest/metadataDigest và VALID.
+
+### Recovery thông thường
+
 Lỗi giữ writers đóng/dừng, journal, DB/outbox/ledger và original command keys.
 `recover` lần đầu tiếp tục đúng candidate; không reset DB, giả verified release
 cũ hoặc tự resolve migration chưa hoàn tất. `hybrid-floor.json` chặn image thiếu
 schema/protocol. Rollback ứng dụng chỉ tới image verified tương thích; không
 restore DB riêng sau ledger commit. Hosted chaincode thay đổi cần lifecycle review,
 không gọi `upgrade` để thay B/C vào channel legacy.
+
+### Nghiệm thu peer doanh nghiệp trên VPS thứ hai
+
+Chủ dự án cho phép nghiệm thu trên production sau sao lưu. Hai VPS dùng tuyến
+WireGuard riêng (`10.77.0.1` phía platform, `10.77.0.2` phía doanh nghiệp). Relay
+`blockchain/network/production/tcp-relay.py` chỉ chuyển byte TLS từ cổng trên VPN
+tới cổng loopback hiện hữu, không kết thúc TLS hoặc giữ signing key. Security
+group/firewall chỉ cho tuyến đã review; không mở peer/orderer/CA ra Internet.
+
+Doanh nghiệp khởi tạo CA/admin/peer bằng bộ cài enterprise tại máy mình. Chỉ
+chuyển public MSP/TLS sang platform. Với channel `hybrid-self` đã tạo nhưng chưa
+có binding doanh nghiệp, `external-owner.py` chuẩn bị bản đổi root CA/NodeOUs
+và anchor của Org3; nó không ký hoặc gửi cập nhật. Kiểm fingerprint, nội dung
+config update và binding chưa được cấp cho bên khác. Admin hiện hành ký cập nhật
+theo policy, giữ toàn bộ block cũ; kiểm CA cũ không còn được tin cậy cho hành
+động mới. Không gán private identity Org3 cũ cho doanh nghiệp mới.
+
+Sau khi đối soát peer doanh nghiệp, `hosted.external_owner` pin protocol
+`agritrace-external-owner/1`, MSP/channel/hostname, endpoint `10.77.0.2:11051`
+và public `tls_ca` trong hosted root. Bỏ stack Org3 cũ khỏi resource catalog đang
+hoạt động; bản lưu và tài nguyên cũ được giữ riêng. API/Worker không nhận owner
+admin/CA key. Nâng CaaS image và definition trên từng channel là thao tác lifecycle
+riêng được review, tăng sequence và xác minh policy/package/HealthCheck c2.
+Ghi journal và baseline trước thao tác; nếu app cũ không tương thích sau lifecycle,
+giữ writers dừng và giao candidate bằng luồng `forward` hiện hành, không giả
+verified release hoặc sửa receipt lịch sử.
+
+Backup khi đã có peer ngoài phải dừng writers và phối hợp hai host: đóng băng,
+đối chiếu block height/hash, lưu database/config/ledger/danh tính của từng bên,
+mã hóa rồi tải khỏi VPS. Khóa giải mã ở ngoài hai VPS. Controller từ chối snapshot
+nếu `external_backup_receipt` không trỏ tới receipt private protocol
+`agritrace-coordinated-backup/1` đúng candidate SHA/MSP, archive doanh nghiệp,
+fingerprint baseline và block hiện tại. Nó không có SSH key để tự sao lưu máy
+doanh nghiệp. Khôi phục cách ly và khôi phục peer thật phải giữ cùng khóa,
+installation, genesis, txId/proof; không restore database riêng sau ledger commit.
+
+Đo tài nguyên cả host và container cùng thời gian/tải, gồm CPU, peak RAM, đĩa,
+OOM/restart, độ trễ và backlog. Kết luận cấu hình thấp nhất **đã kiểm chứng** ở
+tải đã ghi; quota container hoặc kết quả một VPS không chứng minh mọi VPS nhỏ
+hơn đều đạt. Kết quả mỗi lần chạy nằm trong PR/artifact, không chép vào hướng dẫn.
 
 Mọi container có CPU/RAM quota, chừa >=20% RAM host. Mẫu
 [capacity](../deploy/hosted-capacity.example.json) cần kiểm tải/OOM/restarts thực.

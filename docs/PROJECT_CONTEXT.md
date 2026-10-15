@@ -36,13 +36,27 @@ are unchanged. Repairs append migrations rather than changing these inputs.
 
 - A uses envelope 3.0.0 / private hash 2.0.0.
 - B uses envelope 4.0.0 / private hash 3.0.0 and an immutable logical binding.
-- C uses envelope 5.0.0 / private hash 4.0.0; custody on a DUAL_SIGNED shipment
+- New C writes use c2 envelope 6.0.0 / private hash 5.0.0 and intent protocol 2.
+  The organization signature binds the business payload digest; ledger validation
+  reconstructs the private commitment from payload, metadata and assertion
+  digests. API/SQL/Worker require actual business content to equal the signed
+  payload. Historical c1 (5.0.0 / 4.0.0) remains readable with stricter content
+  checks and unchanged hashes; new c1 writes are disabled. This source change
+  does not establish deployment acceptance on the production VPS.
+  Custody on a DUAL_SIGNED shipment
   changes only after matching offer and confirmation. C does not silently fall
   back when signer, registry, peer or orderer is unavailable.
 - Hosted A/B/C is the release scope. Signatures cover handover. Care/harvest keep
   current authentication, and the UI must describe that trust level accurately.
 - A local three-org pilot proves technical isolation; actual external enterprise
   CA/peer/admin/signer authority remains NotEvaluated.
+- The enterprise onboarding candidate adds public signup, operator review,
+  MANAGED_ORG/SELF_MANAGED_ORG requests and ledger-verified connection probes.
+  Admission defaults closed (`ENTERPRISE_ONBOARDING_ENABLED=false`). Signup does
+  not grant business access. This v1 uses operator-provisioned networks and an
+  exclusive enterprise MSP per network; it does not dynamically admit unlimited
+  Fabric organizations. External-host acceptance and production rollout remain
+  separate gates; see [the onboarding plan](plans/enterprise-onboarding.md).
 
 Source completion is not production acceptance. The current worktree is
 `feature/hybrid-production-readiness`. Remaining release safeguards, tests,

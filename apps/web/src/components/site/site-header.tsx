@@ -11,6 +11,7 @@ const links = [
   { href: "/#integrity", label: "Toàn vẹn dữ liệu" },
   { href: "/scan", label: "Quét QR" },
   { href: "/#contact", label: "Liên hệ" },
+  { href: "/register", label: "Đăng ký doanh nghiệp" },
 ];
 
 /** Public header shared by the landing page, the QR scanner, trace pages and login. */

@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
+import { canonicalize } from 'json-canonicalize';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { calculateTraceEventHash } from './trace-hash.js';
@@ -17,6 +18,10 @@ import { reserveEventPermission } from '../ledger/ledger-permissions.js';
 import {
   assertionDigest,
   C_SCHEMA_VERSION,
+  INTENT_PROTOCOL,
+  signedBusinessPayload,
+  signedMetadataDigest,
+  signedPrivateBodyDigest,
   signedBindingEventCommitment,
 } from './signed-commitment.js';
 import { localEvidence } from './event-evidence.js';
@@ -131,7 +136,9 @@ export class TraceService {
     if (origin && origin.binding.state?.status !== 'ACTIVE')
       throw new ServiceUnavailableException('Binding ledger đang tạm dừng');
     if (!origin && process.env.FABRIC_LEGACY_WRITER === 'false')
-      throw new ConflictException('Sự kiện cần binding Fabric; route ghi cũ đã bị vô hiệu hóa');
+      throw new ConflictException(
+        'Sự kiện cần binding Fabric; route ghi cũ đã bị vô hiệu hóa',
+      );
     const route: PinnedRoute = origin
       ? (origin.binding.route as PinnedRoute)
       : await activeWriteRoute(tx);
@@ -179,6 +186,12 @@ export class TraceService {
         throw new ConflictException(
           'Chữ ký không khớp sự kiện, thực thể hoặc binding',
         );
+      if (
+        (signed.intent as Prisma.JsonObject).protocol !== INTENT_PROTOCOL ||
+        canonicalize(signedBusinessPayload(input.businessData)) !==
+          canonicalize(signed.payload)
+      )
+        throw new ConflictException('Nội dung sự kiện khác nội dung đã ký');
       input = {
         ...input,
         businessData: {
@@ -191,6 +204,7 @@ export class TraceService {
               keyRef: signed.keyRef,
               intentDigest: signed.intentDigest,
               signature: signed.signature,
+              payloadDigest: signed.payloadDigest,
             },
             signerOrgId: signed.organizationId,
           },
@@ -231,14 +245,26 @@ export class TraceService {
           input.entityType,
         )
       : null;
-    const bodyDigest = origin ? privateBodyDigest(hashInput) : null;
     const assertion = signed
       ? {
           algorithm: 'Ed25519' as const,
           keyRef: signed.keyRef,
           intentDigest: signed.intentDigest,
           signature: signed.signature!,
+          payloadDigest: signed.payloadDigest,
         }
+      : null;
+    const content = assertion
+      ? {
+          payloadDigest: assertion.payloadDigest,
+          metadataDigest: signedMetadataDigest(hashInput),
+          assertionDigest: assertionDigest(assertion),
+        }
+      : null;
+    const bodyDigest = origin
+      ? content
+        ? signedPrivateBodyDigest(content)
+        : privateBodyDigest(hashInput)
       : null;
     const commit =
       origin && captured && bodyDigest
@@ -247,7 +273,7 @@ export class TraceService {
               ? signedBindingEventCommitment(context, bodyDigest, {
                   keyRef: assertion.keyRef,
                   intentDigest: assertion.intentDigest,
-                  assertionDigest: assertionDigest(assertion),
+                  ...content!,
                 })
               : bindingEventCommitment(context, bodyDigest)
         : null;
@@ -321,7 +347,7 @@ export class TraceService {
           eventId: event.id,
           bindingDigest: origin.bindingDigest,
           privateBodyDigest: bodyDigest,
-          ...(signed ? { commitmentVersion: 'c1' } : {}),
+          ...(signed ? { commitmentVersion: 'c2' } : {}),
         },
       });
       await tx.eventPermissionEpoch.create({

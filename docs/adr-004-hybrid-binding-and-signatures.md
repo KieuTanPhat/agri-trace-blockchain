@@ -44,13 +44,21 @@ có thể kiểm soát quyền ghi, và (C) bằng chứng rằng chính tổ ch
 1. **Khóa tổ chức Ed25519, đăng ký có bằng chứng sở hữu.** Khóa riêng nằm ở bên ký
    (WebCrypto không trích xuất, dịch vụ ký ngoài hoặc HSM); DB/API chỉ giữ khóa
    công khai. Kích hoạt trên ledger cần admin của cả writer MSP và owner MSP.
-2. **Chữ ký không thể bị di chuyển.** Thông điệp ký lặp lại danh tính công khai của
-   sự kiện (intentDigest, chain, event, entity, type, binding, key), nên chữ ký
+2. **Chữ ký không thể bị di chuyển.** Giao thức `agritrace-intent/2` ký lặp lại danh tính công khai của
+   sự kiện (intentDigest, chain, event, entity, type, binding, key, payloadDigest), nên chữ ký
    không dùng được cho sự kiện, thực thể, chuỗi, binding hay khóa khác. Chaincode
    kiểm chữ ký rồi mới nhận commitment mà có chữ ký bên trong; intent chỉ dùng một lần.
-3. **Không ký một hash đã bao chính chữ ký.** Ký digest của intent (chưa có dataHash);
-   dataHash sau đó bao intentDigest và assertionDigest. API/Worker kiểm thân riêng
-   tư tới digest; chaincode kiểm commitment và chữ ký, không cần dữ liệu nghiệp vụ.
+3. **Ràng buộc nội dung và tránh vòng lặp chữ ký.** Bản sửa c2 tách `payloadDigest`
+   của toàn bộ nội dung nghiệp vụ, `metadataDigest` của ngữ cảnh thực thi và
+   `assertionDigest` của chữ ký. `privateBodyDigest` là SHA-256 miền
+   `agritrace:private-body:c2` trên JCS ba digest đó. Chaincode tính lại digest này,
+   kiểm chữ ký có cùng payloadDigest rồi mới nhận dataHash. API/Worker và trigger
+   SQL yêu cầu dữ liệu nghiệp vụ thực tế bằng đúng payload của intent, không chỉ
+   kiểm bản sao payload trong assertion. Chỉ `actorSignature`, `chainId` và
+   `scopeVersion` là trường nền tảng; hai trường ngữ cảnh sau được bao trong
+   metadataDigest. Thời gian thực thi, predecessor và vân tay đăng nhập được ledger
+   neo tính toàn vẹn nhưng không phải lời xác nhận độc lập của tổ chức. Dữ liệu
+   nghiệp vụ vẫn không công khai trên ledger.
 4. **Bên ký không tin máy chủ.** Mọi giá trị của intent/payload là chuỗi để
    canonical hóa độc lập; bên ký tính lại payload/intent/thông điệp từ nội dung
    được hiển thị trước khi ký (Web và `org-signer`).
@@ -70,10 +78,17 @@ có thể kiểm soát quyền ghi, và (C) bằng chứng rằng chính tổ ch
 
 ## Hệ quả
 
-- Hệ thống có ba họ phiên bản cùng tồn tại: A (envelope 3.0.0, hash 2.0.0), B
-  (4.0.0 / 3.0.0) và C (5.0.0 / 4.0.0). Bộ đọc/kiểm tra phân nhánh theo phiên bản
+- Hệ thống giữ A (envelope 3.0.0, hash 2.0.0), B (4.0.0 / 3.0.0), C c1 lịch sử
+  (5.0.0 / 4.0.0) và ghi mới C c2 (6.0.0 / 5.0.0). Bộ đọc/kiểm tra phân nhánh theo phiên bản
   và **fail closed** với phiên bản lạ; bằng chứng legacy 64-hex vẫn đúng, chữ ký thật
   không bao giờ đi qua trường vân tay.
+- c1 từng cho phép relayer thay thân riêng tư rồi tính lại commitment quanh chữ ký
+  hợp lệ. c2 chặn đường này; chaincode và DB từ chối ghi c1 mới. Bộ đọc lịch sử c1
+  kiểm thêm nội dung thực tế khớp payload đã ký, giữ nguyên hash; bằng chứng không
+  khớp phải được rà soát. Intent c1 chưa thực hiện cần chuẩn bị lại; command đã
+  gửi/kết quả chưa rõ phải đối soát proof/attempt bằng khóa cũ trước, không đổi
+  event/hash hoặc tự cấp khóa idempotency mới. Worker đối soát c1 đã commit;
+  trường hợp chưa commit sau đối soát dừng ở dead letter để operator xử lý.
 - Migration của A/B/C tạo kiểu, hàm và trigger nên cổng CD tự động chặn và cần quy
   trình review checksum trong root config. Bản cài mới thêm migration cleanup
   append-only, giữ byte A/B/C, từ chối history hiện có; không import history cũ.

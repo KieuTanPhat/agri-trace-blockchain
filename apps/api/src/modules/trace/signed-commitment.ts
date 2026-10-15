@@ -5,23 +5,28 @@ import {
 } from 'node:crypto';
 import { canonicalize } from 'json-canonicalize';
 import {
+  privateBodyDigest,
   unsignedBindingBody,
   type BindingEventContext,
 } from './binding-commitment.js';
+import type { TraceHashInput } from './trace-hash.js';
 
 /** Release C protocol (independent organization signatures). Every constant
  * and byte layout mirrors blockchain/chaincode/src/signing.ts; the shared
  * vectors in signed-commitment.spec.ts lock the two implementations. */
-export const C_ENVELOPE_VERSION = '5.0.0';
-export const C_SCHEMA_VERSION = '4.0.0';
+export const C_ENVELOPE_VERSION = '6.0.0';
+export const C_SCHEMA_VERSION = '5.0.0';
+export const LEGACY_C_ENVELOPE_VERSION = '5.0.0';
+export const LEGACY_C_SCHEMA_VERSION = '4.0.0';
 export const SIGNED_EVENT_DOMAIN = 'agritrace:binding-event:c1';
 export const INTENT_SIGNATURE_DOMAIN = 'agritrace:intent-signature:c1';
 export const KEY_POP_DOMAIN = 'agritrace:signing-key-pop:c1';
 export const ASSERTION_DOMAIN = 'agritrace:signature-assertion:c1';
 export const INTENT_DOMAIN = 'agritrace:intent:c1';
 export const INTENT_PAYLOAD_DOMAIN = 'agritrace:intent-payload:c1';
-export const INTENT_PROTOCOL = 'agritrace-intent/1';
-export const SIGNING_POLICY_VERSION = '1';
+export const INTENT_PROTOCOL = 'agritrace-intent/2';
+export const LEGACY_INTENT_PROTOCOL = 'agritrace-intent/1';
+export const SIGNING_POLICY_VERSION = '2';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const HASH = /^[0-9a-f]{64}$/;
@@ -32,6 +37,9 @@ export type EventSignature = {
   keyRef: string;
   intentDigest: string;
   assertionDigest: string;
+  /** Present together on c2; absent only when reading historical c1. */
+  payloadDigest?: string;
+  metadataDigest?: string;
 };
 
 export type SignatureAssertion = {
@@ -39,12 +47,13 @@ export type SignatureAssertion = {
   keyRef: string;
   intentDigest: string;
   signature: string;
+  payloadDigest?: string;
 };
 
 /** Intent body: every value is a string so the canonical form is trivial for
  * any signer (browser, CLI, remote service) to reproduce independently. */
 export type IntentBody = {
-  protocol: typeof INTENT_PROTOCOL;
+  protocol: typeof INTENT_PROTOCOL | typeof LEGACY_INTENT_PROTOCOL;
   intentId: string;
   chainRef: string;
   bindingDigest: string;
@@ -130,11 +139,21 @@ export function keyPopMessage(fields: {
   );
 }
 
-export function payloadDigest(payload: IntentPayload): string {
+export function payloadDigest(
+  payload: IntentPayload,
+  protocol: IntentBody['protocol'] = INTENT_PROTOCOL,
+): string {
   for (const [key, value] of Object.entries(payload))
     if (typeof value !== 'string')
       throw new Error(`Intent payload field ${key} must be a string`);
-  return sha256(withDomain(INTENT_PAYLOAD_DOMAIN, canonicalize(payload)));
+  return sha256(
+    withDomain(
+      protocol === INTENT_PROTOCOL
+        ? 'agritrace:intent-payload:c2'
+        : INTENT_PAYLOAD_DOMAIN,
+      canonicalize(payload),
+    ),
+  );
 }
 
 const INTENT_KEYS: Array<keyof IntentBody> = [
@@ -161,7 +180,12 @@ export function assertIntentBody(intent: IntentBody): void {
     INTENT_KEYS.some((key) => typeof intent[key] !== 'string')
   )
     throw new Error('Intent has an unexpected shape');
-  if (intent.protocol !== INTENT_PROTOCOL) throw new Error('Intent protocol');
+  if (![INTENT_PROTOCOL, LEGACY_INTENT_PROTOCOL].includes(intent.protocol))
+    throw new Error('Intent protocol');
+  if (
+    intent.policyVersion !== (intent.protocol === INTENT_PROTOCOL ? '2' : '1')
+  )
+    throw new Error('Intent policy version');
   for (const key of [
     'intentId',
     'chainRef',
@@ -184,7 +208,14 @@ export function assertIntentBody(intent: IntentBody): void {
 
 export function intentDigest(intent: IntentBody): string {
   assertIntentBody(intent);
-  return sha256(withDomain(INTENT_DOMAIN, canonicalize(intent)));
+  return sha256(
+    withDomain(
+      intent.protocol === INTENT_PROTOCOL
+        ? 'agritrace:intent:c2'
+        : INTENT_DOMAIN,
+      canonicalize(intent),
+    ),
+  );
 }
 
 export type IntentSignedFields = {
@@ -196,6 +227,7 @@ export type IntentSignedFields = {
   eventType: string;
   bindingDigest: string;
   keyRef: string;
+  payloadDigest?: string;
 };
 
 /** The bytes the organization key signs. They repeat the event's public
@@ -203,7 +235,9 @@ export type IntentSignedFields = {
  * chain, binding or key. */
 export function intentSignedMessage(fields: IntentSignedFields): Buffer {
   return withDomain(
-    INTENT_SIGNATURE_DOMAIN,
+    fields.payloadDigest === undefined
+      ? INTENT_SIGNATURE_DOMAIN
+      : 'agritrace:intent-signature:c2',
     canonicalize({
       intentDigest: fields.intentDigest,
       chainRef: fields.chainRef,
@@ -213,6 +247,9 @@ export function intentSignedMessage(fields: IntentSignedFields): Buffer {
       eventType: fields.eventType,
       bindingDigest: fields.bindingDigest,
       keyRef: fields.keyRef,
+      ...(fields.payloadDigest === undefined
+        ? {}
+        : { payloadDigest: fields.payloadDigest }),
     }),
   );
 }
@@ -227,25 +264,33 @@ export function signedMessageForIntent(intent: IntentBody): Buffer {
     eventType: intent.eventType,
     bindingDigest: intent.bindingDigest,
     keyRef: intent.keyRef,
+    ...(intent.protocol === INTENT_PROTOCOL
+      ? { payloadDigest: intent.payloadDigest }
+      : {}),
   });
 }
 
 export function assertionDigest(assertion: SignatureAssertion): string {
   return sha256(
     withDomain(
-      ASSERTION_DOMAIN,
+      assertion.payloadDigest === undefined
+        ? ASSERTION_DOMAIN
+        : 'agritrace:signature-assertion:c2',
       canonicalize({
         algorithm: assertion.algorithm,
         keyRef: assertion.keyRef,
         intentDigest: assertion.intentDigest,
         signature: assertion.signature,
+        ...(assertion.payloadDigest === undefined
+          ? {}
+          : { payloadDigest: assertion.payloadDigest }),
       }),
     ),
   );
 }
 
-/** TraceEvent.dataHash of a C event: the B public body (envelope 5.0.0 /
- * schema 4.0.0) plus the signature reference, under its own domain. */
+/** C2 dataHash covers the public body and content commitments (6.0.0/5.0.0).
+ * The three-field c1 layout is retained only for historical verification. */
 export function signedBindingEventCommitment(
   context: BindingEventContext,
   bodyDigest: string,
@@ -254,20 +299,93 @@ export function signedBindingEventCommitment(
   for (const key of ['intentDigest', 'assertionDigest'] as const)
     if (!HASH.test(signature[key])) throw new Error(`Invalid ${key}`);
   if (!UUID.test(signature.keyRef)) throw new Error('Invalid keyRef');
+  const c2 = signature.payloadDigest !== undefined;
+  if (c2 !== (signature.metadataDigest !== undefined))
+    throw new Error('Incomplete c2 signature');
+  if (
+    c2 &&
+    signedPrivateBodyDigest(signature as Required<EventSignature>) !==
+      bodyDigest
+  )
+    throw new Error(
+      'Signed private body does not match its content commitments',
+    );
   const body = unsignedBindingBody(context, bodyDigest, {
-    envelope: C_ENVELOPE_VERSION,
-    schema: C_SCHEMA_VERSION,
+    envelope: c2 ? C_ENVELOPE_VERSION : LEGACY_C_ENVELOPE_VERSION,
+    schema: c2 ? C_SCHEMA_VERSION : LEGACY_C_SCHEMA_VERSION,
   });
   return sha256(
     withDomain(
-      SIGNED_EVENT_DOMAIN,
+      c2 ? 'agritrace:binding-event:c2' : SIGNED_EVENT_DOMAIN,
       canonicalize({
         ...body,
         signature: {
           keyRef: signature.keyRef,
           intentDigest: signature.intentDigest,
           assertionDigest: signature.assertionDigest,
+          ...(c2
+            ? {
+                payloadDigest: signature.payloadDigest,
+                metadataDigest: signature.metadataDigest,
+              }
+            : {}),
         },
+      }),
+    ),
+  );
+}
+
+/** Exact business content, excluding only platform-owned context fields. */
+export function signedBusinessPayload(data: unknown): IntentPayload {
+  if (!data || typeof data !== 'object' || Array.isArray(data))
+    throw new Error('Signed business data must be an object');
+  const payload = Object.fromEntries(
+    Object.entries(data).filter(
+      ([key]) => !['actorSignature', 'chainId', 'scopeVersion'].includes(key),
+    ),
+  );
+  for (const [key, value] of Object.entries(payload))
+    if (typeof value !== 'string')
+      throw new Error(`Signed business field ${key} must be a string`);
+  return payload as IntentPayload;
+}
+
+/** Audit metadata is anchored separately: the signer authorizes the business
+ * payload, while execution time, actor fingerprint and predecessor are assigned
+ * by the platform. Splitting avoids signing an assertion that contains itself. */
+export function signedMetadataDigest(event: TraceHashInput): string {
+  const data = event.businessData as Record<string, unknown>;
+  const businessData = Object.fromEntries(
+    ['chainId', 'scopeVersion']
+      .filter((key) => Object.hasOwn(data, key))
+      .map((key) => [key, data[key]]),
+  );
+  return sha256(
+    withDomain(
+      'agritrace:private-metadata:c2',
+      privateBodyDigest({ ...event, businessData }),
+    ),
+  );
+}
+
+export function signedPrivateBodyDigest(parts: {
+  payloadDigest: string;
+  metadataDigest: string;
+  assertionDigest: string;
+}): string {
+  for (const value of [
+    parts.payloadDigest,
+    parts.metadataDigest,
+    parts.assertionDigest,
+  ])
+    if (!HASH.test(value)) throw new Error('Invalid content digest');
+  return sha256(
+    withDomain(
+      'agritrace:private-body:c2',
+      canonicalize({
+        payloadDigest: parts.payloadDigest,
+        metadataDigest: parts.metadataDigest,
+        assertionDigest: parts.assertionDigest,
       }),
     ),
   );

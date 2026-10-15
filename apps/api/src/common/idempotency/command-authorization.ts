@@ -18,6 +18,7 @@ import {
   scopedDeviceAuthority,
 } from '../../modules/supply-chains/core-business-policy.js';
 import { lockChainScope } from '../../modules/supply-chains/chain-policy.js';
+import { authorizeEnterpriseCommand } from '../../modules/enterprise-onboarding/enterprise-onboarding.service.js';
 
 export interface CommandActor {
   sub: string | null;
@@ -221,6 +222,8 @@ export async function authorizeCommand(
     return authorizeShipmentPlanCommand(db, input, lock);
   if (input.operation.startsWith('HYB_'))
     return authorizeChainCommand(db, input, lock);
+  if (input.operation.startsWith('ENTERPRISE_'))
+    return authorizeEnterpriseCommand(db,input,lock);
 
   if (lock && actor.organizationId)
     await lockChainScope(db, `org:${actor.organizationId}`);

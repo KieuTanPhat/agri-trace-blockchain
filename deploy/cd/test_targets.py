@@ -136,6 +136,22 @@ class ProductionController(unittest.TestCase):
 
 
 class HostedTargetBinding(unittest.TestCase):
+    def test_external_owner_must_use_private_tls_and_cannot_retain_its_hosted_private_stack(self):
+        config = binding()
+        config['hosted']['external_owner'] = {'protocol': 'agritrace-external-owner/1', 'msp_id': 'Org3MSP',
+            'channel': 'hybrid-self', 'endpoint': '10.77.0.2:11051', 'hostname': 'peer0.org3.example.com',
+            'tls_ca': config['hosted']['root'] + '/public-owner/ca.crt'}
+        targets.validate_config(config, require)
+        for endpoint in ['0.0.0.0:11051', '8.8.8.8:11051', '10.77.0.2:5432']:
+            changed = copy.deepcopy(config)
+            changed['hosted']['external_owner']['endpoint'] = endpoint
+            with self.subTest(endpoint=endpoint), self.assertRaises(PolicyError):
+                targets.validate_config(changed, require)
+        changed = copy.deepcopy(config)
+        changed['hosted']['containers'].append('agritrace-prod-old-ca-org3')
+        with self.assertRaisesRegex(PolicyError, 'retain a hosted'):
+            targets.validate_config(changed, require)
+
     def test_target_has_its_own_database_mapping_and_never_binds_a_retained_network(self):
         config = binding()
         targets.validate_config(config, require)

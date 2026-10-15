@@ -163,7 +163,7 @@ async function preparedFor(
   };
   const notAfter = new Date(Date.now() + 15 * 60_000).toISOString();
   const intent = {
-    protocol: "agritrace-intent/1",
+    protocol: "agritrace-intent/2",
     intentId: "00000000-0000-4000-8000-0000000000e1",
     chainRef: "00000000-0000-4000-8000-0000000000f1",
     bindingDigest: "ab".repeat(32),
@@ -177,7 +177,7 @@ async function preparedFor(
     expectedVersion: "0",
     payloadDigest: await payloadDigest(payload),
     notAfter,
-    policyVersion: "1",
+    policyVersion: "2",
   };
   return {
     intentId: intent.intentId,

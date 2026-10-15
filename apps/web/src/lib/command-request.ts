@@ -10,6 +10,7 @@ const uuid = "[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}";
 const match = (path: string, pattern: string) =>
   path.match(new RegExp("^" + pattern + "$"));
 const creates: Record<string, Operation> = {
+  "/enterprise-connections": "ENTERPRISE_CONNECT",
   "/production-cycles": "CREATE_PRODUCTION_CYCLE",
   "/shipments": "CREATE_SHIPMENT",
   "/inspections": "CREATE_INSPECTION",
@@ -39,6 +40,8 @@ export function commandRequest(
     discriminator = "",
   ) => ({ operation, payload: { ...data, ...ids }, discriminator });
   if (method === "POST" && creates[path]) return result(creates[path]);
+  const enterprise=match(path,`/(enterprise-enrollments|enterprise-connections)/(${uuid})/review`);
+  if(enterprise && method==='POST') return result(enterprise[1]==='enterprise-enrollments'?'ENTERPRISE_REVIEW':'ENTERPRISE_CONNECTION_REVIEW',{id:enterprise[2]});
   let signing = match(path, `/shipments/(${uuid})/handover-offers/intent`);
   if (signing && method === "POST")
     return result("PREPARE_HANDOVER_OFFER", { shipmentId: signing[1] });

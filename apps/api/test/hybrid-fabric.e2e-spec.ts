@@ -5,7 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomUUID } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { ApiResponseInterceptor } from '../src/common/api/api-response.interceptor.js';
@@ -15,6 +15,11 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { BindingConnectionPool } from '../src/modules/ledger/binding-pool.js';
 import { BindingDeliveryService } from '../src/modules/ledger/binding-delivery.service.js';
 import { LedgerControlService } from '../src/modules/ledger/ledger-control.service.js';
+import { EnterpriseConnectionWorker } from '../src/modules/enterprise-onboarding/enterprise-connection.worker.js';
+import {
+  AwaitingOwnerApproval,
+  ExternalOwnerRegistryOperator,
+} from '../src/modules/ledger/external-owner-operator.js';
 import {
   activateBinding,
   registerBinding,
@@ -39,6 +44,7 @@ import {
   pilotClient,
   pilotDocker,
   pilotOperator,
+  peerCa,
   writeBindingsConfig,
 } from './support/fabric-pilot.js';
 
@@ -226,6 +232,7 @@ interface World {
       const ledger = await pilotOperator(channel, owner);
       const health = (await ledger.reader.health()) as {
         governanceDigest: string;
+        channelPolicy?: unknown;
       };
       const registered = await prisma.$transaction((tx) =>
         registerBinding(tx, {
@@ -240,23 +247,64 @@ interface World {
           profile: owner === 'org2' ? 'MANAGED_ORG' : 'SELF_MANAGED_ORG',
         }),
       );
-      await onboardBindingOnLedger({
-        operator: ledger.operator,
-        reader: ledger.reader,
-        channelId: channel,
-        approvers: ledger.approvers,
-        binding: {
-          digest: registered.digest,
-          network: 'agritrace-hybrid-local',
-          chaincodeName: CHAINCODE,
-          contractName: CONTRACT,
-          chainRef: registered.chainRef,
-          writerAuthority: WRITER_AUTHORITY,
-          writerMspId: 'Org1MSP',
-          governanceDigest: health.governanceDigest,
-        },
-        relayerFingerprint: ledger.relayerFingerprint,
-      });
+      const stagedController =
+        owner === 'org3'
+          ? await pilotClient('org1', 'controller', channel)
+          : null;
+      const stagedAdmin =
+        owner === 'org3' ? await pilotClient('org1', 'Admin', channel) : null;
+      const ownerAdmin =
+        owner === 'org3' ? await pilotClient('org3', 'Admin', channel) : null;
+      const operator =
+        stagedController && stagedAdmin
+          ? new ExternalOwnerRegistryOperator(
+              stagedController.client,
+              { Org1MSP: stagedAdmin.client },
+              {
+                channelId: channel,
+                chaincodeName: CHAINCODE,
+                contractName: CONTRACT,
+                governanceDigest: health.governanceDigest,
+              },
+            )
+          : ledger.operator;
+      const onboarding = () =>
+        onboardBindingOnLedger({
+          operator,
+          reader: ledger.reader,
+          channelId: channel,
+          approvers: ledger.approvers,
+          binding: {
+            digest: registered.digest,
+            network: 'agritrace-hybrid-local',
+            chaincodeName: CHAINCODE,
+            contractName: CONTRACT,
+            chainRef: registered.chainRef,
+            writerAuthority: WRITER_AUTHORITY,
+            writerMspId: 'Org1MSP',
+            governanceDigest: health.governanceDigest,
+          },
+          relayerFingerprint: ledger.relayerFingerprint,
+        });
+      let stagedApprovals = 0;
+      for (;;) {
+        try {
+          await onboarding();
+          break;
+        } catch (error) {
+          if (!(error instanceof AwaitingOwnerApproval) || !ownerAdmin)
+            throw error;
+          const review = error.review.proposal as { proposalId: string };
+          await ownerAdmin.client.invoke('ApproveRegistryChange', [
+            review.proposalId,
+          ]);
+          stagedApprovals += 1;
+          if (stagedApprovals > 3)
+            throw new Error('Onboarding did not resume the original proposals');
+        }
+      }
+      if (owner === 'org3')
+        expect(stagedApprovals).toBe(health.channelPolicy ? 2 : 3);
       await prisma.$transaction((tx) =>
         mirrorCredential(tx, registered.digest, ledger.relayerFingerprint),
       );
@@ -279,6 +327,7 @@ interface World {
     }
 
     beforeAll(async () => {
+      process.env.ENTERPRISE_ONBOARDING_ENABLED = 'true';
       productId = (
         await prisma.product.create({
           data: { productName: 'Hybrid B vegetables', defaultUnit: 'kg' },
@@ -350,6 +399,201 @@ interface World {
       ).body.data;
       return cycle as { id: string };
     }
+
+    it('checks a self-managed peer with actual owner endorsement and recovers a lost probe response using the original transaction', async () => {
+      const w = worlds.self;
+      const enrollment = await prisma.enterpriseEnrollment.create({
+        data: {
+          id: randomUUID(),
+          organizationId: w.orgs.farm,
+          ownerId: w.users.farm,
+          businessId: `FABRIC-${randomUUID().slice(0, 12)}`,
+          registrationDigest: 'a'.repeat(64),
+          hostingMode: 'SELF_MANAGED_ORG',
+          status: 'APPROVED',
+        },
+      });
+      const port = 11051 + Number(process.env.AGRI_FABRIC_PORT_OFFSET ?? 0);
+      const id = randomUUID();
+      await post(w, '/enterprise-connections', {
+        id,
+        chainId: w.chainId,
+        peerHost: 'localhost',
+        peerPort: port,
+        peerServerName: 'peer0.org3.example.com',
+        mspId: 'Org3MSP',
+        tlsCaPem: readFileSync(peerCa('org3'), 'utf8'),
+      }).expect(201);
+      // Operator admission is covered over HTTP in enterprise-onboarding.e2e.
+      await prisma.enterpriseConnection.update({
+        where: { id },
+        data: { status: 'APPROVED', version: { increment: 1 } },
+      });
+      const inventory =
+        pool.environment.FABRIC_BINDINGS_CONFIG! + '.enterprise';
+      writeFileSync(
+        inventory,
+        JSON.stringify({
+          version: 1,
+          targets: [
+            {
+              connectionId: id,
+              organizationId: w.orgs.farm,
+              chainId: w.chainId,
+              bindingDigest: w.bindingDigest,
+              ownerMspId: 'Org3MSP',
+              peerEndpoint: `localhost:${port}`,
+              peerHostAlias: 'peer0.org3.example.com',
+              tlsCertPath: peerCa('org3'),
+            },
+          ],
+        }),
+        { mode: 0o600 },
+      );
+      const worker = new EnterpriseConnectionWorker(service, pool);
+      worker.environment = {
+        ...pool.environment,
+        ENTERPRISE_ONBOARDING_ENABLED: 'true',
+        ENTERPRISE_CONNECTIONS_CONFIG: inventory,
+      };
+      // No operator inventory means no dial, no state transition and no success.
+      const unconfigured = new EnterpriseConnectionWorker(service, pool);
+      unconfigured.environment = { ENTERPRISE_ONBOARDING_ENABLED: 'true' };
+      await unconfigured.processAll();
+      expect(
+        (await prisma.enterpriseConnection.findUniqueOrThrow({ where: { id } }))
+          .status,
+      ).toBe('APPROVED');
+      const binding = await prisma.fabricNetworkBinding.findUniqueOrThrow({
+        where: { digest: w.bindingDigest },
+      });
+      const { client } = await pool.get(binding, 'relayer');
+      const original = client.prepare.bind(client);
+      let preparedCount = 0;
+      client.prepare = ((...args: Parameters<typeof original>) => {
+        const prepared = original(...args);
+        if (args[0] !== 'RecordConnectionProbe') return prepared;
+        preparedCount += 1;
+        return {
+          transactionId: prepared.transactionId,
+          endorse: async () => {
+            const endorsed = await prepared.endorse();
+            return {
+              ...endorsed,
+              submit: async () => {
+                const result = await endorsed.submit();
+                expect(result.successful).toBe(true);
+                throw new Error(
+                  'simulated lost response after a real VALID commit',
+                );
+              },
+            };
+          },
+        };
+      }) as typeof client.prepare;
+      try {
+        await worker.processAll();
+        const unknown = await prisma.enterpriseConnection.findUniqueOrThrow({
+          where: { id },
+        });
+        expect(unknown.status).toBe('UNKNOWN');
+        expect(unknown.evidence).toBeNull();
+        expect(unknown.txId).toMatch(/^[a-f0-9]{64}$/);
+        await prisma.enterpriseConnection.update({
+          where: { id },
+          data: { leaseExpiresAt: new Date(0), version: { increment: 1 } },
+        });
+        const other = new EnterpriseConnectionWorker(service, pool);
+        other.environment = worker.environment;
+        await Promise.all([worker.processAll(), other.processAll()]);
+        const connected = await prisma.enterpriseConnection.findUniqueOrThrow({
+          where: { id },
+        });
+        expect(connected.status).toBe('CONNECTED');
+        expect(connected.txId).toBe(unknown.txId);
+        expect(connected.evidence).toMatchObject({
+          ownerMsp: 'Org3MSP',
+          writerMsp: 'Org1MSP',
+          organizationRef: w.orgs.farm,
+          txId: unknown.txId,
+        });
+        expect(preparedCount).toBe(1);
+        expect(await client.transactionValidationCode(connected.txId!)).toBe(0);
+        await expect(
+          prisma.enterpriseConnection.update({
+            where: { id },
+            data: { evidence: {}, version: { increment: 1 } },
+          }),
+        ).rejects.toThrow();
+        expect(enrollment.ownerId).toBe(w.users.farm);
+      } finally {
+        client.prepare = original;
+      }
+    }, 120_000);
+
+    it('connects a managed peer but refuses allocating its network MSP to another enterprise', async () => {
+      const inventory =
+        pool.environment.FABRIC_BINDINGS_CONFIG! + '.managed-enterprise';
+      const targets = [];
+      const ids: string[] = [];
+      for (const w of [worlds.b, worlds.signed]) {
+        const enrollment = await prisma.enterpriseEnrollment.create({
+          data: {
+            id: randomUUID(),
+            organizationId: w.orgs.farm,
+            ownerId: w.users.farm,
+            businessId: `MANAGED-${randomUUID().slice(0, 12)}`,
+            registrationDigest: 'b'.repeat(64),
+            hostingMode: 'MANAGED_ORG',
+            status: 'APPROVED',
+          },
+        });
+        const id = randomUUID();
+        ids.push(id);
+        await post(w, '/enterprise-connections', {
+          id,
+          chainId: w.chainId,
+        }).expect(201);
+        await prisma.enterpriseConnection.update({
+          where: { id },
+          data: { status: 'APPROVED', version: { increment: 1 } },
+        });
+        targets.push({
+          connectionId: id,
+          organizationId: enrollment.organizationId,
+          chainId: w.chainId,
+          bindingDigest: w.bindingDigest,
+          ownerMspId: 'Org2MSP',
+          peerEndpoint: `localhost:${9051 + Number(process.env.AGRI_FABRIC_PORT_OFFSET ?? 0)}`,
+          peerHostAlias: 'peer0.org2.example.com',
+          tlsCertPath: peerCa('org2'),
+        });
+      }
+      writeFileSync(inventory, JSON.stringify({ version: 1, targets }), {
+        mode: 0o600,
+      });
+      const worker = new EnterpriseConnectionWorker(service, pool);
+      worker.environment = {
+        ...pool.environment,
+        ENTERPRISE_ONBOARDING_ENABLED: 'true',
+        ENTERPRISE_CONNECTIONS_CONFIG: inventory,
+      };
+      await worker.processAll();
+      const first = await prisma.enterpriseConnection.findUniqueOrThrow({
+        where: { id: ids[0] },
+      });
+      const second = await prisma.enterpriseConnection.findUniqueOrThrow({
+        where: { id: ids[1] },
+      });
+      expect(first.status).toBe('CONNECTED');
+      expect(first.evidence).toMatchObject({
+        ownerMsp: 'Org2MSP',
+        organizationRef: worlds.b.orgs.farm,
+      });
+      expect(second.status).toBe('FAILED');
+      expect(second.errorCode).toBe('CONNECTION_MSP_ALREADY_ASSIGNED');
+      expect(second.txId).toBeNull();
+    }, 120_000);
 
     it('confirms every granted permission on the ledger before it opens any write', async () => {
       for (const w of [worlds.b, worlds.self]) {

@@ -7,10 +7,10 @@
  */
 export type StringMap = Record<string, string>;
 
-export const INTENT_PROTOCOL = "agritrace-intent/1";
-const INTENT_DOMAIN = "agritrace:intent:c1";
-const PAYLOAD_DOMAIN = "agritrace:intent-payload:c1";
-const SIGNATURE_DOMAIN = "agritrace:intent-signature:c1";
+export const INTENT_PROTOCOL = "agritrace-intent/2";
+const INTENT_DOMAIN = "agritrace:intent:c2";
+const PAYLOAD_DOMAIN = "agritrace:intent-payload:c2";
+const SIGNATURE_DOMAIN = "agritrace:intent-signature:c2";
 const KEY_POP_DOMAIN = "agritrace:signing-key-pop:c1";
 const encoder = new TextEncoder();
 
@@ -74,6 +74,7 @@ export async function signedMessage(intent: StringMap): Promise<Uint8Array> {
       eventType: intent.eventType,
       bindingDigest: intent.bindingDigest,
       keyRef: intent.keyRef,
+      payloadDigest: intent.payloadDigest,
     }),
   );
 }
@@ -120,7 +121,7 @@ export async function verifyPreparedIntent(
 ): Promise<IntentCheck> {
   const { intent, payload } = prepared;
   try {
-    if (intent.protocol !== INTENT_PROTOCOL)
+    if (intent.protocol !== INTENT_PROTOCOL || intent.policyVersion !== "2")
       return { ok: false, reason: "Giao thức ký không được hỗ trợ" };
     if ((await payloadDigest(payload)) !== intent.payloadDigest)
       return {

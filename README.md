@@ -78,6 +78,11 @@ Frontend chạy ở `http://localhost:3000`; API chạy ở
 `http://localhost:8080/api`. Trang `/` giới thiệu AgriTrace bằng tiếng Việt và cung cấp tra cứu QR công khai.
 Truy cập trực tiếp `/login` để đăng nhập; sau đăng nhập mở `/dashboard`.
 Trang giới thiệu không có liên kết đăng nhập hoặc lô/QR mẫu.
+Doanh nghiệp vào `/register`, theo dõi hồ sơ và yêu cầu peer ở `/enterprise`;
+quản trị xét duyệt tại `/admin/enterprises`. API và Worker mặc định đóng admission
+(`ENTERPRISE_ONBOARDING_ENABLED=false`). Demo cách ly bật `true` ở cả hai process;
+xem [kế hoạch v1](docs/plans/enterprise-onboarding.md) và
+[hướng dẫn kết nối](docs/hybrid-fabric-runbook.md#12-đăng-ký-và-kết-nối-doanh-nghiệp-v1).
 Xem [frontend và bố cục mobile](docs/frontend.md) để kiểm tra giao diện.
 
 Frontend mặc định kết nối backend thật. Worker là

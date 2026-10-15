@@ -10,6 +10,7 @@ import { BlockchainWorkerService } from './blockchain-worker.service.js';
 import { BindingDeliveryService } from '../ledger/binding-delivery.service.js';
 import { LedgerControlService } from '../ledger/ledger-control.service.js';
 import { HandoverExpiryService } from '../shipments/handover-expiry.service.js';
+import { EnterpriseConnectionWorker } from '../enterprise-onboarding/enterprise-connection.worker.js';
 
 export type WorkerRuntimeState = {
   enabled: boolean;
@@ -44,6 +45,7 @@ export class BlockchainWorkerRunner
     @Optional() private readonly bindings?: BindingDeliveryService,
     @Optional() private readonly control?: LedgerControlService,
     @Optional() private readonly expiry?: HandoverExpiryService,
+    @Optional() private readonly enterprise?: EnterpriseConnectionWorker,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -82,6 +84,8 @@ export class BlockchainWorkerRunner
         steps.push(['ledger-control', () => this.control!.processAll()]);
       if (fabricEnabled && this.bindings)
         steps.push(['binding-delivery', () => this.bindings!.processAll()]);
+      if (fabricEnabled && this.enterprise)
+        steps.push(['enterprise-connections', () => this.enterprise!.processAll()]);
       if (this.expiry && this.config.get<string>('HANDOVER_EXPIRY_ENABLED') !== 'false')
         steps.push(['handover-expiry', () => this.expiry!.expireDue(undefined,
           this.positiveNumber('HANDOVER_EXPIRY_BATCH_SIZE', 100))]);

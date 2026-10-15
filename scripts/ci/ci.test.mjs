@@ -8,6 +8,26 @@ import { test } from 'node:test';
 import { classifyChanges, changedFiles } from './changes.mjs';
 import { gateErrors } from './gate.mjs';
 import './hybrid-browser-login.test.mjs';
+import { approvalPolicy, verifyApprovedDefinition } from '../../blockchain/network/enterprise/peer.mjs';
+
+test('enterprise approval recovery rejects a changed policy, package or definition', () => {
+  const spec = { chaincodeVersion: 'reviewed-1', chaincodeSequence: 1, endorsementPolicy: "AND('Org1MSP.peer','Org3MSP.peer')" };
+  const policy = 'reviewed-policy-bytes';
+  const approved = { version: 'reviewed-1', sequence: 1, endorsement_plugin: 'escc', validation_plugin: 'vscc',
+    validation_parameter: policy, source: { Type: { LocalPackage: { package_id: 'reviewed-package' } } } };
+  verifyApprovedDefinition(spec, approved, 'reviewed-package', policy);
+  for (const patch of [{ version: 'other' }, { sequence: 2 }, { validation_parameter: 'weakened-policy' },
+    { endorsement_plugin: 'custom' }, { validation_plugin: 'custom' }, { init_required: true },
+    { collections: { config: [{}] } }, { source: { Type: { LocalPackage: { package_id: 'other-package' } } } },
+    { source: { Type: { Unavailable: {} } } }])
+    assert.throws(() => verifyApprovedDefinition(spec, { ...approved, ...patch }, 'reviewed-package', policy));
+  assert.deepEqual(approvalPolicy(spec).signature_policy.rule,
+    { n_out_of: { n: 2, rules: [{ signed_by: 0 }, { signed_by: 1 }] } });
+  assert.deepEqual(approvalPolicy(spec).signature_policy.identities.map(value => value.principal),
+    [{ msp_identifier: 'Org1MSP', role: 'PEER' }, { msp_identifier: 'Org3MSP', role: 'PEER' }]);
+  for (const endorsementPolicy of ["OR('Org1MSP.peer','Org3MSP.peer')", "AND('Org3MSP.peer','Org3MSP.peer')"])
+    assert.throws(() => approvalPolicy({ ...spec, endorsementPolicy }));
+});
 
 test('Gateway changes run API, containers and real Fabric integration', () => {
   assert.deepEqual(classifyChanges(['blockchain/gateway/src/adapter.ts']), {

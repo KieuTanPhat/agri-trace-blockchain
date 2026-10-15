@@ -539,8 +539,8 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
         'HANDOVER_CONFIRMED',
         'SHIPMENT_STARTED',
       ]);
-      expect(events[0].schemaVersion).toBe('4.0.0');
-      expect(events[0].bindingContext?.commitmentVersion).toBe('c1');
+      expect(events[0].schemaVersion).toBe('5.0.0');
+      expect(events[0].bindingContext?.commitmentVersion).toBe('c2');
       expect(events[0].actorSignature?.organizationId).toBe(orgs.farm);
       expect(events[1].actorSignature?.organizationId).toBe(orgs.transporter);
       expect(events[2].schemaVersion).toBe('3.0.0');
@@ -721,6 +721,45 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
     });
 
     // -------------------------------------------- signature negatives (14)
+    it('rolls back a signed command if its event payload differs from the displayed quantity', async () => {
+      const { shipmentId } = await newShipment();
+      const prepared = (await prepare('farm', `/shipments/${shipmentId}/handover-offers/intent`, { kind: 'PICKUP', keyRef: keyRefs.farm }).expect(201)).body.data;
+      const trace = app.get(TraceService);
+      const original = trace.createInTransaction.bind(trace);
+      const spy = vi.spyOn(trace, 'createInTransaction').mockImplementationOnce((tx, input) => original(tx, {
+        ...input, businessData: { ...(input.businessData as Record<string, string>), quantity: '999.000' },
+      }));
+      try {
+        await signAndSubmit('farm', prepared).then((response) => expect(response.status).toBe(409));
+      } finally { spy.mockRestore(); }
+      expect((await prisma.signingIntent.findUniqueOrThrow({ where: { id: prepared.intentId } })).status).toBe('PENDING');
+      expect(await noEvents(shipmentId, 'HANDOVER_OFFERED')).toBe(0);
+      expect((await shipmentRow(shipmentId)).status).toBe('CREATED');
+      await signAndSubmit('farm', prepared).then((response) => expect(response.status).toBe(201));
+    });
+
+    it('enforces signed content parity in SQL even if insertion bypasses the trace encoder', async () => {
+      let sqlFailure: unknown;
+      const { shipmentId } = await newShipment();
+      const prepared = (await prepare('farm', `/shipments/${shipmentId}/handover-offers/intent`, { kind: 'PICKUP', keyRef: keyRefs.farm }).expect(201)).body.data;
+      const trace = app.get(TraceService);
+      const original = trace.createInTransaction.bind(trace);
+      const spy = vi.spyOn(trace, 'createInTransaction').mockImplementationOnce((tx, input) => {
+        const create = tx.traceEvent.create.bind(tx.traceEvent);
+        const poisoned = { ...tx, traceEvent: { ...tx.traceEvent, create: (args: Parameters<typeof create>[0]) => create({
+          ...args, data: { ...args.data, businessData: { ...(args.data.businessData as Record<string, string>), quantity: '999.000' } },
+        }) } } as unknown as typeof tx;
+        return original(poisoned, input).catch((error) => { sqlFailure = error; throw error; });
+      });
+      try {
+        await signAndSubmit('farm', prepared).then((response) => expect(response.status).toBe(500));
+      } finally { spy.mockRestore(); }
+      expect(String(sqlFailure)).toMatch(/Signed event business content differs from its consumed intent/);
+      expect((await prisma.signingIntent.findUniqueOrThrow({ where: { id: prepared.intentId } })).status).toBe('PENDING');
+      expect(await noEvents(shipmentId, 'HANDOVER_OFFERED')).toBe(0);
+      expect((await shipmentRow(shipmentId)).status).toBe('CREATED');
+    });
+
     it('rejects wrong signers, tampered intents, foreign users, replays and expired intents (HYB-AC-14)', async () => {
       const { shipmentId } = await newShipment();
       const events = () =>

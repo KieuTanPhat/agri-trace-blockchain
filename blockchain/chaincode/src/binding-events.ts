@@ -18,6 +18,7 @@ import {
   parseSignedBindingEvent,
   SIGNATURE_REQUIRED_EVENT_TYPES,
   signedBindingEventCommitment,
+  signedPrivateBodyDigest,
   verifyEd25519,
   type EventSignature,
 } from "./signing";
@@ -144,11 +145,14 @@ export async function recordSignedBindingEvent(
   const assertion = parseSignatureAssertion(assertionJson);
   const delivery = parseDelivery(deliveryJson);
 
+  if (signedPrivateBodyDigest(input.signature) !== input.privateBodyDigest)
+    throw contractError("INVALID_INPUT", "privateBodyDigest differs from signed content commitments");
   if (signedBindingEventCommitment(input) !== input.dataHash)
     throw contractError("INVALID_INPUT", "dataHash is not the commitment of the signed public event body");
   if (
     assertion.keyRef !== input.signature.keyRef ||
     assertion.intentDigest !== input.signature.intentDigest ||
+    assertion.payloadDigest !== input.signature.payloadDigest ||
     assertionDigest(assertion) !== input.signature.assertionDigest
   )
     throw contractError("SIGNATURE_INVALID", "assertion differs from the signature committed by dataHash");
@@ -168,6 +172,7 @@ export async function recordSignedBindingEvent(
     eventType: input.eventType,
     bindingDigest: input.bindingDigest,
     keyRef: assertion.keyRef,
+    payloadDigest: assertion.payloadDigest,
   });
   if (!verifyEd25519(key.publicKey, message, assertion.signature))
     throw contractError("SIGNATURE_INVALID", "signature does not verify for this event");
@@ -292,6 +297,8 @@ async function commitVerifiedEvent(
             keyRef: signature.keyRef,
             intentDigest: signature.intentDigest,
             assertionDigest: signature.assertionDigest,
+            payloadDigest: signature.payloadDigest,
+            metadataDigest: signature.metadataDigest,
             orgRef: signature.orgRef,
           },
         }

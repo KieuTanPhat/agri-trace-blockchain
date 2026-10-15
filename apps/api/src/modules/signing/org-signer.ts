@@ -6,6 +6,7 @@ import {
   sign,
 } from 'node:crypto';
 import {
+  INTENT_PROTOCOL,
   intentDigest,
   keyPopMessage,
   payloadDigest,
@@ -34,8 +35,16 @@ export type PreparedIntentInput = {
 
 export class SignerRefusal extends Error {}
 
-export type SigningExpectation = Pick<IntentBody,
-  'chainRef' | 'bindingDigest' | 'signerOrgRef' | 'keyRef' | 'entityType' | 'entityId' | 'operation'>;
+export type SigningExpectation = Pick<
+  IntentBody,
+  | 'chainRef'
+  | 'bindingDigest'
+  | 'signerOrgRef'
+  | 'keyRef'
+  | 'entityType'
+  | 'entityId'
+  | 'operation'
+>;
 
 export function generateSignerKey(): { privatePem: string; publicKey: string } {
   const { privateKey } = generateKeyPairSync('ed25519');
@@ -85,6 +94,8 @@ export function signPreparedIntent(
 ): { signature: string; intentDigest: string } {
   const { intent, payload } = prepared;
   try {
+    if (intent.protocol !== INTENT_PROTOCOL)
+      throw new SignerRefusal('Unsupported signing protocol');
     if (payloadDigest(payload) !== intent.payloadDigest)
       throw new SignerRefusal('Payload does not match the signed digest');
     if (intentDigest(intent) !== prepared.intentDigest)
@@ -101,12 +112,26 @@ export function signPreparedIntent(
     intent.intentId !== prepared.intentId
   )
     throw new SignerRefusal('Intent names another key or request');
-  if (prepared.operation !== intent.operation || prepared.expiresAt !== intent.notAfter)
-    throw new SignerRefusal('Displayed operation or expiry differs from the intent');
-  if (expected && Object.entries(expected).some(([field, value]) =>
-    intent[field as keyof IntentBody] !== value))
-    throw new SignerRefusal('Intent differs from the independently reviewed context');
-  if (!Number.isFinite(Date.parse(intent.notAfter)) || Date.parse(intent.notAfter) <= now)
+  if (
+    prepared.operation !== intent.operation ||
+    prepared.expiresAt !== intent.notAfter
+  )
+    throw new SignerRefusal(
+      'Displayed operation or expiry differs from the intent',
+    );
+  if (
+    expected &&
+    Object.entries(expected).some(
+      ([field, value]) => intent[field as keyof IntentBody] !== value,
+    )
+  )
+    throw new SignerRefusal(
+      'Intent differs from the independently reviewed context',
+    );
+  if (
+    !Number.isFinite(Date.parse(intent.notAfter)) ||
+    Date.parse(intent.notAfter) <= now
+  )
     throw new SignerRefusal('Intent has expired');
   return {
     signature: sign(
