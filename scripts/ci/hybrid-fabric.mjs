@@ -56,7 +56,7 @@ export async function withHybridStack(callback, { suite = 'hybrid-fabric' } = {}
     cpSync(path.join(tools, 'bin'), path.join(root, 'fabric-samples/bin'), { recursive: true });
     cpSync(path.join(tools, 'config'), path.join(root, 'fabric-samples/config'), { recursive: true });
     env.PATH = `${path.join(root, 'fabric-samples/bin')}:${process.env.PATH}`;
-    receipt.tooling = Object.fromEntries(['peer', 'configtxgen', 'osnadmin', 'fabric-ca-client']
+    receipt.tooling = Object.fromEntries(['peer', 'configtxgen', 'osnadmin', 'fabric-ca-client', 'configtxlator']
       .map(name => [name, digest(readFileSync(path.join(root, 'fabric-samples/bin', name)))]));
     npm('run', 'build', '--workspace', 'blockchain/gateway');
     npm('run', 'build', '--workspace', 'blockchain/chaincode');

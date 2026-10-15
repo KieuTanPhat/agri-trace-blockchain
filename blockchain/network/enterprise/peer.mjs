@@ -553,7 +553,7 @@ async function main() {
   const policy = approvalPolicy(spec);
   for (const [index, identity] of policy.signature_policy.identities.entries())
     // MSPPrincipal.principal is an opaque byte field in ApplicationPolicy JSON.
-    identity.principal = encode("msp.MSPRole", identity.principal, `principal-${index}`);
+    identity.principal = encode("common.MSPRole", identity.principal, `principal-${index}`);
   const validationParameter = encode("common.ApplicationPolicy", policy, "application");
   const query = (operation, flags = []) => JSON.parse(cli([
     "lifecycle", "chaincode", operation, "--channelID", spec.channelId,
