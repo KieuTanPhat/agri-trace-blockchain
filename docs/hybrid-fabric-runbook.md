@@ -473,7 +473,11 @@ CI chạy `node scripts/ci/enterprise-peer.mjs` sau `hybrid-fabric.mjs` (hoặc
 dùng hai Docker network, relay chỉ bind trên Docker host bridge và các root,
 CA, identity, volume riêng; platform không tạo private Org3 material. Nó thử
 join/install/approve lặp lại, doanh nghiệp inspect/approve registry tại root
-của mình, rồi kiểm probe VALID và cùng proof trên hai peer. Receipt chỉ chứa
+của mình, rồi kiểm probe VALID và cùng proof trên hai peer.
+Test dừng peer/chaincode doanh nghiệp, xác nhận thiếu owner thì không endorse
+được, rồi dùng lại installation để khởi động/join/install/approve; identity và
+proof/txId cũ phải giữ nguyên. Đây là kiểm restart cùng host, chưa phải khôi phục
+từ backup hoặc nghiệm thu sự cố mạng giữa hai VPS. Receipt chỉ chứa
 SHA, txId, quota và snapshot tài nguyên; không có khóa riêng. Đây vẫn là kiểm
 tra cùng host, không đóng acceptance TLS/WAN hoặc cấu hình VPS tối thiểu.
 

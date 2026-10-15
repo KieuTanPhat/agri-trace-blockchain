@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
   cpSync,
   existsSync,
@@ -374,6 +374,48 @@ try {
     0,
   );
   receipt.txId = result.transactionId;
+  stage = "enterprise-restart-recovery";
+  const identitySnapshot = (directory) => {
+    const files = readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+      const file = path.join(directory, entry.name);
+      return entry.isDirectory() ? identitySnapshot(file) : [[file, createHash("sha256").update(readFileSync(file)).digest("hex")]];
+    });
+    return files.sort(([a], [b]) => a.localeCompare(b));
+  };
+  // Compare in private memory only: never publish hashes of private-key files.
+  const identities = JSON.stringify(identitySnapshot(path.join(ownerRoot, "crypto")));
+  const installation = readFileSync(path.join(ownerRoot, "installation.json"), "utf8");
+  const restartNames = [`${enterprise}-peer`, `${enterprise}-cc`];
+  const beforeRestart = JSON.parse(await run("docker", ["inspect", ...restartNames]));
+  for (const container of beforeRestart) {
+    assert.equal(container.Config.Labels?.["agritrace.enterprise.owner"], owner);
+    assert.equal(container.State.OOMKilled, false);
+  }
+  await run("docker", ["stop", ...restartNames]);
+  await assert.rejects(() => relayer.client.prepare("RecordConnectionProbe",
+    [bindingDigest, randomUUID(), organizationRef], { endorsingOrganizations: ["Org1MSP", "Org3MSP"] }).endorse(),
+  "An offline owner peer must prevent endorsement before broadcast");
+  await installer("start");
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+  for (const operation of ["join", "install", "approve"]) await installer(operation);
+  let recovered = false;
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      const proof = await remote.client.query("GetConnectionProbe", bindingDigest, challenge);
+      assert.ok(JSON.stringify(proof) === JSON.stringify(a), "Restart must preserve the original ledger proof");
+      recovered = true;
+      break;
+    } catch { await new Promise((resolve) => setTimeout(resolve, 500)); }
+  }
+  assert.ok(recovered, "The original owner ledger proof must be readable after restart");
+  assert.ok(identities === JSON.stringify(identitySnapshot(path.join(ownerRoot, "crypto"))), "Restart must preserve identity files");
+  assert.ok(installation === readFileSync(path.join(ownerRoot, "installation.json"), "utf8"), "Restart must preserve installation identity");
+  const afterRestart = JSON.parse(await run("docker", ["inspect", ...restartNames]));
+  assert.ok(beforeRestart.every((container, index) => container.Id === afterRestart[index].Id), "Restart must reuse owned containers and volumes");
+  assert.equal(await remote.client.transactionValidationCode(result.transactionId), 0);
+  receipt.restartRecovery = { peerAndChaincode: true, endorsementDeniedWhileOffline: true,
+    identityPreserved: true, installationPreserved: true, originalProofPreserved: true,
+    originalTxId: result.transactionId, validationCode: 0 };
   const ownedIds = (
     await run("docker", [
       "ps",

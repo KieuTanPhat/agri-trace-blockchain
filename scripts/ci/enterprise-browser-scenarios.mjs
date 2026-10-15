@@ -64,7 +64,7 @@ export async function runEnterpriseBrowserScenarios(options) {
       await owner.getByLabel('Mã số doanh nghiệp / mã số thuế', { exact: true }).fill(`UI-${randomUUID().slice(0, 12)}`);
       await owner.getByLabel('Người đại diện', { exact: true }).fill('Đại diện demo');
       await owner.getByLabel('Email', { exact: true }).fill(email);
-      await owner.getByLabel('Mật khẩu', { exact: true }).fill(options.operator.password);
+      await owner.getByLabel(/^Mật khẩu/).fill(options.operator.password);
       await owner.locator(`input[name="hostingMode"][value="${mode}"]`).check();
       await bothLayouts(owner);
       let enrollmentId, originalDigest;
