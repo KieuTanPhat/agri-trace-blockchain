@@ -463,9 +463,8 @@ async function main() {
       existsSync(pkg),
       "Operator must provide the reviewed CaaS package",
     );
-    const packageId = run(
-      "peer",
-      ["lifecycle", "chaincode", "calculatepackageid", pkg],
+    const packageId = cli(
+      ["lifecycle", "chaincode", "calculatepackageid", '/onboarding/chaincode.tgz'],
       { stdio: "pipe", encoding: "utf8" },
     ).trim();
     assert.match(packageId, /^[A-Za-z0-9._-]+:[a-f0-9]{64}$/);
