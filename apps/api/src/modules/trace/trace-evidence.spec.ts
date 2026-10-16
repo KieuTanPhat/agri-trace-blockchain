@@ -19,8 +19,24 @@ import {
 import { calculateTraceEventHash } from './trace-hash.js';
 import {
   privateTraceEvidenceMatches,
+  publicBlockchainDeliveryError,
   type EvidenceEvent,
 } from './trace-evidence.js';
+
+describe('public blockchain diagnostics', () => {
+  it('does not return raw worker errors to API consumers', () => {
+    const response = publicBlockchainDeliveryError(
+      'gateway failed with token=private-value',
+    );
+    expect(response).toBeTruthy();
+    expect(response).not.toContain('private-value');
+    expect(response).not.toContain('token=');
+  });
+
+  it.each([null, undefined, ''])('returns null for %s', (diagnostic) => {
+    expect(publicBlockchainDeliveryError(diagnostic)).toBeNull();
+  });
+});
 
 const u = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;

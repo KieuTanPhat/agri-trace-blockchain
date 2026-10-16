@@ -9,6 +9,7 @@ import { canonicalize } from 'json-canonicalize';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { calculateTraceEventHash } from './trace-hash.js';
+import { publicBlockchainDeliveryError } from './trace-evidence.js';
 import {
   B_SCHEMA_VERSION,
   bindingEventCommitment,
@@ -211,6 +212,9 @@ export class TraceService {
         } as Prisma.InputJsonObject,
       };
     }
+    // Server-generated user/role fingerprint, not a user signature or a hash
+    // of the raw JWT. This field does not identify the originating session;
+    // release C keeps the independent organization signature separately.
     const actorAuthProof = createHash('sha256')
       .update(`${input.actor.sub}:${input.actor.role}`, 'utf8')
       .digest('hex');
@@ -380,7 +384,38 @@ export class TraceService {
     return this.prisma.traceEvent.findMany({
       where: { AND: [{ lotId }, scopedTraceEventReadWhere(actor)] },
       orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
-      include: { blockchainProof: true, blockchainOutbox: true },
+      select: {
+        id: true,
+        entityType: true,
+        entityId: true,
+        cycleId: true,
+        lotId: true,
+        eventType: true,
+        eventTime: true,
+        schemaVersion: true,
+        canonicalizationVersion: true,
+        dataHash: true,
+        previousEventHash: true,
+        createdAt: true,
+        blockchainProof: {
+          select: {
+            eventId: true,
+            network: true,
+            channelId: true,
+            txId: true,
+            dataHash: true,
+            recordedAt: true,
+            transactionStatus: true,
+          },
+        },
+        blockchainOutbox: {
+          select: {
+            status: true,
+            attemptCount: true,
+            nextAttemptAt: true,
+          },
+        },
+      },
     });
   }
 
@@ -415,7 +450,9 @@ export class TraceService {
           : 'PENDING',
       attemptCount: event.blockchainOutbox?.attemptCount ?? 0,
       nextAttemptAt: event.blockchainOutbox?.nextAttemptAt ?? null,
-      lastError: event.blockchainOutbox?.lastError ?? null,
+      lastError: publicBlockchainDeliveryError(
+        event.blockchainOutbox?.lastError,
+      ),
       localHashMatches,
       proofStatus: sensorMatches
         ? getLotEventProofStatus(event)

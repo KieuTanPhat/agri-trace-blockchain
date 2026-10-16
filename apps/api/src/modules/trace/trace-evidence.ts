@@ -24,6 +24,14 @@ import {
 } from './signed-commitment.js';
 import { calculateTraceEventHash, type TraceHashInput } from './trace-hash.js';
 
+export function publicBlockchainDeliveryError(
+  diagnostic: string | null | undefined,
+): string | null {
+  return diagnostic
+    ? 'Blockchain delivery failed; contact support with eventId'
+    : null;
+}
+
 const AUTH_PROOF_TYPES = [
   'DIGITAL_SIGNATURE',
   'SIGNED_ASSERTION',

@@ -360,156 +360,6 @@
         ],
         "type": "object"
       },
-      "BlockchainOutboxRecordDto": {
-        "properties": {
-          "attemptCount": {
-            "type": "number"
-          },
-          "completedAt": {
-            "format": "date-time",
-            "nullable": true,
-            "type": "string"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "eventId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "lastError": {
-            "nullable": true,
-            "type": "string"
-          },
-          "leaseExpiresAt": {
-            "format": "date-time",
-            "nullable": true,
-            "type": "string"
-          },
-          "leaseToken": {
-            "format": "uuid",
-            "nullable": true,
-            "type": "string"
-          },
-          "nextAttemptAt": {
-            "format": "date-time",
-            "nullable": true,
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "PENDING",
-              "PROCESSING",
-              "RETRY",
-              "COMPLETED",
-              "DEAD_LETTER"
-            ],
-            "type": "string"
-          },
-          "updatedAt": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "eventId",
-          "status",
-          "attemptCount",
-          "nextAttemptAt",
-          "leaseToken",
-          "leaseExpiresAt",
-          "lastError",
-          "completedAt",
-          "createdAt",
-          "updatedAt"
-        ],
-        "type": "object"
-      },
-      "BlockchainProofRecordDto": {
-        "properties": {
-          "attemptCount": {
-            "type": "number"
-          },
-          "channelId": {
-            "type": "string"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "dataHash": {
-            "type": "string"
-          },
-          "eventId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "lastError": {
-            "nullable": true,
-            "type": "string"
-          },
-          "network": {
-            "type": "string"
-          },
-          "nextAttemptAt": {
-            "format": "date-time",
-            "nullable": true,
-            "type": "string"
-          },
-          "recordedAt": {
-            "format": "date-time",
-            "nullable": true,
-            "type": "string"
-          },
-          "relayerAddress": {
-            "nullable": true,
-            "type": "string"
-          },
-          "transactionStatus": {
-            "enum": [
-              "PENDING",
-              "CONFIRMED",
-              "FAILED"
-            ],
-            "type": "string"
-          },
-          "txId": {
-            "nullable": true,
-            "type": "string"
-          },
-          "updatedAt": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "eventId",
-          "network",
-          "channelId",
-          "txId",
-          "dataHash",
-          "recordedAt",
-          "relayerAddress",
-          "transactionStatus",
-          "attemptCount",
-          "nextAttemptAt",
-          "lastError",
-          "createdAt",
-          "updatedAt"
-        ],
-        "type": "object"
-      },
       "BusinessProfileDto": {
         "properties": {
           "chainId": {
@@ -7292,31 +7142,10 @@
       },
       "TraceHistoryDto": {
         "properties": {
-          "actorAuthProof": {
-            "nullable": true,
-            "type": "string"
-          },
-          "actorOrganizationId": {
-            "format": "uuid",
-            "nullable": true,
-            "type": "string"
-          },
-          "actorRole": {
-            "type": "string"
-          },
-          "actorUserId": {
-            "format": "uuid",
-            "nullable": true,
-            "type": "string"
-          },
-          "authProofType": {
-            "nullable": true,
-            "type": "string"
-          },
           "blockchainOutbox": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/BlockchainOutboxRecordDto"
+                "$ref": "#/components/schemas/TraceHistoryOutboxDto"
               }
             ],
             "nullable": true,
@@ -7325,40 +7154,13 @@
           "blockchainProof": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/BlockchainProofRecordDto"
+                "$ref": "#/components/schemas/TraceHistoryProofDto"
               }
             ],
             "nullable": true,
             "type": "object"
           },
-          "businessData": {
-            "nullable": true,
-            "oneOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "items": {},
-                "type": "array"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "boolean"
-              }
-            ]
-          },
           "canonicalizationVersion": {
-            "type": "string"
-          },
-          "causationEventId": {
-            "format": "uuid",
-            "nullable": true,
             "type": "string"
           },
           "createdAt": {
@@ -7402,15 +7204,6 @@
           },
           "schemaVersion": {
             "type": "string"
-          },
-          "serverRecordedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "supersedesEventId": {
-            "format": "uuid",
-            "nullable": true,
-            "type": "string"
           }
         },
         "required": [
@@ -7420,23 +7213,86 @@
           "cycleId",
           "lotId",
           "eventType",
-          "actorUserId",
-          "actorOrganizationId",
-          "actorRole",
-          "authProofType",
-          "actorAuthProof",
           "eventTime",
-          "serverRecordedAt",
-          "businessData",
           "schemaVersion",
           "canonicalizationVersion",
           "dataHash",
           "previousEventHash",
-          "supersedesEventId",
-          "causationEventId",
           "createdAt",
           "blockchainProof",
           "blockchainOutbox"
+        ],
+        "type": "object"
+      },
+      "TraceHistoryOutboxDto": {
+        "properties": {
+          "attemptCount": {
+            "type": "number"
+          },
+          "nextAttemptAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "PROCESSING",
+              "RETRY",
+              "COMPLETED",
+              "DEAD_LETTER"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "attemptCount",
+          "nextAttemptAt"
+        ],
+        "type": "object"
+      },
+      "TraceHistoryProofDto": {
+        "properties": {
+          "channelId": {
+            "type": "string"
+          },
+          "dataHash": {
+            "type": "string"
+          },
+          "eventId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "network": {
+            "type": "string"
+          },
+          "recordedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "transactionStatus": {
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "FAILED"
+            ],
+            "type": "string"
+          },
+          "txId": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "eventId",
+          "network",
+          "channelId",
+          "txId",
+          "dataHash",
+          "recordedAt",
+          "transactionStatus"
         ],
         "type": "object"
       },

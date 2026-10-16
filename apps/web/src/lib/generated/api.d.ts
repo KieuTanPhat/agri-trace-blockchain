@@ -1637,51 +1637,6 @@ export interface components {
             deviceId: string;
             note?: string;
         };
-        BlockchainOutboxRecordDto: {
-            attemptCount: number;
-            /** Format: date-time */
-            completedAt: string | null;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: uuid */
-            eventId: string;
-            /** Format: uuid */
-            id: string;
-            lastError: string | null;
-            /** Format: date-time */
-            leaseExpiresAt: string | null;
-            /** Format: uuid */
-            leaseToken: string | null;
-            /** Format: date-time */
-            nextAttemptAt: string | null;
-            /** @enum {string} */
-            status: "PENDING" | "PROCESSING" | "RETRY" | "COMPLETED" | "DEAD_LETTER";
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        BlockchainProofRecordDto: {
-            attemptCount: number;
-            channelId: string;
-            /** Format: date-time */
-            createdAt: string;
-            dataHash: string;
-            /** Format: uuid */
-            eventId: string;
-            /** Format: uuid */
-            id: string;
-            lastError: string | null;
-            network: string;
-            /** Format: date-time */
-            nextAttemptAt: string | null;
-            /** Format: date-time */
-            recordedAt: string | null;
-            relayerAddress: string | null;
-            /** @enum {string} */
-            transactionStatus: "PENDING" | "CONFIRMED" | "FAILED";
-            txId: string | null;
-            /** Format: date-time */
-            updatedAt: string;
-        };
         BusinessProfileDto: {
             /** Format: uuid */
             chainId: string;
@@ -3669,21 +3624,9 @@ export interface components {
             telemetryId: string;
         };
         TraceHistoryDto: {
-            actorAuthProof: string | null;
-            /** Format: uuid */
-            actorOrganizationId: string | null;
-            actorRole: string;
-            /** Format: uuid */
-            actorUserId: string | null;
-            authProofType: string | null;
-            blockchainOutbox: components["schemas"]["BlockchainOutboxRecordDto"] | null;
-            blockchainProof: components["schemas"]["BlockchainProofRecordDto"] | null;
-            businessData: ({
-                [key: string]: unknown;
-            } | unknown[] | string | number | boolean) | null;
+            blockchainOutbox: components["schemas"]["TraceHistoryOutboxDto"] | null;
+            blockchainProof: components["schemas"]["TraceHistoryProofDto"] | null;
             canonicalizationVersion: string;
-            /** Format: uuid */
-            causationEventId: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -3701,10 +3644,25 @@ export interface components {
             lotId: string | null;
             previousEventHash: string | null;
             schemaVersion: string;
+        };
+        TraceHistoryOutboxDto: {
+            attemptCount: number;
             /** Format: date-time */
-            serverRecordedAt: string;
+            nextAttemptAt: string | null;
+            /** @enum {string} */
+            status: "PENDING" | "PROCESSING" | "RETRY" | "COMPLETED" | "DEAD_LETTER";
+        };
+        TraceHistoryProofDto: {
+            channelId: string;
+            dataHash: string;
             /** Format: uuid */
-            supersedesEventId: string | null;
+            eventId: string;
+            network: string;
+            /** Format: date-time */
+            recordedAt: string | null;
+            /** @enum {string} */
+            transactionStatus: "PENDING" | "CONFIRMED" | "FAILED";
+            txId: string | null;
         };
         TraceProofDto: {
             attemptCount: number;

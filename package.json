@@ -19,7 +19,7 @@
     "sharp": "0.35.5"
   },
   "allowScripts": {
-    "@swc/core@1.16.2": true,
+    "@swc/core@1.16.18": true,
     "@prisma/engines@7.10.0": true,
     "bcrypt@6.0.0": true,
     "esbuild@0.25.12": true,
