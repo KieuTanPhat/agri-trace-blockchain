@@ -92,6 +92,9 @@ describe("FabricBlockchainAdapter", () => {
 
   it.each([
     { actorContext: { actorAuthProof: "private" } },
+    { actorAuthProof: "private" },
+    { password: "private" },
+    { privateKey: "private" },
     { payloadMetadata: { rawReadings: [1] } },
     { token: "private" },
     { nonce: "22222222-2222-4222-8222-222222222222" },

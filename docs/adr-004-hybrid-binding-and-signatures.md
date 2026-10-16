@@ -78,6 +78,32 @@ có thể kiểm soát quyền ghi, và (C) bằng chứng rằng chính tổ ch
 
 ## Hệ quả
 
+### Actor evidence và dữ liệu trả về (AGT-009)
+
+`actorAuthProof` là SHA-256 của user ID và role do server tạo sau xác thực;
+nhãn lịch sử `TOKEN_FINGERPRINT` không có nghĩa là băm JWT, chữ ký user hay
+bằng chứng của một phiên đăng nhập cụ thể. Giữ nguyên nhãn và byte của lịch sử.
+Chữ ký tổ chức Ed25519 của C nằm trong sidecar riêng, theo giao thức ở trên.
+
+History của Lot yêu cầu quyền và scope chuỗi hiện hành, chỉ trả tuple sự kiện,
+thời gian, phiên bản, hash/predecessor, receipt công khai và trạng thái/retry.
+Không trả actor ID/fingerprint, business payload, signing intent/signature,
+lease/token hoặc lỗi nội bộ của Worker. Hai endpoint proof/verify chỉ trả
+thông báo lỗi giao hàng chung cùng event ID; diagnostic gốc giữ trong DB để
+operator đối soát. OpenAPI sinh từ DTO là contract của projection này.
+
+Fabric A/B/C chỉ nhận envelope đã kiểm: tuple, phiên bản, digest, binding/quyền
+và assertion công khai khi C yêu cầu; raw payload, sensor reading, giá, PII,
+token và khóa riêng giữ off-chain. Kiểm transaction arguments tại Gateway và
+chaincode, không chỉ dữ liệu query trả về. Phiên bản không hỗ trợ hoặc actor/
+payload khác commitment phải báo integrity warning, không sửa hash để khớp.
+
+Tài liệu DOCX AGT-009 trong PR ghi baseline trước Hybrid; các phiên bản A/B/C
+và cổng nghiệm thu hiện hành theo ADR này, PROJECT_CONTEXT và runbook.
+Unit/contract test không thay nghiệm thu Fabric thật của đúng candidate SHA.
+
+### Tương thích và phạm vi nghiệm thu
+
 - Hệ thống giữ A (envelope 3.0.0, hash 2.0.0), B (4.0.0 / 3.0.0), C c1 lịch sử
   (5.0.0 / 4.0.0) và ghi mới C c2 (6.0.0 / 5.0.0). Bộ đọc/kiểm tra phân nhánh theo phiên bản
   và **fail closed** với phiên bản lạ; bằng chứng legacy 64-hex vẫn đúng, chữ ký thật

@@ -1305,11 +1305,28 @@ interface World {
           ).status === 'DEAD_LETTER',
         30,
       );
+      // Keep the exact rejection reason in internal evidence; HTTP readers
+      // receive a generic diagnostic under the AGT-009 privacy contract.
+      const delivery = await prisma.blockchainOutbox.findUniqueOrThrow({
+        where: { eventId: signedEvent.id },
+      });
+      expect(delivery.lastError).toMatch(/SIGNING_KEY_INACTIVE/);
       const proof = (
         await get(w, `/trace/events/${signedEvent.id}/proof`).expect(200)
       ).body.data;
       expect(proof.transactionStatus).toBe('FAILED');
-      expect(proof.lastError).toMatch(/SIGNING_KEY_INACTIVE/);
+      expect(proof.lastError).toBe(
+        'Blockchain delivery failed; contact support with eventId',
+      );
+      expect(JSON.stringify(proof)).not.toContain('SIGNING_KEY_INACTIVE');
+      const verification = (
+        await get(w, `/blockchain/events/${signedEvent.id}/verify`).expect(200)
+      ).body.data;
+      expect(verification).toMatchObject({
+        status: 'FAILED',
+        lastError: proof.lastError,
+      });
+      expect(JSON.stringify(verification)).not.toContain('SIGNING_KEY_INACTIVE');
       // Nothing was verified, and the handover never moved custody.
       expect(
         await prisma.blockchainProof.count({
