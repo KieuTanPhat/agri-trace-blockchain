@@ -60,6 +60,19 @@ xác nhận tên/path project. Kiểm trùng tên với personal/plugin skills; 
 skill có thể che project skill. Với policy không nạp project instructions hoặc
 skills, ghi limitation; không đổi policy cá nhân/managed để ép kết quả.
 
+Khi khởi chạy trực tiếp từ workspace con, import trong `CLAUDE.md` ở repo root
+có thể nằm ngoài cwd và bị client bỏ qua. Xem `Memory files` của `/context` để
+phân biệt import đã nạp với một dòng tham chiếu chưa mở rộng. Nếu thiếu `AGENTS.md`,
+fallback trong `CLAUDE.md` yêu cầu đọc file chung trước khi làm việc; ghi rõ đây là
+đọc dự phòng, không tuyên bố auto-import thành công. Mở phiên ở root cũng tránh
+trường hợp này. Không đổi trust hoặc sao chép quy tắc vào workspace con.
+
+Nếu đã đăng nhập tài khoản Claude nhưng `claude auth status` báo `api_key`, kiểm
+các biến `ANTHROPIC_API_KEY`/`ANTHROPIC_BASE_URL` đang ưu tiên cách kết nối khác.
+Phân biệt lỗi HTTP/provider với lỗi nạp skill. Khi người dùng chọn tài khoản đã
+đăng nhập, có thể bỏ các biến API trong riêng tiến trình kiểm tra để dùng phiên
+đăng nhập có sẵn; ghi auth mode trong evidence, không xóa biến Windows/global.
+
 ## Đồng bộ và kiểm tra
 
 Yêu cầu Node/npm theo [README](../README.md), Python 3.11+ và Git trong PATH.
