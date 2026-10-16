@@ -28,6 +28,15 @@ API/Web/Fabric bị bỏ qua. Chỉ PR được tối ưu bằng chọn đườn
 chọn job và gate chạy trong job `changes` của Application CI, trước các job
 có điều kiện; không phụ thuộc việc API có được chọn hay không.
 
+Job `changes` còn dùng Node 22.22.3 để chạy `agents:check` và `test:agents` bằng
+CLI Node, không cài dependency. Các bước này luôn chạy, kể cả PR chỉ đổi bộ agent;
+lỗi metadata/config/reference, bản skill Claude lệch nguồn hoặc Git ignore sai
+làm `changes` thất bại và chặn `Application gate`. Không thêm required check mới.
+PR thuần hướng dẫn/skill không chọn job runtime nặng; PR lẫn code vẫn chọn theo
+toàn bộ diff, push `main` vẫn chạy đầy đủ. Xem [guide agent](agent-workflow.md).
+Các thay đổi package/workflow/Docker ignore để tích hợp bộ agent vẫn thuộc đường
+Production CD hiện tại; không đổi bộ lọc để né deployment khi merge.
+
 CD yêu cầu bằng chứng push của đúng branch, SHA và lần chạy mới nhất của cả
 ba workflow. Kết quả PR hoặc CI của `dev` không cho phép triển khai, kể cả
 khi hai nhánh cùng SHA. Application CI diễn tập PostgreSQL trong container có

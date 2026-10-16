@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "files": {
+    "agritrace-api-contract/SKILL.md": "676172a28e5f3fa40c006ab5a1276b31f86b66182b8e9fd5374f7aad677e6545",
+    "agritrace-database-change/SKILL.md": "fd78917689ee833141a27a5e1fb33674add9eeb19d74672d06549fbb53195019",
+    "agritrace-frontend-change/SKILL.md": "9fa9681c7ab4bd854af660519bf9ccaa87457228399b31e330895437c4fefc12",
+    "agritrace-hybrid-integrity/SKILL.md": "cf692b041e24e77b3a29c036cf9f544aeac0ec41aacb9c821bb3ec3103a45faf",
+    "agritrace-production-release/SKILL.md": "74a875b74aa0704c26f8308302f449a348f44bee84ee9ca9783e344acd066bfa"
+  }
+}

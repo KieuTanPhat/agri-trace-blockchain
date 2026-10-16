@@ -62,12 +62,17 @@ are unchanged. Repairs append migrations rather than changing these inputs.
   Fabric organizations. External-host acceptance and production rollout remain
   separate gates; see [the onboarding plan](plans/enterprise-onboarding.md).
 
-Source completion is not production acceptance. The current worktree is
-`feature/hybrid-production-readiness`. Remaining release safeguards, tests,
+Source completion is not production acceptance. Inspect the current Git branch,
+worktree and SHA rather than inferring checkout state from this document.
+Remaining release safeguards, tests,
 restore/recovery and VPS smoke are tracked in
 [the current execution plan](plans/hybrid-production-readiness-2026-10-13.md).
 Per-run acceptance belongs in PR/Issue evidence and local artifacts. Earlier
 receipts are historical and cannot close the final candidate gates.
+
+For Claude Code/Codex task routing and shared workflows, follow
+[AGENTS](../AGENTS.md) and [the agent guide](agent-workflow.md). Skills reference
+these maintained documents; they do not carry a second business-rule catalogue.
 
 ## Operations
 

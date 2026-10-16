@@ -1,0 +1,2 @@
+# Project defaults intentionally inherit the current session's model, reasoning,
+# permissions, MCP servers and delegation settings. Standalone reviewer lives in agents/.

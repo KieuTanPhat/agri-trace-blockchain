@@ -1,5 +1,9 @@
 .git
 .codex
+.claude
+.agents
+AGENTS.md
+CLAUDE.md
 .github
 .docx_work
 .docx-review

@@ -45,8 +45,25 @@ artifacts/
 # Editor, AI workspace, and operating-system files
 .idea/
 .vscode/
-.codex/
-.claude/
+# Shared agent configuration is an allowlist; all other local state stays ignored.
+/.codex/*
+!/.codex/config.toml
+!/.codex/agents/
+/.codex/agents/*
+!/.codex/agents/agritrace-reviewer.toml
+/.claude/*
+!/.claude/settings.json
+!/.claude/agents/
+/.claude/agents/*
+!/.claude/agents/agritrace-reviewer.md
+!/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/.generated-skills.json
+!/.claude/skills/agritrace-api-contract/
+!/.claude/skills/agritrace-database-change/
+!/.claude/skills/agritrace-frontend-change/
+!/.claude/skills/agritrace-hybrid-integrity/
+!/.claude/skills/agritrace-production-release/
 .cursor/
 .ai/
 .DS_Store
