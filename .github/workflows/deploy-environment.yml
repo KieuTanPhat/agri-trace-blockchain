@@ -86,7 +86,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run build --workspace blockchain/chaincode
       - run: node deploy/cd/publish.mjs
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ needs.gate.outputs.prefix }}-bundle-${{ github.sha }}
           path: ${{ runner.temp }}/${{ needs.gate.outputs.prefix }}-release.tar.gz
@@ -137,7 +137,7 @@ jobs:
         run: node deploy/cd/send.mjs backup "$TARGET_SHA"
       - name: Store encrypted off-VPS snapshot
         if: always() && env.OPERATION != 'recover' && env.OPERATION != 'forward'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ needs.gate.outputs.prefix }}-encrypted-backup-${{ needs.gate.outputs.target }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/${{ needs.gate.outputs.prefix }}-backup-${{ needs.gate.outputs.target }}.cms
