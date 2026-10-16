@@ -35,3 +35,5 @@ artifacts
 graphify-out
 docs-analysis
 tools
+# Standalone Expo project; never part of the API, Web or Worker images.
+apps/mobile

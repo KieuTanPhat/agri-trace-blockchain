@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "AgriTrace",
+    "slug": "agritrace",
+    "scheme": "agritrace",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#f4f7f3",
+    "ios": {
+      "bundleIdentifier": "dev.agritrace.app",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "dev.agritrace.app"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-mark.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#f4f7f3",
+          "dark": {
+            "image": "./assets/images/splash-mark.png",
+            "backgroundColor": "#0b1a12"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

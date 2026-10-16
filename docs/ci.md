@@ -9,9 +9,9 @@ actions được cố định bằng SHA và cập nhật qua Dependabot.
 
 | Check bắt buộc | Kiểm tra |
 | --- | --- |
-| `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |
+| `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; ứng dụng di động (`apps/mobile`) trên Node 22.22.3, 24.15.0; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |
 | `Blockchain gate` | Gateway/chaincode trên ba phiên bản Node; coverage chaincode; cài/audit/check chaincode độc lập; Worker contract; API → outbox → Worker → Fabric → proof. |
-| `Dependency gate` | Audit hai lockfile và dependency đã cài; kiểm peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. |
+| `Dependency gate` | Audit ba lockfile (workspace, chaincode độc lập, `apps/mobile`) và dependency đã cài; kiểm peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. Lockfile mobile chỉ được miễn những GHSA ghi trong `apps/mobile/audit-exceptions.json`, mỗi mục có lý do và hạn rà soát. |
 
 Mỗi workflow tạo gate cho mọi PR, kể cả PR chỉ sửa tài liệu. Việc chọn job
 diễn ra trong `scripts/ci/changes.mjs`, thay vì bỏ cả workflow bằng `paths`:
@@ -58,6 +58,7 @@ tắc PR, chống xóa nhánh và chống force push đang có khi cập nhật 
 | --- | --- |
 | `apps/api/**`, gồm Worker và migration | API, production containers, production rehearsal, tích hợp Fabric. |
 | `apps/web/**` | Web, production containers, production rehearsal. |
+| `apps/mobile/**` | Mobile (typecheck, lint, Jest, bundle Android/iOS bằng `expo export`). Project độc lập với lockfile riêng, bị loại khỏi Docker context nên không chọn production containers. Workflow riêng `Mobile APK` build APK cài thử (ký khóa debug) và lưu artifact 14 ngày; đây không phải required check và không phải đầu vào của CD. |
 | `blockchain/gateway/**` | API là consumer, Gateway/chaincode, production containers, tích hợp Fabric. |
 | `blockchain/chaincode/**`, `blockchain/network/**` | Gateway/chaincode, tích hợp Fabric. |
 | Compose và các override Compose | Production containers, production rehearsal, tích hợp Fabric. |
@@ -171,6 +172,10 @@ riêng và được dọn trong `always()`, kể cả khi kiểm tra lỗi.
 
 Audit độc lập chạy trên mọi PR, merge queue, `main`, dispatch và mỗi thứ Hai
 02:23 UTC (09:23 Việt Nam). Hai artifact lockfile có tên gắn SHA, lưu 14 ngày.
+Job `Audit / mobile` (`npm run audit:mobile`) audit lockfile của `apps/mobile`
+với cùng ngưỡng moderate; advisory chưa có bản vá trong toolchain Expo chỉ được
+miễn khi có mục trong `apps/mobile/audit-exceptions.json`. Mục quá `reviewBy`
+hoặc không còn xuất hiện làm job thất bại, nên danh sách phải được rà lại định kỳ.
 Job `Workspace dependency graph` cài sạch, audit đầy đủ/production và kiểm
 `npm ls --all`; artifact kèm head/checkout SHA, Node/npm và checksum được
 lưu 90 ngày. Job `Standalone chaincode` giữ quy trình cài/audit/check độc
