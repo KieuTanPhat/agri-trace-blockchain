@@ -13,6 +13,17 @@ spec.loader.exec_module(installer)
 PolicyError = installer.policy.PolicyError
 
 
+class EntryLayout(unittest.TestCase):
+    def test_entry_runs_the_installed_controller_and_config_of_the_environment(self):
+        entry = Path(__file__).with_name("entry").read_text()
+        command = [line for line in entry.splitlines() if line.startswith("exec ")]
+        self.assertEqual(len(command), 1)
+        prefix = installer.policy.targets.TARGETS["production"]["prefix"]
+        self.assertIn(f" {installer.LIBRARY / prefix / 'controller.py'} ".replace("\\", "/"), command[0])
+        self.assertIn(f" --config {installer.config_path('production')} ".replace("\\", "/"), command[0])
+        self.assertTrue(command[0].endswith('--command "${1-}"'))
+
+
 class RetiredInstallation(unittest.TestCase):
     def test_schema_two_transition_command_is_rejected_before_reading_or_changing_config(self):
         with patch("sys.argv", ["install-target.py", "fresh-install", "--environment", "production"]), \

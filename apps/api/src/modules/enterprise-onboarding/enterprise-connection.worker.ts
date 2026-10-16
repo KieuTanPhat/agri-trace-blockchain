@@ -11,7 +11,10 @@ import {
   type EnterpriseConnection,
 } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { BindingConnectionPool } from '../ledger/binding-pool.js';
+import {
+  BindingConnectionPool,
+  type BindingConnection,
+} from '../ledger/binding-pool.js';
 import { loadBindingNodeConfigs } from '../ledger/binding-config.js';
 
 type Target = {
@@ -107,6 +110,7 @@ export class EnterpriseConnectionWorker {
       },
     });
     let remote: Awaited<ReturnType<typeof connectGateway>> | undefined;
+    let connection: BindingConnection | undefined;
     let mayHaveBroadcast = row.status === 'UNKNOWN';
     try {
       if (
@@ -185,7 +189,7 @@ export class EnterpriseConnectionWorker {
         chaincodeName: binding.chaincodeName,
         contractName: binding.contractName,
       });
-      const connection = await this.pool.get(binding, 'relayer');
+      connection = await this.pool.get(binding, 'relayer');
       const remoteHealth = (await reader.health()) as {
         governanceDigest?: string;
         supportedWriteVersions?: string[];
@@ -322,6 +326,7 @@ export class EnterpriseConnectionWorker {
       }).catch(() => undefined);
     } finally {
       remote?.close();
+      this.pool.release(connection);
     }
   }
 }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { hash, compare } from 'bcrypt';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -34,6 +34,21 @@ export function validateBootstrap(input, environment = process.env) {
   }
   assert.ok(['provision', 'activate-keys'].includes(input.operation ?? 'provision'));
   return input;
+}
+
+export function workerBindingNode(worker, bindingDigest) {
+  assert.ok(worker && typeof worker === 'object' && !Array.isArray(worker), 'Worker connection is missing');
+  assert.match(bindingDigest, /^[a-f0-9]{64}$/);
+  return { ...worker, bindingDigest };
+}
+
+/** False when the entry must still be added; throws when it differs. */
+export function inventoryHasBinding(document, node) {
+  assert.ok(document && Array.isArray(document.bindings), 'Worker binding inventory is invalid');
+  const existing = document.bindings.find(b => b.bindingDigest === node.bindingDigest);
+  if (!existing) return false;
+  assert.deepEqual(existing, node, 'Existing Worker binding differs');
+  return true;
 }
 
 const parties = [['FARM_STAFF', 'FARM'], ['TRANSPORTER', 'TRANSPORTER'], ['RETAILER', 'RETAILER'], ['AUDITOR', 'AUDITOR']];
@@ -118,12 +133,12 @@ export async function bootstrapProduction(input) {
           chainRef: binding.chainRef, writerAuthority: input.writerAuthority, writerMspId: input.connections.relayer.mspId, governanceDigest: health.governanceDigest },
         relayerFingerprint: relayer.fingerprint });
       await db.$transaction(tx => mirrorCredential(tx, binding.digest, relayer.fingerprint));
-      const worker = input.workerConnection;
-      const document = JSON.parse(readFileSync('/worker-bindings.json', 'utf8'));
-      const node = { ...worker, bindingDigest: binding.digest };
-      const existing = document.bindings.find(b => b.bindingDigest === binding.digest);
-      if (existing) assert.deepEqual(existing, node, 'Existing Worker binding differs');
-      else { document.bindings.push(node); writeFileSync('/worker-bindings.json', JSON.stringify(document) + '\n', { mode: 0o600 }); }
+      const node = workerBindingNode(input.workerConnection, binding.digest);
+      // The inventory is mounted read-only. The host controller adds the entry
+      // with a locked atomic replace and reruns this idempotent bootstrap; the
+      // binding is activated only once the Worker inventory carries it.
+      if (!inventoryHasBinding(JSON.parse(readFileSync('/worker-bindings.json', 'utf8')), node))
+        return { result: 'inventory-required', bindingDigest: binding.digest, workerBinding: node };
       await db.$transaction(tx => activateBinding(tx, binding.digest));
     } else {
       for (const keyRef of input.keyRefs) {

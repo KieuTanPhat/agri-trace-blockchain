@@ -106,7 +106,17 @@ Các endpoint hiện có:
 - Login nhận mật khẩu tối đa 72 byte UTF-8; tạo user cần ít nhất 12 ký tự và
   tối đa 72 byte UTF-8. Vượt giới hạn trả 400 trước khi tra user/bcrypt/tạo phiên.
   Không trim/cắt mật khẩu và không thay hash của tài khoản đã tồn tại.
-- `POST /api/auth/register` đang chủ động trả `501`; tài khoản phải do quản trị viên cấp
+- `POST /api/auth/register` là đăng ký doanh nghiệp tự phục vụ, có gate admission:
+  - `ENTERPRISE_ONBOARDING_ENABLED` khác `true` (mặc định): trả `503`, không ghi gì.
+  - Khi bật: kiểm origin tin cậy, giới hạn 5 request/phút, trả `201` kèm receipt
+    hồ sơ chờ duyệt (không phải phiên đăng nhập). Email hoặc mã doanh nghiệp đã
+    đăng ký trả `409`.
+  - Client tạo `requestId` (UUID) một lần và gửi lại đúng `requestId` cùng nội dung
+    form gốc khi retry; không tạo `requestId` mới khi chưa rõ kết quả.
+  - Quản trị duyệt tại `/admin/enterprises`. Xem
+    [kế hoạch onboarding](../../docs/plans/enterprise-onboarding.md) và
+    [hướng dẫn kết nối](../../docs/hybrid-fabric-runbook.md#12-đăng-ký-và-kết-nối-doanh-nghiệp-v1).
+    Việc gate đang bật trên production phải xác nhận theo runbook, không suy ra từ mã.
 
 ## Hybrid A/B/C
 

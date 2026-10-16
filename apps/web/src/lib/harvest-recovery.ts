@@ -4,6 +4,7 @@ import {
   recordHarvest,
 } from "./api-client";
 import { getAuthorizationScope } from "./auth-scope";
+import { currentBusinessAccessRevision } from "./permission-sync";
 import type { components } from "./generated/api";
 
 type Input = Omit<components["schemas"]["RecordHarvestDto"], "harvestTime">;
@@ -28,11 +29,16 @@ const uuid = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
 
 function assertActor(scope: string) {
   const user = readSession()?.user;
+  // The dialog's scope comes from useAuth(), which adds the accepted permission
+  // revision; compare like with like so a permission change is still detected.
   if (
     !user ||
     user.role.code !== "FARM_STAFF" ||
     user.accountStatus !== "ACTIVE" ||
-    getAuthorizationScope(user) !== scope
+    getAuthorizationScope({
+      ...user,
+      accessRevision: currentBusinessAccessRevision(),
+    }) !== scope
   )
     throw new Error("Tài khoản hoặc quyền đã thay đổi. Vui lòng mở lại trang.");
 }

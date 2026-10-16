@@ -17,6 +17,8 @@ const labels: Partial<Record<PendingCommand["operation"], string>> = {
   SCOPE_ACCEPT_SHIPMENT_PLAN: "Xác nhận kế hoạch giao hàng",
   CREATE_PRODUCTION_CYCLE: "Tạo vụ trồng",
   RECORD_HARVEST: "Ghi nhận thu hoạch",
+  INGEST_SENSOR_READING: "Gửi bản đo cảm biến",
+  INGEST_SHIPMENT_TELEMETRY: "Gửi dữ liệu theo dõi chuyến hàng",
   PREPARE_HANDOVER_OFFER: "Chuẩn bị đề nghị bàn giao",
   PREPARE_HANDOVER_CONFIRM: "Chuẩn bị xác nhận bàn giao",
   SUBMIT_SIGNED_INTENT: "Gửi chữ ký bàn giao",

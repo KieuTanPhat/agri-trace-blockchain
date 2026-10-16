@@ -97,7 +97,10 @@ chạy:
 docker compose --env-file .env.docker up --build
 ```
 
-Compose khởi động PostgreSQL, API, Dedicated Worker và Web. API vẫn hoạt động khi
+Compose khởi động PostgreSQL, API, Dedicated Worker và Web. Stack local mở ghi
+nghiệp vụ qua `HYBRID_WRITES_MODE=OPEN` (mặc định trong `docker-compose.yml`);
+đặt `CLOSED` trong `.env.docker` để thử chế độ bảo trì. Production không dùng
+file này: controller giữ ghi đóng đến khi bản phát hành được xác minh. API vẫn hoạt động khi
 Fabric hoặc Worker tạm dừng; các sự kiện chờ được giữ trong
 `blockchain_outbox`. Worker health chỉ mở trong Docker network tại
 `http://worker:8081/health/ready`.

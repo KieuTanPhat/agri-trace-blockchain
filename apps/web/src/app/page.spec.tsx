@@ -46,3 +46,11 @@ it("lists the six steps of the journey in order", () => {
     "Công khai truy xuất",
   ]);
 });
+
+it("limits the organization-signature claim to signed handovers (ADR-004)", () => {
+  const { container } = render(<HomePage />);
+  const text = container.textContent ?? "";
+  expect(text).not.toMatch(/Dữ liệu nghiệp vụ được ký số/);
+  expect(text).not.toMatch(/Chữ ký số của tổ chức/);
+  expect(text).toMatch(/bàn giao có thêm chữ ký số/);
+});

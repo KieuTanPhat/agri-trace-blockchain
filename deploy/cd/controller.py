@@ -72,11 +72,26 @@ class Controller:
         return json.loads((self.storage / "state.json").read_text())
 
     def fresh_write_mode(self, record):
+        # A smoke session opens writes only for the reviewed technical smoke
+        # accounts (CANARY); business users stay at 503 on an unverified candidate.
         if getattr(self, "smoke_writes", False):
+            return "CANARY"
+        if getattr(self, "post_verify_open", False):
             return "OPEN"
         if (self.storage / "journal.json").exists() or not record.get("verified"):
             return "CLOSED"
         return "OPEN" if self.config.get("open_after_smoke") is True else self.config.get("writes_mode", "CLOSED")
+
+    def smoke_actor_ids(self):
+        accounts = json.loads(Path(self.config["accounts"]).read_text())
+        ids = [account.get("id") for account in accounts] if isinstance(accounts, list) else []
+        require(1 <= len(ids) <= 32 and len(set(ids)) == len(ids) and
+                all(isinstance(value, str) and re.fullmatch(r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}", value) for value in ids),
+                "Smoke writes require the reviewed technical account IDs")
+        return ",".join(ids)
+
+    def canary_actor_ids(self, record):
+        return self.smoke_actor_ids() if self.fresh_write_mode(record) == "CANARY" else ""
 
     def record(self, release):
         require(release.startswith(self.prefix + "-") and all(c.isalnum() or c in "-_." for c in release), "Unknown release")
@@ -105,7 +120,8 @@ class Controller:
                   "POSTGRES_MEMORY": "1g", "API_MEMORY": "768m", "API_HEAP_MB": "512",
                   "WEB_MEMORY": "768m", "WEB_HEAP_MB": "512",
                   "FABRIC_DOCKER_NETWORK": self.fabric["network"],
-                  "HYBRID_WRITES_MODE": self.fresh_write_mode(record), "FABRIC_LEGACY_WRITER": "false"}
+                  "HYBRID_WRITES_MODE": self.fresh_write_mode(record),
+                  "HYBRID_CANARY_ACTOR_IDS": self.canary_actor_ids(record), "FABRIC_LEGACY_WRITER": "false"}
         resources = self.config.get("resource_profile", {})
         for name in ("POSTGRES", "API", "WORKER", "WEB"):
             if name in resources:
@@ -183,6 +199,7 @@ class Controller:
         api = services["api"]["environment"]
         require(api["FABRIC_ENABLED"] == "false" and api["FABRIC_LEGACY_WRITER"] == "false" and
                 api["HYBRID_WRITES_MODE"] == self.fresh_write_mode(record) and
+                api.get("HYBRID_CANARY_ACTOR_IDS", "") == self.canary_actor_ids(record) and
                 api["JWT_SECRET"] == self.environment["JWT_SECRET"] and
                 api["CORS_ORIGIN"] == self.environment["CORS_ORIGINS"] and
                 api["PUBLIC_TRACE_BASE_URL"] == self.config["origin"] + "/trace", "Hosted API maintenance/auth boundary changed")
@@ -945,11 +962,11 @@ class Controller:
             atomic_json(self.storage / "last-result.json", {"result": "fresh-installed", "sha": candidate["sha"], "smoke": evidence})
             journal["stage"] = "verified"
             atomic_json(filename, journal)
-            self.smoke_writes = self.config.get("open_after_smoke") is True or self.config.get("writes_mode") == "OPEN"
+            self.post_verify_open = self.config.get("open_after_smoke") is True or self.config.get("writes_mode") == "OPEN"
             try:
                 self.start(candidate)
             finally:
-                self.smoke_writes = False
+                self.post_verify_open = False
             atomic_json(self.storage / "records" / candidate["id"] / "installation-journal.json", journal)
             filename.unlink()
         return {"result": "fresh-installed", "release": candidate["id"], "counts": evidence["counts"]}
@@ -972,7 +989,60 @@ class Controller:
         payload["accounts"] = json.loads(Path(self.config["accounts"]).read_text())
         if key_refs is not None:
             payload.update(operation="activate-keys", keyRefs=key_refs)
-        return self.hosted_operator(record, payload, ["node", "apps/api/scripts/bootstrap-production.mjs"], "hosted-production-bootstrap")
+        program = ["node", "apps/api/scripts/bootstrap-production.mjs"]
+        result = self.hosted_operator(record, payload, program, "hosted-production-bootstrap")
+        if result.get("result") == "inventory-required":
+            # The one-off container only reads the inventory. The host adds the
+            # entry atomically, then the idempotent bootstrap resumes and activates.
+            self.add_worker_binding(result.get("bindingDigest"), result.get("workerBinding"))
+            result = self.hosted_operator(record, payload, program, "hosted-production-bootstrap")
+        require(result.get("result") == "passed", "Hosted production bootstrap did not complete")
+        return result
+
+    def add_worker_binding(self, digest, node):
+        """Add one binding to the Worker inventory by atomic replace under the delivery lock.
+        A failed write leaves the reviewed inventory intact; nothing is activated before it."""
+        require(isinstance(digest, str) and re.fullmatch(r"[a-f0-9]{64}", digest) is not None, "Bootstrap binding digest is invalid")
+        require(isinstance(node, dict) and node.get("bindingDigest") == digest, "Bootstrap Worker binding is invalid")
+        filename = Path(self.environment["FABRIC_BINDINGS_CONFIG_HOST"])
+        require(policy.targets.owned_path(str(filename), self.base / "shared") and filename.is_file() and not filename.is_symlink(),
+                "Worker binding inventory must be an existing private file")
+        document = json.loads(filename.read_text())
+        require(isinstance(document, dict) and isinstance(document.get("bindings"), list), "Worker binding inventory is invalid")
+        existing = [item for item in document["bindings"] if isinstance(item, dict) and item.get("bindingDigest") == digest]
+        if existing:
+            require(existing == [node], "Existing Worker binding differs")
+            return
+        document = dict(document, bindings=[*document["bindings"], node])
+        status = filename.stat()
+        # Same directory as the target, so the replace is atomic. A leftover from
+        # an interrupted run is never a reviewed inventory and is discarded.
+        temporary = filename.with_name("." + filename.name + ".next")
+        with contextlib.suppress(FileNotFoundError):
+            temporary.unlink()
+        try:
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, "w") as file:
+                json.dump(document, file)
+                file.write("\n")
+                file.flush()
+                os.fsync(file.fileno())
+            if hasattr(os, "chown"):
+                os.chown(temporary, status.st_uid, status.st_gid)
+            os.chmod(temporary, status.st_mode & 0o7777)
+            require(json.loads(temporary.read_text()) == document, "Worker binding inventory write could not be verified")
+            os.replace(temporary, filename)
+        except BaseException:
+            with contextlib.suppress(OSError):
+                temporary.unlink()
+            raise
+        if hasattr(os, "O_DIRECTORY"):
+            directory = os.open(filename.parent, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
+        require(json.loads(filename.read_text()) == document, "Worker binding inventory was not replaced")
 
     def hosted_operator(self, record, payload, program, label, smoke_directory=None):
         image = record["manifest"]["api"]
@@ -984,7 +1054,7 @@ class Controller:
         require(re.fullmatch(r"[0-9.]{7,15}", address), "Bootstrap database address is invalid")
         command = ["docker", "run", "--rm", "-i", "--user", "0:0", "--network", "host", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
                    "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m", "--mount", f"type=bind,src={self.fabric['root']},dst=/operator,readonly",
-                   "--mount", f"type=bind,src={self.environment['FABRIC_BINDINGS_CONFIG_HOST']},dst=/worker-bindings.json",
+                   "--mount", f"type=bind,src={self.environment['FABRIC_BINDINGS_CONFIG_HOST']},dst=/worker-bindings.json,readonly",
                    "--memory", "384m", "--cpus", "0.5", "--env", "APP_ENV=production", "--env", "PRODUCTION_BOOTSTRAP_ENABLED=true"]
         if smoke_directory:
             command += ["--mount", f"type=bind,src={smoke_directory},dst=/smoke"]
@@ -1009,7 +1079,7 @@ class Controller:
         script = Path(__file__).with_name("session-auth.mjs").read_text() + "\n" + Path(__file__).with_name("verify-hosted.mjs").read_text()
         program = ["node", "--input-type=module", "-e", script]
         if write:
-            require(self.fresh_write_mode(record) == "OPEN", "Business smoke requires an explicitly opened deployment session")
+            require(self.fresh_write_mode(record) == "CANARY", "Business smoke requires an explicitly opened deployment session")
             enrolled = self.hosted_operator(record, dict(payload, stage="enroll"), program, "smoke-key-enrollment", directory)
             require(enrolled.get("result") == "passed", "Smoke key enrollment failed")
             self.bootstrap_hosted(record, enrolled["keyRefs"])

@@ -29,7 +29,7 @@ const delay = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 
 const technologies = [
   "Hyperledger Fabric",
-  "Chữ ký số của tổ chức",
+  "Chữ ký số khi bàn giao",
   "Một lô, một mã QR",
   "Bằng chứng đối chiếu được",
   "Chứng nhận có người duyệt",
@@ -332,9 +332,10 @@ export default function HomePage() {
               <p className="eyebrow">Toàn vẹn dữ liệu</p>
               <h2>Hệ nghiệp vụ ghi nhận. Sổ cái giữ bằng chứng.</h2>
               <p className="lp-lead">
-                Dữ liệu nghiệp vụ được ký số bởi tổ chức thực hiện và đối chiếu với bằng
-                chứng trên Hyperledger Fabric. Trạng thái hiển thị theo kết quả xác minh
-                của từng lô.
+                Mỗi sự kiện nghiệp vụ được ghi bởi tài khoản đã xác thực và đối chiếu với
+                bằng chứng trên Hyperledger Fabric. Riêng bước bàn giao có thêm chữ ký số
+                của tổ chức gửi và nhận. Trạng thái hiển thị theo kết quả xác minh của
+                từng lô.
               </p>
             </Reveal>
             <Reveal className="lp-arch">
@@ -342,7 +343,7 @@ export default function HomePage() {
                 <strong>Hệ nghiệp vụ AgriTrace</strong>
                 <span>Vụ trồng · Thu hoạch · Lô · Giao nhận · Chứng nhận</span>
               </div>
-              <div className="lp-arch-link"><ArrowRight size={20} /><span>Ký số</span></div>
+              <div className="lp-arch-link"><ArrowRight size={20} /><span>Ghi bằng chứng</span></div>
               <div className="lp-arch-block lp-arch-ledger">
                 <strong>Sổ cái Hyperledger Fabric</strong>
                 <span>Bằng chứng toàn vẹn của lịch sử</span>

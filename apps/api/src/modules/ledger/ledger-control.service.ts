@@ -7,7 +7,11 @@ import {
 } from '@agri-trace/fabric-gateway';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { BindingConnectionPool, type BindingTarget } from './binding-pool.js';
+import {
+  BindingConnectionPool,
+  type BindingConnection,
+  type BindingTarget,
+} from './binding-pool.js';
 
 type Job = Prisma.LedgerControlJobGetPayload<{ include: { binding: true } }>;
 type Sync = Prisma.LedgerPermissionSyncGetPayload<object>;
@@ -98,6 +102,8 @@ export class LedgerControlService {
       });
     }, Math.max(100, Math.floor(this.number('FABRIC_CLAIM_LEASE_MS', 120_000) / 3)));
     heartbeat.unref();
+    let controller: BindingConnection | undefined;
+    let admin: BindingConnection | undefined;
     try {
       if (
         !this.pool.configured(job.bindingDigest, 'controller') ||
@@ -112,8 +118,8 @@ export class LedgerControlService {
         return;
       }
       const target = this.target(job);
-      const controller = await this.pool.get(target, 'controller');
-      const admin = await this.pool.get(target, 'admin');
+      controller = await this.pool.get(target, 'controller');
+      admin = await this.pool.get(target, 'admin');
       const operator = new RegistryOperator(controller.client, {
         [job.binding.writerMspId]: admin.client,
       });
@@ -131,6 +137,8 @@ export class LedgerControlService {
       await this.failure(job, error);
     } finally {
       clearInterval(heartbeat);
+      this.pool.release(admin);
+      this.pool.release(controller);
     }
   }
 

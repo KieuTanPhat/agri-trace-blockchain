@@ -36,7 +36,14 @@ route bản A.
 ## 2. Dựng mạng
 
 Chạy trong WSL2/Linux có Docker. Dữ liệu nằm ở `~/agritrace-fabric`
-(`AGRI_FABRIC_ROOT` để đổi).
+(`AGRI_FABRIC_ROOT` để đổi). Script bắt buộc `AGRI_FABRIC_INSTANCE` (tiền tố tài
+nguyên cách ly, `^[a-z][a-z0-9-]{3,48}$`) và dừng ngay nếu thiếu. Khai báo instance
+và root riêng trước mọi lệnh bên dưới; không dùng chung root với stack khác:
+
+```bash
+export AGRI_FABRIC_INSTANCE=agri-pilot-local
+export AGRI_FABRIC_ROOT="$HOME/agritrace-fabric/$AGRI_FABRIC_INSTANCE"
+```
 
 ```bash
 bash blockchain/network/hybrid/hybrid-network.sh up       # CA, MSP, genesis, orderer, peer, channel
@@ -45,7 +52,9 @@ bash blockchain/network/hybrid/hybrid-network.sh status
 bash blockchain/network/hybrid/hybrid-network.sh export   # chỉ tạo material kết nối của AgriTrace
 ```
 
-`export` ghi vào `blockchain/.fabric/runtime` (đã gitignore). Material của
+`export [dir]` ghi vào `blockchain/.fabric/runtime` (đã gitignore) hoặc thư mục chỉ
+định. Acceptance AC-13 tự export vào một thư mục tạm dưới root của instance, kiểm
+đúng danh sách identity được phép và xóa sau khi kiểm; thiếu export là FAIL. Material của
 Org3 **không bao giờ** được export vào API/Worker; harness test chỉ đọc nó để
 đóng vai operator của chủ chuỗi.
 
@@ -253,11 +262,18 @@ npx tsx scripts/org-signer.ts sign --key org-key.pem --intent intent.json   # in
 
 ### 8.5. Giao thức (tham chiếu nhanh)
 
-- Envelope `5.0.0`, hash riêng tư `4.0.0`; commitment
-  `SHA256("agritrace:binding-event:c1" 0x00 JCS(thân công khai + chữ ký))`.
-- Thông điệp khóa ký:
-  `"agritrace:intent-signature:c1" 0x00 JCS({intentDigest, chainRef, eventId, entityType, entityId, eventType, bindingDigest, keyRef})`
-  nên chữ ký không thể chuyển sang sự kiện, thực thể, chuỗi, binding hay khóa khác.
+- Ghi mới (c2): envelope `6.0.0`, schema `5.0.0`
+  (`C_ENVELOPE_VERSION`/`C_SCHEMA_VERSION` trong `blockchain/chaincode/src/signing.ts`);
+  commitment `SHA256("agritrace:binding-event:c2" 0x00 JCS(thân công khai + chữ ký))`,
+  chữ ký gồm `keyRef`, `intentDigest`, `assertionDigest`, `payloadDigest`,
+  `metadataDigest`; thân riêng tư dùng domain `agritrace:private-body:c2`.
+- Thông điệp khóa ký c2:
+  `"agritrace:intent-signature:c2" 0x00 JCS({intentDigest, chainRef, eventId, entityType, entityId, eventType, bindingDigest, keyRef, payloadDigest})`;
+  assertion dùng `agritrace:signature-assertion:c2`. Chữ ký không thể chuyển sang
+  sự kiện, thực thể, chuỗi, binding, khóa hoặc payload khác.
+- Domain c1 (envelope `5.0.0`, hash `4.0.0`, không có `payloadDigest`) chỉ còn để
+  đọc/xác minh lịch sử. Parser ghi mới từ chối thông điệp c1 (`INVALID_INPUT`);
+  Worker không ghi lại attempt c1 mà chỉ đối soát.
 - Chaincode kiểm: khóa `ACTIVE` trong registry, chữ ký Ed25519, assertion khớp
   commitment, intent chỉ dùng một lần, hash chain, quyền, fence. Sự kiện
   `HANDOVER_OFFERED/CONFIRMED` **không thể** ghi bằng đường không chữ ký.
@@ -316,8 +332,10 @@ proof, 5 chữ ký, 3 bàn giao, 17 migration) và `verify-evidence` 31/31.
 - Chưa có: ủy quyền ký qua dịch vụ AgriTrace, bằng chứng thời điểm ký độc lập
   (timestamp authority), chữ ký cho các sự kiện ngoài bàn giao (care, thu hoạch…),
   cảnh báo/health tự động cho dead letter (hiện chỉ hiện ở panel Ledger và CLI `status`).
-- Hết hạn đề nghị chỉ được đánh dấu khi có truy cập liên quan (xem, chuẩn bị,
-  nộp); chưa có tác vụ quét định kỳ trong Worker.
+- Hết hạn đề nghị được đánh dấu khi có truy cập liên quan (xem, chuẩn bị, nộp)
+  và bởi bước `handover-expiry` của Worker trong mỗi vòng lặp
+  (`HANDOVER_EXPIRY_ENABLED`, mặc định bật; đặt `false` để tắt;
+  `HANDOVER_EXPIRY_BATCH_SIZE`, mặc định 100). Bước này chạy cả khi Fabric tắt.
 
 ## 12. Đăng ký và kết nối doanh nghiệp v1
 

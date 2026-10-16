@@ -69,9 +69,15 @@ migration catalog. Không thay byte migration đã áp hoặc bỏ parser defaul
 Lần đầu bắt đầu từ DB trống, ghi floor trước migrate rồi operator tạo account/
 catalog/chain/binding/approvals. Owner MSP chỉ cấp cho operator một lần; API/Worker
 thường trực không nhận owner/CA/orderer keys. Bootstrap có thể đối soát/tiếp tục.
+Container bootstrap chỉ đọc Worker inventory; khi binding mới cần thêm, controller
+trên host ghi `bindings.json` bằng file tạm cùng thư mục + fsync + rename dưới
+delivery lock, đọc lại rồi chạy lại bootstrap để activate. Ghi lỗi giữ nguyên
+inventory đã review; file `.bindings.json.next` còn sót từ lần gián đoạn được bỏ.
 
-API/Web/Worker khởi động CLOSED; smoke mở ghi trong delivery cho actor kỹ thuật
-scope đúng. Kiểm health/Web/PWA/login/roles/refresh/logout/CORS; care, harvest/Lot/
+API/Web/Worker khởi động CLOSED; smoke chạy API ở `HYBRID_WRITES_MODE=CANARY` với
+`HYBRID_CANARY_ACTOR_IDS` là đúng các ID trong `accounts.json` (tài khoản kỹ thuật
+smoke). Người dùng nghiệp vụ khác vẫn nhận 503 trên candidate chưa verified; RBAC và
+scope domain vẫn kiểm từng command. Kiểm health/Web/PWA/login/roles/refresh/logout/CORS; care, harvest/Lot/
 QR, ShipmentPlan consent, pickup/arrival có chữ ký Ed25519 hai bên, receive,
 original-key replay, outbox, stored evidence, direct Fabric event/proof/VALID và
 public QR. Private keys/command receipts nằm trong `shared/smoke/<sha>` root-only.

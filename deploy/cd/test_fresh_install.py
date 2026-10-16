@@ -33,7 +33,7 @@ class FirstInstallation(unittest.TestCase):
         self.cd.start.side_effect = lambda record: modes.append(self.cd.fresh_write_mode(record))
         result = self.cd.first_install(self.candidate, self.state)
         self.assertEqual(result['result'], 'fresh-installed')
-        self.assertEqual(modes, ['CLOSED', 'OPEN', 'OPEN'])
+        self.assertEqual(modes, ['CLOSED', 'CANARY', 'OPEN'])
         self.cd.bootstrap_hosted.assert_called_once_with(self.candidate)
         self.cd.verify.assert_called_once_with(self.candidate, self.candidate['sha'])
         self.assertTrue(self.candidate['verified'])

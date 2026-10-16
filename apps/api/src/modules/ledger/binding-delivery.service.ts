@@ -125,8 +125,9 @@ export class BindingDeliveryService {
       if (!this.pool.configured(binding.digest, 'relayer')) continue;
       const hold = this.breaker.get(binding.digest);
       if (hold && hold.until > Date.now()) continue;
+      let connection: BindingConnection | undefined;
       try {
-        const connection = await this.pool.get(this.target(binding), 'relayer');
+        connection = await this.pool.get(this.target(binding), 'relayer');
         const health = (await connection.client.health()) as {
           status?: string;
           governanceDigest?: string;
@@ -166,6 +167,8 @@ export class BindingDeliveryService {
         this.logger.warn(
           `Binding ${binding.digest.slice(0, 12)} unavailable: ${(error as Error).message}`,
         );
+      } finally {
+        this.pool.release(connection);
       }
     }
     return { processed, failedBindings };
@@ -254,9 +257,16 @@ export class BindingDeliveryService {
       `);
       if (!rows.length) return [];
       const ids = rows.map((row) => row.id);
+      // A reclaimed expired lease is a worker crash, not a delivery failure:
+      // cap it at the budget so release() (which gives one back) always leaves
+      // a claimable RETRY row and fail() still dead-letters at the budget.
       await tx.$executeRaw`UPDATE blockchain_outbox
         SET status = 'PROCESSING'::blockchain_outbox_status,
-            attempt_count = attempt_count + 1, next_attempt_at = NULL,
+            attempt_count = CASE
+              WHEN status = 'PROCESSING'::blockchain_outbox_status
+                THEN LEAST(attempt_count + 1, ${maxRetries}::int)
+              ELSE attempt_count + 1 END,
+            next_attempt_at = NULL,
             lease_token = ${leaseToken}::uuid,
             lease_expires_at = clock_timestamp() + ${leaseMs} * interval '1 millisecond'
         WHERE outbox_id = ANY(${ids}::uuid[])`;

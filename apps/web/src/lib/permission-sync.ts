@@ -6,6 +6,11 @@ let accessEpoch = 0;
 export function businessAccessEpoch() {
   return accessEpoch;
 }
+/** Revision last accepted from /chain-permissions; AuthProvider exposes the
+ * same value as user.accessRevision, so non-React code derives the same scope. */
+export function currentBusinessAccessRevision() {
+  return revision;
+}
 export function acceptBusinessAccessRevision(next: string) {
   if (next !== revision) {
     revision = next;
