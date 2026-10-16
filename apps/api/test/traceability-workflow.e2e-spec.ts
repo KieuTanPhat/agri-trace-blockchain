@@ -830,6 +830,35 @@ const prisma = new PrismaClient({
       }
       expect(digests[1].previousDigestHash).toBe(digests[0].digestHash);
       expect(digests[2].previousDigestHash).toBe(digests[1].digestHash);
+      // Several window digests share the shipment: detail and list expose the
+      // chain head, then the final digest, never an arbitrary window (V01).
+      const exposed = async () => {
+        const detail = (
+          await get(`/shipments/${shipment.id}`, 'transporter').expect(200)
+        ).body.data.telemetryDigest;
+        const listed = (
+          await get('/shipments', 'transporter').expect(200)
+        ).body.data.find(
+          (item: { id: string }) => item.id === shipment.id,
+        ).telemetryDigest;
+        expect(listed?.id).toBe(detail?.id);
+        return detail;
+      };
+      expect((await exposed()).id).toBe(digests[2].id);
+      const final = (
+        await post(
+          `/iot/shipments/${shipment.id}/telemetry-digests`,
+          {
+            periodStart: new Date(timestamp.getTime() - 4000).toISOString(),
+            periodEnd: timestamp.toISOString(),
+            isFinal: true,
+          },
+          'transporter',
+        ).expect(201)
+      ).body.data;
+      const head = await exposed();
+      expect(head.id).toBe(final.id);
+      expect(head.isFinal).toBe(true);
       await post(
         `/shipments/${shipment.id}/arrive`,
         { version: 1, lotVersion: 1 },

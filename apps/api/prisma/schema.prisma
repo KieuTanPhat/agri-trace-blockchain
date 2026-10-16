@@ -697,7 +697,9 @@ model Shipment {
   retailer          Organization              @relation("ShipmentRetailer", fields: [retailerOrgId], references: [id], onUpdate: NoAction)
   transporter       Organization              @relation("ShipmentTransporter", fields: [transporterOrgId], references: [id], onUpdate: NoAction)
   telemetry         ShipmentTelemetry[]
-  telemetryDigest   ShipmentTelemetryDigest?
+  /// Several window digests per shipment; at most one isFinal (partial unique
+  /// index). Read the head explicitly (final first, then the newest window).
+  telemetryDigests  ShipmentTelemetryDigest[]
   trackingBindings  ShipmentTrackingBinding[]
   handoverMode      HandoverMode              @default(STANDARD) @map("handover_mode")
   handovers         ShipmentHandover[]
