@@ -192,6 +192,65 @@ test('interrupted first sync can adopt only identical canonical files without a 
   assert.equal(f.read('.claude/skills/agritrace-one/references/new.md').toString(), 'Not yet copied.');
 });
 
+for (const transition of ['file-to-directory', 'directory-to-file', 'case-only-rename']) {
+  for (const interrupted of ['none', 'after-removal', 'after-replacement']) {
+    test(`owned ${transition} resumes ${interrupted} with the old manifest`, t => {
+      const f = fixture(t);
+      const source = '.agents/skills/agritrace-one';
+      const target = '.claude/skills/agritrace-one';
+      const oldFile = transition === 'file-to-directory' ? 'resource'
+        : transition === 'directory-to-file' ? 'resource/nested/old.bin' : 'References/Guide.md';
+      const newFile = transition === 'file-to-directory' ? 'resource/nested/new.bin'
+        : transition === 'directory-to-file' ? 'resource' : 'references/guide.md';
+      const oldRoot = oldFile.split('/')[0];
+      f.put(`${source}/${oldFile}`, 'Resource bytes.');
+      syncSkills(f.root);
+      const oldManifest = f.read(manifestFile);
+      removeFixtureTree(f.root, `${source}/${oldRoot}`);
+      f.put(`${source}/${newFile}`, 'Resource bytes.');
+      if (interrupted !== 'none') {
+        // Leave empty old directories to model interruption before directory pruning.
+        unlinkSync(path.join(f.root, target, oldFile));
+        if (interrupted === 'after-replacement') {
+          if (oldFile.includes('/')) removeFixtureTree(f.root, `${target}/${oldRoot}`);
+          f.put(`${target}/${newFile}`, 'Resource bytes.');
+        }
+      }
+      assert.deepEqual(f.read(manifestFile), oldManifest);
+      const before = snapshot(f.root);
+      assert.throws(() => syncSkills(f.root, { check: true }), /Generated skills differ/);
+      assert.deepEqual(snapshot(f.root), before);
+      syncSkills(f.root);
+      syncSkills(f.root, { check: true });
+      assert.equal(f.read(`${target}/${newFile}`).toString(), 'Resource bytes.');
+      if (transition === 'case-only-rename') {
+        assert.ok(readdirSync(path.join(f.root, target)).includes('references'));
+        assert.deepEqual(readdirSync(path.join(f.root, target, 'references')), ['guide.md']);
+      }
+      const completed = snapshot(f.root);
+      syncSkills(f.root);
+      assert.deepEqual(snapshot(f.root), completed);
+    });
+  }
+}
+
+for (const operation of ['file-replacement', 'parent-case-change']) {
+  test(`an unowned empty directory blocks ${operation} before any writes`, t => {
+    const f = fixture(t);
+    f.put('.agents/skills/agritrace-one/resource/nested/old.md', 'Old bytes.');
+    syncSkills(f.root);
+    removeFixtureTree(f.root, '.agents/skills/agritrace-one/resource');
+    f.put(`.agents/skills/agritrace-one/${operation === 'file-replacement' ? 'resource' : 'Resource/nested/old.md'}`, 'Replacement bytes.');
+    f.skill('agritrace-one', 'Another pending update.');
+    const localDirectory = path.join(f.root, '.claude/skills/agritrace-one/resource/local-empty');
+    mkdirSync(localDirectory);
+    const before = snapshot(f.root);
+    assert.throws(() => syncSkills(f.root), /Conflict: unowned directory/);
+    assert.ok(lstatSync(localDirectory).isDirectory());
+    assert.deepEqual(snapshot(f.root), before);
+  });
+}
+
 for (const invalid of [
   '{broken', JSON.stringify({ version: 2, files: {} }),
   JSON.stringify({ version: 1, files: { '../worktrees/file': 'a'.repeat(64) } }),

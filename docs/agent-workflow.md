@@ -87,6 +87,8 @@ Sync preflight trước khi ghi, cập nhật manifest cuối cùng. Một check
 một writer. Nếu bị gián đoạn, chạy lại với cùng source; file khớp bản cũ hoặc
 nguồn hiện tại được tiếp tục. Root-level `.agritrace-sync-*.tmp` còn lại là output
 local bị ignore, không phải skill và không được tự dọn bằng wildcard.
+Đổi resource giữa file/thư mục hoặc đổi tên chỉ khác hoa/thường được sync xử lý
+từ manifest cũ; thư mục local ngoài quản lý cản trở chuyển đổi sẽ làm preflight dừng.
 
 Nếu có conflict, giữ file và đối chiếu thủ công. Chuyển thay đổi có chủ đích về
 nguồn chung, rồi phục hồi bản sinh từ Git hoặc đối chiếu nó thành đúng bản cũ/nguồn

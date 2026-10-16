@@ -22,19 +22,25 @@ function validateComponent(component) {
 }
 
 /** Check every existing ancestor, including .agents/.claude, before reading or writing. */
-export function safePath(root, relative) {
+export function safePath(root, relative, { allowFileAncestor = false } = {}) {
   const base = path.resolve(root);
   const parts = relative.split('/');
   parts.forEach(validateComponent);
+  const destination = path.join(base, ...parts);
+  if (!destination.startsWith(`${base}${path.sep}`)) throw new Error(`Path escapes repository: ${relative}`);
   let current = base;
   for (let index = -1; index < parts.length; index += 1) {
     if (index >= 0) current = path.join(current, parts[index]);
     const info = lstatSync(current, { throwIfNoEntry: false });
     if (info?.isSymbolicLink()) throw new Error(`Symlink/junction is not supported: ${current}`);
-    if (info && index < parts.length - 1 && !info.isDirectory()) throw new Error(`Expected directory: ${current}`);
+    if (info && index < parts.length - 1 && !info.isDirectory()) {
+      // A previous manifest path may now be below a newly generated file after interruption.
+      // Nothing can exist below a regular file; all path components were validated above.
+      if (allowFileAncestor && index >= 0 && info.isFile()) return destination;
+      throw new Error(`Expected directory: ${current}`);
+    }
   }
-  if (!current.startsWith(`${base}${path.sep}`)) throw new Error(`Path escapes repository: ${relative}`);
-  return current;
+  return destination;
 }
 
 function validSkill(name) {
@@ -62,12 +68,13 @@ export function parseInstructions(text, filename) {
   return { ...fields, body };
 }
 
-function walk(root, directory) {
+function walk(root, directory, directories) {
   const result = new Map();
   const caseNames = new Set();
   function visit(relative, prefix = '') {
     const location = safePath(root, relative);
     if (!lstatSync(location).isDirectory()) throw new Error(`Expected directory: ${relative}`);
+    directories?.add(prefix.replace(/\/$/, ''));
     for (const entry of readdirSync(location, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name, 'en'))) {
       validateComponent(entry.name);
       const key = prefix + entry.name;
@@ -120,7 +127,7 @@ function readManifest(root) {
     const parts = relative.split('/');
     if (parts.length < 2) throw new Error(`Invalid manifest file: ${relative}`);
     validSkill(parts[0]);
-    safePath(root, `${targetDirectory}/${relative}`);
+    safePath(root, `${targetDirectory}/${relative}`, { allowFileAncestor: true });
     if (folded.has(relative.toLowerCase())) throw new Error(`Manifest path collision: ${relative}`);
     folded.add(relative.toLowerCase());
     if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash)) throw new Error(`Invalid manifest checksum: ${relative}`);
@@ -143,29 +150,37 @@ function atomicWrite(root, relative, bytes) {
   }
 }
 
-function removeEmptyParents(root, relative) {
-  let directory = path.posix.dirname(relative);
-  while (directory.startsWith(`${targetDirectory}/`)) {
-    try { rmdirSync(safePath(root, directory)); }
-    catch (error) {
-      if (['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) break;
-      throw error;
+function parentDirectories(files) {
+  const directories = new Set();
+  for (const file of files) {
+    let directory = path.posix.dirname(file);
+    while (directory !== '.') {
+      directories.add(directory);
+      directory = path.posix.dirname(directory);
     }
-    directory = path.posix.dirname(directory);
   }
+  return directories;
+}
+
+function readTargets(root, names) {
+  const files = new Map(), directories = new Set();
+  for (const name of [...names].sort()) {
+    const directory = `${targetDirectory}/${name}`;
+    if (!existsSync(safePath(root, directory))) continue;
+    const localDirectories = new Set();
+    for (const [resource, bytes] of walk(root, directory, localDirectories)) files.set(`${name}/${resource}`, bytes);
+    for (const local of localDirectories) directories.add(local ? `${name}/${local}` : name);
+  }
+  return { files, directories };
 }
 
 /** One writer per checkout. The manifest is committed last; identical partial writes are resumable. */
 export function syncSkills(root, { check = false } = {}) {
   const expected = readSourceSkills(root);
   const previous = readManifest(root);
-  const actual = new Map();
   const names = new Set([...expected.keys(), ...previous.files.keys()].map(file => file.split('/')[0]));
-  for (const name of [...names].sort()) {
-    const directory = `${targetDirectory}/${name}`;
-    if (!existsSync(safePath(root, directory))) continue;
-    for (const [resource, bytes] of walk(root, directory)) actual.set(`${name}/${resource}`, bytes);
-  }
+  const observed = readTargets(root, names);
+  const actual = observed.files;
 
   // Even a stale/edited manifest must not claim files outside these skill directories.
   for (const [relative, bytes] of actual) {
@@ -176,6 +191,24 @@ export function syncSkills(root, { check = false } = {}) {
   }
   const writes = ordered(expected).filter(([relative, bytes]) => !actual.get(relative)?.equals(bytes));
   const removals = [...actual.keys()].filter(relative => !expected.has(relative)).sort();
+  const ownedDirectories = parentDirectories(previous.files.keys());
+  const requiredDirectories = parentDirectories(expected.keys());
+  const expectedFolded = new Set([...expected.keys()].map(file => file.toLowerCase()));
+  const requiredFolded = new Set([...requiredDirectories].map(directory => directory.toLowerCase()));
+  const caseReplacements = new Set([...observed.directories]
+    .filter(directory => !requiredDirectories.has(directory) && requiredFolded.has(directory.toLowerCase()))
+    .map(directory => directory.toLowerCase()));
+  for (const directory of observed.directories) {
+    // Unowned empty directories must not block file replacement or parent-case correction.
+    const ancestors = [directory.toLowerCase(), ...parentDirectories([directory.toLowerCase()])];
+    if (ancestors.some(ancestor => expectedFolded.has(ancestor) || caseReplacements.has(ancestor)) && !ownedDirectories.has(directory)) {
+      throw new Error(`Conflict: unowned directory ${targetDirectory}/${directory}`);
+    }
+  }
+  for (const [relative] of writes) safePath(root, `${targetDirectory}/${relative}`, { allowFileAncestor: true });
+  const obsoleteDirectories = [...observed.directories]
+    .filter(directory => ownedDirectories.has(directory) && !requiredDirectories.has(directory))
+    .sort((a, b) => b.split('/').length - a.split('/').length || a.localeCompare(b, 'en'));
   const next = Buffer.from(`${JSON.stringify({ version: 1, files: Object.fromEntries(ordered(expected).map(([file, bytes]) => [file, digest(bytes)])) }, null, 2)}\n`);
   const manifestChanged = !previous.bytes?.equals(next);
   if (check) {
@@ -188,13 +221,11 @@ export function syncSkills(root, { check = false } = {}) {
   }
 
   // Recheck all observations after preflight, before the first mutation.
-  for (const [relative, bytes] of actual) {
-    const filename = safePath(root, `${targetDirectory}/${relative}`);
-    if (!existsSync(filename) || !readFileSync(filename).equals(bytes)) throw new Error(`Changed during sync: ${relative}`);
-  }
-  for (const [relative] of writes) {
-    const filename = safePath(root, `${targetDirectory}/${relative}`);
-    if (!actual.has(relative) && existsSync(filename)) throw new Error(`Appeared during sync: ${relative}`);
+  const current = readTargets(root, names);
+  if (current.files.size !== actual.size || [...actual].some(([file, bytes]) => !current.files.get(file)?.equals(bytes))
+    || current.directories.size !== observed.directories.size
+    || [...observed.directories].some(directory => !current.directories.has(directory))) {
+    throw new Error('Generated tree changed during sync');
   }
   const currentManifest = safePath(root, manifestFile);
   if (previous.bytes ? !existsSync(currentManifest) || !readFileSync(currentManifest).equals(previous.bytes) : existsSync(currentManifest)) {
@@ -202,11 +233,16 @@ export function syncSkills(root, { check = false } = {}) {
   }
   if (writes.length || removals.length || manifestChanged) {
     mkdirSync(safePath(root, targetDirectory), { recursive: true });
-    for (const [relative, bytes] of writes) atomicWrite(root, `${targetDirectory}/${relative}`, bytes);
-    for (const relative of removals) {
-      unlinkSync(safePath(root, `${targetDirectory}/${relative}`));
-      removeEmptyParents(root, `${targetDirectory}/${relative}`);
+    // Remove verified old paths first, including case-only aliases on Windows.
+    // The old manifest still permits recovery if deletion or replacement is interrupted.
+    for (const relative of removals) unlinkSync(safePath(root, `${targetDirectory}/${relative}`));
+    for (const directory of obsoleteDirectories) {
+      try { rmdirSync(safePath(root, `${targetDirectory}/${directory}`)); }
+      catch (error) {
+        if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+      }
     }
+    for (const [relative, bytes] of writes) atomicWrite(root, `${targetDirectory}/${relative}`, bytes);
     if (manifestChanged) atomicWrite(root, manifestFile, next);
   }
   return { skills: new Set([...expected.keys()].map(file => file.split('/')[0])).size, written: writes.length, removed: removals.length };
