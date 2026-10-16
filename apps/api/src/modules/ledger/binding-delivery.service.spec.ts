@@ -88,3 +88,26 @@ describe('Binding delivery ownership across worker replacement', () => {
     expect(f.outcomes.create).not.toHaveBeenCalled();
   });
 });
+
+describe('Binding delivery retry budget across lease reclaim', () => {
+  it('caps an expired-lease reclaim at the budget so a released job stays claimable', async () => {
+    const f = fixture();
+    const raw = vi.fn().mockResolvedValue(1);
+    const tx = { $queryRaw: vi.fn().mockResolvedValue([{ id: f.job.id }]), $executeRaw: raw,
+      blockchainOutbox: { findMany: vi.fn().mockResolvedValue([]) } };
+    f.prisma.$transaction.mockImplementation((fn: (db: never) => unknown) => fn(tx as never));
+    await f.service['claim']({ ...f.binding, network: 'n', channelId: 'c' } as never, 1);
+    const sql = (raw.mock.calls[0]![0] as unknown as TemplateStringsArray).join('?');
+    expect(sql).toContain("WHEN status = 'PROCESSING'::blockchain_outbox_status");
+    expect(sql).toContain('LEAST(attempt_count + 1, ?::int)');
+    expect(raw.mock.calls[0]).toContain(5);
+  });
+
+  it('gives the claim increment back when waiting on governance', async () => {
+    const f = fixture();
+    const update = f.tx.blockchainOutbox.updateMany;
+    await f.service['release']({ ...f.job, attemptCount: 5 } as never, 60_000, 'wait');
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: 'RETRY', attemptCount: { decrement: 1 } }) }));
+  });
+});

@@ -19,6 +19,19 @@ BEGIN
   RAISE EXCEPTION 'Expected rejection did not occur: %', p_name;
 END;
 $$;
+-- Accept with the party's current membership epoch and capability revision.
+CREATE FUNCTION pg_temp.accept(p_plan uuid, p_revision integer, p_party text) RETURNS void LANGUAGE sql AS $$
+  INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision,
+      membership_id,membership_version,capability_revision)
+    SELECT p_plan,p_revision,upper(p_party)::hybrid_plan_party,m.organization_id,pg_temp.fixture(p_party||'_user'),
+      g.grant_id,g.revision,m.membership_id,m.version,c.revision
+    FROM shipment_plan p JOIN chain_membership m ON m.chain_id=p.chain_id AND m.organization_id=pg_temp.fixture(p_party)
+    JOIN scoped_role_grant g ON g.grant_id=pg_temp.fixture(p_party||'_grant')
+    JOIN organization_capability c ON c.organization_id=m.organization_id
+      AND c.code=CASE p_party WHEN 'producer' THEN 'FARM'::organization_type
+        WHEN 'transporter' THEN 'TRANSPORTER'::organization_type ELSE 'RETAILER'::organization_type END
+    WHERE p.plan_id=p_plan
+$$;
 CREATE FUNCTION pg_temp.check(p_name text, p_condition boolean) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
   IF p_condition IS DISTINCT FROM true THEN RAISE EXCEPTION 'Assertion failed: %', p_name; END IF;
@@ -99,9 +112,15 @@ BEGIN
   PERFORM pg_temp.reject('accept-with-other-users-grant',format(
     'INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision) VALUES (%L,0,%L,%L,%L,%L,0)',
     v_plan,'PRODUCER',pg_temp.fixture('producer'),pg_temp.fixture('producer_user'),pg_temp.fixture('transporter_grant')),'Acceptance requires the current organization admin grant');
+  PERFORM pg_temp.reject('acceptance-requires-snapshot',format(
+    'INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision) VALUES (%L,0,%L,%L,%L,%L,0)',
+    v_plan,'PRODUCER',pg_temp.fixture('producer'),pg_temp.fixture('producer_user'),pg_temp.fixture('producer_grant')),'current membership and capability snapshot');
+  PERFORM pg_temp.reject('acceptance-stale-membership-epoch',format(
+    'INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision,membership_id,membership_version,capability_revision)
+       SELECT %L,0,%L,organization_id,%L,%L,0,membership_id,version+1,0 FROM chain_membership WHERE chain_id=%L AND organization_id=%L',
+    v_plan,'PRODUCER',pg_temp.fixture('producer_user'),pg_temp.fixture('producer_grant'),pg_temp.fixture('chain_a'),pg_temp.fixture('producer')),'current membership and capability snapshot');
   FOR v_party IN SELECT unnest(ARRAY['producer','transporter','retailer']) LOOP
-    INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision)
-      VALUES (v_plan,0,upper(v_party)::hybrid_plan_party,pg_temp.fixture(v_party),pg_temp.fixture(v_party||'_user'),pg_temp.fixture(v_party||'_grant'),0);
+    PERFORM pg_temp.accept(v_plan,0,v_party);
   END LOOP;
   PERFORM pg_temp.check('acceptances-three-parties', (SELECT count(*)=3 FROM shipment_plan_acceptance WHERE plan_id=v_plan));
   PERFORM pg_temp.reject('revision-immutable',format('UPDATE shipment_plan_revision SET destination=%L WHERE plan_id=%L','forged',v_plan),'immutable');
@@ -131,8 +150,7 @@ BEGIN
     'INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision) VALUES (%L,0,%L,%L,%L,%L,0)',
     v_plan,'PRODUCER',pg_temp.fixture('producer'),pg_temp.fixture('producer_user'),pg_temp.fixture('producer_grant')),'Plan acceptance is stale');
   FOR v_party IN SELECT unnest(ARRAY['producer','transporter','retailer']) LOOP
-    INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision)
-      VALUES (v_plan,1,upper(v_party)::hybrid_plan_party,pg_temp.fixture(v_party),pg_temp.fixture(v_party||'_user'),pg_temp.fixture(v_party||'_grant'),0);
+    PERFORM pg_temp.accept(v_plan,1,v_party);
   END LOOP;
   UPDATE scoped_role_grant SET revoked_at=now(),revision=1 WHERE grant_id=pg_temp.fixture('transporter_grant');
   PERFORM pg_temp.reject('revoked-accepting-grant-blocks-finalize',format(
@@ -159,18 +177,68 @@ DO $$
 DECLARE v_plan uuid := pg_temp.fixture('plan'); v_party text;
 BEGIN
   FOR v_party IN SELECT unnest(ARRAY['producer','transporter','retailer']) LOOP
-    INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision)
-      VALUES (v_plan,2,upper(v_party)::hybrid_plan_party,pg_temp.fixture(v_party),pg_temp.fixture(v_party||'_user'),pg_temp.fixture(v_party||'_grant'),0);
+    PERFORM pg_temp.accept(v_plan,2,v_party);
   END LOOP;
-  UPDATE shipment_plan SET status='FINALIZED',shipment_id=pg_temp.fixture('shipment'),version=3 WHERE plan_id=v_plan;
+  -- Same ORG_ADMIN grant, but the retailer capability was revoked/regranted.
+  UPDATE organization_capability SET revoked_at=now(),revision=revision+1
+    WHERE organization_id=pg_temp.fixture('retailer') AND code='RETAILER';
+  UPDATE organization_capability SET revoked_at=NULL,revision=revision+1
+    WHERE organization_id=pg_temp.fixture('retailer') AND code='RETAILER';
+  PERFORM pg_temp.reject('regranted-capability-blocks-old-consent',format(
+    'UPDATE shipment_plan SET status=%L,shipment_id=%L,version=3 WHERE plan_id=%L','FINALIZED',pg_temp.fixture('shipment'),v_plan),'Accepting membership or capability changed');
+END;
+$$;
+
+DO $$
+DECLARE v_plan uuid := pg_temp.fixture('plan');
+BEGIN
+  INSERT INTO shipment_plan_revision(plan_id,revision,producer_org_id,transporter_org_id,retailer_org_id,quantity,unit,origin,destination,payload_digest)
+    SELECT plan_id,3,producer_org_id,transporter_org_id,retailer_org_id,quantity,unit,origin,destination,repeat('d',64)
+      FROM shipment_plan_revision WHERE plan_id=v_plan AND revision=2;
+  UPDATE shipment_plan SET current_revision=3,version=3 WHERE plan_id=v_plan;
+END;
+$$;
+
+DO $$
+DECLARE v_plan uuid := pg_temp.fixture('plan');
+BEGIN
+  PERFORM pg_temp.accept(v_plan,3,'producer');
+  PERFORM pg_temp.accept(v_plan,3,'transporter');
+  -- Simulate a row accepted before the snapshot migration (NULL epoch).
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision)
+    VALUES (v_plan,3,'RETAILER',pg_temp.fixture('retailer'),pg_temp.fixture('retailer_user'),pg_temp.fixture('retailer_grant'),0);
+  SET LOCAL session_replication_role = origin;
+  PERFORM pg_temp.reject('legacy-consent-without-snapshot-never-finalizes',format(
+    'UPDATE shipment_plan SET status=%L,shipment_id=%L,version=4 WHERE plan_id=%L','FINALIZED',pg_temp.fixture('shipment'),v_plan),'Accepting membership or capability changed');
+END;
+$$;
+
+DO $$
+DECLARE v_plan uuid := pg_temp.fixture('plan');
+BEGIN
+  INSERT INTO shipment_plan_revision(plan_id,revision,producer_org_id,transporter_org_id,retailer_org_id,quantity,unit,origin,destination,payload_digest)
+    SELECT plan_id,4,producer_org_id,transporter_org_id,retailer_org_id,quantity,unit,origin,destination,repeat('e',64)
+      FROM shipment_plan_revision WHERE plan_id=v_plan AND revision=3;
+  UPDATE shipment_plan SET current_revision=4,version=4 WHERE plan_id=v_plan;
+END;
+$$;
+
+DO $$
+DECLARE v_plan uuid := pg_temp.fixture('plan'); v_party text;
+BEGIN
+  FOR v_party IN SELECT unnest(ARRAY['producer','transporter','retailer']) LOOP
+    PERFORM pg_temp.accept(v_plan,4,v_party);
+  END LOOP;
+  UPDATE shipment_plan SET status='FINALIZED',shipment_id=pg_temp.fixture('shipment'),version=5 WHERE plan_id=v_plan;
   INSERT INTO stage_assignment(chain_id,organization_id,stage,shipment_id,status)
     VALUES (pg_temp.fixture('chain_a'),pg_temp.fixture('transporter'),'TRANSPORT',pg_temp.fixture('shipment'),'ACCEPTED');
   INSERT INTO stage_assignment(chain_id,organization_id,stage,lot_id,status)
     VALUES (pg_temp.fixture('chain_a'),pg_temp.fixture('retailer'),'RETAIL',pg_temp.fixture('lot'),'ACCEPTED');
-  PERFORM pg_temp.check('finalize-with-current-consent', (SELECT status='FINALIZED' AND current_revision=2 FROM shipment_plan WHERE plan_id=v_plan));
-  PERFORM pg_temp.check('old-consent-history-retained', (SELECT count(*)=9 FROM shipment_plan_acceptance WHERE plan_id=v_plan));
+  PERFORM pg_temp.check('finalize-with-current-consent', (SELECT status='FINALIZED' AND current_revision=4 FROM shipment_plan WHERE plan_id=v_plan));
+  PERFORM pg_temp.check('old-consent-history-retained', (SELECT count(*)=15 FROM shipment_plan_acceptance WHERE plan_id=v_plan));
   PERFORM pg_temp.check('three-stage-assignments', (SELECT count(*)=3 FROM stage_assignment WHERE chain_id=pg_temp.fixture('chain_a')));
-  PERFORM pg_temp.reject('finalized-plan-immutable',format('UPDATE shipment_plan SET current_revision=0,version=4 WHERE plan_id=%L',v_plan),'Plan scope immutable');
+  PERFORM pg_temp.reject('finalized-plan-immutable',format('UPDATE shipment_plan SET current_revision=0,version=6 WHERE plan_id=%L',v_plan),'Plan scope immutable');
   PERFORM pg_temp.reject('second-shipment-for-lot-denied',format(
     'INSERT INTO shipment(lot_id,transporter_org_id,retailer_org_id,origin,destination,shipped_quantity,unit) VALUES (%L,%L,%L,%L,%L,10,%L)',
     pg_temp.fixture('lot'),pg_temp.fixture('transporter'),pg_temp.fixture('retailer'),'farm','shop-v2','kg'),'unique constraint');

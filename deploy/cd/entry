@@ -1,3 +1,5 @@
 #!/bin/sh
 # Root-owned; no eval, user-controlled script path or inherited Python search path.
-exec /usr/bin/python3 -I /usr/local/lib/agri-trace-cd/controller.py --command "${1-}"
+# Runs the controller and config that install-target.py selected for production:
+# the prod symlink follows update-controller/restore-controller.
+exec /usr/bin/python3 -I /usr/local/lib/agri-trace-cd/prod/controller.py --config /etc/agri-trace-cd/prod/config.json --command "${1-}"

@@ -3220,6 +3220,8 @@
               "PLANT_PRODUCTION_CYCLE",
               "RECORD_CARE",
               "RECORD_SENSOR",
+              "INGEST_SENSOR_READING",
+              "INGEST_SHIPMENT_TELEMETRY",
               "CLOSE_PRODUCTION_CYCLE",
               "CANCEL_PRODUCTION_CYCLE",
               "RECORD_HARVEST",

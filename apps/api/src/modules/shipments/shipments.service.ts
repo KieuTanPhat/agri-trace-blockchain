@@ -36,6 +36,20 @@ import type {
   ShipmentTransitionDto,
 } from './dto.js';
 
+/** The digest a shipment exposes: its final digest when one exists, otherwise
+ * the newest window digest (the chain head). Never an arbitrary row. */
+const TELEMETRY_DIGEST_HEAD = {
+  orderBy: [{ isFinal: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+  take: 1,
+} satisfies Prisma.Shipment$telemetryDigestsArgs;
+
+function withTelemetryDigestHead<D, T extends { telemetryDigests: D[] }>({
+  telemetryDigests,
+  ...shipment
+}: T): Omit<T, 'telemetryDigests'> & { telemetryDigest: D | null } {
+  return { ...shipment, telemetryDigest: telemetryDigests[0] ?? null };
+}
+
 @Injectable()
 export class ShipmentsService {
   constructor(
@@ -45,22 +59,24 @@ export class ShipmentsService {
   ) {}
 
   list(actor: Actor) {
-    return this.prisma.shipment.findMany({
-      where: scopedShipmentReadWhere(actor),
-      include: {
-        transporter: { select: { id: true, name: true, type: true } },
-        retailer: { select: { id: true, name: true, type: true } },
-        lot: {
-          include: {
-            product: { select: { id: true, productName: true } },
-            organization: { select: { id: true, name: true, type: true } },
+    return this.prisma.shipment
+      .findMany({
+        where: scopedShipmentReadWhere(actor),
+        include: {
+          transporter: { select: { id: true, name: true, type: true } },
+          retailer: { select: { id: true, name: true, type: true } },
+          lot: {
+            include: {
+              product: { select: { id: true, productName: true } },
+              organization: { select: { id: true, name: true, type: true } },
+            },
           },
+          telemetryDigests: TELEMETRY_DIGEST_HEAD,
+          _count: { select: { telemetry: true } },
         },
-        telemetryDigest: true,
-        _count: { select: { telemetry: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      })
+      .then((shipments) => shipments.map(withTelemetryDigestHead));
   }
 
   async get(id: string, actor: Actor) {
@@ -72,7 +88,7 @@ export class ShipmentsService {
         retailer: true,
         lot: { include: { product: true, organization: true } },
         telemetry: { orderBy: { recordedAt: 'desc' }, take: 100 },
-        telemetryDigest: true,
+        telemetryDigests: TELEMETRY_DIGEST_HEAD,
         trackingBindings: { include: { device: true } },
       },
     });
@@ -91,7 +107,7 @@ export class ShipmentsService {
       : [];
     const visible = new Set(visibleCycles.map((cycle) => cycle.id));
     return {
-      ...shipment,
+      ...withTelemetryDigestHead(shipment),
       trackingBindings: shipment.trackingBindings.map((binding) => ({
         ...binding,
         device: {

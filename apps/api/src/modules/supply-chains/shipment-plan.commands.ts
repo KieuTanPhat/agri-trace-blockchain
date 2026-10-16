@@ -7,6 +7,7 @@ import {
 import { isUUID } from 'class-validator';
 import type {
   Prisma,
+  ShipmentPlanAcceptance,
   ShipmentPlanParty,
   ShipmentPlanRevision,
 } from '../../generated/prisma/client.js';
@@ -37,6 +38,23 @@ const PARTY = {
   TRANSPORTER: { field: 'transporterOrgId', capability: 'TRANSPORTER' },
   RETAILER: { field: 'retailerOrgId', capability: 'RETAILER' },
 } as const;
+
+/** A consent stays valid only for the exact grant, chain membership epoch and
+ * party capability revision it was given under. A NULL snapshot is legacy
+ * consent (before G01) and never finalizes; revise and accept again. */
+function consentEpochChanged(
+  consent: ShipmentPlanAcceptance,
+  current: Awaited<ReturnType<typeof authorizePlanAcceptance>>,
+) {
+  return (
+    consent.grantId !== current.grant.id ||
+    consent.grantRevision !== current.grant.revision ||
+    consent.membershipId === null ||
+    consent.membershipId !== current.membership.id ||
+    consent.membershipVersion !== current.membership.version ||
+    consent.capabilityRevision !== current.capability.revision
+  );
+}
 
 function assertActor(actor: CommandActor) {
   if (!actor.sub || !actor.organizationId || actor.role === 'SYSTEM_ADMIN')
@@ -212,10 +230,7 @@ export async function authorizeShipmentPlanCommand(
       plan!.currentRevision,
       plan!.current.payloadDigest,
     );
-    if (
-      valid.grant.id !== consent.grantId ||
-      valid.grant.revision !== consent.grantRevision
-    )
+    if (consentEpochChanged(consent, valid))
       throw new ForbiddenException('Xác nhận cũ đã mất hiệu lực');
     confirmations.push({ id: consent.id, scope: valid.scope });
   }
@@ -527,6 +542,8 @@ export async function authorizePlanAcceptance(
   return {
     plan,
     grant,
+    membership,
+    capability,
     scope: canonicalSha256({
       protocol: 'shipment-plan-consent-v1',
       user: actor.sub,
@@ -559,7 +576,7 @@ export async function acceptShipmentPlan(
     initial.current.retailerOrgId,
   ]);
   await db.$queryRaw`SELECT plan_id FROM shipment_plan WHERE plan_id = ${id}::uuid FOR UPDATE`;
-  const { plan, grant } = await authorizePlanAcceptance(
+  const { plan, grant, membership, capability } = await authorizePlanAcceptance(
     db,
     actor,
     id,
@@ -570,7 +587,8 @@ export async function acceptShipmentPlan(
   if (plan.status !== 'DRAFT')
     throw new ConflictException('Kế hoạch không còn nháp');
   // DB trigger checks and locks the exact acceptance grant/user/participant
-  // again. A later fresh grant cannot revive this immutable consent.
+  // and membership/capability snapshot again. A later fresh grant, rejoin or
+  // capability regrant cannot revive this immutable consent.
   if (
     await db.shipmentPlanAcceptance.findUnique({
       where: { planId_revision_party: { planId: id, revision, party } },
@@ -586,6 +604,9 @@ export async function acceptShipmentPlan(
       userId: actor.sub!,
       grantId: grant.id,
       grantRevision: grant.revision,
+      membershipId: membership.id,
+      membershipVersion: membership.version,
+      capabilityRevision: capability.revision,
     },
   });
   await audit(
@@ -701,10 +722,7 @@ export async function finalizeShipmentPlan(
       plan.currentRevision,
       plan.current.payloadDigest,
     );
-    if (
-      current.grant.id !== consent.grantId ||
-      current.grant.revision !== consent.grantRevision
-    )
+    if (consentEpochChanged(consent, current))
       throw new ForbiddenException(
         'Quyền xác nhận cũ đã mất hiệu lực; cần revision và xác nhận mới',
       );

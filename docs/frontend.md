@@ -55,6 +55,13 @@ Trang truy xuất công khai ưu tiên điện thoại: cảnh báo thu hồi/h�
 
 Các trạng thái thu hồi/hết hạn vẫn hiển thị trước phần bằng chứng. Thao tác ghi dữ liệu theo `allowedCommands` từ API; kiểm toán viên chỉ đọc theo hợp đồng hiện hành. Service worker vẫn chỉ lưu trang giải thích offline, không lưu trang nghiệp vụ, tài khoản hoặc phản hồi API.
 
+Giả lập IoT gửi `/iot/readings` qua cùng sổ command recovery với các lệnh nghiệp vụ
+(`INGEST_SENSOR_READING`, một yêu cầu chờ cho mỗi thiết bị). Mất phản hồi, phản
+hồi không đọc được hoặc lỗi 5xx hiện "Chưa rõ kết quả"; "Gửi lại" chỉ gửi/đối
+soát đúng body và key gốc, kể cả sau khi sửa form. Sau khi tải lại trang, yêu cầu
+gốc nằm trong mục yêu cầu đang chờ; bản đo khác cho cùng thiết bị bị chặn tới khi
+đối soát xong. Chỉ phản hồi từ chối 4xx của máy chủ mới là kết quả cuối.
+
 ## Kiểm tra
 
 Chạy `npm run check --workspace apps/web` trên Node/npm được ghi trong README. Kiểm tra trình duyệt ở 320, 390, 768 và 1440 px: landing, scan, login, dashboard, lô/chi tiết, vụ trồng/chi tiết, chuỗi và đối tác, admin/phân công, kiểm định, giả lập IoT và các trạng thái lỗi. Kiểm thêm tên dài, mã băm, bộ lọc đổi trang, bàn phím/Escape, camera bị từ chối, ảnh QR sai và `prefers-reduced-motion`.

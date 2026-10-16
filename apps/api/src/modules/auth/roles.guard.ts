@@ -10,6 +10,7 @@ import type { AuthenticatedRequest } from '../../modules/auth/auth.types.js';
 import { ROLES_KEY } from './roles.decorator.js';
 import {
   COMMAND_POLICY_KEY,
+  COMMAND_RECOVERY_READ_KEY,
   type BusinessCommandRole,
 } from './command-policy.decorator.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -52,9 +53,15 @@ export class RolesGuard implements CanActivate {
       COMMAND_POLICY_KEY,
       [context.getHandler(), context.getClass()],
     );
+    const recoveryRead =
+      request.method === 'GET' &&
+      this.reflector.getAllAndOverride<boolean>(COMMAND_RECOVERY_READ_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) === true;
     if (
       policy === undefined ||
-      !['POST', 'PATCH'].includes(request.method) ||
+      (!['POST', 'PATCH'].includes(request.method) && !recoveryRead) ||
       request.user.role === 'SYSTEM_ADMIN' ||
       !request.user.organizationId
     )

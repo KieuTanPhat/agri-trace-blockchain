@@ -41,6 +41,10 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       PUBLIC_TRACE_BASE_URL: ${PUBLIC_TRACE_BASE_URL:-http://localhost:3000/trace}
       IOT_INGEST_API_KEY: ${IOT_INGEST_API_KEY:-replace-with-a-long-random-device-key}
+      # Local stack only (production uses the controller, which keeps writes
+      # CLOSED until verified). Without this, NODE_ENV=production closes every
+      # business write with 503. Set CLOSED to rehearse maintenance mode.
+      HYBRID_WRITES_MODE: ${HYBRID_WRITES_MODE:-OPEN}
       FABRIC_ENABLED: "false"
     command:
       [

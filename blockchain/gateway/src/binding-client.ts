@@ -254,35 +254,53 @@ export class BindingLedgerClient {
   }
 }
 
-/** ProcessedTransaction protobuf: field 2 (varint) is the validation code. */
+/** ProcessedTransaction protobuf: field 1 is the transaction envelope and
+ * field 2 (varint) the validation code. proto3 omits a VALID (0) code, so 0 is
+ * returned only for a well-formed message that carries its envelope; empty,
+ * truncated or malformed bytes throw instead of reading as VALID. */
 export function validationCodeOf(processedTransaction: Uint8Array): number {
+  const bytes = processedTransaction;
   let offset = 0;
+  const malformed = () => new Error("Malformed ProcessedTransaction from qscc");
   const read = () => {
     let value = 0;
-    let shift = 0;
-    for (;;) {
-      const byte = processedTransaction[offset++];
-      value |= (byte & 0x7f) << shift;
-      if ((byte & 0x80) === 0) return value;
-      shift += 7;
+    for (let shift = 0; shift < 64; shift += 7) {
+      if (offset >= bytes.length) throw malformed();
+      const byte = bytes[offset++]!;
+      value += (byte & 0x7f) * 2 ** shift;
+      if ((byte & 0x80) === 0) {
+        if (!Number.isSafeInteger(value)) throw malformed();
+        return value;
+      }
     }
+    throw malformed();
   };
-  while (offset < processedTransaction.length) {
+  const skip = (length: number) => {
+    if (length > bytes.length - offset) throw malformed();
+    offset += length;
+  };
+  let envelope = false;
+  let code: number | undefined;
+  while (offset < bytes.length) {
     const tag = read();
-    const field = tag >> 3;
-    const wire = tag & 7;
+    const field = Math.floor(tag / 8);
+    const wire = tag % 8;
+    if (![0, 1, 2, 5].includes(wire))
+      throw new Error("Unsupported protobuf wire type");
+    if (field === 0) throw malformed();
+    if (field === 2 && wire !== 0) throw malformed();
+    if (field === 1 && wire !== 2) throw malformed();
     if (wire === 0) {
       const value = read();
-      if (field === 2) return value;
+      if (field === 2) code = value;
     } else if (wire === 2) {
-      // Read the length first: `offset += read()` would use the stale offset.
-      const length = read();
-      offset += length;
-    } else if (wire === 1) offset += 8;
-    else if (wire === 5) offset += 4;
-    else throw new Error("Unsupported protobuf wire type");
+      skip(read());
+      if (field === 1) envelope = true;
+    } else if (wire === 1) skip(8);
+    else skip(4);
   }
-  return 0;
+  if (!envelope) throw malformed();
+  return code ?? 0;
 }
 
 function parse(bytes: Uint8Array): unknown {

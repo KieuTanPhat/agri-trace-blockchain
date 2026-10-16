@@ -38,6 +38,14 @@ chúng khi đối soát một delivery production bị gián đoạn.
 
 Config schema 3 dùng `hosted`, `smoke`, `bootstrap`; `migration_reviews` pin checksum
 và `hybrid-abc/1`. `open_after_smoke=true` mở ghi sau nghiệm thu, mặc định CLOSED.
+Migration tên `<timestamp>_hybrid_*` hoặc có SQL ngoài nhóm additive (thêm cột
+nullable/bảng/index) chỉ được CD áp khi config đã cài có mục
+`"<tên>": {"checksum": "<sha256 của migration.sql>", "protocol": "hybrid-abc/1"}`;
+checksum là SHA-256 byte file LF trong release manifest. Ví dụ
+`20261021000000_hybrid_acceptance_epoch` (snapshot consent ShipmentPlan, thay
+`fn_hybrid_acceptance_scope`/`fn_hybrid_plan_state`) cần review và pin trước khi
+giao bản chứa nó; sau khi áp, checksum vào `hybrid-floor.json` và bản cũ hơn bị
+chặn. Plan DRAFT có acceptance cũ phải revise và xác nhận lại.
 Bootstrap chỉ nhận cấu hình riêng tư và không đổi account hiện có. Network hosted
 pin image/governance và giữ persistent CA/MSP/ledger; script Hybrid pilot chỉ dùng
 cho test. Cấu trúc binding tham khảo [network](../deploy/hosted-network.example.json).
@@ -69,9 +77,15 @@ migration catalog. Không thay byte migration đã áp hoặc bỏ parser defaul
 Lần đầu bắt đầu từ DB trống, ghi floor trước migrate rồi operator tạo account/
 catalog/chain/binding/approvals. Owner MSP chỉ cấp cho operator một lần; API/Worker
 thường trực không nhận owner/CA/orderer keys. Bootstrap có thể đối soát/tiếp tục.
+Container bootstrap chỉ đọc Worker inventory; khi binding mới cần thêm, controller
+trên host ghi `bindings.json` bằng file tạm cùng thư mục + fsync + rename dưới
+delivery lock, đọc lại rồi chạy lại bootstrap để activate. Ghi lỗi giữ nguyên
+inventory đã review; file `.bindings.json.next` còn sót từ lần gián đoạn được bỏ.
 
-API/Web/Worker khởi động CLOSED; smoke mở ghi trong delivery cho actor kỹ thuật
-scope đúng. Kiểm health/Web/PWA/login/roles/refresh/logout/CORS; care, harvest/Lot/
+API/Web/Worker khởi động CLOSED; smoke chạy API ở `HYBRID_WRITES_MODE=CANARY` với
+`HYBRID_CANARY_ACTOR_IDS` là đúng các ID trong `accounts.json` (tài khoản kỹ thuật
+smoke). Người dùng nghiệp vụ khác vẫn nhận 503 trên candidate chưa verified; RBAC và
+scope domain vẫn kiểm từng command. Kiểm health/Web/PWA/login/roles/refresh/logout/CORS; care, harvest/Lot/
 QR, ShipmentPlan consent, pickup/arrival có chữ ký Ed25519 hai bên, receive,
 original-key replay, outbox, stored evidence, direct Fabric event/proof/VALID và
 public QR. Private keys/command receipts nằm trong `shared/smoke/<sha>` root-only.

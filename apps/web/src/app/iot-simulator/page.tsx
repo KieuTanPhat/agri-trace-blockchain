@@ -15,7 +15,26 @@ const statusLabels: Record<string, string> = {
   retrying: "Đang gửi lại",
   accepted: "Đã tiếp nhận",
   rejected: "Bị từ chối",
+  unknown: "Chưa rõ kết quả",
 };
+
+const unknownMessage =
+  "Chưa rõ máy chủ đã ghi bản đo hay chưa. Bấm Gửi lại để đối soát đúng bản đo gốc, hoặc dùng mục yêu cầu đang chờ; chưa gửi bản đo mới.";
+
+/** Lost/unreadable responses and an unresolved earlier reading may already be
+ * committed; only a server rejection is terminal. */
+function outcomeUnknown(error: { status?: number; code?: string }) {
+  return (
+    error.code === "REQUEST_UNRESOLVED" ||
+    error.code === "UNREADABLE_RESPONSE" ||
+    error.code === "NETWORK_ERROR" ||
+    error.code === "SESSION_CHANGED" ||
+    error.code === "ACCESS_CHANGED" ||
+    error.status === undefined ||
+    error.status === 0 ||
+    error.status >= 500
+  );
+}
 
 export default function IotSimulatorPage() {
   const { user } = useAuth();
@@ -64,18 +83,22 @@ export default function IotSimulatorPage() {
   async function submitReading(retry = false) {
     if (busy.current) return;
     busy.current = true;
-    const serialized = JSON.stringify(payload);
+    // A retry resends the original body/key, never the edited form. Across a
+    // reload the saved command ledger restores the original body and key.
+    const serialized =
+      retry && attempt.current ? attempt.current.payload : JSON.stringify(payload);
     if (!attempt.current || attempt.current.payload !== serialized)
       attempt.current = { payload: serialized, key: crypto.randomUUID() };
+    const sent = JSON.parse(serialized) as typeof payload;
     setStatus(retry ? "retrying" : "sending");
     try {
-      const result = await sendSensorReading(payload, attempt.current.key);
+      const result = await sendSensorReading(sent, attempt.current.key);
       setResponse(result);
       setStatus(result.status);
       if (result.status === "accepted" && result.readingId) {
         saveStoredIotReading(
           {
-            ...payload,
+            ...sent,
             readingId: result.readingId,
             acceptedAt: new Date().toISOString(),
             status: "accepted",
@@ -89,15 +112,18 @@ export default function IotSimulatorPage() {
         code?: string;
         message?: string;
       };
+      const unknown = outcomeUnknown(error);
       setResponse({
         status: "rejected",
         error: {
-          status: (error.status ?? 503) as 403 | 409 | 422 | 503,
+          status: (error.status || 503) as 403 | 409 | 422 | 503,
           code: error.code ?? "IOT_INGEST_FAILED",
-          message: error.message ?? "Không gửi được dữ liệu cảm biến.",
+          message: unknown
+            ? unknownMessage
+            : (error.message ?? "Không gửi được dữ liệu cảm biến."),
         },
       });
-      setStatus("rejected");
+      setStatus(unknown ? "unknown" : "rejected");
     } finally {
       busy.current = false;
     }

@@ -4,7 +4,10 @@ import { vi } from 'vitest';
 import { RolesGuard } from './roles.guard.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { ROLES_KEY } from './roles.decorator.js';
-import { COMMAND_POLICY_KEY } from './command-policy.decorator.js';
+import {
+  COMMAND_POLICY_KEY,
+  COMMAND_RECOVERY_READ_KEY,
+} from './command-policy.decorator.js';
 
 describe('RolesGuard explicit allowlists', () => {
   const context = {
@@ -51,6 +54,7 @@ describe('RolesGuard scoped candidates before DTO validation', () => {
     method: string,
     requiredRoles: string[],
     policy: string[] = [],
+    recoveryRead = false,
   ) {
     const findFirst = vi.fn();
     const guard = new RolesGuard(
@@ -60,7 +64,9 @@ describe('RolesGuard scoped candidates before DTO validation', () => {
             ? requiredRoles
             : key === COMMAND_POLICY_KEY
               ? policy
-              : undefined,
+              : key === COMMAND_RECOVERY_READ_KEY
+                ? recoveryRead
+                : undefined,
         ),
       } as unknown as Reflector,
       { scopedRoleGrant: { findFirst } } as unknown as PrismaService,
@@ -98,6 +104,21 @@ describe('RolesGuard scoped candidates before DTO validation', () => {
     findFirst.mockResolvedValue({ id: 'grant' });
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
     expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it('lets a marked command-recovery read reach the resource check with a current scoped role', async () => {
+    const { guard, context, findFirst } = fixture(
+      'GET',
+      ['FARM_STAFF'],
+      [],
+      true,
+    );
+    findFirst.mockResolvedValueOnce({ id: 'grant' }).mockResolvedValueOnce(null);
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    // A revoked grant is denied before the status service runs.
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 
   it('requires an eligible scoped candidate for the explicit independent reviewer command', async () => {

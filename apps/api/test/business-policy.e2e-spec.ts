@@ -1418,6 +1418,213 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       expect(await tx.shipment.count({ where: { lotId: lot.id } })).toBe(0);
     }));
 
+  /** Committed epoch scenario: the old consent is rejected and kept intact;
+   * a new revision with fresh consent from every party finalizes. */
+  async function staleConsentNeedsNewRevision(
+    change: (tx: Prisma.TransactionClient) => Promise<void>,
+    accept: (
+      tx: Prisma.TransactionClient,
+      plan: { id: string; current: { payloadDigest: string } },
+    ) => Promise<void> = async (tx, plan) => {
+      for (const [party, actor] of [
+        ['PRODUCER', producer],
+        ['TRANSPORTER', transporter],
+        ['RETAILER', retailer],
+      ] as const)
+        await acceptShipmentPlan(
+          tx,
+          actor,
+          plan.id,
+          party,
+          0,
+          plan.current.payloadDigest,
+        );
+    },
+  ) {
+    const { lot, input, plan } = await db.$transaction(
+      async (tx) => {
+        const fresh = await freshPlan(tx);
+        const event = await trace.createInTransaction(tx, {
+          entityType: 'HARVEST',
+          entityId: fresh.lot.harvestId,
+          cycleId,
+          lotId: fresh.lot.id,
+          eventType: 'HARVEST_RECORDED',
+          actor: producer,
+          businessData: { quantity: '5', unit: 'kg' },
+        });
+        await tx.quantityMovement.create({
+          data: {
+            lotId: fresh.lot.id,
+            eventId: event.id,
+            type: 'HARVEST_IN',
+            quantity: '5',
+            unit: 'kg',
+            beforeQty: '0',
+            delta: '5',
+            afterQty: '5',
+          },
+        });
+        const created = await createShipmentPlan(
+          tx,
+          producer,
+          chainId,
+          fresh.lot.id,
+          fresh.input,
+        );
+        await accept(tx, created);
+        return { ...fresh, plan: created };
+      },
+      { timeout: 20000 },
+    );
+    const before = await db.shipmentPlanAcceptance.findMany({
+      where: { planId: plan.id },
+      orderBy: { party: 'asc' },
+    });
+    await db.$transaction(change, { timeout: 20000 });
+    await expect(
+      db.$transaction(
+        (tx) => finalizeShipmentPlan(tx, producer, plan.id, 0, trace),
+        { timeout: 20000 },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(await db.shipment.count({ where: { lotId: lot.id } })).toBe(0);
+    expect(
+      await db.shipmentPlanAcceptance.findMany({
+        where: { planId: plan.id },
+        orderBy: { party: 'asc' },
+      }),
+    ).toEqual(before);
+    const result = await db.$transaction(
+      async (tx) => {
+        const next = await reviseShipmentPlan(tx, producer, plan.id, 0, input);
+        for (const [party, actor] of [
+          ['PRODUCER', producer],
+          ['TRANSPORTER', transporter],
+          ['RETAILER', retailer],
+        ] as const)
+          await acceptShipmentPlan(
+            tx,
+            actor,
+            plan.id,
+            party,
+            1,
+            next.current.payloadDigest,
+          );
+        return finalizeShipmentPlan(tx, producer, plan.id, 1, trace);
+      },
+      { timeout: 20000 },
+    );
+    expect(result.revision).toBe(1);
+    return before;
+  }
+
+  for (const leave of ['SUSPENDED', 'REVOKED'] as const)
+    it(`does not revive consent after ${leave} membership rejoins under the same org admin grant`, async () => {
+      const where = {
+        chainId_organizationId: {
+          chainId,
+          organizationId: transporter.organizationId!,
+        },
+      };
+      const before = await staleConsentNeedsNewRevision(async (tx) => {
+        await tx.chainMembership.update({
+          where,
+          data: { status: leave, version: { increment: 1 } },
+        });
+        await tx.chainMembership.update({
+          where,
+          data: {
+            status: 'INVITED',
+            version: { increment: 1 },
+            invitationRevision: { increment: 1 },
+          },
+        });
+        await tx.chainMembership.update({
+          where,
+          data: { status: 'ACTIVE', version: { increment: 1 } },
+        });
+      });
+      const consent = before.find((a) => a.party === 'TRANSPORTER')!;
+      expect(consent.membershipVersion).toBe(
+        (await db.chainMembership.findUniqueOrThrow({ where })).version - 3,
+      );
+      // The ORGANIZATION-scope ORG_ADMIN grant is untouched by rejoin.
+      expect(
+        (
+          await db.scopedRoleGrant.findUniqueOrThrow({
+            where: { id: consent.grantId },
+          })
+        ).revision,
+      ).toBe(consent.grantRevision);
+    });
+
+  it('does not revive consent after the party capability is revoked and regranted', async () => {
+    const where = {
+      organizationId_code: {
+        organizationId: retailer.organizationId!,
+        code: 'RETAILER' as const,
+      },
+    };
+    const before = await staleConsentNeedsNewRevision(async (tx) => {
+      await tx.organizationCapability.update({
+        where,
+        data: { revokedAt: new Date(), revision: { increment: 1 } },
+      });
+      await tx.organizationCapability.update({
+        where,
+        data: { revokedAt: null, revision: { increment: 1 } },
+      });
+    });
+    expect(before.find((a) => a.party === 'RETAILER')!.capabilityRevision).toBe(
+      (await db.organizationCapability.findUniqueOrThrow({ where })).revision -
+        2,
+    );
+  });
+
+  it('requires fresh consent on a new revision for a legacy acceptance without snapshot', async () => {
+    const before = await staleConsentNeedsNewRevision(
+      async () => {},
+      async (tx, plan) => {
+        for (const [party, actor] of [
+          ['PRODUCER', producer],
+          ['TRANSPORTER', transporter],
+        ] as const)
+          await acceptShipmentPlan(
+            tx,
+            actor,
+            plan.id,
+            party,
+            0,
+            plan.current.payloadDigest,
+          );
+        // Simulate a consent written before the snapshot migration.
+        const grant = await tx.scopedRoleGrant.findFirstOrThrow({
+          where: {
+            userId: retailer.sub!,
+            scope: 'ORGANIZATION',
+            role: 'ORG_ADMIN',
+            revokedAt: null,
+          },
+        });
+        await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
+        await tx.shipmentPlanAcceptance.create({
+          data: {
+            planId: plan.id,
+            revision: 0,
+            party: 'RETAILER',
+            organizationId: retailer.organizationId!,
+            userId: retailer.sub!,
+            grantId: grant.id,
+            grantRevision: grant.revision,
+          },
+        });
+        await tx.$executeRaw`SET LOCAL session_replication_role = origin`;
+      },
+    );
+    expect(before.find((a) => a.party === 'RETAILER')!.membershipId).toBeNull();
+  });
+
   it('rolls back physical writes when trace/outbox creation fails', async () => {
     const { lot, plan } = await db.$transaction((tx) => acceptedPlan(tx), {
       timeout: 20000,
@@ -2215,19 +2422,30 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       const previous = process.env.FABRIC_LEGACY_WRITER;
       const cycleCode = randomUUID();
       const key = randomUUID();
-      const counts = async () => Promise.all([
-        db.productionCycle.count(), db.traceEvent.count(),
-        db.blockchainOutbox.count(), db.commandCommit.count(),
-      ]);
+      const counts = async () =>
+        Promise.all([
+          db.productionCycle.count(),
+          db.traceEvent.count(),
+          db.blockchainOutbox.count(),
+          db.commandCommit.count(),
+        ]);
       const before = await counts();
       try {
         process.env.FABRIC_LEGACY_WRITER = 'false';
-        const body = { chainId, farmId, productId, cycleCode,
-          maxHarvestQuantity: 10, harvestUnit: 'kg' };
+        const body = {
+          chainId,
+          farmId,
+          productId,
+          cycleCode,
+          maxHarvestQuantity: 10,
+          harvestUnit: 'kg',
+        };
         await post('/production-cycles', producerToken, body, key).expect(409);
         await post('/production-cycles', producerToken, body, key).expect(409);
         expect(await counts()).toEqual(before);
-        expect(await db.productionCycle.count({ where: { cycleCode } })).toBe(0);
+        expect(await db.productionCycle.count({ where: { cycleCode } })).toBe(
+          0,
+        );
       } finally {
         if (previous === undefined) delete process.env.FABRIC_LEGACY_WRITER;
         else process.env.FABRIC_LEGACY_WRITER = previous;

@@ -12,10 +12,11 @@
  */
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
+import { verifyExport, wslPath } from "./export-check.mts";
 
 import {
   BindingLedgerClient,
@@ -478,11 +479,18 @@ async function main() {
 
   // ---------------------------------------------------------------- AC-13
   await check("AC-13", "private keys of the self-managed owner stay out of the AgriTrace export", async () => {
-    const exportRoot = path.join(path.resolve("."), "blockchain", ".fabric", "runtime");
-    let files: string[] = [];
-    try { files = readdirSync(exportRoot, { recursive: true }).map(String); } catch { return "no export present"; }
-    if (files.some((f) => /org3.*(keystore|admin)/i.test(f))) throw new Error("Org3 key material found in export");
-    return `${files.length} exported files, none are Org3 keys`;
+    // Export this instance into its own isolated root; a missing, unreadable or
+    // stale export is a failure, never a pass. Key bytes are compared, not logged.
+    const exportDir = path.join(ROOT, `acceptance-export-${randomUUID()}`);
+    try {
+      const run = process.platform === "win32"
+        ? spawnSync("wsl", ["-d", process.env.HYBRID_WSL_DISTRO ?? "Ubuntu", "--exec", "bash", SCRIPT, "export", wslPath(exportDir)], { encoding: "utf8" })
+        : spawnSync("bash", [SCRIPT, "export", exportDir], { encoding: "utf8" });
+      if (run.status !== 0) throw new Error(`export failed with status ${run.status}`);
+      return verifyExport(exportDir, orgDir("org3"));
+    } finally {
+      rmSync(exportDir, { recursive: true, force: true });
+    }
   });
   const r2Run = process.platform === 'win32'
     ? spawnSync('wsl', ['-d', process.env.HYBRID_WSL_DISTRO ?? 'Ubuntu', '--exec', 'bash', SCRIPT, 'rotate-relayer', 'r2'], { encoding: 'utf8' })

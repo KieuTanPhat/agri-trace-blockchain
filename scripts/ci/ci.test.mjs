@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -200,4 +200,11 @@ test('application gate requires the production rehearsal whenever containers are
   for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
     assert.ok(gateErrors('application', { ...needs, rehearsal: { result } }).length > 0);
   }
+});
+
+test('the local Compose stack passes an explicit business write mode to the API', () => {
+  const compose = readFileSync(new URL('../../docker-compose.yml', import.meta.url), 'utf8');
+  const api = compose.slice(compose.indexOf('\n  api:'), compose.indexOf('\n  worker:'));
+  assert.match(api, /HYBRID_WRITES_MODE: \$\{HYBRID_WRITES_MODE:-OPEN\}/);
+  assert.match(readFileSync(new URL('../../.env.docker.example', import.meta.url), 'utf8'), /^HYBRID_WRITES_MODE=OPEN$/m);
 });

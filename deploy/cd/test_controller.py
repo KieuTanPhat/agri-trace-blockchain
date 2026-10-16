@@ -59,6 +59,32 @@ class DomainDelivery(unittest.TestCase):
                 self.controller.write_release_environment(record)
                 self.assertEqual(self.environment(record)["HYBRID_WRITES_MODE"], expected)
 
+    def test_smoke_session_opens_writes_only_for_the_technical_smoke_accounts(self):
+        ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"]
+        (self.base / "accounts.json").write_text(json.dumps([{"id": value} for value in ids]))
+        record = dict(self.record, verified=False)
+        self.controller.config["open_after_smoke"] = True
+        self.controller.smoke_writes = True
+        try:
+            self.controller.write_release_environment(record)
+            values = self.environment(record)
+            self.assertEqual(values["HYBRID_WRITES_MODE"], "CANARY")
+            self.assertEqual(values["HYBRID_CANARY_ACTOR_IDS"], ",".join(ids))
+        finally:
+            self.controller.smoke_writes = False
+        self.controller.write_release_environment(record)
+        self.assertEqual((self.environment(record)["HYBRID_WRITES_MODE"], self.environment(record)["HYBRID_CANARY_ACTOR_IDS"]),
+                         ("CLOSED", ""))
+        for invalid in ([], [{"id": "not-a-uuid"}], [{"id": ids[0]}, {"id": ids[0]}]):
+            with self.subTest(invalid=invalid):
+                (self.base / "accounts.json").write_text(json.dumps(invalid))
+                self.controller.smoke_writes = True
+                try:
+                    with self.assertRaisesRegex(PolicyError, "technical account"):
+                        self.controller.write_release_environment(record)
+                finally:
+                    self.controller.smoke_writes = False
+
     def test_hybrid_release_adds_the_connection_overlay_and_requires_it_in_the_manifest(self):
         hybrid = dict(self.record, manifest=dict(self.record["manifest"], migrations={"20261014000000_hybrid_chain_scope": "d" * 64}))
         with self.assertRaisesRegex(PolicyError, "connection overlay"):
@@ -462,7 +488,7 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.controller.config['forward_recovery'] = {'sha': self.candidate['sha'], 'manifest_sha256': digest}
         verify = self.controller.verify
         def checked(record, canary=None):
-            self.assertEqual(self.controller.fresh_write_mode(record), 'OPEN')
+            self.assertEqual(self.controller.fresh_write_mode(record), 'CANARY')
             return verify(record, canary)
         self.controller.verify = checked
         self.controller.forward(self.candidate, self.state)
@@ -473,7 +499,7 @@ class DeliveryFailureRecovery(unittest.TestCase):
         digest = module.policy.sha256(json.dumps(self.candidate['manifest'], sort_keys=True, separators=(',', ':')).encode())
         self.controller.config['forward_recovery'] = {'sha': self.candidate['sha'], 'manifest_sha256': digest}
         def failed(record, canary=None):
-            self.assertEqual(self.controller.fresh_write_mode(record), 'OPEN')
+            self.assertEqual(self.controller.fresh_write_mode(record), 'CANARY')
             raise PolicyError('candidate smoke failed')
         self.controller.verify = failed
         with self.assertRaisesRegex(PolicyError, 'candidate smoke failed'):
@@ -733,3 +759,63 @@ class DeliveryFailureRecovery(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipIf(os.name == "nt", "Private-path ownership and atomic replace use POSIX paths")
+class WorkerBindingInventory(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.base = Path(temporary.name)
+        env = self.base / ".env"
+        env.write_text("PUBLIC_ORIGIN=https://agritrace.dev\n")
+        (self.base / "accounts.json").write_text("[]")
+        self.controller = build(Controller, hosted_config(self.base, env))
+        self.directory = self.base / "shared/worker"
+        self.directory.mkdir(parents=True)
+        self.inventory = self.directory / "bindings.json"
+        self.original = {"version": 1, "bindings": [{"bindingDigest": "a" * 64, "peerEndpoint": "old:7051"}]}
+        self.inventory.write_text(json.dumps(self.original) + "\n")
+        self.controller.environment["FABRIC_BINDINGS_CONFIG_HOST"] = str(self.inventory)
+        self.node = {"bindingDigest": "b" * 64, "peerEndpoint": "new:7051"}
+
+    def test_adds_a_binding_by_replace_keeps_other_entries_and_leaves_no_temporary(self):
+        self.controller.add_worker_binding("b" * 64, self.node)
+        document = json.loads(self.inventory.read_text())
+        self.assertEqual(document["bindings"], [*self.original["bindings"], self.node])
+        self.assertEqual({p.name for p in self.directory.iterdir()}, {"bindings.json"})
+        self.controller.add_worker_binding("b" * 64, self.node)  # retry is a no-op
+        self.assertEqual(json.loads(self.inventory.read_text()), document)
+        with self.assertRaisesRegex(PolicyError, "differs"):
+            self.controller.add_worker_binding("b" * 64, dict(self.node, peerEndpoint="other:7051"))
+
+    def test_an_interrupted_write_keeps_the_reviewed_inventory(self):
+        before = self.inventory.read_bytes()
+        with patch.object(module.os, "fsync", side_effect=OSError(28, "No space left on device")):
+            with self.assertRaises(OSError):
+                self.controller.add_worker_binding("b" * 64, self.node)
+        self.assertEqual(self.inventory.read_bytes(), before)
+        self.assertEqual({p.name for p in self.directory.iterdir()}, {"bindings.json"})
+        self.controller.add_worker_binding("b" * 64, self.node)
+        self.assertIn(self.node, json.loads(self.inventory.read_text())["bindings"])
+
+    def test_bootstrap_activates_only_after_the_host_wrote_the_inventory(self):
+        bootstrap = self.base / "shared/bootstrap.json"
+        bootstrap.write_text("{}")
+        self.controller.config["bootstrap"] = str(bootstrap)
+        calls = []
+
+        def operator(record, payload, program, label):
+            calls.append(json.loads(self.inventory.read_text()))
+            if len(calls) == 1:
+                return {"result": "inventory-required", "bindingDigest": "b" * 64, "workerBinding": self.node}
+            return {"result": "passed"}
+
+        with patch.object(self.controller, "hosted_operator", side_effect=operator):
+            self.assertEqual(self.controller.bootstrap_hosted({}), {"result": "passed"})
+        self.assertNotIn(self.node, calls[0]["bindings"])
+        self.assertIn(self.node, calls[1]["bindings"])
+
+    def test_the_bootstrap_container_cannot_write_the_inventory(self):
+        source = Path(module.__file__).read_text()
+        self.assertIn("dst=/worker-bindings.json,readonly", source)

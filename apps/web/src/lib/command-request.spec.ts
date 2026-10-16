@@ -17,6 +17,12 @@ describe("command status controller payload contract", () => {
       { chainId: id },
     ],
     [`/iot/cycles/${id}/digests`, "CREATE_SENSOR_DIGEST", { cycleId: id }],
+    [`/iot/readings`, "INGEST_SENSOR_READING", {}],
+    [
+      `/iot/shipments/${id}/telemetry`,
+      "INGEST_SHIPMENT_TELEMETRY",
+      { shipmentId: id },
+    ],
     [
       `/iot/shipments/${id}/devices/${other}/unbind`,
       "UNBIND_SHIPMENT_DEVICE",

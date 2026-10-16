@@ -59,6 +59,20 @@ describe("validationCodeOf", () => {
     expect(validationCodeOf(Uint8Array.from([0x0a, 0x00]))).toBe(0);
     expect(() => validationCodeOf(Uint8Array.from([0x0b, 0x01]))).toThrow("wire type");
   });
+
+  it("never reads empty, truncated or envelope-less bytes as VALID", () => {
+    for (const bytes of [
+      [],
+      [10, 127],
+      [0x0a, 0x03, 1],
+      [0x0a, 0x03, 1, 2, 3, 0x10],
+      [0x0a, 0x03, 1, 2, 3, 0x10, 0x80],
+      [0x10, 0x00],
+      [0x0a, 0x00, 0x12, 0x00],
+      [0x00, 0x00],
+    ])
+      expect(() => validationCodeOf(Uint8Array.from(bytes))).toThrow();
+  });
 });
 
 describe("certificateFingerprint", () => {

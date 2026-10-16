@@ -712,11 +712,14 @@ describe("cookie-backed session", () => {
       code: "NETWORK_ERROR",
     });
   });
-  it("uses the caller's stable key for a sensor retry", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () =>
+  it("uses the caller's stable key for a sensor retry and replays a committed reading", async () => {
+    const accepted = { status: "accepted", readingId: "reading" };
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (url) =>
       json({
         success: true,
-        data: { status: "accepted", readingId: "reading" },
+        data: String(url).endsWith("/command-requests/status")
+          ? { status: "COMMITTED", responseStatus: 201, result: accepted }
+          : accepted,
       }),
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -730,13 +733,22 @@ describe("cookie-backed session", () => {
       unit: "C",
       recordedAt: "2026-09-29T00:00:00.000Z",
     };
-    await sendSensorReading(payload, "sensor-key");
-    await sendSensorReading(payload, "sensor-key");
+    await expect(sendSensorReading(payload, "sensor-key")).resolves.toEqual(
+      accepted,
+    );
+    // The second send inspects the saved original instead of ingesting again.
+    await expect(sendSensorReading(payload, "sensor-key")).resolves.toEqual(
+      accepted,
+    );
     expect(
-      fetchMock.mock.calls.map((call) =>
+      fetchMock.mock.calls.map((call) => [
+        String(call[0]).replace(/^.*\/api/, ""),
         new Headers(call[1]?.headers).get("idempotency-key"),
-      ),
-    ).toEqual(["sensor-key", "sensor-key"]);
+      ]),
+    ).toEqual([
+      ["/iot/readings", "sensor-key"],
+      ["/command-requests/status", "sensor-key"],
+    ]);
   });
   it("keeps the in-memory session if logout cannot reach the server", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));

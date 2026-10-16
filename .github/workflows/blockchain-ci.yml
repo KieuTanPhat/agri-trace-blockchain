@@ -179,6 +179,8 @@ jobs:
         with: {node-version: '22.22.3', cache: npm, cache-dependency-path: package-lock.json}
       - run: npm install --global npm@12.1.0
       - run: npm ci --no-audit --no-fund
+      - name: Check that the export acceptance fails closed
+        run: node --import tsx --test blockchain/network/hybrid/acceptance/export-check.test.mts
       - name: Real three-organization ledger and Worker acceptance
         run: node scripts/ci/hybrid-fabric.mjs
       - name: Enterprise-owned peer lifecycle and approvals on separated Docker networks

@@ -163,6 +163,17 @@ export function commandRequest(
           : "HYB_GRANT_ROLE",
       { organizationId: m[1], ...(m[3] ? { grantId: m[3] } : {}) },
     );
+  // User-session ingest only; device-key ingest keeps its own key/transport.
+  // One pending reading per device blocks a replacement until reconciled.
+  if (path === "/iot/readings" && method === "POST")
+    return result("INGEST_SENSOR_READING", {}, String(data.deviceId ?? ""));
+  m = match(path, `/iot/shipments/(${uuid})/telemetry`);
+  if (m && method === "POST")
+    return result(
+      "INGEST_SHIPMENT_TELEMETRY",
+      { shipmentId: m[1] },
+      String(data.deviceId ?? ""),
+    );
   m = match(path, `/iot/cycles/(${uuid})/digests`);
   if (m && method === "POST")
     return result("CREATE_SENSOR_DIGEST", { cycleId: m[1] });

@@ -199,6 +199,7 @@ model ChainMembership {
   organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   grants             ScopedRoleGrant[]
   assignments        StageAssignment[]
+  planAcceptances    ShipmentPlanAcceptance[]
 
   @@unique([chainId, organizationId], map: "uq_chain_membership_org")
   @@index([organizationId, status])
@@ -400,11 +401,16 @@ model ShipmentPlanAcceptance {
   userId         String               @map("user_id") @db.Uuid
   grantId        String               @map("grant_id") @db.Uuid
   grantRevision  Int                  @map("grant_revision")
+  /// Consent epoch (G01). NULL only on legacy rows, which never finalize.
+  membershipId       String?          @map("membership_id") @db.Uuid
+  membershipVersion  Int?             @map("membership_version")
+  capabilityRevision Int?             @map("capability_revision")
   acceptedAt     DateTime             @default(now()) @map("accepted_at") @db.Timestamptz(6)
   planRevision   ShipmentPlanRevision @relation(fields: [planId, revision], references: [planId, revision], onUpdate: NoAction, onDelete: Restrict)
   organization   Organization         @relation(fields: [organizationId], references: [id], onUpdate: NoAction, onDelete: Restrict)
   user           User                 @relation(fields: [userId, organizationId], references: [id, organizationId], onUpdate: NoAction, onDelete: Restrict)
   grant          ScopedRoleGrant      @relation(fields: [grantId], references: [id], onUpdate: NoAction, onDelete: Restrict)
+  membership     ChainMembership?     @relation(fields: [membershipId], references: [id], onUpdate: NoAction, onDelete: Restrict)
 
   @@unique([planId, revision, party])
   @@map("shipment_plan_acceptance")
@@ -691,7 +697,9 @@ model Shipment {
   retailer          Organization              @relation("ShipmentRetailer", fields: [retailerOrgId], references: [id], onUpdate: NoAction)
   transporter       Organization              @relation("ShipmentTransporter", fields: [transporterOrgId], references: [id], onUpdate: NoAction)
   telemetry         ShipmentTelemetry[]
-  telemetryDigest   ShipmentTelemetryDigest?
+  /// Several window digests per shipment; at most one isFinal (partial unique
+  /// index). Read the head explicitly (final first, then the newest window).
+  telemetryDigests  ShipmentTelemetryDigest[]
   trackingBindings  ShipmentTrackingBinding[]
   handoverMode      HandoverMode              @default(STANDARD) @map("handover_mode")
   handovers         ShipmentHandover[]
