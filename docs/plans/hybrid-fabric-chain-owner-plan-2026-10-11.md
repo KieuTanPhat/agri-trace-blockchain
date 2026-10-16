@@ -143,6 +143,18 @@ ShipmentPlan thu nhận sự đồng ý của org sản xuất và các bên th�
 kiểm membership/capability/grant, state/version và available quantity hiện tại,
 tạo Shipment/assignment/trace/outbox cùng transaction dưới khóa Lot. Sửa nháp
 làm mất hiệu lực chấp nhận revision cũ. Không giữ khóa lượng hàng chỉ vì có nháp.
+
+Quyết định của chủ dự án ngày 16/10/2026 (khoảng cách G01, review 16/10):
+acceptance gắn với epoch quyền của bên xác nhận gồm grant id/revision,
+chain membership id/version và capability revision. Suspend/revoke rồi rejoin
+membership, hoặc revoke/regrant capability, làm consent cũ mất hiệu lực dù
+ORG_ADMIN grant không đổi. Acceptance cũ chưa có snapshot (ghi trước migration
+`20261021000000_hybrid_acceptance_epoch`) **bắt buộc consent mới qua revision
+mới**, không được chấp nhận như trước; dữ liệu lịch sử giữ nguyên. Kiểm tra
+nằm ở cả tầng ứng dụng (dưới `lockContext`) và trigger DB
+`fn_hybrid_acceptance_scope`/`fn_hybrid_plan_state`; vì vậy migration thuộc
+nhóm `_hybrid_` và operator phải pin checksum trong `migration_reviews` trước
+khi CD giao bản (xem [vận hành production](../production-runbook.md)).
 Chủ chuỗi quản lý kế hoạch; command start/arrive/receive vẫn đúng actor thực hiện.
 
 Chỉ hủy/thay ShipmentPlan trước finalize. Shipment đã tạo, kể cả CREATED, không
@@ -539,7 +551,7 @@ Lot, expired relayer cert và quyền bị thu hồi khi Fabric outage.
 | HYB-AC-14 | Signature sai actor/payload/chain/nonce/version/expiry/replay bị chặn; signer outage không commit write cần ký; delayed relay đúng policy | 08, 12 |
 | HYB-AC-15 | Handover ràng quantity/version, thiếu confirmation không hoàn tất; same-org/ủy quyền có nhãn đúng | 05, 07, 12 |
 | HYB-AC-16 | Restore/canary/rollback hiểu schema/protocol; QR/warnings đúng; load/backlog không làm lẫn scope | 13, 14 |
-| HYB-AC-17 | Revise/cancel ShipmentPlan vô hiệu acceptance cũ; hai finalize chỉ một Shipment; đã CREATED không đổi org/route/lượng, không tạo Shipment thứ hai | 02, 04, 05 |
+| HYB-AC-17 | Revise/cancel ShipmentPlan vô hiệu acceptance cũ; rejoin membership, regrant capability hoặc acceptance thiếu snapshot không finalize được; hai finalize chỉ một Shipment; đã CREATED không đổi org/route/lượng, không tạo Shipment thứ hai | 02, 04, 05 |
 | HYB-AC-18 | Bootstrap chỉ grant được phép; ORG_ADMIN/CHAIN_MANAGER không tự nâng reviewer/platform role hoặc cấp grant sang org/chain khác; NULL-scope uniqueness/FK thật | 02–05 |
 | HYB-AC-19 | Cert rotate/expiry khi queue Pending/unknown commit: credential hợp lệ cùng authority, route/hash/nonce cũ giữ; reconcile và attempt audit không tạo proof giả/trùng | 08–11 |
 | HYB-AC-20 | Grant ledger chưa confirmed không mở write; revoke bình thường có barrier/drain; compromise hold/revoke ngay; race registry MVCC không dùng quyền stale | 08–12 |

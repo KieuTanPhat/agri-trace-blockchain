@@ -38,6 +38,14 @@ chúng khi đối soát một delivery production bị gián đoạn.
 
 Config schema 3 dùng `hosted`, `smoke`, `bootstrap`; `migration_reviews` pin checksum
 và `hybrid-abc/1`. `open_after_smoke=true` mở ghi sau nghiệm thu, mặc định CLOSED.
+Migration tên `<timestamp>_hybrid_*` hoặc có SQL ngoài nhóm additive (thêm cột
+nullable/bảng/index) chỉ được CD áp khi config đã cài có mục
+`"<tên>": {"checksum": "<sha256 của migration.sql>", "protocol": "hybrid-abc/1"}`;
+checksum là SHA-256 byte file LF trong release manifest. Ví dụ
+`20261021000000_hybrid_acceptance_epoch` (snapshot consent ShipmentPlan, thay
+`fn_hybrid_acceptance_scope`/`fn_hybrid_plan_state`) cần review và pin trước khi
+giao bản chứa nó; sau khi áp, checksum vào `hybrid-floor.json` và bản cũ hơn bị
+chặn. Plan DRAFT có acceptance cũ phải revise và xác nhận lại.
 Bootstrap chỉ nhận cấu hình riêng tư và không đổi account hiện có. Network hosted
 pin image/governance và giữ persistent CA/MSP/ledger; script Hybrid pilot chỉ dùng
 cho test. Cấu trúc binding tham khảo [network](../deploy/hosted-network.example.json).

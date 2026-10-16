@@ -14,7 +14,11 @@ existing hashed or signed data must not be edited.
 
 Business actions use current account/session/organization, active capability,
 membership, grant and accepted assignment. ShipmentPlan revisions and consent
-are immutable. Quantity and custody checks run under the aggregate lock; a
+are immutable. Consent ghi snapshot grant, membership epoch và capability
+revision; finalize từ chối khi bất kỳ giá trị nào đổi (kể cả rejoin hoặc
+regrant capability với cùng ORG_ADMIN) và khi consent thiếu snapshot (dữ liệu
+trước migration `20261021000000_hybrid_acceptance_epoch`), yêu cầu revision và
+consent mới. Quantity and custody checks run under the aggregate lock; a
 permission or optimistic-version rejection must not alter state or outbox.
 
 Login creates an independent session family under shared organization/account

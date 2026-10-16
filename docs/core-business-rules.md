@@ -1,6 +1,6 @@
 # Current business rules and acceptance boundaries
 
-Updated 2026-10-14. Use current source, SQL guards and generated Swagger for the
+Updated 2026-10-16. Use current source, SQL guards and generated Swagger for the
 implemented API, and current AGT issues for acceptance. The hosted Hybrid release
 is still undergoing validation; the rules below are requirements to preserve.
 
@@ -11,6 +11,13 @@ is still undergoing validation; the rules below are requirements to preserve.
 - Immutable ShipmentPlan revisions require current consent from every relevant
   party; changing a revision or revoking/regranting permission invalidates old
   consent. Finalize and domain changes are atomic.
+  Mỗi acceptance lưu snapshot grant (id/revision), chain membership
+  (id/version) và capability revision của bên đó. Finalize so lại snapshot dưới
+  `lockContext` và trigger `fn_hybrid_plan_state`; suspend/revoke rồi rejoin
+  membership hoặc revoke/regrant capability, dù cùng ORG_ADMIN grant, đều làm
+  consent cũ mất hiệu lực. Acceptance cũ không có snapshot (trước migration
+  `20261021000000_hybrid_acceptance_epoch`) không bao giờ finalize được: cần
+  revision mới và consent mới; không sửa acceptance lịch sử.
 - Idempotency-Key identifies the original normalized command body. Keep the
   original body and key for retries and inspection. A positive immutable journal
   can prove commit; PROCESSING/UNKNOWN without that proof cannot execute again,
