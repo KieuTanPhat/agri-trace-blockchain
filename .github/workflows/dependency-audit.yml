@@ -62,6 +62,30 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  mobile-audit:
+    name: Audit / mobile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.22.3'
+          package-manager-cache: false
+      - run: npm install --global npm@12.1.0
+      - name: Audit the mobile lockfile against reviewed, expiring exceptions
+        run: npm run audit:mobile -- "${RUNNER_TEMP}/mobile-audit"
+      - name: Upload mobile audit evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dependency-audit-mobile-${{ github.sha }}
+          path: ${{ runner.temp }}/mobile-audit/audit.json
+          if-no-files-found: error
+          retention-days: 14
+
   workspace-peers:
     name: Workspace dependency graph
     runs-on: ubuntu-24.04
@@ -93,7 +117,7 @@ jobs:
 
   gate:
     name: Dependency gate
-    needs: [audit, workspace-peers]
+    needs: [audit, mobile-audit, workspace-peers]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -101,7 +125,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Require both lockfile audits to succeed
+      - name: Require every lockfile audit to succeed
         env:
           CI_NEEDS: ${{ toJSON(needs) }}
         run: node scripts/ci/gate.mjs dependency

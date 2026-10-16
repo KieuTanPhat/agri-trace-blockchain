@@ -1,0 +1,29 @@
+{
+  "note": "Advisories in the Expo SDK 57 toolchain with no fixed release, or whose fix breaks the dependant. Each entry blocks again after reviewBy. Owner approval is required before merging.",
+  "advisories": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "reason": "No fixed release exists (3.0.3 is the latest). Reached through micromatch in Metro, Jest and the Expo CLI on developer and CI machines; patterns come from project config, not app users.",
+      "reviewBy": "2026-11-16"
+    },
+    {
+      "id": "GHSA-hp3w-g68c-fv3c",
+      "package": "sprintf-js",
+      "reason": "No fixed release exists (1.1.3 is the latest). Reached through argparse/js-yaml in build tooling; format strings are not user input.",
+      "reviewBy": "2026-11-16"
+    },
+    {
+      "id": "GHSA-86w9-cpqp-85rv",
+      "package": "node-forge",
+      "reason": "No fixed release exists (1.4.0 is the latest). Used by @expo/code-signing-certificates in the Expo CLI for optional update code signing, which this project does not enable; not bundled into the app.",
+      "reviewBy": "2026-11-16"
+    },
+    {
+      "id": "GHSA-vcc3-ghjq-m6fr",
+      "package": "decode-uri-component",
+      "reason": "The fixed 0.5.0 is ESM-only and breaks query-string 7, which expo-router 57 requires. Runs on the device for in-app URLs; a malformed link can only slow the user's own app. Revisit when expo-router moves off query-string 7.",
+      "reviewBy": "2026-11-16"
+    }
+  ]
+}

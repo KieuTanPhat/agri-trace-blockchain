@@ -16,13 +16,14 @@ const sharedFiles = new Set([
   'scripts/audit-dependencies.mjs',
   'scripts/check-standalone-chaincode.mjs',
   'scripts/generate-api-contract.mjs',
+  'scripts/ci/audit-mobile.mjs',
 ]);
 
 export function classifyChanges(files, force = false) {
-  const result = { api: force, web: force, containers: force, blockchain: force, fabric: force, hybrid: force };
+  const result = { api: force, web: force, mobile: force, containers: force, blockchain: force, fabric: force, hybrid: force };
   for (const file of files) {
-    if (file.startsWith('docs/openapi/') || file === 'apps/web/src/lib/generated/api.d.ts') {
-      result.api = result.web = result.containers = result.fabric = result.hybrid = true;
+    if (file.startsWith('docs/openapi/') || file === 'apps/web/src/lib/generated/api.d.ts' || file === 'apps/mobile/src/api/generated/api.d.ts') {
+      result.api = result.web = result.mobile = result.containers = result.fabric = result.hybrid = true;
     }
     if (sharedFiles.has(file) || file.startsWith('.github/') || file.startsWith('scripts/ci/') || file.startsWith('deploy/')) {
       for (const key of Object.keys(result)) result[key] = true;
@@ -31,6 +32,8 @@ export function classifyChanges(files, force = false) {
       result.api = result.containers = result.fabric = result.hybrid = true;
     }
     if (file.startsWith('apps/web/')) result.web = result.containers = result.hybrid = true;
+    // The mobile app is a standalone npm project outside the production images.
+    if (file.startsWith('apps/mobile/')) result.mobile = true;
     if (file.startsWith('blockchain/')) result.blockchain = result.fabric = result.hybrid = true;
     if (/^docker-compose(?:\.[^/]+)?\.ya?ml$/.test(file)) {
       result.containers = result.fabric = result.hybrid = true;
