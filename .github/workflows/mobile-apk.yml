@@ -46,6 +46,16 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Generate the native Android project
         run: npx expo prebuild --platform android --no-install
+      # The wrapper downloads Gradle on first use; retry transient network resets.
+      - name: Download the Gradle distribution
+        working-directory: apps/mobile/android
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew --version --no-daemon && exit 0
+            echo "Gradle download failed (attempt ${attempt}); retrying" >&2
+            sleep $((attempt * 15))
+          done
+          exit 1
       - name: Build the release APK
         working-directory: apps/mobile/android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
