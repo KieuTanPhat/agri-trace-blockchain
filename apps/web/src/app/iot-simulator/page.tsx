@@ -1,17 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  IconThermometer,
-  IconDroplet,
-  IconWifi,
-  IconActivity,
-} from "@/components/icons";
 import { ErrorState } from "@/components/error-state";
 import { getProductionCycles, sendSensorReading } from "@/lib/api-client";
 import { saveStoredIotReading } from "@/lib/iot-local-store";
 import type { ProductionCycleOption, SensorReadingResponse } from "@/lib/types";
-import { ShieldCheck, Code2, Copy, Check } from "lucide-react";
+import { Activity, Check, Code2, Copy, Droplet, ShieldCheck, Thermometer, Wifi } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 
@@ -21,7 +15,26 @@ const statusLabels: Record<string, string> = {
   retrying: "Đang gửi lại",
   accepted: "Đã tiếp nhận",
   rejected: "Bị từ chối",
+  unknown: "Chưa rõ kết quả",
 };
+
+const unknownMessage =
+  "Chưa rõ máy chủ đã ghi bản đo hay chưa. Bấm Gửi lại để đối soát đúng bản đo gốc, hoặc dùng mục yêu cầu đang chờ; chưa gửi bản đo mới.";
+
+/** Lost/unreadable responses and an unresolved earlier reading may already be
+ * committed; only a server rejection is terminal. */
+function outcomeUnknown(error: { status?: number; code?: string }) {
+  return (
+    error.code === "REQUEST_UNRESOLVED" ||
+    error.code === "UNREADABLE_RESPONSE" ||
+    error.code === "NETWORK_ERROR" ||
+    error.code === "SESSION_CHANGED" ||
+    error.code === "ACCESS_CHANGED" ||
+    error.status === undefined ||
+    error.status === 0 ||
+    error.status >= 500
+  );
+}
 
 export default function IotSimulatorPage() {
   const { user } = useAuth();
@@ -40,17 +53,27 @@ export default function IotSimulatorPage() {
   const busy = useRef(false);
 
   useEffect(() => {
+    let activeRequest = true;
     setRecordedAt(new Date().toISOString());
     getProductionCycles()
       .then((items) => {
-        const active = items.filter((item) =>
-          ["PLANTED", "GROWING"].includes(item.currentState),
+        if (!activeRequest) return;
+        const active = items.filter(
+          (item) =>
+            ["PLANTED", "GROWING"].includes(item.currentState) &&
+            (item.canWriteProduction ??
+              (user?.role.code === "FARM_STAFF" && !item.chainId)),
         );
         setCycles(active);
         setCycleId(active[0]?.id ?? "");
       })
-      .catch(() => setCycles([]));
-  }, []);
+      .catch(() => {
+        if (activeRequest) setCycles([]);
+      });
+    return () => {
+      activeRequest = false;
+    };
+  }, [user?.role.code]);
 
   const payload = useMemo(
     () => ({ deviceId, cycleId, sensorType, value, unit, recordedAt }),
@@ -60,18 +83,22 @@ export default function IotSimulatorPage() {
   async function submitReading(retry = false) {
     if (busy.current) return;
     busy.current = true;
-    const serialized = JSON.stringify(payload);
+    // A retry resends the original body/key, never the edited form. Across a
+    // reload the saved command ledger restores the original body and key.
+    const serialized =
+      retry && attempt.current ? attempt.current.payload : JSON.stringify(payload);
     if (!attempt.current || attempt.current.payload !== serialized)
       attempt.current = { payload: serialized, key: crypto.randomUUID() };
+    const sent = JSON.parse(serialized) as typeof payload;
     setStatus(retry ? "retrying" : "sending");
     try {
-      const result = await sendSensorReading(payload, attempt.current.key);
+      const result = await sendSensorReading(sent, attempt.current.key);
       setResponse(result);
       setStatus(result.status);
       if (result.status === "accepted" && result.readingId) {
         saveStoredIotReading(
           {
-            ...payload,
+            ...sent,
             readingId: result.readingId,
             acceptedAt: new Date().toISOString(),
             status: "accepted",
@@ -85,25 +112,28 @@ export default function IotSimulatorPage() {
         code?: string;
         message?: string;
       };
+      const unknown = outcomeUnknown(error);
       setResponse({
         status: "rejected",
         error: {
-          status: (error.status ?? 503) as 403 | 409 | 422 | 503,
+          status: (error.status || 503) as 403 | 409 | 422 | 503,
           code: error.code ?? "IOT_INGEST_FAILED",
-          message: error.message ?? "Không gửi được dữ liệu cảm biến.",
+          message: unknown
+            ? unknownMessage
+            : (error.message ?? "Không gửi được dữ liệu cảm biến."),
         },
       });
-      setStatus("rejected");
+      setStatus(unknown ? "unknown" : "rejected");
     } finally {
       busy.current = false;
     }
   }
 
   return (
-    <div className="design-page simulator-page">
+    <div className="grid">
       <section className="page-header">
         <div className="page-header-icon">
-          <IconWifi size={22} />
+          <Wifi size={22} />
         </div>
         <div>
           <p className="eyebrow">IOT-01</p>
@@ -114,13 +144,13 @@ export default function IotSimulatorPage() {
         </div>
         <div className="header-features">
           <span className="header-feature">
-            <IconThermometer size={14} /> Giám sát môi trường
+            <Thermometer size={14} /> Giám sát môi trường
           </span>
           <span className="header-feature">
-            <IconActivity size={14} /> Ghi nhận môi trường
+            <Activity size={14} /> Ghi nhận môi trường
           </span>
           <span className="header-feature">
-            <IconWifi size={14} /> Kết nối minh bạch
+            <Wifi size={14} /> Kết nối minh bạch
           </span>
         </div>
       </section>
@@ -130,7 +160,7 @@ export default function IotSimulatorPage() {
           <div className="panel-title">
             <div className="panel-title-left">
               <span className="panel-icon info">
-                <IconActivity size={16} />
+                <Activity size={16} />
               </span>
               <div>
                 <h2>Cấu hình cảm biến</h2>
@@ -142,7 +172,7 @@ export default function IotSimulatorPage() {
           </div>
           <div className="field">
             <label htmlFor="device">
-              <IconWifi size={12} /> Thiết bị
+              <Wifi size={12} /> Thiết bị
             </label>
             <input
               className="input"
@@ -172,7 +202,7 @@ export default function IotSimulatorPage() {
           <div className="form-row">
             <div className="field">
               <label htmlFor="sensor-type">
-                <IconThermometer size={12} /> Loại cảm biến
+                <Thermometer size={12} /> Loại cảm biến
               </label>
               <select
                 className="select"
@@ -194,7 +224,7 @@ export default function IotSimulatorPage() {
             </div>
             <div className="field">
               <label htmlFor="sensor-value">
-                <IconDroplet size={12} /> Giá trị và đơn vị
+                <Droplet size={12} /> Giá trị và đơn vị
               </label>
               <input
                 className="input"
@@ -232,7 +262,7 @@ export default function IotSimulatorPage() {
                 status === "retrying"
               }
             >
-              <IconActivity size={14} /> Gửi dữ liệu
+              <Activity size={14} /> Gửi dữ liệu
             </button>
             <button
               className="button secondary"

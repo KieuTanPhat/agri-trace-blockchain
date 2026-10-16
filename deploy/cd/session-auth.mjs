@@ -1,4 +1,4 @@
-// Concatenated with verify.mjs by the installed controller; no worker-image changes needed.
+// Concatenated with verify-hosted.mjs by the installed controller; no worker-image changes needed.
 import cookieAssert from 'node:assert/strict';
 
 export function readSessionCredential(response, data, previous, requireFamily = false) {

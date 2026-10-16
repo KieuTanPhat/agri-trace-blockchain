@@ -1,0 +1,151 @@
+{
+  "protocol": "agritrace-governance/1",
+  "channels": {
+    "hybrid-b": {
+      "writerMsp": "Org1MSP",
+      "ownerMsp": "Org2MSP",
+      "approvals": {
+        "CHANNEL_BOOTSTRAP": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP",
+            "Org2MSP"
+          ]
+        },
+        "BINDING_REGISTER": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP",
+            "Org2MSP"
+          ]
+        },
+        "CREDENTIAL_APPROVE": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP",
+            "Org2MSP"
+          ]
+        },
+        "CREDENTIAL_REVOKE": {
+          "mode": "ANY",
+          "msps": [
+            "Org1MSP",
+            "Org2MSP"
+          ]
+        },
+        "PERMISSION_GRANT": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP"
+          ]
+        },
+        "PERMISSION_REVOKE": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP"
+          ]
+        },
+        "PERMISSION_EMERGENCY_REVOKE": {
+          "mode": "ANY",
+          "msps": [
+            "Org1MSP",
+            "Org2MSP"
+          ]
+        },
+        "FENCE_DELIVERY": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP"
+          ]
+        },
+        "SIGNING_KEY_REGISTER": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP",
+            "Org2MSP"
+          ]
+        },
+        "SIGNING_KEY_REVOKE": {
+          "mode": "ANY",
+          "msps": [
+            "Org1MSP",
+            "Org2MSP"
+          ]
+        }
+      }
+    },
+    "hybrid-self": {
+      "writerMsp": "Org1MSP",
+      "ownerMsp": "Org3MSP",
+      "approvals": {
+        "CHANNEL_BOOTSTRAP": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP",
+            "Org3MSP"
+          ]
+        },
+        "BINDING_REGISTER": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP",
+            "Org3MSP"
+          ]
+        },
+        "CREDENTIAL_APPROVE": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP",
+            "Org3MSP"
+          ]
+        },
+        "CREDENTIAL_REVOKE": {
+          "mode": "ANY",
+          "msps": [
+            "Org1MSP",
+            "Org3MSP"
+          ]
+        },
+        "PERMISSION_GRANT": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP"
+          ]
+        },
+        "PERMISSION_REVOKE": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP"
+          ]
+        },
+        "PERMISSION_EMERGENCY_REVOKE": {
+          "mode": "ANY",
+          "msps": [
+            "Org1MSP",
+            "Org3MSP"
+          ]
+        },
+        "FENCE_DELIVERY": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP"
+          ]
+        },
+        "SIGNING_KEY_REGISTER": {
+          "mode": "ALL",
+          "msps": [
+            "Org1MSP",
+            "Org3MSP"
+          ]
+        },
+        "SIGNING_KEY_REVOKE": {
+          "mode": "ANY",
+          "msps": [
+            "Org1MSP",
+            "Org3MSP"
+          ]
+        }
+      }
+    }
+  }
+}

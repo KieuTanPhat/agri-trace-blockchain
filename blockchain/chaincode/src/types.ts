@@ -57,6 +57,13 @@ export const EVENT_TYPES = [
   "SHIPMENT_TELEMETRY_DIGEST_FINALIZED",
   "TRACKING_DEVICE_BOUND",
   "TRACKING_DEVICE_UNBOUND",
+  // Release C: cross-organization handover. OFFERED/CONFIRMED carry an
+  // independent organization signature; the others record non-transfers.
+  "HANDOVER_OFFERED",
+  "HANDOVER_CONFIRMED",
+  "HANDOVER_REJECTED",
+  "HANDOVER_CANCELLED",
+  "HANDOVER_EXPIRED",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -167,4 +174,10 @@ export interface HealthResult {
   schemaVersion: typeof SCHEMA_VERSION;
   envelopeVersion: typeof ENVELOPE_VERSION;
   supportedReadVersions: readonly ["2.0.0", "3.0.0"];
+  supportedWriteVersions: readonly ["3.0.0", "4.0.0", "6.0.0"];
+  signingProtocol: "agritrace-signing/1";
+  registryProtocol: "agritrace-governance/1";
+  governanceDigest: string;
+  channelPolicy: unknown;
+  callerRole: string | null;
 }

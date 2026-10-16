@@ -4,20 +4,21 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
-from policy import CONTROLLER_FILES, PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth, valid_public_origin, https_origins
+from policy import CONTROLLER_FILES, PolicyError, command, sha256, fingerprint, extract, additive_sql, migrations, approved_package, ci_gate, registry_auth, valid_public_origin, https_origins, targets
 
 SHA = "a" * 40
 REPO = "KieuTanPhat/agri-trace-blockchain"
-ORIGIN = "http://13.140.170.166"
+ORIGIN = "https://agritrace.dev"
+TARGET = dict(targets.TARGETS["production"], environment="production", project="agritrace-prod", profile="fabric")
 
 
 def bundle(directory, extra=None, mutate=None):
-    files = {"docker-compose.uat.yml": b"services: {}", "docker-compose.uat-https.yml": b"services: {}",
-             "docker-compose.uat-fabric.yml": b"services: {}",
-             "deploy/Caddyfile.uat": b":80 {}", "blockchain/chaincode/src/index.ts": b"export {}",
+    files = {"docker-compose.app.yml": b"services: {}", "docker-compose.app-fabric.yml": b"services: {}",
+             "blockchain/chaincode/src/index.ts": b"export {}",
              "blockchain/chaincode/dist/index.js": b"module.exports={}", "apps/api/prisma/migrations/20260101000000_init/migration.sql": b"CREATE TABLE x (id INT);"}
     hashes = {name: sha256(data) for name, data in files.items()}
-    manifest = {"format": 1, "sha": SHA, "repository": REPO, "origin": ORIGIN, "files": hashes, "chaincode": fingerprint(hashes),
+    manifest = {"format": 2, "sha": SHA, "repository": REPO, "origin": ORIGIN, "files": hashes, "chaincode": fingerprint(hashes),
+                **{key: TARGET[key] for key in ("environment", "branch", "project", "profile")},
                 "migrations": {"20260101000000_init": hashes["apps/api/prisma/migrations/20260101000000_init/migration.sql"]},
                 "api": f"ghcr.io/{REPO.lower()}/api@sha256:{'0' * 64}", "web": f"ghcr.io/{REPO.lower()}/web@sha256:{'1' * 64}"}
     manifest["controller"] = {name: "0" * 64 for name in CONTROLLER_FILES}
@@ -100,7 +101,7 @@ class Policies(unittest.TestCase):
 
     def test_good_archive(self):
         with tempfile.TemporaryDirectory() as directory:
-            result = extract(bundle(directory), Path(directory) / "release", SHA, REPO, ORIGIN)
+            result = extract(bundle(directory), Path(directory) / "release", SHA, REPO, ORIGIN, TARGET)
             self.assertEqual(result["sha"], SHA)
 
     def test_public_origin_accepts_http_ipv4_and_https_domain(self):
@@ -114,25 +115,25 @@ class Policies(unittest.TestCase):
     def test_https_readiness_requires_both_domain_names(self):
         for origin in ("https://agritrace.dev", "https://www.agritrace.dev"):
             self.assertEqual(https_origins(origin), ["https://agritrace.dev", "https://www.agritrace.dev"])
-        self.assertEqual(https_origins(ORIGIN), [])
+        self.assertEqual(https_origins("http://13.140.170.166"), [])
         with self.assertRaises(PolicyError):
             https_origins("https://agritrace.dev/path")
 
     def test_no_path_traversal_links_credentials_or_duplicate_members(self):
-        for extra in (("../escape", b"x"), ("/etc/passwd", b"x"), ("deploy/Caddyfile.uat", b"duplicate"),
+        for extra in (("../escape", b"x"), ("/etc/passwd", b"x"), ("docker-compose.app.yml", b"duplicate"), ("docker-compose.uat.yml", b"retired"),
                       ("blockchain/chaincode/src/link.ts", "link"), (".env.uat", b"secret")):
             with self.subTest(extra=extra), tempfile.TemporaryDirectory() as directory:
                 destination = Path(directory) / "release"
                 with self.assertRaises(PolicyError):
-                    extract(bundle(directory, extra=extra), destination, SHA, REPO, ORIGIN)
+                    extract(bundle(directory, extra=extra), destination, SHA, REPO, ORIGIN, TARGET)
                 self.assertFalse(destination.exists())
 
     def test_wrong_sha_digest_origin_or_hash_is_rejected_before_extract(self):
-        for mutation in (lambda m: m.update(sha="b" * 40), lambda m: m.update(origin="http://other"),
-                         lambda m: m.update(api="agri-trace-api:latest"), lambda m: m["files"].update({"deploy/Caddyfile.uat": "0" * 64})):
+        for mutation in (lambda m: m.update(sha="b" * 40), lambda m: m.update(origin="https://other.example"), lambda m: m.update(format=1), lambda m: m.update(project="agri-trace-uat"),
+                         lambda m: m.update(api="agri-trace-api:latest"), lambda m: m["files"].update({"docker-compose.uat.yml": "0" * 64})):
             with tempfile.TemporaryDirectory() as directory:
                 with self.assertRaises(PolicyError):
-                    extract(bundle(directory, mutate=mutation), Path(directory) / "release", SHA, REPO, ORIGIN)
+                    extract(bundle(directory, mutate=mutation), Path(directory) / "release", SHA, REPO, ORIGIN, TARGET)
 
     def test_additive_migrations(self):
         additive_sql('-- comment\nCREATE TABLE "extra" ("id" UUID PRIMARY KEY, "note" TEXT); CREATE INDEX "ix_note" ON "extra"("note"); ALTER TABLE "lot" ADD COLUMN "memo" VARCHAR(255);')
@@ -178,6 +179,42 @@ class Policies(unittest.TestCase):
                     target.write_bytes(script + b"-- modified after packaging\n")
                     with self.assertRaisesRegex(PolicyError, "source checksum"):
                         migrations({}, catalog, directory)
+
+    def test_hybrid_floor_cannot_be_bypassed_by_compatible_migrations(self):
+        name = "20261014000000_hybrid_chain_scope"
+        applied = {"20260101_init": "a" * 64, name: "b" * 64}
+        with self.assertRaisesRegex(PolicyError, "Hybrid migration floor"):
+            migrations(applied, {"20260101_init": "a" * 64}, ".", compatible_missing=[name])
+        with self.assertRaisesRegex(PolicyError, "Hybrid migration floor"):
+            migrations({}, {}, ".", floor={name: "b" * 64})
+
+    def test_capacity_includes_all_limits_and_rejects_unbounded_or_overcommitted_runtime(self):
+        from policy import capacity_budget
+        self.assertEqual(capacity_budget(1000, {"legacy": 400, "hosted": 400})["reservedBytes"], 200)
+        for limits in ({"legacy": 801}, {"legacy": 500, "hosted": 301}, {"peer": 0}, {}, {"peer": True}):
+            with self.subTest(limits=limits), self.assertRaises(PolicyError):
+                capacity_budget(1000, limits)
+        with self.assertRaises(PolicyError):
+            capacity_budget(1000, {"peer": 500}, reserve_percent=19)
+
+    def test_nonadditive_review_pins_exact_bytes_without_widening_default_parser(self):
+        name = "20261014000000_hybrid_chain_scope"
+        sql = b'DO $$ BEGIN RAISE NOTICE \'reviewed expansion\'; END $$;\n'
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "apps/api/prisma/migrations" / name / "migration.sql"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(sql)
+            candidate = {name: sha256(sql)}
+            with self.assertRaisesRegex(PolicyError, "installed checksum review"):
+                migrations({}, candidate, directory)
+            reviews = {name: {"checksum": sha256(sql), "protocol": "hybrid-abc/1"}}
+            self.assertEqual(migrations({}, candidate, directory, reviewed=reviews), [name])
+            source.write_bytes(sql + b"-- changed\n")
+            candidate[name] = sha256(source.read_bytes())
+            with self.assertRaisesRegex(PolicyError, "reviewed checksum"):
+                migrations({}, candidate, directory, reviewed=reviews)
+            with self.assertRaises(PolicyError):
+                migrations({}, candidate, directory, reviewed={name: {"checksum": candidate[name], "protocol": "additive"}})
 
 
 if __name__ == "__main__":

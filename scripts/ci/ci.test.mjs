@@ -1,16 +1,37 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { classifyChanges, changedFiles } from './changes.mjs';
 import { gateErrors } from './gate.mjs';
+import './hybrid-browser-login.test.mjs';
+import { approvalPolicy, verifyApprovedDefinition } from '../../blockchain/network/enterprise/peer.mjs';
+
+test('enterprise approval recovery rejects a changed policy, package or definition', () => {
+  const spec = { chaincodeVersion: 'reviewed-1', chaincodeSequence: 1, endorsementPolicy: "AND('Org1MSP.peer','Org3MSP.peer')" };
+  const policy = 'reviewed-policy-bytes';
+  const approved = { version: 'reviewed-1', sequence: 1, endorsement_plugin: 'escc', validation_plugin: 'vscc',
+    validation_parameter: policy, source: { Type: { LocalPackage: { package_id: 'reviewed-package' } } } };
+  verifyApprovedDefinition(spec, approved, 'reviewed-package', policy);
+  for (const patch of [{ version: 'other' }, { sequence: 2 }, { validation_parameter: 'weakened-policy' },
+    { endorsement_plugin: 'custom' }, { validation_plugin: 'custom' }, { init_required: true },
+    { collections: { config: [{}] } }, { source: { Type: { LocalPackage: { package_id: 'other-package' } } } },
+    { source: { Type: { Unavailable: {} } } }])
+    assert.throws(() => verifyApprovedDefinition(spec, { ...approved, ...patch }, 'reviewed-package', policy));
+  assert.deepEqual(approvalPolicy(spec).signature_policy.rule,
+    { n_out_of: { n: 2, rules: [{ signed_by: 0 }, { signed_by: 1 }] } });
+  assert.deepEqual(approvalPolicy(spec).signature_policy.identities.map(value => value.principal),
+    [{ msp_identifier: 'Org1MSP', role: 'PEER' }, { msp_identifier: 'Org3MSP', role: 'PEER' }]);
+  for (const endorsementPolicy of ["OR('Org1MSP.peer','Org3MSP.peer')", "AND('Org3MSP.peer','Org3MSP.peer')"])
+    assert.throws(() => approvalPolicy({ ...spec, endorsementPolicy }));
+});
 
 test('Gateway changes run API, containers and real Fabric integration', () => {
   assert.deepEqual(classifyChanges(['blockchain/gateway/src/adapter.ts']), {
-    api: true, web: false, containers: true, blockchain: true, fabric: true,
+    api: true, web: false, containers: true, blockchain: true, fabric: true, hybrid: true,
   });
 });
 
@@ -38,12 +59,12 @@ test('manifests and CI changes select all checks', () => {
 
 test('Web changes select its checks and the production stack', () => {
   assert.deepEqual(classifyChanges(['apps/web/src/app/page.tsx']), {
-    api: false, web: true, containers: true, blockchain: false, fabric: false,
+    api: false, web: true, containers: true, blockchain: false, fabric: false, hybrid: true,
   });
 });
 
-test('UAT proxy, credentials template and deployment scripts require all integration checks', () => {
-  for (const file of ['deploy/Caddyfile.uat', 'deploy/fixtures.mjs', 'deploy/preflight.mjs', '.env.uat.example']) {
+test('edge routing, rehearsal scripts and the deployment template require all integration checks', () => {
+  for (const file of ['deploy/edge/Caddyfile', 'deploy/ci/rehearse.mjs', 'deploy/cd/policy.py', '.env.deploy.example']) {
     assert.ok(Object.values(classifyChanges([file])).every(Boolean), file);
   }
 });
@@ -59,7 +80,7 @@ test('documentation-only PRs skip expensive jobs without leaving gates pending',
   assert.ok(Object.values(classifyChanges(['README.md', 'docs/ci.md'])).every(value => value === false));
   assert.deepEqual(gateErrors('application', {
     changes: { result: 'success', outputs: { api: 'false', web: 'false', containers: 'false' } },
-    api: { result: 'skipped' }, web: { result: 'skipped' }, 'container-build': { result: 'skipped' },
+    api: { result: 'skipped' }, web: { result: 'skipped' }, 'container-build': { result: 'skipped' }, rehearsal: { result: 'skipped' },
   }), []);
 });
 
@@ -131,8 +152,8 @@ test('main pushes with a valid baseline still require every check for the deploy
 test('gate rejects failures, cancellation and unexpected skips for selected jobs', () => {
   for (const result of ['failure', 'cancelled', 'skipped']) {
     assert.ok(gateErrors('blockchain', {
-      changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true' } },
-      verify: { result: 'success' }, 'standalone-chaincode': { result: 'success' }, 'fabric-smoke': { result },
+      changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true', hybrid: 'true' } },
+      verify: { result: 'success' }, 'standalone-chaincode': { result: 'success' }, 'hybrid-fabric': { result: 'success' }, 'fabric-smoke': { result },
     }).length > 0);
   }
 });
@@ -145,18 +166,18 @@ test('gate fails closed on failed detection, absent outputs and missing jobs', (
 
 test('blockchain gate requires the selected standalone check and permits documentation skips', () => {
   const needs = {
-    changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true' } },
+    changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true', hybrid: 'true' } },
     verify: { result: 'success' }, 'fabric-smoke': { result: 'success' },
-    'standalone-chaincode': { result: 'success' },
+    'standalone-chaincode': { result: 'success' }, 'hybrid-fabric': { result: 'success' },
   };
   assert.deepEqual(gateErrors('blockchain', needs), []);
   for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
     assert.ok(gateErrors('blockchain', { ...needs, 'standalone-chaincode': { result } }).length > 0);
   }
   assert.deepEqual(gateErrors('blockchain', {
-    changes: { result: 'success', outputs: { blockchain: 'false', fabric: 'false' } },
+    changes: { result: 'success', outputs: { blockchain: 'false', fabric: 'false', hybrid: 'false' } },
     verify: { result: 'skipped' }, 'fabric-smoke': { result: 'skipped' },
-    'standalone-chaincode': { result: 'skipped' },
+    'standalone-chaincode': { result: 'skipped' }, 'hybrid-fabric': { result: 'skipped' },
   }), []);
 });
 
@@ -168,4 +189,22 @@ test('dependency gate requires both lockfile audits and the installed graph', ()
       assert.ok(gateErrors('dependency', { ...needs, [job]: { result } }).length > 0);
     }
   }
+});
+
+test('application gate requires the production rehearsal whenever containers are selected', () => {
+  const needs = {
+    changes: { result: 'success', outputs: { api: 'true', web: 'true', containers: 'true' } },
+    api: { result: 'success' }, web: { result: 'success' }, 'container-build': { result: 'success' }, rehearsal: { result: 'success' },
+  };
+  assert.deepEqual(gateErrors('application', needs), []);
+  for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+    assert.ok(gateErrors('application', { ...needs, rehearsal: { result } }).length > 0);
+  }
+});
+
+test('the local Compose stack passes an explicit business write mode to the API', () => {
+  const compose = readFileSync(new URL('../../docker-compose.yml', import.meta.url), 'utf8');
+  const api = compose.slice(compose.indexOf('\n  api:'), compose.indexOf('\n  worker:'));
+  assert.match(api, /HYBRID_WRITES_MODE: \$\{HYBRID_WRITES_MODE:-OPEN\}/);
+  assert.match(readFileSync(new URL('../../.env.docker.example', import.meta.url), 'utf8'), /^HYBRID_WRITES_MODE=OPEN$/m);
 });

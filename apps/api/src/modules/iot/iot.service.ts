@@ -18,9 +18,14 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   commandTransaction,
   lockAggregate,
+  effectiveCommandActor,
 } from '../../common/idempotency/command-transaction.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
+import {
+  scopedCycleReadWhere,
+  scopedShipmentReadWhere,
+} from '../supply-chains/business-read-scope.js';
 import {
   validateSensorTime,
   markLateReading,
@@ -41,23 +46,58 @@ export class IotService {
     private readonly trace: TraceService,
   ) {}
 
-  listDevices(actor: Actor) {
-    return this.prisma.iotDevice.findMany({
-      where: ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role)
-        ? undefined
+  async listDevices(actor: Actor) {
+    // Unassigned devices are organization assets (platform admins manage all
+    // of them). A device bound to a cycle or Shipment is disclosed only
+    // through that subject's chain scope below.
+    const owned: Prisma.IotDeviceWhereInput =
+      actor.role === 'SYSTEM_ADMIN'
+        ? {}
         : {
             organizationId:
               actor.organizationId ?? '00000000-0000-0000-0000-000000000000',
+            cycleId: null,
+            trackingBindings: { none: { status: 'ACTIVE', unboundAt: null } },
+          };
+    const devices = await this.prisma.iotDevice.findMany({
+      where: {
+        OR: [
+          owned,
+          { cycle: { is: scopedCycleReadWhere(actor) } },
+          {
+            trackingBindings: {
+              some: {
+                status: 'ACTIVE',
+                unboundAt: null,
+                shipment: { is: scopedShipmentReadWhere(actor) },
+              },
+            },
           },
+        ],
+      },
       include: {
         organization: { select: { id: true, name: true, type: true } },
         cycle: { select: { id: true, cycleCode: true, currentState: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
+    const ids = devices.flatMap((d) => (d.cycleId ? [d.cycleId] : []));
+    const cycles = await this.prisma.productionCycle.findMany({
+      where: {
+        AND: [{ id: { in: ids } }, scopedCycleReadWhere(actor)],
+      },
+      select: { id: true },
+    });
+    const visible = new Set(cycles.map((c) => c.id));
+    return devices.map((d) => ({
+      ...d,
+      cycleId: d.cycleId && visible.has(d.cycleId) ? d.cycleId : null,
+      cycle: d.cycleId && visible.has(d.cycleId) ? d.cycle : null,
+    }));
   }
 
   async createDevice(input: CreateIotDeviceDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, ['SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER']);
     return commandTransaction(this.prisma, async (tx) => {
       if (
@@ -74,6 +114,7 @@ export class IotService {
       ) {
         throw new UnprocessableEntityException('Organization does not exist');
       }
+      let scopedCycle = false;
       if (input.cycleId) {
         const cycle = await tx.productionCycle.findUnique({
           where: { id: input.cycleId },
@@ -82,14 +123,16 @@ export class IotService {
           throw new UnprocessableEntityException(
             'Chu kỳ không thuộc tổ chức đăng ký thiết bị',
           );
+        scopedCycle = Boolean(cycle.chainId);
       }
       const organization = await tx.organization.findUniqueOrThrow({
         where: { id: input.organizationId },
       });
       if (
         organization.status !== 'ACTIVE' ||
-        !['FARM', 'TRANSPORTER'].includes(organization.type) ||
-        (input.cycleId && organization.type !== 'FARM')
+        (!scopedCycle &&
+          (!['FARM', 'TRANSPORTER'].includes(organization.type) ||
+            (input.cycleId && organization.type !== 'FARM')))
       )
         throw new UnprocessableEntityException(
           'Tổ chức đăng ký thiết bị không hợp lệ',
@@ -107,6 +150,8 @@ export class IotService {
   }
 
   async ingest(input: IngestSensorReadingDto, authenticatedActor?: Actor) {
+    if (authenticatedActor)
+      authenticatedActor = effectiveCommandActor(authenticatedActor);
     if (authenticatedActor)
       assertBusinessActor(authenticatedActor, FARM_WRITE_ROLES);
     return commandTransaction(this.prisma, async (tx) => {
@@ -162,6 +207,7 @@ export class IotService {
     input: CreateSensorDigestDto,
     actor: Actor,
   ) {
+    actor = effectiveCommandActor(actor);
     await this.assertCycleOwner(cycleId, actor);
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'cycle', cycleId);
@@ -246,6 +292,8 @@ export class IotService {
     authenticatedActor?: Actor,
   ) {
     if (authenticatedActor)
+      authenticatedActor = effectiveCommandActor(authenticatedActor);
+    if (authenticatedActor)
       assertBusinessActor(authenticatedActor, TRANSPORT_WRITE_ROLES);
     return commandTransaction(this.prisma, async (tx) => {
       const shipment = await tx.shipment.findUnique({
@@ -325,6 +373,7 @@ export class IotService {
     input: BindShipmentDeviceDto,
     actor: Actor,
   ) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, TRANSPORT_WRITE_ROLES);
     const shipment = await this.prisma.shipment.findUnique({
       where: { id: shipmentId },
@@ -380,6 +429,7 @@ export class IotService {
     deviceId: string,
     actor: Actor,
   ) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, TRANSPORT_WRITE_ROLES);
     const shipment = await this.prisma.shipment.findUnique({
       where: { id: shipmentId },
@@ -416,6 +466,7 @@ export class IotService {
     input: CreateTelemetryDigestDto,
     actor: Actor,
   ) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, TRANSPORT_WRITE_ROLES);
     return commandTransaction(this.prisma, async (tx) => {
       const shipment = await tx.shipment.findUnique({

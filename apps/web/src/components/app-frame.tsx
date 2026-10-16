@@ -1,38 +1,75 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
-  PanelLeftClose,
-  PanelLeftOpen,
-  X,
+  BadgeCheck,
+  Blocks,
+  Ellipsis,
+  House,
   LayoutDashboard,
+  LogOut,
+  Menu,
+  Network,
   Package,
   ScanLine,
-  Thermometer,
-  Blocks,
   Search,
-  Home,
-  LogOut,
+  Settings2,
+  Sprout,
+  Thermometer,
+  X,
+  type LucideIcon,
 } from "lucide-react";
-import { PublicHeader } from "./landing-navigation";
+import { SiteFooter, ZaloFloat } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
+import { BrandLogo } from "@/components/ui/brand-logo";
 import { getLots } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
 import type { LotTrace } from "@/lib/types";
 import { canAccessManagementRoute } from "@/lib/permissions";
 import { getAuthorizationScope } from "@/lib/auth-scope";
+import { PERMISSION_SYNC_EVENT } from "@/lib/permission-sync";
+import { PendingCommandsPanel } from "./pending-commands-panel";
 
-const navigation = [
-  { href: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
-  { href: "/admin", label: "Quản trị", icon: Blocks },
-  { href: "/production-cycles", label: "Vụ trồng", icon: LayoutDashboard },
-  { href: "/lots", label: "Lô nông sản", icon: Package },
-  { href: "/compliance", label: "Kiểm định, chứng nhận", icon: Blocks },
-  { href: "/scan", label: "Quét mã QR", icon: ScanLine },
-  { href: "/iot-simulator", label: "Cảm biến IoT", icon: Thermometer },
+type NavItem = { href: string; label: string; icon: LucideIcon };
+
+const navigationGroups: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Vận hành",
+    items: [
+      { href: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
+      { href: "/production-cycles", label: "Vụ trồng", icon: Sprout },
+      { href: "/lots", label: "Lô nông sản", icon: Package },
+      { href: "/supply-chains", label: "Chuỗi và đối tác", icon: Network },
+      { href: "/enterprise", label: "Kết nối doanh nghiệp", icon: Blocks },
+    ],
+  },
+  {
+    title: "Tuân thủ",
+    items: [
+      {
+        href: "/compliance",
+        label: "Kiểm định, chứng nhận",
+        icon: BadgeCheck,
+      },
+    ],
+  },
+  {
+    title: "Hệ thống",
+    items: [
+      { href: "/admin", label: "Quản trị", icon: Settings2 },
+      { href: "/iot-simulator", label: "Cảm biến IoT", icon: Thermometer },
+      { href: "/scan", label: "Quét mã QR", icon: ScanLine },
+    ],
+  },
 ];
+
+function isActive(pathname: string, href: string) {
+  return href === "/dashboard"
+    ? pathname === "/dashboard"
+    : pathname.startsWith(href.split("/").slice(0, 2).join("/"));
+}
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -41,9 +78,9 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const isPublic =
     pathname === "/" ||
     pathname === "/login" ||
+    pathname === "/register" ||
     pathname === "/scan" ||
     pathname.startsWith("/trace/");
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileDialog = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
@@ -52,7 +89,12 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     scope?: string;
     lots: LotTrace[];
   }>({ lots: [] });
-  const lots = searchData.scope === authorizationScope ? searchData.lots : [];
+  const privateAccessReady =
+    !auth.privateAccessStatus || auth.privateAccessStatus === "ready";
+  const lots =
+    privateAccessReady && searchData.scope === authorizationScope
+      ? searchData.lots
+      : [];
   const [searchFailed, setSearchFailed] = useState(false);
   useEffect(() => {
     let active = true;
@@ -100,10 +142,15 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   if (isPublic)
     return (
       <div className="public-shell">
-        <PublicHeader />
+        <a className="skip-link" href="#main-content">
+          Đi đến nội dung
+        </a>
+        <SiteHeader />
         <main className="public-content" id="main-content">
           {children}
         </main>
+        <SiteFooter />
+        <ZaloFloat />
       </div>
     );
   if (auth.isLoading || !auth.isAuthenticated || !auth.user)
@@ -114,45 +161,79 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     );
 
   const role = auth.user.role.code;
-  if (!canAccessManagementRoute(pathname, role))
+  if (!canAccessManagementRoute(pathname, role, auth.user?.productionAccess))
     return (
       <main className="public-content">
         <div className="notice error" role="alert">
           Bạn không có quyền sử dụng chức năng này.
         </div>
-        <Link href="/dashboard">Về tổng quan</Link>
+        <Link className="text-link" href="/dashboard">
+          Về tổng quan
+        </Link>
       </main>
     );
   const roleName = auth.user.role.name || auth.user.role.code;
+  const groups = navigationGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(({ href }) =>
+        canAccessManagementRoute(href, role, auth.user?.productionAccess),
+      ),
+    }))
+    .filter((group) => group.items.length);
+  const allowed = groups.flatMap((group) => group.items);
+  const matching = query.trim().toLocaleLowerCase("vi")
+    ? lots.filter((lot) =>
+        `${lot.productName} ${lot.lotCode} ${lot.farmOrg.name}`
+          .toLocaleLowerCase("vi")
+          .includes(query.trim().toLocaleLowerCase("vi")),
+      )
+    : [];
+  const renderGroups = (onNavigate?: () => void) =>
+    groups.map((group) => (
+      <div className="nav-group" key={group.title}>
+        <p className="nav-group-title">{group.title}</p>
+        {group.items.map(({ href, label, icon: Icon }) => (
+          <Link
+            className="nav-link"
+            href={href}
+            key={href}
+            title={label}
+            aria-current={isActive(pathname, href) ? "page" : undefined}
+            onClick={onNavigate}
+          >
+            <Icon size={20} />
+            <span>{label}</span>
+          </Link>
+        ))}
+      </div>
+    ));
+
   return (
-    <div
-      className="app-shell"
-      data-collapsed={collapsed}
-      data-mobile-open={mobileOpen}
-    >
-      <a className="app-skip-link" href="#main-content">
+    <div className="app-shell" data-mobile-open={mobileOpen}>
+      <a className="skip-link" href="#main-content">
         Đi đến nội dung
       </a>
       <header className="topbar">
+        <button
+          className="icon-button menu-button"
+          type="button"
+          aria-label={mobileOpen ? "Đóng điều hướng" : "Mở điều hướng"}
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-management-navigation"
+          onClick={() => setMobileOpen(!mobileOpen)}
+        >
+          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
         <Link
           className="brand"
           href="/dashboard"
           aria-label="AgriTrace - Tổng quan"
         >
-          <Image
-            className="brand-logo"
-            src="/agritrace/brand/agritrace-logo.svg"
-            alt="AgriTrace"
-            width={260}
-            height={72}
-            priority
-          />
-          <span className="brand-text">
-            <span className="brand-sub">Truy xuất nguồn gốc nông sản</span>
-          </span>
+          <BrandLogo height={40} priority />
         </Link>
         <div className="header-search">
-          <Search size={20} />
+          <Search size={18} />
           <input
             aria-label="Tìm lô nông sản"
             placeholder="Tìm nông sản, mã lô, trang trại..."
@@ -164,44 +245,26 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           />
           {query.trim() && (
             <div className="search-results">
-              {lots
-                .filter((lot) =>
-                  `${lot.productName} ${lot.lotCode} ${lot.farmOrg.name}`
-                    .toLocaleLowerCase("vi")
-                    .includes(query.trim().toLocaleLowerCase("vi")),
-                )
-                .map((lot) => (
-                  <Link
-                    key={lot.lotId}
-                    href={`/lots/${lot.lotId}`}
-                    onClick={() => setQuery("")}
-                  >
-                    <strong>{lot.productName}</strong>
-                    <span>{lot.lotCode}</span>
-                  </Link>
-                ))}
+              {matching.map((lot) => (
+                <Link
+                  key={lot.lotId}
+                  href={`/lots/${lot.lotId}`}
+                  onClick={() => setQuery("")}
+                >
+                  <strong>{lot.productName}</strong>
+                  <span>{lot.lotCode}</span>
+                </Link>
+              ))}
               {searchFailed ? (
                 <p>Chưa tải được danh sách lô.</p>
               ) : (
-                !lots.some((lot) =>
-                  `${lot.productName} ${lot.lotCode} ${lot.farmOrg.name}`
-                    .toLocaleLowerCase("vi")
-                    .includes(query.trim().toLocaleLowerCase("vi")),
-                ) && <p>Không tìm thấy lô phù hợp.</p>
+                !matching.length && <p>Không tìm thấy lô phù hợp.</p>
               )}
             </div>
           )}
         </div>
-        <Link
-          className="icon-button home-link"
-          href="/"
-          aria-label="Trang giới thiệu"
-          title="Trang giới thiệu"
-        >
-          <Home size={19} />
-        </Link>
         <div className="topbar-meta">
-          <span className="workspace-avatar">
+          <span className="workspace-avatar" aria-hidden="true">
             {auth.user.fullName.slice(0, 2).toUpperCase()}
           </span>
           <span>
@@ -209,6 +272,14 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             <small>{roleName}</small>
           </span>
         </div>
+        <Link
+          className="icon-button"
+          href="/"
+          aria-label="Trang giới thiệu"
+          title="Trang giới thiệu"
+        >
+          <House size={19} />
+        </Link>
         <button
           className="icon-button"
           title="Đăng xuất"
@@ -225,30 +296,6 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           }}
         >
           <LogOut size={19} />
-        </button>
-        <button
-          className="icon-button desktop-toggle"
-          title={collapsed ? "Mở rộng điều hướng" : "Thu gọn điều hướng"}
-          aria-label={collapsed ? "Mở rộng điều hướng" : "Thu gọn điều hướng"}
-          aria-expanded={!collapsed}
-          aria-controls="main-navigation"
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? (
-            <PanelLeftOpen size={21} />
-          ) : (
-            <PanelLeftClose size={21} />
-          )}
-        </button>
-        <button
-          className="icon-button mobile-toggle"
-          title="Điều hướng"
-          aria-label={mobileOpen ? "Đóng điều hướng" : "Mở điều hướng"}
-          aria-expanded={mobileOpen}
-          aria-controls="mobile-management-navigation"
-          onClick={() => setMobileOpen(!mobileOpen)}
-        >
-          {mobileOpen ? <X size={21} /> : <PanelLeftOpen size={21} />}
         </button>
       </header>
       <dialog
@@ -274,80 +321,21 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           <strong>{auth.user.fullName}</strong>
           <span>{roleName}</span>
         </div>
-        <nav
-          className="nav-list"
-          aria-label="Điều hướng quản lý trên điện thoại"
-        >
-          {navigation
-            .filter(({ href }) => canAccessManagementRoute(href, role))
-            .map(({ href, label, icon: Icon }) => (
-              <Link
-                className="nav-link"
-                href={href}
-                key={href}
-                aria-current={
-                  pathname === href || pathname.startsWith(href + "/")
-                    ? "page"
-                    : undefined
-                }
-                onClick={() => setMobileOpen(false)}
-              >
-                <Icon size={21} />
-                <span>{label}</span>
-              </Link>
-            ))}
+        <nav aria-label="Điều hướng quản lý trên điện thoại">
+          {renderGroups(() => setMobileOpen(false))}
         </nav>
         <Link
           className="button secondary"
           href="/"
           onClick={() => setMobileOpen(false)}
         >
-          <Home size={18} /> Trang giới thiệu
+          <House size={18} /> Trang giới thiệu
         </Link>
       </dialog>
       <div className="layout">
         <aside className="sidebar" id="main-navigation">
-          <p className="sidebar-heading">Không gian quản lý</p>
-          <nav className="nav-list" aria-label="Điều hướng chính">
-            {navigation
-              .filter(({ href }) => canAccessManagementRoute(href, role))
-              .map(({ href, label, icon: Icon }) => {
-                const active =
-                  href === "/dashboard"
-                    ? pathname === "/dashboard"
-                    : pathname.startsWith(
-                        href.split("/").slice(0, 2).join("/"),
-                      );
-                return (
-                  <Link
-                    className="nav-link"
-                    href={href}
-                    key={href}
-                    title={label}
-                    aria-current={active ? "page" : undefined}
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    <Icon size={21} />
-                    <span>{label}</span>
-                  </Link>
-                );
-              })}
-          </nav>
-          <div className="sidebar-garden">
-            <Image
-              src="/farm-landscape.png"
-              alt=""
-              className="sidebar-garden-photo"
-              fill
-              sizes="260px"
-            />
-            <p className="sidebar-garden-caption">
-              Nông sản minh bạch
-              <br />
-              Giá trị bền vững
-            </p>
-          </div>
-          <div className="sidebar-network">
+          <nav aria-label="Điều hướng chính">{renderGroups()}</nav>
+          <div className="sidebar-footer">
             <Blocks size={22} />
             <div>
               <strong>Hyperledger Fabric</strong>
@@ -356,10 +344,38 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
         <main className="content" id="main-content">
+          {!privateAccessReady && (
+            <div
+              className="notice"
+              role={
+                auth.privateAccessStatus === "unavailable" ? "alert" : "status"
+              }
+            >
+              {auth.privateAccessStatus === "unavailable"
+                ? "Chưa kiểm tra được quyền hiện hành. Dữ liệu riêng đang được ẩn."
+                : "Đang kiểm tra quyền hiện hành…"}
+              {auth.privateAccessStatus === "unavailable" && (
+                <button
+                  className="button secondary"
+                  onClick={() =>
+                    window.dispatchEvent(new Event(PERMISSION_SYNC_EVENT))
+                  }
+                >
+                  Kiểm tra lại
+                </button>
+              )}
+            </div>
+          )}
           <div
             className="page-content"
             key={`${authorizationScope}:${pathname}`}
+            hidden={!privateAccessReady}
+            style={privateAccessReady ? undefined : { display: "none" }}
           >
+            <PendingCommandsPanel
+              key={authorizationScope}
+              onSettled={() => window.location.reload()}
+            />
             {children}
           </div>
           <footer className="footer">
@@ -368,6 +384,26 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           </footer>
         </main>
       </div>
+      <nav className="bottom-nav" aria-label="Điều hướng nhanh">
+        {allowed.slice(0, 4).map(({ href, label, icon: Icon }) => (
+          <Link
+            href={href}
+            key={href}
+            aria-current={isActive(pathname, href) ? "page" : undefined}
+          >
+            <Icon size={20} />
+            <span>{label.split(",")[0]}</span>
+          </Link>
+        ))}
+        <button
+          type="button"
+          aria-label="Mở thêm điều hướng"
+          onClick={() => setMobileOpen(true)}
+        >
+          <Ellipsis size={20} />
+          <span>Thêm</span>
+        </button>
+      </nav>
     </div>
   );
 }

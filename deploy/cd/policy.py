@@ -14,10 +14,9 @@ _spec.loader.exec_module(targets)
 
 SHA = re.compile(r"^[a-f0-9]{40}$")
 DIGEST = re.compile(r"^[a-f0-9]{64}$")
-OPERATIONS = {"deploy", "upgrade", "rollback", "recover", "status", "backup"}
-FIXED_FILES = {"docker-compose.uat.yml", "docker-compose.uat-https.yml", "docker-compose.uat-fabric.yml", "deploy/Caddyfile.uat"}
+OPERATIONS = {"deploy", "upgrade", "forward", "rollback", "recover", "status", "backup"}
 MAX_AUTH_HEADER = 16 * 1024
-CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify.mjs", "session-auth.mjs", "entry")
+CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify-hosted.mjs", "session-auth.mjs", "entry")
 
 
 class PolicyError(Exception):
@@ -65,11 +64,11 @@ def command(value):
     parts = value.split(" ")
     require(all(parts) and parts[0] in OPERATIONS, "Unsupported CD command")
     op = parts[0]
-    expected = {"status": 1, "recover": 1, "rollback": 2, "backup": 2, "deploy": 3, "upgrade": 4}[op]
+    expected = {"status": 1, "recover": 1, "rollback": 2, "backup": 2, "deploy": 3, "forward": 3, "upgrade": 4}[op]
     require(len(parts) == expected, "Invalid CD command arguments")
     if expected > 1:
         require(bool(SHA.fullmatch(parts[1])), "Invalid commit SHA")
-    if op in {"deploy", "upgrade"}:
+    if op in {"deploy", "upgrade", "forward"}:
         require(bool(DIGEST.fullmatch(parts[2])), "Invalid archive checksum")
     if op == "upgrade":
         require(bool(re.fullmatch(r"[1-9][0-9]{0,8}", parts[3])), "Invalid expected sequence")
@@ -115,7 +114,7 @@ def https_origins(origin):
 
 
 def allowed_file(name):
-    if name in FIXED_FILES | targets.APP_FILES:
+    if name in targets.APP_FILES | targets.OPTIONAL_APP_FILES:
         return True
     if re.fullmatch(r"apps/api/prisma/migrations/[a-zA-Z0-9_-]+/migration.sql", name):
         return True
@@ -133,26 +132,23 @@ def fingerprint(files):
     return sha256(json.dumps(selected, sort_keys=True, separators=(",", ":")).encode())
 
 
-def validate_manifest(manifest, sha, repository, origin, target=None):
-    require(manifest.get("format") == (2 if target else 1) and manifest.get("sha") == sha, "Manifest commit/format mismatch")
+def validate_manifest(manifest, sha, repository, origin, target):
+    require(manifest.get("format") == 2 and manifest.get("sha") == sha, "Manifest commit/format mismatch")
     require(manifest.get("repository") == repository and manifest.get("origin") == origin, "Manifest deployment target mismatch")
     require(valid_public_origin(origin), "Invalid public deployment origin")
     require(isinstance(manifest.get("files"), dict) and 3 <= len(manifest["files"]) <= 1000, "Invalid manifest file list")
-    if target:
-        targets.validate_target(target, require)
-        for name in ("environment", "branch", "project", "profile"):
-            require(manifest.get(name) == target[name], "Manifest environment binding mismatch")
-        required = targets.APP_FILES
-        require(not FIXED_FILES.intersection(manifest["files"]), "Legacy proxy configuration is not an app delivery")
-    else:
-        required = FIXED_FILES
-    require(required <= manifest["files"].keys(), "Missing deployment configuration")
+    targets.validate_target(target, require)
+    for name in ("environment", "branch", "project", "profile"):
+        require(manifest.get(name) == target[name], "Manifest environment binding mismatch")
+    require(targets.APP_FILES <= manifest["files"].keys(), "Missing deployment configuration")
     for name, digest in manifest["files"].items():
         require(allowed_file(name) and isinstance(digest, str) and bool(DIGEST.fullmatch(digest)), "Invalid release file")
     require(manifest.get("chaincode") == fingerprint(manifest["files"]), "Chaincode fingerprint mismatch")
     require("blockchain/chaincode/dist/index.js" in manifest["files"], "Compiled chaincode is missing")
     image(manifest.get("api"), repository, "api")
     image(manifest.get("web"), repository, "web")
+    if "chaincodeImage" in manifest:
+        image(manifest["chaincodeImage"], repository, "chaincode")
     controller = manifest.get("controller", {})
     require(set(controller) == set(CONTROLLER_FILES) and
             all(isinstance(value, str) and DIGEST.fullmatch(value) for value in controller.values()), "Controller version metadata is missing")
@@ -161,7 +157,7 @@ def validate_manifest(manifest, sha, repository, origin, target=None):
     return manifest
 
 
-def extract(archive, destination, sha, repository, origin, target=None):
+def extract(archive, destination, sha, repository, origin, target):
     """Extract only validated regular files; never tarfile.extractall."""
     destination = Path(destination)
     require(not destination.exists(), "Release directory already exists")
@@ -245,7 +241,48 @@ def additive_sql(sql):
     require(bool(statements(sql)), "Empty migration is not allowed")
 
 
-def migrations(applied, candidate, directory, compatible_missing=()):
+HYBRID_MIGRATION = re.compile(r"^[0-9]+_hybrid_")
+
+
+def reviewed_migrations(value):
+    """Only installed root-owned configuration may admit non-additive SQL.
+
+    Release bundles cannot supply or widen this catalog. Admission is an exact
+    byte checksum, with a mandatory protocol floor; it is never a parser bypass
+    for an arbitrary migration name or a declaration of rollback compatibility.
+    """
+    require(isinstance(value, dict), "Invalid reviewed migration catalog")
+    for name, review in value.items():
+        require(isinstance(name, str) and bool(re.fullmatch(r"[a-zA-Z0-9_-]+", name)), "Invalid reviewed migration name")
+        require(isinstance(review, dict) and set(review) == {"checksum", "protocol"} and
+                isinstance(review.get("checksum"), str) and bool(DIGEST.fullmatch(review["checksum"])) and
+                review.get("protocol") == "hybrid-abc/1", "Migration review requires an exact checksum and Hybrid protocol floor")
+    return value
+
+
+def application_floor(candidate, floor):
+    require(isinstance(floor, dict), "Invalid Hybrid migration floor")
+    require(all(candidate.get(name) == digest for name, digest in floor.items()),
+            "Application crosses the protected Hybrid migration floor; use a compatible image or approved fix-forward")
+
+
+def capacity_budget(host_bytes, limits, reserve_percent=20):
+    require(type(host_bytes) is int and host_bytes > 0 and type(reserve_percent) is int and 20 <= reserve_percent < 100,
+            "Capacity must reserve at least 20 percent of host memory")
+    require(isinstance(limits, dict) and bool(limits) and all(type(value) is int and value > 0 for value in limits.values()),
+            "Every running/proposed container must have a positive memory quota")
+    total = sum(limits.values())
+    require(total * 100 <= host_bytes * (100 - reserve_percent), "Combined legacy/hosted memory quota exceeds reserved host capacity")
+    return {"hostBytes": host_bytes, "containerBytes": total, "reservedBytes": host_bytes - total, "minimumReservePercent": reserve_percent}
+
+
+def migrations(applied, candidate, directory, compatible_missing=(), reviewed=None, floor=None):
+    reviews = reviewed_migrations(reviewed or {})
+    protected = dict(floor or {})
+    for name, digest in applied.items():
+        if HYBRID_MIGRATION.match(name) or name in reviews:
+            protected[name] = digest
+    application_floor(candidate, protected)
     for name, digest in applied.items():
         if name not in candidate:
             require(name in compatible_missing, "Applied migration is absent from release")
@@ -266,5 +303,10 @@ def migrations(applied, candidate, directory, compatible_missing=()):
         require(not applied or name > max(applied), "New migrations must append to history")
         script = (Path(directory) / "apps/api/prisma/migrations" / name / "migration.sql").read_bytes()
         require(sha256(script) == candidate[name], "Migration source checksum mismatch")
-        additive_sql(script.decode("utf-8"))
+        review = reviews.get(name)
+        if review is not None:
+            require(candidate[name] == review["checksum"], "New migration differs from its reviewed checksum")
+        else:
+            require(not HYBRID_MIGRATION.match(name), "Hybrid migration requires an installed checksum review")
+            additive_sql(script.decode("utf-8"))
     return new

@@ -17,6 +17,10 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
+import {
+  CommandPolicy,
+  CommandRecoveryRead,
+} from '../auth/command-policy.decorator.js';
 import { RecordHarvestDto } from './dto.js';
 import { LotHarvestService } from './lot-harvest.service.js';
 import { LotQueryService } from './lot-query.service.js';
@@ -34,6 +38,7 @@ import {
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller()
+@CommandPolicy()
 export class LotsController {
   constructor(
     private readonly harvests: LotHarvestService,
@@ -42,6 +47,7 @@ export class LotsController {
     private readonly harvestStatus: HarvestRequestStatusService,
   ) {}
   @Roles(...FARM_WRITE_ROLES)
+  @CommandRecoveryRead()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Header('Cache-Control', 'no-store')
   @Get('production-cycles/:cycleId/harvest-request-status')

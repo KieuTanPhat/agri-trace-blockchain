@@ -16,14 +16,18 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   commandTransaction,
   lockAggregate,
+  effectiveCommandActor,
 } from '../../common/idempotency/command-transaction.js';
 import { assertQuantityReconciled, quantity } from '../../common/quantity.js';
 import { businessTimestamp } from '../../common/timestamp.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
-import { assignedFarmWhere } from '../auth/compliance-scope.js';
 import type { Actor } from '../trace/trace.service.js';
 import { TraceService } from '../trace/trace.service.js';
+import {
+  scopedShipmentReadWhere,
+  scopedCycleReadWhere,
+} from '../supply-chains/business-read-scope.js';
 import type {
   CreateShipmentDto,
   DamageShipmentDto,
@@ -31,6 +35,20 @@ import type {
   RejectShipmentDto,
   ShipmentTransitionDto,
 } from './dto.js';
+
+/** The digest a shipment exposes: its final digest when one exists, otherwise
+ * the newest window digest (the chain head). Never an arbitrary row. */
+const TELEMETRY_DIGEST_HEAD = {
+  orderBy: [{ isFinal: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+  take: 1,
+} satisfies Prisma.Shipment$telemetryDigestsArgs;
+
+function withTelemetryDigestHead<D, T extends { telemetryDigests: D[] }>({
+  telemetryDigests,
+  ...shipment
+}: T): Omit<T, 'telemetryDigests'> & { telemetryDigest: D | null } {
+  return { ...shipment, telemetryDigest: telemetryDigests[0] ?? null };
+}
 
 @Injectable()
 export class ShipmentsService {
@@ -41,81 +59,65 @@ export class ShipmentsService {
   ) {}
 
   list(actor: Actor) {
-    const unrestricted = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role);
-    return this.prisma.shipment.findMany({
-      where: unrestricted
-        ? undefined
-        : actor.role === 'COMPLIANCE_REVIEWER'
-          ? { lot: { harvest: { cycle: { farm: assignedFarmWhere(actor) } } } }
-          : {
-              OR: [
-                {
-                  transporterOrgId:
-                    actor.organizationId ??
-                    '00000000-0000-0000-0000-000000000000',
-                },
-                {
-                  retailerOrgId:
-                    actor.organizationId ??
-                    '00000000-0000-0000-0000-000000000000',
-                },
-                {
-                  lot: {
-                    farmOrgId:
-                      actor.organizationId ??
-                      '00000000-0000-0000-0000-000000000000',
-                  },
-                },
-              ],
+    return this.prisma.shipment
+      .findMany({
+        where: scopedShipmentReadWhere(actor),
+        include: {
+          transporter: { select: { id: true, name: true, type: true } },
+          retailer: { select: { id: true, name: true, type: true } },
+          lot: {
+            include: {
+              product: { select: { id: true, productName: true } },
+              organization: { select: { id: true, name: true, type: true } },
             },
-      include: {
-        transporter: { select: { id: true, name: true, type: true } },
-        retailer: { select: { id: true, name: true, type: true } },
-        lot: {
-          include: {
-            product: { select: { id: true, productName: true } },
-            organization: { select: { id: true, name: true, type: true } },
           },
+          telemetryDigests: TELEMETRY_DIGEST_HEAD,
+          _count: { select: { telemetry: true } },
         },
-        telemetryDigest: true,
-        _count: { select: { telemetry: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      })
+      .then((shipments) => shipments.map(withTelemetryDigestHead));
   }
 
   async get(id: string, actor: Actor) {
-    if (actor.role === 'COMPLIANCE_REVIEWER')
-      await this.access.assertShipmentAccess(actor, id);
-    const shipment = await this.prisma.shipment.findUnique({
-      where: { id },
+    await this.access.assertShipmentAccess(actor, id);
+    const shipment = await this.prisma.shipment.findFirst({
+      where: { AND: [{ id }, scopedShipmentReadWhere(actor)] },
       include: {
         transporter: true,
         retailer: true,
         lot: { include: { product: true, organization: true } },
         telemetry: { orderBy: { recordedAt: 'desc' }, take: 100 },
-        telemetryDigest: true,
+        telemetryDigests: TELEMETRY_DIGEST_HEAD,
         trackingBindings: { include: { device: true } },
       },
     });
     if (!shipment)
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
-    if (
-      !['SYSTEM_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER'].includes(
-        actor.role,
-      ) &&
-      (!actor.organizationId ||
-        ![
-          shipment.lot.farmOrgId,
-          shipment.transporterOrgId,
-          shipment.retailerOrgId,
-        ].includes(actor.organizationId))
-    )
-      throw new ForbiddenException(
-        'Tổ chức hiện tại không có quyền xem chuyến hàng',
-      );
+    const ids = shipment.trackingBindings.flatMap((binding) =>
+      binding.device.cycleId ? [binding.device.cycleId] : [],
+    );
+    const visibleCycles = ids.length
+      ? await this.prisma.productionCycle.findMany({
+          where: {
+            AND: [{ id: { in: ids } }, scopedCycleReadWhere(actor)],
+          },
+          select: { id: true },
+        })
+      : [];
+    const visible = new Set(visibleCycles.map((cycle) => cycle.id));
     return {
-      ...shipment,
+      ...withTelemetryDigestHead(shipment),
+      trackingBindings: shipment.trackingBindings.map((binding) => ({
+        ...binding,
+        device: {
+          ...binding.device,
+          cycleId:
+            binding.device.cycleId && visible.has(binding.device.cycleId)
+              ? binding.device.cycleId
+              : null,
+        },
+      })),
       telemetry: shipment.telemetry.map((reading) => ({
         ...reading,
         deviceSequence: reading.deviceSequence?.toString() ?? null,
@@ -215,7 +217,9 @@ export class ShipmentsService {
   }
 
   async start(id: string, input: ShipmentTransitionDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertOrg(id, actor, 'transporter');
+    this.assertStandardHandover(shipment);
     return this.transition(
       shipment.id,
       shipment.lotId,
@@ -230,7 +234,9 @@ export class ShipmentsService {
   }
 
   async arrive(id: string, input: ShipmentTransitionDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertOrg(id, actor, 'transporter');
+    this.assertStandardHandover(shipment);
     return this.transition(
       shipment.id,
       shipment.lotId,
@@ -245,6 +251,7 @@ export class ShipmentsService {
   }
 
   async receive(id: string, input: ReceiveShipmentDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertOrg(id, actor, 'retailer');
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'lot', shipment.lotId);
@@ -329,6 +336,7 @@ export class ShipmentsService {
   }
 
   async reject(id: string, input: RejectShipmentDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertOrg(id, actor, 'retailer');
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'lot', shipment.lotId);
@@ -383,6 +391,7 @@ export class ShipmentsService {
   }
 
   async damage(id: string, input: DamageShipmentDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     const shipment = await this.getAndAssertCurrentCustodian(id, actor);
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'lot', shipment.lotId);
@@ -489,66 +498,149 @@ export class ShipmentsService {
     eventType: string,
     actor: Actor,
   ) {
-    return commandTransaction(this.prisma, async (tx) => {
-      await lockAggregate(tx, 'lot', lotId);
-      const currentShipment = await this.getAndAssertOrg(
+    return commandTransaction(this.prisma, (tx) =>
+      this.transitionInTransaction(tx, {
         shipmentId,
-        actor,
-        'transporter',
-        tx,
-      );
-      const lot = await tx.lot.findUniqueOrThrow({
-        where: { id: lotId },
-        include: { harvest: { select: { harvestTime: true } } },
-      });
-      if (currentShipment.status !== fromShipment)
-        throw new ConflictException('Trạng thái chuyến hàng đã thay đổi');
-      const previousTime =
-        fromShipment === 'CREATED'
-          ? lot.harvest.harvestTime
-          : currentShipment.pickupTime;
-      if (!previousTime)
-        throw new ConflictException('Chưa có mốc bàn giao trước đó hợp lệ');
-      const occurredAt = this.time(input, previousTime);
-      await assertQuantityReconciled(tx, lot);
-      if (!lot.availableQuantity.greaterThan(0))
-        throw new ConflictException('Lô không còn lượng khả dụng');
-      const s = await tx.shipment.updateMany({
-        where: { id: shipmentId, version: input.version, status: fromShipment },
-        data: {
-          status: toShipment,
-          version: { increment: 1 },
-          ...(toShipment === 'IN_TRANSIT'
-            ? { pickupTime: occurredAt }
-            : { arrivalTime: occurredAt }),
-        },
-      });
-      const l = await tx.lot.updateMany({
-        where: { id: lotId, version: input.lotVersion, currentState: fromLot },
-        data: { currentState: toLot, version: { increment: 1 } },
-      });
-      if (s.count !== 1 || l.count !== 1)
-        throw new ConflictException('Version hoặc trạng thái đã thay đổi');
-      await this.trace.createInTransaction(tx, {
-        entityType: 'SHIPMENT',
-        entityId: shipmentId,
         lotId,
+        input,
+        fromShipment,
+        toShipment,
+        fromLot,
+        toLot,
         eventType,
         actor,
-        eventTime: occurredAt,
-        businessData: {
-          shipmentStateBefore: fromShipment,
-          shipmentStateAfter: toShipment,
-          lotStateBefore: fromLot,
-          lotStateAfter: toLot,
-          lotVersionBefore: lot.version,
-          lotVersionAfter: lot.version + 1,
-          shipmentVersionBefore: currentShipment.version,
-          shipmentVersionAfter: currentShipment.version + 1,
-        },
-      });
-      return tx.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+        party: 'transporter',
+      }),
+    );
+  }
+
+  /** Release C: the receiver's confirmation of a signed offer is the only
+   * thing that may start or complete a DUAL_SIGNED shipment. The caller (the
+   * handover service) has already authorized the receiver and verified the
+   * versions; the database trigger independently requires the confirmed row. */
+  async applyHandoverTransition(
+    tx: Prisma.TransactionClient,
+    args: {
+      shipmentId: string;
+      kind: 'PICKUP' | 'ARRIVAL';
+      actor: Actor;
+      shipmentVersion: number;
+      lotVersion: number;
+      handoverId: string;
+      confirmEventId: string;
+    },
+  ) {
+    const shipment = await tx.shipment.findUniqueOrThrow({
+      where: { id: args.shipmentId },
     });
+    const pickup = args.kind === 'PICKUP';
+    return this.transitionInTransaction(tx, {
+      shipmentId: shipment.id,
+      lotId: shipment.lotId,
+      input: {
+        version: args.shipmentVersion,
+        lotVersion: args.lotVersion,
+      } as ShipmentTransitionDto,
+      fromShipment: pickup ? 'CREATED' : 'IN_TRANSIT',
+      toShipment: pickup ? 'IN_TRANSIT' : 'ARRIVED',
+      fromLot: pickup ? 'HARVESTED' : 'IN_TRANSPORT',
+      toLot: pickup ? 'IN_TRANSPORT' : 'ARRIVED',
+      eventType: pickup ? 'SHIPMENT_STARTED' : 'SHIPMENT_ARRIVED',
+      actor: args.actor,
+      party: null,
+      handover: {
+        handoverId: args.handoverId,
+        confirmEventId: args.confirmEventId,
+      },
+    });
+  }
+
+  private assertStandardHandover(shipment: { handoverMode: string }) {
+    if (shipment.handoverMode === 'DUAL_SIGNED')
+      throw new ConflictException(
+        'Chuyến hàng này yêu cầu bàn giao hai bên có chữ ký (HANDOVER_REQUIRED)',
+      );
+  }
+
+  private async transitionInTransaction(
+    tx: Prisma.TransactionClient,
+    a: {
+      shipmentId: string;
+      lotId: string;
+      input: ShipmentTransitionDto;
+      fromShipment: 'CREATED' | 'IN_TRANSIT';
+      toShipment: 'IN_TRANSIT' | 'ARRIVED';
+      fromLot: 'HARVESTED' | 'IN_TRANSPORT';
+      toLot: 'IN_TRANSPORT' | 'ARRIVED';
+      eventType: string;
+      actor: Actor;
+      party: 'transporter' | null;
+      handover?: { handoverId: string; confirmEventId: string };
+    },
+  ) {
+    const { shipmentId, lotId, input, fromShipment, toShipment } = a;
+    await lockAggregate(tx, 'lot', lotId);
+    const currentShipment = a.party
+      ? await this.getAndAssertOrg(shipmentId, a.actor, a.party, tx)
+      : await tx.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+    if (!a.handover) this.assertStandardHandover(currentShipment);
+    const lot = await tx.lot.findUniqueOrThrow({
+      where: { id: lotId },
+      include: { harvest: { select: { harvestTime: true } } },
+    });
+    if (currentShipment.status !== fromShipment)
+      throw new ConflictException('Trạng thái chuyến hàng đã thay đổi');
+    const previousTime =
+      fromShipment === 'CREATED'
+        ? lot.harvest.harvestTime
+        : currentShipment.pickupTime;
+    if (!previousTime)
+      throw new ConflictException('Chưa có mốc bàn giao trước đó hợp lệ');
+    const occurredAt = this.time(input, previousTime);
+    await assertQuantityReconciled(tx, lot);
+    if (!lot.availableQuantity.greaterThan(0))
+      throw new ConflictException('Lô không còn lượng khả dụng');
+    const s = await tx.shipment.updateMany({
+      where: { id: shipmentId, version: input.version, status: fromShipment },
+      data: {
+        status: toShipment,
+        version: { increment: 1 },
+        ...(toShipment === 'IN_TRANSIT'
+          ? { pickupTime: occurredAt }
+          : { arrivalTime: occurredAt }),
+      },
+    });
+    const l = await tx.lot.updateMany({
+      where: { id: lotId, version: input.lotVersion, currentState: a.fromLot },
+      data: { currentState: a.toLot, version: { increment: 1 } },
+    });
+    if (s.count !== 1 || l.count !== 1)
+      throw new ConflictException('Version hoặc trạng thái đã thay đổi');
+    await this.trace.createInTransaction(tx, {
+      entityType: 'SHIPMENT',
+      entityId: shipmentId,
+      lotId,
+      eventType: a.eventType,
+      actor: a.actor,
+      eventTime: occurredAt,
+      businessData: {
+        shipmentStateBefore: fromShipment,
+        shipmentStateAfter: toShipment,
+        lotStateBefore: a.fromLot,
+        lotStateAfter: a.toLot,
+        lotVersionBefore: lot.version,
+        lotVersionAfter: lot.version + 1,
+        shipmentVersionBefore: currentShipment.version,
+        shipmentVersionAfter: currentShipment.version + 1,
+        ...(a.handover
+          ? {
+              handoverId: a.handover.handoverId,
+              handoverConfirmEventId: a.handover.confirmEventId,
+            }
+          : {}),
+      },
+    });
+    return tx.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
   }
 
   private async getAndAssertOrg(

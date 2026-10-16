@@ -1,6 +1,6 @@
 "use client";
 import { FormEvent, useId, useRef, useState } from "react";
-import { request } from "@/lib/api-client";
+import { request, retryPendingCommand } from "@/lib/api-client";
 export type Field = {
   name: string;
   label: string;
@@ -32,8 +32,49 @@ export function DataForm({
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [recoveryId, setRecoveryId] = useState("");
+  const [canRestart, setCanRestart] = useState(false);
   const busy = useRef(false);
   const attempt = useRef({ body: "", path: "", key: "" });
+  function failed(cause: unknown) {
+    setRecoveryId(
+      cause && typeof cause === "object" && "recoveryId" in cause
+        ? String(cause.recoveryId)
+        : "",
+    );
+    setCanRestart(
+      Boolean(
+        cause &&
+        typeof cause === "object" &&
+        "canRestart" in cause &&
+        cause.canRestart,
+      ),
+    );
+    setError(
+      cause && typeof cause === "object" && "message" in cause
+        ? String(cause.message)
+        : "Không gửi được thao tác. Vui lòng thử lại.",
+    );
+  }
+  async function recover() {
+    if (busy.current || !recoveryId) return;
+    busy.current = true;
+    setPending(true);
+    setError("");
+    try {
+      const result = await retryPendingCommand(recoveryId);
+      setValues({});
+      attempt.current = { body: "", path: "", key: "" };
+      setRecoveryId("");
+      setCanRestart(false);
+      onSaved(result);
+    } catch (cause) {
+      failed(cause);
+    } finally {
+      busy.current = false;
+      setPending(false);
+    }
+  }
   function change(name: string, value: string) {
     setValues((current) => ({
       ...current,
@@ -78,13 +119,11 @@ export function DataForm({
       });
       setValues({});
       attempt.current = { body: "", path: "", key: "" };
+      setRecoveryId("");
+      setCanRestart(false);
       onSaved(result);
     } catch (cause) {
-      setError(
-        typeof cause === "object" && cause && "message" in cause
-          ? String(cause.message)
-          : "Không gửi được thao tác. Vui lòng thử lại.",
-      );
+      failed(cause);
     } finally {
       busy.current = false;
       setPending(false);
@@ -162,6 +201,30 @@ export function DataForm({
       <button className="button" disabled={pending}>
         {pending ? "Đang lưu…" : title}
       </button>
+      {recoveryId && (
+        <button
+          className="button secondary"
+          type="button"
+          disabled={pending}
+          onClick={() => void recover()}
+        >
+          Kiểm tra và thử lại yêu cầu trước
+        </button>
+      )}
+      {canRestart && (
+        <button
+          className="button secondary"
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            attempt.current = { body: "", path: "", key: "" };
+            setCanRestart(false);
+            setError("");
+          }}
+        >
+          Chuẩn bị yêu cầu mới
+        </button>
+      )}
     </form>
   );
 }

@@ -117,6 +117,12 @@ export class InternalShipmentDto {
     number | null;
   @ApiProperty({ type: Number, nullable: true }) rejectedQuantity!:
     number | null;
+  @ApiProperty({
+    enum: ['STANDARD', 'DUAL_SIGNED'],
+    description:
+      'DUAL_SIGNED: lấy hàng và giao hàng cần bàn giao hai bên có chữ ký',
+  })
+  handoverMode!: string;
 }
 class PublicShipmentDto {
   @ApiProperty({ enum: ShipmentState }) status!: string;
@@ -167,6 +173,8 @@ class LotBaseDto {
   @ApiProperty({ type: SensorEvidenceDto }) sensorEvidence!: SensorEvidenceDto;
 }
 export class InternalLotDto extends LotBaseDto {
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  chainId!: string | null;
   @ApiProperty({ required: false }) traceToken?: string;
   @ApiProperty() version!: number;
   @ApiProperty() damagedQuantity!: number;

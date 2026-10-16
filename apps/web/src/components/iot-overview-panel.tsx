@@ -2,16 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { IconActivity, IconThermometer, IconDroplet } from "./icons";
 import {
   readStoredIotReadings,
   type StoredIotReading,
 } from "@/lib/iot-local-store";
+import { Activity, Droplet, Thermometer } from "lucide-react";
 
 const statMeta: Record<string, { icon: React.ReactNode }> = {
-  "Bản ghi IoT đã gửi": { icon: <IconActivity size={20} /> },
-  "Giá trị gần nhất": { icon: <IconDroplet size={20} /> },
-  "Loại cảm biến": { icon: <IconThermometer size={20} /> },
+  "Bản ghi IoT đã gửi": { icon: <Activity size={20} /> },
+  "Giá trị gần nhất": { icon: <Droplet size={20} /> },
+  "Loại cảm biến": { icon: <Thermometer size={20} /> },
 };
 
 export function IotOverviewPanel({
@@ -58,11 +58,11 @@ export function IotOverviewPanel({
   );
 
   return (
-    <section className="panel iot-panel">
+    <section className="panel">
       <div className="panel-title">
         <div className="panel-title-left">
           <span className="panel-icon info">
-            <IconActivity size={18} />
+            <Activity size={18} />
           </span>
           <div>
             <p className="eyebrow">IOT GIẢ LẬP</p>
@@ -83,7 +83,7 @@ export function IotOverviewPanel({
         {stats.map((stat) => (
           <div className="stat-card" key={stat.label}>
             <div className="stat-icon">
-              {statMeta[stat.label]?.icon ?? <IconActivity size={20} />}
+              {statMeta[stat.label]?.icon ?? <Activity size={20} />}
             </div>
             <div className="stat-body">
               <span className="stat-value" style={{ fontSize: 20 }}>

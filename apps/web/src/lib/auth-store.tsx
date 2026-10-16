@@ -19,11 +19,13 @@ import {
 } from "./api-client";
 import type { AuthUser } from "./types";
 import { IOT_READING_STORAGE_KEY } from "./iot-local-store";
+import { useBusinessAccess } from "./use-business-access";
 
 type AuthStore = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  privateAccessStatus?: "checking" | "ready" | "unavailable";
   login(email: string, password: string): Promise<void>;
   logout(): Promise<void>;
 };
@@ -33,6 +35,7 @@ const AuthContext = createContext<AuthStore | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const access = useBusinessAccess(user);
 
   useEffect(() => {
     let active = true;
@@ -70,8 +73,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthStore>(
-    () => ({ user, isAuthenticated: Boolean(user), isLoading, login, logout }),
-    [user, isLoading, login, logout],
+    () => ({
+      user: user
+        ? {
+            ...user,
+            accessRevision: access.revision,
+            productionAccess: access.productionAccess,
+          }
+        : null,
+      privateAccessStatus: access.status,
+      isAuthenticated: Boolean(user),
+      isLoading,
+      login,
+      logout,
+    }),
+    [
+      user,
+      access.revision,
+      access.productionAccess,
+      access.status,
+      isLoading,
+      login,
+      logout,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

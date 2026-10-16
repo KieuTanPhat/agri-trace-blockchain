@@ -15,7 +15,6 @@ coverage/
 .env.*
 !.env.example
 !.env.docker.example
-!.env.uat.example
 !.env.deploy.example
 .uat/
 
@@ -54,3 +53,10 @@ artifacts/
 Thumbs.db
 # Generated CI audit artifacts; local reports default to the ignored .codex/.
 /dependency-evidence/
+
+# Local tool installations, generated inventories, and chat attachments
+/.tools/
+/graphify-out/
+/tree.txt
+/git_files.txt
+/.codex-remote-attachments/

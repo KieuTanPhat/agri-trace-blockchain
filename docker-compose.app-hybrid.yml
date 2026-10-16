@@ -1,0 +1,40 @@
+# Hosted-only production. API has no signing identity or historical mounts.
+services:
+  api:
+    environment:
+      HYBRID_WRITES_MODE: ${HYBRID_WRITES_MODE:-CLOSED}
+      # Only the controller's smoke session sets these technical account IDs (CANARY).
+      HYBRID_CANARY_ACTOR_IDS: ${HYBRID_CANARY_ACTOR_IDS:-}
+      FABRIC_LEGACY_WRITER: "false"
+      ENTERPRISE_ONBOARDING_ENABLED: ${ENTERPRISE_ONBOARDING_ENABLED:-false}
+  worker:
+    environment:
+      FABRIC_ENABLED: "true"
+      FABRIC_LEGACY_WRITER: "false"
+      FABRIC_BINDINGS_CONFIG: /hosted-config/bindings.json
+      FABRIC_WORKER_INTERVAL_MS: "2000"
+      ENTERPRISE_ONBOARDING_ENABLED: ${ENTERPRISE_ONBOARDING_ENABLED:-false}
+      ENTERPRISE_CONNECTIONS_CONFIG: /hosted-config/enterprise-connections.json
+    user: ${WORKER_UID:?Set signer UID}:${WORKER_GID:?Set signer GID}
+    volumes:
+      - type: bind
+        source: ${HOSTED_WORKER_CONFIG_HOST:?Set dedicated public Worker configuration directory}
+        target: /hosted-config
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${HOSTED_WORKER_IDENTITIES_HOST:?Set hosted technical identities only}
+        target: /hosted-identities
+        read_only: true
+        bind: {create_host_path: false}
+    networks: [default, hosted]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8081/health/ready').then(async r=>{const h=await r.json();if(!r.ok||!h.runtime.enabled||!h.runtime.running||h.runtime.lastError||h.backlog.deadLetter)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+networks:
+  hosted:
+    external: true
+    name: ${HOSTED_FABRIC_DOCKER_NETWORK:?Provision production hosted network}

@@ -13,7 +13,7 @@ export function deploymentTarget(env) {
   assert.equal(env.GITHUB_REF,`refs/heads/${target.branch}`,'Deployment branch mismatch');
   assert.equal(env.PUBLIC_ORIGIN,target.origin,'Deployment origin mismatch');
   const project=env.CD_PROJECT||target.project,profile=env.CD_PROFILE||target.profile;
-  assert.ok(project===target.project||(env.CD_ENVIRONMENT==='production'&&project==='agri-trace-uat'),'Deployment project mismatch');
+  assert.equal(project,target.project,'Deployment project mismatch');
   assert.equal(profile,'fabric','Deployment profile mismatch');
   assert.match(env.GITHUB_SHA,/^[a-f0-9]{40}$/);
   return {...target,project,profile,environment:env.CD_ENVIRONMENT};
@@ -36,7 +36,10 @@ async function main() {
     'agritrace.environment':target.environment,'agritrace.branch':target.branch,'agritrace.format':'2'};
   execFileSync('docker',['login','ghcr.io','-u',process.env.GITHUB_ACTOR,'--password-stdin'],{input:process.env.GH_TOKEN,stdio:['pipe','pipe','pipe']});
   const images={};
-  for(const component of ['api','web']) {
+  const chaincodeFingerprint=execFileSync('python3',['-c',
+    "import sys; sys.path.insert(0,'deploy/cd'); from package import source_fingerprint; print(source_fingerprint(sys.argv[1]))",process.env.GITHUB_SHA],{encoding:'utf8'}).trim();
+  for(const component of ['api','web','chaincode']) {
+    const componentLabels=component==='chaincode'?{...labels,'agritrace.chaincode-fingerprint':chaincodeFingerprint}:labels;
     const tag=`${registry}/${component}:${target.prefix}-${process.env.GITHUB_SHA}`;
     let exists=true;
     try {execFileSync('docker',['manifest','inspect',tag],{stdio:'pipe'});}
@@ -46,12 +49,13 @@ async function main() {
     }
     if(exists)execFileSync('docker',['pull',tag],{stdio:'inherit'});
     else {
-      const args=['build',...Object.entries(labels).flatMap(([k,v])=>['--label',`${k}=${v}`]),'-t',tag,'-f',`apps/${component}/Dockerfile`];
+      const args=['build',...Object.entries(componentLabels).flatMap(([k,v])=>['--label',`${k}=${v}`]),'-t',tag,'-f',
+        component==='chaincode'?'blockchain/network/hybrid/ccaas/Dockerfile':`apps/${component}/Dockerfile`];
       if(component==='web')args.push('--build-arg',`NEXT_PUBLIC_API_BASE_URL=${target.origin}/api`,
         '--build-arg','NEXT_PUBLIC_API_SAME_ORIGIN=true','--build-arg',`NEXT_PUBLIC_TRACE_BASE_URL=${target.origin}/trace`,'--build-arg','NEXT_PUBLIC_MOCK_API=false');
-      execFileSync('docker',[...args,'.'],{stdio:'inherit'});
+      execFileSync('docker',[...args,component==='chaincode'?'blockchain/chaincode':'.'],{stdio:'inherit'});
     }
-    requireImage(JSON.parse(execFileSync('docker',['inspect',tag],{encoding:'utf8'}))[0],labels);
+    requireImage(JSON.parse(execFileSync('docker',['inspect',tag],{encoding:'utf8'}))[0],componentLabels);
     if(!exists)execFileSync('docker',['push',tag],{stdio:'inherit'});
     const metadata=JSON.parse(execFileSync('docker',['inspect',tag],{encoding:'utf8'}))[0];
     images[component]=metadata.RepoDigests.find(value=>value.startsWith(`${registry}/${component}@sha256:`));
@@ -59,7 +63,7 @@ async function main() {
   }
   execFileSync('python3',['deploy/cd/package.py','--sha',process.env.GITHUB_SHA,'--api',images.api,'--web',images.web,
     '--repository',repository,'--origin',target.origin,'--dist','blockchain/chaincode/dist',
-    '--environment',target.environment,'--project',target.project,'--profile',target.profile,
+    '--environment',target.environment,'--project',target.project,'--profile',target.profile,'--chaincode-image',images.chaincode,
     '--output',path.join(process.env.RUNNER_TEMP,`${target.prefix}-release.tar.gz`)],{stdio:'inherit'});
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(()=>{

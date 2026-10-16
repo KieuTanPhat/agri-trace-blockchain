@@ -22,7 +22,7 @@ agritrace.dev, www.agritrace.dev {
     import application prod-api prod-web
 }
 
-# Preserve the existing legacy QR origin only on the production route.
+# Keep IP links on the encrypted production origin, preserving their paths.
 http://13.140.170.166 {
-    import application prod-api prod-web
+    redir https://agritrace.dev{uri} 308
 }

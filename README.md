@@ -3,13 +3,18 @@
 Monorepo cho hệ thống truy xuất nguồn gốc nông sản, tổng hợp frontend, backend và
 Hyperledger Fabric trong một cấu trúc thống nhất.
 
-Tiến độ triển khai core và các cổng chưa đạt:
-[core implementation](docs/core-implementation-2026-10-10.md).
-UAT đã triển khai core `53bec18`, Fabric sequence 3 và 14 migration;
-[báo cáo cutover](docs/uat-core-deployment-2026-10-10.md) ghi kiểm chứng và phần
-nghiệm thu còn lại.
+Bản Hybrid A/B/C thực hiện theo [kế hoạch cài mới production](docs/plans/fresh-install-cleanup-2026-10-13.md).
+Đọc [PROJECT_CONTEXT](docs/PROJECT_CONTEXT.md), [quy tắc nghiệp vụ](docs/core-business-rules.md),
+[ADR-004](docs/adr-004-hybrid-binding-and-signatures.md) và [runbook production](docs/production-runbook.md).
+CI/source completion và nghiệm thu runtime là các cổng riêng; kiểm SHA/receipt trong PR và controller state.
 
 ## Cấu trúc
+
+Hybrid A phân quyền theo chuỗi; B pin binding/authority/permission epoch và ledger
+registry; C dùng khóa Ed25519 tổ chức và bàn giao hai bên. Chữ ký độc lập bắt buộc
+ở bàn giao khác tổ chức; care/harvest giữ xác thực hiện hành. Một mạng có channel
+theo nhóm hợp tác. Hosted technical identities không chứng minh quyền của đối tác
+bên ngoài; external partner authority vẫn NotEvaluated, không tuyên bố HA.
 
 ```text
 apps/
@@ -20,9 +25,33 @@ blockchain/
   gateway/             Adapter kết nối Fabric Gateway
   network/             Script dựng mạng Fabric local
 docs/
-  business-specification-v1.2.md
+  archive/business-specification-v1.2.md
   adr-001-modular-monolith-dedicated-worker.md
 ```
+
+Các file cấu hình ở gốc được chia theo nơi sử dụng:
+
+| Nhóm file | Mục đích |
+| --- | --- |
+| `docker-compose.yml`, `.env.docker.example` | Chạy ứng dụng local |
+| `docker-compose.ci.yml` | Nối Worker với Fabric cách ly trong CI |
+| `docker-compose.app.yml`, `.env.deploy.example` | Ứng dụng production dùng image đã pin qua CD |
+| `docker-compose.app-hybrid.yml` | Overlay kết nối mạng hosted của production (config schema 3) |
+| `docker-compose.app-fabric.yml` | Overlay signer/network cũ; controller không còn ghép nó, nhưng vẫn là file bắt buộc trong manifest app delivery |
+| `deploy/ci/`, `deploy/cd/`, `deploy/edge/` | Rehearsal production trong CI; controller, installer và đóng gói CD; Edge (Caddy) dùng chung |
+| `package.json`, `package-lock.json`, các file `.git*` và `.dockerignore` | Lệnh, dependency lock và cấu hình công cụ |
+
+Controller chỉ nhận config schema 3, manifest format 2 và release `prod-*`; nó ghép
+`docker-compose.app.yml` và `docker-compose.app-hybrid.yml`, không ghép
+`docker-compose.app-fabric.yml`. Giữ `docker-compose.app-fabric.yml` theo quyết định của chủ dự án:
+`deploy/cd/targets.py` và `policy.validate_manifest` vẫn yêu cầu file trong bundle.
+`hybrid-floor.json` chỉ cho rollback tới image verified tương thích migration; việc giữ overlay
+không cho phép rollback DB mới về app cũ hoặc tái dùng mạng test cũ.
+
+Môi trường UAT cũ (schema 2, project `agri-trace-uat`) đã retire: stack, bootstrap và
+mẫu môi trường của nó không còn trong repo. Application CI kiểm ứng dụng bằng
+`docker-compose.app.yml` trong job `Production rehearsal` (`deploy/ci/`). Xem
+[runbook production](docs/production-runbook.md).
 
 ## Cài đặt
 
@@ -49,6 +78,11 @@ Frontend chạy ở `http://localhost:3000`; API chạy ở
 `http://localhost:8080/api`. Trang `/` giới thiệu AgriTrace bằng tiếng Việt và cung cấp tra cứu QR công khai.
 Truy cập trực tiếp `/login` để đăng nhập; sau đăng nhập mở `/dashboard`.
 Trang giới thiệu không có liên kết đăng nhập hoặc lô/QR mẫu.
+Doanh nghiệp vào `/register`, theo dõi hồ sơ và yêu cầu peer ở `/enterprise`;
+quản trị xét duyệt tại `/admin/enterprises`. API và Worker mặc định đóng admission
+(`ENTERPRISE_ONBOARDING_ENABLED=false`). Demo cách ly bật `true` ở cả hai process;
+xem [kế hoạch v1](docs/plans/enterprise-onboarding.md) và
+[hướng dẫn kết nối](docs/hybrid-fabric-runbook.md#12-đăng-ký-và-kết-nối-doanh-nghiệp-v1).
 Xem [frontend và bố cục mobile](docs/frontend.md) để kiểm tra giao diện.
 
 Frontend mặc định kết nối backend thật. Worker là
@@ -63,7 +97,10 @@ chạy:
 docker compose --env-file .env.docker up --build
 ```
 
-Compose khởi động PostgreSQL, API, Dedicated Worker và Web. API vẫn hoạt động khi
+Compose khởi động PostgreSQL, API, Dedicated Worker và Web. Stack local mở ghi
+nghiệp vụ qua `HYBRID_WRITES_MODE=OPEN` (mặc định trong `docker-compose.yml`);
+đặt `CLOSED` trong `.env.docker` để thử chế độ bảo trì. Production không dùng
+file này: controller giữ ghi đóng đến khi bản phát hành được xác minh. API vẫn hoạt động khi
 Fabric hoặc Worker tạm dừng; các sự kiện chờ được giữ trong
 `blockchain_outbox`. Worker health chỉ mở trong Docker network tại
 `http://worker:8081/health/ready`.
@@ -74,30 +111,32 @@ Fabric hoặc Worker tạm dừng; các sự kiện chờ được giữ trong
 dev CD, profile light hoặc route `nongtrace.site`. CI kiểm PR vào main và mọi
 push lên main; database/Fabric thử nghiệm dùng local hoặc runner cách ly.
 
-Vận hành theo [runbook production](docs/production-runbook.md). Target adopt
-database/Fabric hiện có và giữ migration/checksum, backup, proof/history cùng
-rollback gates. [Kế hoạch chuyển](docs/plans/production-only-transition-2026-10-12.md)
-ghi phạm vi, snapshot/retirement evidence và các gate Hybrid còn thiếu.
+Vận hành theo [runbook production](docs/production-runbook.md). Cài mới dùng
+schema-3 controller, project `agritrace-prod`, PostgreSQL `agri_trace_prod` và mạng
+hosted mới sau encrypted backup + isolated restore. Dữ liệu trước đó đều là test,
+được giữ trong bản lưu; không backfill account/history/proof/QR vào production mới.
 
-## Hệ thống hiện có tại agritrace.dev
+Migration A/B/C giữ byte nguyên vẹn; `20261017000000_hybrid_fresh_install` chỉ
+cleanup khi chưa có business history và từ chối trường hợp đã có dữ liệu. New
+cycle cần ACTIVE binding; không tạo legacy fallback. Domain/journal/trace/outbox
+và quyền/version/idempotency vẫn cùng transaction. Admin/Auditor không ghi thay
+business actors.
 
-UAT hiện dùng [https://agritrace.dev](https://agritrace.dev).
-Chuyển origin và giám sát Datadog theo [runbook hiện hành](docs/agritrace-cutover-runbook.md).
-Source/image digests, CI/CD, rollback và backup evidence nằm trong
-[báo cáo chuyển miền và Datadog](docs/agritrace-cutover-status.md);
-vận hành theo [CD runbook](docs/contabo-cd-runbook.md).
-Evidence của lần HTTPS trước nằm trong
-[báo cáo lịch sử](docs/nongtrace-uat-deployment-status.md).
+API không có signing key. Worker nhận technical identity read-only; owner MSP
+chỉ dùng trong one-off operator. Production bootstrap chỉ dùng cấu hình riêng tư. Sau
+build, operator chạy `node dist/operator/ledger-operator.js`, signer độc lập chạy
+`node dist/operator/org-signer.js`, và restore checker chạy
+`node dist/operator/verify-evidence.js` từ `apps/api`.
 
-Rà soát code/quyền sau triển khai: [kế hoạch và kết quả audit](docs/nongtrace-uat-code-audit.md).
-Admin quản trị identity/masterdata; Auditor chỉ đọc. Core thêm
-COMPLIANCE_REVIEWER trong tổ chức AUDITOR, chỉ ghi inspection/review chứng nhận
-cho Farm được Admin phân công. SQL và provision role đã hoàn tất trên UAT;
-Admin/owner còn cần phân công Reviewer và nghiệm thu nghiệp vụ đầy đủ. Xem
-báo cáo cutover và implementation record ở đầu tài liệu.
+Thay đổi đi qua PR; chủ dự án quyết định merge và thời điểm triển khai. Push vào
+`main` có đường dẫn thuộc bộ lọc trong `.github/workflows/production-cd.yml` tự
+kích hoạt Production CD. PR chỉ sửa README gốc, `docs/` (ngoài `docs/openapi/`) và
+`.gitignore` không kích hoạt CD; README dưới `apps/` hoặc `blockchain/` vẫn thuộc
+bộ lọc CD. Không coi CI xanh là quyền tự merge hoặc deploy.
 
-Module lots tách `LotHarvestService` (transaction + outbox), `LotQueryService`
-(query), presenter (projection), action policy (role/org/state) và proof status.
+Khi triển khai được duyệt, giữ smoke thực trên VPS theo runbook. Không đặt
+maintenance deadline 2 giờ, canary riêng, collector/systemd timer hoặc quan sát
+liên tục 24 giờ; sự cố sau bàn giao do chủ dự án vận hành.
 
 ## Kiểm tra toàn bộ
 
@@ -141,12 +180,12 @@ còn kiểm tra hợp đồng lint và xác nhận build bị chặn khi có war
 
 PR chọn job theo phạm vi thay đổi; mọi push lên `main` chạy đầy đủ để CD dùng
 bằng chứng của đúng SHA. Xem [chính sách CI](docs/ci.md) và
-[báo cáo kiểm tra CI/clean code](docs/ci-clean-code-audit-2026-10-09.md).
+[báo cáo kiểm tra CI/clean code](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/ci-clean-code-audit-2026-10-09.md).
 
 Mạng Fabric local cần thêm Docker; xem script trong `blockchain/network`.
 
 Mô hình dữ liệu core hiện tại tách rõ `ProductionCycle`, `HarvestEvent`, `Lot`
-và `Shipment`. Tài liệu `docs/business-specification-v1.2.md` chỉ còn là baseline
+và `Shipment`. Tài liệu `docs/archive/business-specification-v1.2.md` chỉ còn là baseline
 lịch sử; Prisma schema được đồng bộ với database PostgreSQL `agri_traceDB` tại
 `apps/api/prisma/schema.prisma`.
 
@@ -167,4 +206,4 @@ thư mục tạm, cài theo lockfile riêng, audit và chạy `check`, rồi d�
 Manifest/lockfile trong thư mục cài phải khớp byte với checkout nguồn. Cách này
 giữ graph root ổn định khi chaincode cũng là workspace của monorepo.
 High/moderate làm lệnh thất bại. CI lưu cùng bằng chứng dưới dạng artifact cho
-workspace và chaincode độc lập. Xem [báo cáo AGT-002](docs/dependency-audit-2026-10-06.md).
+workspace và chaincode độc lập. Xem [báo cáo AGT-002](https://github.com/KieuTanPhat/agri-trace-blockchain/blob/4d92f02122cbb0b4342372474f466c9146522365/docs/dependency-audit-2026-10-06.md).

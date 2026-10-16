@@ -48,6 +48,10 @@ runner.
 - A lease token prevents a stale worker from overwriting a newer claim.
 - Transient errors use exponential backoff with jitter.
 - Permanent errors and exhausted retries enter `DEAD_LETTER`.
+- Reclaiming an expired lease (worker crash) never pushes `attempt_count` past
+  `FABRIC_MAX_RETRIES`, and waiting on credentials, governance or an unknown
+  outcome gives the claim back, so such a row always stays claimable. Rows left
+  as `RETRY` at the budget by older Worker releases need operator review.
 - Hash-chain predecessors must be confirmed before their successor is claimed.
 
 ## Operational consequences

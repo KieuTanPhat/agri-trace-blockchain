@@ -46,7 +46,10 @@ jobs:
         run: |
           python3 -m unittest discover -s deploy/cd -p 'test_*.py' -v
           node --test deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs
-          node --experimental-vm-modules --test deploy/cd/verify.test.mjs
+      - name: Check rehearsal helpers and require applied migrations to stay immutable
+        run: |
+          node --test deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs
+          node deploy/ci/migrations-immutable.mjs
 
   api:
     name: API / Node ${{ matrix.node }}
@@ -66,7 +69,7 @@ jobs:
       FABRIC_ENABLED: 'false'
     services:
       postgres:
-        # Exercise domain/journal recovery on the same PostgreSQL major as UAT.
+        # Exercise domain/journal recovery on the same PostgreSQL major as production.
         image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_DB: agri_trace_ci
@@ -96,10 +99,10 @@ jobs:
       - run: npm run check --workspace apps/api
       - name: Require Swagger and generated Web types to match the current API
         run: node scripts/generate-api-contract.mjs --check
-      - name: Verify UAT bootstrap against real PostgreSQL
+      - name: Verify production provisioning against real PostgreSQL
         env:
-          UAT_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
-        run: node --test deploy/bootstrap.test.mjs
+          BOOTSTRAP_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
+        run: node --test deploy/ci/bootstrap-production.test.mjs
 
   web:
     name: Web / Node ${{ matrix.node }}
@@ -149,7 +152,7 @@ jobs:
           curl --fail --retry 3 --output /dev/null http://localhost:3000/login
           docker compose exec -T web node --input-type=module -e "
             import assert from 'node:assert/strict';
-            const r = await fetch('http://127.0.0.1:3000/_next/image?url=%2Flogo.png&w=64&q=75', {
+            const r = await fetch('http://127.0.0.1:3000/_next/image?url=%2Fagritrace%2Fbrand%2Fagritrace-logo.png&w=64&q=75', {
               headers: { Accept: 'image/webp' }
             });
             assert.equal(r.status, 200);
@@ -164,8 +167,8 @@ jobs:
             assert.equal(r.status, 200);
             const h = await r.json();
             assert.equal(h.service, 'agri-trace-blockchain-worker');
-            assert.equal(h.runtime.enabled, false);
-            assert.equal(h.runtime.running, false);
+            assert.equal(h.runtime.fabricEnabled, false);
+            assert.equal(h.runtime.running, true);
             assert.equal(h.backlog.deadLetter, 0);
           "
       - name: Collect application diagnostics
@@ -173,8 +176,20 @@ jobs:
         run: |
           docker compose ps --all
           docker compose logs --no-color --tail 200
-      - name: Stop standard stack before UAT rehearsal
-        run: docker compose stop
+      - name: Stop disposable application stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+  rehearsal:
+    name: Production rehearsal
+    needs: changes
+    if: needs.changes.outputs.containers == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22.22.3'
@@ -182,76 +197,22 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm install --global npm@12.1.0
       - run: npm ci --no-audit --no-fund
-      - name: Check UAT origins and aliases
-        run: node --test deploy/config.test.mjs
-      - name: Prepare private UAT configuration
-        run: |
-          npm run build --workspace blockchain/chaincode
-          node deploy/prepare.mjs --directory .uat/ci --origin http://127.0.0.1:18080 --release "uat-${GITHUB_SHA}"
-          node deploy/preflight.mjs --env .uat/ci/.env.uat
-          node deploy/prepare.mjs --directory .uat/https --origin https://agritrace.dev --release "uat-${GITHUB_SHA}"
-          node deploy/preflight.mjs --env .uat/https/.env.uat --config-only
-          https_dc=(docker compose --env-file .uat/https/.env.uat -f docker-compose.uat.yml -f docker-compose.uat-https.yml)
-          "${https_dc[@]}" run --rm --no-deps proxy caddy validate --config /etc/caddy/Caddyfile
-      - name: Build and start UAT through the HTTP proxy
-        env:
-          COMPOSE_PROJECT_NAME: agri-trace-uat-ci
-        run: |
-          dc=(docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml)
-          "${dc[@]}" build api web
-          "${dc[@]}" up -d --wait --wait-timeout 120 postgres
-          python3 deploy/cd/check-migrate.py --env .uat/ci/.env.uat
-          "${dc[@]}" --profile tools run --rm bootstrap
-          "${dc[@]}" --profile tools run --rm bootstrap
-          # Exercise the actual runtime image (production dependencies only).
-          "${dc[@]}" run --rm --no-deps api npm run db:provision-compliance-role --workspace apps/api | tee .uat/ci/role-first.log
-          "${dc[@]}" run --rm --no-deps api npm run db:provision-compliance-role --workspace apps/api | tee .uat/ci/role-replay.log
-          grep -Fx 'COMPLIANCE_REVIEWER provisioned; created=1' .uat/ci/role-first.log
-          grep -Fx 'COMPLIANCE_REVIEWER provisioned; created=0' .uat/ci/role-replay.log
-          "${dc[@]}" up -d --wait --wait-timeout 240 api worker web proxy
-          node deploy/smoke.mjs --env .uat/ci/.env.uat --expect-proof PENDING
-          "${dc[@]}" run --rm --no-deps -e APP_ENV=uat -e UAT_VALIDATOR_PATH=/validator/validation.js -v "$PWD/blockchain/chaincode/dist:/validator:ro" --entrypoint node api apps/api/scripts/check-uat-events.mjs
-      - name: Rehearse UAT backup and restore into an empty disposable database
-        env:
-          COMPOSE_PROJECT_NAME: agri-trace-uat-ci
-        run: |
-          dc=(docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml)
-          "${dc[@]}" stop api worker
-          node deploy/database.mjs backup-uat --env .uat/ci/.env.uat --file .uat/ci/rehearsal.dump
-          # This project exists only in this CI job; never use this reset on a VPS.
-          "${dc[@]}" down --volumes --remove-orphans
-          "${dc[@]}" up -d --wait --wait-timeout 120 postgres
-          node deploy/database.mjs restore-empty --env .uat/ci/.env.uat --file .uat/ci/rehearsal.dump
-          "${dc[@]}" --profile tools run --rm migrate
-          "${dc[@]}" --profile tools run --rm bootstrap
-          "${dc[@]}" up -d --wait --wait-timeout 240 api worker web proxy
-          node deploy/smoke.mjs --env .uat/ci/.env.uat --expect-proof PENDING
-      - name: Collect UAT HTTP diagnostics
-        if: failure()
-        env:
-          COMPOSE_PROJECT_NAME: agri-trace-uat-ci
-        run: |
-          if [ -f .uat/ci/.env.uat ]; then
-            docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml ps --all
-            docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml logs --no-color --tail 80 web proxy
-          fi
-      - name: Stop disposable UAT stack
+      # The compiled chaincode validator is mounted read-only into the event check.
+      - run: npm run build --workspace blockchain/chaincode
+      - name: Rehearse the production application model on an isolated PostgreSQL 18
+        run: node deploy/ci/rehearse.mjs
+      - name: Upload rehearsal evidence
         if: always()
-        env:
-          COMPOSE_PROJECT_NAME: agri-trace-uat-ci
-        run: |
-          if [ -f .uat/ci/.env.uat ]; then
-            docker compose --env-file .uat/ci/.env.uat -f docker-compose.uat.yml down --volumes --remove-orphans
-          fi
-      - name: Stop disposable application stack
-        if: always()
-        run: docker compose down --volumes --remove-orphans
-      - name: Rehearse production database retention on this disposable runner
-        run: python3 deploy/cd/rehearse-production.py
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-rehearsal-${{ github.sha }}
+          path: artifacts/production-rehearsal.json
+          if-no-files-found: warn
+          retention-days: 14
 
   gate:
     name: Application gate
-    needs: [changes, api, web, container-build]
+    needs: [changes, api, web, container-build, rehearsal]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

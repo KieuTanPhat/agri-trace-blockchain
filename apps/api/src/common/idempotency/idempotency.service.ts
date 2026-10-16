@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   HttpException,
   Inject,
   Injectable,
@@ -12,9 +13,21 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   authorizeCommand,
+  type AuthorizedCommand,
   type CommandActor,
 } from './command-authorization.js';
 import { commandContext, commandResponseJson } from './command-transaction.js';
+
+export interface CommandRequestInspection {
+  status:
+    | 'NOT_FOUND'
+    | 'PROCESSING'
+    | 'COMMITTED'
+    | 'REJECTED'
+    | 'RECONCILIATION_REQUIRED';
+  responseStatus?: number;
+  result?: Prisma.JsonValue | null;
+}
 
 export interface StartIdempotencyInput {
   idempotencyKey: string;
@@ -25,6 +38,7 @@ export interface StartIdempotencyInput {
   expiresInMinutes?: number;
   authorizationScope?: string;
   responseStatus?: number;
+  actor?: CommandActor | null;
 }
 
 export type IdempotencyStartResult =
@@ -42,6 +56,96 @@ export type IdempotencyStartResult =
 export class IdempotencyService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
+  /** Reconciliation never executes a domain command or renews its key/expiry.
+   * Lock the record before scope locks, exactly like commandTransaction. A
+   * writer may still be committing; re-read after that lock before disclosure. */
+  async inspectCommand(
+    input: AuthorizedCommand & { idempotencyKey: string },
+  ): Promise<CommandRequestInspection> {
+    if (['HYB_REGISTER_SIGNING_KEY', 'HYB_REVOKE_SIGNING_KEY'].includes(input.operation)) {
+      const payload = input.payload as Record<string, unknown>;
+      const organizationId = input.actor?.organizationId;
+      if (!payload || !organizationId ||
+        (payload.organizationId !== undefined && payload.organizationId !== organizationId))
+        throw new ForbiddenException('Command nằm ngoài phạm vi tổ chức');
+      // These controllers add organizationId from the authenticated actor.
+      // The status endpoint assembles the identical original request hash.
+      input = { ...input, payload: { ...payload, organizationId } };
+    }
+    const key = input.idempotencyKey.trim();
+    if (!key || key.length > 255)
+      throw new ConflictException('Thiếu Idempotency-Key hợp lệ');
+    return this.prisma.$transaction(
+      async (tx) => {
+        const found = await tx.idempotencyRecord.findUnique({
+          where: {
+            requesterId_operation_idempotencyKey: {
+              requesterId: input.requesterId,
+              operation: input.operation,
+              idempotencyKey: key,
+            },
+          },
+        });
+        if (found)
+          await tx.$queryRaw`SELECT idempotency_record_id FROM idempotency_record WHERE idempotency_record_id=${found.id}::uuid FOR UPDATE`;
+        const record = found ? await tx.idempotencyRecord.findUniqueOrThrow({
+          where: { id: found.id },
+          include: { commandCommit: true },
+        }) : null;
+        const requestHash = this.createRequestHash(input.payload);
+        if (record && record.requestHash !== requestHash)
+          throw new ConflictException(
+            'Idempotency-Key đã được dùng cho payload khác',
+          );
+        const scope = await authorizeCommand(tx, input, true);
+        if (!record) return { status: 'NOT_FOUND' };
+        if (record.authorizationScope !== scope) {
+          if (!record.commandCommit)
+            return { status: 'RECONCILIATION_REQUIRED' };
+          // Same requester and payload, authorized under current scope: the
+          // journal is replayed as stored and never rewritten.
+          this.assertJournalIdentity(record.commandCommit, input);
+          return {
+            status: 'COMMITTED',
+            responseStatus: record.commandCommit.responseStatus,
+            result: record.commandCommit.responseBody,
+          };
+        }
+        const journal = record.commandCommit;
+        if (journal) {
+          if (
+            journal.requesterId !== input.requesterId ||
+            journal.operation !== input.operation ||
+            journal.authorizationScope !== scope
+          )
+            throw new ConflictException('Journal không khớp phạm vi command');
+          return {
+            status: 'COMMITTED',
+            responseStatus: journal.responseStatus,
+            result: journal.responseBody,
+          };
+        }
+        if (
+          record.status === 'FAILED' &&
+          record.responseStatus !== null &&
+          record.responseStatus >= 400
+        )
+          return {
+            status: 'REJECTED',
+            responseStatus: record.responseStatus,
+            result: record.responseBody,
+          };
+        if (
+          record.status === 'COMPLETED' ||
+          (record.expiresAt && record.expiresAt <= new Date())
+        )
+          return { status: 'RECONCILIATION_REQUIRED' };
+        return { status: 'PROCESSING' };
+      },
+      { maxWait: 5000, timeout: 20000 },
+    );
+  }
+
   /** HTTP business commands must enter here, including device commands. */
   async executeCommand<T>(
     input: StartIdempotencyInput & { actor: CommandActor | null },
@@ -52,8 +156,16 @@ export class IdempotencyService {
       { ...input, authorizationScope: scope },
       command,
       async () => {
-        if ((await authorizeCommand(this.prisma, input)) !== scope)
-          throw new ConflictException('Phạm vi command đã thay đổi');
+        // Replay is a disclosure of the original private response. Use the
+        // same locks as a write so revoke/disable cannot race its authority
+        // check. No command is executed in this read-only authorization path.
+        await this.prisma.$transaction(
+          async (tx) => {
+            if ((await authorizeCommand(tx, input, true)) !== scope)
+              throw new ConflictException('Phạm vi command đã thay đổi');
+          },
+          { maxWait: 5000, timeout: 20000 },
+        );
       },
       input,
     );
@@ -213,8 +325,10 @@ export class IdempotencyService {
       input.authorizationScope &&
       record.authorizationScope !== input.authorizationScope
     ) {
+      // Never replay a command committed under another scope (re-invite,
+      // regrant, other chain). Reconciliation reads it via inspectCommand.
       throw new ConflictException(
-        'Idempotency-Key thuộc phạm vi khác hoặc bản ghi legacy cần đối soát',
+        'Idempotency-Key thuộc phạm vi khác hoặc cần đối soát',
       );
     }
 
@@ -284,5 +398,18 @@ export class IdempotencyService {
       'code' in error &&
       error.code === 'P2002'
     );
+  }
+
+  /** A scope fingerprint may change (grant revision, new release protocol);
+   * the journal still has to belong to the same requester and operation. */
+  private assertJournalIdentity(
+    journal: { requesterId: string; operation: string },
+    input: { requesterId: string; operation: string },
+  ) {
+    if (
+      journal.requesterId !== input.requesterId ||
+      journal.operation !== input.operation
+    )
+      throw new ConflictException('Journal không khớp phạm vi command');
   }
 }

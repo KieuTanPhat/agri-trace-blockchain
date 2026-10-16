@@ -42,6 +42,7 @@ describe('Auth security (e2e)', () => {
   };
 
   beforeEach(async () => {
+    process.env.ENTERPRISE_ONBOARDING_ENABLED = 'true';
     vi.resetAllMocks();
     user = {
       id: 'd6212d56-a3b2-4d54-9779-cc8507a6bd53',
@@ -138,14 +139,11 @@ describe('Auth security (e2e)', () => {
       .expect(403);
   });
 
-  it('keeps public registration disabled', async () => {
+  it('rejects incomplete enterprise registration before persistence', async () => {
     await request(app.getHttpServer())
       .post('/api/auth/register')
       .send({ email: 'new@example.com', password, fullName: 'New User' })
-      .expect(501)
-      .expect(({ body }) => {
-        expect(body.message).toContain('Đăng ký đang tạm khóa');
-      });
+      .expect(400);
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 

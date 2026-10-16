@@ -6,10 +6,21 @@ import json
 import subprocess
 import tarfile
 from pathlib import Path
-from policy import CONTROLLER_FILES, FIXED_FILES, SHA, allowed_file, fingerprint, require, sha256, targets, validate_manifest
+from policy import CONTROLLER_FILES, SHA, allowed_file, fingerprint, require, sha256, targets, validate_manifest
 
 
-def package(sha, api, web, repository, origin, dist, output, target=None):
+def source_fingerprint(sha):
+    require(bool(SHA.fullmatch(sha)), "Invalid commit SHA")
+    hashes = {}
+    raw = subprocess.check_output(["git", "archive", "--format=tar", sha])
+    with tarfile.open(fileobj=io.BytesIO(raw)) as source:
+        for member in source:
+            if member.isfile() and allowed_file(member.name) and member.name.startswith("blockchain/chaincode/") and "/dist/" not in member.name:
+                hashes[member.name] = sha256(source.extractfile(member).read())
+    return fingerprint(hashes)
+
+
+def package(sha, api, web, repository, origin, dist, output, target, chaincode_image=None):
     require(bool(SHA.fullmatch(sha)), "Invalid commit SHA")
     files = {}
     controller = {}
@@ -18,8 +29,7 @@ def package(sha, api, web, repository, origin, dist, output, target=None):
         for member in source:
             if member.name in {f"deploy/cd/{name}" for name in CONTROLLER_FILES}:
                 controller[member.name.split("/")[-1]] = sha256(source.extractfile(member).read())
-            excluded = FIXED_FILES if target else targets.APP_FILES
-            if member.isfile() and allowed_file(member.name) and member.name not in excluded and not "/dist/" in member.name:
+            if member.isfile() and allowed_file(member.name) and not "/dist/" in member.name:
                 files[member.name] = source.extractfile(member).read()
     for file in Path(dist).rglob("*"):
         if file.is_file():
@@ -27,11 +37,12 @@ def package(sha, api, web, repository, origin, dist, output, target=None):
             require(allowed_file(name), "Unexpected compiled chaincode path")
             files[name] = file.read_bytes()
     hashes = {name: sha256(data) for name, data in sorted(files.items())}
-    manifest = {"format": 1, "sha": sha, "repository": repository, "origin": origin,
+    manifest = {"format": 2, "sha": sha, "repository": repository, "origin": origin,
                 "api": api, "web": web, "files": hashes, "chaincode": fingerprint(hashes), "controller": controller,
                 "migrations": {name.split("/")[-2]: digest for name, digest in hashes.items() if name.endswith("/migration.sql")}}
-    if target:
-        manifest.update({name: target[name] for name in ("environment", "branch", "project", "profile")}, format=2)
+    manifest.update({name: target[name] for name in ("environment", "branch", "project", "profile")})
+    if chaincode_image:
+        manifest["chaincodeImage"] = chaincode_image
     validate_manifest(manifest, sha, repository, origin, target)
     files["cd-manifest.json"] = (json.dumps(manifest, sort_keys=True, indent=2) + "\n").encode()
     Path(output).parent.mkdir(parents=True, exist_ok=True)
@@ -49,15 +60,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     for name in ("sha", "api", "web", "repository", "origin", "dist", "output"):
         parser.add_argument("--" + name, required=True)
-    parser.add_argument("--environment", choices=targets.TARGETS)
-    parser.add_argument("--project")
-    parser.add_argument("--profile", choices=("fabric",))
+    parser.add_argument("--environment", choices=targets.TARGETS, required=True)
+    parser.add_argument("--project", required=True)
+    parser.add_argument("--profile", choices=("fabric",), required=True)
+    parser.add_argument("--chaincode-image")
     arguments = vars(parser.parse_args())
     environment = arguments.pop("environment")
     project, profile = arguments.pop("project"), arguments.pop("profile")
-    target = None
-    if environment:
-        target = dict(targets.TARGETS[environment], environment=environment, project=project, profile=profile)
-    else:
-        require(project is None and profile is None, "Environment is required for target options")
+    target = dict(targets.TARGETS[environment], environment=environment, project=project, profile=profile)
     package(**arguments, target=target)

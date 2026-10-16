@@ -2,6 +2,13 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { TraceService } from './trace.service.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
+import { scopedTraceEventReadWhere } from '../supply-chains/business-read-scope.js';
+import {
+  fixtureRoute,
+  useFixtureRoute,
+} from '../../../test/support/ledger-route-fixture.js';
+
+beforeEach(useFixtureRoute);
 
 describe('TraceService transactional outbox', () => {
   it('projects only public-safe fields in lot history', async () => {
@@ -17,9 +24,13 @@ describe('TraceService transactional outbox', () => {
       role: 'FARM_STAFF',
     };
 
-    await service.getLotHistory('33333333-3333-4333-8333-333333333333', actor);
+    const lotId = '33333333-3333-4333-8333-333333333333';
+    await service.getLotHistory(lotId, actor);
 
     expect(access.assertLotAccess).toHaveBeenCalled();
+    expect(findMany.mock.calls[0][0].where).toEqual({
+      AND: [{ lotId }, scopedTraceEventReadWhere(actor)],
+    });
     const selection = findMany.mock.calls[0][0].select;
     expect(selection).not.toHaveProperty('actorAuthProof');
     expect(selection).not.toHaveProperty('actorUserId');
@@ -42,6 +53,10 @@ describe('TraceService transactional outbox', () => {
       },
       blockchainOutbox: { create: vi.fn().mockResolvedValue({}) },
       blockchainProof: { create: vi.fn() },
+      ledgerRouteDefinition: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue(fixtureRoute),
+      },
+      eventLedgerRoute: { create: vi.fn().mockResolvedValue({}) },
     };
     const service = new TraceService(
       {} as PrismaService,
@@ -67,5 +82,17 @@ describe('TraceService transactional outbox', () => {
       }),
     });
     expect(tx.blockchainProof.create).not.toHaveBeenCalled();
+    expect(tx.eventLedgerRoute.create).toHaveBeenCalledWith({
+      data: { eventId: event.id, definitionDigest: fixtureRoute.digest },
+    });
+    expect(tx.eventLedgerRoute.create.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.blockchainOutbox.create.mock.invocationCallOrder[0],
+    );
+    expect(tx.traceEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        schemaVersion: '2.0.0',
+        canonicalizationVersion: 'RFC8785',
+      }),
+    });
   });
 });

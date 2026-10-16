@@ -4,6 +4,12 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { FabricAdapterProvider } from './fabric-adapter.provider.js';
 import { BlockchainWorkerService } from './blockchain-worker.service.js';
 import { calculateTraceEventHash } from '../trace/trace-hash.js';
+import {
+  fixtureRoute,
+  useFixtureRoute,
+} from '../../../test/support/ledger-route-fixture.js';
+
+beforeEach(useFixtureRoute);
 
 describe('BlockchainWorkerService distributed claim', () => {
   it('claims due proofs under a PostgreSQL SKIP LOCKED transaction', async () => {
@@ -13,19 +19,21 @@ describe('BlockchainWorkerService distributed claim', () => {
     );
     const service = new BlockchainWorkerService(
       {
+        ledgerRouteDefinition: {
+          findMany: vi.fn().mockResolvedValue([fixtureRoute]),
+        },
         $transaction: transaction,
       } as unknown as PrismaService,
       {
         get: vi.fn((_name: string, fallback: unknown) => fallback),
       } as unknown as ConfigService,
       {
-        getAdapter: vi
-          .fn()
-          .mockResolvedValue({
-            healthCheck: vi
-              .fn()
-              .mockResolvedValue({ status: 'OK', envelopeVersion: '3.0.0' }),
-          }),
+        getWriterRoute: () => fixtureRoute,
+        getAdapter: vi.fn().mockResolvedValue({
+          healthCheck: vi
+            .fn()
+            .mockResolvedValue({ status: 'OK', envelopeVersion: '3.0.0' }),
+        }),
       } as unknown as FabricAdapterProvider,
     );
 
@@ -40,7 +48,11 @@ describe('BlockchainWorkerService distributed claim', () => {
     expect(sql.strings.join(' ')).toContain('blockchain_outbox');
     expect(sql.strings.join(' ')).toContain('lease_expires_at');
     expect(sql.strings.join(' ')).toContain('previous_event_hash');
-    expect(sql.strings.join(' ')).toContain('previous_outbox.status');
+    expect(sql.strings.join(' ')).toContain(
+      'previous_proof.transaction_status',
+    );
+    expect(sql.strings.join(' ')).toContain('er.definition_digest');
+    expect(sql.strings.join(' ')).not.toContain('ledger_route_exemption');
   });
 
   it('completes the leased outbox row and creates a confirmed proof atomically', async () => {
@@ -59,6 +71,9 @@ describe('BlockchainWorkerService distributed claim', () => {
       blockchainProof: { upsert },
     };
     const prisma = {
+      ledgerRouteDefinition: {
+        findMany: vi.fn().mockResolvedValue([fixtureRoute]),
+      },
       $transaction: vi.fn(
         async (callback: (client: typeof tx) => Promise<unknown>) =>
           callback(tx),
@@ -75,6 +90,7 @@ describe('BlockchainWorkerService distributed claim', () => {
       prisma as unknown as PrismaService,
       configService(),
       {
+        getWriterRoute: () => fixtureRoute,
         getAdapter: vi.fn().mockResolvedValue(adapter),
       } as unknown as FabricAdapterProvider,
     );
@@ -120,6 +136,9 @@ describe('BlockchainWorkerService distributed claim', () => {
       blockchainProof: { upsert: vi.fn() },
     };
     const prisma = {
+      ledgerRouteDefinition: {
+        findMany: vi.fn().mockResolvedValue([fixtureRoute]),
+      },
       $transaction: vi.fn(
         async (callback: (client: typeof tx) => Promise<unknown>) =>
           callback(tx),
@@ -130,6 +149,7 @@ describe('BlockchainWorkerService distributed claim', () => {
       prisma as unknown as PrismaService,
       configService(),
       {
+        getWriterRoute: () => fixtureRoute,
         getAdapter: vi.fn().mockResolvedValue({
           healthCheck: vi
             .fn()
@@ -234,6 +254,9 @@ function workerWithReceipt(receipt: object) {
     blockchainProof: { upsert },
   };
   const prisma = {
+    ledgerRouteDefinition: {
+      findMany: vi.fn().mockResolvedValue([fixtureRoute]),
+    },
     $transaction: vi.fn(
       async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
     ),
@@ -252,6 +275,7 @@ function workerWithReceipt(receipt: object) {
     prisma as unknown as PrismaService,
     configService(),
     {
+      getWriterRoute: () => fixtureRoute,
       getAdapter: vi.fn().mockResolvedValue(adapter),
     } as unknown as FabricAdapterProvider,
   );
@@ -280,6 +304,11 @@ function claimedJob(attemptCount: number) {
     createdAt: new Date('2026-09-21T00:00:00.000Z'),
     updatedAt: new Date('2026-09-21T00:00:00.000Z'),
     traceEvent: {
+      ledgerRoute: {
+        definitionDigest: fixtureRoute.digest,
+        definition: fixtureRoute,
+      },
+      blockchainProof: null,
       id: 'd6212d56-a3b2-4d54-9779-cc8507a6bd53',
       entityType: 'LOT',
       entityId: '631e9648-174d-48a0-9494-353bda8775da',

@@ -22,7 +22,7 @@ export default function ScanPage() {
   }
   return (
     <div className="scan-page grid">
-      <section className="scan-heading">
+      <section className="scan-heading enter">
         <p className="eyebrow">TRA CỨU CÔNG KHAI</p>
         <h1>Quét mã. Hiểu nguồn gốc.</h1>
         <p className="muted">
@@ -30,7 +30,7 @@ export default function ScanPage() {
           khoản.
         </p>
       </section>
-      <div className="scan-layout">
+      <div className="scan-layout enter" style={{ "--d": "120ms" } as React.CSSProperties}>
         <CameraScanner onTrace={(path) => router.push(path)} />
         <div className="grid">
           <form

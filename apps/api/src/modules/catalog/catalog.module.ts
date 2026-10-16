@@ -16,6 +16,7 @@ import {
   Req,
   UseGuards,
   UnprocessableEntityException,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   IsOptional,
@@ -113,7 +114,35 @@ class CatalogController {
   ) {}
   @ApiDataResponse(CatalogDto, 200)
   @Get()
+  @Roles(
+    'SYSTEM_ADMIN',
+    'FARM_STAFF',
+    'TRANSPORTER',
+    'RETAILER',
+    'AUDITOR',
+    'COMPLIANCE_REVIEWER',
+  )
   async list(@Req() req: AuthenticatedRequest) {
+    if (
+      !['SYSTEM_ADMIN', 'FARM_STAFF'].includes(req.user.role) &&
+      !(await this.db.scopedRoleGrant.findFirst({
+        where: {
+          userId: req.user.sub,
+          organizationId:
+            req.user.organizationId ?? '00000000-0000-0000-0000-000000000000',
+          role: 'FARM_STAFF',
+          scope: 'CHAIN',
+          revokedAt: null,
+          chain: { is: { businessProfile: { is: { state: 'ACTIVE' } } } },
+          membership: { is: { status: 'ACTIVE' } },
+          organization: {
+            status: 'ACTIVE',
+            capabilities: { some: { code: 'FARM', revokedAt: null } },
+          },
+        },
+      }))
+    )
+      throw new ForbiddenException('Chưa có quyền sản xuất để xem catalog');
     const where =
       req.user.role === 'SYSTEM_ADMIN'
         ? {}

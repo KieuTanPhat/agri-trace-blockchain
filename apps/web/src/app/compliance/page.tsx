@@ -9,8 +9,16 @@ import type { LotTrace, ProductionCycleOption } from "@/lib/types";
 
 type Certificate = components["schemas"]["CertificateRecordDto"];
 type Inspection = components["schemas"]["InspectionListDto"];
-const certificateLabels: Record<string, string> = { PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", REJECTED: "Đã từ chối" };
-const inspectionLabels = { PASS: "Đạt", FAIL: "Không đạt", CONDITIONAL: "Đạt có điều kiện" };
+const certificateLabels: Record<string, string> = {
+  PENDING: "Chờ duyệt",
+  APPROVED: "Đã duyệt",
+  REJECTED: "Đã từ chối",
+};
+const inspectionLabels = {
+  PASS: "Đạt",
+  FAIL: "Không đạt",
+  CONDITIONAL: "Đạt có điều kiện",
+};
 type Snapshot = {
   scope: string;
   certificates: Certificate[];
@@ -96,9 +104,55 @@ function ComplianceWorkbench({
   const [inspectionId, setInspectionId] = useState("");
   const [reviewId, setReviewId] = useState("");
   const { certificates, inspections, lots, cycles } = data;
+  const writeCycles = cycles.filter(
+    (cycle) =>
+      cycle.canWriteProduction ?? (!cycle.chainId && role === "FARM_STAFF"),
+  );
+  const reviewCycles = cycles.filter(
+    (cycle) =>
+      cycle.canReviewCompliance ??
+      (!cycle.chainId && role === "COMPLIANCE_REVIEWER"),
+  );
+  const writeIds = new Set(writeCycles.map((cycle) => cycle.id));
+  const reviewIds = new Set(reviewCycles.map((cycle) => cycle.id));
+  const writeLots = lots.filter((lot) =>
+    writeIds.has(lot.productionCycle.cycleId),
+  );
+  const reviewLots = lots.filter((lot) =>
+    reviewIds.has(lot.productionCycle.cycleId),
+  );
+  const writeLotIds = new Set(writeLots.map((lot) => lot.lotId));
+  const reviewLotIds = new Set(reviewLots.map((lot) => lot.lotId));
+  const canSubmit = (item: Certificate) =>
+    item.cycleId
+      ? writeIds.has(item.cycleId)
+      : Boolean(item.lotId && writeLotIds.has(item.lotId));
+  const canReview = (item: Certificate) =>
+    item.cycleId
+      ? reviewIds.has(item.cycleId)
+      : Boolean(item.lotId && reviewLotIds.has(item.lotId));
+  const selfReview = (item: Certificate) => {
+    const seen = new Set<string>();
+    let current: Certificate | undefined = item;
+    while (current) {
+      if (seen.has(current.id) || current.submittedByUserId === userId)
+        return true;
+      seen.add(current.id);
+      if (!current.supersedesId) return false;
+      current = certificates.find(
+        (ancestor) => ancestor.id === current!.supersedesId,
+      );
+      if (!current) return true;
+    }
+    return true;
+  };
+  const reviewInspections = inspections.filter((item) =>
+    reviewLotIds.has(item.lotId),
+  );
   const replacements = certificates.filter(
     (item) =>
       item.status === "APPROVED" &&
+      canSubmit(item) &&
       !certificates.some(
         (child) =>
           child.supersedesId === item.id &&
@@ -106,13 +160,13 @@ function ComplianceWorkbench({
       ),
   );
   const replacement = replacements.find((item) => item.id === replacementId);
-  const originalInspection = inspections.find(
+  const originalInspection = reviewInspections.find(
     (item) =>
       item.id === inspectionId &&
       !inspections.some((child) => child.supersedesId === item.id),
   );
   const pending = certificates.filter(
-    (item) => item.status === "PENDING" && item.submittedByUserId !== userId,
+    (item) => item.status === "PENDING" && canReview(item) && !selfReview(item),
   );
   const review = pending.find((item) => item.id === reviewId);
   const correctionFields: Field[] = [
@@ -132,8 +186,11 @@ function ComplianceWorkbench({
             required: true,
             options:
               subjectKind === "lotId"
-                ? lots.map((lot) => ({ value: lot.lotId, label: lot.lotCode }))
-                : cycles.map((cycle) => ({
+                ? writeLots.map((lot) => ({
+                    value: lot.lotId,
+                    label: lot.lotCode,
+                  }))
+                : writeCycles.map((cycle) => ({
                     value: cycle.id,
                     label: cycle.cycleCode,
                   })),
@@ -165,7 +222,7 @@ function ComplianceWorkbench({
   ];
   return (
     <>
-      {role === "FARM_STAFF" && (
+      {writeCycles.length > 0 && (
         <section className="grid">
           <label className="field">
             Chứng nhận gốc hoặc bản thay thế
@@ -224,7 +281,7 @@ function ComplianceWorkbench({
           )}
         </section>
       )}
-      {role === "COMPLIANCE_REVIEWER" && (
+      {reviewCycles.length > 0 && (
         <section className="grid two">
           <div className="grid">
             <label className="field">
@@ -235,7 +292,7 @@ function ComplianceWorkbench({
                 onChange={(event) => setInspectionId(event.target.value)}
               >
                 <option value="">Ghi kiểm định mới</option>
-                {inspections
+                {reviewInspections
                   .filter(
                     (item) =>
                       !inspections.some(
@@ -244,7 +301,8 @@ function ComplianceWorkbench({
                   )
                   .map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.lot.lotCode} — {inspectionLabels[item.result]} — {item.inspectedAt}
+                      {item.lot.lotCode} — {inspectionLabels[item.result]} —{" "}
+                      {item.inspectedAt}
                     </option>
                   ))}
               </select>
@@ -253,9 +311,7 @@ function ComplianceWorkbench({
               <DataForm
                 key={inspectionId}
                 title={
-                  originalInspection
-                    ? "Ghi bản sửa kiểm định"
-                    : "Ghi kiểm định"
+                  originalInspection ? "Ghi bản sửa kiểm định" : "Ghi kiểm định"
                 }
                 path="/inspections"
                 extra={
@@ -273,7 +329,7 @@ function ComplianceWorkbench({
                           name: "lotId",
                           label: "Lô được phân công",
                           required: true,
-                          options: lots.map((lot) => ({
+                          options: reviewLots.map((lot) => ({
                             value: lot.lotId,
                             label: lot.lotCode,
                           })),

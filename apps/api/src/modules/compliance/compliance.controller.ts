@@ -32,6 +32,7 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
+import { CommandPolicy } from '../auth/command-policy.decorator.js';
 import { ComplianceService } from './compliance.service.js';
 import {
   CreateCertificateDto,
@@ -43,6 +44,7 @@ import {
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller()
+@CommandPolicy()
 export class ComplianceController {
   constructor(
     private readonly service: ComplianceService,

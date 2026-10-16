@@ -15,12 +15,10 @@ coverage
 .env.*
 !.env.example
 !.env.docker.example
-!.env.uat.example
 **/.env
 **/.env.*
 !**/.env.example
 !.env.docker.example
-!.env.uat.example
 .uat
 **/*.dump
 **/*accounts*.json

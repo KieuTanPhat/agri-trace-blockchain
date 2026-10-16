@@ -1,5 +1,10 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { ConflictException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { isUUID } from 'class-validator';
 import { Prisma } from '../../generated/prisma/client.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
@@ -17,6 +22,19 @@ export interface CommandContext {
 }
 
 export const commandContext = new AsyncLocalStorage<CommandContext>();
+
+export function effectiveCommandActor<
+  T extends { sub: string | null; role: string; organizationId: string | null },
+>(actor: T): T {
+  const business = commandContext.getStore()?.input.businessActor;
+  if (!business) return actor;
+  if (
+    business.sub !== actor.sub ||
+    business.organizationId !== actor.organizationId
+  )
+    throw new Error('Derived command actor identity mismatch');
+  return { ...actor, role: business.role };
+}
 
 export function commandResponseJson(value: unknown): Prisma.InputJsonValue {
   // Mirrors HTTP serialization for Date/Decimal, with lossless bigint strings.
@@ -48,6 +66,32 @@ function resourceIds(value: unknown, path = ''): Record<string, string> {
       Object.assign(result, resourceIds(item, itemPath));
   }
   return result;
+}
+
+/** A Prisma request error thrown by a statement inside the transaction
+ * callback means COMMIT was never sent, so the domain writes and journal were
+ * rolled back. Such constraint errors are terminal business rejections; any
+ * other failure (including one at COMMIT) keeps its unknown-outcome path. */
+export function rolledBackCommandError(error: unknown): unknown {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error instanceof HttpException
+  )
+    return error;
+  switch (error.code) {
+    case 'P2002':
+      return new ConflictException('Dữ liệu đã tồn tại (trùng khóa duy nhất)');
+    case 'P2003':
+      return new ConflictException('Dữ liệu liên quan không hợp lệ');
+    case 'P2025':
+      return new NotFoundException('Không tìm thấy dữ liệu cần cập nhật');
+    case 'P2004':
+      return new UnprocessableEntityException(
+        'Dữ liệu vi phạm ràng buộc cơ sở dữ liệu',
+      );
+    default:
+      return error;
+  }
 }
 
 /** A command's result and its domain writes share one PostgreSQL commit.
@@ -86,7 +130,12 @@ export async function commandTransaction<T>(
       )
         throw new ConflictException('Phạm vi command đã thay đổi');
     }
-    const response = await command(tx);
+    let response: T;
+    try {
+      response = await command(tx);
+    } catch (error) {
+      throw rolledBackCommandError(error);
+    }
     if (context) {
       const body = commandResponseJson(response);
       await tx.commandCommit.create({
@@ -97,8 +146,14 @@ export async function commandTransaction<T>(
           authorizationScope: context.authorizationScope,
           actorScope: {
             requesterId: context.input.requesterId,
-            role: context.input.actor?.role ?? 'IOT_DEVICE',
+            role:
+              context.input.businessActor?.role ??
+              context.input.actor?.role ??
+              'IOT_DEVICE',
             organizationId: context.input.actor?.organizationId ?? null,
+            ...(context.input.businessActor
+              ? { authenticatedRole: context.input.actor!.role }
+              : {}),
           },
           resourceIds: {
             requested: resourceIds(context.input.payload),

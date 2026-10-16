@@ -13,23 +13,23 @@ from controller import Controller, PolicyError as ControllerError, policy as con
 def binding():
     selected = targets.TARGETS['production']
     base = '/opt/agri-trace'
-    fabric_root = base + '/fabric'
-    fabric = dict(network='fabric_test', channel='agritrace', chaincode='agritrace', root=fabric_root,
+    root = base + '/hosted/production'
+    hosted = dict(network='hosted_test', channel='hybrid-b', chaincode='agritrace', root=root,
                   containers=['peer0.org1.example.com', 'peer0.org2.example.com', 'orderer.example.com'],
                   volumes=['compose_peer0.org1.example.com', 'compose_peer0.org2.example.com', 'compose_orderer.example.com'],
-                  backup_paths=[fabric_root + '/identities'], peer_binary=fabric_root + '/bin/peer',
-                  config_path=fabric_root + '/config',
-                  orderer=dict(address='localhost:7050', hostname='orderer.example.com', tls=fabric_root + '/orderer/tls.crt'),
+                  backup_paths=[root + '/identities'], peer_binary=root + '/bin/peer', config_path=root + '/config',
+                  orderer=dict(address='localhost:7050', hostname='orderer.example.com', tls=root + '/orderer/tls.crt'),
                   peers={str(i): dict(address=f'localhost:{7051 if i == 1 else 9051}', msp_id=f'Org{i}MSP',
-                                     hostname=f'peer0.org{i}.example.com', msp=fabric_root + f'/org{i}/msp',
-                                     tls=fabric_root + f'/org{i}/tls.crt') for i in [1, 2]})
-    return dict(selected, schema=2, environment='production', enabled=False, profile='fabric', base=base,
-                postgres_volume=selected['project'] + '_postgres-data', fabric=fabric,
+                                     hostname=f'peer0.org{i}.example.com', msp=root + f'/org{i}/msp',
+                                     tls=root + f'/org{i}/tls.crt') for i in [1, 2]})
+    return dict(selected, schema=3, environment='production', enabled=False, profile='fabric', base=base,
+                postgres_volume=selected['project'] + '_postgres-data', hosted=hosted,
                 repository='KieuTanPhat/agri-trace-blockchain', host_lock='/run/lock/agri-trace-host.lock',
                 env=base + '/shared/config/.env', accounts=base + '/shared/config/accounts.json',
-                backup_certificate=base + '/shared/config/backup.pem',
-                canary={'farmId': '6bb639b5-924a-4e82-8d80-000000000201', 'plotId': '6bb639b5-924a-4e82-8d80-000000000203',
-                        'productId': '6bb639b5-924a-4e82-8d80-000000000202'})
+                backup_certificate=base + '/shared/config/backup.pem', writes_mode='CLOSED', open_after_smoke=True,
+                bootstrap=base + '/shared/config/bootstrap.json',
+                smoke={'chainId': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'farmId': '6bb639b5-924a-4e82-8d80-000000000201',
+                       'plotId': '6bb639b5-924a-4e82-8d80-000000000203', 'productId': '6bb639b5-924a-4e82-8d80-000000000202'})
 
 
 class TargetPolicy(unittest.TestCase):
@@ -44,18 +44,22 @@ class TargetPolicy(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(PolicyError):
                 targets.validate_config(dict(valid, **{key: value}), require)
 
-    def test_adoption_retains_existing_production_pgdata(self):
-        adopted = dict(binding(), project='agri-trace-uat', postgres_volume='agri-trace-uat_postgres-data')
-        targets.validate_config(adopted, require)
+    def test_the_retired_uat_project_and_its_database_volume_are_rejected(self):
+        retired = dict(binding(), project='agri-trace-uat', postgres_volume='agri-trace-uat_postgres-data')
+        with self.assertRaisesRegex(PolicyError, 'project mismatch'):
+            targets.validate_config(retired, require)
+        for schema in (2, None):
+            with self.subTest(schema=schema), self.assertRaises(PolicyError):
+                targets.validate_config(dict(binding(), schema=schema), require)
 
     def test_fabric_is_required_and_retired_dev_resources_cannot_be_rebound(self):
-        for change in [dict(profile='light'), dict(fabric_enabled=False), dict(fabric=None)]:
+        for change in [dict(profile='light'), dict(fabric_enabled=False), dict(hosted=None)]:
             with self.subTest(change=change), self.assertRaises(PolicyError):
                 targets.validate_config(dict(binding(), **change), require)
         for key, value in [('root', '/opt/agri-trace-dev/fabric'), ('network', 'agritrace-dev-fabric'),
                            ('channel', 'agritrace-dev'), ('containers', ['agritrace-dev-peer1'])]:
             changed = copy.deepcopy(binding())
-            changed['fabric'][key] = value
+            changed['hosted'][key] = value
             with self.subTest(key=key), self.assertRaisesRegex(PolicyError, 'Retired development'):
                 targets.validate_config(changed, require)
 
@@ -122,22 +126,41 @@ class ProductionController(unittest.TestCase):
             self.controller.execute(['deploy', 'a' * 40, 'b' * 64], stream)
         self.assertEqual(stream.tell(), 0)
 
-    def test_recovery_cannot_seed_a_new_production_database(self):
-        self.controller.storage.mkdir()
-        journal = self.controller.storage / 'journal.json'
-        journal.write_text(json.dumps({'previous': None, 'candidate': 'prod-' + 'a' * 40}))
-        with patch.object(self.controller, 'run') as command, self.assertRaisesRegex(ControllerError, 'verified previous'):
-            self.controller.recover()
-        command.assert_not_called()
-        self.assertTrue(journal.exists())
-
-    def test_delivery_requires_adopted_state_before_transport_reads(self):
+    def test_rollback_requires_an_installed_release_before_transport_reads(self):
         self.config['enabled'] = True
         self.controller.state = lambda: {'current': None}
         stream = io.BytesIO(b'never read')
-        with self.assertRaisesRegex(ControllerError, 'adopted verified release'):
-            self.controller.execute(['deploy', 'a' * 40, 'b' * 64], stream)
+        with self.assertRaisesRegex(ControllerError, 'installed verified release'):
+            self.controller.execute(['rollback', 'a' * 40], stream)
         self.assertEqual(stream.tell(), 0)
+
+
+class HostedTargetBinding(unittest.TestCase):
+    def test_external_owner_must_use_private_tls_and_cannot_retain_its_hosted_private_stack(self):
+        config = binding()
+        config['hosted']['external_owner'] = {'protocol': 'agritrace-external-owner/1', 'msp_id': 'Org3MSP',
+            'channel': 'hybrid-self', 'endpoint': '10.77.0.2:11051', 'hostname': 'peer0.org3.example.com',
+            'tls_ca': config['hosted']['root'] + '/public-owner/ca.crt'}
+        targets.validate_config(config, require)
+        for endpoint in ['0.0.0.0:11051', '8.8.8.8:11051', '10.77.0.2:5432']:
+            changed = copy.deepcopy(config)
+            changed['hosted']['external_owner']['endpoint'] = endpoint
+            with self.subTest(endpoint=endpoint), self.assertRaises(PolicyError):
+                targets.validate_config(changed, require)
+        changed = copy.deepcopy(config)
+        changed['hosted']['containers'].append('agritrace-prod-old-ca-org3')
+        with self.assertRaisesRegex(PolicyError, 'retain a hosted'):
+            targets.validate_config(changed, require)
+
+    def test_target_has_its_own_database_mapping_and_never_binds_a_retained_network(self):
+        config = binding()
+        targets.validate_config(config, require)
+        for change in [dict(fabric=binding()['hosted']), dict(project='agri-trace-uat', postgres_volume='agri-trace-uat_postgres-data'),
+                       dict(writes_mode='CANARY'), dict(open_after_smoke='true'), dict(bootstrap='/tmp/bootstrap.json'),
+                       dict(smoke={k: v for k, v in config['smoke'].items() if k != 'chainId'}),
+                       dict(smoke=dict(config['smoke'], chainId='not-a-uuid'))]:
+            with self.subTest(change=list(change)), self.assertRaises(PolicyError):
+                targets.validate_config(dict(config, **change), require)
 
 
 if __name__ == '__main__':

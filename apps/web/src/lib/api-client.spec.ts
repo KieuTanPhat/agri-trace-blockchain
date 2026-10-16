@@ -1,4 +1,6 @@
 import type { PublicLotTrace } from "./types";
+import { webcrypto } from "node:crypto";
+import { installBrowserLocks } from "../test/browser-locks";
 import {
   afterEach,
   beforeEach,
@@ -20,6 +22,7 @@ const user = {
 const auth = { accessToken: "old", tokenType: "Bearer" as const, user };
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status });
+let restoreLocks: (() => void) | undefined;
 
 beforeEach(() => {
   vi.resetModules();
@@ -27,13 +30,167 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://api.test/api");
   vi.stubEnv("NEXT_PUBLIC_API_SAME_ORIGIN", "false");
   localStorage.clear();
+  vi.stubGlobal("crypto", webcrypto);
+  restoreLocks = installBrowserLocks();
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+  restoreLocks?.();
   vi.unstubAllEnvs();
 });
 
 describe("public API", () => {
+  it("does not claim a saved signed command under a permission revision changed while waiting for another tab", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(json({ success: true, data: { id: "unexpected" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = await import("./api-client");
+    const permissions = await import("./permission-sync");
+    client.setSession(auth);
+    permissions.acceptBusinessAccessRevision("a".repeat(64));
+    let entered!: () => void;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const lock = navigator.locks.request(
+      "agritrace-command:v1:" + JSON.stringify([user.id, user.organizationId]),
+      async () => {
+        entered();
+        await held;
+      },
+    );
+    await ready;
+    const pending = client.request(
+      "/signing-intents/00000000-0000-4000-8000-000000000021/submit",
+      {
+        method: "POST",
+        body: JSON.stringify({ signature: "A".repeat(86) }),
+        headers: { "idempotency-key": "signed-original" },
+      },
+    );
+    const rejected = expect(pending).rejects.toMatchObject({
+      code: "ACCESS_CHANGED",
+    });
+    await Promise.resolve();
+    permissions.acceptBusinessAccessRevision("b".repeat(64));
+    release();
+    await Promise.all([lock, rejected]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      Object.keys(localStorage).some((key) =>
+        key.startsWith("agritrace-command:v1:"),
+      ),
+    ).toBe(false);
+  });
+  it.each(["GET", "POST"])(
+    "does not resend a private %s after access changes during token refresh",
+    async (method) => {
+      let finishRefresh!: (response: Response) => void;
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(json({}, 401))
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishRefresh = resolve;
+            }),
+        )
+        .mockResolvedValue(json({ success: true, data: { private: "stale" } }));
+      vi.stubGlobal("fetch", fetchMock);
+      const client = await import("./api-client");
+      const permissions = await import("./permission-sync");
+      client.setSession(auth);
+      permissions.acceptBusinessAccessRevision("a".repeat(64));
+      const pending = client.request("/lots", {
+        method,
+        ...(method === "POST" ? { body: "{}" } : {}),
+        headers: { "idempotency-key": "original-command" },
+      });
+      const rejected = expect(pending).rejects.toMatchObject({
+        status: 409,
+        code: "ACCESS_CHANGED",
+      });
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      permissions.acceptBusinessAccessRevision("b".repeat(64));
+      finishRefresh(
+        json({ success: true, data: { ...auth, accessToken: "new" } }),
+      );
+      await rejected;
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(client.readSession()?.accessToken).toBe("new");
+    },
+  );
+
+  it("does not resend a command when current permissions cannot be confirmed during refresh", async () => {
+    let finishRefresh!: (response: Response) => void;
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({}, 401))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishRefresh = resolve;
+          }),
+      )
+      .mockResolvedValue(json({ success: true, data: { id: "unexpected" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = await import("./api-client");
+    const permissions = await import("./permission-sync");
+    client.setSession(auth);
+    permissions.acceptBusinessAccessRevision("a".repeat(64));
+    const pending = client.request("/production-cycles", {
+      method: "POST",
+      body: "{}",
+      headers: { "idempotency-key": "original-command" },
+    });
+    const rejected = expect(pending).rejects.toMatchObject({
+      code: "ACCESS_CHANGED",
+    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    permissions.invalidateBusinessAccess();
+    finishRefresh(
+      json({ success: true, data: { ...auth, accessToken: "new" } }),
+    );
+    await rejected;
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["GET", "POST"])(
+    "rejects a late private %s response after the business revision changes",
+    async (method) => {
+      let finish!: (response: Response) => void;
+      const fetchMock = vi.fn<typeof fetch>().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const client = await import("./api-client");
+      const permissions = await import("./permission-sync");
+      client.setSession(auth);
+      permissions.acceptBusinessAccessRevision("a".repeat(64));
+      const old = client.request("/lots", {
+        method,
+        ...(method === "POST" ? { body: "{}" } : {}),
+      });
+      const rejected = expect(old).rejects.toMatchObject({
+        status: 409,
+        code: "ACCESS_CHANGED",
+      });
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+      permissions.acceptBusinessAccessRevision("b".repeat(64));
+      finish(json({ success: true, data: { private: "old scope" } }));
+      await rejected;
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(client.readSession()?.user.id).toBe(user.id);
+    },
+  );
   it("uses the current browser origin in production so aliases retain cookie sessions", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_API_SAME_ORIGIN", "true");
@@ -64,7 +221,7 @@ describe("public API", () => {
     );
   });
 
-  it("preserves a separate configured API for production Web without the UAT proxy flag", async () => {
+  it("preserves a separate configured API for production Web without the same-origin proxy flag", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const fetchMock = vi
       .fn<typeof fetch>()
@@ -555,11 +712,14 @@ describe("cookie-backed session", () => {
       code: "NETWORK_ERROR",
     });
   });
-  it("uses the caller's stable key for a sensor retry", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () =>
+  it("uses the caller's stable key for a sensor retry and replays a committed reading", async () => {
+    const accepted = { status: "accepted", readingId: "reading" };
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (url) =>
       json({
         success: true,
-        data: { status: "accepted", readingId: "reading" },
+        data: String(url).endsWith("/command-requests/status")
+          ? { status: "COMMITTED", responseStatus: 201, result: accepted }
+          : accepted,
       }),
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -573,13 +733,22 @@ describe("cookie-backed session", () => {
       unit: "C",
       recordedAt: "2026-09-29T00:00:00.000Z",
     };
-    await sendSensorReading(payload, "sensor-key");
-    await sendSensorReading(payload, "sensor-key");
+    await expect(sendSensorReading(payload, "sensor-key")).resolves.toEqual(
+      accepted,
+    );
+    // The second send inspects the saved original instead of ingesting again.
+    await expect(sendSensorReading(payload, "sensor-key")).resolves.toEqual(
+      accepted,
+    );
     expect(
-      fetchMock.mock.calls.map((call) =>
+      fetchMock.mock.calls.map((call) => [
+        String(call[0]).replace(/^.*\/api/, ""),
         new Headers(call[1]?.headers).get("idempotency-key"),
-      ),
-    ).toEqual(["sensor-key", "sensor-key"]);
+      ]),
+    ).toEqual([
+      ["/iot/readings", "sensor-key"],
+      ["/command-requests/status", "sensor-key"],
+    ]);
   });
   it("keeps the in-memory session if logout cannot reach the server", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));

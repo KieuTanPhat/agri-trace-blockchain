@@ -13,6 +13,7 @@ import { IdempotencyService } from '../../common/idempotency/idempotency.service
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
+import { CommandPolicy } from '../auth/command-policy.decorator.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import {
   DamageLotDto,
@@ -28,6 +29,7 @@ import { LotCommandResultDto } from './lot-response.dto.js';
 @ApiHeader({ name: 'Idempotency-Key', required: true })
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('lots/:lotId')
+@CommandPolicy()
 export class LotCommandsController {
   constructor(
     private readonly service: LotCommandsService,

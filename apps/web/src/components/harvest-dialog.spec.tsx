@@ -13,23 +13,26 @@ import {
   readSession,
   recordHarvest,
 } from "@/lib/api-client";
+import { acceptBusinessAccessRevision } from "@/lib/permission-sync";
 import { HarvestDialog } from "./harvest-dialog";
 
-const { user } = vi.hoisted(() => ({
-  user: {
+const { user, auth } = vi.hoisted(() => {
+  const user = {
     id: "87247bd2-c19b-4f9c-ab44-fd2ea5f96fa",
     role: { code: "FARM_STAFF" },
     organizationId: "173f44c2-06ef-4221-8c75-f68e292415b0",
     accountStatus: "ACTIVE",
-  },
-}));
+  };
+  // useAuth() decorates the raw session user like AuthProvider does.
+  return { user, auth: { user: user as typeof user & { accessRevision?: string } } };
+});
 vi.mock("@/lib/api-client", () => ({
   getHarvestRequestStatus: vi.fn(),
   getProductionCycles: vi.fn(),
   readSession: vi.fn(),
   recordHarvest: vi.fn(),
 }));
-vi.mock("@/lib/auth-store", () => ({ useAuth: () => ({ user }) }));
+vi.mock("@/lib/auth-store", () => ({ useAuth: () => auth }));
 vi.mock("./qr-code-card", () => ({
   QrCodeCard: ({ value }: { value: string }) => <span>{value}</span>,
 }));
@@ -56,6 +59,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () {
     this.removeAttribute("open");
   };
+  auth.user = user;
   vi.mocked(readSession).mockReturnValue({ user } as never);
   vi.mocked(getHarvestRequestStatus).mockResolvedValue({ status: "NOT_FOUND" });
   vi.mocked(getProductionCycles).mockResolvedValue([
@@ -128,4 +132,26 @@ it("keeps the original key and time when the same fields are re-entered after re
   expect(vi.mocked(recordHarvest).mock.calls[1]).toEqual(
     vi.mocked(recordHarvest).mock.calls[0],
   );
+});
+
+it("submits when useAuth carries the accepted permission revision and the session user does not", async () => {
+  const revision = "a".repeat(64);
+  acceptBusinessAccessRevision(revision);
+  auth.user = { ...user, accessRevision: revision };
+  vi.mocked(recordHarvest).mockResolvedValue(result as never);
+  const view = render(<HarvestDialog onCreated={() => undefined} />);
+  await enterHarvest(view.container);
+  expect(await screen.findByText("Đã tạo lô AUTO-1")).toBeVisible();
+  expect(recordHarvest).toHaveBeenCalledTimes(1);
+});
+
+it("refuses to send after the permission revision changed under an open dialog", async () => {
+  const revision = "b".repeat(64);
+  acceptBusinessAccessRevision(revision);
+  auth.user = { ...user, accessRevision: revision };
+  const view = render(<HarvestDialog onCreated={() => undefined} />);
+  acceptBusinessAccessRevision("c".repeat(64));
+  await enterHarvest(view.container);
+  expect(await screen.findByText(/quyền đã thay đổi/)).toBeVisible();
+  expect(recordHarvest).not.toHaveBeenCalled();
 });

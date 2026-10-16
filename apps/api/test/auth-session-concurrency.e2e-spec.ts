@@ -155,6 +155,36 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
     await prisma.$disconnect();
   });
 
+  it('creates independent login families while business authority is held for reading', async () => {
+    const entered = barrier();
+    const resume = barrier();
+    const reading = prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT organization_id FROM organization WHERE organization_id=${organizationId}::uuid FOR SHARE`;
+      await tx.$queryRaw`SELECT user_id FROM app_user WHERE user_id=${userId}::uuid FOR SHARE`;
+      entered.release();
+      await resume.promise;
+    }, { timeout: 15_000 });
+    await entered.promise;
+    const logins = Promise.all(Array.from({ length: 10 }, () => auth.login({ email, password })));
+    void logins.catch(() => {});
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const sessions = await Promise.race([
+        logins,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Login waited for a business reader')), 3_000);
+        }),
+      ]);
+      expect(new Set(sessions.map(session => session.sessionId)).size).toBe(10);
+      for (const session of sessions) await expect(accepts(session.accessToken)).resolves.toBe(true);
+    } finally {
+      clearTimeout(timer);
+      resume.release();
+      await reading;
+      await logins.catch(() => {});
+    }
+  });
+
   it.each(['logout', 'lock account', 'disable organization'] as const)(
     'keeps old and rotated JWTs revoked after %s races with refresh, including reactivation',
     async (operation) => {

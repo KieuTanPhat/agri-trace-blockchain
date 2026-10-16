@@ -1,15 +1,18 @@
 "use client";
 
 import { FormEvent, useId, useRef, useState } from "react";
-import { ArrowRight, ClipboardCheck, LoaderCircle, X } from "lucide-react";
-import { getOrganizations, submitCommand } from "@/lib/api-client";
+import { ArrowRight, ClipboardCheck, LoaderCircle, X, Zap } from "lucide-react";
+import {
+  getOrganizations,
+  submitCommand,
+  retryPendingCommand,
+} from "@/lib/api-client";
 import type {
   AllowedCommand,
   CommandInput,
   LotTrace,
   Organization,
 } from "@/lib/types";
-import { IconZap } from "./icons";
 import { ErrorState } from "./error-state";
 
 const labels: Record<AllowedCommand, string> = {
@@ -41,7 +44,49 @@ export function ActionPanel({
   const attempt = useRef({ payload: "", key: "" });
   const busy = useRef(false);
   const [error, setError] = useState("");
+  const [recoveryId, setRecoveryId] = useState("");
+  const [canRestart, setCanRestart] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
+  function failed(cause: unknown) {
+    setRecoveryId(
+      cause && typeof cause === "object" && "recoveryId" in cause
+        ? String(cause.recoveryId)
+        : "",
+    );
+    setCanRestart(
+      Boolean(
+        cause &&
+        typeof cause === "object" &&
+        "canRestart" in cause &&
+        cause.canRestart,
+      ),
+    );
+    setError(
+      cause && typeof cause === "object" && "message" in cause
+        ? String(cause.message)
+        : "Chưa gửi được thao tác. Vui lòng thử lại.",
+    );
+  }
+  async function recover() {
+    if (busy.current || !recoveryId) return;
+    busy.current = true;
+    setPending(true);
+    setError("");
+    try {
+      await retryPendingCommand(recoveryId);
+      setResult("Yêu cầu trước đã được ghi nhận.");
+      attempt.current = { payload: "", key: "" };
+      setRecoveryId("");
+      setCanRestart(false);
+      dialog.current?.close();
+      onCompleted?.();
+    } catch (cause) {
+      failed(cause);
+    } finally {
+      busy.current = false;
+      setPending(false);
+    }
+  }
 
   function open(command: AllowedCommand) {
     setError("");
@@ -82,14 +127,12 @@ export function ActionPanel({
       );
       setResult(response.message);
       attempt.current = { payload: "", key: "" };
+      setRecoveryId("");
+      setCanRestart(false);
       dialog.current?.close();
       onCompleted?.();
     } catch (cause) {
-      setError(
-        typeof cause === "object" && cause && "message" in cause
-          ? String(cause.message)
-          : "Chưa gửi được thao tác. Vui lòng thử lại.",
-      );
+      failed(cause);
     } finally {
       busy.current = false;
       setPending(false);
@@ -101,7 +144,7 @@ export function ActionPanel({
       <div className="panel-title">
         <div className="panel-title-left">
           <span className="panel-icon accent">
-            <IconZap size={18} />
+            <Zap size={18} />
           </span>
           <div>
             <p className="eyebrow">Cổng thao tác</p>
@@ -173,7 +216,9 @@ export function ActionPanel({
           {selected === "createShipment" && (
             <div className="form-grid">
               <div className="field">
-                <label htmlFor={`${fieldId}-transporter`}>Đơn vị vận chuyển</label>
+                <label htmlFor={`${fieldId}-transporter`}>
+                  Đơn vị vận chuyển
+                </label>
                 <select
                   id={`${fieldId}-transporter`}
                   className="select"
@@ -197,7 +242,9 @@ export function ActionPanel({
                 </select>
               </div>
               <div className="field">
-                <label htmlFor={`${fieldId}-retailer`}>Điểm bán nhận hàng</label>
+                <label htmlFor={`${fieldId}-retailer`}>
+                  Điểm bán nhận hàng
+                </label>
                 <select
                   id={`${fieldId}-retailer`}
                   className="select"
@@ -249,7 +296,9 @@ export function ActionPanel({
           {selected === "reportDamage" && (
             <>
               <div className="field">
-                <label htmlFor={`${fieldId}-quantity`}>Số lượng hư hỏng ({lot.unit})</label>
+                <label htmlFor={`${fieldId}-quantity`}>
+                  Số lượng hư hỏng ({lot.unit})
+                </label>
                 <input
                   id={`${fieldId}-quantity`}
                   className="input"
@@ -273,7 +322,9 @@ export function ActionPanel({
           {selected === "receiveRetail" && (
             <div className="form-grid">
               <div className="field">
-                <label htmlFor={`${fieldId}-received`}>Số lượng nhận ({lot.unit})</label>
+                <label htmlFor={`${fieldId}-received`}>
+                  Số lượng nhận ({lot.unit})
+                </label>
                 <input
                   id={`${fieldId}-received`}
                   className="input"
@@ -292,7 +343,9 @@ export function ActionPanel({
                 />
               </div>
               <div className="field">
-                <label htmlFor={`${fieldId}-damaged`}>Số lượng hư hỏng ({lot.unit})</label>
+                <label htmlFor={`${fieldId}-damaged`}>
+                  Số lượng hư hỏng ({lot.unit})
+                </label>
                 <input
                   id={`${fieldId}-damaged`}
                   className="input"
@@ -346,6 +399,30 @@ export function ActionPanel({
             <div className="notice error" role="alert">
               {error}
             </div>
+          )}
+          {recoveryId && (
+            <button
+              className="button secondary"
+              type="button"
+              disabled={pending}
+              onClick={() => void recover()}
+            >
+              Kiểm tra và thử lại yêu cầu trước
+            </button>
+          )}
+          {canRestart && (
+            <button
+              className="button secondary"
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                attempt.current = { payload: "", key: "" };
+                setCanRestart(false);
+                setError("");
+              }}
+            >
+              Chuẩn bị yêu cầu mới
+            </button>
           )}
           <div className="dialog-actions">
             <button

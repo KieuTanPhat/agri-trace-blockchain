@@ -35,4 +35,4 @@ sensor window của command đã commit.
 Regression: mất phản hồi sau commit, mất mạng trước commit, remount, hai tab,
 form cũ, scope thay đổi, storage lỗi và journal thiếu. API E2E dùng PostgreSQL
 18 disposable và kiểm một Harvest/Lot/QR/window/HARVEST_IN, hai trace/outbox
-sau replay; không tạo fixture lỗi trên UAT. Không có migration mới.
+sau replay; không tạo fixture lỗi trên production. Không có migration mới.

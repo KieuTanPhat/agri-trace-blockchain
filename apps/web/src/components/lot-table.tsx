@@ -106,7 +106,7 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
           </button>
         ))}
       </section>
-      <section className="panel lot-table-panel">
+      <section className="panel">
         <div className="table-toolbar">
           <label className="table-search">
             <Search size={20} />
@@ -223,7 +223,7 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
           </span>
           <div className="pagination">
             <button
-              className="icon-button pagination-btn"
+              className="icon-button"
               disabled={currentPage <= 1}
               onClick={() => setPage(currentPage - 1)}
               aria-label="Trang trước"
@@ -237,7 +237,7 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
               {currentPage}/{totalPages}
             </span>
             <button
-              className="icon-button pagination-btn"
+              className="icon-button"
               disabled={currentPage >= totalPages}
               onClick={() => setPage(currentPage + 1)}
               aria-label="Trang sau"
@@ -245,7 +245,7 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
               &gt;
             </button>
             <select
-              className="select pagination-select"
+              className="select"
               aria-label="Số lô mỗi trang"
               value={perPage}
               onChange={(event) => {

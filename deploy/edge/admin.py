@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Administrator-owned production Edge preparation, cutover and reload."""
+"""Administrator-owned production Edge preparation, start and reload."""
 import argparse
 import contextlib
 import datetime
@@ -53,7 +53,7 @@ def validate(filename="Caddyfile"):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("prepare", "cutover", "reload"))
+    parser.add_argument("operation", choices=("prepare", "start", "reload"))
     args = parser.parse_args()
     if os.getuid() != 0:
         raise RuntimeError("Edge administration requires root; delivery keys cannot change routes")
@@ -66,42 +66,28 @@ def main():
         fcntl.flock(production, fcntl.LOCK_EX | fcntl.LOCK_NB)
         fcntl.flock(host, fcntl.LOCK_EX | fcntl.LOCK_NB)
         if args.operation == "prepare":
+            # The private environment file (CADDY_IMAGE, EDGE_CONFIG_DIRECTORY, EDGE_DATA_VOLUME, EDGE_STATE_VOLUME)
+            # is reviewed administrator input. Certificates live in the named volumes it points at; they are never created or removed here.
+            if not (ROOT / ".env").is_file():
+                raise RuntimeError("Edge environment file is missing; create it from reviewed values before preparing the Edge")
+            values = dict(line.split("=", 1) for line in (ROOT / ".env").read_text().splitlines() if line)
+            for key in ("CADDY_IMAGE", "EDGE_CONFIG_DIRECTORY", "EDGE_DATA_VOLUME", "EDGE_STATE_VOLUME"):
+                if not values.get(key):
+                    raise RuntimeError("Edge environment file lacks " + key)
+            for volume in (values["EDGE_DATA_VOLUME"], values["EDGE_STATE_VOLUME"]):
+                run("docker", "volume", "inspect", volume)
             (ROOT / "config").mkdir(mode=0o755, exist_ok=True)
             for network in ("agritrace-prod-ingress",):
                 if subprocess.run(["docker", "network", "inspect", network], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
                     run("docker", "network", "create", network)
-            for component in ("api", "web"):
-                name = "agri-trace-uat-" + component + "-1"
-                metadata = json.loads(run("docker", "inspect", name))[0]
-                if "agritrace-prod-ingress" not in metadata["NetworkSettings"]["Networks"]:
-                    run("docker", "network", "connect", "--alias", "prod-" + component, "agritrace-prod-ingress", name)
-            legacy = json.loads(Path("/etc/agri-trace-cd/config.json").read_text())
-            values = dict(line.split("=", 1) for line in Path(legacy["env"]).read_text().splitlines() if line and not line.startswith("#"))
-            # Reuse the exact certificate volumes. Both proxies must never run together.
-            env = {"CADDY_IMAGE": values["CADDY_IMAGE"], "EDGE_CONFIG_DIRECTORY": str(ROOT / "config"),
-                   "EDGE_DATA_VOLUME": "agri-trace-uat_caddy-data", "EDGE_STATE_VOLUME": "agri-trace-uat_caddy-config"}
-            for volume in (env["EDGE_DATA_VOLUME"], env["EDGE_STATE_VOLUME"]):
-                run("docker", "volume", "inspect", volume)
-            proxy = json.loads(run("docker", "inspect", "agri-trace-uat-proxy-1"))[0]
-            mounts = {mount["Destination"]: mount.get("Name") for mount in proxy["Mounts"]}
-            if mounts.get("/data") != env["EDGE_DATA_VOLUME"] or mounts.get("/config") != env["EDGE_STATE_VOLUME"]:
-                raise RuntimeError("Legacy certificate volume mapping differs; no proxy was stopped")
-            (ROOT / ".env").write_text("".join(k + "=" + v + "\n" for k, v in env.items()))
-            (ROOT / ".env").chmod(0o600)
             shutil.copyfile(Path(__file__).with_name("docker-compose.yml"), ROOT / "docker-compose.yml")
             (ROOT / "config/Caddyfile").write_text(config())
             (ROOT / "config/Caddyfile").chmod(0o644)
             validate()
-        elif args.operation == "cutover":
+        elif args.operation == "start":
             validate()
-            run("docker", "stop", "--time", "20", "agri-trace-uat-proxy-1")
-            try:
-                run(*compose("up", "-d", "--no-build", "--pull", "never", "proxy"))
-                health()
-            except Exception:
-                run(*compose("stop", "proxy"))
-                run("docker", "start", "agri-trace-uat-proxy-1")
-                raise
+            run(*compose("up", "-d", "--no-build", "--pull", "never", "proxy"))
+            health()
         else:
             filename = ROOT / "config/Caddyfile"
             stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")

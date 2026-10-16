@@ -9,6 +9,7 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   commandTransaction,
+  effectiveCommandActor,
   lockAggregate,
 } from '../../common/idempotency/command-transaction.js';
 import { quantity } from '../../common/quantity.js';
@@ -35,6 +36,7 @@ export class LotHarvestService {
   ) {}
 
   async recordHarvest(cycleId: string, input: RecordHarvestDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     await this.access.assertProductionCycleAccess(actor, cycleId);
     const harvestedQuantity = quantity(input.quantity);

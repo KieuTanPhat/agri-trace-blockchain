@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { LoaderCircle, LogIn, ShieldCheck } from "lucide-react";
+import { BrandLogo } from "@/components/ui/brand-logo";
 import { useAuth } from "@/lib/auth-store";
 
 export default function LoginPage() {
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const ready = nextReady && !auth.isLoading;
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("next");
@@ -38,7 +39,7 @@ export default function LoginPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (busy.current) return;
+    if (!ready || busy.current) return;
     busy.current = true;
     setPending(true);
     setError("");
@@ -59,7 +60,7 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      <div className="login-story">
+      <div className="login-story enter">
         <p className="eyebrow">KHÔNG GIAN LÀM VIỆC</p>
         <h2>
           Ghi nhận hôm nay.
@@ -71,20 +72,13 @@ export default function LoginPage() {
           cùng một hệ thống.
         </p>
       </div>
-      <form className="panel login-card" onSubmit={submit}>
-        <Image
-          src="/agritrace/brand/agritrace-logo.svg"
-          alt="AgriTrace"
-          width={260}
-          height={72}
-          priority
-        />
+      <form className="panel login-card enter" style={{ "--d": "120ms" } as React.CSSProperties} onSubmit={submit}>
+        <BrandLogo height={52} priority />
         <div>
           <p className="eyebrow">Cổng quản trị</p>
           <h1>Đăng nhập</h1>
           <p className="muted">
-            Dùng tài khoản được quản trị viên cấp để thao tác theo đúng vai trò
-            và tổ chức.
+            Đăng nhập bằng tài khoản doanh nghiệp hoặc tài khoản được cấp để thao tác theo quyền của bạn.
           </p>
         </div>
         <div className="field">
@@ -95,6 +89,7 @@ export default function LoginPage() {
             type="email"
             autoComplete="username"
             required
+            disabled={!ready}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
@@ -107,6 +102,7 @@ export default function LoginPage() {
             type="password"
             autoComplete="current-password"
             required
+            disabled={!ready}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
@@ -116,7 +112,7 @@ export default function LoginPage() {
             {error}
           </div>
         )}
-        <button className="button" type="submit" disabled={pending}>
+        <button className="button" type="submit" disabled={!ready || pending}>
           {pending ? (
             <LoaderCircle className="spinner" size={18} />
           ) : (
@@ -127,6 +123,7 @@ export default function LoginPage() {
         <Link className="button secondary" href="/scan">
           <ShieldCheck size={18} /> Tra cứu công khai
         </Link>
+        <Link className="text-link" href="/register">Đăng ký doanh nghiệp mới</Link>
       </form>
     </div>
   );
