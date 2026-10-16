@@ -77,6 +77,17 @@ function ignored(root, files) {
   return new Set(result.stdout.trim().split(/\r?\n/).filter(Boolean));
 }
 
+function checkLineEndings(root, files) {
+  const result = spawnSync('git', ['--literal-pathspecs', 'ls-files', '--eol', '-z', '--cached', '--others', '--exclude-standard', '--', ...files], {
+    cwd: root, encoding: 'utf8',
+  });
+  if (result.error || result.status !== 0) throw new Error(`Cannot verify Git line endings: ${result.stderr || result.error?.message}`);
+  const unstable = result.stdout.split('\0').filter(Boolean).filter(record => /\bw\/(?:crlf|mixed)\b/.test(record.split('\t')[0]));
+  if (unstable.length) {
+    throw new Error(`Use LF in shared text files before syncing; Git would normalize their checksummed bytes:\n${unstable.map(record => record.slice(record.indexOf('\t') + 1)).join('\n')}`);
+  }
+}
+
 export function checkSetup(root) {
   const result = syncSkills(root, { check: true });
   const source = readSourceSkills(root);
@@ -106,6 +117,7 @@ export function checkSetup(root) {
     ...[...source.keys()].flatMap(file => [`${sourceDirectory}/${file}`, `${targetDirectory}/${file}`])];
   const hidden = [...ignored(root, tracked)];
   if (hidden.length) throw new Error(`Shared agent files must not be ignored:\n${hidden.join('\n')}`);
+  checkLineEndings(root, [...shared, ...tracked]);
   const local = ['.claude/settings.local.json', '.claude/launch.json', '.claude/worktrees/probe/file',
     '.claude/skills/private-skill/SKILL.md', '.claude/skills/.agritrace-sync-probe.tmp',
     '.codex/evidence/probe.json', '.codex/refactor-baseline/postgres/PG_VERSION', '.codex/run-npm.ps1'];

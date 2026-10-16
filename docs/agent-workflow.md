@@ -80,6 +80,8 @@ Chỉ sửa nguồn chung. Frontmatter v1 gồm đúng `name`/`description`, m�
 plain scalar trên một dòng; tên khớp thư mục, tiền tố `agritrace-`. Không đặt
 model, tool grants, hook, dynamic injection hoặc interpolation riêng của client.
 Nguồn v1 chỉ cần `SKILL.md`; thêm resources khi workflow cần, không tạo placeholder.
+Lưu file text bằng LF rồi sync và check. Sync giữ nguyên bytes, kể cả binary;
+checker từ chối text CRLF/mixed vì Git sẽ đổi bytes khi commit làm checksum lệch.
 
 Manifest `.claude/skills/.generated-skills.json` ghi file/checksum do sync quản lý,
 không ghi thời gian/đường dẫn máy. Source và manifest là nội dung review trong PR.

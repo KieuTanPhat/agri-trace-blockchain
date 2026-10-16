@@ -334,6 +334,25 @@ test('missing reference fails setup check without writing', t => {
   assert.deepEqual(snapshot(f.root), before);
 });
 
+for (const ending of ['CRLF', 'mixed']) {
+  test(`setup check preserves binary but rejects ${ending} text before Git normalization`, t => {
+    const f = setupFixture(t);
+    f.put('.agents/skills/agritrace-api-contract/assets/data.bin', Buffer.from([0, 13, 10, 255]));
+    const reference = '.agents/skills/agritrace-api-contract/references/guide [draft].md';
+    f.put(reference, 'Fixture reference.\nKeep this text as LF.\n');
+    syncSkills(f.root);
+    checkSetup(f.root);
+    const source = ending === 'CRLF' ? '.agents/skills/agritrace-api-contract/SKILL.md' : reference;
+    const text = f.read(source).toString().replaceAll('\n', '\r\n');
+    f.put(source, ending === 'CRLF' ? text : text.replace('\r\n', '\n'));
+    syncSkills(f.root);
+    syncSkills(f.root, { check: true });
+    const before = snapshot(f.root);
+    assert.throws(() => checkSetup(f.root), /Use LF.*Git would normalize/);
+    assert.deepEqual(snapshot(f.root), before);
+  });
+}
+
 test('config cannot silently override inherited model or permissions', t => {
   const f = setupFixture(t);
   f.put('.codex/config.toml', 'model = "unexpected-model"\n');
