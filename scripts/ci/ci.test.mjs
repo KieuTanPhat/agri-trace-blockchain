@@ -84,6 +84,18 @@ test('documentation-only PRs skip expensive jobs without leaving gates pending',
   }), []);
 });
 
+test('agent-only PRs use the always-run setup check without selecting runtime jobs', () => {
+  const agentFiles = ['AGENTS.md', 'CLAUDE.md', 'docs/agent-workflow.md',
+    '.agents/skills/agritrace-api-contract/SKILL.md', '.claude/skills/agritrace-api-contract/SKILL.md',
+    '.claude/skills/.generated-skills.json', '.claude/settings.json', '.codex/config.toml',
+    '.codex/agents/agritrace-reviewer.toml', 'scripts/sync-agent-skills.mjs',
+    'scripts/check-agent-setup.mjs', 'scripts/agent-setup.test.mjs'];
+  assert.ok(Object.values(classifyChanges(agentFiles)).every(value => value === false));
+  assert.deepEqual(classifyChanges([...agentFiles, 'apps/api/src/main.ts']), classifyChanges(['apps/api/src/main.ts']));
+  assert.deepEqual(classifyChanges([...agentFiles, 'apps/web/src/app/page.tsx']), classifyChanges(['apps/web/src/app/page.tsx']));
+  assert.ok(Object.values(classifyChanges(agentFiles, true)).every(Boolean), 'main/dispatch/merge queue must still run all jobs');
+});
+
 for (const [source, destination, checks] of [
   ['apps/api/src/worker.ts', 'docs/worker.md', ['api', 'containers', 'fabric']],
   ['apps/web/src/view.tsx', 'apps/api/src/view.tsx', ['web', 'api', 'containers', 'fabric']],

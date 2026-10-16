@@ -17,3 +17,9 @@ Dockerfile text eol=lf
 blockchain/network/production/*.py text eol=lf
 apps/api/scripts/*.mjs text eol=lf
 .env.deploy.example text eol=lf
+
+# Shared/generated skills compare bytes; auto keeps binary resources unchanged.
+/.agents/skills/** text=auto eol=lf
+/.claude/skills/** text=auto eol=lf
+/.codex/**/*.toml text eol=lf
+scripts/*agent*.mjs text eol=lf

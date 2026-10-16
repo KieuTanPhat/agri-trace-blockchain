@@ -66,6 +66,25 @@ npm ci
 Tạo file môi trường từ các mẫu trong `apps/api/.env.example`,
 `apps/web/.env.example` và `blockchain/network/.env.example` khi chạy từng phần.
 
+## Làm việc với Claude Code và Codex
+
+Hai công cụ dùng chung `AGENTS.md` và năm skill nguồn trong `.agents/skills`.
+`CLAUDE.md` import hướng dẫn chung; `.claude/skills` là bản sinh đã commit, không
+sửa riêng. Xem [guide agent](docs/agent-workflow.md) cho trigger, discovery và review.
+Model, permissions và MCP kế thừa phiên hiện có; không có hook tự chạy.
+
+Sau khi sửa nguồn skill, dùng Node/npm hỗ trợ, Python 3.11+ và Git:
+
+```bash
+npm run agents:sync
+npm run agents:check
+npm run test:agents
+```
+
+Checker không cần database hoặc Fabric. Lỗi đồng bộ/config/reference/Git ignore
+chặn `Application gate`; schema pass chưa chứng minh client thực đã nạp hướng dẫn.
+Giữ evidence, worktree, launch config và settings local ngoài commit.
+
 ## Chạy ứng dụng
 
 ```bash

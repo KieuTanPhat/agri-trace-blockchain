@@ -11,20 +11,46 @@ Nếu repository có thư mục `.codegraph/` ở gốc, dùng CodeGraph TRƯỚ
 Nếu không có `.codegraph/`, bỏ qua CodeGraph. Quyết định tạo index thuộc chủ dự án.
 <!-- CODEGRAPH_END -->
 
-## Đọc trước khi đổi hành vi
+## Dự án và nguồn đối chiếu
 
-1. Đọc [README.md](README.md) để biết lệnh và bản đồ tài liệu.
-2. Đọc [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) để hiểu mô hình hiện tại
-   `ProductionCycle → HarvestEvent → Lot → Shipment`, phạm vi 4 tuần và khoảng cách
-   giữa quy tắc đã duyệt với hành vi đã triển khai. Đọc
-   [docs/core-business-rules.md](docs/core-business-rules.md) trước khi đổi phân quyền,
-   quantity, sensor window, trace hash hoặc command recovery.
-3. Đối chiếu source, Prisma schema/migration và NestJS Swagger hiện tại. Dùng GitHub
-   Issue AGT làm nguồn acceptance và phân công hiện hành.
-4. [Đặc tả nghiệp vụ cũ](docs/archive/business-specification-v1.2.md) mô tả mô hình
-   `Batch`. Giữ nội dung nghiệp vụ nhưng dùng source hiện tại và plan core/Hybrid
-   để triển khai. Nêu rõ khoảng cách khi mục tiêu đã duyệt khác source; không mô tả
-   mục tiêu chưa có trong mã là đã hoàn tất.
+Monorepo gồm Next.js Web, NestJS API, PostgreSQL, dedicated Worker và Hyperledger
+Fabric Gateway/chaincode. Mô hình là `ProductionCycle → HarvestEvent → Lot → Shipment`.
+API nhận command; domain/journal/trace/outbox commit trong PostgreSQL; Worker gửi
+Fabric và lưu proof. API không nhận signing key và không chạy relay timer.
+
+Khi bắt đầu task đổi hành vi, đọc [README.md](README.md) và
+[PROJECT_CONTEXT](docs/PROJECT_CONTEXT.md), rồi chỉ đọc tài liệu cần cho task.
+Không đọc lại toàn bộ trước mỗi file; sửa typo chỉ cần ngữ cảnh liên quan.
+Kiểm tra branch, worktree và SHA thực tế, không suy ra từ tên nhánh ghi trong docs.
+
+| Cần xác định | Nguồn |
+| --- | --- |
+| Hành vi đã triển khai | Source, Prisma schema/migration và Swagger sinh từ NestJS |
+| Mục tiêu, acceptance và phân công | Issue AGT liên quan và quyết định/plan đã duyệt |
+| Nghiệm thu runtime | Evidence đúng SHA, controller revision và môi trường |
+| Bối cảnh lịch sử | ADR/plan có ngày và archive; không coi baseline là source hiện hành |
+
+[Đặc tả cũ](docs/archive/business-specification-v1.2.md) dùng mô hình `Batch`.
+Nêu rõ khoảng cách giữa mục tiêu, implementation và evidence; không tự sửa lịch sử
+để làm chúng khớp. Giữ ủy quyền hiện có đúng phạm vi; skill không mở rộng quyền task.
+
+## Đọc theo tác vụ
+
+Skill nguồn dùng chung nằm ở `.agents/skills`; Claude dùng bản sinh tương ứng.
+Đọc skill phù hợp khi task có trigger dưới đây, kể cả trong chế độ lập kế hoạch.
+Task nhiều vùng kết hợp các skill liên quan, không kéo task nhỏ sang vùng khác.
+
+| Trigger | Skill | Tài liệu chính |
+| --- | --- | --- |
+| DTO/decorator, request/response/error/security metadata, generated types | `agritrace-api-contract` | README, source OpenAPI và API/Web liên quan |
+| Schema, migration, SQL guard, ràng buộc DB | `agritrace-database-change` | Database runbook, business rules |
+| Authorization, quantity/custody, sensor window, trace/hash, binding/signature, outbox/Worker/recovery | `agritrace-hybrid-integrity` | Business rules, ADR-001/004, Hybrid runbook |
+| UI, frontend auth/recovery, QR, PWA, signer | `agritrace-frontend-change` | Frontend guide; business rules khi đổi hành vi nghiệp vụ |
+| Chuẩn bị/đánh giá release, controller, CI/CD, rollback/restore | `agritrace-production-release` | Production runbook, CI guide, release plan hiện hành |
+
+Xem [guide agent](docs/agent-workflow.md) cho cách gọi skill/reviewer theo client.
+Nếu client thiếu skill discovery, đọc trực tiếp `SKILL.md` tại nguồn chung.
+Tài liệu được tham chiếu phải đối chiếu source; đường dẫn trong Issue cũ có thể đã đổi.
 
 API contract nằm trong Swagger sinh từ NestJS. Cập nhật tài liệu liên quan khi đổi
 hành vi hoặc lệnh. Không đưa private key, token hay payload nhạy cảm vào ví dụ.
@@ -56,3 +82,17 @@ Không tạo nhánh mới `codex/...` hoặc tên cá nhân nếu chủ dự án
 tên đó. Giữ `main`, `dev` là nhánh chung; `integration/...` chỉ nhánh thành viên
 legacy được giữ lại. Đọc [quy tắc và bản đồ đổi tên nhánh](docs/branch-naming.md)
 trước khi dùng lại hoặc push nhánh cũ.
+
+## Hoàn tất và phối hợp
+
+Chạy kiểm tra phù hợp phạm vi thay đổi theo README/CI guide. Nêu rõ kết quả thực,
+kiểm tra chưa chạy và giới hạn môi trường; không dùng mock/skip thay nghiệm thu thật.
+Khi sửa bộ agent, chỉ sửa skill nguồn rồi chạy `npm run agents:sync`,
+`npm run agents:check` và `npm run test:agents`; không sửa bản sinh riêng cho Claude.
+Không đưa memory cá nhân, launch config, evidence hoặc worktree vào commit.
+
+Khi người dùng yêu cầu review độc lập, dùng `agritrace-reviewer` nếu client hỗ trợ;
+nếu không, truyền hướng dẫn reviewer cho agent thường và nói rõ fallback.
+Không tự tạo nhiều agent cho mọi thay đổi. Mỗi checkout chỉ có một writer;
+Claude/Codex cùng sửa code dùng worktree riêng và phạm vi rõ. Reviewer nhận diff,
+base/head SHA, đọc hướng dẫn chung và chỉ trả findings có bằng chứng.

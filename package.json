@@ -30,6 +30,9 @@
     "pkcs11js": false
   },
   "scripts": {
+    "agents:sync": "node scripts/sync-agent-skills.mjs",
+    "agents:check": "node scripts/check-agent-setup.mjs",
+    "test:agents": "node --test scripts/agent-setup.test.mjs",
     "api-contract:generate": "npm run build --workspace apps/api && node scripts/generate-api-contract.mjs",
     "api-contract:check": "npm run build --workspace apps/api && node scripts/generate-api-contract.mjs --check",
     "audit:dependencies": "node scripts/audit-dependencies.mjs",
@@ -47,7 +50,7 @@
     "test:enterprise:peer": "node scripts/ci/enterprise-peer.mjs",
     "test:ci": "node --test scripts/ci/ci.test.mjs deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs && node --import tsx --test blockchain/network/hybrid/acceptance/export-check.test.mts",
     "test:worker-contract": "npm run build --workspace blockchain/gateway && npm run prisma:generate --workspace apps/api && npm run build --workspace apps/api && npm run build --workspace blockchain/chaincode && node --test scripts/ci/worker-contract.test.mjs",
-    "check": "npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
+    "check": "npm run agents:check && npm run test:agents && npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
   },
   "workspaces": [
     "apps/*",
