@@ -5,6 +5,22 @@ const id = "c51e4dbe-8279-4943-b68d-8433e3231192";
 const other = "d79f9be3-748b-48f9-9a3f-5bf2bf7e954b";
 describe("command status controller payload contract", () => {
   it.each([
+    ["/iot/devices", "IOT_REGISTER_DEVICE", {}],
+    [
+      `/iot/devices/${id}/credentials`,
+      "IOT_ISSUE_CREDENTIAL",
+      { deviceId: id },
+    ],
+    [
+      `/iot/devices/${id}/credentials/rotate`,
+      "IOT_ROTATE_CREDENTIAL",
+      { deviceId: id },
+    ],
+    [
+      `/iot/devices/${id}/credentials/${other}/revoke`,
+      "IOT_REVOKE_CREDENTIAL",
+      { deviceId: id, credentialId: other },
+    ],
     [
       `/production-cycles/${id}/sensor-reconciliations`,
       "RECONCILE_CYCLE_SENSOR",
@@ -105,7 +121,6 @@ describe("command status controller payload contract", () => {
     for (const path of [
       "/auth/login",
       "/users",
-      "/iot/devices",
       "/iot/device-readings",
       "/command-requests/status",
     ])

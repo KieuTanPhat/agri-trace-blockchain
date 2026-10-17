@@ -116,6 +116,8 @@ export class CareRecordRecordDto {
 }
 
 export class IotDeviceRecordDto {
+  @ApiProperty({ enum: ['UNKNOWN', 'WOKWI_SIMULATED'] }) sourceType!: string;
+  @ApiProperty({ type: Number, minimum: 0 }) version!: number;
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
   @ApiProperty({ type: String, format: 'uuid' }) organizationId!: string;
   @ApiProperty({ type: String, format: 'uuid', nullable: true }) cycleId!:

@@ -1,0 +1,41 @@
+name: Firmware CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  firmware:
+    name: Firmware build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check queue, cutoff, retry and input handling
+        working-directory: iot/wokwi
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror -I include test/test_monitoring/test_main.cpp -o "$RUNNER_TEMP/monitoring-test"
+          "$RUNNER_TEMP/monitoring-test"
+          g++ -std=c++11 -Wall -Wextra -Werror -I test/stubs -I include test/test_firmware.cpp -o "$RUNNER_TEMP/firmware-test"
+          "$RUNNER_TEMP/firmware-test"
+      - name: Build pinned ESP32 firmware
+        working-directory: iot/wokwi
+        run: |
+          python3 -m venv "$RUNNER_TEMP/iot-python"
+          "$RUNNER_TEMP/iot-python/bin/python" -m pip install platformio==6.1.18
+          "$RUNNER_TEMP/iot-python/bin/python" -m platformio run -e esp32dev
+          "$RUNNER_TEMP/iot-python/bin/python" -m platformio pkg list -e esp32dev
+          sha256sum .pio/build/esp32dev/firmware.bin

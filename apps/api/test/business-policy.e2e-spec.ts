@@ -347,6 +347,56 @@ describe('Release A scoped command policy on PostgreSQL', () => {
     expect(scenarios.assertions.assertions).toBeGreaterThanOrEqual(24);
   });
 
+  it('rechecks a device credential under scope locks even after the guard authenticated it', () =>
+    isolated(async (tx) => {
+      const device = await tx.iotDevice.create({
+        data: {
+          organizationId: transporter.organizationId!,
+          deviceCode: randomUUID(),
+          name: 'Credential recheck fixture',
+          type: 'DHT22',
+          sourceType: 'WOKWI_SIMULATED',
+        },
+      });
+      await tx.shipmentTrackingBinding.create({
+        data: {
+          shipmentId,
+          deviceId: device.id,
+          transporterOrgId: transporter.organizationId!,
+        },
+      });
+      const credential = await tx.deviceCredential.create({
+        data: {
+          id: randomUUID(),
+          deviceId: device.id,
+          verifier: 'a'.repeat(64),
+          expiresAt: new Date(Date.now() + 3600000),
+        },
+      });
+      const command = {
+        actor: null,
+        requesterId: `device:${device.id}`,
+        operation: 'INGEST_SHIPMENT_TELEMETRY',
+        payload: { deviceId: device.id, shipmentId },
+        deviceAuthentication: {
+          deviceId: device.id,
+          credentialId: credential.id,
+          revision: credential.revision,
+          verifier: credential.verifier,
+        },
+      };
+      await expect(authorizeCommand(tx, command, true)).resolves.toMatch(
+        /^[a-f0-9]{64}$/,
+      );
+      await tx.deviceCredential.update({
+        where: { id: credential.id },
+        data: { revokedAt: new Date() },
+      });
+      await expect(authorizeCommand(tx, command, true)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    }));
+
   it('derives the same immutable chain root through cycle, Lot and Shipment', () =>
     isolated(async (tx) => {
       for (const subject of [

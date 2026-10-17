@@ -184,6 +184,14 @@ bằng chứng của đúng SHA. Xem [chính sách CI](docs/ci.md) và
 
 Mạng Fabric local cần thêm Docker; xem script trong `blockchain/network`.
 
+Phần chuẩn bị firmware ESP32/DHT22 độc lập ở [iot/wokwi](iot/wokwi/README.md).
+Mạch Wokwi có nút cửa/mạng/dừng và FIFO RAM 180 mẫu; chưa tích hợp API,
+heartbeat hoặc proof. Xem hướng dẫn build và giới hạn trước khi chạy demo.
+
+Phần chuẩn bị tính toán giám sát backend và các bước tích hợp còn lại nằm
+trong [kế hoạch IoT](docs/plans/iot-monitoring.md). Các helper mới chưa nối vào
+API/Worker; source hiện tại chưa cung cấp luồng giám sát theo session.
+
 Mô hình dữ liệu core hiện tại tách rõ `ProductionCycle`, `HarvestEvent`, `Lot`
 và `Shipment`. Tài liệu `docs/archive/business-specification-v1.2.md` chỉ còn là baseline
 lịch sử; Prisma schema được đồng bộ với database PostgreSQL `agri_traceDB` tại

@@ -11,6 +11,11 @@ import {
 } from "@/lib/command-recovery";
 
 const labels: Partial<Record<PendingCommand["operation"], string>> = {
+  IOT_REGISTER_DEVICE: "Đăng ký thiết bị",
+  IOT_DEVICE_STATUS: "Đổi trạng thái thiết bị",
+  IOT_ISSUE_CREDENTIAL: "Cấp credential thiết bị",
+  IOT_ROTATE_CREDENTIAL: "Xoay credential thiết bị",
+  IOT_REVOKE_CREDENTIAL: "Thu hồi credential thiết bị",
   HYB_CREATE_CHAIN: "Tạo chuỗi cung ứng",
   HYB_ACTIVATE_BUSINESS_PROFILE: "Kích hoạt nghiệp vụ chuỗi",
   SCOPE_FINALIZE_SHIPMENT_PLAN: "Chốt kế hoạch giao hàng",

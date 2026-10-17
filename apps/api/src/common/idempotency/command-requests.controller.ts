@@ -21,6 +21,11 @@ import { IdempotencyService } from './idempotency.service.js';
 import { IdempotencyKey } from './idempotency-key.decorator.js';
 
 const operations = [
+  'IOT_REGISTER_DEVICE',
+  'IOT_DEVICE_STATUS',
+  'IOT_ISSUE_CREDENTIAL',
+  'IOT_ROTATE_CREDENTIAL',
+  'IOT_REVOKE_CREDENTIAL',
   'ENTERPRISE_REVIEW',
   'ENTERPRISE_CONNECT',
   'ENTERPRISE_CONNECTION_REVIEW',

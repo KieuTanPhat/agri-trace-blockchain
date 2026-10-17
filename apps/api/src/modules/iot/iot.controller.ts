@@ -38,11 +38,14 @@ import {
   CreateSensorDigestDto,
   CreateTelemetryDigestDto,
   BindShipmentDeviceDto,
-  CreateIotDeviceDto,
   IngestSensorReadingDto,
   IngestShipmentTelemetryDto,
 } from './dto.js';
 import { IotService } from './iot.service.js';
+import { DeviceAssetsService } from './device-assets.service.js';
+import { RegisterTransportDeviceDto } from './device-assets.dto.js';
+import type { DeviceAuthenticatedRequest } from './device-key.guard.js';
+import type { DeviceAuthentication } from '../../common/idempotency/command-authorization.js';
 
 @ApiTags('iot')
 @Controller('iot')
@@ -51,6 +54,7 @@ export class IotController {
   constructor(
     private readonly service: IotService,
     private readonly idempotency: IdempotencyService,
+    private readonly assets: DeviceAssetsService,
   ) {}
 
   private run(
@@ -59,6 +63,7 @@ export class IotController {
     requester: AuthenticatedRequest['user'] | string,
     payload: unknown,
     command: () => Promise<unknown>,
+    deviceAuthentication?: DeviceAuthentication,
   ) {
     return this.idempotency.executeCommand(
       {
@@ -69,6 +74,7 @@ export class IotController {
         operation,
         requestType: 'IOT_INGEST',
         payload,
+        deviceAuthentication,
       },
       command,
     );
@@ -86,16 +92,15 @@ export class IotController {
   @ApiDataResponse(IotDeviceRecordDto, 201)
   @ApiBearerAuth()
   @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER')
+  @UseGuards(JwtAuthGuard)
   @Post('devices')
   createDevice(
-    @Body() input: CreateIotDeviceDto,
+    @Body() input: RegisterTransportDeviceDto,
     @Headers('idempotency-key') key: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.run('CREATE_IOT_DEVICE', key, request.user, input, () =>
-      this.service.createDevice(input, request.user),
+    return this.run('IOT_REGISTER_DEVICE', key, request.user, input, () =>
+      this.assets.register(input, request.user),
     );
   }
 
@@ -123,6 +128,7 @@ export class IotController {
   ingestForDevice(
     @Body() input: IngestSensorReadingDto,
     @Headers('idempotency-key') key: string,
+    @Req() request: DeviceAuthenticatedRequest,
   ) {
     return this.run(
       'INGEST_SENSOR_READING',
@@ -130,6 +136,7 @@ export class IotController {
       `device:${input.deviceId}`,
       input,
       () => this.service.ingest(input),
+      request.deviceAuthentication,
     );
   }
 
@@ -233,6 +240,7 @@ export class IotController {
     @Param('shipmentId', ParseUUIDPipe) shipmentId: string,
     @Body() input: IngestShipmentTelemetryDto,
     @Headers('idempotency-key') key: string,
+    @Req() request: DeviceAuthenticatedRequest,
   ) {
     return this.run(
       'INGEST_SHIPMENT_TELEMETRY',
@@ -240,6 +248,7 @@ export class IotController {
       `device:${input.deviceId}`,
       { shipmentId, ...input },
       () => this.service.ingestShipmentTelemetry(shipmentId, input, key),
+      request.deviceAuthentication,
     );
   }
 

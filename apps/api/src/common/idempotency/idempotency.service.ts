@@ -15,6 +15,7 @@ import {
   authorizeCommand,
   type AuthorizedCommand,
   type CommandActor,
+  type DeviceAuthentication,
 } from './command-authorization.js';
 import { commandContext, commandResponseJson } from './command-transaction.js';
 
@@ -30,6 +31,7 @@ export interface CommandRequestInspection {
 }
 
 export interface StartIdempotencyInput {
+  deviceAuthentication?: DeviceAuthentication;
   idempotencyKey: string;
   requesterId: string;
   operation: string;

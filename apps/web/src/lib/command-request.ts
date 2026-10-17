@@ -10,6 +10,7 @@ const uuid = "[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}";
 const match = (path: string, pattern: string) =>
   path.match(new RegExp("^" + pattern + "$"));
 const creates: Record<string, Operation> = {
+  "/iot/devices": "IOT_REGISTER_DEVICE",
   "/enterprise-connections": "ENTERPRISE_CONNECT",
   "/production-cycles": "CREATE_PRODUCTION_CYCLE",
   "/shipments": "CREATE_SHIPMENT",
@@ -40,8 +41,36 @@ export function commandRequest(
     discriminator = "",
   ) => ({ operation, payload: { ...data, ...ids }, discriminator });
   if (method === "POST" && creates[path]) return result(creates[path]);
-  const enterprise=match(path,`/(enterprise-enrollments|enterprise-connections)/(${uuid})/review`);
-  if(enterprise && method==='POST') return result(enterprise[1]==='enterprise-enrollments'?'ENTERPRISE_REVIEW':'ENTERPRISE_CONNECTION_REVIEW',{id:enterprise[2]});
+  const asset = match(
+    path,
+    `/iot/devices/(${uuid})/(status|credentials)(?:/(rotate|${uuid})(?:/(revoke))?)?`,
+  );
+  if (asset) {
+    if (method === "PATCH" && asset[2] === "status" && !asset[3])
+      return result("IOT_DEVICE_STATUS", { deviceId: asset[1] });
+    if (method === "POST" && asset[2] === "credentials") {
+      if (!asset[3])
+        return result("IOT_ISSUE_CREDENTIAL", { deviceId: asset[1] });
+      if (asset[3] === "rotate" && !asset[4])
+        return result("IOT_ROTATE_CREDENTIAL", { deviceId: asset[1] });
+      if (asset[3] !== "rotate" && asset[4] === "revoke")
+        return result("IOT_REVOKE_CREDENTIAL", {
+          deviceId: asset[1],
+          credentialId: asset[3],
+        });
+    }
+  }
+  const enterprise = match(
+    path,
+    `/(enterprise-enrollments|enterprise-connections)/(${uuid})/review`,
+  );
+  if (enterprise && method === "POST")
+    return result(
+      enterprise[1] === "enterprise-enrollments"
+        ? "ENTERPRISE_REVIEW"
+        : "ENTERPRISE_CONNECTION_REVIEW",
+      { id: enterprise[2] },
+    );
   let signing = match(path, `/shipments/(${uuid})/handover-offers/intent`);
   if (signing && method === "POST")
     return result("PREPARE_HANDOVER_OFFER", { shipmentId: signing[1] });

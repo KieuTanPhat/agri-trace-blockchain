@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "author": "AgriTrace",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht", "top": -100, "left": 220, "attrs": { "temperature": "5", "humidity": "74" } },
+    { "type": "wokwi-resistor", "id": "pullup", "top": -30, "left": 150, "attrs": { "value": "10000" } },
+    { "type": "wokwi-pushbutton", "id": "door", "top": 80, "left": 220, "attrs": { "color": "blue", "label": "DOOR" } },
+    { "type": "wokwi-pushbutton", "id": "network", "top": 150, "left": 220, "attrs": { "color": "yellow", "label": "WIFI" } },
+    { "type": "wokwi-pushbutton", "id": "stop", "top": 220, "left": 220, "attrs": { "color": "red", "label": "STOP" } },
+    { "type": "wokwi-led", "id": "green", "top": 50, "left": -150, "attrs": { "color": "green" } },
+    { "type": "wokwi-led", "id": "red", "top": 150, "left": -150, "attrs": { "color": "red" } },
+    { "type": "wokwi-resistor", "id": "rg", "top": 95, "left": -110, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "rr", "top": 195, "left": -110, "attrs": { "value": "220" } }
+  ],
+  "connections": [
+    [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+    [ "esp:3V3", "dht:VCC", "red", [] ],
+    [ "esp:GND.1", "dht:GND", "black", [] ],
+    [ "esp:D4", "dht:SDA", "green", [] ],
+    [ "esp:3V3", "pullup:1", "red", [] ],
+    [ "pullup:2", "dht:SDA", "green", [] ],
+    [ "esp:D18", "door:1.l", "blue", [] ],
+    [ "esp:GND.1", "door:2.l", "black", [] ],
+    [ "esp:D19", "network:1.l", "orange", [] ],
+    [ "esp:GND.1", "network:2.l", "black", [] ],
+    [ "esp:D21", "stop:1.l", "red", [] ],
+    [ "esp:GND.1", "stop:2.l", "black", [] ],
+    [ "esp:D25", "rg:1", "green", [] ],
+    [ "rg:2", "green:A", "green", [] ],
+    [ "green:C", "esp:GND.2", "black", [] ],
+    [ "esp:D26", "rr:1", "red", [] ],
+    [ "rr:2", "red:A", "red", [] ],
+    [ "red:C", "esp:GND.2", "black", [] ]
+  ]
+}

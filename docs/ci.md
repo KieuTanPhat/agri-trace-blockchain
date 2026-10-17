@@ -7,6 +7,13 @@ actions được cố định bằng SHA và cập nhật qua Dependabot.
 
 ## Các điều kiện merge
 
+`Firmware CI` bổ sung job `Firmware build` trên PR/main/merge queue/dispatch:
+kiểm logic C++ của FIFO/quarantine/cutoff/retry và build ESP32 từ
+`iot/wokwi/platformio.ini`, ghi package versions và SHA-256 binary trong log.
+Job này luôn chạy nên thay đổi đường dẫn firmware không bị bỏ sót. Nó không
+thay ba gate bên dưới hoặc chứng minh Wokwi/API/Fabric đã nghiệm thu. Bản
+firmware hiện tại là phần chuẩn bị độc lập, chưa có adapter API.
+
 | Check bắt buộc | Kiểm tra |
 | --- | --- |
 | `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |

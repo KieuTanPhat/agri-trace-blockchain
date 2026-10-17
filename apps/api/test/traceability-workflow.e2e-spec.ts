@@ -724,15 +724,17 @@ const prisma = new PrismaClient({
 
     it('records sensor readings only off-chain and anchors explicit digests', async () => {
       const cycle = await plantedCycle();
-      const device = (
-        await post('/iot/devices', {
+      // Existing UNKNOWN-source devices remain usable after the asset API changes.
+      // New registration/ORG_ADMIN policy is exercised in iot-device-assets.e2e-spec.ts.
+      const device = await prisma.iotDevice.create({
+        data: {
           organizationId: farmOrgId,
           cycleId: cycle.id,
           deviceCode: 'SENSOR-' + randomUUID(),
           name: 'Test sensor',
           type: 'TEMPERATURE',
-        }).expect(201)
-      ).body.data;
+        },
+      });
       const body = {
         deviceId: device.id,
         cycleId: cycle.id,
@@ -775,18 +777,16 @@ const prisma = new PrismaClient({
 
     it('accepts only in-transit telemetry and chains backdated digest windows', async () => {
       const { shipment } = await startedShipment();
-      const device = (
-        await post(
-          '/iot/devices',
-          {
-            organizationId: transporterOrgId,
-            deviceCode: 'TRACKER-' + randomUUID(),
-            name: 'Test tracker',
-            type: 'GPS',
-          },
-          'transporter',
-        ).expect(201)
-      ).body.data;
+      // Existing UNKNOWN-source devices remain usable after the asset API changes.
+      // New registration/ORG_ADMIN policy is exercised in iot-device-assets.e2e-spec.ts.
+      const device = await prisma.iotDevice.create({
+        data: {
+          organizationId: transporterOrgId,
+          deviceCode: 'TRACKER-' + randomUUID(),
+          name: 'Test tracker',
+          type: 'GPS',
+        },
+      });
       const binding = (
         await post(
           `/iot/shipments/${shipment.id}/devices`,
@@ -873,18 +873,16 @@ const prisma = new PrismaClient({
 
     it('returns exact JSON-safe device sequences in shipment detail', async () => {
       const { shipment } = await startedShipment();
-      const device = (
-        await post(
-          '/iot/devices',
-          {
-            organizationId: transporterOrgId,
-            deviceCode: 'SEQUENCE-TRACKER-' + randomUUID(),
-            name: 'Sequence tracker',
-            type: 'GPS',
-          },
-          'transporter',
-        ).expect(201)
-      ).body.data;
+      // Existing UNKNOWN-source devices remain usable after the asset API changes.
+      // New registration/ORG_ADMIN policy is exercised in iot-device-assets.e2e-spec.ts.
+      const device = await prisma.iotDevice.create({
+        data: {
+          organizationId: transporterOrgId,
+          deviceCode: 'SEQUENCE-TRACKER-' + randomUUID(),
+          name: 'Sequence tracker',
+          type: 'GPS',
+        },
+      });
       const binding = (
         await post(
           `/iot/shipments/${shipment.id}/devices`,
@@ -1494,15 +1492,17 @@ const prisma = new PrismaClient({
 
     it('separates consecutive sensor windows and excludes readings arriving after cutoff', async () => {
       const cycle = await plantedCycle(2);
-      const device = (
-        await post('/iot/devices', {
+      // Existing UNKNOWN-source devices remain usable after the asset API changes.
+      // New registration/ORG_ADMIN policy is exercised in iot-device-assets.e2e-spec.ts.
+      const device = await prisma.iotDevice.create({
+        data: {
           organizationId: farmOrgId,
           cycleId: cycle.id,
           deviceCode: 'WINDOW-' + randomUUID(),
           name: 'Window sensor',
           type: 'TEMPERATURE',
-        }).expect(201)
-      ).body.data;
+        },
+      });
       const read = async (recordedAt: string, value: number) =>
         (
           await post('/iot/readings', {

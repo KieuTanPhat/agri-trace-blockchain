@@ -545,6 +545,9 @@ model CareRecord {
 }
 
 model IotDevice {
+  sourceType               String                    @default("UNKNOWN") @map("source_type") @db.VarChar(30)
+  version                  Int                       @default(0)
+  credentials              DeviceCredential[]
   id                       String                    @id @default(dbgenerated("gen_random_uuid()")) @map("device_id") @db.Uuid
   organizationId           String                    @map("organization_id") @db.Uuid
   cycleId                  String?                   @map("cycle_id") @db.Uuid
@@ -566,6 +569,20 @@ model IotDevice {
   @@index([cycleId], map: "ix_iot_device_cycle")
   @@index([organizationId], map: "ix_iot_device_org")
   @@map("iot_device")
+}
+
+model DeviceCredential {
+  id         String    @id @map("credential_id") @db.Uuid
+  deviceId   String    @map("device_id") @db.Uuid
+  verifier   String    @db.VarChar(64)
+  revision   Int       @default(0)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  device     IotDevice @relation(fields: [deviceId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([deviceId], map: "ux_device_credential_active", where: raw("(revoked_at IS NULL)"))
+  @@map("device_credential")
 }
 
 model SensorReading {

@@ -19,6 +19,7 @@ import {
 } from '../../modules/supply-chains/core-business-policy.js';
 import { lockChainScope } from '../../modules/supply-chains/chain-policy.js';
 import { authorizeEnterpriseCommand } from '../../modules/enterprise-onboarding/enterprise-onboarding.service.js';
+import { DEVICE_ASSET_OPERATIONS, authorizeDeviceAssetCommand } from '../../modules/iot/device-assets.policy.js';
 
 export interface CommandActor {
   sub: string | null;
@@ -28,12 +29,20 @@ export interface CommandActor {
 }
 
 export interface AuthorizedCommand {
+  deviceAuthentication?: DeviceAuthentication;
   requesterId: string;
   operation: string;
   payload: unknown;
   actor: CommandActor | null;
   businessActor?: CommandActor;
   idempotencyKey?: string;
+}
+
+export interface DeviceAuthentication {
+  deviceId: string;
+  credentialId: string;
+  revision: number;
+  verifier: string;
 }
 
 function payloadOf(input: AuthorizedCommand): Record<string, unknown> {
@@ -102,6 +111,9 @@ export async function authorizeCommand(
   };
 
   if (!input.actor) {
+    const authenticated = input.deviceAuthentication;
+    if (!authenticated || authenticated.deviceId !== payload.deviceId)
+      throw new ForbiddenException('Thiếu credential đã xác thực của thiết bị');
     if (
       !['INGEST_SENSOR_READING', 'INGEST_SHIPMENT_TELEMETRY'].includes(
         input.operation,
@@ -137,6 +149,11 @@ export async function authorizeCommand(
         throw new ForbiddenException('Phạm vi thiết bị đã thay đổi');
       found = current;
     }
+    const credential = await db.deviceCredential.findUnique({ where: { id: authenticated.credentialId } });
+    if (!credential || credential.deviceId !== found.id || credential.revokedAt !== null ||
+        credential.expiresAt <= new Date() || credential.revision !== authenticated.revision ||
+        credential.verifier !== authenticated.verifier)
+      throw new ForbiddenException('Credential thiết bị không còn hiệu lực');
     if (input.operation === 'INGEST_SENSOR_READING') {
       const subject = await cycle(id('cycleId'));
       if (
@@ -224,6 +241,8 @@ export async function authorizeCommand(
     return authorizeChainCommand(db, input, lock);
   if (input.operation.startsWith('ENTERPRISE_'))
     return authorizeEnterpriseCommand(db,input,lock);
+  if (DEVICE_ASSET_OPERATIONS.some((op) => op === input.operation))
+    return authorizeDeviceAssetCommand(db, input, lock);
 
   if (lock && actor.organizationId)
     await lockChainScope(db, `org:${actor.organizationId}`);

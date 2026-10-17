@@ -1,0 +1,6 @@
+.pio/
+include/agritrace_config.h
+*.bin
+*.elf
+monitoring-test.exe
+firmware-test.exe

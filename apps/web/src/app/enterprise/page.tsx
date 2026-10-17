@@ -130,6 +130,9 @@ export default function EnterprisePage() {
               {statusLabels[row.status]}
             </p>
             {row.reviewNote && <p>Phản hồi: {row.reviewNote}</p>}
+            {row.status === "APPROVED" && (
+              <p><Link className="text-link" href="/enterprise/devices">Quản lý thiết bị giám sát</Link></p>
+            )}
             <ol className="enterprise-steps">
               <li>Đăng ký doanh nghiệp</li>
               <li>Duyệt hồ sơ và quyền quản lý tổ chức</li>

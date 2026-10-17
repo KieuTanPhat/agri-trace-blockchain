@@ -6,10 +6,13 @@ import { IdempotencyModule } from '../../common/idempotency/idempotency.module.j
 import { DeviceKeyGuard } from './device-key.guard.js';
 import { IotController } from './iot.controller.js';
 import { IotService } from './iot.service.js';
+import { DeviceAssetsController } from './device-assets.controller.js';
+import { DeviceAssetsService } from './device-assets.service.js';
+import { DeviceCommandsController } from './device-commands.controller.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, TraceModule, IdempotencyModule],
-  controllers: [IotController],
-  providers: [IotService, DeviceKeyGuard],
+  controllers: [IotController, DeviceAssetsController, DeviceCommandsController],
+  providers: [IotService, DeviceKeyGuard, DeviceAssetsService],
 })
 export class IotModule {}
