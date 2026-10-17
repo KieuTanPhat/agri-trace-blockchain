@@ -36,7 +36,6 @@
     "api-contract:generate": "npm run build --workspace apps/api && node scripts/generate-api-contract.mjs",
     "api-contract:check": "npm run build --workspace apps/api && node scripts/generate-api-contract.mjs --check",
     "audit:dependencies": "node scripts/audit-dependencies.mjs",
-    "audit:mobile": "node scripts/ci/audit-mobile.mjs",
     "check:chaincode:standalone": "node scripts/check-standalone-chaincode.mjs",
     "dev": "npm run dev:web",
     "dev:web": "npm run dev --workspace apps/web",
@@ -54,8 +53,7 @@
     "check": "npm run agents:check && npm run test:agents && npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
   },
   "workspaces": [
-    "apps/api",
-    "apps/web",
+    "apps/*",
     "blockchain/chaincode",
     "blockchain/gateway"
   ],

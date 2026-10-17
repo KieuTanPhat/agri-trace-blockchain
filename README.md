@@ -20,7 +20,6 @@ bên ngoài; external partner authority vẫn NotEvaluated, không tuyên bố H
 apps/
   api/                 NestJS API + dedicated blockchain worker entrypoint
   web/                 Next.js PWA
-  mobile/              Ứng dụng Android/iOS (Expo + React Native), project npm độc lập
 blockchain/
   chaincode/           Smart contract Hyperledger Fabric
   gateway/             Adapter kết nối Fabric Gateway
@@ -172,7 +171,7 @@ npm run api-contract:check
 
 Exporter dùng metadata đã compile và cấu hình riêng, không mở listener hoặc
 kết nối database/Fabric. Kết quả nằm trong `docs/openapi/openapi.json`, checksum
-`docs/openapi/openapi.sha256`, `apps/web/src/lib/generated/api.d.ts` và `apps/mobile/src/api/generated/api.d.ts`; sửa DTO/decorator NestJS rồi sinh lại,
+`docs/openapi/openapi.sha256` và `apps/web/src/lib/generated/api.d.ts`; sửa DTO/decorator NestJS rồi sinh lại,
 không sửa trực tiếp file sinh. CI API chặn contract lệch và schema public lộ
 các field nội bộ đã liệt kê trong generator.
 
@@ -193,17 +192,6 @@ npm run check --workspace apps/api
 npm run check --workspace blockchain/chaincode
 npm run check --workspace blockchain/gateway
 ```
-
-Ứng dụng di động không thuộc npm workspace gốc (lockfile riêng, ngoài Docker
-image). Kiểm tra trong thư mục của nó:
-
-```bash
-cd apps/mobile
-npm ci
-npm run check
-```
-
-Xem [README của ứng dụng](apps/mobile/README.md) để chạy trên máy ảo hoặc điện thoại.
 
 Web chạy ESLint cho React/TypeScript/accessibility và Oxlint cho các rule Next.js.
 `npm run build --workspace apps/web` chạy cả hai trước khi biên dịch; `check`
@@ -228,7 +216,6 @@ Kiểm tra root và package chaincode độc lập trong các môi trường cà
 npm ci
 npm run audit:dependencies
 npm run check:chaincode:standalone
-npm run audit:mobile
 ```
 
 Các lệnh ghi audit đầy đủ, audit production, kiểm tra peer dependency và metadata
