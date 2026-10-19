@@ -22,12 +22,18 @@ interface Actor {
   id: string;
   token: string;
 }
-async function actorWith(code: string, orgType: 'FARM' | 'AUDITOR' | null) {
-  const org = orgType
-    ? await prisma.organization.create({
-        data: { name: `Ops test ${randomUUID()}`, type: orgType },
-      })
-    : null;
+async function actorWith(
+  code: string,
+  orgType: 'FARM' | 'AUDITOR' | null,
+  organizationId?: string,
+) {
+  const org = organizationId
+    ? { id: organizationId }
+    : orgType
+      ? await prisma.organization.create({
+          data: { name: `Ops test ${randomUUID()}`, type: orgType },
+        })
+      : null;
   const role = await prisma.role.upsert({
     where: { code },
     create: { code, name: code },
@@ -577,23 +583,51 @@ second line`,
   });
 
   it('counts active sessions, locked and disabled accounts without listing people', async () => {
-    const before = (await get(admin, 'summary').expect(200)).body.data.accounts;
-    const victim = await actorWith('COMPLIANCE_REVIEWER', 'AUDITOR');
+    // Other suites leave short-lived sessions behind. Scope this measurement
+    // to its own organization so their expiry cannot change its baseline.
+    const organization = await prisma.organization.create({
+      data: { name: `Session counts ${randomUUID()}`, type: 'AUDITOR' },
+    });
+    const path = `summary?organizationId=${organization.id}`;
+    const before = (await get(admin, path).expect(200)).body.data.accounts;
+    expect(before.activeSessions).toBe(0);
+    const victim = await actorWith(
+      'COMPLIANCE_REVIEWER',
+      null,
+      organization.id,
+    );
     await prisma.user.update({
       where: { id: victim.id },
       data: { lockedUntil: new Date(Date.now() + 600_000) },
     });
-    const disabled = await actorWith('COMPLIANCE_REVIEWER', 'AUDITOR');
+    const disabled = await actorWith(
+      'COMPLIANCE_REVIEWER',
+      null,
+      organization.id,
+    );
     await prisma.user.update({
       where: { id: disabled.id },
       data: { accountStatus: 'LOCKED' },
     });
-    const after = (await get(admin, 'summary').expect(200)).body.data.accounts;
+    await prisma.refreshSession.createMany({
+      data: [
+        {
+          userId: victim.id,
+          tokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() - 60_000),
+        },
+        {
+          userId: victim.id,
+          tokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 3_600_000),
+          revokedAt: new Date(),
+        },
+      ],
+    });
+    const after = (await get(admin, path).expect(200)).body.data.accounts;
     expect(after.lockedAccounts).toBe(before.lockedAccounts + 1);
     expect(after.disabledAccounts).toBe(before.disabledAccounts + 1);
-    expect(after.activeSessions).toBeGreaterThanOrEqual(
-      before.activeSessions + 2,
-    );
+    expect(after.activeSessions).toBe(before.activeSessions + 2);
     expect(Object.keys(after).sort()).toEqual(
       [
         'activeSessions',
