@@ -259,7 +259,7 @@ async function createSession(options) {
         options.fixture.password,
       );
       if (party === "farm" && options.hydrationDelayMs)
-        await pages[party].unroute("**/_next/static/**/*.js");
+        await pages[party].unrouteAll({ behavior: "wait" });
     }
     return {
       browser,
@@ -271,6 +271,10 @@ async function createSession(options) {
       close: () => browser.close(),
     };
   } catch (error) {
+    // Settle delayed routes before closing the browser, preserving login diagnostics.
+    await Promise.all(
+      Object.values(pages).map((page) => page.unrouteAll({ behavior: "wait" })),
+    );
     await browser.close();
     throw error;
   }

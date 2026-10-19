@@ -131,7 +131,7 @@ async function main() {
     plantedAt: new Date(Date.now() - 60_000).toISOString(),
   }, randomUUID());
   const cycleEvidence = database(`
-    import { createHash } from 'node:crypto';
+    const { createHash } = await import('node:crypto');
     const content = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=', 'base64');
     const sha256 = createHash('sha256').update(content).digest('hex');
     const refs = {};

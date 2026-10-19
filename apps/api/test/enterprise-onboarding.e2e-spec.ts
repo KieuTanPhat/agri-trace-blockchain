@@ -27,6 +27,15 @@ const prisma = new PrismaClient({
     let app: INestApplication, admin: string, jwt: JwtService;
     let throttleBypass: { mockRestore(): void };
     const password = 'demo-enterprise-pass-2026';
+    const productForm = (originFarmId: string) => ({
+      productName: 'Private enterprise product',
+      defaultUnit: 'kg',
+      category: 'Rau củ',
+      originFarmId,
+      storageConditions: 'Bảo quản nơi thoáng mát',
+      ingredients: 'Rau tươi',
+      usageInstructions: 'Rửa sạch trước khi sử dụng',
+    });
     const form = (
       mode: RegisterDto['hostingMode'] = 'MANAGED_ORG',
     ): RegisterDto => {
@@ -94,6 +103,27 @@ const prisma = new PrismaClient({
       request(app.getHttpServer())
         .get('/api' + path)
         .set('Authorization', `Bearer ${token}`);
+    const uploadRegistrationDocument = async (
+      input: RegisterDto,
+      verificationId: string,
+      token: string,
+    ) => {
+      const documentId = randomUUID();
+      await request(app.getHttpServer())
+        .post('/api/auth/registration-documents')
+        .field('id', documentId)
+        .field('registrationId', input.requestId)
+        .field('verificationId', verificationId)
+        .field('token', token)
+        .field('kind', 'LEGAL_REGISTRATION')
+        .attach(
+          'file',
+          Buffer.from('%PDF-1.4\n% registration fixture\n%%EOF\n'),
+          { filename: 'registration.pdf', contentType: 'application/pdf' },
+        )
+        .expect(201);
+      input.details.documentIds = [documentId];
+    };
     const register = async (
       mode: RegisterDto['hostingMode'] = 'MANAGED_ORG',
     ) => {
@@ -138,22 +168,48 @@ const prisma = new PrismaClient({
       input.emailVerifications = [
         { verificationId: requestId, token: verified.body.data.token },
       ];
-      const documentId = randomUUID();
-      await request(app.getHttpServer())
-        .post('/api/auth/registration-documents')
-        .field('id', documentId)
-        .field('registrationId', input.requestId)
-        .field('verificationId', requestId)
-        .field('token', verified.body.data.token)
-        .field('kind', 'LEGAL_REGISTRATION')
-        .attach(
-          'file',
-          Buffer.from('%PDF-1.4\n% registration fixture\n%%EOF\n'),
-          { filename: 'registration.pdf', contentType: 'application/pdf' },
-        )
-        .expect(201);
-      input.details.documentIds = [documentId];
+      await uploadRegistrationDocument(
+        input,
+        requestId,
+        verified.body.data.token,
+      );
       return input;
+    };
+    const activateService = async (a: {
+      token: string;
+      enrollment: { id: string };
+    }) => {
+      const current = (
+        await get('/enterprise-enrollments/mine', a.token).expect(200)
+      ).body.data;
+      const payload = {
+        version: current.version,
+        reason: 'Kích hoạt dịch vụ trong kiểm thử cách ly',
+      };
+      const key = randomUUID();
+      await post(
+        `/enterprise-enrollments/${a.enrollment.id}/activate`,
+        payload,
+        a.token,
+      ).expect(403);
+      const first = await post(
+        `/enterprise-enrollments/${a.enrollment.id}/activate`,
+        payload,
+        admin,
+        key,
+      ).expect(201);
+      const replay = await post(
+        `/enterprise-enrollments/${a.enrollment.id}/activate`,
+        payload,
+        admin,
+        key,
+      ).expect(201);
+      expect(replay.body.data).toEqual(first.body.data);
+      await post(
+        `/enterprise-enrollments/${a.enrollment.id}/activate`,
+        payload,
+        admin,
+      ).expect(409);
     };
     const activate = async (a: {
       token: string;
@@ -196,6 +252,7 @@ const prisma = new PrismaClient({
         a.token,
         key,
       ).expect(201);
+      await activateService(a);
     };
     const approve = (id: string, version = 0, key = randomUUID()) =>
       post(
@@ -424,6 +481,7 @@ const prisma = new PrismaClient({
       input.emailVerifications = [
         { verificationId: sendId, token: verified.token },
       ];
+      await uploadRegistrationDocument(input, sendId, verified.token);
       await post('/auth/register', {
         ...input,
         requestId: randomUUID(),
@@ -535,7 +593,7 @@ const prisma = new PrismaClient({
       });
       await post('/auth/register', expired).expect(400);
     });
-    it('serializes approval and grants organization authority only after a settled contract', async () => {
+    it('serializes approval and grants organization authority through separate platform activation', async () => {
       const a = await register();
       const key = randomUUID();
       const body = {
@@ -651,7 +709,7 @@ const prisma = new PrismaClient({
       });
       await post('/enterprise-connections', input, a.token, key).expect(403);
     });
-    it('binds payment to the previewed immutable contract and activates once with one contract email', async () => {
+    it('binds simulated payment to the contract without granting access, then activates once', async () => {
       const a = await register(),
         other = await register();
       const input = {
@@ -744,10 +802,34 @@ const prisma = new PrismaClient({
           a.token,
           key,
         ).expect(201);
+      const awaiting = (await get('/enterprise-access', a.token).expect(200))
+        .body.data;
+      expect(awaiting.stage).toBe('AWAITING_ACTIVATION');
+      expect(awaiting.permissions).toEqual([]);
+      expect(awaiting.capabilities).toEqual([]);
+      expect(
+        await prisma.scopedRoleGrant.count({
+          where: { organizationId: a.enrollment.organizationId },
+        }),
+      ).toBe(0);
+      await post(
+        '/supply-chains',
+        { name: 'Paid but not activated' },
+        a.token,
+      ).expect(403);
+      await activateService(a);
       const access = (await get('/enterprise-access', a.token).expect(200)).body
         .data;
       expect(access.stage).toBe('ACTIVE');
       expect(access.primary).toBe(true);
+      expect(
+        await prisma.platformAudit.count({
+          where: {
+            action: 'ENTERPRISE_SERVICE_ACTIVATED',
+            subjectId: a.enrollment.id,
+          },
+        }),
+      ).toBe(1);
       const paymentAudit = await prisma.platformAudit.findMany({
         where: { action: 'SERVICE_PAYMENT_SIMULATED', subjectId: order.id },
       });
@@ -817,12 +899,56 @@ const prisma = new PrismaClient({
       await activate(a);
       await approve(b.enrollment.id).expect(201);
       await activate(b);
+      const farmInput = {
+        organizationId: a.enrollment.organizationId,
+        name: 'Private enterprise farm',
+        kind: 'CROP',
+        region: 'Hà Nội',
+        address: '123 Địa chỉ vùng sản xuất',
+        areaM2: 100,
+        expectedOutput: 10,
+        outputUnit: 'kg',
+        privacy: 'PRIVATE',
+      };
+      const farm = (
+        await post('/catalog/farms', farmInput, a.token).expect(201)
+      ).body.data;
+      const image = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=',
+        'base64',
+      );
+      await post('/catalog/products', productForm(farm.id), a.token).expect(
+        422,
+      );
+      for (const kind of [
+        'AREA_IMAGE',
+        'LAND_CERTIFICATE',
+        'PRODUCTION_CONTRACT',
+        'QUALITY_CERTIFICATE',
+        'INSPECTION_IMAGE',
+      ])
+        await request(app.getHttpServer())
+          .post('/api/enterprise-workspace/evidence')
+          .set('Authorization', `Bearer ${a.token}`)
+          .set('Idempotency-Key', randomUUID())
+          .field('entityType', 'FARM')
+          .field('entityId', farm.id)
+          .field('kind', kind)
+          .field('description', 'Chứng cứ vùng sản xuất trong kiểm thử cách ly')
+          .attach('file', image, {
+            filename: `${kind}.png`,
+            contentType: 'image/png',
+          })
+          .expect(201);
+      await post(
+        `/catalog/farms/${farm.id}/complete`,
+        { version: 0 },
+        a.token,
+      ).expect(201);
       const product = (
-        await post(
-          '/catalog/products',
-          { productName: 'Private enterprise product', defaultUnit: 'kg' },
-          a.token,
-        ).expect(201)
+        await post('/catalog/products', productForm(farm.id), a.token).expect(
+          201,
+        )
       ).body.data;
       expect(product.organizationId).toBe(a.enrollment.organizationId);
       const adminVisible = (await get('/catalog', admin).expect(200)).body.data
@@ -837,7 +963,7 @@ const prisma = new PrismaClient({
       );
       await post(
         '/catalog/farms',
-        { organizationId: a.enrollment.organizationId, name: 'Forged farm' },
+        { ...farmInput, name: 'Forged farm' },
         b.token,
       ).expect(403);
       await post(
@@ -854,6 +980,7 @@ const prisma = new PrismaClient({
         '/enterprise-workspace/members',
         {
           fullName: 'Invalid password',
+          jobTitle: 'Nhân viên kiểm thử',
           email: randomUUID() + '@example.test',
           password: '🌾'.repeat(19),
           tier: 3,
@@ -885,6 +1012,7 @@ const prisma = new PrismaClient({
       ).body.data.record;
       const managerInput = {
         fullName: 'Manager',
+        jobTitle: 'Quản lý kiểm thử',
         email: `manager-${randomUUID()}@example.test`,
         password,
         tier: 2,
@@ -919,6 +1047,7 @@ const prisma = new PrismaClient({
       ).expect(403);
       const childInput = {
         fullName: 'Staff',
+        jobTitle: 'Nhân viên kiểm thử',
         email: `staff-${randomUUID()}@example.test`,
         password,
         tier: 3,
@@ -943,7 +1072,7 @@ const prisma = new PrismaClient({
       ).expect(403);
       await post(
         '/catalog/products',
-        { productName: 'Unauthorized product' },
+        productForm(randomUUID()),
         childToken,
       ).expect(403);
       await post(
