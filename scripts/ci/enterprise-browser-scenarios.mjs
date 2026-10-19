@@ -151,7 +151,10 @@ export async function runEnterpriseBrowserScenarios(options) {
       assert.equal(await options.operator.db.organizationCapability.count({ where: { organizationId: pending.organizationId } }), 0);
       step('admin-service-activation');
       await admin.getByLabel('Căn cứ kích hoạt (tối thiểu 10 ký tự)', { exact: true }).fill('Kích hoạt doanh nghiệp trong kiểm thử cách ly');
-      await command(admin, `/enterprise-enrollments/${enrollmentId}/activate`, () => admin.getByRole('button', { name: 'Cấp quyền sử dụng sau xét duyệt', exact: true }).click());
+      await command(admin, `/enterprise-enrollments/${enrollmentId}/activate`, async () => {
+        await admin.getByRole('button', { name: 'Cấp quyền sử dụng sau xét duyệt', exact: true }).click();
+        await admin.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true }).click();
+      });
       activePage = owner;
       step('owner-create-chain');
       await owner.goto(`${options.origin}/supply-chains`, { waitUntil: 'domcontentloaded' });

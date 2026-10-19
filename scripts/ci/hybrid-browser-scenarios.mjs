@@ -479,11 +479,12 @@ async function planConsent(options, session) {
   ]) {
     const page = session.pages[party];
     await selectChain(page, options, "plans");
-    await requestResult(page, /\/shipment-plans\/[^/]+\/accept$/, () =>
-      page
+    await requestResult(page, /\/shipment-plans\/[^/]+\/accept$/, async () => {
+      await page
         .getByRole("button", { name: `Xác nhận vai trò ${label}`, exact: true })
-        .click(),
-    );
+        .click();
+      await page.getByRole("dialog").getByRole("button", { name: "Xác nhận", exact: true }).click();
+    });
   }
   await selectChain(session.pages.farm, options, "plans");
   const finalized = await requestResult(
@@ -538,10 +539,12 @@ async function invitation(options, session) {
   await requestResult(
     session.pages.other,
     /\/memberships\/[^/]+\/accept$/,
-    () =>
-      session.pages.other
+    async () => {
+      await session.pages.other
         .getByRole("button", { name: "Chấp nhận tham gia", exact: true })
-        .click(),
+        .click();
+      await session.pages.other.getByRole("dialog").getByRole("button", { name: "Xác nhận", exact: true }).click();
+    },
   );
   assert.equal(
     await options.db.chainMembership.count({
@@ -912,6 +915,7 @@ export async function runHybridBrowserScenarios(options) {
         shipment,
         session.keys.farm,
       );
+      await session.pages.farm.locator('summary[aria-label^="Tài khoản:"]').filter({ visible: true }).first().click();
       await session.pages.farm
         .getByRole("button", { name: "Đăng xuất", exact: true })
         .click();
@@ -942,6 +946,7 @@ export async function runHybridBrowserScenarios(options) {
         0,
         "Another account cannot submit the prior review",
       );
+      await session.pages.farm.locator('summary[aria-label^="Tài khoản:"]').filter({ visible: true }).first().click();
       await session.pages.farm
         .getByRole("button", { name: "Đăng xuất", exact: true })
         .click();
