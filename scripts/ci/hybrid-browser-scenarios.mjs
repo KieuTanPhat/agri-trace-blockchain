@@ -230,6 +230,9 @@ async function createSession(options) {
         ...contextOptions,
         extraHTTPHeaders: {
           "X-Forwarded-For": clientAddress(options.variant, party),
+          ...(party === "farm" && options.hydrationDelayMs
+            ? { "X-AgriTrace-Hydration-Delay-Ms": String(options.hydrationDelayMs) }
+            : {}),
         },
       });
       pages[party] = await contexts[party].newPage();
@@ -239,13 +242,6 @@ async function createSession(options) {
         label: `${options.variant}-${party}`,
         results: options.loginResults,
       });
-      if (party === "farm" && options.hydrationDelayMs) {
-        // Regression: static HTML arrives before the React login handlers.
-        await pages[party].route("**/_next/static/**/*.js", async (route) => {
-          await delay(options.hydrationDelayMs);
-          await route.continue();
-        });
-      }
       pages[party].on("request", (request) => {
         if (request.url().startsWith(`${options.origin}/api/`)) {
           const token = request.headers().authorization;
@@ -258,8 +254,6 @@ async function createSession(options) {
         options.fixture.users[party],
         options.fixture.password,
       );
-      if (party === "farm" && options.hydrationDelayMs)
-        await pages[party].unrouteAll({ behavior: "wait" });
     }
     return {
       browser,
@@ -271,10 +265,6 @@ async function createSession(options) {
       close: () => browser.close(),
     };
   } catch (error) {
-    // Settle delayed routes before closing the browser, preserving login diagnostics.
-    await Promise.all(
-      Object.values(pages).map((page) => page.unrouteAll({ behavior: "wait" })),
-    );
     await browser.close();
     throw error;
   }

@@ -171,9 +171,14 @@ async function main() {
     console.log(JSON.stringify(events));
   `);
   const pending = readEvents();
-  assert.equal(pending.length, 5, 'Create, plant, care, harvest sensor window and harvest must each append one event');
+  assert.equal(pending.length, 6, 'Create, plant, care, sensor window, harvest and lot-image attachment must each append one event');
   assert.equal(pending.filter(event => event.eventType === 'PRODUCTION_CYCLE_CREATED').length, 1);
   assert.equal(pending.filter(event => event.eventType === 'SENSOR_DIGEST_FINALIZED').length, 1);
+  assert.equal(pending.filter(event => event.eventType === 'HARVEST_RECORDED').length, 1);
+  const lotImages = pending.filter(event => event.eventType === 'EVIDENCE_ATTACHED');
+  assert.equal(lotImages.length, 1);
+  assert.equal(lotImages[0].entityType, 'LOT');
+  assert.equal(lotImages[0].entityId, harvest.lot.id);
   for (const event of pending) {
     assert.equal(event.blockchainOutbox?.status, 'PENDING');
     assert.equal(event.blockchainProof, null);
