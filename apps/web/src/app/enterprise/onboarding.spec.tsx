@@ -160,7 +160,7 @@ it("keeps the original registration and password only in memory after a lost res
   expect(screen.getByRole("checkbox", { name: /Tôi xác nhận/ })).toBeDisabled();
   fireEvent.submit(form);
   await screen.findByRole("heading", {
-    name: "Chào mừng doanh nghiệp của bạn",
+    name: "Cảm ơn bạn đã đăng ký AgriTrace",
   });
   const calls = vi
     .mocked(request)
