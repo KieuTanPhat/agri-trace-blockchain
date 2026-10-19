@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
   waitFor,
 } from "@testing-library/react";
 import {
@@ -111,8 +112,12 @@ async function enterHarvest(container: HTMLElement) {
   fireEvent.change(screen.getByLabelText("Chu kỳ sản xuất"), {
     target: { value: cycleId },
   });
-  await screen.findByRole("option", { name: "harvest.jpg" });
-  await screen.findByRole("option", { name: "lot.jpg" });
+  await within(screen.getByLabelText("Ảnh thu hoạch")).findByRole("option", {
+    name: "harvest.jpg",
+  });
+  await within(screen.getByLabelText("Ảnh lô nông sản")).findByRole("option", {
+    name: "lot.jpg",
+  });
   fireEvent.change(screen.getByLabelText("Số lượng"), {
     target: { value: "10" },
   });

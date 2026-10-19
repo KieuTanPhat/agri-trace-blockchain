@@ -49,6 +49,8 @@ describe("Chain workspace scope isolation", () => {
     api.request.mockImplementation((path: string) => {
       if (path === "/catalog")
         return Promise.resolve({ products: [], farms: [] });
+      if (path.startsWith("/enterprise-workspace/evidence?"))
+        return Promise.resolve({ items: [] });
       if (path === "/chain-permissions")
         return Promise.resolve({
           grants: [{ scope: "CHAIN", chainId: "one", role: "CHAIN_MANAGER" }],
@@ -137,6 +139,8 @@ describe("Chain workspace scope isolation", () => {
     api.request.mockImplementation((path: string) => {
       if (path === "/catalog")
         return Promise.resolve({ products: [], farms: [] });
+      if (path.startsWith("/enterprise-workspace/evidence?"))
+        return Promise.resolve({ items: [] });
       if (path === "/chain-permissions")
         return Promise.resolve({
           grants: [],

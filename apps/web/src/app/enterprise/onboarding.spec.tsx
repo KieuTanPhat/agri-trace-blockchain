@@ -59,6 +59,8 @@ beforeEach(() => {
           wards: [{ code: "00004", name: "Phường Ba Đình" }],
         },
       ] as never;
+    if (path === "/auth/registration-email-availability")
+      return { available: true } as never;
     if (path === "/auth/registration-otp/request")
       return {
         verificationId: "verification",
@@ -90,10 +92,12 @@ async function fillRegistration() {
     fireEvent.change(screen.getByLabelText(new RegExp("^" + label)), {
       target: { value },
     });
-  const next = () =>
+  const next = async (heading: string) => {
     fireEvent.submit(
       screen.getByRole("button", { name: "Tiếp tục" }).closest("form")!,
     );
+    await screen.findByRole("heading", { name: heading });
+  };
   fill("Tên doanh nghiệp", "Doanh nghiệp demo");
   fill("Mã số thuế / định danh pháp lý", "0123456789");
   fill("Số giấy chứng nhận đăng ký", "REG-001");
@@ -106,7 +110,7 @@ async function fillRegistration() {
   fill("Tỉnh / thành phố", "01");
   fill("Xã / phường", "00004");
   fill("Địa chỉ trụ sở / nơi hoạt động", "123 Đường kiểm thử");
-  next();
+  await next("Đại diện & tài khoản");
   fill("Họ tên người đại diện", "Chủ doanh nghiệp");
   fill("Chức vụ", "Giám đốc");
   fill("Số điện thoại liên hệ", "0900000123");
@@ -115,15 +119,15 @@ async function fillRegistration() {
   fill("Email đăng nhập", "owner@example.test");
   fill("Mật khẩu", "long-demo-password-2026");
   fill("Xác nhận mật khẩu", "long-demo-password-2026");
-  fireEvent.click(screen.getByRole("button", { name: "Lưu bản nháp" }));
+  fireEvent.click(screen.getByRole("button", { name: "Lưu nháp" }));
   expect(
-    localStorage.getItem("agritrace:enterprise-registration-draft:v3"),
+    localStorage.getItem("agritrace:enterprise-registration-draft:v4"),
   ).not.toContain("long-demo-password-2026");
-  next();
+  await next("Hoạt động");
   fill("Nhóm sản phẩm chính", "Rau, gạo");
-  next();
+  await next("Dịch vụ sử dụng");
   fill("Giới thiệu ngắn về tổ chức", "Sản xuất nông sản sạch phục vụ kiểm thử.");
-  next();
+  await next("Kiểm tra & xác minh");
   fireEvent.click(screen.getByRole("button", { name: "Gửi mã OTP" }));
   await screen.findByLabelText(/Mã OTP gửi đến/);
   fill("Mã OTP gửi đến", "123456");
