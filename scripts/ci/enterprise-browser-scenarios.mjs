@@ -13,8 +13,7 @@ const until = async (check, description, limit = timeout) => {
 };
 const command = async (page, route, click) => {
   const reply = page.waitForResponse(response => new URL(response.url()).pathname === `/api${route}` && response.request().method() === 'POST', { timeout });
-  await click();
-  const response = await reply;
+  const [response] = await Promise.all([reply, click()]);
   assert.equal(response.status(), 201, `Real UI command rejected at ${route}`);
   const envelope = await response.json();
   assert.equal(envelope.success, true);

@@ -57,7 +57,10 @@ async function selectChain(page, options, section) {
         .count()) === 1,
     "current chain selection",
   );
-  await select.selectOption(options.fixture.chainId);
+  // Detail routes already select their chain. Re-selecting the same value fires
+  // onChange and clears members without changing the effect's selected key.
+  if ((await select.inputValue()) !== options.fixture.chainId)
+    await select.selectOption(options.fixture.chainId);
 }
 
 async function requestResult(page, pattern, work) {
@@ -67,8 +70,7 @@ async function requestResult(page, pattern, work) {
       pattern.test(new URL(value.url()).pathname),
     { timeout },
   );
-  await work();
-  const result = await response;
+  const [result] = await Promise.all([response, work()]);
   assert.equal(result.status(), 201, "Real UI command must return 201");
   const envelope = await result.json();
   assert.equal(
@@ -714,6 +716,7 @@ export async function runHybridBrowserScenarios(options) {
   const owned = !options.browserSession;
   const groups = [...session.groups];
   const group = async (name, work) => {
+    console.log(JSON.stringify({ suite: "hybrid-browser", variant: options.variant, group: name }));
     await work();
     groups.push({ name, passed: true });
   };
