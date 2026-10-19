@@ -48,7 +48,8 @@ export async function runEnterpriseBrowserScenarios(options) {
   };
   const login = async (page, user, label) => {
     const result = await loginToDashboard(page, options.origin, user, options.operator.password,
-      { evidenceDir: options.diagnosticsDir, privateDir: options.privateDir, label });
+      { evidenceDir: options.diagnosticsDir, privateDir: options.privateDir, label,
+        destination: label === 'enterprise-admin' ? '/admin' : '/enterprise/onboarding' });
     options.loginResults.push(result);
   };
   try {
@@ -67,12 +68,37 @@ export async function runEnterpriseBrowserScenarios(options) {
       const email = `${randomUUID()}@example.test`, organizationName = `UI enterprise ${randomUUID()}`;
       options.secrets.push(email);
       await owner.goto(`${options.origin}/register`, { waitUntil: 'networkidle' });
-      await owner.getByLabel('Tên doanh nghiệp', { exact: true }).fill(organizationName);
-      await owner.getByLabel('Mã số doanh nghiệp / mã số thuế', { exact: true }).fill(`UI-${randomUUID().slice(0, 12)}`);
-      await owner.getByLabel('Người đại diện', { exact: true }).fill('Đại diện demo');
-      await owner.getByLabel('Email', { exact: true }).fill(email);
-      await owner.getByLabel(/^Mật khẩu/).fill(options.operator.password);
-      await owner.locator(`input[name="hostingMode"][value="${mode}"]`).check();
+      await owner.locator('#reg-organizationName').fill(organizationName);
+      await owner.locator('#reg-businessId').fill(Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join(''));
+      await owner.locator('#reg-registrationNumber').fill('UI-REG-' + randomUUID().slice(0, 8));
+      await owner.locator('#reg-provinceCode').selectOption('01');
+      await owner.locator('#reg-wardCode').selectOption('00004');
+      await owner.locator('#reg-address').fill('123 Địa chỉ đăng ký cách ly');
+      await owner.getByLabel('Tải giấy đăng ký của tổ chức', { exact: true }).setInputFiles({
+        name: 'registration.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n% isolated registration fixture\n%%EOF\n'),
+      });
+      await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+      await owner.locator('#reg-representative').fill('Đại diện demo');
+      await owner.locator('#reg-representativeTitle').fill('Giám đốc');
+      await owner.locator('#reg-phone').fill('0900000123');
+      await owner.locator('#reg-contactEmail').fill(email);
+      await owner.locator('#reg-fullName').fill('Đại diện demo');
+      await owner.locator('#reg-email').fill(email);
+      await owner.locator('#reg-password').fill(options.operator.password);
+      await owner.locator('#reg-passwordConfirm').fill(options.operator.password);
+      await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+      await owner.locator('#reg-productGroups').fill('Rau');
+      await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+      await owner.locator('#reg-hostingMode').selectOption(mode);
+      await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+      const otpReceipt = await command(owner, '/auth/registration-otp/request', () => owner.getByRole('button', { name: 'Xác thực tài khoản', exact: true }).click());
+      const otp = await options.operator.readOtp(otpReceipt.verificationId);
+      options.secrets.push(otp);
+      await owner.getByLabel('Mã xác thực', { exact: true }).fill(otp);
+      await command(owner, '/auth/registration-otp/verify', () => owner.getByRole('button', { name: 'Xác nhận', exact: true }).click());
+      await owner.getByRole('checkbox', { name: /^Tôi xác nhận thông tin chính xác/ }).check();
+      await owner.getByRole('checkbox', { name: /^Tôi đồng ý với/ }).check();
+      await owner.getByRole('checkbox', { name: /^Tôi đã đọc/ }).check();
       await bothLayouts(owner);
       let enrollmentId, originalDigest;
       let registrations = 0;
@@ -90,13 +116,13 @@ export async function runEnterpriseBrowserScenarios(options) {
         else await route.fulfill({ response });
       };
       await owner.route('**/api/auth/register', registerRoute);
-      await owner.getByRole('button', { name: 'Gửi đăng ký', exact: true }).click();
+      await owner.getByRole('button', { name: 'Gửi hồ sơ xét duyệt', exact: true }).click();
       await owner.getByRole('alert').waitFor({ state: 'visible', timeout });
       step('registration-recovery');
-      assert.equal(await owner.getByLabel('Tên doanh nghiệp', { exact: true }).isDisabled(), true);
+      assert.equal(await owner.getByRole('checkbox', { name: /^Tôi xác nhận thông tin chính xác/ }).isDisabled(), true);
       await noPasswordStorage(owner, options.operator.password);
-      await owner.getByRole('button', { name: 'Thử lại đăng ký ban đầu', exact: true }).click();
-      await owner.getByRole('heading', { name: 'Đã tiếp nhận đăng ký', exact: true }).waitFor({ timeout });
+      await owner.getByRole('button', { name: 'Thử lại hồ sơ ban đầu', exact: true }).click();
+      await owner.getByRole('heading', { name: 'Cảm ơn bạn đã đăng ký AgriTrace', exact: true }).waitFor({ timeout });
       assert.equal(registrations, 2);
       await owner.unroute('**/api/auth/register', registerRoute);
       const pending = await options.operator.assertPending(enrollmentId);
@@ -107,8 +133,8 @@ export async function runEnterpriseBrowserScenarios(options) {
       });
       step('owner-login');
       await login(owner, { email }, `enterprise-${mode}`);
-      await owner.goto(`${options.origin}/enterprise`, { waitUntil: 'domcontentloaded' });
-      await owner.getByRole('status').filter({ hasText: 'Chờ xét duyệt' }).waitFor({ timeout });
+      await owner.goto(`${options.origin}/enterprise/onboarding`, { waitUntil: 'domcontentloaded' });
+      await owner.getByText('Chờ xét duyệt', { exact: true }).waitFor({ timeout });
       assert.equal(await owner.getByRole('heading', { name: 'Kết nối một chuỗi', exact: true }).count(), 0);
       await bothLayouts(owner);
       await until(() => authorization, 'owner authentication');
@@ -117,20 +143,24 @@ export async function runEnterpriseBrowserScenarios(options) {
       assert.equal(denied.status(), 403, 'Unapproved signup must not create a chain');
       activePage = admin;
       step('admin-enrollment-review');
-      await admin.goto(`${options.origin}/admin/enterprises`, { waitUntil: 'domcontentloaded' });
-      let row = admin.locator('section.panel').filter({ has: admin.getByRole('heading', { name: organizationName, exact: true }) });
-      await row.getByLabel('Ghi chú xét duyệt', { exact: true }).fill('Đã kiểm hồ sơ doanh nghiệp demo cách ly');
+      await admin.goto(`${options.origin}/admin/enterprises/${enrollmentId}`, { waitUntil: 'domcontentloaded' });
+      await admin.getByLabel('Ghi chú xét duyệt', { exact: true }).fill('Đã kiểm hồ sơ doanh nghiệp demo cách ly');
       await bothLayouts(admin);
-      await command(admin, `/enterprise-enrollments/${enrollmentId}/review`, () => row.getByRole('button', { name: 'Phê duyệt', exact: true }).click());
+      await admin.getByRole('button', { name: 'Phê duyệt', exact: true }).click();
+      await command(admin, `/enterprise-enrollments/${enrollmentId}/review`, () => admin.getByRole('button', { name: 'Xác nhận phê duyệt', exact: true }).click());
+      assert.equal(await options.operator.db.organizationCapability.count({ where: { organizationId: pending.organizationId } }), 0);
+      step('admin-service-activation');
+      await admin.getByLabel('Căn cứ kích hoạt (tối thiểu 10 ký tự)', { exact: true }).fill('Kích hoạt doanh nghiệp trong kiểm thử cách ly');
+      await command(admin, `/enterprise-enrollments/${enrollmentId}/activate`, () => admin.getByRole('button', { name: 'Cấp quyền sử dụng sau xét duyệt', exact: true }).click());
       activePage = owner;
       step('owner-create-chain');
-      await owner.reload({ waitUntil: 'domcontentloaded' });
-      await owner.getByRole('link', { name: 'Tạo chuỗi của doanh nghiệp', exact: true }).click();
-      await owner.getByLabel('Tên chuỗi *', { exact: true }).fill(`Enterprise chain ${randomUUID()}`);
-      const chain = await command(owner, '/supply-chains', () => owner.getByRole('button', { name: 'Tạo chuỗi cung ứng', exact: true }).click());
+      await owner.goto(`${options.origin}/supply-chains`, { waitUntil: 'domcontentloaded' });
+      await owner.getByLabel('Tên chuỗi', { exact: true }).fill(`Enterprise chain ${randomUUID()}`);
+      await owner.getByLabel('Loại chuỗi', { exact: true }).selectOption('CROP');
+      const chain = await command(owner, '/supply-chains', () => owner.getByRole('button', { name: 'Tạo chuỗi truy xuất', exact: true }).click());
       assert.equal(chain.ownerOrganizationId, pending.organizationId);
       step('owner-connection-request');
-      await owner.goto(`${options.origin}/enterprise`, { waitUntil: 'domcontentloaded' });
+      await owner.goto(`${options.origin}/enterprise/connections`, { waitUntil: 'domcontentloaded' });
       await owner.getByLabel(/^Chuỗi của doanh nghiệp/).selectOption(chain.id);
       if (mode === 'SELF_MANAGED_ORG') {
         const peer = options.operator.publicPeer;
@@ -146,11 +176,10 @@ export async function runEnterpriseBrowserScenarios(options) {
       assert.equal(await owner.getByRole('button', { name: 'Gửi yêu cầu kết nối', exact: true }).count(), 0);
       activePage = admin;
       step('admin-connection-review');
-      await admin.reload({ waitUntil: 'domcontentloaded' });
-      row = admin.locator('section.panel').filter({ has: admin.getByRole('heading', { name: organizationName, exact: true }) });
-      const request = row.locator('article').filter({ hasText: connection.id });
-      await request.getByLabel('Ghi chú xét duyệt', { exact: true }).fill('Đã đối chiếu thông tin peer công khai');
-      await command(admin, `/enterprise-connections/${connection.id}/review`, () => request.getByRole('button', { name: 'Phê duyệt', exact: true }).click());
+      await admin.goto(`${options.origin}/admin/enterprises/${enrollmentId}/connections/${connection.id}`, { waitUntil: 'domcontentloaded' });
+      await admin.getByLabel('Ghi chú xét duyệt', { exact: true }).fill('Đã đối chiếu thông tin peer công khai');
+      await admin.getByRole('button', { name: 'Phê duyệt', exact: true }).click();
+      await command(admin, `/enterprise-connections/${connection.id}/review`, () => admin.getByRole('button', { name: 'Xác nhận phê duyệt', exact: true }).click());
       const approved = await options.operator.db.enterpriseConnection.findUniqueOrThrow({ where: { id: connection.id } });
       assert.equal(approved.status, 'APPROVED', 'Admin review alone must never report CONNECTED');
       assert.equal(approved.txId, null);

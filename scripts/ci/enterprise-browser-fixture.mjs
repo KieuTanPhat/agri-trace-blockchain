@@ -8,6 +8,7 @@ import { PrismaClient } from '../../apps/api/dist/generated/prisma/client.js';
 import { BindingLedgerClient, RegistryOperator, certificateFingerprint, connectGateway } from '../../blockchain/gateway/dist/index.js';
 import { activateBinding, registerBinding } from '../../apps/api/dist/modules/ledger/ledger-bindings.js';
 import { mirrorCredential, onboardBindingOnLedger } from '../../apps/api/dist/modules/ledger/ledger-onboarding.js';
+import { decryptOtp } from '../../apps/api/dist/modules/enterprise-onboarding/registration-otp.service.js';
 
 // Only the operator setup uses database/registry access. Registration, approval,
 // chain creation and connection requests are performed by the actual Web UI.
@@ -18,7 +19,7 @@ export async function createEnterpriseBrowserFixture(env) {
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: env.DATABASE_URL }) });
   const connections = [];
   const probes = new Map();
-  const password = randomBytes(24).toString('base64url');
+  const password = 'E2e-2026-' + randomBytes(24).toString('base64url');
   const role = await db.role.upsert({ where: { code: 'SYSTEM_ADMIN' },
     create: { code: 'SYSTEM_ADMIN', name: 'SYSTEM_ADMIN' }, update: {} });
   const admin = await db.user.create({ data: { roleId: role.id, fullName: 'Isolated onboarding admin',
@@ -55,6 +56,11 @@ export async function createEnterpriseBrowserFixture(env) {
   const reference = name => ({ certPath: identity('org1', name).certPath, keyDir: identity('org1', name).keyDir });
   return {
     db, admin: { email: admin.email }, password,
+    readOtp: async verificationId => {
+      const mail = await db.enterpriseMail.findUniqueOrThrow({ where: { verificationId } });
+      assert.ok(mail.otpCiphertext, 'Isolated OTP mail must contain the encrypted code');
+      return decryptOtp(mail.otpCiphertext, env.JWT_SECRET);
+    },
     publicPeer: {
       peerHost: '127.0.0.1', peerPort: 11051 + offset, peerServerName: 'peer0.org3.example.com',
       mspId: 'Org3MSP', tlsCaPem: readFileSync(identity('org3', 'Admin').tlsCertPath, 'utf8'),

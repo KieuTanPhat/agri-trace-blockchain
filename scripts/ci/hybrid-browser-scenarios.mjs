@@ -44,8 +44,8 @@ async function login(page, origin, user, password) {
   options.results?.push(result);
 }
 
-async function selectChain(page, options) {
-  await page.goto(`${options.origin}/supply-chains`, {
+async function selectChain(page, options, section) {
+  await page.goto(`${options.origin}/supply-chains/${options.fixture.chainId}/${section}`, {
     waitUntil: "domcontentloaded",
   });
   const select = page.getByLabel("Chọn chuỗi");
@@ -272,7 +272,7 @@ async function createSession(options) {
 
 async function enrollKey(options, session, party, label, loseResponse = false) {
   const page = session.pages[party];
-  await selectChain(page, options);
+  await selectChain(page, options, "signing");
   const pathname = `/supply-chains/${options.fixture.chainId}/signing-keys`;
   let original;
   if (loseResponse)
@@ -478,14 +478,14 @@ async function planConsent(options, session) {
     ["retailer", "bán lẻ"],
   ]) {
     const page = session.pages[party];
-    await selectChain(page, options);
+    await selectChain(page, options, "plans");
     await requestResult(page, /\/shipment-plans\/[^/]+\/accept$/, () =>
       page
         .getByRole("button", { name: `Xác nhận vai trò ${label}`, exact: true })
         .click(),
     );
   }
-  await selectChain(session.pages.farm, options);
+  await selectChain(session.pages.farm, options, "plans");
   const finalized = await requestResult(
     session.pages.farm,
     /\/shipment-plans\/[^/]+\/finalize$/,
@@ -519,7 +519,7 @@ async function planConsent(options, session) {
 }
 
 async function invitation(options, session) {
-  await selectChain(session.pages.farm, options);
+  await selectChain(session.pages.farm, options, "members");
   const form = session.pages.farm
     .locator("form")
     .filter({
@@ -534,7 +534,7 @@ async function invitation(options, session) {
   await requestResult(session.pages.farm, /\/memberships$/, () =>
     form.getByRole("button", { name: "Mời đối tác", exact: true }).click(),
   );
-  await selectChain(session.pages.other, options);
+  await selectChain(session.pages.other, options, "members");
   await requestResult(
     session.pages.other,
     /\/memberships\/[^/]+\/accept$/,
