@@ -1,4 +1,11 @@
-import { IsByteLength, IsEmail, IsString, MaxLength } from 'class-validator';
+import {
+  IsByteLength,
+  IsEmail,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class LoginDto {
@@ -17,4 +24,18 @@ export class LoginDto {
   @MaxLength(72)
   @IsByteLength(0, 72)
   password!: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(6)
+  @MaxLength(20)
+  @ApiProperty({
+    type: String,
+    required: false,
+    minLength: 6,
+    maxLength: 20,
+    description:
+      'Mã TOTP hoặc mã khôi phục. Bắt buộc khi quản trị viên đã bật MFA; thiếu mã trả 401 "Cần mã xác thực hai yếu tố".',
+  })
+  mfaCode?: string;
 }

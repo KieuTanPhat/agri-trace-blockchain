@@ -72,6 +72,8 @@ function validateContract(document) {
     const success = Object.entries(operation.responses ?? {}).filter(([code]) => /^2\d\d$/.test(code));
     if (!success.length && path !== '/api/auth/register') throw new Error(`${method.toUpperCase()} ${path} has no success contract`);
     for (const [code, response] of success) {
+      const binary = Object.entries(response.content ?? {}).length > 0 && Object.entries(response.content).every(([media, content]) => ['application/pdf','image/png','image/jpeg'].includes(media) && content.schema?.type === 'string' && content.schema?.format === 'binary');
+      if (binary) continue;
       const fields = properties(response.content?.['application/json']?.schema);
       if (['success', 'data', 'timestamp', 'requestId'].some(field => !fields[field]))
         throw new Error(`${method.toUpperCase()} ${path} ${code} is missing its response envelope/schema`);
@@ -79,7 +81,12 @@ function validateContract(document) {
     const needsKey = method === 'post' && !path.startsWith('/api/auth/') || method === 'patch' && path === '/api/certificates/{id}/review';
     if (needsKey && !(operation.parameters ?? []).some(parameter => parameter.in === 'header' && parameter.name.toLowerCase() === 'idempotency-key' && parameter.required))
       throw new Error(`${method.toUpperCase()} ${path} must document required Idempotency-Key`);
-    if (operation.requestBody && !operation.requestBody.content?.['application/json']?.schema)
+    const multipart = operation.requestBody?.content?.['multipart/form-data']?.schema;
+    const registrationUpload = method === 'post' && path === '/api/auth/registration-documents' &&
+      multipart?.properties?.file?.format === 'binary' &&
+      ['id','registrationId','verificationId','token','kind','file'].every(field => multipart.required?.includes(field));
+    const evidenceUpload=method==='post' && path==='/api/enterprise-workspace/evidence' && properties(multipart)?.file?.format==='binary' && ['entityType','entityId','description','file'].every(field=>properties(multipart)[field]);
+    if (operation.requestBody && !operation.requestBody.content?.['application/json']?.schema && !registrationUpload && !evidenceUpload)
       throw new Error(`${method.toUpperCase()} ${path} is missing a JSON request schema`);
   }
   const forbidden = new Set(['actorAuthProof', 'authProofType', 'businessData', 'documentRef', 'reviewNote', 'passwordHash', 'refreshToken', 'authorizationScope', 'deviceId', 'readings', 'submittedByUserId', 'recordedByUserId', 'actorUserId', 'actorOrganizationId']);

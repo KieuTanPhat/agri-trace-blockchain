@@ -7,7 +7,8 @@ import { getAuthorizationScope } from "./auth-scope";
 import { currentBusinessAccessRevision } from "./permission-sync";
 import type { components } from "./generated/api";
 
-type Input = Omit<components["schemas"]["RecordHarvestDto"], "harvestTime">;
+type HarvestInput = Omit<components["schemas"]["RecordHarvestDto"], "harvestTime">;
+type Input = Pick<HarvestInput, "quantity" | "unit"> & Partial<Omit<HarvestInput, "quantity" | "unit">>;
 type Status = components["schemas"]["HarvestRequestStatusDto"];
 type Intent = {
   cycleId: string;
@@ -156,13 +157,22 @@ export function sendHarvest(
       if (
         !uuid.test(cycleId) ||
         !Number.isFinite(input.quantity) ||
+        !Number.isInteger(input.version) ||
+        (input.version ?? -1) < 0 ||
         input.quantity <= 0 ||
         Math.round(input.quantity * 1000) / 1000 !== input.quantity ||
         !input.unit.trim() ||
-        input.unit.length > 30
+        input.unit.length > 30 ||
+        !input.lotName?.trim() ||
+        !input.representativeUserId || !uuid.test(input.representativeUserId) ||
+        (input.additionalEvidenceRefs?.length ?? 0) > 4 ||
+        (input.additionalEvidenceRefs ?? []).some((id) => !uuid.test(id) || id === input.evidenceRef) ||
+        new Set(input.additionalEvidenceRefs ?? []).size !== (input.additionalEvidenceRefs?.length ?? 0) ||
+        !input.evidenceRef || !uuid.test(input.evidenceRef) ||
+        !input.lotImageEvidenceRef || !uuid.test(input.lotImageEvidenceRef)
       )
         throw new Error(
-          "Nội dung thu hoạch chưa hợp lệ. Kiểm tra chu kỳ, số lượng và đơn vị trước khi gửi.",
+          "Nội dung thu hoạch chưa hợp lệ. Kiểm tra chu kỳ, tên lô, người đại diện, ảnh, số lượng và đơn vị trước khi gửi.",
         );
       const harvestTime = new Date().toISOString();
       state = {
@@ -183,7 +193,7 @@ export function sendHarvest(
     const intent = state.intent!;
     const result = await recordHarvest(
       cycleId,
-      { ...input, harvestTime: intent.harvestTime },
+      { ...input, harvestTime: intent.harvestTime } as components["schemas"]["RecordHarvestDto"],
       intent.key,
     );
     assertActor(scope);

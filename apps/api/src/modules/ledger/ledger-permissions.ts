@@ -5,6 +5,7 @@ import type { Prisma, ScopedRole } from '../../generated/prisma/client.js';
  * organization-level roles never reach the ledger. The list is registered with
  * each permission epoch so the chaincode enforces it independently. */
 const ROLE_ENTITY_TYPES: Partial<Record<ScopedRole, readonly string[]>> = {
+  DISTRIBUTOR: ['LOT'],
   FARM_STAFF: [
     'CARE',
     'CERTIFICATE',

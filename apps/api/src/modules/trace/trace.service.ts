@@ -39,6 +39,16 @@ import {
 } from './ledger-route.js';
 
 export type Actor = {
+  enterpriseScope?: {
+    chainIds: string[];
+    farmIds: string[];
+    distributionChainIds?: string[];
+    roleScopes: Array<{
+      chainIds: string[];
+      siteIds: string[];
+      permissions: string[];
+    }>;
+  };
   sub: string | null;
   organizationId: string | null;
   role: string;

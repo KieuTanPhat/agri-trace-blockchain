@@ -5,7 +5,7 @@ import LoginPage from "./page";
 
 const { replace, authState } = vi.hoisted(() => ({
   replace: vi.fn(),
-  authState: { isLoading: false, isAuthenticated: true },
+  authState: { isLoading: false, isAuthenticated: true, user:undefined as undefined|{role:{code:'SYSTEM_ADMIN'}} },
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 vi.mock("next/image", () => ({ default: () => null }));
@@ -18,6 +18,7 @@ afterEach(() => {
   window.history.replaceState({}, "", "/");
   authState.isLoading = false;
   authState.isAuthenticated = true;
+  authState.user=undefined;
 });
 
 it("disables the server-rendered form until hydration installs its handlers", () => {
@@ -54,4 +55,10 @@ it("preserves a valid protected return route", async () => {
   window.history.replaceState({}, "", "/login?next=/lots/lot-1");
   render(<LoginPage />);
   await waitFor(() => expect(replace).toHaveBeenCalledWith("/lots/lot-1"));
+});
+it('opens the system manager for a platform admin whose previous route belongs to enterprise onboarding',async()=>{
+  authState.user={role:{code:'SYSTEM_ADMIN'}};
+  window.history.replaceState({},'', '/login?next=/enterprise/onboarding');
+  render(<LoginPage/>);
+  await waitFor(()=>expect(replace).toHaveBeenCalledWith('/admin'));
 });

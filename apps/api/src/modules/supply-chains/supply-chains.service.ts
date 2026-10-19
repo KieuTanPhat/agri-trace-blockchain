@@ -3,7 +3,9 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
@@ -14,9 +16,18 @@ import {
   chainAccess,
   organizationGrant,
 } from './chain-policy.js';
-import type { ChangeMemberDto, GrantRoleDto } from './dto.js';
+import type { ChangeMemberDto, CreateChainDto, GrantRoleDto } from './dto.js';
+import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import { assertBusinessActivationReady } from './business-profile.commands.js';
 import { bindingObservation } from '../ledger/binding-observation.js';
+import {
+  appendPlatformAudit,
+  lockPlatformAudit,
+} from '../platform-governance/platform-audit.js';
+import {
+  APPROVAL_REQUIRED_MESSAGE,
+  approvalsMode,
+} from '../platform-governance/platform-config.js';
 import {
   requestLedgerGrant,
   requestLedgerRevoke,
@@ -143,6 +154,20 @@ export class SupplyChainsService {
     // UI invalidation only. Never use this complete role set as command/replay
     // authority: business fingerprints bind only the command's actual grant.
     const accessRevision = canonicalSha256({
+      enterprise: await this.prisma.user.findUnique({
+        where: { id: actor.sub! },
+        select: {
+          enterpriseRevision: true,
+          enterpriseRoles: {
+            select: {
+              roleId: true,
+              chainIds: true,
+              siteIds: true,
+              role: { select: { version: true } },
+            },
+          },
+        },
+      }),
       grants: grants.map((grant) => [grant.id, grant.revision]).sort(),
       memberships: memberships
         .map((member) => [member.id, member.status, member.version])
@@ -218,7 +243,16 @@ export class SupplyChainsService {
         lastControlFailureAt: null,
         worker: bindingObservation(null),
       };
-    const [syncs, outbox, oldest, holds, jobs, failedJobs, lastFailure, observation] = await Promise.all([
+    const [
+      syncs,
+      outbox,
+      oldest,
+      holds,
+      jobs,
+      failedJobs,
+      lastFailure,
+      observation,
+    ] = await Promise.all([
       this.prisma.ledgerPermissionSync.groupBy({
         by: ['state'],
         where: { permission: { bindingDigest: binding.digest } },
@@ -257,9 +291,12 @@ export class SupplyChainsService {
       }),
       this.prisma.ledgerControlJob.findFirst({
         where: { bindingDigest: binding.digest, status: 'FAILED' },
-        select: { updatedAt: true }, orderBy: { updatedAt: 'desc' },
+        select: { updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
       }),
-      this.prisma.bindingWorkerHealth.findUnique({ where: { bindingDigest: binding.digest } }),
+      this.prisma.bindingWorkerHealth.findUnique({
+        where: { bindingDigest: binding.digest },
+      }),
     ]);
     const count = (
       rows: Array<{ _count: number; state?: string; status?: string }>,
@@ -295,7 +332,12 @@ export class SupplyChainsService {
         retry: count(outbox, 'RETRY'),
         deadLetter: count(outbox, 'DEAD_LETTER'),
         oldestPendingAt: oldest?.createdAt ?? null,
-        pendingAgeSeconds: oldest ? Math.max(0, Math.floor((Date.now() - oldest.createdAt.getTime()) / 1000)) : null,
+        pendingAgeSeconds: oldest
+          ? Math.max(
+              0,
+              Math.floor((Date.now() - oldest.createdAt.getTime()) / 1000),
+            )
+          : null,
       },
       openHolds: holds,
       pendingControlJobs: jobs,
@@ -331,10 +373,22 @@ export class SupplyChainsService {
       take: 200,
     });
   }
-  create(actor: CommandActor, name: string) {
+  create(actor: CommandActor, input: CreateChainDto) {
     return this.transaction(async (tx) => {
+      const productIds = input.productIds ?? [];
+      if (productIds.length && await tx.product.count({ where: { id: { in: productIds }, organizationId: actor.organizationId!, status: 'ACTIVE' } }) !== productIds.length)
+        throw new UnprocessableEntityException('Sản phẩm liên kết phải là sản phẩm đang hoạt động của doanh nghiệp');
       const chain = await tx.supplyChain.create({
-        data: { name, ownerOrganizationId: actor.organizationId! },
+        data: {
+          name: input.name,
+          code: `CH-${randomUUID().slice(0, 12).toUpperCase()}`,
+          chainType: input.chainType ?? 'CROP',
+          description: input.description,
+          plannedStartDate: input.plannedStartDate ? normalizeExpiryDate(input.plannedStartDate) : undefined,
+          note: input.note,
+          productIds,
+          ownerOrganizationId: actor.organizationId!,
+        },
       });
       await tx.chainBusinessProfile.create({ data: { chainId: chain.id } });
       await tx.chainMembership.create({
@@ -395,6 +449,31 @@ export class SupplyChainsService {
         chainId,
       );
       return activated;
+    });
+  }
+  suspendBusinessProfile(actor: CommandActor, chainId: string, version: number, reason: string) {
+    return this.transaction(async (tx) => {
+      // The command authority holds the chain scope lock. All business commands
+      // acquire that lock before checking the profile, so this is a closed gate.
+      const profile = await tx.chainBusinessProfile.findUnique({ where: { chainId } });
+      if (!profile || profile.state !== 'ACTIVE' || profile.version !== version)
+        throw new ConflictException('Trạng thái chuỗi đã đổi; tải lại trước khi ngừng');
+      const [distribution, returns, remainder, shipments, plans, recalled] = await Promise.all([
+        tx.distributionTransfer.count({ where: { chainId, status: { in: ['PROPOSED', 'READY', 'IN_TRANSIT'] } } }),
+        tx.$queryRaw<{ count: bigint }[]>`SELECT count(*) AS count FROM distribution_return r JOIN distribution_transfer t ON t.id = r.transfer_id WHERE t.chain_id = ${chainId}::uuid AND r.status = 'PROPOSED'`,
+        tx.$queryRaw<{ count: bigint }[]>`SELECT count(*) AS count FROM distribution_remainder r JOIN distribution_transfer t ON t.id = r.transfer_id WHERE t.chain_id = ${chainId}::uuid AND r.quantity > 0`,
+        tx.shipment.count({ where: { lot: { harvest: { cycle: { chainId } } }, status: { in: ['CREATED', 'IN_TRANSIT', 'ARRIVED'] } } }),
+        tx.shipmentPlan.count({ where: { chainId, status: { in: ['DRAFT', 'FINALIZED'] }, shipment: null } }),
+        tx.lot.count({ where: { harvest: { cycle: { chainId } }, currentState: 'RECALLED' } }),
+      ]);
+      if (distribution || Number(returns[0]?.count ?? 0) || Number(remainder[0]?.count ?? 0) || shipments || plans || recalled)
+        throw new ConflictException('Chuỗi còn giao nhận, phần lượng đối soát, kế hoạch hoặc lô thu hồi chưa xử lý');
+      const result = await tx.chainBusinessProfile.update({
+        where: { chainId },
+        data: { state: 'SUSPENDED', version: { increment: 1 }, suspendedAt: new Date(), suspendedBy: actor.sub!, suspensionReason: reason.trim() },
+      });
+      await this.audit(tx, actor, 'SUSPEND_BUSINESS_PROFILE', chainId, result.version, chainId);
+      return result;
     });
   }
   invite(actor: CommandActor, chainId: string, organizationId: string) {
@@ -495,9 +574,41 @@ export class SupplyChainsService {
     });
   }
   grant(actor: CommandActor, organizationId: string, input: GrantRoleDto) {
-    return this.transaction(async (tx) => {
+    return this.transaction((tx) => {
+      // A platform administrator cannot grant CREATE_CHAIN alone once the
+      // two-person approval policy is enforced; use POST /platform-approvals.
+      if (
+        actor.role === 'SYSTEM_ADMIN' &&
+        input.role === 'CREATE_CHAIN' &&
+        approvalsMode() === 'ENFORCED'
+      )
+        throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
+      return this.grantTx(tx, actor, organizationId, input);
+    });
+  }
+  /** Grant body shared by the direct command and an approved proposal. */
+  async grantTx(
+    tx: Prisma.TransactionClient,
+    actor: CommandActor,
+    organizationId: string,
+    input: GrantRoleDto,
+  ) {
+    {
+      if (actor.role === 'SYSTEM_ADMIN') await lockPlatformAudit(tx);
       await this.activeOrganization(tx, organizationId);
       const user = await tx.user.findUnique({ where: { id: input.userId } });
+      if (['ORG_ADMIN', 'CREATE_CHAIN'].includes(input.role)) {
+        const enrollment = await tx.enterpriseEnrollment.findUnique({
+          where: { organizationId },
+        });
+        if (
+          (user?.enterpriseTier && user.enterpriseTier > 1) ||
+          (enrollment && enrollment.ownerId !== user?.id)
+        )
+          throw new ForbiddenException(
+            'Quyền quản trị doanh nghiệp thuộc tài khoản cấp 1; không cấp vượt mô hình ủy quyền',
+          );
+      }
       if (
         !user ||
         user.organizationId !== organizationId ||
@@ -557,8 +668,21 @@ export class SupplyChainsService {
       });
       await this.audit(tx, actor, 'GRANT_ROLE', grant.id, 0, input.chainId);
       await requestLedgerGrant(tx, grant);
+      if (actor.role === 'SYSTEM_ADMIN')
+        await appendPlatformAudit(tx, {
+          actor: { sub: actor.sub, role: actor.role },
+          action: 'ROLE_GRANTED',
+          subjectType: 'SCOPED_ROLE_GRANT',
+          subjectId: grant.id,
+          organizationId,
+          details: {
+            role: input.role,
+            userId: input.userId,
+            chainId: input.chainId ?? null,
+          },
+        });
       return grant;
-    });
+    }
   }
   revokeGrant(
     actor: CommandActor,
@@ -568,6 +692,7 @@ export class SupplyChainsService {
     version: number,
   ) {
     return this.transaction(async (tx) => {
+      if (actor.role === 'SYSTEM_ADMIN') await lockPlatformAudit(tx);
       const grant = await tx.scopedRoleGrant.findUnique({
         where: { id: grantId },
       });
@@ -599,6 +724,15 @@ export class SupplyChainsService {
         result.revision,
         chainId,
       );
+      if (actor.role === 'SYSTEM_ADMIN')
+        await appendPlatformAudit(tx, {
+          actor: { sub: actor.sub, role: actor.role },
+          action: 'ROLE_REVOKED',
+          subjectType: 'SCOPED_ROLE_GRANT',
+          subjectId: grant.id,
+          organizationId,
+          details: { role: grant.role, chainId: chainId ?? null },
+        });
       return result;
     });
   }
@@ -607,27 +741,48 @@ export class SupplyChainsService {
     organizationId: string,
     code: keyof typeof import('../../generated/prisma/enums.js').OrganizationType,
   ) {
-    return this.transaction(async (tx) => {
-      await this.activeOrganization(tx, organizationId);
-      const current = await tx.organizationCapability.findUnique({
-        where: { organizationId_code: { organizationId, code } },
-      });
-      if (current && !current.revokedAt)
-        throw new ConflictException('Capability đang có hiệu lực');
-      const result = await tx.organizationCapability.upsert({
-        where: { organizationId_code: { organizationId, code } },
-        create: { organizationId, code },
-        update: { revokedAt: null, revision: { increment: 1 } },
-      });
-      await this.audit(
-        tx,
-        actor,
-        `CAPABILITY_${code}`,
-        organizationId,
-        result.revision,
-      );
-      return result;
+    return this.transaction((tx) => {
+      if (actor.role === 'SYSTEM_ADMIN' && approvalsMode() === 'ENFORCED')
+        throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
+      return this.capabilityTx(tx, actor, organizationId, code);
     });
+  }
+  /** Capability grant shared by the direct command and an approved proposal. */
+  async capabilityTx(
+    tx: Prisma.TransactionClient,
+    actor: CommandActor,
+    organizationId: string,
+    code: keyof typeof import('../../generated/prisma/enums.js').OrganizationType,
+  ) {
+    if (actor.role === 'SYSTEM_ADMIN') await lockPlatformAudit(tx);
+    await this.activeOrganization(tx, organizationId);
+    const current = await tx.organizationCapability.findUnique({
+      where: { organizationId_code: { organizationId, code } },
+    });
+    if (current && !current.revokedAt)
+      throw new ConflictException('Capability đang có hiệu lực');
+    const result = await tx.organizationCapability.upsert({
+      where: { organizationId_code: { organizationId, code } },
+      create: { organizationId, code },
+      update: { revokedAt: null, revision: { increment: 1 } },
+    });
+    await this.audit(
+      tx,
+      actor,
+      `CAPABILITY_${code}`,
+      organizationId,
+      result.revision,
+    );
+    if (actor.role === 'SYSTEM_ADMIN')
+      await appendPlatformAudit(tx, {
+        actor: { sub: actor.sub, role: actor.role },
+        action: 'CAPABILITY_GRANTED',
+        subjectType: 'ORGANIZATION',
+        subjectId: organizationId,
+        organizationId,
+        details: { code, revision: result.revision },
+      });
+    return result;
   }
   private transaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>) {
     // Management commands revalidate session, org authority and chain authority

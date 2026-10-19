@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import type { Actor } from '../trace/trace.service.js';
 import {
@@ -45,6 +46,16 @@ export class LotQueryService {
 
   private async projectInternal(lot: InternalLot, actor: Actor) {
     const response = toInternalLotDto(lot, actor);
+    const allocated = await this.prisma.lotHolding.count({
+      where: { lotId: lot.id },
+    });
+    if (allocated)
+      return {
+        ...response,
+        allowedCommands: [],
+        custodian: null,
+        distributionMode: true,
+      };
     const chainId = lot.harvest.cycle.chainId;
     if (!chainId) return response;
     const commands = new Set<LotCommand>();
@@ -103,6 +114,8 @@ export class LotQueryService {
       include: { lot: { include: publicLotInclude() } },
     });
     if (!qr) throw new NotFoundException('Mã truy xuất không hợp lệ');
+    const materialUses=await this.prisma.careRecord.findMany({where:{cycleId:qr.lot.harvest.cycle.id,eventTime:{lte:qr.lot.harvest.harvestTime},withdrawalPeriod:{gt:0}},select:{eventTime:true,withdrawalPeriod:true}});
+    const productionWarnings=materialUses.filter(r=>r.eventTime.getTime()+(r.withdrawalPeriod??0)*86400000>qr.lot.harvest.harvestTime.getTime()).map(r=>'Theo nhật ký khai báo, tại thời điểm thu hoạch còn trong thời gian cách ly đầu vào đến '+new Date(r.eventTime.getTime()+(r.withdrawalPeriod??0)*86400000).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})+'. Cần đối chiếu tài liệu; đây không phải kết quả kiểm nghiệm.');
     const traceEvents = await this.prisma.traceEvent.findMany({
       where: {
         OR: [
@@ -113,6 +126,52 @@ export class LotQueryService {
       orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
       include: PUBLIC_TRACE_INCLUDE,
     });
-    return toPublicLotDto(qr.lot, traceToken, traceEvents);
+    const lines = await this.prisma.distributionLine.findMany({
+      where: { lotId: qr.lot.id, transfer: { status: { not: 'CANCELLED' } } },
+      include: { transfer: true },
+      orderBy: { transfer: { createdAt: 'asc' } },
+    });
+    const orgs = await this.prisma.organization.findMany({
+      where: {
+        id: {
+          in: lines.flatMap((l) => [
+            l.transfer.senderId,
+            l.transfer.carrierId,
+            l.transfer.receiverId,
+          ]),
+        },
+      },
+      select: { id: true, name: true },
+    });
+    const name = (id: string) =>
+      orgs.find((o) => o.id === id)?.name ?? 'Doanh nghiệp tham gia';
+    const receipts=await this.prisma.distributionReceipt.findMany({where:{transferId:{in:lines.map(l=>l.transferId)}}});
+    const remainders=await this.prisma.distributionRemainder.findMany({where:{lotId:qr.lot.id,transferId:{in:lines.map(l=>l.transferId)}}});
+    const notices = await this.prisma.traceNotice.findMany({
+      where: { lotId: qr.lot.id },
+      select: { kind: true, message: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return {
+      ...toPublicLotDto(qr.lot, traceToken, traceEvents),
+      notices,
+      productionWarnings:[...new Set(productionWarnings)],
+      distributionJourney: lines.map((l) => {
+        const receipt=receipts.find(r=>r.transferId===l.transferId),actual=(receipt?.lines as {lotId:string;received:string}[]|undefined)?.find(r=>r.lotId===qr.lot.id);
+        const completed=l.transfer.status==='DELIVERED',received=completed?new Prisma.Decimal(actual?.received??l.quantity):null,pending=completed?(remainders.find(r=>r.transferId===l.transferId)?.quantity??new Prisma.Decimal(0)):null;
+        return ({
+        senderName: name(l.transfer.senderId),
+        carrierName: name(l.transfer.carrierId),
+        receiverName: name(l.transfer.receiverId),
+        quantity: l.quantity.toFixed(3),
+        receivedQuantity:received?.toFixed(3)??null,
+        pendingQuantity:pending?.toFixed(3)??null,
+        returnedQuantity:received&&pending?l.quantity.sub(received).sub(pending).toFixed(3):null,
+        custodyStage:['PROPOSED','READY'].includes(l.transfer.status)?'PLANNED':l.transfer.status==='IN_TRANSIT'?'CARRIER':pending?.gt(0)?'RECEIVER_WITH_REMAINDER':'RECEIVER',
+        unit: l.unit,
+        status: l.transfer.status,
+        recordedAt: l.transfer.createdAt.toISOString(),
+      });}),
+    };
   }
 }

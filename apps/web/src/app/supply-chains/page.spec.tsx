@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthUser } from "@/lib/types";
 import SupplyChainsPage from "./page";
+import ChainManagement from "@/components/workspace/chains";
 
 const api = vi.hoisted(() => ({
   request: vi.fn(),
@@ -44,7 +45,7 @@ beforeEach(() => {
 });
 
 describe("Chain workspace scope isolation", () => {
-  it("keeps one profile and one shipment workspace through repeated permission refreshes", async () => {
+  it("keeps business assignments on their own page through permission refreshes", async () => {
     api.request.mockImplementation((path: string) => {
       if (path === "/chain-permissions")
         return Promise.resolve({
@@ -101,7 +102,7 @@ describe("Chain workspace scope isolation", () => {
     });
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      render(<SupplyChainsPage />);
+      render(<ChainManagement view="business" />);
       await screen.findByRole("option", { name: "Chuỗi đang hoạt động" });
       fireEvent.change(screen.getByLabelText("Chọn chuỗi"), {
         target: { value: "one" },
@@ -112,8 +113,8 @@ describe("Chain workspace scope isolation", () => {
           screen.getAllByRole("region", { name: "Trạng thái nghiệp vụ chuỗi" }),
         ).toHaveLength(1);
         expect(
-          screen.getAllByRole("region", { name: "Kế hoạch vận chuyển" }),
-        ).toHaveLength(1);
+          screen.queryAllByRole("region", { name: "Kế hoạch vận chuyển" }),
+        ).toHaveLength(0);
         if (refresh < 2)
           fireEvent.click(
             screen.getByRole("button", { name: "Tải lại quyền và dữ liệu" }),
@@ -187,7 +188,7 @@ describe("Chain workspace scope isolation", () => {
         });
       throw new Error(path);
     });
-    render(<SupplyChainsPage />);
+    render(<ChainManagement view="members" />);
     await screen.findByRole("option", { name: "Chuỗi một" });
     const select = screen.getByLabelText("Chọn chuỗi");
     fireEvent.change(select, { target: { value: "one" } });

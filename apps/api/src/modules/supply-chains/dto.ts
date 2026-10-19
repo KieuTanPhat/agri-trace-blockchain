@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
+  IsDateString,
   IsIn,
   IsInt,
   IsOptional,
@@ -25,6 +29,20 @@ export class CreateChainDto {
   @MinLength(1)
   @MaxLength(255)
   name!: string;
+  @ApiProperty({ enum: ['CROP'], required: false })
+  @IsOptional() @IsIn(['CROP']) chainType?: 'CROP';
+  @ApiProperty({ required: false, maxLength: 2000 })
+  @IsOptional() @IsString() @MaxLength(2000) description?: string;
+  @ApiProperty({ required: false, format: 'date' })
+  @IsOptional() @IsDateString() plannedStartDate?: string;
+  @ApiProperty({ required: false, type: [String], format: 'uuid', maxItems: 50, description: 'Active products of the owner organization' })
+  @IsOptional() @IsArray() @ArrayMaxSize(50) @ArrayUnique() @IsUUID('4', { each: true }) productIds?: string[];
+  @ApiProperty({ required: false, maxLength: 2000 })
+  @IsOptional() @IsString() @MaxLength(2000) note?: string;
+}
+export class SuspendChainDto extends ChainVersionDto {
+  @ApiProperty({ minLength: 10, maxLength: 1000 })
+  @IsString() @MinLength(10) @MaxLength(1000) reason!: string;
 }
 export class InviteMemberDto {
   @ApiProperty({ type: String, format: 'uuid' })
@@ -45,6 +63,7 @@ export class GrantRoleDto {
   @ApiProperty({
     enum: [
       'ORG_ADMIN',
+      'DISTRIBUTOR',
       'CREATE_CHAIN',
       'CHAIN_MANAGER',
       'FARM_STAFF',
@@ -56,6 +75,7 @@ export class GrantRoleDto {
   })
   @IsIn([
     'ORG_ADMIN',
+    'DISTRIBUTOR',
     'CREATE_CHAIN',
     'CHAIN_MANAGER',
     'FARM_STAFF',
@@ -66,6 +86,7 @@ export class GrantRoleDto {
   ])
   role!:
     | 'ORG_ADMIN'
+    | 'DISTRIBUTOR'
     | 'CREATE_CHAIN'
     | 'CHAIN_MANAGER'
     | 'FARM_STAFF'
@@ -75,14 +96,22 @@ export class GrantRoleDto {
     | 'COMPLIANCE_REVIEWER';
 }
 export class CapabilityDto {
-  @ApiProperty({ enum: ['FARM', 'TRANSPORTER', 'RETAILER', 'AUDITOR'] })
-  @IsIn(['FARM', 'TRANSPORTER', 'RETAILER', 'AUDITOR'])
-  code!: 'FARM' | 'TRANSPORTER' | 'RETAILER' | 'AUDITOR';
+  @ApiProperty({
+    enum: ['FARM', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER', 'AUDITOR'],
+  })
+  @IsIn(['FARM', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER', 'AUDITOR'])
+  code!: 'FARM' | 'TRANSPORTER' | 'DISTRIBUTOR' | 'RETAILER' | 'AUDITOR';
 }
 export class ChainRecordDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
   @ApiProperty({ type: String, format: 'uuid' }) ownerOrganizationId!: string;
   @ApiProperty({ type: String }) name!: string;
+  @ApiProperty({ type: String, nullable: true }) code!: string | null;
+  @ApiProperty({ enum: ['CROP'] }) chainType!: string;
+  @ApiProperty({ type: String, nullable: true }) description!: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date' }) plannedStartDate!: string | null;
+  @ApiProperty({ type: String, nullable: true }) note!: string | null;
+  @ApiProperty({ type: [String], format: 'uuid', required: false }) productIds?: string[];
   @ApiProperty({ type: Number }) version!: number;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
 }
@@ -102,13 +131,17 @@ export class LedgerDeliveryCountsDto {
   @ApiProperty({ type: Number }) deadLetter!: number;
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })
   oldestPendingAt!: string | null;
-  @ApiProperty({ type: Number, nullable: true }) pendingAgeSeconds!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) pendingAgeSeconds!:
+    number | null;
 }
 export class LedgerWorkerObservationDto {
-  @ApiProperty({ type: String, nullable: true, format: 'date-time' }) lastCheckedAt!: string | null;
-  @ApiProperty({ type: String, nullable: true, format: 'date-time' }) lastHealthyAt!: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' })
+  lastCheckedAt!: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' })
+  lastHealthyAt!: string | null;
   @ApiProperty({ type: String, nullable: true }) lastErrorCode!: string | null;
-  @ApiProperty({ type: String, nullable: true, format: 'date-time' }) certificateExpiresAt!: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' })
+  certificateExpiresAt!: string | null;
   @ApiProperty({ type: Boolean }) heartbeatStale!: boolean;
   @ApiProperty({ type: Boolean }) certificateExpired!: boolean;
   @ApiProperty({ type: Boolean }) healthy!: boolean;
@@ -130,8 +163,10 @@ export class LedgerStatusDto {
   @ApiProperty({ type: Number }) openHolds!: number;
   @ApiProperty({ type: Number }) pendingControlJobs!: number;
   @ApiProperty({ type: Number }) failedControlJobs!: number;
-  @ApiProperty({ type: String, format: 'date-time', nullable: true }) lastControlFailureAt!: string | null;
-  @ApiProperty({ type: LedgerWorkerObservationDto }) worker!: LedgerWorkerObservationDto;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  lastControlFailureAt!: string | null;
+  @ApiProperty({ type: LedgerWorkerObservationDto })
+  worker!: LedgerWorkerObservationDto;
 }
 export class BusinessProfileDto {
   @ApiProperty({ type: String, format: 'uuid' }) chainId!: string;
@@ -139,6 +174,9 @@ export class BusinessProfileDto {
   @ApiProperty({ type: Number }) version!: number;
   @ApiProperty({ type: Number }) scopeVersion!: number;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' }) suspendedAt!: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'uuid' }) suspendedBy!: string | null;
+  @ApiProperty({ type: String, nullable: true }) suspensionReason!: string | null;
 }
 export class MemberRecordDto {
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;

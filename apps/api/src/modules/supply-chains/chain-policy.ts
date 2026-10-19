@@ -7,6 +7,7 @@ import type {
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 
 export const BUSINESS_CAPABILITIES = {
+  DISTRIBUTOR: 'DISTRIBUTOR',
   FARM_STAFF: 'FARM',
   TRANSPORTER: 'TRANSPORTER',
   RETAILER: 'RETAILER',
@@ -32,6 +33,7 @@ export async function organizationGrant(
       chainId: null,
       role,
       revokedAt: null,
+      user: { OR: [{ enterpriseTier: null }, { enterpriseTier: 1 }] },
     },
   });
 }
@@ -134,11 +136,15 @@ export async function authorizeChainCommand(
     permission = await organizationGrant(db, actor, 'ORG_ADMIN');
     if (payload.organizationId !== actor.organizationId)
       throw new ForbiddenException('Ngoài phạm vi tổ chức');
-    if (input.operation === 'HYB_SET_CAPABILITY' && payload.code === 'AUDITOR')
-      throw new ForbiddenException('Năng lực kiểm định do nền tảng cấp');
+    if (input.operation === 'HYB_SET_CAPABILITY')
+      throw new ForbiddenException(
+        'Năng lực doanh nghiệp cần được nền tảng xét duyệt',
+      );
     if (
       input.operation === 'HYB_GRANT_ROLE' &&
-      !['FARM_STAFF', 'TRANSPORTER', 'RETAILER'].includes(String(payload.role))
+      !['FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'DISTRIBUTOR'].includes(
+        String(payload.role),
+      )
     )
       throw new ForbiddenException(
         'Org admin chỉ cấp vai trò thực hiện nghiệp vụ',
@@ -158,6 +164,7 @@ export async function authorizeChainCommand(
         'HYB_INVITE_MEMBERSHIP',
         'HYB_CHANGE_MEMBERSHIP',
         'HYB_ACTIVATE_BUSINESS_PROFILE',
+        'HYB_SUSPEND_BUSINESS_PROFILE',
       ].includes(input.operation)
     ) {
       if (

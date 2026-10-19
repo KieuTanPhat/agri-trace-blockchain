@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -17,6 +17,21 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
   assert.equal(database.hostname, '127.0.0.1');
   assert.equal(database.pathname, '/hybrid');
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: env.DATABASE_URL }) });
+  async function seedCycleEvidence(cycleId, organizationId, actorId) {
+    const content = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=', 'base64');
+    const sha256 = createHash('sha256').update(content).digest('hex');
+    const refs = {};
+    for (const kind of ['CARE_IMAGE', 'HARVEST_IMAGE', 'LOT_IMAGE']) {
+      const row = await db.traceEvidence.create({
+        data: { organizationId, entityType: 'CYCLE', entityId: cycleId,
+          fileName: `${kind.toLowerCase()}.png`, mediaType: 'image/png', size: content.length,
+          sha256, content, description: 'Private browser fixture evidence', kind, actorId },
+        select: { id: true },
+      });
+      refs[kind] = row.id;
+    }
+    return refs;
+  }
   const jwt = new JwtService({ secret: env.JWT_SECRET });
   const password = randomBytes(24).toString('base64url');
   const sessions = {};
@@ -114,7 +129,12 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
     const cycle = await command('farm', '/production-cycles', { chainId: chain.id, farmId: farm.id, productId: product.id,
       cycleCode: `Browser-${randomUUID()}`, maxHarvestQuantity: 2, harvestUnit: 'kg' });
     await command('farm', `/production-cycles/${cycle.id}/plant`, { version: 0, plantedAt: new Date(Date.now() - 60_000).toISOString() });
-    const harvested = await command('farm', `/production-cycles/${cycle.id}/harvests`, { quantity: 2, unit: 'kg', harvestTime: new Date().toISOString() });
+    const evidence = await seedCycleEvidence(cycle.id, users.farm.organizationId, users.farm.id);
+    const harvested = await command('farm', `/production-cycles/${cycle.id}/harvests`, {
+      version: 1, lotName: 'Browser fixture harvest', representativeUserId: users.farm.id,
+      evidenceRef: evidence.HARVEST_IMAGE, lotImageEvidenceRef: evidence.LOT_IMAGE,
+      quantity: 2, unit: 'kg', harvestTime: new Date().toISOString(),
+    });
     const plan = await command('farm', `/supply-chains/${chain.id}/shipment-plans`, { lotId: harvested.lot.id,
       transporterOrgId: sameOrg ? users.farm.organizationId : users.transporter.organizationId,
       retailerOrgId: sameOrg ? users.farm.organizationId : users.retailer.organizationId,

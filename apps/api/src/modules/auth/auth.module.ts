@@ -7,6 +7,7 @@ import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { RolesGuard } from './roles.guard.js';
 import { OrganizationAccessService } from './organization-access.service.js';
+import { PlatformMfaService } from '../platform-governance/platform-mfa.service.js';
 
 @Module({
   imports: [
@@ -26,7 +27,19 @@ import { OrganizationAccessService } from './organization-access.service.js';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, RolesGuard, OrganizationAccessService],
-  exports: [JwtAuthGuard, JwtModule, RolesGuard, OrganizationAccessService],
+  providers: [
+    AuthService,
+    JwtAuthGuard,
+    RolesGuard,
+    OrganizationAccessService,
+    PlatformMfaService,
+  ],
+  exports: [
+    JwtAuthGuard,
+    JwtModule,
+    RolesGuard,
+    OrganizationAccessService,
+    PlatformMfaService,
+  ],
 })
 export class AuthModule {}

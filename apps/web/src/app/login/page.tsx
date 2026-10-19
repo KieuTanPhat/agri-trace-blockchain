@@ -6,6 +6,9 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { LoaderCircle, LogIn, ShieldCheck } from "lucide-react";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { useAuth } from "@/lib/auth-store";
+import { canAccessManagementRoute, platformAdminHome } from "@/lib/permissions";
+
+const MFA_REQUIRED_MESSAGE = "Cần mã xác thực hai yếu tố";
 
 export default function LoginPage() {
   const busy = useRef(false);
@@ -15,6 +18,8 @@ export default function LoginPage() {
   const [nextReady, setNextReady] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [needsMfa, setNeedsMfa] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const ready = nextReady && !auth.isLoading;
@@ -33,9 +38,33 @@ export default function LoginPage() {
     setNextReady(true);
   }, []);
   useEffect(() => {
-    if (nextReady && !auth.isLoading && auth.isAuthenticated)
-      router.replace(nextPath);
-  }, [auth.isAuthenticated, auth.isLoading, nextPath, nextReady, router]);
+    if (nextReady && !auth.isLoading && auth.isAuthenticated) {
+      const role = auth.user?.role.code;
+      if (auth.user?.mustChangePassword) {
+        // A temporary password only unlocks the page that replaces it.
+        router.replace("/account/password");
+        return;
+      }
+      router.replace(
+        platformAdminHome(role) &&
+          role &&
+          (nextPath === "/dashboard" ||
+            !canAccessManagementRoute(nextPath, role))
+          ? platformAdminHome(role)!
+          : nextPath === "/dashboard" && role === "DISTRIBUTOR"
+            ? "/enterprise"
+            : nextPath,
+      );
+    }
+  }, [
+    auth.isAuthenticated,
+    auth.isLoading,
+    auth.user?.role.code,
+    auth.user?.mustChangePassword,
+    nextPath,
+    nextReady,
+    router,
+  ]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -44,14 +73,20 @@ export default function LoginPage() {
     setPending(true);
     setError("");
     try {
-      await auth.login(email, password);
-      router.replace(nextPath);
+      if (needsMfa) await auth.login(email, password, mfaCode.trim());
+      else await auth.login(email, password);
     } catch (cause) {
-      setError(
+      const message =
         typeof cause === "object" && cause && "message" in cause
           ? String(cause.message)
-          : "Không thể đăng nhập.",
-      );
+          : "Không thể đăng nhập.";
+      // The API asks for the second factor only after the password was right.
+      if (message === MFA_REQUIRED_MESSAGE) {
+        setNeedsMfa(true);
+        setError(
+          "Nhập mã từ ứng dụng xác thực (hoặc mã khôi phục) để tiếp tục.",
+        );
+      } else setError(message);
     } finally {
       busy.current = false;
       setPending(false);
@@ -72,13 +107,18 @@ export default function LoginPage() {
           cùng một hệ thống.
         </p>
       </div>
-      <form className="panel login-card enter" style={{ "--d": "120ms" } as React.CSSProperties} onSubmit={submit}>
+      <form
+        className="panel login-card enter"
+        style={{ "--d": "120ms" } as React.CSSProperties}
+        onSubmit={submit}
+      >
         <BrandLogo height={52} priority />
         <div>
           <p className="eyebrow">Cổng quản trị</p>
           <h1>Đăng nhập</h1>
           <p className="muted">
-            Đăng nhập bằng tài khoản doanh nghiệp hoặc tài khoản được cấp để thao tác theo quyền của bạn.
+            Đăng nhập bằng tài khoản doanh nghiệp hoặc tài khoản được cấp để
+            thao tác theo quyền của bạn.
           </p>
         </div>
         <div className="field">
@@ -107,6 +147,22 @@ export default function LoginPage() {
             onChange={(event) => setPassword(event.target.value)}
           />
         </div>
+        {needsMfa && (
+          <div className="field">
+            <label htmlFor="mfa-code">Mã xác thực hai yếu tố</label>
+            <input
+              className="input"
+              id="mfa-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              minLength={6}
+              maxLength={20}
+              value={mfaCode}
+              onChange={(event) => setMfaCode(event.target.value)}
+            />
+          </div>
+        )}
         {error && (
           <div className="notice error" role="alert">
             {error}
@@ -123,7 +179,9 @@ export default function LoginPage() {
         <Link className="button secondary" href="/scan">
           <ShieldCheck size={18} /> Tra cứu công khai
         </Link>
-        <Link className="text-link" href="/register">Đăng ký doanh nghiệp mới</Link>
+        <Link className="text-link" href="/register">
+          Đăng ký doanh nghiệp mới
+        </Link>
       </form>
     </div>
   );

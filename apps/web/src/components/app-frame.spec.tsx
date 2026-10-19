@@ -23,7 +23,7 @@ const { auth, location, replace } = vi.hoisted(() => ({
       fullName: "First user",
       organizationId: "first-org" as string | null,
       accessRevision: undefined as string | undefined,
-      role: { code: "SYSTEM_ADMIN", name: "Admin" },
+      role: { code: "AUDITOR", name: "Kiểm toán" },
     },
     logout: vi.fn(),
   },
@@ -47,6 +47,32 @@ afterEach(() => {
   auth.isLoading = false;
   auth.privateAccessStatus = "ready";
   auth.user.accessRevision = undefined;
+  auth.user.role = { code: "AUDITOR", name: "Kiểm toán" };
+});
+it("shows only platform functions for the system administrator and does not fetch private lot search data", async () => {
+  auth.user.role = { code: "SYSTEM_ADMIN", name: "Quản trị hệ thống" };
+  location.pathname = "/admin";
+  render(
+    <AppFrame>
+      <p>Platform workspace</p>
+    </AppFrame>,
+  );
+  await act(async () => {});
+  expect(screen.getByText("Platform workspace")).toBeInTheDocument();
+  expect(
+    screen.getAllByRole("link", { name: /^Xét duyệt doanh nghiệp$/ }).length,
+  ).toBeGreaterThan(0);
+  expect(screen.queryByRole("link", { name: /^Vụ trồng$/ })).toBeNull();
+  expect(
+    screen.queryByRole("link", { name: /^Sản phẩm doanh nghiệp$/ }),
+  ).toBeNull();
+  expect(
+    screen.getAllByRole("link", { name: /^Kiểm định viên$/ }).length,
+  ).toBeGreaterThan(0);
+  expect(screen.queryByRole("link", { name: /^Nông trại$/ })).toBeNull();
+  expect(screen.queryByRole("link", { name: /^Thửa đất$/ })).toBeNull();
+  expect(screen.queryByRole("textbox", { name: "Tìm lô nông sản" })).toBeNull();
+  expect(getLots).not.toHaveBeenCalled();
 });
 
 it.each(["/", "/scan", "/trace/token"])(

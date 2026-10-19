@@ -4,6 +4,8 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Header,
+  HttpCode,
   Inject,
   Post,
   Req,
@@ -38,9 +40,16 @@ import { EnterpriseOnboardingGuard } from '../enterprise-onboarding/enterprise-o
 import type { AuthenticatedRequest } from './auth.types.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
-import { JwtAuthGuard } from './jwt-auth.guard.js';
 import {
+  RegistrationEmailAvailabilityDto,
+  RegistrationEmailAvailabilityViewDto,
+} from './dto/registration-email-availability.dto.js';
+import { JwtAuthGuard } from './jwt-auth.guard.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
+import {
+  AuthLogoutAllResponseDto,
   AuthLogoutResponseDto,
+  AuthPasswordChangedResponseDto,
   AuthProfileResponseDto,
   AuthSessionResponseDto,
 } from './dto/auth-response.dto.js';
@@ -57,6 +66,20 @@ export class AuthController {
   register(@Body() input: RegisterDto,@Req() request:Request) {
     this.assertTrustedOrigin(request);
     return this.authService.register(input);
+  }
+
+  @Post('registration-email-availability')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(EnterpriseOnboardingGuard)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiDataResponse(RegistrationEmailAvailabilityViewDto)
+  registrationEmailAvailability(
+    @Body() input: RegistrationEmailAvailabilityDto,
+    @Req() request: Request,
+  ) {
+    this.assertTrustedOrigin(request);
+    return this.authService.registrationEmailAvailability(input.email);
   }
 
   @Post('login')
@@ -162,6 +185,52 @@ export class AuthController {
         clearRefreshCookie(credential.sessionId),
       );
     return { revoked: true };
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Change the signed-in account password',
+    description:
+      'Clears a forced password change and revokes every other session of the account; the current session stays valid.',
+  })
+  @ApiCreatedResponse({ type: AuthPasswordChangedResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Current password is wrong' })
+  @ApiForbiddenResponse({ description: 'Untrusted request origin' })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  changePassword(
+    @Body() input: ChangePasswordDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.assertTrustedOrigin(request);
+    return this.authService.changePassword(
+      request.user.sub,
+      request.user.sid!,
+      input,
+    );
+  }
+
+  @Post('logout-all')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke every session of the signed-in account' })
+  @ApiCreatedResponse({ type: AuthLogoutAllResponseDto })
+  @ApiForbiddenResponse({ description: 'Untrusted request origin' })
+  async logoutAll(
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    this.assertTrustedOrigin(request);
+    const credential = readRefreshCookie(request.headers.cookie);
+    const result = await this.authService.logoutAll(request.user.sub);
+    response.setHeader('Cache-Control', 'no-store');
+    if (credential)
+      response.setHeader(
+        'Set-Cookie',
+        clearRefreshCookie(credential.sessionId),
+      );
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)

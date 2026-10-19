@@ -95,7 +95,7 @@ async function main() {
     });
     for (const code of ['FARM_STAFF', 'CHAIN_MANAGER'])
       await db.scopedRoleGrant.create({ data: { userId: actor.id, organizationId: org.id, scope: 'CHAIN', chainId: chain.id, role: code } });
-    console.log(JSON.stringify({ chainId: chain.id, farmId: farm.id, productId: product.id }));
+    console.log(JSON.stringify({ chainId: chain.id, farmId: farm.id, productId: product.id, organizationId: org.id, actorId: actor.id }));
   `);
   const auth = await http('/auth/login', undefined, { email, password });
   assert.ok(auth.accessToken, 'Login must issue an access token');
@@ -118,12 +118,30 @@ async function main() {
     version: 0,
     plantedAt: new Date(Date.now() - 60_000).toISOString(),
   }, randomUUID());
-  await http(`/production-cycles/${cycle.id}/care`, token, {
+  const cycleEvidence = database(`
+    import { createHash } from 'node:crypto';
+    const content = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=', 'base64');
+    const sha256 = createHash('sha256').update(content).digest('hex');
+    const refs = {};
+    for (const kind of ['CARE_IMAGE','HARVEST_IMAGE','LOT_IMAGE']) {
+      const row = await db.traceEvidence.create({ data: { organizationId: ${JSON.stringify(fixture.organizationId)}, entityType: 'CYCLE', entityId: ${JSON.stringify(cycle.id)}, fileName: kind.toLowerCase() + '.png', mediaType: 'image/png', size: content.length, sha256, content, description: 'CI private evidence fixture', kind, actorId: ${JSON.stringify(fixture.actorId)} }, select: { id: true } });
+      refs[kind] = row.id;
+    }
+    console.log(JSON.stringify(refs));
+  `);
+  const care = await http(`/production-cycles/${cycle.id}/care`, token, {
     version: 1,
+    name: 'CI watering record',
     careType: 'WATERING',
+    evidenceRef: cycleEvidence.CARE_IMAGE,
     eventTime: new Date().toISOString(),
   }, randomUUID());
   const harvest = await http(`/production-cycles/${cycle.id}/harvests`, token, {
+    version: care.version,
+    lotName: 'CI Fabric vegetables harvest',
+    representativeUserId: fixture.actorId,
+    evidenceRef: cycleEvidence.HARVEST_IMAGE,
+    lotImageEvidenceRef: cycleEvidence.LOT_IMAGE,
     quantity: 3,
     unit: 'kg',
     harvestTime: new Date().toISOString(),

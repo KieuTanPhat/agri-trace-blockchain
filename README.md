@@ -3,6 +3,16 @@
 Monorepo cho hệ thống truy xuất nguồn gốc nông sản, tổng hợp frontend, backend và
 Hyperledger Fabric trong một cấu trúc thống nhất.
 
+Không gian doanh nghiệp hiện có đăng ký năm bước, xét duyệt, thành viên cấp
+1–2–3, nhóm quyền, liên kết, danh mục riêng, cơ sở/phương tiện và các trang
+vụ/nhật ký/thu hoạch độc lập. Phân phối giữ nguyên lô nguồn, hỗ trợ nhiều dòng,
+nhiều chặng, lượng giao từng phần, ký hai phía và báo cáo đối soát; xem
+[nghiệp vụ](docs/core-business-rules.md#enterprise-workspace-and-source-preserving-distribution)
+và [các route giao diện](docs/frontend.md#không-gian-doanh-nghiệp-và-phân-phối).
+Luồng phân phối mới chưa mở cho binding bắt buộc signed intent c2; các chuỗi đó
+giữ luồng Shipment đã ký hiện hành cho đến khi có integration/acceptance riêng.
+Kiểm thử local không phải nghiệm thu Fabric hoặc quyền của doanh nghiệp thật.
+
 Bản Hybrid A/B/C thực hiện theo [kế hoạch cài mới production](docs/plans/fresh-install-cleanup-2026-10-13.md).
 Đọc [PROJECT_CONTEXT](docs/PROJECT_CONTEXT.md), [quy tắc nghiệp vụ](docs/core-business-rules.md),
 [ADR-004](docs/adr-004-hybrid-binding-and-signatures.md) và [runbook production](docs/production-runbook.md).
@@ -97,8 +107,16 @@ Frontend chạy ở `http://localhost:3000`; API chạy ở
 `http://localhost:8080/api`. Trang `/` giới thiệu AgriTrace bằng tiếng Việt và cung cấp tra cứu QR công khai.
 Truy cập trực tiếp `/login` để đăng nhập; sau đăng nhập mở `/dashboard`.
 Trang giới thiệu không có liên kết đăng nhập hoặc lô/QR mẫu.
-Doanh nghiệp vào `/register`, theo dõi hồ sơ và yêu cầu peer ở `/enterprise`;
-quản trị xét duyệt tại `/admin/enterprises`. API và Worker mặc định đóng admission
+Doanh nghiệp vào `/register` (năm bước và OTP email), theo dõi hồ sơ ở
+`/enterprise/onboarding`. Admin duyệt trước; doanh nghiệp chọn mô hình peer và
+gói tham khảo tại `/enterprise/service`, xem hợp đồng ở `/enterprise/service/contract`,
+hoàn tất thanh toán mô phỏng local ở `/enterprise/service/payment`; thao tác này
+chỉ ghi nhận `PAID_SIMULATED` và xếp hàng email hợp đồng. Quản trị nền tảng phải
+kích hoạt dịch vụ riêng trước khi cấp quyền nghiệp vụ hoặc cho phép yêu cầu peer
+tại `/enterprise/connections`. Hợp đồng và kết
+quả xét duyệt gửi bằng Worker mail; SMTP dùng file private, test dùng Mailpit.
+Chưa tích hợp thu tiền NAPAS/QR hoặc chữ ký số hợp đồng có chứng thư.
+Quản trị xét duyệt tại `/admin/enterprises`. API và Worker mặc định đóng admission
 (`ENTERPRISE_ONBOARDING_ENABLED=false`). Demo cách ly bật `true` ở cả hai process;
 xem [kế hoạch v1](docs/plans/enterprise-onboarding.md) và
 [hướng dẫn kết nối](docs/hybrid-fabric-runbook.md#12-đăng-ký-và-kết-nối-doanh-nghiệp-v1).
