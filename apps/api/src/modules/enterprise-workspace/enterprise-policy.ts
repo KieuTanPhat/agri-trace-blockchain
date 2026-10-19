@@ -416,11 +416,11 @@ export async function authorizeWorkspaceCommand(
   let siteId: string | undefined;
   if (transfer) {
     siteId =
-      transfer.senderId === input.actor!.organizationId
+      (transfer.senderId === input.actor!.organizationId
         ? transfer.senderSiteId
         : transfer.carrierId === input.actor!.organizationId
           ? transfer.carrierSiteId
-          : transfer.receiverSiteId;
+          : transfer.receiverSiteId) ?? undefined;
   } else if (siteTransfer) {
     siteId =
       input.operation === 'EW_SITE_TRANSFER_RECEIVE'

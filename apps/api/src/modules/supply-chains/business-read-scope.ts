@@ -78,7 +78,7 @@ function cycleForRole(
     : undefined;
   return {
     chain: { is: chainAuthority(actor, role) },
-    ...(delegatedScope ?? {}),
+    ...delegatedScope,
     ...(role === 'FARM_STAFF'
       ? { assignments: { some: assignment(actor, 'PRODUCTION') } }
       : role === 'COMPLIANCE_REVIEWER'

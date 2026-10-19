@@ -85,7 +85,7 @@ beforeEach(() => {
   });
 });
 afterEach(cleanup);
-async function fillSixSteps() {
+async function fillRegistration() {
   const fill = (label: string, value: string) =>
     fireEvent.change(screen.getByLabelText(new RegExp("^" + label)), {
       target: { value },
@@ -95,19 +95,22 @@ async function fillSixSteps() {
       screen.getByRole("button", { name: "Tiếp tục" }).closest("form")!,
     );
   fill("Tên doanh nghiệp", "Doanh nghiệp demo");
-  fill("Mã số doanh nghiệp", "0123456789");
-  next();
+  fill("Mã số thuế / định danh pháp lý", "0123456789");
+  fill("Số giấy chứng nhận đăng ký", "REG-001");
+  fireEvent.change(screen.getByLabelText("Tải giấy đăng ký của tổ chức"), {
+    target: {
+      files: [new File(["registration"], "registration.pdf", { type: "application/pdf" })],
+    },
+  });
   await screen.findByRole("option", { name: "Thành phố Hà Nội" });
   fill("Tỉnh / thành phố", "01");
-  fill("Xã / phường / đặc khu", "00004");
-  fill("Số nhà, đường", "123 Đường kiểm thử");
-  fill("Người đại diện pháp luật", "Chủ doanh nghiệp");
-  fill("Số điện thoại", "0900000123");
-  fill("Email liên hệ doanh nghiệp", "owner@example.test");
+  fill("Xã / phường", "00004");
+  fill("Địa chỉ trụ sở / nơi hoạt động", "123 Đường kiểm thử");
   next();
-  next();
-  fill("Giới thiệu sản phẩm", "Sản xuất nông sản sạch phục vụ kiểm thử.");
-  next();
+  fill("Họ tên người đại diện", "Chủ doanh nghiệp");
+  fill("Chức vụ", "Giám đốc");
+  fill("Số điện thoại liên hệ", "0900000123");
+  fill("Email liên hệ", "owner@example.test");
   fill("Họ tên quản trị viên", "Chủ doanh nghiệp");
   fill("Email đăng nhập", "owner@example.test");
   fill("Mật khẩu", "long-demo-password-2026");
@@ -117,12 +120,18 @@ async function fillSixSteps() {
     localStorage.getItem("agritrace:enterprise-registration-draft:v3"),
   ).not.toContain("long-demo-password-2026");
   next();
+  fill("Nhóm sản phẩm chính", "Rau, gạo");
+  next();
+  fill("Giới thiệu ngắn về tổ chức", "Sản xuất nông sản sạch phục vụ kiểm thử.");
+  next();
   fireEvent.click(screen.getByRole("button", { name: "Gửi mã OTP" }));
   await screen.findByLabelText(/Mã OTP gửi đến/);
   fill("Mã OTP gửi đến", "123456");
   fireEvent.click(screen.getByRole("button", { name: "Xác thực email" }));
   await screen.findByText(/Email đã được xác thực OTP/);
   fireEvent.click(screen.getByRole("checkbox", { name: /Tôi xác nhận/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /Tôi đồng ý với/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /Tôi đã đọc/ }));
   return screen
     .getByRole("button", { name: "Gửi hồ sơ xét duyệt" })
     .closest("form")!;
@@ -139,7 +148,7 @@ it("keeps the original registration and password only in memory after a lost res
     return normal(path, options, auth);
   });
   render(<RegisterPage />);
-  const form = await fillSixSteps();
+  const form = await fillRegistration();
   fireEvent.submit(form);
   await screen.findByRole("button", { name: "Thử lại yêu cầu cũ" });
   expect(screen.getByRole("checkbox", { name: /Tôi xác nhận/ })).toBeDisabled();
@@ -165,7 +174,7 @@ it("allows corrected input after a definitive registration rejection", async () 
     return normal(path, options, auth);
   });
   render(<RegisterPage />);
-  fireEvent.submit(await fillSixSteps());
+  fireEvent.submit(await fillRegistration());
   await screen.findByRole("alert");
   expect(screen.getByRole("checkbox", { name: /Tôi xác nhận/ })).toBeEnabled();
 });

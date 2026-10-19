@@ -47,6 +47,8 @@ beforeEach(() => {
 describe("Chain workspace scope isolation", () => {
   it("keeps business assignments on their own page through permission refreshes", async () => {
     api.request.mockImplementation((path: string) => {
+      if (path === "/catalog")
+        return Promise.resolve({ products: [], farms: [] });
       if (path === "/chain-permissions")
         return Promise.resolve({
           grants: [{ scope: "CHAIN", chainId: "one", role: "CHAIN_MANAGER" }],
@@ -133,6 +135,8 @@ describe("Chain workspace scope isolation", () => {
   it("discards a slow membership response after selecting another chain", async () => {
     const slow = deferred<unknown[]>();
     api.request.mockImplementation((path: string) => {
+      if (path === "/catalog")
+        return Promise.resolve({ products: [], farms: [] });
       if (path === "/chain-permissions")
         return Promise.resolve({
           grants: [],
@@ -218,6 +222,8 @@ describe("Chain workspace scope isolation", () => {
   it("clears loaded chains and ignores pending responses when the account changes", async () => {
     const slow = deferred<unknown[]>();
     api.request.mockImplementation((path: string) => {
+      if (path === "/catalog")
+        return Promise.resolve({ products: [], farms: [] });
       if (path === "/chain-permissions")
         return Promise.resolve({
           grants: [],

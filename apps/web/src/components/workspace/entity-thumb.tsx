@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { request } from "@/lib/api-client";
 import type { Items, TraceEvidence } from "@/lib/workspace";
 
@@ -55,7 +56,11 @@ export function EntityThumb({
   }, [entityType, entityId, kindKey]);
   return (
     <span className="product-thumb">
-      {src ? <img src={src} alt={`Ảnh ${name}`} /> : <span>{done ? "Chưa có ảnh" : "…"}</span>}
+      {src ? (
+        <Image src={src} alt={`Ảnh ${name}`} width={56} height={56} unoptimized />
+      ) : (
+        <span>{done ? "Chưa có ảnh" : "…"}</span>
+      )}
     </span>
   );
 }

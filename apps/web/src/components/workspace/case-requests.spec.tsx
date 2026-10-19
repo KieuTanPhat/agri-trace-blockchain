@@ -3,12 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CaseRequests } from "./case-requests";
 import { request } from "@/lib/api-client";
 
+const { auth } = vi.hoisted(() => ({
+  auth: { user: { id: "u1", organizationId: "org-1" } },
+}));
 vi.mock("@/lib/api-client", () => ({
   request: vi.fn(),
   retryPendingCommand: vi.fn(),
 }));
 vi.mock("@/lib/auth-store", () => ({
-  useAuth: () => ({ user: { id: "u1", organizationId: "org-1" } }),
+  useAuth: () => auth,
 }));
 
 const base = {
@@ -21,6 +24,7 @@ const base = {
   responseDueAt: "2026-10-20T00:00:00.000Z",
   overdue: false,
   version: 3,
+  allowedActions: ["ACKNOWLEDGE", "RESPOND"],
   createdAt: "2026-10-18T00:00:00.000Z",
   events: [
     {
@@ -33,13 +37,22 @@ const base = {
 };
 
 describe("Platform case requests on the enterprise notices page", () => {
-  beforeEach(() => vi.resetAllMocks());
+  beforeEach(() => {
+    vi.resetAllMocks();
+    auth.user = { id: "u1", organizationId: "org-1" };
+  });
   afterEach(cleanup);
 
   it("lists what the platform addressed to the organization and offers acknowledge and respond", async () => {
     vi.mocked(request).mockResolvedValue([
       { ...base, id: "c1", status: "ASSIGNED" },
-      { ...base, id: "c2", status: "CLOSED", title: "Hồ sơ cũ đã đóng" },
+      {
+        ...base,
+        id: "c2",
+        status: "CLOSED",
+        title: "Hồ sơ cũ đã đóng",
+        allowedActions: [],
+      },
     ] as never);
     render(<CaseRequests />);
     expect(
@@ -59,15 +72,19 @@ describe("Platform case requests on the enterprise notices page", () => {
     expect(screen.queryByRole("button", { name: /thu hồi/iu })).toBeNull();
   });
 
-  it("renders nothing when there are no cases or the member lacks access", async () => {
-    vi.mocked(request).mockResolvedValue([] as never);
-    const { container, rerender } = render(<CaseRequests />);
-    await vi.waitFor(() => expect(request).toHaveBeenCalled());
-    expect(container.textContent).toBe("");
-    vi.mocked(request).mockRejectedValue({
+  it("shows an empty state and reports when the member lacks access", async () => {
+    vi.mocked(request).mockResolvedValueOnce([] as never);
+    const view = render(<CaseRequests />);
+    expect(
+      await screen.findByText("Chưa có hồ sơ được giao cho tổ chức."),
+    ).toBeTruthy();
+    vi.mocked(request).mockRejectedValueOnce({
       message: "Bạn chưa được cấp quyền",
     });
-    rerender(<CaseRequests />);
-    expect(container.textContent).toBe("");
+    auth.user = { id: "u2", organizationId: "org-2" };
+    view.rerender(<CaseRequests />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Bạn chưa được cấp quyền",
+    );
   });
 });

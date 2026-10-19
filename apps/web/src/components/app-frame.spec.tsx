@@ -6,9 +6,8 @@ import {
   screen,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { LotTrace } from "@/lib/types";
-import { useState } from "react";
 import { getLots } from "@/lib/api-client";
+import { useState } from "react";
 import { AppFrame } from "./app-frame";
 
 const { auth, location, replace } = vi.hoisted(() => ({
@@ -46,10 +45,13 @@ afterEach(() => {
   auth.isAuthenticated = true;
   auth.isLoading = false;
   auth.privateAccessStatus = "ready";
+  auth.user.id = "first";
+  auth.user.fullName = "First user";
+  auth.user.organizationId = "first-org";
   auth.user.accessRevision = undefined;
   auth.user.role = { code: "AUDITOR", name: "Kiểm toán" };
 });
-it("shows only platform functions for the system administrator and does not fetch private lot search data", async () => {
+it("shows only platform functions for the system administrator", async () => {
   auth.user.role = { code: "SYSTEM_ADMIN", name: "Quản trị hệ thống" };
   location.pathname = "/admin";
   render(
@@ -72,7 +74,6 @@ it("shows only platform functions for the system administrator and does not fetc
   expect(screen.queryByRole("link", { name: /^Nông trại$/ })).toBeNull();
   expect(screen.queryByRole("link", { name: /^Thửa đất$/ })).toBeNull();
   expect(screen.queryByRole("textbox", { name: "Tìm lô nông sản" })).toBeNull();
-  expect(getLots).not.toHaveBeenCalled();
 });
 
 it.each(["/", "/scan", "/trace/token"])(
@@ -163,18 +164,15 @@ it("hides private content during revalidation while preserving the same form unt
   await act(async () => {});
 });
 
-describe("organization-scoped header search", () => {
-  it("clears loaded data and remounts pages when the same user changes organization", async () => {
-    auth.user = { ...auth.user, id: "same-user", organizationId: "old-org" };
-    vi.mocked(getLots).mockResolvedValueOnce([
-      {
-        lotId: "old",
-        lotCode: "OLD-ORG-LOT",
-        productName: "Old product",
-        farmOrg: { name: "Old farm" },
-      } as LotTrace,
-    ]);
-    vi.mocked(getLots).mockResolvedValueOnce([]);
+describe("authorization-scoped app shell", () => {
+  it("remounts private pages when the same user changes organization", async () => {
+    auth.user = {
+      ...auth.user,
+      id: "same-user",
+      organizationId: "old-org",
+      role: { code: "SYSTEM_ADMIN", name: "Quản trị hệ thống" },
+    };
+    location.pathname = "/admin";
     function ScopedPage() {
       const [owner] = useState(auth.user.organizationId);
       return <p>{`content-${owner}`}</p>;
@@ -185,8 +183,9 @@ describe("organization-scoped header search", () => {
       </AppFrame>,
     );
     await act(async () => {});
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "OLD" } });
-    expect(await screen.findByText("OLD-ORG-LOT")).toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: "Tìm chức năng" }),
+    ).toBeInTheDocument();
     auth.user = { ...auth.user, organizationId: "new-org" };
     view.rerender(
       <AppFrame>
@@ -195,19 +194,17 @@ describe("organization-scoped header search", () => {
     );
     expect(screen.queryByText("content-old-org")).not.toBeInTheDocument();
     expect(screen.getByText("content-new-org")).toBeInTheDocument();
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "OLD" } });
-    expect(screen.queryByText("OLD-ORG-LOT")).not.toBeInTheDocument();
-    expect(getLots).toHaveBeenCalledTimes(2);
+    expect(
+      screen.getByRole("searchbox", { name: "Tìm chức năng" }),
+    ).toBeInTheDocument();
   });
 
-  it("clears old results and discards an outstanding request when the user changes", async () => {
-    let resolveOld!: (lots: LotTrace[]) => void;
-    vi.mocked(getLots).mockReturnValueOnce(
-      new Promise((resolve) => {
-        resolveOld = resolve;
-      }),
-    );
-    vi.mocked(getLots).mockResolvedValueOnce([]);
+  it("remounts private pages and clears local form state when the user changes", async () => {
+    auth.user = {
+      ...auth.user,
+      role: { code: "SYSTEM_ADMIN", name: "Quản trị hệ thống" },
+    };
+    location.pathname = "/admin";
     function ScopedPage() {
       const [owner] = useState(auth.user.id);
       return <p>{`content-${owner}`}</p>;
@@ -225,18 +222,8 @@ describe("organization-scoped header search", () => {
     );
     expect(screen.queryByText("content-first")).not.toBeInTheDocument();
     expect(screen.getByText("content-second")).toBeInTheDocument();
-    await act(async () => {
-      resolveOld([
-        {
-          lotId: "old",
-          lotCode: "OLD-LOT",
-          productName: "Old product",
-          farmOrg: { name: "Old farm" },
-        } as LotTrace,
-      ]);
-    });
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "OLD" } });
-    expect(screen.queryByText("OLD-LOT")).not.toBeInTheDocument();
-    expect(getLots).toHaveBeenCalledTimes(2);
+    expect(
+      screen.getByRole("searchbox", { name: "Tìm chức năng" }),
+    ).toBeInTheDocument();
   });
 });

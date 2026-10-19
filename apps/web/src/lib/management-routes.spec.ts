@@ -94,7 +94,7 @@ describe("management route registry", () => {
       "Sản phẩm doanh nghiệp",
     );
     expect(routeContext("/enterprise/members/new")?.group.title).toBe(
-      "Tổ chức",
+      "Quản trị",
     );
   });
 });

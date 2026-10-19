@@ -67,18 +67,18 @@ describe("DataForm retry", () => {
         onSaved={saved}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Tên *"), {
+    fireEvent.change(screen.getByLabelText("Tên"), {
       target: { value: "Cà chua" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Tạo" }));
     await screen.findByRole("alert");
-    expect(screen.getByLabelText("Tên *")).toHaveValue("Cà chua");
+    expect(screen.getByLabelText("Tên")).toHaveValue("Cà chua");
     fireEvent.click(screen.getByRole("button", { name: "Tạo" }));
     await waitFor(() => expect(saved).toHaveBeenCalledWith({ id: "created" }));
     expect(vi.mocked(request).mock.calls[0][1]).toEqual(
       vi.mocked(request).mock.calls[1][1],
     );
-    expect(screen.getByLabelText("Tên *")).toHaveValue("");
+    expect(screen.getByLabelText("Tên")).toHaveValue("");
   });
   it("recovers the saved original request while preserving changed input until the outcome is known", async () => {
     vi.mocked(request).mockRejectedValueOnce({
@@ -188,10 +188,10 @@ describe("DataForm governance fields", () => {
         onSaved={saved}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Căn cứ *"), {
+    fireEvent.change(screen.getByLabelText("Căn cứ"), {
       target: { value: "Đã đối chiếu chứng thư" },
     });
-    fireEvent.change(screen.getByLabelText("Lý do *"), {
+    fireEvent.change(screen.getByLabelText("Lý do"), {
       target: { value: "Doanh nghiệp đã đủ hồ sơ" },
     });
     fireEvent.change(screen.getByLabelText("Mã MFA"), {
