@@ -95,6 +95,18 @@ async function main() {
     });
     for (const code of ['FARM_STAFF', 'CHAIN_MANAGER'])
       await db.scopedRoleGrant.create({ data: { userId: actor.id, organizationId: org.id, scope: 'CHAIN', chainId: chain.id, role: code } });
+    const workspaceRole = await db.enterpriseRole.create({ data: {
+      organizationId: org.id,
+      name: 'CI production operator',
+      permissions: ['profile.read', 'production.read', 'production.write'],
+    } });
+    await db.enterpriseMemberRole.create({ data: {
+      userId: actor.id,
+      organizationId: org.id,
+      roleId: workspaceRole.id,
+      chainIds: [chain.id],
+      siteIds: [farm.id],
+    } });
     console.log(JSON.stringify({ chainId: chain.id, farmId: farm.id, productId: product.id, organizationId: org.id, actorId: actor.id }));
   `);
   const auth = await http('/auth/login', undefined, { email, password });

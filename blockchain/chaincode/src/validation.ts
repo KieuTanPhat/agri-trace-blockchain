@@ -113,7 +113,7 @@ export function requireEntityId(value: string): string {
 
 function requireEntityContext(input: Record<string, unknown>): void {
   if (
-    ["PRODUCTION_CYCLE", "CARE", "SENSOR", "SENSOR_DIGEST", "HARVEST"].includes(
+    ["PRODUCTION_CYCLE", "CYCLE", "CARE", "SENSOR", "SENSOR_DIGEST", "HARVEST"].includes(
       String(input.entityType),
     ) &&
     !input.cycleId

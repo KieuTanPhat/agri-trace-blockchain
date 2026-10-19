@@ -54,6 +54,7 @@ const prisma = new PrismaClient({
           phone: '0900000123',
           contactEmail: email,
           representative: 'Người đại diện',
+          representativeTitle: 'Giám đốc',
           registrantRelationship: 'REPRESENTATIVE',
           activities: ['FARM'],
           production: {

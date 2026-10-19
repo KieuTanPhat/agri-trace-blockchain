@@ -156,7 +156,7 @@ it("keeps the original registration and password only in memory after a lost res
   render(<RegisterPage />);
   const form = await fillRegistration();
   fireEvent.submit(form);
-  await screen.findByRole("button", { name: "Thử lại yêu cầu cũ" });
+  await screen.findByRole("button", { name: "Thử lại hồ sơ ban đầu" });
   expect(screen.getByRole("checkbox", { name: /Tôi xác nhận/ })).toBeDisabled();
   fireEvent.submit(form);
   await screen.findByRole("heading", {
