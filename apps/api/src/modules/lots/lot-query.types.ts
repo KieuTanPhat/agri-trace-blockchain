@@ -21,9 +21,34 @@ export const LOT_TRACE_INCLUDE = {
   organization: { select: { id: true, name: true } },
 } satisfies Prisma.TraceEventInclude;
 
+/** Inputs of the run that created a processed lot. Producer names respect the
+ * farm privacy flag on the public page. */
+const PROCESSING_PROVENANCE = {
+  include: {
+    inputs: {
+      include: {
+        lot: {
+          include: {
+            product: { select: { productName: true } },
+            organization: { select: { id: true, name: true, type: true } },
+            harvest: {
+              select: {
+                harvestTime: true,
+                cycle: { select: { farm: { select: { name: true, privacy: true } } } },
+              },
+            },
+          },
+        },
+      },
+    },
+    losses: true,
+  },
+} satisfies Prisma.ProcessingRunDefaultArgs;
+
 export const INTERNAL_LOT_INCLUDE = {
   product: true,
   organization: true,
+  processingRun: PROCESSING_PROVENANCE,
   harvest: {
     include: {
       sensorWindow: SENSOR_WINDOW,
@@ -72,6 +97,8 @@ const PUBLIC_CERTIFICATES = {
 } satisfies Prisma.CertificateFindManyArgs;
 export const PUBLIC_LOT_INCLUDE = {
   product: true,
+  organization: { select: { id: true, name: true, type: true } },
+  processingRun: PROCESSING_PROVENANCE,
   harvest: {
     include: {
       sensorWindow: SENSOR_WINDOW,

@@ -54,9 +54,10 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { randomUUID } from 'node:crypto';
 import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
 import { assertFarmRefs, assertProductRefs } from './product-refs.js';
+import { assertEntitlement } from '../billing/billing-core.js';
 class ProductDto {
   @ApiProperty({ maxLength: 100 }) @IsString() @MinLength(2) @MaxLength(100) category!: string;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() originFarmId!: string;
+  @ApiProperty({ required: false, format: 'uuid', description: 'Origin farm. Required for producers; processors give manufacturingSiteId instead.' }) @IsOptional() @IsUUID() originFarmId?: string;
   @ApiProperty({ required: false, type: Number, minimum: 0 }) @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) price?: number;
   @ApiProperty({ maxLength: 2000 }) @IsString() @MinLength(2) @MaxLength(2000) storageConditions!: string;
   @ApiProperty({ maxLength: 2000 }) @IsString() @MinLength(2) @MaxLength(2000) ingredients!: string;
@@ -192,6 +193,7 @@ class CatalogController {
     'TRANSPORTER',
     'DISTRIBUTOR',
     'RETAILER',
+    'PROCESSOR',
     'AUDITOR',
     'COMPLIANCE_REVIEWER',
   )
@@ -280,7 +282,7 @@ class CatalogController {
   @ApiDataResponse(ProductRecordDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('products')
-  @Roles('FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'DISTRIBUTOR')
+  @Roles('FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'DISTRIBUTOR', 'PROCESSOR')
   product(
     @Body() dto: ProductDto,
     @IdempotencyKey() key: string,
@@ -292,11 +294,18 @@ class CatalogController {
         req.user,
         'catalog.manage',
         undefined,
-        dto.originFarmId,
+        dto.originFarmId ?? dto.manufacturingSiteId,
         true,
       );
-      const farm = await tx.farm.findFirst({ where: { id: dto.originFarmId, organizationId: req.user.organizationId!, status: 'ACTIVE', evidenceComplete: true } });
-      if (!farm) throw new UnprocessableEntityException('Vùng sản xuất chưa hoàn tất hồ sơ ảnh hoặc ngoài doanh nghiệp');
+      if (dto.originFarmId) {
+        const farm = await tx.farm.findFirst({ where: { id: dto.originFarmId, organizationId: req.user.organizationId!, status: 'ACTIVE', evidenceComplete: true } });
+        if (!farm) throw new UnprocessableEntityException('Vùng sản xuất chưa hoàn tất hồ sơ ảnh hoặc ngoài doanh nghiệp');
+      } else {
+        // Processed products originate at a processing/packing site of a processor.
+        const processor = await tx.organizationCapability.findFirst({ where: { organizationId: req.user.organizationId!, code: 'PROCESSOR', revokedAt: null } });
+        const site = dto.manufacturingSiteId ? await tx.enterpriseSite.findFirst({ where: { id: dto.manufacturingSiteId, organizationId: req.user.organizationId!, status: 'ACTIVE', kind: { in: ['PROCESSING', 'PACKING'] } } }) : null;
+        if (!processor || !site) throw new UnprocessableEntityException('Sản phẩm cần vùng sản xuất; nhà chế biến chọn cơ sở chế biến/đóng gói đang hoạt động');
+      }
       await assertProductRefs(tx, req.user.organizationId!, dto);
       return tx.product.create({
         data: {
@@ -312,7 +321,7 @@ class CatalogController {
   @ApiDataResponse(ProductRecordDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('products/:id/complete')
-  @Roles('FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'DISTRIBUTOR')
+  @Roles('FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'DISTRIBUTOR', 'PROCESSOR')
   completeProduct(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CompleteEvidenceDto, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
     return this.run(key, req, 'EW_COMPLETE_PRODUCT', { id, ...dto }, async (tx) => {
       const row = await tx.product.findFirst({ where: { id, organizationId: req.user.organizationId! } });
@@ -320,6 +329,7 @@ class CatalogController {
       await enterpriseAuthority(tx, req.user, 'catalog.manage', undefined, row.originFarmId ?? undefined, true);
       const counts = await evidenceCounts(tx, req.user.organizationId!, 'PRODUCT', id);
       if ((counts.get('PRODUCT_IMAGE') ?? 0) < 3) throw new ConflictException('Cần ít nhất ba ảnh sản phẩm hợp lệ');
+      await assertEntitlement(tx, req.user.organizationId!, 'products');
       const updated = await tx.product.updateMany({ where: { id, version: dto.version, evidenceComplete: false }, data: { evidenceComplete: true, status: 'ACTIVE', version: { increment: 1 } } });
       if (updated.count !== 1) throw new ConflictException('Sản phẩm đã thay đổi');
       return tx.product.findUniqueOrThrow({ where: { id } });

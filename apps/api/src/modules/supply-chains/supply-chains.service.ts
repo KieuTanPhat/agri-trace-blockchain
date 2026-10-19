@@ -1,3 +1,4 @@
+import { assertEntitlement } from '../billing/billing-core.js';
 import {
   ConflictException,
   ForbiddenException,
@@ -375,6 +376,7 @@ export class SupplyChainsService {
   }
   create(actor: CommandActor, input: CreateChainDto) {
     return this.transaction(async (tx) => {
+      await assertEntitlement(tx, actor.organizationId!, 'chains');
       const productIds = input.productIds ?? [];
       if (productIds.length && await tx.product.count({ where: { id: { in: productIds }, organizationId: actor.organizationId!, status: 'ACTIVE' } }) !== productIds.length)
         throw new UnprocessableEntityException('Sản phẩm liên kết phải là sản phẩm đang hoạt động của doanh nghiệp');

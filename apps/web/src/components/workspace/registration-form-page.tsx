@@ -11,6 +11,7 @@ import {
   Truck,
   Warehouse,
   Store,
+  Factory,
   UploadCloud,
   FileCheck2,
   X,
@@ -30,6 +31,10 @@ import type { components } from "@/lib/generated/api";
 import type { AddressProvince } from "@/lib/registration-form";
 import {
   ACTIVITY_OPTIONS,
+  PARTICIPATION_OPTIONS,
+  PROCESSING_CERT_OPTIONS,
+  PROCESSING_TYPE_OPTIONS,
+  payingDraft,
   CERTIFICATION_OPTIONS,
   INTEREST_OPTIONS,
   LEGAL_FORM_OPTIONS,
@@ -56,6 +61,7 @@ const subtitles = [
 ];
 const icons = {
   FARM: Sprout,
+  PROCESSOR: Factory,
   TRANSPORTER: Truck,
   DISTRIBUTOR: Warehouse,
   RETAILER: Store,
@@ -531,6 +537,8 @@ export function RegistrationFormPage() {
           businessId: draft.businessId.trim() || undefined,
           organizationType:
             draft.organizationType as Registration["organizationType"],
+          participationModel:
+            draft.participationModel as Registration["participationModel"],
           hostingMode: draft.hostingMode as Registration["hostingMode"],
           emailVerifications: emails.map((email) => ({
             verificationId: proofs[email].verificationId,
@@ -577,6 +585,21 @@ export function RegistrationFormPage() {
                     : undefined,
                   certifications:
                     draft.certifications as S["RegistrationProductionDetails"]["certifications"],
+                }
+              : undefined,
+            processing: draft.activities.includes("PROCESSOR")
+              ? {
+                  processingTypes:
+                    draft.processingTypes as S["RegistrationProcessingDetails"]["processingTypes"],
+                  foodSafetyCertificateNumber:
+                    draft.foodSafetyCertificateNumber.trim(),
+                  foodSafetyCertificateExpiry: draft.foodSafetyCertificateExpiry,
+                  facilityCode: draft.processingFacilityCode.trim() || undefined,
+                  dailyCapacityKg: draft.dailyCapacityKg
+                    ? Number(draft.dailyCapacityKg)
+                    : undefined,
+                  certifications:
+                    draft.processingCertifications as S["RegistrationProcessingDetails"]["certifications"],
                 }
               : undefined,
             services: {
@@ -918,6 +941,47 @@ export function RegistrationFormPage() {
           )}
           {step === 2 && (
             <>
+              <fieldset className="reg-full reg-participation">
+                <legend className="reg-label">
+                  Mô hình tham gia <b>*</b>
+                </legend>
+                <div className="reg-choice-grid">
+                  {PARTICIPATION_OPTIONS.map(([code, label, help]) => (
+                    <label
+                      key={code}
+                      className={`reg-choice${draft.participationModel === code ? " is-selected" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="participationModel"
+                        checked={draft.participationModel === code}
+                        onChange={() =>
+                          setDraft((d) => ({
+                            ...d,
+                            participationModel: code,
+                            activities:
+                              code === "SINGLE" ? d.activities.slice(0, 1) : d.activities,
+                            organizationType:
+                              code === "SINGLE"
+                                ? (d.activities[0] ?? d.organizationType)
+                                : d.organizationType,
+                            planCode: "",
+                          }))
+                        }
+                      />
+                      <span>
+                        <strong>{label}</strong>
+                        <small>{help}</small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="reg-help">
+                  {payingDraft(draft.participationModel, draft.activities)
+                    ? "Mô hình này mua gói dịch vụ sau khi hồ sơ được duyệt và được quyền tạo chuỗi truy xuất."
+                    : "Mô hình này không cần mua gói; tổ chức chỉ ghi nghiệp vụ trong chuỗi được chủ chuỗi mời."}
+                </p>
+              </fieldset>
               <div className="reg-full" {...fieldAttributes("activities")}>
                 <h2 className="reg-label">
                   Hoạt động của tổ chức <b>*</b>
@@ -938,9 +1002,15 @@ export function RegistrationFormPage() {
                           type="checkbox"
                           checked={draft.activities.includes(code)}
                           onChange={(e) => {
-                            const activities = e.target.checked
-                              ? [...draft.activities, code]
-                              : draft.activities.filter((a) => a !== code);
+                            // A single-role registration keeps exactly one activity.
+                            const activities =
+                              draft.participationModel === "SINGLE"
+                                ? e.target.checked
+                                  ? [code]
+                                  : []
+                                : e.target.checked
+                                  ? [...draft.activities, code]
+                                  : draft.activities.filter((a) => a !== code);
                             setDraft((d) => ({
                               ...d,
                               activities,
@@ -1050,7 +1120,73 @@ export function RegistrationFormPage() {
                     </div>
                   </fieldset>
                   {draft.certifications.length > 0 &&
+                    !draft.activities.includes("PROCESSOR") &&
                     upload("CERTIFICATE", true)}
+                </>
+              )}
+              {draft.activities.includes("PROCESSOR") && (
+                <>
+                  <div className="reg-section-title reg-full">
+                    <Factory size={20} />
+                    <h2>Thông tin chế biến</h2>
+                  </div>
+                  <fieldset className="reg-certifications reg-full" {...fieldAttributes("processingTypes")}>
+                    <legend>
+                      Loại hình chế biến <b>*</b>
+                    </legend>
+                    <div>
+                      {PROCESSING_TYPE_OPTIONS.map(([code, label]) => (
+                        <label className="reg-check" key={code}>
+                          <input
+                            type="checkbox"
+                            checked={draft.processingTypes.includes(code)}
+                            onChange={(e) =>
+                              update(
+                                "processingTypes",
+                                e.target.checked
+                                  ? [...draft.processingTypes, code]
+                                  : draft.processingTypes.filter((c) => c !== code),
+                              )
+                            }
+                          />
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {fieldError("processingTypes")}
+                  </fieldset>
+                  {text("foodSafetyCertificateNumber", "Số giấy chứng nhận cơ sở đủ điều kiện ATTP", { required: true, max: 100 })}
+                  {text("foodSafetyCertificateExpiry", "Ngày hết hạn giấy chứng nhận", { required: true, type: "date" })}
+                  {text("processingFacilityCode", "Mã cơ sở chế biến", { max: 100 })}
+                  {text("dailyCapacityKg", "Công suất (kg/ngày)", { type: "number", min: 1 })}
+                  <fieldset className="reg-certifications reg-full">
+                    <legend>
+                      Hệ thống quản lý an toàn thực phẩm <small>— nếu có</small>
+                    </legend>
+                    <div>
+                      {PROCESSING_CERT_OPTIONS.map(([code, label]) => (
+                        <label className="reg-check" key={code}>
+                          <input
+                            type="checkbox"
+                            checked={draft.processingCertifications.includes(code)}
+                            onChange={(e) =>
+                              update(
+                                "processingCertifications",
+                                e.target.checked
+                                  ? [...draft.processingCertifications, code]
+                                  : draft.processingCertifications.filter((c) => c !== code),
+                              )
+                            }
+                          />
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <p className="reg-help reg-full">
+                    Tải giấy chứng nhận cơ sở đủ điều kiện ATTP (và chứng nhận sản xuất nếu có, ghép chung một file PDF). Năng lực chế biến chỉ được duyệt khi giấy còn hiệu lực.
+                  </p>
+                  {upload("CERTIFICATE", true)}
                 </>
               )}
             </>
@@ -1096,12 +1232,27 @@ export function RegistrationFormPage() {
                 ],
                 true,
               )}
-              {select("planCode", "Gói dịch vụ quan tâm", [
-                ["", "Chưa xác định — tư vấn sau xét duyệt"],
-                ["TRACE_5", "Truy xuất 5 sản phẩm"],
-                ["TRACE_10", "Truy xuất 10 sản phẩm"],
-                ["TRACE_20", "Truy xuất 20 sản phẩm"],
-              ])}
+              {payingDraft(draft.participationModel, draft.activities) ? (
+                select(
+                  "planCode",
+                  "Gói dịch vụ quan tâm",
+                  draft.participationModel === "SUPPLY_CHAIN_ENTERPRISE"
+                    ? [
+                        ["", "Chưa xác định — tư vấn sau xét duyệt"],
+                        ["CHAIN_PRO", "Doanh nghiệp chuỗi cung ứng"],
+                      ]
+                    : [
+                        ["", "Chưa xác định — tư vấn sau xét duyệt"],
+                        ["TRACE_5", "Truy xuất 5 sản phẩm"],
+                        ["TRACE_10", "Truy xuất 10 sản phẩm"],
+                        ["TRACE_20", "Truy xuất 20 sản phẩm"],
+                      ],
+                )
+              ) : (
+                <p className="reg-help reg-full">
+                  Tổ chức tham gia chuỗi không mua gói dịch vụ; hạn mức miễn phí do nền tảng cấu hình.
+                </p>
+              )}
               {select("expectedProducts", "Số sản phẩm dự kiến", [
                 ["UNDECIDED", "Chưa xác định"],
                 ["UP_TO_10", "1–10 sản phẩm"],

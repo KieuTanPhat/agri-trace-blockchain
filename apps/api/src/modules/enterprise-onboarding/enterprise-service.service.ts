@@ -14,12 +14,16 @@ import type {
   Prisma,
   EnterpriseServiceOrder,
 } from '../../generated/prisma/client.js';
+import { serviceCatalog, simulationEnabled } from './service-catalog.js';
 import {
-  SERVICE_PLANS,
-  SERVICE_CATALOG_VERSION,
-  serviceCatalog,
-  simulationEnabled,
-} from './service-catalog.js';
+  audienceFor,
+  catalogDigest,
+  issueInvoiceTx,
+  publishedCatalog,
+  settleInvoiceTx,
+} from '../billing/billing-core.js';
+import { payingParticipant } from './registration-profile.dto.js';
+import { lockPlatformAudit } from '../platform-governance/platform-audit.js';
 import type {
   ServiceOrderInput,
   ServicePaymentInput,
@@ -57,6 +61,23 @@ export const serviceStage = (r: {
     : !r.activationRequired
       ? 'ACTIVE_LEGACY'
       : r.serviceActivatedAt ? 'ACTIVE' : 'AWAITING_ACTIVATION';
+/** Paying participants are producers/cooperatives and supply-chain enterprises. */
+export async function payingEnrollment(
+  db: Prisma.TransactionClient,
+  organizationId: string,
+  participationModel: string,
+) {
+  const requests = await db.capabilityRequest.findMany({
+    where: { organizationId, status: { in: ['PENDING', 'APPROVED'] } },
+    select: { code: true },
+  });
+  // Enrollments created before per-capability review keep the paid flow.
+  if (!requests.length) return true;
+  return payingParticipant(
+    participationModel,
+    requests.map((r) => r.code),
+  );
+}
 export async function enrollmentOwner(
   db: Prisma.TransactionClient,
   actor: CommandActor,
@@ -79,19 +100,29 @@ export async function enrollmentOwner(
     await db.$queryRaw`SELECT id FROM enterprise_enrollment WHERE id=${row.id}::uuid FOR UPDATE`;
   return row;
 }
-export function previewService(
-  org: { name: string; businessId: string | null },
+/** Prices come from the published plan version for the organization's
+ * participation model; the quotation records that version id. */
+export async function previewService(
+  db: Prisma.TransactionClient,
+  org: { name: string; businessId: string | null; participationModel: string },
   input: ServiceQuoteInput,
 ) {
-  const plan = SERVICE_PLANS.find((p) => p.code === input.planCode);
+  const plans = await publishedCatalog(db, audienceFor(org.participationModel));
+  const SERVICE_CATALOG_VERSION = catalogDigest(plans);
+  const plan = plans.find((p) => p.code === input.planCode);
   if (!plan || input.catalogVersion !== SERVICE_CATALOG_VERSION)
-    throw new BadRequestException('Bảng giá đã đổi; xem lại báo giá');
+    throw new BadRequestException(
+      'Bảng giá đã đổi hoặc gói không phù hợp; xem lại báo giá',
+    );
   const quotation = {
     catalogVersion: SERVICE_CATALOG_VERSION,
     planCode: plan.code,
+    planVersionId: plan.version.id,
+    planVersion: plan.version.version,
+    limits: plan.version.limits,
     name: plan.name,
     products: plan.products,
-    termMonths: 12,
+    termMonths: plan.version.termMonths,
     currency: 'VND',
     setup: plan.setup,
     annual: plan.annual,
@@ -105,7 +136,7 @@ export function previewService(
     `Phiên bản điều khoản: ${SERVICE_CATALOG_VERSION}`,
     `Doanh nghiệp/chủ thể: ${org.name}. Mã số thuế: ${org.businessId ?? 'Chưa khai báo'}.`,
     `Tên thanh toán: ${input.billingName}. Địa chỉ thanh toán: ${input.billingAddress}. Email thanh toán: ${input.billingEmail}.`,
-    `Dịch vụ: ${plan.name}, kỳ hạn tham khảo 12 tháng. Phí khởi tạo ${plan.setup.toLocaleString('vi-VN')} VND; duy trì ${plan.annual.toLocaleString('vi-VN')} VND; tổng tham khảo ${quotation.total.toLocaleString('vi-VN')} VND.`,
+    `Dịch vụ: ${plan.name} (phiên bản giá ${plan.version.version}), kỳ hạn ${plan.version.termMonths} tháng; hạn mức ${plan.version.limits.products} sản phẩm, ${plan.version.limits.chains} chuỗi, ${plan.version.limits.members} thành viên, ${plan.version.limits.qrLabels} tem QR mỗi kỳ. Phí khởi tạo ${plan.setup.toLocaleString('vi-VN')} VND; duy trì ${plan.annual.toLocaleString('vi-VN')} VND; tổng tham khảo ${quotation.total.toLocaleString('vi-VN')} VND.`,
     `Mô hình peer: ${input.hostingMode === 'SELF_MANAGED_ORG' ? 'Doanh nghiệp tự vận hành peer' : 'AgriTrace quản lý peer'}. Phí QR, máy chủ/peer và thuế chưa bao gồm; cần báo giá riêng trước sử dụng thương mại.`,
     'Phạm vi: hồ sơ sản phẩm, vùng sản xuất, nhật ký, lô hàng, phân phối và truy xuất QR. Không bao gồm kế toán hoặc quản trị bán hàng.',
     'Doanh nghiệp chịu trách nhiệm về tính chính xác của dữ liệu và quản lý quyền nhân viên. Chỉ chia sẻ dữ liệu theo phạm vi được cấp. Thông tin pháp lý và liên hệ không công khai qua QR.',
@@ -175,9 +206,18 @@ export class EnterpriseServiceService {
       },
       orderBy: { createdAt: 'asc' },
     });
+    const plans = await publishedCatalog(
+      this.db,
+      audienceFor(row.organization.participationModel),
+    );
     return {
       stage: serviceStage(row),
-      catalog: serviceCatalog(),
+      paying: await payingEnrollment(
+        this.db,
+        row.organizationId,
+        row.organization.participationModel,
+      ),
+      catalog: serviceCatalog(plans, catalogDigest(plans)),
       order: row.serviceOrder ? orderView(row.serviceOrder) : null,
       emails,
     };
@@ -188,8 +228,23 @@ export class EnterpriseServiceService {
       throw new ForbiddenException(
         'Hồ sơ phải được quản trị phê duyệt trước khi chọn dịch vụ',
       );
+    if (
+      !(await payingEnrollment(
+        this.db,
+        row.organizationId,
+        row.organization.participationModel,
+      ))
+    )
+      throw new ForbiddenException(
+        'Tổ chức tham gia chuỗi không cần mua gói dịch vụ',
+      );
     return previewService(
-      { name: row.organization.name, businessId: row.businessId },
+      this.db,
+      {
+        name: row.organization.name,
+        businessId: row.businessId,
+        participationModel: row.organization.participationModel,
+      },
       input,
     );
   }
@@ -202,8 +257,23 @@ export class EnterpriseServiceService {
         throw new ConflictException(
           'Hồ sơ đã có hợp đồng hoặc đã được kích hoạt trước luồng dịch vụ này',
         );
-      const snapshot = previewService(
-        { name: row.organization.name, businessId: row.businessId },
+      if (
+        !(await payingEnrollment(
+          tx,
+          row.organizationId,
+          row.organization.participationModel,
+        ))
+      )
+        throw new ForbiddenException(
+          'Tổ chức tham gia chuỗi không cần mua gói dịch vụ',
+        );
+      const snapshot = await previewService(
+        tx,
+        {
+          name: row.organization.name,
+          businessId: row.businessId,
+          participationModel: row.organization.participationModel,
+        },
         input,
       );
       if (snapshot.contractDigest !== input.contractDigest)
@@ -222,6 +292,25 @@ export class EnterpriseServiceService {
           ...snapshot,
           acceptedAt: new Date(),
         },
+      });
+      // The accepted contract opens a pending subscription and its first invoice.
+      const planVersion = await tx.servicePlanVersion.findUniqueOrThrow({
+        where: { id: snapshot.quotation.planVersionId },
+        include: { plan: true },
+      });
+      const subscription = await tx.subscription.create({
+        data: {
+          organizationId: row.organizationId,
+          planVersionId: planVersion.id,
+          sourceOrderId: saved.id,
+        },
+      });
+      await issueInvoiceTx(tx, {
+        organizationId: row.organizationId,
+        subscriptionId: subscription.id,
+        planVersion,
+        kind: 'INITIAL',
+        createdBy: actor.sub,
       });
       return orderView(saved);
     });
@@ -252,6 +341,26 @@ export class EnterpriseServiceService {
           version: { increment: 1 },
         },
       });
+      await lockPlatformAudit(tx);
+      const subscription = await tx.subscription.findUnique({
+        where: { sourceOrderId: order.id },
+      });
+      const invoice = subscription
+        ? await tx.invoice.findFirst({
+            where: {
+              subscriptionId: subscription.id,
+              kind: 'INITIAL',
+              status: 'ISSUED',
+            },
+          })
+        : null;
+      if (invoice)
+        await settleInvoiceTx(tx, actor, invoice.id, {
+          provider: 'SIMULATION',
+          version: invoice.version,
+          reference: `SIM-${invoice.number}`,
+          note: 'Thanh toán mô phỏng hợp đồng khởi tạo',
+        });
       const recipient = row.organization.profile?.contactEmail;
       if (!recipient)
         throw new ConflictException(

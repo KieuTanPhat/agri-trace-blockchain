@@ -29,8 +29,12 @@ export const SERVICE_PLANS = [
 export const simulationEnabled = () =>
   process.env.ENTERPRISE_PAYMENT_SIMULATION_ENABLED === 'true' &&
   process.env.NODE_ENV !== 'production';
-export const serviceCatalog = () => ({
-  version: SERVICE_CATALOG_VERSION,
+/** Static terms around the DB-backed, versioned plan list. */
+export const serviceCatalog = (
+  plans: unknown[] = SERVICE_PLANS as unknown as unknown[],
+  version: string = SERVICE_CATALOG_VERSION,
+) => ({
+  version,
   currency: 'VND',
   termMonths: 12,
   sourceUrl: 'https://icheck.com.vn/chi-phi-trien-khai-truy-xuat-nguon-goc',
@@ -38,7 +42,7 @@ export const serviceCatalog = () => ({
   checkedAt: '2026-10-17',
   disclaimer:
     'Bảng giá AgriTrace tham khảo cấu trúc và mức phí iCheck. Chỉ dùng trải nghiệm local; chưa phải báo giá hay hóa đơn chính thức. Chưa xác định thuế. Phí QR và hạ tầng peer chưa bao gồm.',
-  plans: SERVICE_PLANS,
+  plans,
   qrReference: [
     { min: 10_000, max: 49_999, unitPrice: 300 },
     { min: 50_000, max: 199_999, unitPrice: 200 },

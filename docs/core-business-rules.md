@@ -420,3 +420,91 @@ ENFORCED. Phê duyệt SYSTEM_ADMIN_CREATE cũ không có roleCode vẫn tạo S
   Nhật ký chăm sóc ghi người thực hiện (tài khoản đang ghi hoặc người phụ trách vụ)
   và tình trạng cây trồng. Chuỗi mới có thể liên kết sản phẩm đang hoạt động của chủ
   chuỗi. Tất cả là trường không bắt buộc; bản ghi cũ giữ `NULL`/rỗng.
+
+## Mô hình tham gia, nhà chế biến và gói dịch vụ (19/10/2026)
+
+Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-processor-plan-2026-10-19.md).
+
+- Năng lực tổ chức thêm `PROCESSOR`. Đăng ký chọn mô hình `SINGLE` (đúng một
+  hoạt động) hoặc `SUPPLY_CHAIN_ENTERPRISE` (tổ chức có đăng ký, ít nhất hai năng
+  lực). Mỗi hoạt động tạo một `capability_request`; admin duyệt/từ chối riêng.
+  Đăng ký không cấp năng lực. Duyệt sau khi đã kích hoạt cấp năng lực ngay trong
+  cùng lệnh có audit; trước kích hoạt thì bước kích hoạt cấp các năng lực đã duyệt.
+  Hồ sơ cũ không có yêu cầu năng lực giữ hành vi cấp theo `activities`.
+- Năng lực chế biến cần loại hình chế biến, số và hạn giấy chứng nhận cơ sở đủ điều
+  kiện ATTP (còn hiệu lực lúc đăng ký và lúc duyệt) cùng tài liệu `CERTIFICATE`.
+- Tổ chức trả phí: có năng lực `FARM` hoặc mô hình doanh nghiệp chuỗi. Chỉ họ mua
+  gói, được cấp `CREATE_CHAIN` và phải có subscription `ACTIVE` trước khi kích hoạt.
+  Vận chuyển, chế biến, phân phối, bán lẻ tham gia miễn phí, chỉ có `ORG_ADMIN`,
+  ghi nghiệp vụ trong chuỗi được mời, theo hạn mức `billing.participantLimits`.
+- Bảng giá lưu `service_plan_version`; bản đã công bố bất biến, báo giá ghi
+  `planVersionId`. Chấp nhận hợp đồng tạo subscription `PENDING_PAYMENT` và hóa
+  đơn `INITIAL`; thanh toán (mô phỏng local hoặc admin xác nhận chuyển khoản) đổi
+  subscription sang `ACTIVE`. Hóa đơn gia hạn nối kỳ từ ngày hết hạn hiện tại.
+  Hóa đơn chỉ đi `ISSUED → PAID | VOID`; mỗi mã giao dịch nhà cung cấp chỉ thanh
+  toán một hóa đơn. Doanh thu mô phỏng tách riêng, không tính là tiền thật.
+- Trạng thái hiệu lực suy ra từ `ends_at`: `ACTIVE`, `GRACE` trong
+  `billing.graceDays` (mặc định 15 ngày), sau đó `RESTRICTED`. `GRACE` vẫn tạo mới;
+  `RESTRICTED` chặn kích hoạt sản phẩm, tạo chuỗi, thêm thành viên và in tem QR,
+  nhưng không chặn giao nhận đang dở, đọc dữ liệu hay trang QR công khai. Hạn mức
+  kiểm trong cùng transaction của lệnh tạo.
+
+## Chế biến (biến đổi lô)
+
+- Lệnh chế biến do tổ chức có năng lực `PROCESSOR` lập tại cơ sở loại
+  `PROCESSING`/`PACKING`, trong một chuỗi; quyền `processing.write` theo chuỗi và
+  cơ sở. Lô đầu vào phải cùng chuỗi, cùng đơn vị cơ sở, đang được tổ chức giữ tại
+  cơ sở (trừ phần giữ chỗ và cách ly), không hết hạn/thu hồi/khóa và đã đối soát.
+- Cân bằng khối lượng: Σ đầu vào = Σ lượng quy đổi của thành phẩm/phụ phẩm + Σ hao
+  hụt, sai lệch tối đa `processing.massBalanceTolerancePercent` (mặc định 0%). API
+  và constraint trigger DB cùng kiểm.
+- Lượng quy đổi do server tính, không lấy theo client. Thành phẩm cùng đơn vị cơ sở
+  thì lượng quy đổi bằng lượng ghi nhận. Khác đơn vị thì bằng lượng × hệ số đã khai
+  của sản phẩm (`product_unit_conversion`, quyền `catalog.manage`). Hệ số chỉ được
+  khai mới hoặc thu hồi kèm lý do, không sửa. Trigger DB tính lại khi ghi dòng
+  thành phẩm; lệnh nháp có hệ số đã bị thu hồi thì không hoàn tất được.
+- Tổ chức chế biến đọc lô thành phẩm của mình qua `/lots`, giới hạn theo chuỗi và cơ
+  sở được giao. Lineage và chi tiết lệnh không lộ tồn kho hay trạng thái lô của tổ
+  chức khác. Khi hoàn tất lệnh, API kiểm tra lại năng lực `PROCESSOR` và sản phẩm
+  đầu ra.
+- Lệnh nháp không trừ kho. Hoàn tất trong một transaction: trừ tồn tổ chức, tồn
+  cơ sở và lượng khả dụng từng lô đầu vào (`PROCESSING_OUT`, lô về 0 thành
+  `CONSUMED`); tạo lô `TRANSFORMATION` cho từng đầu ra cùng QR, tồn tại cơ sở và
+  `PROCESSING_IN`; ghi `DISTRIBUTION_QUANTITY_RECORDED` với `kind`
+  `PROCESSING_INPUT`/`PROCESSING_OUTPUT` (giữ loại sự kiện chaincode hiện có).
+  Lệnh hoàn tất hoặc hủy là bất biến; sai thì lập lệnh điều chỉnh mới.
+- Lô chế biến có `origin_type = TRANSFORMATION`, `harvest_id` rỗng và
+  `processing_run_id`. Chuỗi và binding sổ cái của sự kiện lấy theo
+  `origin_cycle_id` của lệnh; các đầu vào không được thuộc binding khác nhau.
+  Luồng gắn với vụ (shipment cũ, kế hoạch giao hàng, chứng nhận vụ) không nhận lô
+  chế biến.
+- Trang QR công khai của lô chế biến hiện lô nguyên liệu, nhà sản xuất (ẩn tên
+  vùng riêng tư) và tổng cân bằng; bằng chứng cảm biến là `NOT_APPLICABLE`.
+  Diễn tập thu hồi và tra cứu admin lan từ lô nguyên liệu tới mọi lô thành phẩm.
+
+## Khu quản trị nền tảng mở rộng
+
+- Admin điều phối, không ghi lô/vụ/giao nhận/thu hồi thay doanh nghiệp. Các trang
+  Blockchain, giám sát, thống kê, sao lưu chỉ đọc; không có nút phát lại outbox,
+  sửa binding hay chạy sao lưu/khôi phục.
+- Khóa QR: trang QR vẫn mở và hiện cảnh báo công khai; không in thêm tem cho lô
+  bị khóa. Mở khóa cần lý do.
+- Tham số nền tảng chỉ gồm danh sách cho phép (`SETTING_RULES`), có phiên bản và
+  audit; secret, khóa ký, cấu hình Fabric/controller không nằm trong đó.
+- Khi `PLATFORM_APPROVALS_MODE=ENFORCED`, duyệt năng lực, công bố bảng giá, xác
+  nhận thanh toán, đổi tham số và khóa QR phải qua phê duyệt hai bước
+  (`CAPABILITY_REQUEST_APPROVE`, `PLAN_VERSION_PUBLISH`, `INVOICE_CONFIRM_PAYMENT`,
+  `SETTING_CHANGE`, `QR_BLOCK`). Từ chối, hủy hóa đơn, mở khóa QR là một người.
+- Báo cáo vi phạm từ trang QR công khai: không đăng nhập, `requestId` chống gửi
+  trùng, giới hạn `consumerReports.maxPerHour` theo băm có khóa của nguồn mạng (không
+  lưu IP). Liên hệ chỉ lưu khi có đồng ý và chỉ nhân sự xử lý (`SYSTEM_ADMIN`,
+  `PLATFORM_CASE_MANAGER`) thấy; `AUDITOR` không thấy. Khi chuyển hồ sơ sự cố, chủ lô
+  nhận hồ sơ mà không kèm thông tin liên hệ.
+- Hủy hóa đơn khởi tạo sẽ phát hành ngay hóa đơn thay thế theo phiên bản gói trong
+  hợp đồng đã chấp nhận, và gói vẫn ở trạng thái chờ thanh toán. Khi kỳ đã trả còn
+  hiệu lực, chỉ gia hạn được cùng gói; đổi sang gói khác chỉ làm được sau khi kỳ hiện
+  tại kết thúc (trong thời gian ân hạn).
+- Yêu cầu hỗ trợ có hạn phản hồi theo `support.reviewSlaHours` và ưu tiên; ghi chú
+  nội bộ không hiện cho doanh nghiệp; yêu cầu đã đóng không nhận trả lời.
+- Thông báo hệ thống chỉ là banner theo đối tượng và thời gian (tối đa 90 ngày),
+  độc lập với chế độ khóa ghi của controller.

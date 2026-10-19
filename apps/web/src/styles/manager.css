@@ -1475,3 +1475,31 @@ a.manage-metric:hover {
     justify-self: start;
   }
 }
+
+/* Platform administration console widgets */
+.admin-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.admin-bars li { display: grid; grid-template-columns: minmax(90px, 160px) 1fr auto; gap: 10px; align-items: center; font-size: 14px; }
+.admin-bars-label { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-bars-track { height: 10px; background: var(--green-50); border-radius: 999px; overflow: hidden; }
+.admin-bars-track > span { display: block; height: 100%; background: var(--green-600); border-radius: 999px; min-width: 2px; }
+.admin-bars-value { font-variant-numeric: tabular-nums; color: var(--ink); }
+.admin-reason { display: grid; gap: 8px; width: 100%; max-width: 560px; }
+.admin-reason textarea { min-height: 72px; }
+.admin-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.admin-tabs button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 12px; font: inherit; cursor: pointer; color: var(--ink-soft); }
+.admin-tabs button.active { background: var(--green-700); border-color: var(--green-700); color: #fff; }
+.admin-tabs button span { margin-left: 6px; font-weight: 600; }
+.admin-grid-2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.admin-check-ok { color: var(--green-700); font-weight: 600; }
+.admin-check-warn { color: var(--amber-ink); font-weight: 600; }
+.admin-check-alert { color: #b42318; font-weight: 600; }
+.admin-inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.admin-inline-form .field { min-width: 160px; }
+.notice-banner { margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--amber-200); background: var(--amber-50); color: var(--amber-ink); }
+.notice-banner strong { margin-right: 6px; }
+@media (max-width: 600px) {
+  .admin-bars li { grid-template-columns: 1fr auto; }
+  .admin-bars-track { grid-column: 1 / -1; }
+}
+.button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.button.danger:hover { filter: brightness(0.95); }

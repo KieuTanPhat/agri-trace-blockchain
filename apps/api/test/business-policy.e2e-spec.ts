@@ -192,7 +192,7 @@ async function acceptedPlan(db: Prisma.TransactionClient) {
   const { lot, input } = await freshPlan(db);
   const event = await trace.createInTransaction(db, {
     entityType: 'HARVEST',
-    entityId: lot.harvestId,
+    entityId: lot.harvestId!,
     cycleId,
     lotId: lot.id,
     eventType: 'HARVEST_RECORDED',
@@ -290,10 +290,10 @@ describe('Release A scoped command policy on PostgreSQL', () => {
     expect(plans).toHaveLength(1);
     const plan = plans[0];
     chainId = plan.chainId;
-    cycleId = plan.lot.harvest.cycleId;
+    cycleId = plan.lot.harvest!.cycleId;
     lotId = plan.lotId;
     shipmentId = plan.shipmentId!;
-    farmId = plan.lot.harvest.cycle.farmId;
+    farmId = plan.lot.harvest!.cycle.farmId;
     productId = plan.lot.productId;
     otherChainId = (
       await db.supplyChain.findFirstOrThrow({
@@ -1468,7 +1468,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         const fresh = await freshPlan(tx);
         const event = await trace.createInTransaction(tx, {
           entityType: 'HARVEST',
-          entityId: fresh.lot.harvestId,
+          entityId: fresh.lot.harvestId!,
           cycleId,
           lotId: fresh.lot.id,
           eventType: 'HARVEST_RECORDED',
@@ -1760,7 +1760,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       const { lot, input } = await freshPlan(tx);
       const harvest = await trace.createInTransaction(tx, {
         entityType: 'HARVEST',
-        entityId: lot.harvestId,
+        entityId: lot.harvestId!,
         cycleId,
         lotId: lot.id,
         eventType: 'HARVEST_RECORDED',
@@ -2016,7 +2016,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       async (tx) => {
         const event = await trace.createInTransaction(tx, {
           entityType: 'HARVEST',
-          entityId: lot.harvestId,
+          entityId: lot.harvestId!,
           cycleId,
           lotId: lot.id,
           eventType: 'HARVEST_RECORDED',
@@ -2302,7 +2302,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         async (tx) => {
           const event = await trace.createInTransaction(tx, {
             entityType: 'HARVEST',
-            entityId: lot.harvestId,
+            entityId: lot.harvestId!,
             cycleId,
             lotId: lot.id,
             eventType: 'HARVEST_RECORDED',

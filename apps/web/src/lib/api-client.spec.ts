@@ -287,6 +287,8 @@ describe("public API", () => {
       },
       farmOrg: { organizationId: "farm-1", name: "Farm", type: "FARM" },
       allowedCommands: [],
+      originType: "HARVEST",
+      processing: null,
       proofStatus: "PENDING",
       timeline: [
         {

@@ -30,9 +30,21 @@ export function canAccessManagementRoute(
   if (role !== "SYSTEM_ADMIN" && platformAdminHome(role)) {
     if (path === "/admin/security") return true;
     if (role === "PLATFORM_OPERATOR")
-      return path === "/admin/operations" || path === "/admin/recall";
+      return [
+        "/admin/operations",
+        "/admin/recall",
+        "/admin/ledger",
+        "/admin/monitoring",
+        "/admin/statistics",
+        "/admin/chains",
+        "/admin/lots",
+      ].includes(path);
     if (role === "PLATFORM_CASE_MANAGER")
-      return within("/admin/cases") || path === "/admin/recall";
+      return (
+        within("/admin/cases") ||
+        within("/admin/support") ||
+        ["/admin/recall", "/admin/reports", "/admin/inbox", "/admin/lots"].includes(path)
+      );
     if (role === "PLATFORM_PRIVACY_OFFICER") return path === "/admin/privacy";
     return false;
   }
@@ -43,7 +55,17 @@ export function canAccessManagementRoute(
       path === "/admin/operations" ||
       path === "/admin/recall" ||
       path === "/admin/cases" ||
-      /^\/admin\/cases\/[0-9a-f-]{36}$/i.test(path))
+      /^\/admin\/cases\/[0-9a-f-]{36}$/i.test(path) ||
+      [
+        "/admin/ledger",
+        "/admin/statistics",
+        "/admin/billing",
+        "/admin/billing/subscriptions",
+        "/admin/billing/invoices",
+        "/admin/billing/revenue",
+        "/admin/trace-report",
+        "/admin/security-alerts",
+      ].includes(path))
   )
     return true;
   if (role === "SYSTEM_ADMIN")
@@ -65,6 +87,26 @@ export function canAccessManagementRoute(
       within("/admin/security") ||
       within("/admin/compliance-assignments") ||
       within("/admin/inspectors") ||
+      [
+        "/admin/inbox",
+        "/admin/notices",
+        "/admin/directory",
+        "/admin/roles",
+        "/admin/chains",
+        "/admin/qr",
+        "/admin/lots",
+        "/admin/trace-report",
+        "/admin/ledger",
+        "/admin/billing",
+        "/admin/reports",
+        "/admin/support",
+        "/admin/statistics",
+        "/admin/monitoring",
+        "/admin/security-alerts",
+        "/admin/reference-data",
+        "/admin/settings",
+        "/admin/backup",
+      ].some(within) ||
       within("/scan")
     );
   if (

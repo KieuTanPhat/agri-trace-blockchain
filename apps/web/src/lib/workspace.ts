@@ -66,6 +66,8 @@ export const permissionLabels: Record<string, string> = {
   "trace.read": "Xem hành trình truy xuất",
   "qr.manage": "Tải / in tem QR",
   "reports.read": "Xem báo cáo đối soát",
+  "processing.read": "Xem lệnh chế biến",
+  "processing.write": "Lập và hoàn tất lệnh chế biến",
 };
 export function useWorkspaceData<T>(path: string | null) {
   const auth = useAuth(),
@@ -121,13 +123,18 @@ export function useWorkspaceCommand() {
     path: string;
     body: string;
     key: string;
+    method: "POST" | "PATCH";
   } | null>(null);
   const [pending, setPending] = useState(false),
     [error, setError] = useState(""),
     [frozen, setFrozen] = useState(false);
   const confirm = useConfirm();
   /** Resolves to the response body (truthy) on success, or false. */
-  async function run<T = Row>(path: string, payload: unknown): Promise<T | false> {
+  async function run<T = Row>(
+    path: string,
+    payload: unknown,
+    method: "POST" | "PATCH" = "POST",
+  ): Promise<T | false> {
     if (pending) return false;
     if (pendingRequest.current?.scope !== scope) pendingRequest.current = null;
     // Retrying an uncertain request keeps the original key and needs no second prompt.
@@ -139,6 +146,7 @@ export function useWorkspaceCommand() {
         path,
         body: JSON.stringify(payload),
         key: crypto.randomUUID(),
+        method,
       };
     const saved = pendingRequest.current;
     setPending(true);
@@ -146,7 +154,7 @@ export function useWorkspaceCommand() {
     setError("");
     try {
       const result = await request<T>(saved.path, {
-        method: "POST",
+        method: saved.method,
         headers: { "idempotency-key": saved.key },
         body: saved.body,
       });

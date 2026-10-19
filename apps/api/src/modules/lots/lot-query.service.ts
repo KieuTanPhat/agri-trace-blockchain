@@ -56,7 +56,8 @@ export class LotQueryService {
         custodian: null,
         distributionMode: true,
       };
-    const chainId = lot.harvest.cycle.chainId;
+    // Legacy lot commands apply to harvested lots only.
+    const chainId = lot.harvest?.cycle.chainId;
     if (!chainId) return response;
     const commands = new Set<LotCommand>();
     for (const role of ['FARM_STAFF', 'TRANSPORTER', 'RETAILER'] as const) {
@@ -114,13 +115,14 @@ export class LotQueryService {
       include: { lot: { include: publicLotInclude() } },
     });
     if (!qr) throw new NotFoundException('Mã truy xuất không hợp lệ');
-    const materialUses=await this.prisma.careRecord.findMany({where:{cycleId:qr.lot.harvest.cycle.id,eventTime:{lte:qr.lot.harvest.harvestTime},withdrawalPeriod:{gt:0}},select:{eventTime:true,withdrawalPeriod:true}});
-    const productionWarnings=materialUses.filter(r=>r.eventTime.getTime()+(r.withdrawalPeriod??0)*86400000>qr.lot.harvest.harvestTime.getTime()).map(r=>'Theo nhật ký khai báo, tại thời điểm thu hoạch còn trong thời gian cách ly đầu vào đến '+new Date(r.eventTime.getTime()+(r.withdrawalPeriod??0)*86400000).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})+'. Cần đối chiếu tài liệu; đây không phải kết quả kiểm nghiệm.');
+    const harvest=qr.lot.harvest;
+    const materialUses=harvest?await this.prisma.careRecord.findMany({where:{cycleId:harvest.cycle.id,eventTime:{lte:harvest.harvestTime},withdrawalPeriod:{gt:0}},select:{eventTime:true,withdrawalPeriod:true}}):[];
+    const productionWarnings=materialUses.filter(r=>r.eventTime.getTime()+(r.withdrawalPeriod??0)*86400000>harvest!.harvestTime.getTime()).map(r=>'Theo nhật ký khai báo, tại thời điểm thu hoạch còn trong thời gian cách ly đầu vào đến '+new Date(r.eventTime.getTime()+(r.withdrawalPeriod??0)*86400000).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})+'. Cần đối chiếu tài liệu; đây không phải kết quả kiểm nghiệm.');
     const traceEvents = await this.prisma.traceEvent.findMany({
       where: {
         OR: [
           { lotId: qr.lot.id },
-          { cycleId: qr.lot.harvest.cycle.id, lotId: null },
+          ...(harvest ? [{ cycleId: harvest.cycle.id, lotId: null }] : []),
         ],
       },
       orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
@@ -152,6 +154,20 @@ export class LotQueryService {
       select: { kind: true, message: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     });
+    // An administrative block keeps the page reachable with a clear warning.
+    const block = await this.prisma.traceQrBlock.findFirst({
+      where: { lotId: qr.lot.id, unblockedAt: null },
+    });
+    if (block)
+      notices.unshift({
+        kind: 'WARNING',
+        message: `Mã QR đã bị nền tảng AgriTrace khóa: ${block.publicMessage}`,
+        createdAt: block.blockedAt,
+      });
+    // Anonymous daily counter; a failure here never blocks the public page.
+    await this.prisma.$executeRaw`INSERT INTO trace_scan_daily(lot_id, day, scans)
+      VALUES (${qr.lot.id}::uuid, (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, 1)
+      ON CONFLICT (lot_id, day) DO UPDATE SET scans = trace_scan_daily.scans + 1`.catch(() => undefined);
     return {
       ...toPublicLotDto(qr.lot, traceToken, traceEvents),
       notices,

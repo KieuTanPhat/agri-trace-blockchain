@@ -63,6 +63,11 @@ export const approvalOperationLabels: Record<string, string> = {
   SYSTEM_ADMIN_CREATE: "Tạo quản trị viên mới",
   CONNECTION_APPROVE: "Chấp nhận kết nối peer",
   ADMIN_PASSWORD_RESET: "Đặt lại mật khẩu quản trị viên",
+  CAPABILITY_REQUEST_APPROVE: "Duyệt năng lực doanh nghiệp",
+  PLAN_VERSION_PUBLISH: "Công bố bảng giá gói dịch vụ",
+  INVOICE_CONFIRM_PAYMENT: "Xác nhận thanh toán hóa đơn",
+  SETTING_CHANGE: "Đổi tham số nền tảng",
+  QR_BLOCK: "Khóa mã QR",
 };
 
 export const approvalStatusLabels: Record<string, string> = {

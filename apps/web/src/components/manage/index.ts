@@ -10,3 +10,4 @@ export {
   SearchField,
   Section,
 } from "./layout";
+export { BarList, Metrics, ReasonAction, Tabs } from "./admin-widgets";

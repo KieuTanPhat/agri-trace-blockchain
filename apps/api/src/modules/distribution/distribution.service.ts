@@ -1,3 +1,4 @@
+import { LOT_ORIGIN_INCLUDE, lotChainId, lotSiteId } from '../lots/lot-origin.js';
 import {
   ConflictException,
   ForbiddenException,
@@ -275,9 +276,9 @@ export class DistributionService {
     >,
   ) {
     for (const [id, codes] of [
-      [t.senderId, ['FARM', 'DISTRIBUTOR', 'RETAILER']],
+      [t.senderId, ['FARM', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER']],
       [t.carrierId, ['TRANSPORTER']],
-      [t.receiverId, ['DISTRIBUTOR', 'RETAILER']],
+      [t.receiverId, ['PROCESSOR', 'DISTRIBUTOR', 'RETAILER']],
     ] as const) {
       await tx.$queryRaw`SELECT organization_id FROM organization WHERE organization_id=${id}::uuid FOR SHARE`;
       const org = await tx.organization.findUnique({
@@ -374,9 +375,9 @@ export class DistributionService {
     await tx.$queryRaw`SELECT lot_id FROM lot WHERE lot_id=${lotId}::uuid FOR UPDATE`;
     const lot = await tx.lot.findUnique({
       where: { id: lotId },
-      include: { shipment: true, harvest: { include: { cycle: true } } },
+      include: { shipment: true, ...LOT_ORIGIN_INCLUDE },
     });
-    if (!lot || lot.harvest.cycle.chainId !== chainId)
+    if (!lot || lotChainId(lot) !== chainId)
       throw new NotFoundException('Lô không thuộc chuỗi');
     if (lot.shipment)
       throw new ConflictException(
@@ -945,7 +946,7 @@ export class DistributionService {
       await tx.$queryRaw`SELECT lot_id FROM lot WHERE lot_id=${input.lotId}::uuid FOR UPDATE`;
       const lot = await tx.lot.findUnique({
         where: { id: input.lotId },
-        include: { harvest: { include: { cycle: true } } },
+        include: LOT_ORIGIN_INCLUDE,
       });
       if (!lot || lot.farmOrgId !== actor.organizationId)
         throw new ForbiddenException(
@@ -955,8 +956,8 @@ export class DistributionService {
         tx,
         actor,
         'distribution.write',
-        lot.harvest.cycle.chainId,
-        lot.harvest.cycle.farmId,
+        lotChainId(lot),
+        lotSiteId(lot),
         true,
       );
       const notice = await tx.traceNotice.create({
@@ -982,14 +983,14 @@ export class DistributionService {
       await tx.$queryRaw`SELECT lot_id FROM lot WHERE lot_id=${input.lotId}::uuid FOR UPDATE`;
       const lot = await tx.lot.findUnique({
         where: { id: input.lotId },
-        include: { harvest: { include: { cycle: true } } },
+        include: LOT_ORIGIN_INCLUDE,
       });
       if (!lot) throw new NotFoundException('Không tìm thấy lô');
       const authority = await enterpriseAuthority(
         tx,
         actor,
         'quantity.adjust',
-        lot.harvest.cycle.chainId,
+        lotChainId(lot),
         input.siteId,
         true,
       );
@@ -1000,7 +1001,7 @@ export class DistributionService {
           code:
             input.kind === 'SALE'
               ? 'RETAILER'
-              : { in: ['FARM', 'DISTRIBUTOR', 'RETAILER'] },
+              : { in: ['FARM', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'] },
           revokedAt: null,
         },
       });
@@ -1011,7 +1012,7 @@ export class DistributionService {
       const qty = quantity(input.quantity);
       if(input.fromQuarantine){
         if(input.kind!=='DAMAGE'||!input.siteId)throw new ConflictException('Chỉ ghi hư hỏng lượng cách ly tại cơ sở');
-        await enterpriseAuthority(tx,actor,'quarantine.manage',lot.harvest.cycle.chainId,input.siteId);
+        await enterpriseAuthority(tx,actor,'quarantine.manage',lotChainId(lot),input.siteId);
         const site=await siteBalance(tx,lot.id,actor.organizationId!,input.siteId);
         if(!site||site.quarantined.lt(qty))throw new ConflictException('Vượt lượng cách ly tại cơ sở');
         if(input.quarantineCaseId)await consumeQuarantineCase(tx,input.quarantineCaseId,{lotId:lot.id,organizationId:actor.organizationId!,siteId:input.siteId},qty,'DISPOSE');
@@ -1116,8 +1117,8 @@ export class DistributionService {
   allocate(actor: CommandActor, input: SiteAllocationInput) {
     return commandTransaction(this.db, async tx => {
       await tx.$queryRaw`SELECT lot_id FROM lot WHERE lot_id=${input.lotId}::uuid FOR UPDATE`;
-      const lot = await tx.lot.findUniqueOrThrow({ where: { id: input.lotId }, include: { shipment: true, harvest: { include: { cycle: true } } } });
-      const auth = await enterpriseAuthority(tx, actor, 'inventory.manage', lot.harvest.cycle.chainId, input.siteId, true);
+      const lot = await tx.lot.findUniqueOrThrow({ where: { id: input.lotId }, include: { shipment: true, ...LOT_ORIGIN_INCLUDE } });
+      const auth = await enterpriseAuthority(tx, actor, 'inventory.manage', lotChainId(lot), input.siteId, true);
       await activeSite(tx, actor.organizationId!, input.siteId);
       if (lot.shipment || lot.unit !== input.unit || lot.version !== input.version) throw new ConflictException('Lô, đơn vị hoặc phiên bản không phù hợp phân bổ');
       if (!await quantityIsReconciled(tx, lot)) throw new ConflictException('Lô cần đối soát số lượng');
@@ -1143,8 +1144,8 @@ export class DistributionService {
   quarantine(actor: CommandActor, input: QuarantineInput) {
     return commandTransaction(this.db, async tx => {
       await tx.$queryRaw`SELECT lot_id FROM lot WHERE lot_id=${input.lotId}::uuid FOR UPDATE`;
-      const lot = await tx.lot.findUniqueOrThrow({ where: { id: input.lotId }, include: { harvest: { include: { cycle: true } } } });
-      await enterpriseAuthority(tx, actor, 'quarantine.manage', lot.harvest.cycle.chainId, input.siteId, true);
+      const lot = await tx.lot.findUniqueOrThrow({ where: { id: input.lotId }, include: LOT_ORIGIN_INCLUDE });
+      await enterpriseAuthority(tx, actor, 'quarantine.manage', lotChainId(lot), input.siteId, true);
       const qty = quantity(input.quantity);
       const stock = await siteBalance(tx, lot.id, actor.organizationId!, input.siteId);
       if (!stock || lot.version !== input.version || lot.unit !== input.unit) throw new ConflictException('Tồn cơ sở hoặc phiên bản không khớp');
@@ -1342,7 +1343,7 @@ export class DistributionService {
           { id: { in: (query.siteId ? siteStocks : holdings).map((h) => h.lotId) } },
           ...(!query.siteId?[{ farmOrgId: actor.organizationId!, shipment: null }]:[]),
           ...(query.siteId?[{id:{in:siteStocks.map(s=>s.lotId)}}]:[]),
-        ] : scopedRoles.map(r=>({harvest:{cycle:{chainId:{in:r.chainIds}}},OR:[{id:{in:siteStocks.filter(s=>r.siteIds.includes(s.siteId)).map(s=>s.lotId)}},{farmOrgId:actor.organizationId!,shipment:null,harvest:{cycle:{farmId:{in:query.siteId?[]:r.siteIds}}}}]})),
+        ] : scopedRoles.map(r=>({OR:[{harvest:{cycle:{chainId:{in:r.chainIds}}}},{processingRun:{chainId:{in:r.chainIds}}}],AND:{OR:[{id:{in:siteStocks.filter(s=>r.siteIds.includes(s.siteId)).map(s=>s.lotId)}},{farmOrgId:actor.organizationId!,shipment:null,harvest:{cycle:{farmId:{in:query.siteId?[]:r.siteIds}}}}]}})),
       },
       include: {
         product: true,
@@ -1351,6 +1352,7 @@ export class DistributionService {
             cycle: { include: { chain: { select: { name: true } } } },
           },
         },
+        processingRun: { include: { chain: { select: { name: true } } } },
         traceQr: true,
       },
       orderBy:{id:'asc'},
@@ -1374,7 +1376,7 @@ export class DistributionService {
     return {
       page:query.page??1,pageSize:query.pageSize??sourceLots.length,hasNext,
       lots: sourceLots.map((l) => {
-        const allocations = siteStocks.filter(s => s.lotId === l.id && (auth.primary || scopedRoles.some(r=>r.chainIds.includes(l.harvest.cycle.chainId)&&r.siteIds.includes(s.siteId))));
+        const allocations = siteStocks.filter(s => s.lotId === l.id && (auth.primary || scopedRoles.some(r=>r.chainIds.includes(lotChainId(l) ?? '')&&r.siteIds.includes(s.siteId))));
         const total = (field: 'quantity' | 'reserved' | 'quarantined') => allocations.reduce((sum,s) => sum.add(s[field]),new Prisma.Decimal(0));
         const aggregate = holdings.find((x) => x.lotId === l.id);
         const h = auth.primary && !query.siteId ? aggregate : { quantity: total('quantity'), reserved: total('reserved') };
@@ -1388,10 +1390,11 @@ export class DistributionService {
         return {
           lotId: l.id,
           version: l.version,
-          chainName: l.harvest.cycle.chain.name,
+          chainName: l.harvest?.cycle.chain?.name ?? l.processingRun?.chain.name ?? null,
+          originType: l.originType,
           lotCode: l.lotCode,
           productName: l.product.productName,
-          chainId: l.harvest.cycle.chainId,
+          chainId: lotChainId(l),
           farmOrgId: l.farmOrgId,
           initialQuantity: l.initialQuantity.toFixed(3),
           globalAvailable: auth.primary ? l.availableQuantity.toFixed(3) : null,

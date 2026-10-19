@@ -28,6 +28,7 @@ import { FieldFocus } from "./shell/field-focus";
 import { TypographySync } from "./shell/typography-sync";
 import { NotificationsMenu } from "./shell/notifications-menu";
 import { MenuSearch } from "./shell/menu-search";
+import { SystemNotices } from "./shell/system-notices";
 import { NavGroups } from "./shell/nav-groups";
 import {
   useEnterpriseAccess,
@@ -421,6 +422,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             style={privateAccessReady ? undefined : { display: "none" }}
           >
             <BackButton pathname={pathname} home={home} />
+            <SystemNotices scope={authorizationScope} />
             <PendingCommandsPanel
               key={authorizationScope}
               onSettled={() => window.location.reload()}

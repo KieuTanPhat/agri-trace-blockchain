@@ -1,5 +1,6 @@
 "use client";
 
+import { CapabilityReview } from "./capability-review";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-store";
@@ -170,7 +171,8 @@ const detailLabels: Record<string, string> = {
   description: "Giới thiệu",
 };
 const activityLabels: Record<string, string> = {
-  FARM: "Sản xuất",
+  FARM: "Nhà sản xuất/HTX",
+  PROCESSOR: "Chế biến",
   TRANSPORTER: "Vận chuyển",
   DISTRIBUTOR: "Phân phối",
   RETAILER: "Bán lẻ",
@@ -348,6 +350,7 @@ export default function PlatformEnrollment({ id }: { id: string }) {
                 <p>{row.reviewNote}</p>
               </section>
             )}
+            <CapabilityReview enrollment={row} onDone={() => void refresh()} />
             {row.status === "PENDING_REVIEW" && (
               <section className="manage-section manage-detail-section">
                 <h2>Quyết định xét duyệt</h2>

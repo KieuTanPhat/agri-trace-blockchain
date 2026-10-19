@@ -5,6 +5,7 @@ import { ErrorState } from "@/components/error-state";
 import { QrCodeCard } from "@/components/qr-code-card";
 import { StateBadge } from "@/components/state-badge";
 import { TimelineItem } from "@/components/timeline-item";
+import { ConsumerReportForm } from "@/components/site/consumer-report-form";
 import { Reveal } from "@/components/ui/reveal";
 import { getPublicTrace } from "@/lib/api-client";
 import { labelForProof } from "@/lib/display-labels";
@@ -82,11 +83,13 @@ export default async function PublicTracePage({
           <p className="eyebrow eyebrow-pill">Tra cứu công khai</p>
           <h1>{trace.productName}</h1>
           <p className="muted">
-            {trace.lotCode} · {trace.farmOrg.name} · Vụ{" "}
-            {trace.productionCycle.cycleCode}
+            {trace.lotCode} · {trace.farmOrg.name} ·{" "}
+            {trace.productionCycle
+              ? `Vụ ${trace.productionCycle.cycleCode}`
+              : `Lệnh chế biến ${trace.processing?.code ?? ""}`}
           </p>
           <div className="actions">
-            <StateBadge state={trace.currentState} />
+            <StateBadge state={trace.currentState} originType={trace.originType} />
             <StateBadge state={trace.proofStatus} />
           </div>
         </div>
@@ -97,7 +100,7 @@ export default async function PublicTracePage({
           <h2>Thông tin lô hàng</h2>
           <ul className="fact-list">
             <li>
-              <span>Thu hoạch</span>
+              <span>{trace.processing ? "Chế biến" : "Thu hoạch"}</span>
               <span>{formatTraceDate(trace.harvestTime)}</span>
             </li>
             <li>
@@ -114,7 +117,9 @@ export default async function PublicTracePage({
             <li>
               <span>Cảm biến</span>
               <span>
-                {trace.sensorEvidence.readingCount} mẫu trong khoảng đã chốt
+                {trace.sensorEvidence.status === "NOT_APPLICABLE"
+                  ? "Không áp dụng cho lô chế biến; xem dữ liệu ở lô nguyên liệu"
+                  : `${trace.sensorEvidence.readingCount} mẫu trong khoảng đã chốt`}
               </span>
             </li>
             {trace.sensorEvidence.periodStart &&
@@ -200,6 +205,28 @@ export default async function PublicTracePage({
           </div>
         </section>
       )}
+      {trace.processing && (
+        <section className="panel">
+          <p className="eyebrow">NGUỒN NGUYÊN LIỆU</p>
+          <h2>Sản phẩm được chế biến từ</h2>
+          <p className="muted">
+            {trace.processing.processorName} hoàn tất lệnh {trace.processing.code}
+            {trace.processing.completedAt ? ` ngày ${formatTraceDate(trace.processing.completedAt)}` : ""}: đầu vào{" "}
+            {trace.processing.inputTotal} {trace.processing.baseUnit} = thành phẩm/phụ phẩm {trace.processing.outputTotal} + hao hụt{" "}
+            {trace.processing.lossTotal} {trace.processing.baseUnit}.
+          </p>
+          <div className="workspace-journey">
+            {trace.processing.inputs.map((input) => (
+              <article key={input.lotCode}>
+                <h3>{input.productName}</h3>
+                <p>Lô {input.lotCode} · {input.quantity} {input.unit}</p>
+                <p>{input.originType === "TRANSFORMATION" ? "Bán thành phẩm của" : "Sản xuất bởi"}: {input.producerName}</p>
+                {input.harvestTime && <p>Thu hoạch: {formatTraceDate(input.harvestTime)}</p>}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
       {!!trace.productionWarnings?.length&&<section className="panel" aria-label="Lưu ý từ nhật ký sản xuất"><h2>Lưu ý trước khi sử dụng</h2>{trace.productionWarnings.map(w=><p key={w} className="notice warning">{w}</p>)}</section>}
 
       <Reveal className="grid two">
@@ -275,6 +302,9 @@ export default async function PublicTracePage({
           </div>
         </section>
       </Reveal>
+      <section className="panel" aria-label="Phản ánh sản phẩm">
+        <ConsumerReportForm traceToken={trace.traceToken ?? lotId} />
+      </section>
     </div>
   );
 }

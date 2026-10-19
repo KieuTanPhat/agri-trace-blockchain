@@ -13,10 +13,55 @@ import { getAllowedLotCommands } from './lot-action.policy.js';
 import { lotEvidence } from './lot-evidence.js';
 import { resolveLotCustodian } from './lot-custody.js';
 
+type ProvenanceRun = NonNullable<InternalLot['processingRun']>;
+/** Inputs consumed to make a processed lot. Private farms stay anonymous. */
+export function processingProvenance(
+  run: ProvenanceRun | null,
+  processorName: string,
+  publicView: boolean,
+) {
+  if (!run) return null;
+  return {
+    ...(publicView ? {} : { runId: run.id }),
+    code: run.code,
+    processType: run.processType,
+    completedAt: run.completedAt,
+    processorName,
+    inputTotal: run.inputTotal === null ? null : Number(run.inputTotal),
+    outputTotal: run.outputTotal === null ? null : Number(run.outputTotal),
+    lossTotal: run.lossTotal === null ? null : Number(run.lossTotal),
+    baseUnit: run.baseUnit,
+    inputs: run.inputs.map((input) => ({
+      ...(publicView ? {} : { lotId: input.lotId }),
+      lotCode: input.lot.lotCode,
+      productName: input.lot.product.productName,
+      quantity: Number(input.quantity),
+      unit: input.unit,
+      originType: input.lot.originType,
+      producerName:
+        input.lot.harvest && publicView && input.lot.harvest.cycle.farm.privacy !== 'PUBLIC'
+          ? 'Vùng sản xuất riêng tư'
+          : input.lot.organization.name,
+      harvestTime: input.lot.harvest?.harvestTime ?? null,
+    })),
+  };
+}
+const cycleSummary = (
+  cycle: { id: string; cycleCode: string; currentState: string; startDate: Date | null } | undefined,
+) =>
+  cycle
+    ? {
+        cycleId: cycle.id,
+        cycleCode: cycle.cycleCode,
+        currentState: cycle.currentState,
+        startDate: cycle.startDate,
+      }
+    : null;
+
 export function toInternalLotDto(lot: InternalLot, actor: Actor) {
   const traceEvents = [
     ...lot.traceEvents,
-    ...lot.harvest.cycle.traceEvents,
+    ...(lot.harvest?.cycle.traceEvents ?? []),
   ].sort(
     (a, b) =>
       a.eventTime.getTime() - b.eventTime.getTime() ||
@@ -26,7 +71,9 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
   const latest = traceEvents.at(-1);
   return {
     lotId: lot.id,
-    chainId: lot.harvest.cycle.chainId,
+    chainId: lot.harvest?.cycle.chainId ?? lot.processingRun?.chainId ?? null,
+    originType: lot.originType,
+    processing: processingProvenance(lot.processingRun, lot.organization.name, false),
     traceToken: lot.traceQr?.traceToken,
     lotCode: lot.lotCode,
     lotName: lot.lotName,
@@ -35,7 +82,7 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
     packedAt: lot.packedAt?.toISOString().slice(0, 10) ?? null,
     initialStorageSiteId: lot.initialStorageSiteId,
     productName: lot.product.productName,
-    harvestTime: lot.harvest.harvestTime,
+    harvestTime: lot.harvest?.harvestTime ?? lot.processingRun?.completedAt ?? lot.createdAt,
     initialQuantity: Number(lot.initialQuantity),
     availableQuantity: Number(lot.availableQuantity),
     unit: lot.unit,
@@ -57,12 +104,7 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
       .filter((m) => m.type === 'DAMAGE_OUT')
       .reduce((sum, m) => sum.add(m.quantity), new Prisma.Decimal(0))
       .toNumber(),
-    productionCycle: {
-      cycleId: lot.harvest.cycle.id,
-      cycleCode: lot.harvest.cycle.cycleCode,
-      currentState: lot.harvest.cycle.currentState,
-      startDate: lot.harvest.cycle.startDate,
-    },
+    productionCycle: cycleSummary(lot.harvest?.cycle),
     farmOrg: {
       organizationId: lot.organization.id,
       name: lot.organization.name,
@@ -144,23 +186,26 @@ export function toPublicLotDto(
     lotCode: lot.lotCode,
     lotName: lot.lotName,
     productName: lot.product.productName,
-    harvestTime: lot.harvest.harvestTime,
+    harvestTime: lot.harvest?.harvestTime ?? lot.processingRun?.completedAt ?? lot.createdAt,
     initialQuantity: Number(lot.initialQuantity),
     availableQuantity: Number(lot.availableQuantity),
     unit: lot.unit,
     currentState: lot.currentState,
     ...evidence,
-    productionCycle: {
-      cycleId: lot.harvest.cycle.id,
-      cycleCode: lot.harvest.cycle.cycleCode,
-      currentState: lot.harvest.cycle.currentState,
-      startDate: lot.harvest.cycle.startDate,
-    },
-    farmOrg: {
-      organizationId: lot.harvest.cycle.farm.organizationId,
-      name: lot.harvest.cycle.farm.privacy === 'PUBLIC' ? lot.harvest.cycle.farm.name : 'Vùng sản xuất riêng tư',
-      type: 'FARM',
-    },
+    originType: lot.originType,
+    processing: processingProvenance(lot.processingRun, lot.organization.name, true),
+    productionCycle: cycleSummary(lot.harvest?.cycle),
+    farmOrg: lot.harvest
+      ? {
+          organizationId: lot.harvest.cycle.farm.organizationId,
+          name: lot.harvest.cycle.farm.privacy === 'PUBLIC' ? lot.harvest.cycle.farm.name : 'Vùng sản xuất riêng tư',
+          type: 'FARM',
+        }
+      : {
+          organizationId: lot.organization.id,
+          name: lot.organization.name,
+          type: lot.organization.type,
+        },
     allowedCommands: [],
     proofStatus:
       evidence.sensorEvidence.status === 'INTEGRITY_WARNING' ||
@@ -186,7 +231,7 @@ export function toPublicLotDto(
         }
       : undefined,
     shipment: lot.shipment,
-    certificates: [...lot.certificates, ...lot.harvest.cycle.certificates].map(
+    certificates: [...lot.certificates, ...(lot.harvest?.cycle.certificates ?? [])].map(
       publicCertificate,
     ),
   };
@@ -211,6 +256,8 @@ function eventSummary(eventType: string) {
     DISTRIBUTION_IN_TRANSIT: 'Hai bên đã ký bàn giao cho đơn vị vận chuyển.',
     DISTRIBUTION_DELIVERED: 'Hai bên đã ký xác nhận nhận hàng.',
     DISTRIBUTION_CANCELLED: 'Hủy giao nhận trước khi bàn giao hàng.',
+    DISTRIBUTION_QUANTITY_RECORDED:
+      'Ghi nhận thay đổi số lượng của lô (bán, hao hụt hoặc chế biến).',
     PRODUCTION_CYCLE_CREATED: 'Khởi tạo chu kỳ sản xuất.',
     CYCLE_PLANTED: 'Ghi nhận gieo trồng.',
     CARE_RECORDED: 'Ghi nhận hoạt động chăm sóc.',

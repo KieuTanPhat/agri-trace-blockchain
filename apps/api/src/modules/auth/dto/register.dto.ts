@@ -22,7 +22,9 @@ import {
 import { HOSTING_MODES } from '../../enterprise-onboarding/dto.js';
 import { RegistrationEmailProof } from '../../enterprise-onboarding/registration-otp.dto.js';
 import {
+  BUSINESS_ACTIVITIES,
   LEGAL_FORMS,
+  PARTICIPATION_MODELS,
   RegistrationProfileExtension,
 } from '../../enterprise-onboarding/registration-profile.dto.js';
 
@@ -72,14 +74,16 @@ export class EnterpriseRegistrationDetails extends RegistrationProfileExtension 
   @MaxLength(255)
   representative!: string;
   @ApiProperty({
-    enum: ['FARM', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER'],
+    enum: BUSINESS_ACTIVITIES,
     isArray: true,
+    description:
+      'SINGLE participation registers exactly one activity; SUPPLY_CHAIN_ENTERPRISE registers two or more. Each activity is reviewed separately.',
   })
   @IsArray()
   @ArrayUnique()
   @ArrayMinSize(1)
-  @ArrayMaxSize(4)
-  @IsIn(['FARM', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER'], { each: true })
+  @ArrayMaxSize(5)
+  @IsIn(BUSINESS_ACTIVITIES, { each: true })
   activities!: string[];
   @ApiProperty({ required: false, maxLength: 255 })
   @IsOptional()
@@ -162,9 +166,18 @@ export class RegisterDto {
   @IsString()
   @Matches(/^(?:\d{10}(?:-?\d{3})?|\d{12})$/)
   businessId?: string;
-  @ApiProperty({ enum: ['FARM', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER'] })
-  @IsIn(['FARM', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER'])
-  organizationType!: 'FARM' | 'TRANSPORTER' | 'DISTRIBUTOR' | 'RETAILER';
+  @ApiProperty({ enum: BUSINESS_ACTIVITIES })
+  @IsIn(BUSINESS_ACTIVITIES)
+  organizationType!: (typeof BUSINESS_ACTIVITIES)[number];
+  @ApiProperty({
+    enum: PARTICIPATION_MODELS,
+    required: false,
+    description:
+      'Defaults to SINGLE for one activity and SUPPLY_CHAIN_ENTERPRISE for several.',
+  })
+  @IsOptional()
+  @IsIn(PARTICIPATION_MODELS)
+  participationModel?: (typeof PARTICIPATION_MODELS)[number];
   @ApiProperty({
     type: EnterpriseRegistrationDetails,
     description:

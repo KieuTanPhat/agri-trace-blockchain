@@ -47,7 +47,8 @@ export class CycleSummaryDto {
 }
 export class SensorEvidenceDto {
   @ApiProperty({
-    enum: ['FINALIZED', 'NO_DATA', 'LEGACY_UNVERIFIED', 'INTEGRITY_WARNING'],
+    enum: ['FINALIZED', 'NO_DATA', 'LEGACY_UNVERIFIED', 'INTEGRITY_WARNING', 'NOT_APPLICABLE'],
+    description: 'NOT_APPLICABLE for lots created by processing',
   })
   status!: string;
   @ApiProperty() readingCount!: number;
@@ -149,7 +150,39 @@ class CustodianDto {
   role!: string;
   @ApiProperty({ format: 'uuid' }) organizationId!: string;
 }
+export class ProcessingInputSummaryDto {
+  @ApiProperty({ type: String, format: 'uuid', required: false }) lotId?: string;
+  @ApiProperty() lotCode!: string;
+  @ApiProperty() productName!: string;
+  @ApiProperty() quantity!: number;
+  @ApiProperty() unit!: string;
+  @ApiProperty({ enum: ['HARVEST', 'TRANSFORMATION'] }) originType!: string;
+  @ApiProperty() producerName!: string;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' })
+  harvestTime!: string | null;
+}
+export class ProcessingProvenanceDto {
+  @ApiProperty({ type: String, format: 'uuid', required: false }) runId?: string;
+  @ApiProperty() code!: string;
+  @ApiProperty() processType!: string;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' })
+  completedAt!: string | null;
+  @ApiProperty() processorName!: string;
+  @ApiProperty({ type: Number, nullable: true }) inputTotal!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) outputTotal!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) lossTotal!: number | null;
+  @ApiProperty() baseUnit!: string;
+  @ApiProperty({ type: [ProcessingInputSummaryDto] })
+  inputs!: ProcessingInputSummaryDto[];
+}
 class LotBaseDto {
+  @ApiProperty({ enum: ['HARVEST', 'TRANSFORMATION'] }) originType!: string;
+  @ApiProperty({
+    type: ProcessingProvenanceDto,
+    nullable: true,
+    description: 'Inputs consumed by the processing run that created this lot',
+  })
+  processing!: ProcessingProvenanceDto | null;
   @ApiProperty({ format: 'uuid' }) lotId!: string;
   @ApiProperty() lotCode!: string;
   @ApiProperty({ type: String, nullable: true, required: false }) lotName?: string | null;
@@ -159,7 +192,12 @@ class LotBaseDto {
   @ApiProperty() availableQuantity!: number;
   @ApiProperty() unit!: string;
   @ApiProperty({ enum: LotState }) currentState!: string;
-  @ApiProperty({ type: CycleSummaryDto }) productionCycle!: CycleSummaryDto;
+  @ApiProperty({
+    type: CycleSummaryDto,
+    nullable: true,
+    description: 'Null for lots created by processing',
+  })
+  productionCycle!: CycleSummaryDto | null;
   @ApiProperty({ type: OrganizationSummaryDto })
   farmOrg!: OrganizationSummaryDto;
   @ApiProperty({ enum: PROOF_STATUSES }) proofStatus!: string;

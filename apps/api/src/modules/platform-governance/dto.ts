@@ -128,6 +128,11 @@ export const APPROVAL_OPERATIONS = [
   'SYSTEM_ADMIN_CREATE',
   'CONNECTION_APPROVE',
   'ADMIN_PASSWORD_RESET',
+  'CAPABILITY_REQUEST_APPROVE',
+  'PLAN_VERSION_PUBLISH',
+  'INVOICE_CONFIRM_PAYMENT',
+  'SETTING_CHANGE',
+  'QR_BLOCK',
 ] as const;
 export type ApprovalOperation = (typeof APPROVAL_OPERATIONS)[number];
 
@@ -139,7 +144,7 @@ export class ProposeApprovalDto extends ReasonDto {
     type: Object,
     additionalProperties: true,
     description:
-      'Tham số thao tác. CAPABILITY_GRANT {organizationId, code}; CREATE_CHAIN_GRANT {organizationId, userId}; SYSTEM_ADMIN_CREATE {email, fullName, temporaryPassword}; CONNECTION_APPROVE {connectionId, version, note}; ADMIN_PASSWORD_RESET {userId, temporaryPassword}. Mật khẩu tạm không được lưu dạng rõ.',
+      'Tham số thao tác. CAPABILITY_GRANT {organizationId, code}; CREATE_CHAIN_GRANT {organizationId, userId}; SYSTEM_ADMIN_CREATE {email, fullName, temporaryPassword}; CONNECTION_APPROVE {connectionId, version, note}; ADMIN_PASSWORD_RESET {userId, temporaryPassword}; CAPABILITY_REQUEST_APPROVE {requestId, version, note}; PLAN_VERSION_PUBLISH {versionId}; INVOICE_CONFIRM_PAYMENT {invoiceId, version, reference}; SETTING_CHANGE {key, value, version}; QR_BLOCK {lotId, publicMessage}. Mật khẩu tạm không được lưu dạng rõ.',
   })
   @IsObject()
   params!: Record<string, unknown>;

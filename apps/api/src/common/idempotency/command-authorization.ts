@@ -268,7 +268,25 @@ export async function authorizeCommand(
     case 'PLATFORM_APPROVAL_PROPOSE':
     case 'PLATFORM_APPROVAL_DECIDE':
     case 'PLATFORM_APPROVAL_CANCEL':
+    // Billing, organization/QR controls and platform configuration.
+    case 'PLATFORM_BILLING_PLAN_DRAFT':
+    case 'PLATFORM_BILLING_PLAN_PUBLISH':
+    case 'PLATFORM_BILLING_CONFIRM_PAYMENT':
+    case 'PLATFORM_BILLING_VOID_INVOICE':
+    case 'PLATFORM_BILLING_ISSUE_RENEWAL':
+    case 'PLATFORM_QR_BLOCK':
+    case 'PLATFORM_QR_UNBLOCK':
+    case 'PLATFORM_NOTICE_PUBLISH':
+    case 'PLATFORM_NOTICE_WITHDRAW':
+    case 'PLATFORM_SETTING_CHANGE':
+    case 'PLATFORM_REFERENCE_UPSERT':
       requireRole(actor, ['SYSTEM_ADMIN']);
+      break;
+    case 'PLATFORM_TICKET_ASSIGN':
+    case 'PLATFORM_TICKET_REPLY':
+    case 'PLATFORM_TICKET_CLOSE':
+    case 'PLATFORM_REPORT_TRIAGE':
+      requireRole(actor, ['SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER']);
       break;
     case 'PLATFORM_CASE_CREATE':
     case 'PLATFORM_CASE_CLASSIFY':
@@ -294,6 +312,7 @@ export async function authorizeCommand(
         'FARM_STAFF',
         'TRANSPORTER',
         'DISTRIBUTOR',
+        'PROCESSOR',
         'RETAILER',
       ]);
       break;

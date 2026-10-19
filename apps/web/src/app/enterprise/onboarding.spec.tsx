@@ -17,6 +17,9 @@ const EnterpriseAdminPage = () => <PlatformEnrollment id="enrollment" />;
 vi.mock("@/lib/api-client", () => ({ request: vi.fn() }));
 vi.mock("@/lib/auth-store", () => ({ useAuth: vi.fn() }));
 const enrollment: Enrollment = {
+  participationModel: "SINGLE",
+  payingParticipant: true,
+  capabilityRequests: [],
   documents: [],
   id: "enrollment",
   organizationId: "org",

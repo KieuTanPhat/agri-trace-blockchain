@@ -109,6 +109,51 @@ function lotForRole(actor: CommandActor, role: ReadRole): Prisma.LotWhereInput {
   };
 }
 
+/** Lots made by the actor's own processing runs. They have no harvest, so the
+ * role branches above never match them. Delegated members see only runs at
+ * the chains and sites their processing/trace grants name. */
+function processedLots(actor: CommandActor): Prisma.LotWhereInput {
+  const scope = actor.enterpriseScope;
+  const grants = scope?.roleScopes.filter((grant) =>
+    grant.permissions.some((permission) =>
+      ['processing.read', 'processing.write', 'trace.read'].includes(permission),
+    ),
+  );
+  const delegated: Prisma.ProcessingRunWhereInput = scope
+    ? !grants?.length
+      ? { id: NONE }
+      : {
+          OR: grants.map((grant) => ({
+            chainId: { in: grant.chainIds },
+            siteId: { in: grant.siteIds },
+          })),
+        }
+    : {};
+  return {
+    originType: 'TRANSFORMATION',
+    farmOrgId: actor.organizationId!,
+    organization: {
+      status: 'ACTIVE',
+      capabilities: { some: { code: 'PROCESSOR', revokedAt: null } },
+    },
+    processingRun: {
+      is: {
+        organizationId: actor.organizationId!,
+        status: 'COMPLETED',
+        ...delegated,
+        chain: {
+          is: {
+            businessProfile: { is: { state: 'ACTIVE', scopeVersion: 1 } },
+            memberships: {
+              some: { organizationId: actor.organizationId!, status: 'ACTIVE' },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
 function permitted(actor: CommandActor) {
   return Boolean(
     actor.sub && actor.organizationId && actor.role !== 'SYSTEM_ADMIN',
@@ -121,7 +166,7 @@ function permitted(actor: CommandActor) {
 export function scopedLotReadWhere(actor: CommandActor): Prisma.LotWhereInput {
   if (!permitted(actor)) return { id: NONE };
   return {
-    OR: READ_ROLES.map((role) => lotForRole(actor, role)),
+    OR: [...READ_ROLES.map((role) => lotForRole(actor, role)), processedLots(actor)],
   };
 }
 

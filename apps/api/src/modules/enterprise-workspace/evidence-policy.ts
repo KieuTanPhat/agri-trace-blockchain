@@ -1,3 +1,4 @@
+import { LOT_ORIGIN_INCLUDE, lotChainId, lotSiteId } from '../lots/lot-origin.js';
 import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
@@ -32,20 +33,20 @@ export async function evidenceSubject(tx: Prisma.TransactionClient, actor: Comma
      const cycle = await tx.productionCycle.findFirst({where:{id:entityId,farmOrgId:actor.organizationId!}}); if (!cycle) throw new NotFoundException(); chainId=cycle.chainId; farmScopeId=cycle.farmId;
    }
  } else if (entityType === 'LOT') {
-   const lot = await tx.lot.findUnique({where:{id:entityId},include:{harvest:{include:{cycle:true}}}}); if (!lot) throw new NotFoundException(); chainId=lot.harvest.cycle.chainId;
+   const lot = await tx.lot.findUnique({where:{id:entityId},include: LOT_ORIGIN_INCLUDE}); if (!lot) throw new NotFoundException(); chainId=lotChainId(lot);
    if (requestedSite) {
      if (!await tx.lotSiteHolding.findFirst({where:{lotId:entityId,organizationId:actor.organizationId!,siteId:requestedSite}})) throw new NotFoundException(); siteId=requestedSite;
-   } else if (lot.farmOrgId === actor.organizationId) farmScopeId=lot.harvest.cycle.farmId;
+   } else if (lot.farmOrgId === actor.organizationId) farmScopeId=lotSiteId(lot);
    else if (!auth.primary || !await tx.lotHolding.findUnique({where:{lotId_organizationId:{lotId:entityId,organizationId:actor.organizationId!}}})) throw new NotFoundException();
  } else if (entityType === 'TRANSFER') {
    const t = await tx.distributionTransfer.findFirst({where:{id:entityId,...enterpriseTransferWhere(actor,auth,permission)}}); if (!t) throw new NotFoundException(); chainId=t.chainId; siteId=(t.senderId===actor.organizationId?t.senderSiteId:t.carrierId===actor.organizationId?t.carrierSiteId:t.receiverSiteId)??undefined;
  } else if (entityType === 'SITE_TRANSFER') {
    const slip = await tx.siteTransfer.findFirst({where:own}); if (!slip) throw new NotFoundException();
-   const lot = await tx.lot.findUnique({where:{id:slip.lotId},include:{harvest:{include:{cycle:true}}}}); chainId=lot?.harvest.cycle.chainId;
+   const lot = await tx.lot.findUnique({where:{id:slip.lotId},include: LOT_ORIGIN_INCLUDE}); chainId=(lot ? lotChainId(lot) : undefined);
    siteId = requestedSite && [slip.fromSiteId,slip.toSiteId].includes(requestedSite) ? requestedSite : slip.fromSiteId;
  } else if (entityType === 'QUARANTINE') {
    const slip = await tx.quarantineCase.findFirst({where:own}); if (!slip) throw new NotFoundException();
-   const lot = await tx.lot.findUnique({where:{id:slip.lotId},include:{harvest:{include:{cycle:true}}}}); chainId=lot?.harvest.cycle.chainId; siteId=slip.siteId;
+   const lot = await tx.lot.findUnique({where:{id:slip.lotId},include: LOT_ORIGIN_INCLUDE}); chainId=(lot ? lotChainId(lot) : undefined); siteId=slip.siteId;
  } else throw new UnprocessableEntityException('Loại chứng cứ không được hỗ trợ');
  await enterpriseAuthority(tx,actor,permission,entityType==='CHAIN'?undefined:chainId,farmScopeId ?? siteId);
  return {chainId,siteId};

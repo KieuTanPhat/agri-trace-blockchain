@@ -32,6 +32,7 @@ vi.mock("@/lib/api-client", () => ({
   getLots: vi.fn(),
   listPendingCommands: vi.fn().mockResolvedValue([]),
   retryPendingCommand: vi.fn(),
+  request: vi.fn().mockResolvedValue({ items: [] }),
 }));
 vi.mock("next/navigation", () => ({
   usePathname: () => location.pathname,
@@ -62,7 +63,7 @@ it("shows only platform functions for the system administrator", async () => {
   await act(async () => {});
   expect(screen.getByText("Platform workspace")).toBeInTheDocument();
   expect(
-    screen.getAllByRole("link", { name: /^Xét duyệt doanh nghiệp$/ }).length,
+    screen.getAllByRole("link", { name: /^Duyệt hồ sơ doanh nghiệp$/ }).length,
   ).toBeGreaterThan(0);
   expect(screen.queryByRole("link", { name: /^Vụ trồng$/ })).toBeNull();
   expect(

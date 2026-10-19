@@ -6,6 +6,7 @@ const stateLabels: Record<string, string> = {
   GROWING: "Đang sinh trưởng",
   COMPLETED: "Đã kết thúc vụ",
   HARVESTED: "Đã thu hoạch",
+  CONSUMED: "Đã dùng hết cho chế biến",
   IN_TRANSPORT: "Đang vận chuyển",
   ARRIVED: "Đã đến điểm nhận",
   RETAIL_RECEIVED: "Cửa hàng đã nhận",
@@ -27,6 +28,7 @@ const eventLabels: Record<string, string> = {
   CYCLE_PLANTED: "Ghi nhận gieo trồng",
   CYCLE_COMPLETED: "Kết thúc vụ trồng",
   CYCLE_CANCELLED: "Hủy vụ trồng",
+  DISTRIBUTION_QUANTITY_RECORDED: "Ghi nhận số lượng / chế biến",
   SENSOR_READING_RECORDED: "Ghi nhận cảm biến",
   SENSOR_DIGEST_CREATED: "Tổng hợp dữ liệu cảm biến",
   SENSOR_DIGEST_FINALIZED: "Chốt dữ liệu cảm biến cuối kỳ",
@@ -60,6 +62,7 @@ const eventLabels: Record<string, string> = {
 
 const roleLabels: Record<Role, string> = {
   DISTRIBUTOR: "Nhà phân phối",
+  PROCESSOR: "Nhà chế biến",
   SYSTEM_ADMIN: "Quản trị hệ thống",
   PLATFORM_OPERATOR: "Vận hành nền tảng",
   PLATFORM_CASE_MANAGER: "Điều phối sự cố",
@@ -80,7 +83,10 @@ const proofLabels: Record<ProofStatus, string> = {
   BLOCKCHAIN_UNAVAILABLE: "Không truy vấn được blockchain",
 };
 
-export function labelForState(state: string) {
+export function labelForState(state: string, originType?: string) {
+  // A processed lot starts in the same initial state as a harvested one.
+  if (state === "HARVESTED" && originType === "TRANSFORMATION")
+    return "Mới chế biến";
   return stateLabels[state] ?? state;
 }
 

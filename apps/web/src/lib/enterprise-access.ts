@@ -51,7 +51,20 @@ export function canUseEnterpriseRoute(
   if (within("/enterprise/help")) return has("profile.read");
   if (within("/enterprise/ownership")) return has("profile.read");
   if (within("/enterprise/notices"))
-    return access.capabilities.includes("FARM") && has("distribution.write");
+    return (
+      (access.capabilities.includes("FARM") ||
+        access.capabilities.includes("PROCESSOR")) &&
+      has("distribution.write")
+    );
+  if (within("/enterprise/processing/conversions"))
+    return access.capabilities.includes("PROCESSOR") && has("catalog.read");
+  if (within("/enterprise/processing"))
+    return (
+      access.capabilities.includes("PROCESSOR") &&
+      has(path.endsWith("/new") ? "processing.write" : "processing.read")
+    );
+  if (within("/enterprise/billing")) return access.primary || access.owner;
+  if (within("/enterprise/support")) return has("profile.read");
   if (within("/enterprise/reports/adjust")) return has("quantity.adjust");
   if (within("/enterprise/reports")) return has("reports.read");
   if (within("/enterprise/signing")) return has("distribution.sign");

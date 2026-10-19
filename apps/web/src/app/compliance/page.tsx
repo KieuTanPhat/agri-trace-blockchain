@@ -116,10 +116,10 @@ function ComplianceWorkbench({
   const writeIds = new Set(writeCycles.map((cycle) => cycle.id));
   const reviewIds = new Set(reviewCycles.map((cycle) => cycle.id));
   const writeLots = lots.filter((lot) =>
-    writeIds.has(lot.productionCycle.cycleId),
+    writeIds.has(lot.productionCycle?.cycleId ?? ""),
   );
   const reviewLots = lots.filter((lot) =>
-    reviewIds.has(lot.productionCycle.cycleId),
+    reviewIds.has(lot.productionCycle?.cycleId ?? ""),
   );
   const writeLotIds = new Set(writeLots.map((lot) => lot.lotId));
   const reviewLotIds = new Set(reviewLots.map((lot) => lot.lotId));

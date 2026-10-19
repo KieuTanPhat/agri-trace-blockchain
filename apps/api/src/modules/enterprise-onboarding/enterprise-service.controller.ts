@@ -20,10 +20,13 @@ import {
 } from './service-order.dto.js';
 import { VIETNAM_ADDRESSES } from './address-catalog.js';
 import { serviceCatalog } from './service-catalog.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { catalogDigest, publishedCatalog } from '../billing/billing-core.js';
 
 @ApiTags('reference-data')
 @Controller('reference-data')
 export class EnterpriseReferenceController {
+  constructor(private readonly db: PrismaService) {}
   @Get('addresses')
   @ApiDataResponse(AddressProvinceView, 200, true)
   addresses() {
@@ -31,8 +34,9 @@ export class EnterpriseReferenceController {
   }
   @Get('service-plans')
   @ApiDataResponse(ServiceCatalogView)
-  plans() {
-    return serviceCatalog();
+  async plans() {
+    const plans = await publishedCatalog(this.db);
+    return serviceCatalog(plans, catalogDigest(plans));
   }
 }
 @ApiTags('enterprise-service')

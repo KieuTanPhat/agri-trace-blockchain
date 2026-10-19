@@ -1,183 +1,185 @@
 "use client";
 
 import Link from "next/link";
-import type { Enrollment } from "@/lib/enterprise-onboarding";
-import type { components } from "@/lib/generated/api";
 import { useWorkspaceData } from "@/lib/workspace";
 import {
-  EmptyState,
+  BarList,
+  DataTable,
   LoadState,
+  ManagePage,
+  Metrics,
   OverviewChart,
   PageHeader,
   ReloadButton,
-  StatusBadge,
+  Section,
 } from "@/components/manage";
+import {
+  capabilityLabels,
+  dateTime,
+  inboxKindLabels,
+  label,
+  money,
+  participationLabels,
+  shortDate,
+  type RecordOf,
+  type Row,
+} from "@/lib/platform-admin";
 
-export default function AdminPage() {
-  const state = useWorkspaceData<Enrollment[]>("/enterprise-enrollments");
-  const operations = useWorkspaceData<components["schemas"]["AdminSummaryDto"]>(
-    "/platform-operations/admin-summary",
-  );
-  const all = state.data ?? [];
-  const pending = all
-    .filter((entry) => entry.status === "PENDING_REVIEW")
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const queueItems = operations.data && state.data ? [
-    { label: "Hồ sơ doanh nghiệp", value: pending.length },
-    { label: "Phê duyệt hai bước", value: operations.data.pendingApprovals },
-    { label: "Hồ sơ sự cố", value: operations.data.openCases },
-    { label: "Yêu cầu quyền dữ liệu", value: operations.data.privacyRequests },
-  ] : null;
+type Dashboard = {
+  generatedAt: string;
+  organizations: Record<string, Record<string, number>>;
+  pending: Record<string, number>;
+  billing: {
+    active: number;
+    grace: number;
+    restricted: number;
+    expiringSoon: Row[];
+    monthRevenue: number;
+    monthSimulated: number;
+    outstanding: number;
+  };
+  traceability: Record<string, number>;
+  ledger: {
+    outbox: Record<string, number>;
+    proofs: Record<string, number>;
+    unresolvedHolds: number;
+    lastConfirmedAt: string | null;
+  };
+  security: { lockedAccounts: number; adminsWithoutMfa: number; admins: number };
+  recentActivity: Row[];
+  notices: Row[];
+};
+
+/** Platform dashboard: what waits on administrators, how the network and the
+ * business are doing, and the latest audited activity. */
+export default function AdminDashboardPage() {
+  const state = useWorkspaceData<RecordOf<Dashboard>>("/platform-admin/dashboard");
+  const d = state.data?.record;
+  const pendingItems = d
+    ? Object.entries(d.pending)
+        .filter(([key, value]) => key !== "total" && key !== "overdue" && value > 0)
+        .map(([key, value]) => ({ label: label(inboxKindLabels, key), value }))
+    : [];
   return (
-    <div className="manage-console">
+    <ManagePage>
       <PageHeader
-        title="Tổng quan nền tảng"
-        description="Theo dõi công việc cần xử lý và tình trạng quản trị AgriTrace."
-        action={{ href: "/admin/enterprises", label: "Mở danh sách hồ sơ" }}
+        title="Dashboard hệ thống"
+        description="Tình trạng nền tảng, công việc chờ xử lý và hoạt động gần đây. Quản trị chỉ điều phối; mọi ghi nghiệp vụ lô, giao nhận thuộc doanh nghiệp."
+        actions={<ReloadButton onClick={state.reload} />}
       />
-      <LoadState {...state} />
-      <LoadState loading={false} error={operations.error} />
-      <div className="manage-metrics" aria-label="Công việc vận hành cần xử lý">
-        {[
-          {
-            label: "Hồ sơ chờ duyệt",
-            value: state.loading ? undefined : pending.length,
-            href: "/admin/enterprises",
-          },
-          {
-            label: "Phê duyệt hai bước",
-            value: operations.data?.pendingApprovals,
-            href: "/admin/approvals",
-          },
-          {
-            label: "Hồ sơ sự cố đang mở",
-            value: operations.data?.openCases,
-            href: "/admin/cases",
-          },
-          {
-            label: "Yêu cầu quyền dữ liệu",
-            value: operations.data?.privacyRequests,
-            href: "/admin/privacy",
-          },
-        ].map((metric) => (
-          <Link className="manage-metric" key={metric.label} href={metric.href}>
-            <span>{metric.label}</span>
-            <strong>{metric.value ?? "—"}</strong>
-            <small>Mở hàng đợi xử lý</small>
-          </Link>
-        ))}
-      </div>
-      {queueItems && <OverviewChart title="Công việc đang chờ" description="Số lượng hiện tại theo từng hàng đợi" items={queueItems} />}
-      <section className="manage-section" aria-labelledby="admin-queue-title">
-        <div className="manage-section-heading">
-          <div>
-            <p className="manage-overline">Ưu tiên xử lý</p>
-            <h2 id="admin-queue-title">Hồ sơ chờ duyệt</h2>
-            <p>Xem thông tin pháp lý trước khi đưa ra quyết định.</p>
+      <LoadState loading={state.loading} error={state.error} />
+      {d && (
+        <>
+          <Metrics
+            label="Công việc cần xử lý"
+            items={[
+              { label: "Việc chờ xử lý", value: d.pending.total, href: "/admin/inbox", hint: `${d.pending.overdue} việc quá hạn` },
+              { label: "Hồ sơ đăng ký", value: d.pending.ENROLLMENT, href: "/admin/enterprises" },
+              { label: "Năng lực chờ duyệt", value: d.pending.CAPABILITY, href: "/admin/inbox" },
+              { label: "Báo cáo vi phạm mới", value: d.pending.CONSUMER_REPORT, href: "/admin/reports" },
+              { label: "Yêu cầu hỗ trợ mở", value: d.pending.TICKET, href: "/admin/support" },
+              { label: "Phê duyệt hai bước", value: d.pending.APPROVAL, href: "/admin/approvals" },
+            ]}
+          />
+          {pendingItems.length > 0 && (
+            <OverviewChart title="Hàng đợi" description="Số việc hiện tại theo loại" items={pendingItems} />
+          )}
+          <div className="admin-grid-2">
+            <Section title="Doanh nghiệp tham gia" help="Theo năng lực đã được cấp">
+              <BarList
+                label="Tổ chức theo năng lực"
+                rows={Object.entries(d.organizations.capabilities ?? {}).map(([code, value]) => ({ label: label(capabilityLabels, code), value }))}
+              />
+              <p className="muted">
+                {Object.entries(d.organizations.byModel ?? {})
+                  .map(([model, n]) => `${label(participationLabels, model)}: ${n}`)
+                  .join(" · ")}
+                {" · "}Ngừng hoạt động: {d.organizations.byStatus?.INACTIVE ?? 0}
+              </p>
+              <Link className="manage-section-footer" href="/admin/directory">Danh sách doanh nghiệp</Link>
+            </Section>
+            <Section title="Dịch vụ & doanh thu tháng này">
+              <Metrics
+                label="Gói dịch vụ"
+                items={[
+                  { label: "Gói hiệu lực", value: d.billing.active, href: "/admin/billing/subscriptions" },
+                  { label: "Ân hạn / hạn chế", value: `${d.billing.grace} / ${d.billing.restricted}`, href: "/admin/billing/subscriptions" },
+                  { label: "Doanh thu thật", value: money(d.billing.monthRevenue), href: "/admin/billing/revenue" },
+                  { label: "Công nợ", value: money(d.billing.outstanding), href: "/admin/billing/invoices" },
+                ]}
+              />
+              {d.billing.monthSimulated > 0 && (
+                <p className="muted">Thanh toán mô phỏng tháng này: {money(d.billing.monthSimulated)} (không phải tiền thật).</p>
+              )}
+              {d.billing.expiringSoon.length > 0 && (
+                <DataTable
+                  label="Gói sắp hết hạn"
+                  rows={d.billing.expiringSoon}
+                  rowKey={(r) => String(r.organizationId)}
+                  columns={[
+                    { header: "Doanh nghiệp", cell: (r) => <Link href={`/admin/directory/${r.organizationId}`}>{String(r.organizationName)}</Link> },
+                    { header: "Gói", cell: (r) => String(r.planName) },
+                    { header: "Hết hạn", cell: (r) => shortDate(r.endsAt) },
+                  ]}
+                />
+              )}
+            </Section>
           </div>
-          <ReloadButton onClick={state.reload} />
-        </div>
-        {!state.loading &&
-          !state.error &&
-          (pending.length ? (
-            <div className="manage-table-scroll">
-              <table className="manage-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Doanh nghiệp</th>
-                    <th scope="col">Mã số</th>
-                    <th scope="col">Ngày gửi</th>
-                    <th scope="col">Trạng thái</th>
-                    <th scope="col">
-                      <span className="sr-only">Thao tác</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pending.slice(0, 5).map((entry) => (
-                    <tr key={entry.id}>
-                      <td data-label="Doanh nghiệp">
-                        <strong>{entry.organizationName}</strong>
-                        <small>{entry.representativeEmail}</small>
-                      </td>
-                      <td data-label="Mã số">{entry.businessId}</td>
-                      <td data-label="Ngày gửi">
-                        {new Intl.DateTimeFormat("vi-VN", {
-                          timeZone: "Asia/Ho_Chi_Minh",
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        }).format(new Date(entry.createdAt))}
-                      </td>
-                      <td data-label="Trạng thái">
-                        <StatusBadge value={entry.status} />
-                      </td>
-                      <td data-label="Thao tác">
-                        <Link
-                          className="manage-row-link"
-                          href={`/admin/enterprises/${entry.id}`}
-                        >
-                          Xem hồ sơ
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <EmptyState
-              title="Không có hồ sơ chờ duyệt"
-              description="Hồ sơ mới sẽ xuất hiện tại đây khi doanh nghiệp hoàn tất đăng ký."
+          <div className="admin-grid-2">
+            <Section title="Truy xuất nguồn gốc">
+              <Metrics
+                label="Truy xuất"
+                items={[
+                  { label: "Tổng số lô", value: d.traceability.lots, href: "/admin/lots" },
+                  { label: "Lô thành phẩm chế biến", value: d.traceability.processedLots },
+                  { label: "Lệnh chế biến 30 ngày", value: d.traceability.processingRuns30Days },
+                  { label: "Lượt quét QR 7 ngày", value: d.traceability.scans7Days, href: "/admin/qr" },
+                  { label: "QR đang khóa", value: d.traceability.blockedQr, href: "/admin/qr" },
+                ]}
+              />
+            </Section>
+            <Section title="Blockchain & bảo mật">
+              <Metrics
+                label="Blockchain"
+                items={[
+                  { label: "Outbox chờ/thử lại", value: (d.ledger.outbox.PENDING ?? 0) + (d.ledger.outbox.RETRY ?? 0), href: "/admin/ledger" },
+                  { label: "Lỗi vĩnh viễn", value: d.ledger.outbox.DEAD_LETTER ?? 0, href: "/admin/operations" },
+                  { label: "Hold chưa xử lý", value: d.ledger.unresolvedHolds, href: "/admin/operations" },
+                  { label: "Admin chưa bật MFA", value: `${d.security.adminsWithoutMfa}/${d.security.admins}`, href: "/admin/security-alerts" },
+                ]}
+              />
+              <p className="muted">Bằng chứng xác nhận gần nhất: {dateTime(d.ledger.lastConfirmedAt)}</p>
+            </Section>
+          </div>
+          {d.notices.length > 0 && (
+            <Section title="Thông báo đang hiển thị">
+              <ul>
+                {d.notices.map((n) => (
+                  <li key={String(n.id)}>
+                    <strong>{String(n.title)}</strong> — đến {dateTime(n.endsAt)}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
+          <Section title="Hoạt động gần đây" actions={<Link className="button secondary" href="/admin/audit-log">Nhật ký đầy đủ</Link>}>
+            <DataTable
+              label="Hoạt động gần đây"
+              rows={d.recentActivity}
+              rowKey={(r) => String(r.sequence)}
+              empty={{ title: "Chưa có hoạt động", description: "Các thao tác quản trị sẽ được ghi tại đây." }}
+              columns={[
+                { header: "Thời điểm", cell: (r) => dateTime(r.occurredAt) },
+                { header: "Hành động", cell: (r) => String(r.action) },
+                { header: "Vai trò", cell: (r) => String(r.actorRole) },
+                { header: "Đối tượng", cell: (r) => String(r.subjectType) },
+                { header: "Kết quả", cell: (r) => String(r.outcome) },
+              ]}
             />
-          ))}
-        {pending.length > 5 && (
-          <Link className="manage-section-footer" href="/admin/enterprises">
-            Xem toàn bộ {pending.length} hồ sơ chờ duyệt{" "}
-
-          </Link>
-        )}
-      </section>
-      <section className="manage-section" aria-labelledby="admin-tools-title">
-        <div className="manage-section-heading">
-          <div>
-            <p className="manage-overline">Quản trị nền tảng</p>
-            <h2 id="admin-tools-title">Công việc khác</h2>
-          </div>
-        </div>
-        <div className="manage-tool-grid">
-          {[
-            {
-              href: "/admin/enterprises",
-              title: "Sản phẩm doanh nghiệp",
-              description: "Mở hồ sơ doanh nghiệp, chọn tab Sản phẩm.",
-            },
-            {
-              href: "/admin/organizations",
-              title: "Tổ chức tham gia",
-              description: "Tra cứu doanh nghiệp và quản lý tổ chức kiểm định.",
-            },
-            {
-              href: "/admin/users",
-              title: "Tài khoản nền tảng",
-              description: "Quản trị viên nội bộ và người kiểm định độc lập.",
-            },
-            {
-              href: "/admin/inspectors",
-              title: "Kiểm định viên",
-              description: "Gán người kiểm định theo nông trại và xem lịch sử.",
-            },
-          ].map(({ href, title, description }) => (
-            <Link className="manage-tool" href={href} key={href}>
-              <strong>{title}</strong>
-              <span>{description}</span>
-              <span className="manage-tool-open">
-                Mở chức năng
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-    </div>
+          </Section>
+          <p className="muted">Cập nhật lúc {dateTime(d.generatedAt)}</p>
+        </>
+      )}
+    </ManagePage>
   );
 }

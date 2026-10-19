@@ -1,3 +1,4 @@
+import { harvestOf } from '../lots/lot-origin.js';
 import {
   assertBusinessActor,
   FARM_WRITE_ROLES,
@@ -345,10 +346,11 @@ export class ComplianceService {
         },
       });
       if (!lot) throw new NotFoundException('Không tìm thấy lô');
+      const harvest = harvestOf(lot);
       return {
         farmOrgId: lot.farmOrgId,
-        farmId: lot.harvest.cycle.farmId,
-        cycleId: lot.harvest.cycle.id,
+        farmId: harvest.cycle.farmId,
+        cycleId: harvest.cycle.id,
       };
     }
     const cycle = await db.productionCycle.findUnique({

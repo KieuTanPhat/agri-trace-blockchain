@@ -30,76 +30,89 @@ export const navigationGroups: NavGroup[] = [
     title: "Tổng quan",
     area: "platform",
     items: [
-      {
-        href: "/admin",
-        label: "Tổng quan quản trị",
-        mobile: true,
-      },
+      { href: "/admin", label: "Dashboard hệ thống", mobile: true },
+      { href: "/admin/inbox", label: "Hồ sơ chờ xử lý", mobile: true },
+      { href: "/admin/notices", label: "Thông báo hệ thống" },
     ],
   },
   {
-    title: "Doanh nghiệp & tổ chức",
+    title: "Doanh nghiệp",
     area: "platform",
     items: [
-      {
-        href: "/admin/enterprises",
-        label: "Xét duyệt doanh nghiệp",
-        mobile: true,
-      },
-      {
-        href: "/admin/enterprises/amendments",
-        label: "Điều chỉnh hồ sơ",
-      },
-      { href: "/admin/organizations", label: "Tổ chức" },
+      { href: "/admin/directory", label: "Danh sách doanh nghiệp" },
+      { href: "/admin/enterprises", label: "Duyệt hồ sơ doanh nghiệp", mobile: true },
+      { href: "/admin/enterprises/amendments", label: "Điều chỉnh hồ sơ" },
+      { href: "/admin/organizations", label: "Trạng thái & liên kết tổ chức" },
       { href: "/admin/inspectors", label: "Kiểm định viên" },
-      {
-        href: "/admin/products",
-        label: "Sản phẩm doanh nghiệp",
-        hidden: true,
-      },
-      {
-        href: "/admin/compliance-assignments",
-        label: "Phân công kiểm định",
-        hidden: true,
-      },
+      { href: "/admin/products", label: "Sản phẩm doanh nghiệp", hidden: true },
+      { href: "/admin/compliance-assignments", label: "Phân công kiểm định", hidden: true },
     ],
   },
   {
-    title: "Tài khoản & phê duyệt",
+    title: "Tài khoản & phân quyền",
     area: "platform",
     items: [
-      { href: "/admin/users", label: "Tài khoản hệ thống" },
-      {
-        href: "/admin/approvals",
-        label: "Phê duyệt hai bước",
-      },
+      { href: "/admin/users", label: "Quản lý tài khoản" },
+      { href: "/admin/roles", label: "Vai trò & phân quyền" },
+      { href: "/admin/approvals", label: "Phê duyệt hai bước" },
+      { href: "/admin/audit-log", label: "Nhật ký hoạt động", mobile: true },
     ],
   },
   {
-    title: "Giám sát & tuân thủ",
+    title: "Truy xuất nguồn gốc",
     area: "platform",
     items: [
-      {
-        href: "/admin/operations",
-        label: "Vận hành hệ thống",
-        mobile: true,
-      },
-      {
-        href: "/admin/audit-log",
-        label: "Nhật ký kiểm toán",
-        mobile: true,
-      },
-      {
-        href: "/admin/cases",
-        label: "Sự cố và khiếu nại",
-        mobile: true,
-      },
+      { href: "/admin/chains", label: "Giám sát chuỗi truy xuất" },
+      { href: "/admin/qr", label: "Quản lý mã QR" },
+      { href: "/admin/lots", label: "Tra cứu lô & sản phẩm" },
+      { href: "/admin/trace-report", label: "Báo cáo dữ liệu truy xuất" },
       { href: "/admin/recall", label: "Diễn tập thu hồi" },
-      {
-        href: "/admin/privacy",
-        label: "Bảo vệ dữ liệu cá nhân",
-        mobile: true,
-      },
+    ],
+  },
+  {
+    title: "Blockchain",
+    area: "platform",
+    items: [
+      { href: "/admin/ledger", label: "Mạng & giao dịch blockchain" },
+      { href: "/admin/operations", label: "Lỗi đồng bộ & vận hành" },
+    ],
+  },
+  {
+    title: "Dịch vụ & thanh toán",
+    area: "platform",
+    items: [
+      { href: "/admin/billing", label: "Gói dịch vụ & bảng giá" },
+      { href: "/admin/billing/subscriptions", label: "Đăng ký & gia hạn" },
+      { href: "/admin/billing/invoices", label: "Hóa đơn & thanh toán" },
+    ],
+  },
+  {
+    title: "Kiểm duyệt & hỗ trợ",
+    area: "platform",
+    items: [
+      { href: "/admin/reports", label: "Báo cáo vi phạm" },
+      { href: "/admin/support", label: "Yêu cầu hỗ trợ" },
+      { href: "/admin/cases", label: "Khiếu nại & tranh chấp", mobile: true },
+      { href: "/admin/privacy", label: "Bảo vệ dữ liệu cá nhân" },
+    ],
+  },
+  {
+    title: "Báo cáo & giám sát",
+    area: "platform",
+    items: [
+      { href: "/admin/statistics", label: "Thống kê nền tảng" },
+      { href: "/admin/billing/revenue", label: "Báo cáo doanh thu" },
+      { href: "/admin/monitoring", label: "Giám sát API & dịch vụ" },
+      { href: "/admin/security-alerts", label: "Cảnh báo bảo mật" },
+    ],
+  },
+  {
+    title: "Cấu hình hệ thống",
+    area: "platform",
+    items: [
+      { href: "/admin/reference-data", label: "Danh mục dùng chung" },
+      { href: "/admin/settings", label: "Cấu hình nền tảng & thông báo" },
+      { href: "/admin/backup", label: "Sao lưu & khôi phục" },
     ],
   },
   {
@@ -118,6 +131,7 @@ export const navigationGroups: NavGroup[] = [
       { href: "/enterprise/members", label: "Quản lý thành viên" },
       { href: "/enterprise/roles", label: "Quản lý phân quyền" },
       { href: "/enterprise/messages", label: "Quản lý thông báo" },
+      { href: "/enterprise/support", label: "Hỗ trợ từ AgriTrace" },
     ],
   },
   {
@@ -140,6 +154,7 @@ export const navigationGroups: NavGroup[] = [
       { href: "/enterprise/areas", label: "Quản lý vùng sản xuất" },
       { href: "/enterprise/materials", label: "Quản lý giống & vật tư" },
       { href: "/lots", label: "Quản lý lô nông sản", mobile: true },
+      { href: "/enterprise/processing", label: "Lệnh chế biến" },
       { href: "/iot-simulator", label: "Cảm biến IoT" },
       { href: "/enterprise/qr", label: "Tem truy xuất QR" },
     ],
@@ -171,6 +186,7 @@ export const navigationGroups: NavGroup[] = [
     items: [
       { href: "/enterprise/onboarding", label: "Hồ sơ xét duyệt" },
       { href: "/enterprise/service", label: "Dịch vụ & hợp đồng" },
+      { href: "/enterprise/billing", label: "Gói dịch vụ & hóa đơn" },
       { href: "/enterprise/settings", label: "Cài đặt" },
     ],
   },

@@ -95,8 +95,19 @@ export class PlatformRecallService {
             truncated = true;
             break;
           }
+          // Descendants are split lots and lots made from these inputs by processing.
           const children = await tx.lot.findMany({
-            where: { parentLotId: { in: frontier } },
+            where: {
+              OR: [
+                { parentLotId: { in: frontier } },
+                {
+                  processingRun: {
+                    status: 'COMPLETED',
+                    inputs: { some: { lotId: { in: frontier } } },
+                  },
+                },
+              ],
+            },
             select,
             orderBy: { id: 'asc' },
             take: LIMIT - lots.length + 1,

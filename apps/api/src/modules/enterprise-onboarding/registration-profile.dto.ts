@@ -28,6 +28,32 @@ export const LEGAL_FORMS = [
   'PRODUCER_HOUSEHOLD',
   'INDIVIDUAL_PRODUCER',
 ] as const;
+export const BUSINESS_ACTIVITIES = [
+  'FARM',
+  'TRANSPORTER',
+  'PROCESSOR',
+  'DISTRIBUTOR',
+  'RETAILER',
+] as const;
+export const PARTICIPATION_MODELS = [
+  'SINGLE',
+  'SUPPLY_CHAIN_ENTERPRISE',
+] as const;
+/** Participation models that buy a service plan and may own supply chains. */
+export const payingParticipant = (
+  model: string,
+  activities: readonly string[],
+) => model === 'SUPPLY_CHAIN_ENTERPRISE' || activities.includes('FARM');
+export const PROCESSING_TYPES = [
+  'PRELIMINARY',
+  'PACKING',
+  'DRYING',
+  'FREEZING',
+  'MILLING',
+  'JUICE_EXTRACT',
+  'FERMENTING',
+  'OTHER',
+] as const;
 export const REGISTERED_FORMS = [
   'ENTERPRISE',
   'COOPERATIVE',
@@ -79,6 +105,42 @@ export class RegistrationProductionDetails {
   @IsIn(['VIETGAP', 'GLOBALGAP', 'ORGANIC', 'OTHER'], { each: true })
   certifications!: string[];
 }
+/** Required when PROCESSOR is registered. The food-safety certificate is
+ * checked by an administrator before the processing capability is approved. */
+export class RegistrationProcessingDetails {
+  @ApiProperty({ enum: PROCESSING_TYPES, isArray: true, maxItems: 8 })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(8)
+  @ArrayUnique()
+  @IsIn(PROCESSING_TYPES, { each: true })
+  processingTypes!: string[];
+  @ApiProperty({ maxLength: 100 })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  foodSafetyCertificateNumber!: string;
+  @ApiProperty({ pattern: '^\\d{4}-\\d{2}-\\d{2}$' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  foodSafetyCertificateExpiry!: string;
+  @ApiPropertyOptional({ maxLength: 100 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  facilityCode?: string;
+  @ApiPropertyOptional({ minimum: 1, maximum: 10000000 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10000000)
+  dailyCapacityKg?: number;
+  @ApiProperty({ type: [String], maxItems: 4 })
+  @IsArray()
+  @ArrayMaxSize(4)
+  @ArrayUnique()
+  @IsIn(['HACCP', 'ISO22000', 'FSSC22000', 'OTHER'], { each: true })
+  certifications!: string[];
+}
 export class RegistrationServicePreferences {
   @ApiProperty({
     type: [String],
@@ -94,9 +156,9 @@ export class RegistrationServicePreferences {
   @ArrayContains(['TRACEABILITY'])
   @IsIn(['TRACEABILITY', 'QR_LABELS'], { each: true })
   interests!: string[];
-  @ApiPropertyOptional({ enum: ['TRACE_5', 'TRACE_10', 'TRACE_20'] })
+  @ApiPropertyOptional({ enum: ['TRACE_5', 'TRACE_10', 'TRACE_20', 'CHAIN_PRO'] })
   @IsOptional()
-  @IsIn(['TRACE_5', 'TRACE_10', 'TRACE_20'])
+  @IsIn(['TRACE_5', 'TRACE_10', 'TRACE_20', 'CHAIN_PRO'])
   planCode?: string;
   @ApiProperty({ enum: ['UP_TO_10', 'UP_TO_100', 'OVER_100', 'UNDECIDED'] })
   @IsIn(['UP_TO_10', 'UP_TO_100', 'OVER_100', 'UNDECIDED'])
@@ -140,6 +202,11 @@ export class RegistrationProfileExtension {
   @ValidateNested()
   @Type(() => RegistrationProductionDetails)
   production?: RegistrationProductionDetails;
+  @ApiPropertyOptional({ type: RegistrationProcessingDetails })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RegistrationProcessingDetails)
+  processing?: RegistrationProcessingDetails;
   @ApiProperty({ type: RegistrationServicePreferences })
   @IsDefined()
   @ValidateNested()

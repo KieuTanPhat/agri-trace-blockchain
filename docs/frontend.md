@@ -254,3 +254,25 @@ giao và ghi chú; trang chi tiết hiển thị các giá trị này trước k
 - Form (`DataForm`, `.workspace-form`, `.enterprise-fields`) rộng theo vùng nội dung (tối đa 1680 px) và chia cột theo bề rộng đó (container query `manage`): một cột khi hẹp, hai cột từ 700 px, nhãn bên trái và ô nhập 60% bên phải từ 1000 px. Ô nhiều dòng, chọn nhiều (bắt đầu thẳng hàng với cột ô nhập bên trái), tiêu đề nhóm `.form-section-title`, thông báo và nút chiếm cả hàng. Trường bắt buộc tự có dấu `*` đỏ theo thuộc tính `required`.
 - `LoadState` hiển thị vòng xoay và khung xương khi chờ tải; tắt chuyển động khi `prefers-reduced-motion`.
 - `ConfirmProvider` (`lib/confirm.tsx`) hỏi xác nhận trước các lệnh làm thay đổi quyền, chữ ký, số lượng hoặc trạng thái (`importantAction`), áp dụng chung trong `DataForm` và `useWorkspaceCommand`. Gửi lại yêu cầu chưa rõ kết quả dùng key cũ và không hỏi lại.
+
+### Khu quản trị 9 nhóm, chế biến và gói dịch vụ (19/10/2026)
+
+- Menu admin trong `lib/management-routes.ts`: Tổng quan (Dashboard, Hồ sơ chờ xử
+  lý, Thông báo), Doanh nghiệp, Tài khoản & phân quyền, Truy xuất nguồn gốc,
+  Blockchain, Dịch vụ & thanh toán, Kiểm duyệt & hỗ trợ, Báo cáo & giám sát, Cấu
+  hình hệ thống. Quyền xem route ở `lib/permissions.ts`; API vẫn tự phân quyền.
+- Widget chung `components/manage/admin-widgets.tsx`: `Metrics`, `BarList`,
+  `ReasonAction` (bắt nhập lý do ≥ 10 ký tự trước thao tác có audit), `Tabs`. Nhãn
+  và định dạng ở `lib/platform-admin.ts`. `useWorkspaceCommand().run` nhận thêm
+  method `PATCH` (đổi trạng thái tổ chức).
+- Hồ sơ đăng ký có khối "Duyệt từng năng lực" (`components/workspace/capability-review.tsx`).
+- Form đăng ký: chọn mô hình tham gia trước khi chọn hoạt động; mô hình một vai
+  trò chỉ giữ một hoạt động; hoạt động Nhà chế biến bắt buộc loại hình chế biến,
+  giấy chứng nhận ATTP còn hạn và file chứng nhận. Gói quan tâm thay đổi theo mô
+  hình; tổ chức tham gia miễn phí không chọn gói.
+- Doanh nghiệp: `/enterprise/processing` (nguyên liệu đang giữ, lệnh, lập lệnh
+  với kiểm cân bằng trực tiếp, hoàn tất/hủy), `/enterprise/billing` (gói, hạn mức,
+  hóa đơn, gia hạn), `/enterprise/support` (yêu cầu hỗ trợ).
+- Trang QR công khai có mục "Sản phẩm được chế biến từ" và form phản ánh
+  (`components/site/consumer-report-form.tsx`). Banner thông báo hệ thống ở
+  `components/shell/system-notices.tsx`, ẩn trong phiên trình duyệt.

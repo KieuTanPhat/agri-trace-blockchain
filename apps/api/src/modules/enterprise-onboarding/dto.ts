@@ -97,7 +97,37 @@ export class EnterpriseConnectionViewDto {
   @ApiPropertyOptional({ type: String, nullable: true }) checkedAt!:
     string | null;
 }
+export class CapabilityRequestViewDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({
+    enum: ['FARM', 'TRANSPORTER', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER', 'AUDITOR'],
+  })
+  code!: string;
+  @ApiProperty({ enum: ['PENDING', 'APPROVED', 'REJECTED', 'WITHDRAWN'] })
+  status!: string;
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: true,
+    description: 'Production or processing details submitted for this capability',
+  })
+  details!: Record<string, unknown>;
+  @ApiProperty({ type: [String], format: 'uuid' }) evidenceIds!: string[];
+  @ApiProperty({ type: String, nullable: true }) reviewNote!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  reviewedAt!: string | null;
+  @ApiProperty() version!: number;
+  @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
+}
 export class EnterpriseEnrollmentViewDto {
+  @ApiProperty({ enum: ['SINGLE', 'SUPPLY_CHAIN_ENTERPRISE'] })
+  participationModel!: string;
+  @ApiProperty({
+    description:
+      'True for producers/cooperatives and supply-chain enterprises, which buy a service plan and may own chains',
+  })
+  payingParticipant!: boolean;
+  @ApiProperty({ type: [CapabilityRequestViewDto] })
+  capabilityRequests!: CapabilityRequestViewDto[];
   @ApiProperty({type:String,format:'date-time',nullable:true}) serviceActivatedAt!: string|null;
   @ApiProperty({type:String,nullable:true}) serviceActivationReason!: string|null;
   @ApiProperty({

@@ -26,6 +26,6 @@ const stateTone: Record<string, string> = {
   unavailable: "neutral"
 };
 
-export function StateBadge({ state }: { state: string }) {
-  return <span className={`badge ${stateTone[state] ?? "neutral"}`}>{labelForState(state)}</span>;
+export function StateBadge({ state, originType }: { state: string; originType?: string }) {
+  return <span className={`badge ${stateTone[state] ?? "neutral"}`}>{labelForState(state, originType)}</span>;
 }

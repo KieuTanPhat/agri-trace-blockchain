@@ -1,3 +1,4 @@
+import { assertEntitlement } from '../billing/billing-core.js';
 import { Body, ConflictException, Controller, ForbiddenException, Get, Injectable, NotFoundException, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiHeader, ApiProperty, ApiTags, OmitType } from '@nestjs/swagger';
@@ -70,6 +71,7 @@ export class MemberInvitationsService {
    const auth=await this.workspace.validateDelegation(tx,actor,row.roles as unknown as MemberRoleInput[]);
    await this.workspace.validateMemberProfileReferences(tx,actor,row);
    if(auth.scope!==row.authorityScope || await this.delegationDigest(tx,row.organizationId,row.roles as unknown as MemberRoleInput[])!==row.delegationDigest)throw new ForbiddenException('Quyền, nhóm hoặc phạm vi người mời đã đổi; cần lời mời mới');
+   await assertEntitlement(tx,row.organizationId,'members');
    const user=await tx.user.create({data:{organizationId:row.organizationId,roleId:creator.roleId,fullName:row.fullName,email:row.email,passwordHash,enterpriseTier:row.tier,supervisorId:creator.id,jobTitle:row.jobTitle,phone:row.phone,workSiteId:row.workSiteId,responsibleFarmId:row.responsibleFarmId,contactAddress:row.contactAddress,memberNote:row.memberNote}});
    await this.workspace.assign(tx,actor,user.id,row.roles as unknown as MemberRoleInput[]);
    await tx.enterpriseInvitation.update({where:{id:row.id},data:{status:'ACCEPTED',version:{increment:1},acceptedAt:new Date(),acceptedUserId:user.id,acceptanceRequestId:input.requestId,acceptanceDigest:receiptDigest}});

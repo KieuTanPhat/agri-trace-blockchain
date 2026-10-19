@@ -1,3 +1,4 @@
+import { LOT_ORIGIN_INCLUDE, lotChainId, lotSiteId } from '../lots/lot-origin.js';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import type {
@@ -39,6 +40,8 @@ export const ENTERPRISE_PERMISSIONS = [
   'evidence.manage',
   'materials.read',
   'materials.manage',
+  'processing.read',
+  'processing.write',
 ] as const;
 export type EnterprisePermission = (typeof ENTERPRISE_PERMISSIONS)[number];
 
@@ -326,6 +329,13 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   DIST_RETURN_SIGN: 'distribution.sign',
   EW_REGISTER_DISTRIBUTION_KEY: 'roles.manage',
   EW_REVOKE_DISTRIBUTION_KEY: 'roles.manage',
+  EW_PROCESSING_CREATE: 'processing.write',
+  EW_PROCESSING_COMPLETE: 'processing.write',
+  EW_PROCESSING_CANCEL: 'processing.write',
+  EW_UNIT_CONVERSION_CREATE: 'catalog.manage',
+  EW_UNIT_CONVERSION_REVOKE: 'catalog.manage',
+  EW_TICKET_CREATE: 'profile.read',
+  EW_TICKET_REPLY: 'profile.read',
 };
 export async function authorizeWorkspaceCommand(
   db: Prisma.TransactionClient,
@@ -357,6 +367,18 @@ export async function authorizeWorkspaceCommand(
     throw new ForbiddenException('Phiếu chuyển nằm ngoài doanh nghiệp');
   if (input.operation.startsWith('EW_SITE_TRANSFER_') && input.operation !== 'EW_SITE_TRANSFER_CREATE' && !siteTransfer)
     throw new ForbiddenException('Không tìm thấy phiếu chuyển');
+  const processingRun = ['EW_PROCESSING_COMPLETE', 'EW_PROCESSING_CANCEL'].includes(input.operation)
+    ? await db.processingRun.findUnique({ where: { id: String(data.id) } })
+    : null;
+  if (['EW_PROCESSING_COMPLETE', 'EW_PROCESSING_CANCEL'].includes(input.operation) && processingRun?.organizationId !== input.actor!.organizationId)
+    throw new ForbiddenException('Lệnh chế biến nằm ngoài doanh nghiệp');
+  if (input.operation.startsWith('EW_PROCESSING_')) {
+    // Processing writes are scoped to one chain and one processing site.
+    const chainId = processingRun?.chainId ?? (typeof data.chainId === 'string' ? data.chainId : undefined);
+    const siteId = processingRun?.siteId ?? (typeof data.siteId === 'string' ? data.siteId : undefined);
+    if (!chainId || !siteId) throw new ForbiddenException('Lệnh chế biến cần chuỗi và cơ sở chế biến');
+    return (await enterpriseAuthority(db, input.actor!, permission, chainId, siteId, lock)).scope;
+  }
   let cycleDraftFarmId: string | undefined;
   if (input.operation === 'EW_LINK_CYCLE_DRAFT') {
     const draftId = String(data.id);
@@ -379,7 +401,7 @@ export async function authorizeWorkspaceCommand(
   const lot = lotOperations.includes(input.operation)
     ? await db.lot.findUnique({
         where: { id: String(siteTransfer?.lotId ?? data.lotId) },
-        include: { harvest: { include: { cycle: true } } },
+        include: LOT_ORIGIN_INCLUDE,
       })
     : null;
   if (
@@ -465,11 +487,11 @@ export async function authorizeWorkspaceCommand(
     input.actor!,
     permission,
     transfer?.chainId ??
-      lot?.harvest.cycle.chainId ??
+      (lot ? lotChainId(lot) : undefined) ??
       (typeof data.chainId === 'string' ? data.chainId : undefined),
     siteId ??
       (input.operation === 'EW_TRACE_NOTICE'
-        ? lot?.harvest.cycle.farmId
+        ? (lot ? lotSiteId(lot) : undefined)
         : undefined),
     lock,
   );
@@ -512,11 +534,11 @@ export async function restrictEnterpriseBusiness(
     } else {
       const lot = await db.lot.findUnique({
         where: { id: data.id },
-        include: { harvest: { include: { cycle: true } } },
+        include: LOT_ORIGIN_INCLUDE,
       });
       if (lot) {
-        chainId = lot.harvest.cycle.chainId;
-        siteId = lot.harvest.cycle.farmId;
+        chainId = lotChainId(lot);
+        siteId = lotSiteId(lot);
       }
     }
   }
@@ -524,10 +546,10 @@ export async function restrictEnterpriseBusiness(
   if (typeof data.lotId === 'string') {
     const lot = await db.lot.findUnique({
       where: { id: data.lotId },
-      include: { harvest: { include: { cycle: true } } },
+      include: LOT_ORIGIN_INCLUDE,
     });
-    chainId = lot?.harvest.cycle.chainId;
-    siteId = lot?.harvest.cycle.farmId;
+    chainId = (lot ? lotChainId(lot) : undefined);
+    siteId = (lot ? lotSiteId(lot) : undefined);
   }
   let shipmentId =
     typeof data.shipmentId === 'string' ? data.shipmentId : undefined;
@@ -550,12 +572,12 @@ export async function restrictEnterpriseBusiness(
   if (shipmentId) {
     const shipment = await db.shipment.findUnique({
       where: { id: shipmentId },
-      include: { lot: { include: { harvest: { include: { cycle: true } } } } },
+      include: { lot: { include: LOT_ORIGIN_INCLUDE } },
     });
-    chainId = shipment?.lot.harvest.cycle.chainId;
+    chainId = (shipment ? lotChainId(shipment.lot) : undefined);
     siteId =
       businessRole === 'FARM_STAFF'
-        ? shipment?.lot.harvest.cycle.farmId
+        ? (shipment ? lotSiteId(shipment.lot) : undefined)
         : undefined;
   }
   if (!chainId)

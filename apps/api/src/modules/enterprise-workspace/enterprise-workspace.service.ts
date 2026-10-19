@@ -1,3 +1,4 @@
+import { assertEntitlement } from '../billing/billing-core.js';
 import { assertSiteStaff } from '../catalog/product-refs.js';
 import {
   ConflictException,
@@ -321,6 +322,7 @@ export class EnterpriseWorkspaceService {
       const role = await tx.role.findUniqueOrThrow({
         where: { code: auth.user.roleId ? actor.role : 'RETAILER' },
       });
+      await assertEntitlement(tx, actor.organizationId!, 'members');
       const user = await tx.user.create({
         data: {
           organizationId: actor.organizationId!,

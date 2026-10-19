@@ -37,8 +37,8 @@ describe("management route registry", () => {
     expect(hrefs).not.toContain("/admin/products");
     expect(mobileShortcuts(groups).map((i) => i.href)).toEqual([
       "/admin",
+      "/admin/inbox",
       "/admin/enterprises",
-      "/admin/operations",
       "/admin/audit-log",
     ]);
   });
@@ -48,8 +48,12 @@ describe("management route registry", () => {
       enterpriseUser: false,
     });
     expect(groups.flatMap((g) => g.items.map((i) => i.href))).toEqual([
-      "/admin/cases",
+      "/admin/inbox",
+      "/admin/lots",
       "/admin/recall",
+      "/admin/reports",
+      "/admin/support",
+      "/admin/cases",
     ]);
   });
   it("hides every enterprise route until enterprise access is loaded", () => {

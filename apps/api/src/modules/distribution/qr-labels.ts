@@ -1,3 +1,5 @@
+import { LOT_ORIGIN_INCLUDE, lotChainId } from '../lots/lot-origin.js';
+import { assertEntitlement } from '../billing/billing-core.js';
 import { Body, ConflictException, Controller, ForbiddenException, Get, Injectable, NotFoundException, Param, ParseUUIDPipe, Post, Req, UnprocessableEntityException, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
@@ -25,22 +27,24 @@ export class LabelPrintInput {
 export class QrLabelsService {
  constructor(private readonly db:PrismaService){}
  print(actor:CommandActor,input:LabelPrintInput){return commandTransaction(this.db,async tx=>{
-  const lot=await tx.lot.findUnique({where:{id:input.lotId},include:{product:true,organization:{select:{name:true}},harvest:{include:{cycle:true}},traceQr:true}});
+  const lot=await tx.lot.findUnique({where:{id:input.lotId},include:{product:true,organization:{select:{name:true}},harvest:{include:{cycle:true}},processingRun:true,traceQr:true}});
   if(!lot)throw new NotFoundException('Không tìm thấy lô');
-  await enterpriseAuthority(tx,actor,'qr.manage',lot.harvest.cycle.chainId,undefined,true);
+  await enterpriseAuthority(tx,actor,'qr.manage',lotChainId(lot),undefined,true);
   if(lot.farmOrgId!==actor.organizationId&&!await tx.lotHolding.findUnique({where:{lotId_organizationId:{lotId:lot.id,organizationId:actor.organizationId!}}}))throw new ForbiddenException('Lô nằm ngoài phạm vi doanh nghiệp');
   if(!lot.traceQr)throw new ConflictException('Lô chưa có mã truy xuất');
   const recalled=await tx.traceNotice.findFirst({where:{lotId:lot.id,kind:'RECALL'}});
   if(recalled||isPastExpiry(lot.expiryDate)||['RECALLED','EXPIRED','DAMAGED','REJECTED'].includes(lot.currentState))throw new ConflictException('Lô đang bị thu hồi, hết hạn hoặc bị chặn; không phát hành tem mới');
+  if(await tx.traceQrBlock.findFirst({where:{lotId:lot.id,unblockedAt:null}}))throw new ConflictException('Mã QR của lô đang bị nền tảng khóa; không phát hành tem mới');
+  await assertEntitlement(tx,actor.organizationId!,'qrLabels',input.copies);
   const previous=await tx.traceLabelPrint.count({where:{organizationId:actor.organizationId!,lotId:lot.id}});
   if(previous&&!input.reason?.trim())throw new UnprocessableEntityException('Lô đã được in tem; ghi lý do in lại');
   const row=await tx.traceLabelPrint.create({data:{organizationId:actor.organizationId!,lotId:lot.id,actorId:actor.sub!,template:input.template,copies:input.copies,reprint:previous>0,reason:input.reason?.trim()||null}});
-  return {record:{id:row.id,template:row.template,copies:row.copies,reprint:row.reprint,printedAt:row.createdAt,sequence:previous+1,lotId:lot.id,lotCode:lot.lotCode,productName:lot.product.productName,producerName:lot.organization.name,harvestTime:lot.harvest.harvestTime,expiryDate:lot.expiryDate,traceToken:lot.traceQr.traceToken}};
+  return {record:{id:row.id,template:row.template,copies:row.copies,reprint:row.reprint,printedAt:row.createdAt,sequence:previous+1,lotId:lot.id,lotCode:lot.lotCode,productName:lot.product.productName,producerName:lot.organization.name,harvestTime:lot.harvest?.harvestTime??lot.processingRun?.completedAt??lot.createdAt,expiryDate:lot.expiryDate,traceToken:lot.traceQr.traceToken}};
  });}
  async history(actor:CommandActor,lotId:string){
-  const lot=await this.db.lot.findUnique({where:{id:lotId},include:{harvest:{include:{cycle:true}}}});
+  const lot=await this.db.lot.findUnique({where:{id:lotId},include: LOT_ORIGIN_INCLUDE});
   if(!lot)throw new NotFoundException();
-  await enterpriseAuthority(this.db,actor,'qr.manage',lot.harvest.cycle.chainId);
+  await enterpriseAuthority(this.db,actor,'qr.manage',lotChainId(lot));
   const rows=await this.db.traceLabelPrint.findMany({where:{organizationId:actor.organizationId!,lotId},orderBy:{createdAt:'desc'},take:100});
   const people=await this.db.user.findMany({where:{id:{in:[...new Set(rows.map(r=>r.actorId))]}},select:{id:true,fullName:true}});
   return {items:rows.map(r=>({...r,actorName:people.find(p=>p.id===r.actorId)?.fullName??null}))};

@@ -13,6 +13,8 @@ import {
   Prisma,
   type EnterpriseEnrollment,
   type EnterpriseConnection,
+  type CapabilityRequest,
+  type OrganizationType,
 } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
@@ -30,10 +32,12 @@ import type { EnterpriseConnectionDto, ReviewEnterpriseDto, ActivateEnterpriseDt
 import { VIETNAM_ADDRESSES } from './address-catalog.js';
 import { serviceStage } from './enterprise-service.service.js';
 import { grantEnterpriseBusiness } from './service-activation.js';
+import { settingValue } from '../billing/billing-core.js';
 import { consumeRegistrationProofs } from './registration-otp.service.js';
 import {
   REGISTERED_FORMS,
   REGISTRATION_POLICY_VERSION,
+  payingParticipant,
 } from './registration-profile.dto.js';
 import { registrationDocumentSelect } from './registration-document.dto.js';
 import {
@@ -50,6 +54,7 @@ const INCLUDE = {
     include: {
       profile: true,
       registrationDocuments: { select: registrationDocumentSelect },
+      capabilityRequests: { orderBy: { createdAt: 'asc' as const } },
     },
   },
   owner: { select: { fullName: true, email: true } },
@@ -113,6 +118,39 @@ export async function registerEnterprise(
     throw new BadRequestException(
       'Hộ/cá nhân sản xuất cần chọn hoạt động sản xuất',
     );
+  const participationModel =
+    input.participationModel ??
+    (details.activities.length > 1 ? 'SUPPLY_CHAIN_ENTERPRISE' : 'SINGLE');
+  if (participationModel === 'SINGLE' && details.activities.length !== 1)
+    throw new BadRequestException(
+      'Mô hình một vai trò chỉ đăng ký đúng một hoạt động; chọn Doanh nghiệp chuỗi cung ứng để đăng ký nhiều năng lực',
+    );
+  if (
+    participationModel === 'SUPPLY_CHAIN_ENTERPRISE' &&
+    (details.activities.length < 2 || !registered)
+  )
+    throw new BadRequestException(
+      'Doanh nghiệp chuỗi cung ứng cần là tổ chức có đăng ký và chọn ít nhất hai năng lực',
+    );
+  if (details.activities.includes('PROCESSOR') !== !!details.processing)
+    throw new BadRequestException(
+      'Khai báo thông tin chế biến khi và chỉ khi đăng ký năng lực chế biến',
+    );
+  if (details.processing) {
+    const today = new Date().toLocaleDateString('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+    });
+    const expiry = details.processing.foodSafetyCertificateExpiry;
+    const parsed = new Date(expiry + 'T00:00:00Z');
+    if (
+      Number.isNaN(parsed.getTime()) ||
+      parsed.toISOString().slice(0, 10) !== expiry ||
+      expiry <= today
+    )
+      throw new BadRequestException(
+        'Giấy chứng nhận cơ sở đủ điều kiện an toàn thực phẩm phải còn hiệu lực',
+      );
+  }
   if (details.activities.includes('FARM') && !details.production)
     throw new BadRequestException('Bổ sung lĩnh vực và nhóm sản phẩm sản xuất');
   if (!details.activities.includes('FARM') && details.production)
@@ -232,11 +270,13 @@ export async function registerEnterprise(
           'Tải giấy ủy quyền khi đăng ký thay người đại diện',
         );
       if (
-        details.production?.certifications.length &&
+        (details.production?.certifications.length || details.processing) &&
         !documents.some((d) => d.kind === 'CERTIFICATE')
       )
         throw new BadRequestException(
-          'Đính kèm tài liệu cho chứng nhận đã khai báo',
+          details.processing
+            ? 'Đính kèm giấy chứng nhận cơ sở đủ điều kiện an toàn thực phẩm'
+            : 'Đính kèm tài liệu cho chứng nhận đã khai báo',
         );
       const roleCode =
         input.organizationType === 'FARM'
@@ -249,6 +289,7 @@ export async function registerEnterprise(
         data: {
           name: normalized.organizationName,
           type: input.organizationType,
+          participationModel,
         },
       });
       // Legacy operator provisioning seeds a primary capability by SQL trigger.
@@ -292,6 +333,7 @@ export async function registerEnterprise(
           representativeTitle,
           registrantRelationship,
           production,
+          processing,
           services,
           documentIds: _documentIds,
           termsAccepted,
@@ -313,6 +355,8 @@ export async function registerEnterprise(
                 representativeTitle,
                 registrantRelationship,
                 production,
+                processing,
+                participationModel,
                 services,
                 termsAccepted,
                 privacyAcknowledged,
@@ -333,6 +377,29 @@ export async function registerEnterprise(
         },
         data: { organizationId: organization.id },
       });
+      // Each registered activity is reviewed on its own; registration grants none.
+      const certificates = documents
+        .filter((d) => d.kind === 'CERTIFICATE')
+        .map((d) => d.id);
+      for (const code of details.activities)
+        await tx.capabilityRequest.create({
+          data: {
+            organizationId: organization.id,
+            code: code as OrganizationType,
+            details: JSON.parse(
+              JSON.stringify(
+                code === 'FARM'
+                  ? { production: details.production }
+                  : code === 'PROCESSOR'
+                    ? { processing: details.processing }
+                    : {},
+              ),
+            ),
+            evidenceIds: ['FARM', 'PROCESSOR'].includes(code)
+              ? certificates
+              : [],
+          },
+        });
       return receipt(input.requestId);
     });
   } catch (error) {
@@ -353,7 +420,7 @@ export async function authorizeEnterpriseCommand(
 ) {
   const actor = input.actor!;
   if (
-    input.operation === 'ENTERPRISE_REVIEW' || input.operation === 'ENTERPRISE_ACTIVATE' || input.operation === 'ENTERPRISE_PROFILE_REVIEW' ||
+    input.operation === 'ENTERPRISE_REVIEW' || input.operation === 'ENTERPRISE_ACTIVATE' || input.operation === 'ENTERPRISE_PROFILE_REVIEW' || input.operation === 'ENTERPRISE_CAPABILITY_REVIEW' ||
     input.operation === 'ENTERPRISE_CONNECTION_REVIEW'
   ) {
     if (actor.role !== 'SYSTEM_ADMIN')
@@ -362,6 +429,28 @@ export async function authorizeEnterpriseCommand(
       user: actor.sub,
       role: actor.role,
       operation: input.operation,
+    });
+  }
+  if (input.operation.startsWith('ENTERPRISE_BILLING_')) {
+    if (!['ENTERPRISE_BILLING_RENEW', 'ENTERPRISE_BILLING_PAY_SIMULATION'].includes(input.operation))
+      throw new ForbiddenException('Command onboarding không hợp lệ');
+    // Billing belongs to the enrollment owner or a level-1 organization admin.
+    if (lock && actor.organizationId)
+      await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`billing:${actor.organizationId}`},0))`;
+    const owned = actor.organizationId
+      ? await db.enterpriseEnrollment.findUnique({
+          where: { organizationId: actor.organizationId },
+        })
+      : null;
+    const admin = await organizationGrant(db, actor, 'ORG_ADMIN');
+    if (!(owned?.ownerId === actor.sub && owned.status === 'APPROVED') && !admin)
+      throw new ForbiddenException('Chỉ quản trị cấp 1 được quản lý gói dịch vụ');
+    return canonicalSha256({
+      user: actor.sub,
+      organization: actor.organizationId,
+      owner: owned?.ownerId === actor.sub,
+      grant: admin?.id ?? null,
+      revision: admin?.revision ?? null,
     });
   }
   if (
@@ -479,13 +568,26 @@ export const connectionView = (row: EnterpriseConnection) => ({
   createdAt: row.createdAt.toISOString(),
   checkedAt: row.checkedAt?.toISOString() ?? null,
 });
+export const capabilityRequestView = (row: CapabilityRequest) => ({
+  id: row.id,
+  code: row.code,
+  status: row.status,
+  details: row.details,
+  evidenceIds: row.evidenceIds,
+  reviewNote: row.reviewNote,
+  reviewedAt: row.reviewedAt?.toISOString() ?? null,
+  version: row.version,
+  createdAt: row.createdAt.toISOString(),
+});
 export const enrollmentView = (
   row: EnterpriseEnrollment & {
     organization: {
       name: string;
       type: string;
+      participationModel?: string;
       profile?: unknown;
       registrationDocuments?: unknown[];
+      capabilityRequests?: CapabilityRequest[];
     };
     owner: { fullName: string; email: string };
     connections: EnterpriseConnection[];
@@ -496,6 +598,17 @@ export const enrollmentView = (
   organizationId: row.organizationId,
   organizationName: row.organization.name,
   organizationType: row.organization.type,
+  participationModel: row.organization.participationModel ?? 'SINGLE',
+  payingParticipant: payingParticipant(
+    row.organization.participationModel ?? 'SINGLE',
+    (row.organization.capabilityRequests?.length
+      ? row.organization.capabilityRequests.map((r) => r.code)
+      : (row.organization.profile as { activities?: string[] } | null)
+          ?.activities) ?? [row.organization.type],
+  ),
+  capabilityRequests: (row.organization.capabilityRequests ?? []).map(
+    capabilityRequestView,
+  ),
   representativeName: row.owner.fullName,
   representativeEmail: row.owner.email,
   businessId: row.businessId,
@@ -523,6 +636,7 @@ export class EnterpriseOnboardingService {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`enterprise:${row.organizationId}`},0))`;
       await tx.$queryRaw`SELECT id FROM enterprise_enrollment WHERE id=${id}::uuid FOR UPDATE`;
       if(row.status!=='APPROVED' || row.version!==input.version || row.serviceActivatedAt)throw new ConflictException('Hồ sơ chưa duyệt, đã kích hoạt hoặc phiên bản đã đổi');
+      await assertActivationReady(tx,row);
       await tx.enterpriseEnrollment.update({where:{id},data:{serviceActivatedAt:new Date(),serviceActivatedBy:actor.sub!,serviceActivationReason:input.reason,version:{increment:1}}});
       await grantEnterpriseBusiness(tx,row);
       await appendPlatformAudit(tx,{actor,action:'ENTERPRISE_SERVICE_ACTIVATED',subjectType:'ENTERPRISE_ENROLLMENT',subjectId:id,organizationId:row.organizationId,reason:input.reason,details:{manual:true,paymentVerified:false,peerVerified:false}});
@@ -563,7 +677,7 @@ export class EnterpriseOnboardingService {
       await lockPlatformAudit(tx);
       const row = await tx.enterpriseEnrollment.findUniqueOrThrow({
         where: { id },
-        include: { organization: true },
+        include: { organization: { include: { capabilityRequests: true } } },
       });
       await tx.$queryRaw`SELECT organization_id FROM organization WHERE organization_id=${row.organizationId}::uuid FOR SHARE`;
       await tx.$queryRaw`SELECT user_id FROM app_user WHERE user_id=${row.ownerId}::uuid FOR SHARE`;
@@ -621,7 +735,10 @@ export class EnterpriseOnboardingService {
       const profile = await tx.enterpriseProfile.findUnique({
         where: { organizationId: row.organizationId },
       });
-      if (profile?.contactEmail) {
+      if (
+        profile?.contactEmail &&
+        (await settingValue(tx, 'notifications.enrollmentDecisionEmail', true)) !== false
+      ) {
         const url = new URL(
           '/enterprise/service',
           process.env.ENTERPRISE_WEB_BASE_URL ?? 'http://127.0.0.1:3001',
@@ -637,7 +754,12 @@ export class EnterpriseOnboardingService {
                 : 'AgriTrace — Kết quả xét duyệt hồ sơ',
             text:
               input.decision === 'APPROVE'
-                ? `Hồ sơ ${row.organization.name} đã được quản trị phê duyệt. Đăng nhập tài khoản cấp 1 tại ${url.href} để chọn mô hình peer, gói dịch vụ, điền thông tin thanh toán và xem trước hợp đồng. Đây là môi trường local; chưa thu tiền thật. Ghi chú: ${input.note}`
+                ? payingParticipant(
+                    row.organization.participationModel,
+                    row.organization.capabilityRequests.map((r) => r.code),
+                  )
+                  ? `Hồ sơ ${row.organization.name} đã được quản trị phê duyệt. Đăng nhập tài khoản cấp 1 tại ${url.href} để chọn mô hình peer, gói dịch vụ, điền thông tin thanh toán và xem trước hợp đồng. Đây là môi trường local; chưa thu tiền thật. Ghi chú: ${input.note}`
+                  : `Hồ sơ ${row.organization.name} đã được quản trị phê duyệt. Tổ chức tham gia chuỗi không cần mua gói; tài khoản được kích hoạt sau khi quản trị xét duyệt năng lực. Bạn chỉ ghi nghiệp vụ trong chuỗi đã được mời. Ghi chú: ${input.note}`
                 : `Hồ sơ ${row.organization.name} cần xử lý: ${input.note}. Đăng nhập để xem kết quả. Không cần thanh toán khi hồ sơ chưa được duyệt.`,
           },
         });
@@ -708,6 +830,19 @@ export class EnterpriseOnboardingService {
       );
     });
   }
+  reviewCapability(
+    actor: CommandActor,
+    requestId: string,
+    input: ReviewEnterpriseDto,
+  ) {
+    return commandTransaction(this.prisma, (tx) => {
+      // Granting business authority needs a second administrator once the
+      // two-person policy is enforced. Rejecting stays a single-admin action.
+      if (input.decision === 'APPROVE' && approvalsMode() === 'ENFORCED')
+        throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
+      return reviewCapabilityTx(tx, actor, requestId, input);
+    });
+  }
   reviewConnection(
     actor: CommandActor,
     id: string,
@@ -721,6 +856,134 @@ export class EnterpriseOnboardingService {
       return reviewConnectionTx(tx, actor, id, input);
     });
   }
+}
+
+/** Paying participants need an active service subscription; every registered
+ * capability must have been reviewed and at least one approved. */
+export async function assertActivationReady(
+  tx: Prisma.TransactionClient,
+  row: {
+    organizationId: string;
+    organization: {
+      participationModel?: string;
+      capabilityRequests?: CapabilityRequest[];
+    };
+  },
+) {
+  const requests = row.organization.capabilityRequests ?? [];
+  if (requests.some((r) => r.status === 'PENDING'))
+    throw new ConflictException('Còn năng lực chưa được xét duyệt');
+  const approved = requests.filter((r) => r.status === 'APPROVED');
+  if (requests.length && !approved.length)
+    throw new ConflictException('Chưa có năng lực nào được phê duyệt');
+  if (
+    !requests.length ||
+    !payingParticipant(
+      row.organization.participationModel ?? 'SINGLE',
+      approved.map((r) => r.code),
+    )
+  )
+    return;
+  const subscription = await tx.subscription.findFirst({
+    where: { organizationId: row.organizationId, status: 'ACTIVE' },
+  });
+  if (!subscription)
+    throw new ConflictException(
+      'Tổ chức trả phí cần thanh toán gói dịch vụ trước khi kích hoạt',
+    );
+}
+
+/** Reviews one registered capability. Approval after activation creates the
+ * capability in the same audited transaction; before activation it is
+ * recorded and the activation step grants it. */
+export async function reviewCapabilityTx(
+  tx: Prisma.TransactionClient,
+  actor: CommandActor,
+  requestId: string,
+  input: ReviewEnterpriseDto,
+) {
+  if (actor.role !== 'SYSTEM_ADMIN') throw new ForbiddenException();
+  await lockPlatformAudit(tx);
+  const request = await tx.capabilityRequest.findUnique({
+    where: { id: requestId },
+  });
+  if (!request) throw new NotFoundException('Không tìm thấy yêu cầu năng lực');
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`enterprise:${request.organizationId}`},0))`;
+  await tx.$queryRaw`SELECT organization_id FROM organization WHERE organization_id=${request.organizationId}::uuid FOR SHARE`;
+  const enrollment = await tx.enterpriseEnrollment.findUnique({
+    where: { organizationId: request.organizationId },
+  });
+  if (!enrollment || enrollment.status === 'REJECTED')
+    throw new ConflictException(
+      'Hồ sơ doanh nghiệp không ở trạng thái xét duyệt',
+    );
+  if (input.decision === 'APPROVE' && request.code === 'PROCESSOR') {
+    const processing = (
+      request.details as {
+        processing?: { foodSafetyCertificateExpiry?: string };
+      }
+    ).processing;
+    const today = new Date().toLocaleDateString('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+    });
+    if (
+      !processing?.foodSafetyCertificateExpiry ||
+      processing.foodSafetyCertificateExpiry <= today
+    )
+      throw new ConflictException(
+        'Giấy chứng nhận an toàn thực phẩm đã hết hạn; yêu cầu doanh nghiệp bổ sung',
+      );
+  }
+  const changed = await tx.capabilityRequest.updateMany({
+    where: { id: requestId, version: input.version, status: 'PENDING' },
+    data: {
+      status: input.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+      reviewNote: input.note,
+      reviewedBy: actor.sub,
+      reviewedAt: new Date(),
+      version: { increment: 1 },
+    },
+  });
+  if (changed.count !== 1)
+    throw new ConflictException('Yêu cầu đã được xử lý; tải lại trạng thái');
+  const active =
+    enrollment.status === 'APPROVED' &&
+    (!enrollment.activationRequired || !!enrollment.serviceActivatedAt);
+  let granted = false;
+  if (input.decision === 'APPROVE' && active) {
+    const key = {
+      organizationId_code: {
+        organizationId: request.organizationId,
+        code: request.code,
+      },
+    };
+    const current = await tx.organizationCapability.findUnique({ where: key });
+    if (!current)
+      await tx.organizationCapability.create({
+        data: { organizationId: request.organizationId, code: request.code },
+      });
+    else if (current.revokedAt)
+      await tx.organizationCapability.update({
+        where: key,
+        data: { revokedAt: null, revision: { increment: 1 } },
+      });
+    granted = true;
+  }
+  await appendPlatformAudit(tx, {
+    actor: { sub: actor.sub, role: actor.role },
+    action:
+      input.decision === 'APPROVE'
+        ? 'CAPABILITY_REQUEST_APPROVED'
+        : 'CAPABILITY_REQUEST_REJECTED',
+    subjectType: 'CAPABILITY_REQUEST',
+    subjectId: requestId,
+    organizationId: request.organizationId,
+    reason: input.note,
+    details: { code: request.code, version: input.version, granted },
+  });
+  return capabilityRequestView(
+    await tx.capabilityRequest.findUniqueOrThrow({ where: { id: requestId } }),
+  );
 }
 
 /** Connection review body shared by the direct command and an approved proposal. */

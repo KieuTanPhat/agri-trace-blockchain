@@ -17,9 +17,24 @@ type Operation =
   | "CREATE_CHAIN_GRANT"
   | "SYSTEM_ADMIN_CREATE"
   | "CONNECTION_APPROVE"
-  | "ADMIN_PASSWORD_RESET";
+  | "ADMIN_PASSWORD_RESET"
+  | "CAPABILITY_REQUEST_APPROVE"
+  | "PLAN_VERSION_PUBLISH"
+  | "INVOICE_CONFIRM_PAYMENT"
+  | "SETTING_CHANGE"
+  | "QR_BLOCK";
 const operations = Object.keys(approvalOperationLabels) as Operation[];
 type Org = { id: string; name: string; type: string };
+const param = (name: string, label: string, extra: Partial<Field> = {}): Field => ({ name, label, required: true, nest: "params", ...extra });
+/** Operations proposed from IDs shown on their own pages (capability request,
+ * plan version, invoice, setting, lot). */
+const GENERIC_FORMS: Partial<Record<Operation, Field[]>> = {
+  CAPABILITY_REQUEST_APPROVE: [param("requestId", "Mã yêu cầu năng lực"), param("version", "Phiên bản yêu cầu", { type: "number", min: 0 }), param("note", "Căn cứ duyệt (tối thiểu 10 ký tự)", { minLength: 10 })],
+  PLAN_VERSION_PUBLISH: [param("versionId", "Mã phiên bản bảng giá nháp")],
+  INVOICE_CONFIRM_PAYMENT: [param("invoiceId", "Mã hóa đơn"), param("version", "Phiên bản hóa đơn", { type: "number", min: 0 }), param("reference", "Mã giao dịch ngân hàng", { minLength: 4 })],
+  SETTING_CHANGE: [param("key", "Mã tham số"), param("value", "Giá trị mới (số)", { type: "number", min: 0 }), param("version", "Phiên bản tham số", { type: "number", min: 0 })],
+  QR_BLOCK: [param("lotId", "Mã lô"), param("publicMessage", "Cảnh báo hiển thị cho người quét", { minLength: 10 })],
+};
 
 const reason: Field = {
   name: "reason",
@@ -295,6 +310,16 @@ export default function NewApprovalPage() {
               reason,
               mfa,
             ]}
+            onSaved={saved}
+          />
+        )}
+        {GENERIC_FORMS[operation] && (
+          <DataForm
+            key={operation}
+            title={`Gửi đề xuất: ${approvalOperationLabels[operation]}`}
+            path="/platform-approvals"
+            extra={{ operation }}
+            fields={[...GENERIC_FORMS[operation]!, reason, mfa]}
             onSaved={saved}
           />
         )}

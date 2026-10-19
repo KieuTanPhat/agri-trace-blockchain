@@ -13,8 +13,11 @@ import {
 } from 'class-validator';
 import { HOSTING_MODES } from './dto.js';
 export class ServiceQuoteInput {
-  @ApiProperty({ enum: ['TRACE_5', 'TRACE_10', 'TRACE_20'] })
-  @IsIn(['TRACE_5', 'TRACE_10', 'TRACE_20'])
+  @ApiProperty({
+    pattern: '^[A-Z][A-Z0-9_]{1,29}$',
+    description: 'Published plan code for the organization participation model',
+  })
+  @Matches(/^[A-Z][A-Z0-9_]{1,29}$/)
   planCode!: string;
   @ApiProperty({ enum: HOSTING_MODES })
   @IsIn(HOSTING_MODES)
@@ -38,8 +41,13 @@ export class ServiceQuoteInput {
   @MinLength(5)
   @MaxLength(500)
   billingAddress!: string;
-  @ApiProperty({ description: 'Version of the exact quotation previewed' })
-  @Equals('agritrace-reference-2026-10-17')
+  @ApiProperty({
+    description:
+      'Catalog version of the exact quotation previewed (digest of the published plan versions)',
+    maxLength: 80,
+  })
+  @IsString()
+  @MaxLength(80)
   catalogVersion!: string;
 }
 export class ServiceOrderInput extends ServiceQuoteInput {

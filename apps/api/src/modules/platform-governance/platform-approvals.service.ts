@@ -18,7 +18,19 @@ import { commandTransaction } from '../../common/idempotency/command-transaction
 import { lockChainScope } from '../supply-chains/chain-policy.js';
 import { SupplyChainsService } from '../supply-chains/supply-chains.service.js';
 import type { GrantRoleDto } from '../supply-chains/dto.js';
-import { reviewConnectionTx } from '../enterprise-onboarding/enterprise-onboarding.service.js';
+import {
+  reviewCapabilityTx,
+  reviewConnectionTx,
+} from '../enterprise-onboarding/enterprise-onboarding.service.js';
+import {
+  publishPlanVersionTx,
+  settleInvoiceTx,
+} from '../billing/billing-core.js';
+import {
+  assertSetting,
+  blockQrTx,
+  changeSettingTx,
+} from '../platform-admin/admin-controls.js';
 import { UsersService, createPlatformUserTx } from '../users/users.service.js';
 import type {
   ApprovalOperation,
@@ -254,6 +266,87 @@ export class PlatformApprovalsService {
           subjectId: connectionId,
           organizationId: connection.enrollment.organizationId,
           payload: { connectionId, version, note },
+        };
+      }
+      case 'CAPABILITY_REQUEST_APPROVE': {
+        const requestId = uuid(params, 'requestId');
+        const version = params.version;
+        if (!Number.isInteger(version) || (version as number) < 0)
+          throw new UnprocessableEntityException('Tham số version không hợp lệ');
+        const note = text(params, 'note', 1000);
+        const request = await tx.capabilityRequest.findUnique({ where: { id: requestId } });
+        if (!request || request.status !== 'PENDING' || request.version !== version)
+          throw new ConflictException('Yêu cầu năng lực đã được xử lý hoặc đã thay đổi');
+        return {
+          subjectType: 'CAPABILITY_REQUEST',
+          subjectId: requestId,
+          organizationId: request.organizationId,
+          payload: { requestId, version, note, code: request.code },
+        };
+      }
+      case 'PLAN_VERSION_PUBLISH': {
+        const versionId = uuid(params, 'versionId');
+        const draft = await tx.servicePlanVersion.findUnique({ where: { id: versionId } });
+        if (!draft || draft.status !== 'DRAFT')
+          throw new ConflictException('Chỉ công bố phiên bản giá nháp');
+        return {
+          subjectType: 'SERVICE_PLAN_VERSION',
+          subjectId: versionId,
+          organizationId: null,
+          payload: {
+            versionId,
+            planCode: draft.planCode,
+            version: draft.version,
+            setupFee: Number(draft.setupFee),
+            annualFee: Number(draft.annualFee),
+            limits: draft.limits as Record<string, number>,
+          },
+        };
+      }
+      case 'INVOICE_CONFIRM_PAYMENT': {
+        const invoiceId = uuid(params, 'invoiceId');
+        const version = params.version;
+        if (!Number.isInteger(version) || (version as number) < 0)
+          throw new UnprocessableEntityException('Tham số version không hợp lệ');
+        const reference = text(params, 'reference', 120);
+        const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
+        if (!invoice || invoice.status !== 'ISSUED' || invoice.version !== version)
+          throw new ConflictException('Hóa đơn đã được xử lý hoặc đã thay đổi');
+        return {
+          subjectType: 'INVOICE',
+          subjectId: invoiceId,
+          organizationId: invoice.organizationId,
+          payload: { invoiceId, version, reference, number: invoice.number, amount: Number(invoice.amount) },
+        };
+      }
+      case 'SETTING_CHANGE': {
+        const key = text(params, 'key', 80);
+        const version = params.version;
+        if (!Number.isInteger(version) || (version as number) < 0)
+          throw new UnprocessableEntityException('Tham số version không hợp lệ');
+        assertSetting(key, params.value);
+        const setting = await tx.platformSetting.findUnique({ where: { key } });
+        if (!setting || setting.version !== version)
+          throw new ConflictException('Tham số đã thay đổi; tải lại');
+        return {
+          subjectType: 'PLATFORM_SETTING',
+          subjectId: createHash('sha256').update(key).digest('hex'),
+          organizationId: null,
+          payload: { key, value: params.value as string | number, version, before: setting.value as string | number },
+        };
+      }
+      case 'QR_BLOCK': {
+        const lotId = uuid(params, 'lotId');
+        const publicMessage = text(params, 'publicMessage', 500);
+        const lot = await tx.lot.findUnique({ where: { id: lotId }, include: { traceQr: true } });
+        if (!lot?.traceQr) throw new NotFoundException('Lô chưa có mã QR');
+        if (await tx.traceQrBlock.findFirst({ where: { lotId, unblockedAt: null } }))
+          throw new ConflictException('Mã QR đang bị khóa');
+        return {
+          subjectType: 'LOT',
+          subjectId: lotId,
+          organizationId: lot.farmOrgId,
+          payload: { lotId, publicMessage, lotCode: lot.lotCode },
         };
       }
     }
@@ -550,6 +643,45 @@ export class PlatformApprovalsService {
           },
         );
         return { executed: true, connectionId: connection.id };
+      }
+      case 'CAPABILITY_REQUEST_APPROVE': {
+        const request = await reviewCapabilityTx(tx, actor, String(p.requestId), {
+          version: Number(p.version),
+          decision: 'APPROVE',
+          note: String(p.note),
+        });
+        return { executed: true, requestId: request.id, status: request.status };
+      }
+      case 'PLAN_VERSION_PUBLISH': {
+        const published = await publishPlanVersionTx(tx, actor, String(p.versionId), row.proposerReason);
+        return { executed: true, versionId: published.id };
+      }
+      case 'INVOICE_CONFIRM_PAYMENT': {
+        const invoice = await settleInvoiceTx(tx, actor, String(p.invoiceId), {
+          provider: 'MANUAL',
+          version: Number(p.version),
+          reference: String(p.reference),
+          note: row.proposerReason,
+        });
+        return { executed: true, invoiceId: invoice.id };
+      }
+      case 'SETTING_CHANGE': {
+        const raw = row.payload as Record<string, unknown>;
+        const setting = await changeSettingTx(tx, actor, {
+          key: String(raw.key),
+          value: raw.value,
+          version: Number(raw.version),
+          reason: row.proposerReason,
+        });
+        return { executed: true, key: setting.key, version: setting.version };
+      }
+      case 'QR_BLOCK': {
+        const block = await blockQrTx(tx, actor, {
+          lotId: String(p.lotId),
+          publicMessage: String(p.publicMessage),
+          reason: row.proposerReason,
+        });
+        return { executed: true, blockId: block.id };
       }
       default:
         throw new ConflictException('Loại đề xuất không được hỗ trợ');

@@ -1,3 +1,4 @@
+import { LOT_ORIGIN_INCLUDE, lotChainId } from '../lots/lot-origin.js';
 import { Body, ConflictException, Controller, ForbiddenException, Get, Injectable, NotFoundException, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
 import { randomUUID } from 'node:crypto';
@@ -28,7 +29,7 @@ export class SiteTransfersService {
 
   private async lockedLot(tx: Tx, lotId: string) {
     await tx.$queryRaw`SELECT lot_id FROM lot WHERE lot_id=${lotId}::uuid FOR UPDATE`;
-    const lot = await tx.lot.findUnique({ where: { id: lotId }, include: { shipment: true, harvest: { include: { cycle: true } } } });
+    const lot = await tx.lot.findUnique({ where: { id: lotId }, include: { shipment: true, ...LOT_ORIGIN_INCLUDE } });
     if (!lot) throw new NotFoundException('Không tìm thấy lô');
     return lot;
   }
@@ -51,8 +52,8 @@ export class SiteTransfersService {
     });
   }
 
-  private async dispatchLocked(tx: Tx, actor: CommandActor, slip: SiteTransfer, lot: { id: string; initialQuantity: Prisma.Decimal; availableQuantity: Prisma.Decimal; unit: string; harvest: { cycle: { chainId: string } } }) {
-    await enterpriseAuthority(tx, actor, 'inventory.manage', lot.harvest.cycle.chainId, slip.fromSiteId, true);
+  private async dispatchLocked(tx: Tx, actor: CommandActor, slip: SiteTransfer, lot: { id: string; initialQuantity: Prisma.Decimal; availableQuantity: Prisma.Decimal; unit: string; harvest: { cycle: { chainId: string | null } } | null; processingRun: { chainId: string; siteId: string } | null }) {
+    await enterpriseAuthority(tx, actor, 'inventory.manage', lotChainId(lot), slip.fromSiteId, true);
     if (!await quantityIsReconciled(tx, lot)) throw new ConflictException('Lô cần đối soát số lượng trước khi chuyển');
     await requireSiteStock(tx, lot.id, actor.organizationId!, slip.fromSiteId, slip.quantity);
     await activeSite(tx, actor.organizationId!, slip.toSiteId);
@@ -69,7 +70,7 @@ export class SiteTransfersService {
   create(actor: CommandActor, input: SiteTransferInput) {
     return commandTransaction(this.db, async tx => {
       const lot = await this.lockedLot(tx, input.lotId);
-      const chainId = lot.harvest.cycle.chainId;
+      const chainId = lotChainId(lot);
       await enterpriseAuthority(tx, actor, 'inventory.manage', chainId, input.fromSiteId, true);
       await enterpriseAuthority(tx, actor, 'inventory.manage', chainId, input.toSiteId);
       if (input.fromSiteId === input.toSiteId) throw new ConflictException('Cơ sở xuất và cơ sở nhận phải khác nhau');
@@ -104,7 +105,7 @@ export class SiteTransfersService {
   receive(actor: CommandActor, id: string, input: SiteTransferReceiptInput) {
     return commandTransaction(this.db, async tx => {
       const { slip, lot } = await this.lockedSlip(tx, actor, id, input.version);
-      await enterpriseAuthority(tx, actor, 'inventory.manage', lot.harvest.cycle.chainId, slip.toSiteId, true);
+      await enterpriseAuthority(tx, actor, 'inventory.manage', lotChainId(lot), slip.toSiteId, true);
       if (slip.status !== 'IN_TRANSIT') throw new ConflictException('Chỉ xác nhận phiếu đang chuyển');
       await activeSite(tx, actor.organizationId!, slip.toSiteId);
       const received = quantity(input.receivedQuantity, true);
@@ -125,7 +126,7 @@ export class SiteTransfersService {
     return commandTransaction(this.db, async tx => {
       const { slip, lot } = await this.lockedSlip(tx, actor, id, input.version);
       if (slip.status !== 'DISCREPANCY' || !slip.receivedQuantity) throw new ConflictException('Chỉ xử lý phiếu đang chênh lệch');
-      const chainId = lot.harvest.cycle.chainId;
+      const chainId = lotChainId(lot);
       const shortfall = slip.quantity.sub(slip.receivedQuantity);
       if (input.resolution === 'RETURNED') {
         await enterpriseAuthority(tx, actor, 'inventory.manage', chainId, slip.fromSiteId, true);
@@ -133,7 +134,7 @@ export class SiteTransfersService {
         await addSiteStock(tx, lot.id, actor.organizationId!, slip.fromSiteId, shortfall);
       } else {
         await enterpriseAuthority(tx, actor, 'quantity.adjust', chainId, slip.fromSiteId, true);
-        if (!await tx.organizationCapability.findFirst({ where: { organizationId: actor.organizationId!, code: { in: ['FARM', 'DISTRIBUTOR', 'RETAILER'] }, revokedAt: null } }))
+        if (!await tx.organizationCapability.findFirst({ where: { organizationId: actor.organizationId!, code: { in: ['FARM', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'] }, revokedAt: null } }))
           throw new ForbiddenException('Năng lực doanh nghiệp không phù hợp ghi hao hụt');
         const after = lot.availableQuantity.sub(shortfall);
         const event = await this.trace.createInTransaction(tx, {
@@ -157,7 +158,7 @@ export class SiteTransfersService {
   cancel(actor: CommandActor, id: string, input: SiteTransferVersion) {
     return commandTransaction(this.db, async tx => {
       const { slip, lot } = await this.lockedSlip(tx, actor, id, input.version);
-      await enterpriseAuthority(tx, actor, 'inventory.manage', lot.harvest.cycle.chainId, slip.fromSiteId, true);
+      await enterpriseAuthority(tx, actor, 'inventory.manage', lotChainId(lot), slip.fromSiteId, true);
       if (slip.status !== 'PENDING') throw new ConflictException('Chỉ hủy phiếu chưa xuất hàng');
       const updated = await tx.siteTransfer.update({ where: { id }, data: { status: 'CANCELLED', cancelledBy: actor.sub!, cancelledAt: new Date(), version: { increment: 1 } } });
       return { record: updated };
@@ -174,8 +175,8 @@ export class SiteTransfersService {
       orderBy: { createdAt: 'desc' }, take: 200,
     });
     const visible = auth.primary ? rows : rows.filter(r => roles.some(role => role.siteIds.some(s => s === r.fromSiteId || s === r.toSiteId)));
-    const lots = await this.db.lot.findMany({ where: { id: { in: [...new Set(visible.map(r => r.lotId))] } }, select: { id: true, lotCode: true, product: { select: { productName: true } }, harvest: { select: { cycle: { select: { chainId: true } } } } } });
-    const chainByLot = new Map(lots.map((lot) => [lot.id, lot.harvest.cycle.chainId]));
+    const lots = await this.db.lot.findMany({ where: { id: { in: [...new Set(visible.map(r => r.lotId))] } }, select: { id: true, lotCode: true, product: { select: { productName: true } }, harvest: { select: { cycle: { select: { chainId: true } } } }, processingRun: { select: { chainId: true, siteId: true } } } });
+    const chainByLot = new Map(lots.map((lot) => [lot.id, lotChainId(lot)]));
     const scoped = auth.primary
       ? visible
       : visible.filter((row) => {
@@ -217,8 +218,8 @@ export class QuarantineCasesService {
       where: { organizationId: actor.organizationId!, ...(auth.primary ? {} : { siteId: { in: [...new Set(roles.flatMap(r => r.siteIds))] } }) },
       orderBy: { createdAt: 'desc' }, take: 200,
     });
-    const lots = await this.db.lot.findMany({ where: { id: { in: [...new Set(rows.map(r => r.lotId))] } }, select: { id: true, lotCode: true, product: { select: { productName: true } }, harvest: { select: { cycle: { select: { chainId: true } } } } } });
-    const scoped = auth.primary ? rows : rows.filter(r => { const chain = lots.find(l => l.id === r.lotId)?.harvest.cycle.chainId; return roles.some(role => role.siteIds.includes(r.siteId) && !!chain && role.chainIds.includes(chain)); });
+    const lots = await this.db.lot.findMany({ where: { id: { in: [...new Set(rows.map(r => r.lotId))] } }, select: { id: true, lotCode: true, product: { select: { productName: true } }, harvest: { select: { cycle: { select: { chainId: true } } } }, processingRun: { select: { chainId: true, siteId: true } } } });
+    const scoped = auth.primary ? rows : rows.filter(r => { const found = lots.find(l => l.id === r.lotId); const chain = found ? lotChainId(found) : undefined; return roles.some(role => role.siteIds.includes(r.siteId) && !!chain && role.chainIds.includes(chain)); });
     const sites = await this.db.enterpriseSite.findMany({ where: { organizationId: actor.organizationId! }, select: { id: true, name: true } });
     const people = await this.db.user.findMany({ where: { id: { in: [...new Set(scoped.map(r => r.createdBy))] } }, select: { id: true, fullName: true } });
     return {

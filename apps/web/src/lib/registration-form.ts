@@ -18,11 +18,35 @@ export const LEGAL_FORM_OPTIONS = [
   ["INDIVIDUAL_PRODUCER", "Cá nhân sản xuất"],
 ] as const;
 export const ACTIVITY_OPTIONS = [
-  ["FARM", "Nhà sản xuất"],
+  ["FARM", "Nhà sản xuất/HTX"],
   ["TRANSPORTER", "Nhà vận chuyển"],
+  ["PROCESSOR", "Nhà chế biến"],
   ["DISTRIBUTOR", "Nhà phân phối"],
   ["RETAILER", "Nhà bán lẻ"],
 ] as const;
+export const PARTICIPATION_OPTIONS = [
+  ["SINGLE", "Một vai trò trong chuỗi", "Nhà sản xuất/HTX mua gói và tạo chuỗi; vận chuyển, chế biến, phân phối, bán lẻ tham gia miễn phí khi được mời."],
+  ["SUPPLY_CHAIN_ENTERPRISE", "Doanh nghiệp chuỗi cung ứng", "Một tổ chức có đăng ký vận hành nhiều khâu (sản xuất, chế biến, vận chuyển, phân phối, bán lẻ). Mua gói Doanh nghiệp chuỗi; từng năng lực được xét duyệt riêng."],
+] as const;
+export const PROCESSING_TYPE_OPTIONS = [
+  ["PRELIMINARY", "Sơ chế"],
+  ["PACKING", "Đóng gói"],
+  ["DRYING", "Sấy"],
+  ["FREEZING", "Cấp đông"],
+  ["MILLING", "Xay xát"],
+  ["JUICE_EXTRACT", "Ép, chiết"],
+  ["FERMENTING", "Lên men"],
+  ["OTHER", "Khác"],
+] as const;
+export const PROCESSING_CERT_OPTIONS = [
+  ["HACCP", "HACCP"],
+  ["ISO22000", "ISO 22000"],
+  ["FSSC22000", "FSSC 22000"],
+  ["OTHER", "Khác"],
+] as const;
+/** Producers/cooperatives and supply-chain enterprises buy a plan. */
+export const payingDraft = (model: string, activities: string[]) =>
+  model === "SUPPLY_CHAIN_ENTERPRISE" || activities.includes("FARM");
 export const INTEREST_OPTIONS = [
   ["TRACEABILITY", "Truy xuất nguồn gốc"],
   ["QR_LABELS", "Tem QR theo lô"],
@@ -57,8 +81,15 @@ export const registrationDefaults = {
   passwordConfirm: "",
   sameRepresentative: false,
   registrantRelationship: "REPRESENTATIVE",
+  participationModel: "SINGLE",
   activities: ["FARM"] as string[],
   organizationType: "FARM",
+  processingTypes: [] as string[],
+  foodSafetyCertificateNumber: "",
+  foodSafetyCertificateExpiry: "",
+  processingFacilityCode: "",
+  dailyCapacityKg: "",
+  processingCertifications: [] as string[],
   productGroups: "",
   growingAreaCode: "",
   packingFacilityCode: "",
@@ -211,6 +242,28 @@ export function validateRegistrationStep(
     if (!d.activities.includes(d.organizationType))
       errors.organizationType =
         "Chọn hoạt động chính trong các hoạt động đã đăng ký.";
+    if (d.participationModel === "SINGLE" && d.activities.length !== 1)
+      errors.activities =
+        "Mô hình một vai trò chọn đúng một hoạt động; chọn Doanh nghiệp chuỗi cung ứng để đăng ký nhiều năng lực.";
+    if (d.participationModel === "SUPPLY_CHAIN_ENTERPRISE") {
+      if (d.activities.length < 2)
+        errors.activities = "Doanh nghiệp chuỗi cung ứng chọn ít nhất hai năng lực.";
+      if (!registeredLegalForm(d.legalForm))
+        errors.activities = "Doanh nghiệp chuỗi cung ứng cần là tổ chức có đăng ký kinh doanh.";
+    }
+    if (d.activities.includes("PROCESSOR")) {
+      if (!d.processingTypes.length)
+        errors.processingTypes = "Chọn ít nhất một loại hình chế biến.";
+      if (!goodText(d.foodSafetyCertificateNumber, 1, 100))
+        errors.foodSafetyCertificateNumber = "Nhập số giấy chứng nhận cơ sở đủ điều kiện an toàn thực phẩm.";
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d.foodSafetyCertificateExpiry) || d.foodSafetyCertificateExpiry <= today)
+        errors.foodSafetyCertificateExpiry = "Giấy chứng nhận phải còn hiệu lực.";
+      if (d.dailyCapacityKg && (!/^\d+$/.test(d.dailyCapacityKg) || Number(d.dailyCapacityKg) < 1))
+        errors.dailyCapacityKg = "Công suất là số nguyên dương (kg/ngày).";
+      if (!files.CERTIFICATE)
+        errors.CERTIFICATE = "Đính kèm giấy chứng nhận cơ sở đủ điều kiện an toàn thực phẩm.";
+    }
     if (!registeredLegalForm(d.legalForm) && !d.activities.includes("FARM"))
       errors.activities =
         "Hộ / cá nhân sản xuất cần chọn hoạt động Nhà sản xuất.";

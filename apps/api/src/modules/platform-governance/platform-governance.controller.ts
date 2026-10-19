@@ -544,7 +544,7 @@ export class PlatformCasesController {
 @ApiTags('enterprise-cases')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('FARM_STAFF', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER')
+@Roles('FARM_STAFF', 'TRANSPORTER', 'DISTRIBUTOR', 'PROCESSOR', 'RETAILER')
 @Controller('enterprise-cases')
 export class EnterpriseCasesController {
   constructor(

@@ -88,6 +88,10 @@ export class TraceService {
       WHERE c.cycle_id = ${input.cycleId ?? null}::uuid OR EXISTS (
         SELECT 1 FROM harvest_event h JOIN lot l ON l.harvest_id = h.harvest_id
         WHERE h.cycle_id = c.cycle_id AND l.lot_id = ${input.lotId ?? null}::uuid
+      ) OR EXISTS (
+        -- A processed lot stays on the binding and chain of its run's origin cycle.
+        SELECT 1 FROM lot l JOIN processing_run r ON r.id = l.processing_run_id
+        WHERE r.origin_cycle_id = c.cycle_id AND l.lot_id = ${input.lotId ?? null}::uuid
       )`;
     if (roots.length > 1)
       throw new ConflictException('Trace subjects disagree');
