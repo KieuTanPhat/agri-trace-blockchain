@@ -47,7 +47,27 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     database = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
     const result = await inspectEvents(database, parseTraceEventInput);
     console.log(JSON.stringify(result));
-    if (result.result !== 'passed' || result.checked === 0) process.exitCode = 1;
+    if (result.result !== 'passed' || result.checked === 0) {
+      const groups = new Map();
+      for (const failure of result.failures) {
+        const key = JSON.stringify([failure.eventType, failure.reasons]);
+        groups.set(key, (groups.get(key) ?? 0) + 1);
+      }
+      console.error(JSON.stringify({
+        eventCheck: {
+          result: result.result,
+          checked: result.checked,
+          writes: result.writes,
+          failureCount: result.failures.length,
+          failures: [...groups].map(([key, count]) => ({
+            eventType: JSON.parse(key)[0],
+            reasons: JSON.parse(key)[1],
+            count,
+          })),
+        },
+      }));
+      process.exitCode = 1;
+    }
   } catch { console.error('Event check failed; private payloads and connection diagnostics withheld'); process.exitCode = 1; }
   finally { await database?.$disconnect(); }
 }

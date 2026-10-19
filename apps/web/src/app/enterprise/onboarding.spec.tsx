@@ -128,11 +128,13 @@ async function fillRegistration() {
   await next("Dịch vụ sử dụng");
   fill("Giới thiệu ngắn về tổ chức", "Sản xuất nông sản sạch phục vụ kiểm thử.");
   await next("Kiểm tra & xác minh");
-  fireEvent.click(screen.getByRole("button", { name: "Gửi mã OTP" }));
-  await screen.findByLabelText(/Mã OTP gửi đến/);
-  fill("Mã OTP gửi đến", "123456");
-  fireEvent.click(screen.getByRole("button", { name: "Xác thực email" }));
-  await screen.findByText(/Email đã được xác thực OTP/);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Xác thực tài khoản" }),
+  );
+  await screen.findByLabelText("Mã xác thực");
+  fill("Mã xác thực", "123456");
+  fireEvent.click(screen.getByRole("button", { name: "Xác nhận" }));
+  await screen.findByText("Đã xác thực");
   fireEvent.click(screen.getByRole("checkbox", { name: /Tôi xác nhận/ }));
   fireEvent.click(screen.getByRole("checkbox", { name: /Tôi đồng ý với/ }));
   fireEvent.click(screen.getByRole("checkbox", { name: /Tôi đã đọc/ }));

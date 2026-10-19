@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import type {
   AuthorizedCommand,
@@ -397,7 +397,17 @@ export async function authorizeWorkspaceCommand(
           }))))
   )
     throw new ForbiddenException('Lô nằm ngoài phạm vi doanh nghiệp');
-  if (['EW_CASE_ACK','EW_CASE_RESPOND'].includes(input.operation) && !await db.platformCase.findFirst({ where: { id: String(data.id), ownerOrganizationId: input.actor!.organizationId! } })) throw new ForbiddenException('Hồ sơ không còn được giao cho tổ chức');
+  if (
+    ['EW_CASE_ACK', 'EW_CASE_RESPOND'].includes(input.operation) &&
+    !(await db.platformCase.findFirst({
+      where: {
+        id: String(data.id),
+        ownerOrganizationId: input.actor!.organizationId!,
+      },
+      select: { id: true },
+    }))
+  )
+    throw new NotFoundException('Không tìm thấy hồ sơ');
   const transfer =
     input.operation.startsWith('DIST_') && input.operation !== 'DIST_CREATE'
       ? await db.distributionTransfer.findUnique({

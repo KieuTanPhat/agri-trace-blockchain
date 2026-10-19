@@ -1259,12 +1259,21 @@ const prisma = new PrismaClient({
         where: { lotId, type: 'HARVEST_IN' },
       });
       expect(Number(movement.afterQty)).toBe(1);
-      expect(await prisma.traceEvent.count({ where: { lotId } })).toBe(2);
+      const lotEvents = await prisma.traceEvent.findMany({
+        where: { lotId },
+        select: { eventType: true },
+        orderBy: { eventType: 'asc' },
+      });
+      expect(lotEvents.map((event) => event.eventType)).toEqual([
+        'EVIDENCE_ATTACHED',
+        'HARVEST_RECORDED',
+        'SENSOR_DIGEST_FINALIZED',
+      ]);
       expect(
         await prisma.blockchainOutbox.count({
           where: { traceEvent: { lotId } },
         }),
-      ).toBe(2);
+      ).toBe(lotEvents.length);
       await expect(
         prisma.commandCommit.update({
           where: { id: journal.id },

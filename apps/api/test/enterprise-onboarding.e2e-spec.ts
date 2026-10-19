@@ -9,6 +9,7 @@ import request from 'supertest';
 import { vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaClient } from '../src/generated/prisma/client.js';
+import type { RegisterDto } from '../src/modules/auth/dto/register.dto.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { ApiResponseInterceptor } from '../src/common/api/api-response.interceptor.js';
 import { GlobalExceptionFilter } from '../src/common/exception/global-exception.filter.js';
@@ -26,7 +27,9 @@ const prisma = new PrismaClient({
     let app: INestApplication, admin: string, jwt: JwtService;
     let throttleBypass: { mockRestore(): void };
     const password = 'demo-enterprise-pass-2026';
-    const form = (mode = 'MANAGED_ORG') => {
+    const form = (
+      mode: RegisterDto['hostingMode'] = 'MANAGED_ORG',
+    ): RegisterDto => {
       const email = `onboard-${randomUUID()}@example.test`;
       return {
         requestId: randomUUID(),
@@ -40,7 +43,9 @@ const prisma = new PrismaClient({
         organizationType: 'FARM',
         hostingMode: mode,
         details: {
+          formVersion: 2,
           legalForm: 'ENTERPRISE',
+          registrationNumber: 'REG-001',
           address: '123 Đường thử nghiệm',
           province: 'Thành phố Hà Nội',
           provinceCode: '01',
@@ -49,9 +54,24 @@ const prisma = new PrismaClient({
           phone: '0900000123',
           contactEmail: email,
           representative: 'Người đại diện',
+          registrantRelationship: 'REPRESENTATIVE',
           activities: ['FARM'],
+          production: {
+            sector: 'CROP',
+            productGroups: ['Rau'],
+            certifications: [],
+          },
+          services: {
+            interests: ['TRACEABILITY'],
+            expectedProducts: 'UP_TO_10',
+            partnerIntent: 'LATER',
+          },
+          documentIds: [],
           description: 'Sản xuất nông nghiệp trong kiểm thử cách ly.',
           declarationAccepted: true,
+          termsAccepted: true,
+          privacyAcknowledged: true,
+          marketingAccepted: false,
         },
         emailVerifications: [
           { verificationId: randomUUID(), token: 'x'.repeat(43) },
@@ -73,7 +93,9 @@ const prisma = new PrismaClient({
       request(app.getHttpServer())
         .get('/api' + path)
         .set('Authorization', `Bearer ${token}`);
-    const register = async (mode = 'MANAGED_ORG') => {
+    const register = async (
+      mode: RegisterDto['hostingMode'] = 'MANAGED_ORG',
+    ) => {
       const input = await verifiedForm(mode);
       await post('/auth/register', input).expect(201);
       const login = await post('/auth/login', {
@@ -86,7 +108,9 @@ const prisma = new PrismaClient({
       ).body.data;
       return { input, token, enrollment };
     };
-    const verifiedForm = async (mode = 'MANAGED_ORG') => {
+    const verifiedForm = async (
+      mode: RegisterDto['hostingMode'] = 'MANAGED_ORG',
+    ) => {
       const input = form(mode),
         requestId = randomUUID();
       await post(
@@ -113,6 +137,21 @@ const prisma = new PrismaClient({
       input.emailVerifications = [
         { verificationId: requestId, token: verified.body.data.token },
       ];
+      const documentId = randomUUID();
+      await request(app.getHttpServer())
+        .post('/api/auth/registration-documents')
+        .field('id', documentId)
+        .field('registrationId', input.requestId)
+        .field('verificationId', requestId)
+        .field('token', verified.body.data.token)
+        .field('kind', 'LEGAL_REGISTRATION')
+        .attach(
+          'file',
+          Buffer.from('%PDF-1.4\n% registration fixture\n%%EOF\n'),
+          { filename: 'registration.pdf', contentType: 'application/pdf' },
+        )
+        .expect(201);
+      input.details.documentIds = [documentId];
       return input;
     };
     const activate = async (a: {
