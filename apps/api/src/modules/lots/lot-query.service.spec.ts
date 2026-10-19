@@ -92,6 +92,12 @@ function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
     };
   });
   const database = {
+    careRecord: { findMany: vi.fn().mockResolvedValue([]) },
+    distributionLine: { findMany: vi.fn().mockResolvedValue([]) },
+    distributionReceipt: { findMany: vi.fn().mockResolvedValue([]) },
+    distributionRemainder: { findMany: vi.fn().mockResolvedValue([]) },
+    traceNotice: { findMany: vi.fn().mockResolvedValue([]) },
+    organization: { findMany: vi.fn().mockResolvedValue([]) },
     traceQr: {
       findUnique: vi.fn().mockResolvedValue({
         lot: {

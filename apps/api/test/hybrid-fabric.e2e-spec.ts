@@ -35,6 +35,7 @@ import {
 } from '../src/modules/ledger/ledger-signing.js';
 import type { IntentBody } from '../src/modules/trace/signed-commitment.js';
 import { provisionChain } from './support/chain-scope.js';
+import { seedCycleEvidence } from './support/cycle-evidence.js';
 import { TestSigner } from './support/signer.js';
 import {
   CHAINCODE,
@@ -82,21 +83,50 @@ interface World {
     let config: ConfigService;
     let service: PrismaService;
     const worlds: Record<string, World> = {};
+    const cycleEvidence = new Map<
+      string,
+      Awaited<ReturnType<typeof seedCycleEvidence>> & {
+        representativeUserId: string;
+        version: number;
+      }
+    >();
 
     const post = (
       w: World,
       path: string,
       body: object,
       who: keyof World['users'] = 'farm',
-    ) =>
-      request(app.getHttpServer())
+    ) => {
+      const harvest = path.match(/^\/production-cycles\/([^/]+)\/harvests$/);
+      const care = path.match(/^\/production-cycles\/([^/]+)\/care$/);
+      const evidence = cycleEvidence.get(harvest?.[1] ?? care?.[1] ?? '');
+      const payload = evidence
+        ? {
+            ...(harvest
+              ? {
+                  version: evidence.version,
+                  lotName: 'Hybrid fixture harvest',
+                  representativeUserId: evidence.representativeUserId,
+                  evidenceRef: evidence.harvestEvidenceRef,
+                  lotImageEvidenceRef: evidence.lotImageEvidenceRef,
+                }
+              : {
+                  version: evidence.version,
+                  name: 'Hybrid fixture care record',
+                  evidenceRef: evidence.careEvidenceRef,
+                }),
+            ...body,
+          }
+        : body;
+      return request(app.getHttpServer())
         .post('/api' + path)
         .set(
           'Authorization',
           `Bearer ${jwt.sign({ sub: w.users[who], sid: w.sessions[who] })}`,
         )
         .set('Idempotency-Key', randomUUID())
-        .send(body);
+        .send(payload);
+    };
     const get = (w: World, path: string, who: keyof World['users'] = 'farm') =>
       request(app.getHttpServer())
         .get('/api' + path)
@@ -397,6 +427,15 @@ interface World {
           harvestUnit: 'kg',
         }).expect(201)
       ).body.data;
+      cycleEvidence.set(cycle.id, {
+        ...(await seedCycleEvidence(prisma, {
+          organizationId: w.orgs.farm,
+          cycleId: cycle.id,
+          actorId: w.users.farm,
+        })),
+        representativeUserId: w.users.farm,
+        version: 1,
+      });
       return cycle as { id: string };
     }
 
@@ -1453,6 +1492,15 @@ interface World {
               plantedAt: '2026-09-25T00:00:00.000Z',
             },
           ).expect(201);
+          cycleEvidence.set(cycle.id, {
+            ...(await seedCycleEvidence(prisma, {
+              organizationId: w.orgs.farm,
+              cycleId: cycle.id,
+              actorId: w.users.farm,
+            })),
+            representativeUserId: w.users.farm,
+            version: planted.body.data.version,
+          });
           lanes.push({ w, id: cycle.id, version: planted.body.data.version });
         }
         await settle(

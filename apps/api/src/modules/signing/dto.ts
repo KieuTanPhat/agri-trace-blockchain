@@ -128,7 +128,7 @@ export class SubmitSignatureDto {
 
 export class SigningIntentDto {
   @ApiProperty({ type: String, format: 'uuid' }) intentId!: string;
-  @ApiProperty({ enum: ['HANDOVER_OFFER', 'HANDOVER_CONFIRM'] })
+  @ApiProperty({ enum: ['HANDOVER_OFFER', 'HANDOVER_CONFIRM','DISTRIBUTION_ATTEST'] })
   operation!: string;
   @ApiProperty({ type: String }) entityType!: string;
   @ApiProperty({ type: String, format: 'uuid' }) entityId!: string;

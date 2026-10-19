@@ -152,6 +152,7 @@ class CustodianDto {
 class LotBaseDto {
   @ApiProperty({ format: 'uuid' }) lotId!: string;
   @ApiProperty() lotCode!: string;
+  @ApiProperty({ type: String, nullable: true, required: false }) lotName?: string | null;
   @ApiProperty() productName!: string;
   @ApiProperty({ format: 'date-time' }) harvestTime!: string;
   @ApiProperty() initialQuantity!: number;
@@ -173,6 +174,11 @@ class LotBaseDto {
   @ApiProperty({ type: SensorEvidenceDto }) sensorEvidence!: SensorEvidenceDto;
 }
 export class InternalLotDto extends LotBaseDto {
+  @ApiProperty({ type: Number, nullable: true, required: false }) packageCount?: number | null;
+  @ApiProperty({ type: String, nullable: true, required: false }) packaging?: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date', required: false }) packedAt?: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'uuid', required: false }) initialStorageSiteId?: string | null;
+  @ApiProperty({ type: Boolean, required: false }) distributionMode?: boolean;
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   chainId!: string | null;
   @ApiProperty({ required: false }) traceToken?: string;
@@ -190,7 +196,31 @@ export class InternalLotDto extends LotBaseDto {
   @ApiProperty({ type: CustodianDto, nullable: true })
   custodian!: CustodianDto | null;
 }
+export class PublicDistributionLegDto {
+  @ApiProperty({type:String,nullable:true,description:'Accepted quantity after completed handover only'}) receivedQuantity!:string|null;
+  @ApiProperty({type:String,nullable:true,description:'Current unresolved carrier custody for this lot only'}) pendingQuantity!:string|null;
+  @ApiProperty({type:String,nullable:true}) returnedQuantity!:string|null;
+  @ApiProperty({enum:['PLANNED','CARRIER','RECEIVER','RECEIVER_WITH_REMAINDER']}) custodyStage!:string;
+  @ApiProperty() senderName!: string;
+  @ApiProperty() carrierName!: string;
+  @ApiProperty() receiverName!: string;
+  @ApiProperty({ description: 'Quantity for this source lot only' })
+  quantity!: string;
+  @ApiProperty() unit!: string;
+  @ApiProperty() status!: string;
+  @ApiProperty({ format: 'date-time' }) recordedAt!: string;
+}
+export class PublicTraceNoticeDto {
+  @ApiProperty({ enum: ['WARNING', 'RECALL'] }) kind!: string;
+  @ApiProperty() message!: string;
+  @ApiProperty({ format: 'date-time' }) createdAt!: string;
+}
 export class PublicLotDto extends LotBaseDto {
+  @ApiProperty({type:String,isArray:true,required:false,description:'Advisory based on declared production journal, not a certification'}) productionWarnings?:string[];
+  @ApiProperty({ type: [PublicTraceNoticeDto], required: false })
+  notices?: PublicTraceNoticeDto[];
+  @ApiProperty({ type: [PublicDistributionLegDto], required: false })
+  distributionJourney?: PublicDistributionLegDto[];
   @ApiProperty() traceToken!: string;
   @ApiProperty({ type: [String], maxItems: 0 }) allowedCommands!: [];
   @ApiProperty({ type: [PublicTimelineDto] }) timeline!: PublicTimelineDto[];

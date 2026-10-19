@@ -34,6 +34,10 @@ import {
   SensorReadingDto,
   VersionedCommandDto,
   ReconcileCycleSensorDto,
+  CreateProductionCycleDraftDto,
+  LinkProductionCycleDraftDto,
+  ProductionCycleDraftListDto,
+  ProductionCycleDraftRecordDto,
 } from './dto.js';
 import { ProductionCyclesService } from './production-cycles.service.js';
 
@@ -75,6 +79,7 @@ export class ProductionCyclesController {
     'SYSTEM_ADMIN',
     'FARM_STAFF',
     'TRANSPORTER',
+    'DISTRIBUTOR',
     'RETAILER',
     'AUDITOR',
     'COMPLIANCE_REVIEWER',
@@ -83,12 +88,46 @@ export class ProductionCyclesController {
     return this.service.list(req.user);
   }
 
+  @ApiDataResponse(ProductionCycleDraftListDto, 200)
+  @Get('drafts')
+  drafts(@Req() req: AuthenticatedRequest) {
+    return this.service.drafts(req.user);
+  }
+
+  @ApiDataResponse(ProductionCycleDraftRecordDto, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @Post('drafts')
+  createDraft(
+    @Body() dto: CreateProductionCycleDraftDto,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.run('EW_CREATE_CYCLE_DRAFT', key, req, dto, () =>
+      this.service.createDraft(dto, req.user),
+    );
+  }
+
+  @ApiDataResponse(ProductionCycleRecordDto, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @Post('drafts/:id/link')
+  linkDraft(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LinkProductionCycleDraftDto,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.run('EW_LINK_CYCLE_DRAFT', key, req, { id, ...dto }, () =>
+      this.service.linkDraft(id, dto, req.user),
+    );
+  }
+
   @ApiDataResponse(CycleDetailDto, 200)
   @Get(':id')
   @Roles(
     'SYSTEM_ADMIN',
     'FARM_STAFF',
     'TRANSPORTER',
+    'DISTRIBUTOR',
     'RETAILER',
     'AUDITOR',
     'COMPLIANCE_REVIEWER',

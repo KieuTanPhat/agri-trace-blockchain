@@ -56,6 +56,32 @@ export async function runSmoke({ origin, fixture, full = true, expectedLots = []
     if (options.onCookie) options.onCookie(refreshCookie(response, options.cookie));
     return (await response.json()).data;
   }
+  async function uploadCycleEvidence(role, cycleId, kind) {
+    const form = new FormData();
+    form.set('entityType', 'CYCLE');
+    form.set('entityId', cycleId);
+    form.set('kind', kind);
+    form.set('description', `CI ${kind.toLowerCase()} fixture`);
+    form.set(
+      'file',
+      new Blob(
+        [Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=', 'base64')],
+        { type: 'image/png' },
+      ),
+      `${kind.toLowerCase()}.png`,
+    );
+    const response = await fetch(`${origin}/api/enterprise-workspace/evidence`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${tokens[role]}`,
+        'Idempotency-Key': randomUUID(),
+      },
+      body: form,
+      signal: AbortSignal.timeout(15_000),
+    });
+    assert.equal(response.status, 201, 'Cycle evidence upload failed');
+    return (await response.json()).data.record.id;
+  }
 
   assert.equal((await fetch(`${origin}/login`)).status, 200, 'Public login page failed to render');
   assert.equal((await fetch(`${origin}/api/docs`)).status, 404, 'API documentation must stay hidden at the edge');
@@ -87,11 +113,32 @@ export async function runSmoke({ origin, fixture, full = true, expectedLots = []
   const cycle = await request('/production-cycles', 'FARM_STAFF', cycleInput, 201, key);
   assert.equal((await request('/production-cycles', 'FARM_STAFF', cycleInput, 201, key)).id, cycle.id, 'Idempotency replay must preserve the cycle');
   await request(`/production-cycles/${cycle.id}/plant`, 'FARM_STAFF', { version: 0, plantedAt: new Date(Date.now() - 60_000).toISOString() });
-  await request(`/production-cycles/${cycle.id}/care`, 'FARM_STAFF', { version: 1, careType: 'WATERING', eventTime: new Date().toISOString() });
+  const farmUser = await request('/auth/me', 'FARM_STAFF');
+  const careEvidenceRef = await uploadCycleEvidence('FARM_STAFF', cycle.id, 'CARE_IMAGE');
+  const harvestEvidenceRef = await uploadCycleEvidence('FARM_STAFF', cycle.id, 'HARVEST_IMAGE');
+  const lotImageEvidenceRef = await uploadCycleEvidence('FARM_STAFF', cycle.id, 'LOT_IMAGE');
+  const care = await request(`/production-cycles/${cycle.id}/care`, 'FARM_STAFF', {
+    version: 1,
+    name: 'CI watering record',
+    careType: 'WATERING',
+    evidenceRef: careEvidenceRef,
+    eventTime: new Date().toISOString(),
+  });
+  let cycleVersion = care.version;
   const lots = [];
   const tokensByLot = [];
   for (let index = 0; index < 2; index++) {
-    const harvest = await request(`/production-cycles/${cycle.id}/harvests`, 'FARM_STAFF', { quantity: 2, unit: 'kg', harvestTime: new Date().toISOString() });
+    const harvest = await request(`/production-cycles/${cycle.id}/harvests`, 'FARM_STAFF', {
+      version: cycleVersion,
+      lotName: `CI harvest ${index + 1}`,
+      representativeUserId: farmUser.id,
+      evidenceRef: harvestEvidenceRef,
+      lotImageEvidenceRef,
+      quantity: 2,
+      unit: 'kg',
+      harvestTime: new Date().toISOString(),
+    });
+    cycleVersion += 1;
     lots.push(harvest.lot.id);
     tokensByLot.push(harvest.traceQr.traceToken);
     // A chain lot ships only through a finalized ShipmentPlan that all three parties accepted.

@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useId, useRef, useState } from "react";
-import { ArrowRight, ClipboardCheck, LoaderCircle, X, Zap } from "lucide-react";
 import {
   getOrganizations,
   submitCommand,
@@ -143,9 +142,6 @@ export function ActionPanel({
     <aside className="panel">
       <div className="panel-title">
         <div className="panel-title-left">
-          <span className="panel-icon accent">
-            <Zap size={18} />
-          </span>
           <div>
             <p className="eyebrow">Cổng thao tác</p>
             <h2>Thao tác khả dụng</h2>
@@ -173,9 +169,9 @@ export function ActionPanel({
               key={command}
               onClick={() => open(command)}
             >
-              <ClipboardCheck size={18} />
+
               {labels[command]}
-              <ArrowRight size={16} />
+
             </button>
           ))}
         </div>
@@ -204,7 +200,7 @@ export function ActionPanel({
               disabled={pending}
               onClick={() => dialog.current?.close()}
             >
-              <X size={18} />
+
             </button>
           </div>
           <dl className="dialog-summary">
@@ -434,11 +430,7 @@ export function ActionPanel({
               Hủy
             </button>
             <button className="button" type="submit" disabled={pending}>
-              {pending ? (
-                <LoaderCircle size={18} className="spinner" />
-              ) : (
-                <ClipboardCheck size={18} />
-              )}
+
               {pending ? "Đang gửi..." : "Xác nhận"}
             </button>
           </div>

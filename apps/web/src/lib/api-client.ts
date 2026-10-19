@@ -174,6 +174,7 @@ export async function restoreSession(retryBusy = true): Promise<LoginResponse> {
 export async function login(
   email: string,
   password: string,
+  mfaCode?: string,
 ): Promise<LoginResponse> {
   synchronizeBrowserSession();
   const intent = ++mutationIntent;
@@ -188,7 +189,12 @@ export async function login(
     const changeId = knownAuthChange?.id;
     const result = await request<LoginResponse>(
       "/auth/login",
-      { method: "POST", body: JSON.stringify({ email, password }) },
+      {
+        method: "POST",
+        body: JSON.stringify(
+          mfaCode ? { email, password, mfaCode } : { email, password },
+        ),
+      },
       false,
     );
     assertSessionVersion(version, changeId);
@@ -608,7 +614,11 @@ async function rawRequest<T>(
       };
   };
   const headers = new Headers(init.headers);
-  if (init.body) headers.set("content-type", "application/json");
+  if (
+    init.body &&
+    !(typeof FormData !== "undefined" && init.body instanceof FormData)
+  )
+    headers.set("content-type", "application/json");
   if (token) headers.set("authorization", `Bearer ${token}`);
   if (!["GET", "HEAD", "OPTIONS"].includes(method))
     if (!headers.has("idempotency-key"))

@@ -53,7 +53,7 @@
   --neutral-bg: #edf1ec;
 
   /* Type */
-  --font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font: var(--font-inter, "Inter"), "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
   --text-md: 0.9375rem;

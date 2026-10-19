@@ -103,6 +103,28 @@ async function grant(
   });
 }
 
+async function grantWorkspaceProductionRole(
+  tx: Prisma.TransactionClient,
+  actor: CommandActor,
+) {
+  const role = await tx.enterpriseRole.create({
+    data: {
+      organizationId: actor.organizationId!,
+      name: `CI production ${randomUUID()}`,
+      permissions: ['profile.read', 'production.read', 'production.write'],
+    },
+  });
+  await tx.enterpriseMemberRole.create({
+    data: {
+      userId: actor.sub!,
+      organizationId: actor.organizationId!,
+      roleId: role.id,
+      chainIds: [chainId],
+      siteIds: [farmId],
+    },
+  });
+}
+
 // Successful test writes roll back as well. This leaves immutable synthetic
 // history intact between scenarios without bypassing any database protection.
 async function isolated(run: (tx: Prisma.TransactionClient) => Promise<void>) {
@@ -2767,6 +2789,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
             role: 'TRANSPORTER',
           };
           await grant(tx, actor, 'FARM_STAFF');
+          await grantWorkspaceProductionRole(tx, actor);
           return actor;
         },
         { timeout: 20000 },
@@ -2821,6 +2844,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         });
         const actor = { ...producer, sub: user.id };
         const permission = await grant(tx, actor, 'FARM_STAFF');
+        await grantWorkspaceProductionRole(tx, actor);
         return { actor, permission };
       });
       const session = await authenticated(scoped.actor);

@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Leaf, Search, ShieldCheck, Truck } from "lucide-react";
 import { getTracePath } from "@/lib/trace-input";
 import { CameraScanner } from "@/components/camera-scanner";
 
@@ -67,19 +66,19 @@ export default function ScanPage() {
               </p>
             )}
             <button className="button" type="submit">
-              <Search size={18} /> Tra cứu nông sản <ArrowRight size={18} />
+               Tra cứu nông sản
             </button>
           </form>
           <section className="panel scan-benefits">
             <h2>Thông tin đi cùng sản phẩm</h2>
             <p>
-              <Leaf size={19} /> Nông trại và vụ trồng liên quan
+               Nông trại và vụ trồng liên quan
             </p>
             <p>
-              <Truck size={19} /> Các mốc thu hoạch và giao nhận
+               Các mốc thu hoạch và giao nhận
             </p>
             <p>
-              <ShieldCheck size={19} /> Trạng thái xác minh dữ liệu
+               Trạng thái xác minh dữ liệu
             </p>
             <small>
               Thông tin tra cứu phản ánh dữ liệu được công khai. Trạng thái bằng

@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getTracePath } from "@/lib/trace-input";
-import { Camera, ScanLine, Upload } from "lucide-react";
-
 export function CameraScanner({ onTrace }: { onTrace(path: string): void }) {
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -199,7 +197,7 @@ export function CameraScanner({ onTrace }: { onTrace(path: string): void }) {
       <div className="camera-preview">
         {phase !== "scanning" && (
           <div className="camera-placeholder">
-            <ScanLine size={72} strokeWidth={1.2} />
+
             <strong>Đặt mã QR vào khung hình</strong>
             <span>Camera chỉ bật khi bạn chọn mở camera.</span>
           </div>
@@ -226,7 +224,7 @@ export function CameraScanner({ onTrace }: { onTrace(path: string): void }) {
             disabled={readingImage}
             onClick={() => void start()}
           >
-            <Camera size={18} /> Mở camera
+             Mở camera
           </button>
         ) : (
           <button
@@ -247,7 +245,7 @@ export function CameraScanner({ onTrace }: { onTrace(path: string): void }) {
           disabled={readingImage}
           onClick={() => fileInput.current?.click()}
         >
-          <Upload size={18} /> Tải ảnh QR
+           Tải ảnh QR
         </button>
         <input
           ref={fileInput}

@@ -54,8 +54,31 @@ function cycleForRole(
   actor: CommandActor,
   role: ReadRole,
 ): Prisma.ProductionCycleWhereInput {
+  const scope = actor.enterpriseScope;
+  const permissions =
+    role === 'FARM_STAFF'
+      ? ['production.read', 'production.write', 'trace.read']
+      : ['distribution.read', 'distribution.write', 'distribution.sign', 'trace.read'];
+  const grants = scope?.roleScopes.filter((grant) =>
+    grant.permissions.some((permission) => permissions.includes(permission)),
+  );
+  const delegatedScope: Prisma.ProductionCycleWhereInput | undefined = scope
+    ? !grants?.length
+      ? { id: NONE }
+      : role === 'FARM_STAFF'
+        ? {
+            OR: grants.map((grant) => ({
+              AND: [
+                { chainId: { in: grant.chainIds } },
+                { farmId: { in: grant.siteIds } },
+              ],
+            })),
+          }
+        : { OR: grants.map((grant) => ({ chainId: { in: grant.chainIds } })) }
+    : undefined;
   return {
     chain: { is: chainAuthority(actor, role) },
+    ...delegatedScope,
     ...(role === 'FARM_STAFF'
       ? { assignments: { some: assignment(actor, 'PRODUCTION') } }
       : role === 'COMPLIANCE_REVIEWER'
@@ -97,7 +120,9 @@ function permitted(actor: CommandActor) {
  * ownership and platform metadata authority do not grant raw business reads. */
 export function scopedLotReadWhere(actor: CommandActor): Prisma.LotWhereInput {
   if (!permitted(actor)) return { id: NONE };
-  return { OR: READ_ROLES.map((role) => lotForRole(actor, role)) };
+  return {
+    OR: READ_ROLES.map((role) => lotForRole(actor, role)),
+  };
 }
 
 export function scopedShipmentReadWhere(
@@ -108,12 +133,20 @@ export function scopedShipmentReadWhere(
 }
 
 /** Apply scope to the final evidence query as well as its preliminary check. */
-export function scopedTraceEventReadWhere(actor: CommandActor): Prisma.TraceEventWhereInput {
+export function scopedTraceEventReadWhere(
+  actor: CommandActor,
+): Prisma.TraceEventWhereInput {
   if (!permitted(actor)) return { id: NONE };
-  return { OR: [
-    { lotId: { not: null }, lot: { is: scopedLotReadWhere(actor) } },
-    { lotId: null, cycleId: { not: null }, cycle: { is: scopedCycleReadWhere(actor) } },
-  ] };
+  return {
+    OR: [
+      { lotId: { not: null }, lot: { is: scopedLotReadWhere(actor) } },
+      {
+        lotId: null,
+        cycleId: { not: null },
+        cycle: { is: scopedCycleReadWhere(actor) },
+      },
+    ],
+  };
 }
 
 /** Parent visibility does not authorize every child. Cycle detail must also
@@ -139,5 +172,9 @@ export function scopedCycleRoleReadWhere(
   actor: CommandActor,
   role: 'FARM_STAFF' | 'COMPLIANCE_REVIEWER',
 ): Prisma.ProductionCycleWhereInput {
-  return permitted(actor) ? cycleForRole(actor, role) : { id: NONE };
+  return permitted(actor)
+    ? {
+        ...cycleForRole(actor, role),
+      }
+    : { id: NONE };
 }

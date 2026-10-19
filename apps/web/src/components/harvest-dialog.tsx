@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { QrCodeCard } from "./qr-code-card";
 import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
-import { LoaderCircle, Plus, X } from "lucide-react";
 import { getProductionCycles } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
@@ -14,6 +13,7 @@ import {
   type HarvestRecovery,
 } from "@/lib/harvest-recovery";
 import type { ProductionCycleOption } from "@/lib/types";
+import { useWorkspaceData, type Items, type TraceEvidence } from "@/lib/workspace";
 
 export function HarvestDialog({ onCreated }: { onCreated(): void }) {
   const { user } = useAuth();
@@ -31,6 +31,7 @@ function ScopedHarvestDialog({
   scope: string;
   onCreated(): void;
 }) {
+  const { user } = useAuth();
   const titleId = useId();
   const busy = useRef(false);
   const mounted = useRef(false);
@@ -45,9 +46,22 @@ function ScopedHarvestDialog({
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("kg");
   const [lotCode, setLotCode] = useState("");
+  const [lotName, setLotName] = useState("");
+  const [evidenceRef, setEvidenceRef] = useState("");
+  const [additionalEvidenceRefs, setAdditionalEvidenceRefs] = useState<string[]>([]);
+  const [lotImageEvidenceRef, setLotImageEvidenceRef] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
+  const evidence = useWorkspaceData<Items<TraceEvidence>>(
+    cycleId ? `/enterprise-workspace/evidence?entityType=CYCLE&entityId=${cycleId}` : null,
+  );
+  const currentHarvestImages = (evidence.data?.items ?? []).filter(
+    (row) => row.kind === "HARVEST_IMAGE" && !evidence.data?.items.some((newer) => newer.supersedesId === row.id),
+  );
+  const currentLotImages = (evidence.data?.items ?? []).filter(
+    (row) => row.kind === "LOT_IMAGE" && !evidence.data?.items.some((newer) => newer.supersedesId === row.id),
+  );
 
   const showError = useCallback((cause: unknown) => {
     if (!mounted.current) return;
@@ -127,6 +141,10 @@ function ScopedHarvestDialog({
       setCycleId("");
       setQuantity("");
       setLotCode("");
+      setLotName("");
+      setEvidenceRef("");
+      setAdditionalEvidenceRefs([]);
+      setLotImageEvidenceRef("");
       setExpiryDate("");
       dialog.current?.showModal();
     } catch (cause) {
@@ -139,6 +157,9 @@ function ScopedHarvestDialog({
 
   function selectCycle(id: string) {
     setCycleId(id);
+    setEvidenceRef("");
+    setAdditionalEvidenceRefs([]);
+    setLotImageEvidenceRef("");
     const cycle = cycles.find((item) => item.id === id);
     setUnit(cycle?.harvestUnit || cycle?.product.defaultUnit || "kg");
   }
@@ -155,9 +176,15 @@ function ScopedHarvestDialog({
         recovery.state.revision,
         cycleId,
         {
+          version: cycles.find((cycle) => cycle.id === cycleId)?.version,
           quantity: Number(quantity),
           unit: unit.trim(),
           lotCode: lotCode.trim() || undefined,
+          lotName: lotName.trim(),
+          representativeUserId: cycles.find((cycle) => cycle.id === cycleId)?.responsibleUserId ?? user?.id ?? "",
+          evidenceRef,
+          additionalEvidenceRefs: additionalEvidenceRefs as Parameters<typeof sendHarvest>[3]["additionalEvidenceRefs"],
+          lotImageEvidenceRef,
           expiryDate: expiryDate || undefined,
         },
       );
@@ -184,7 +211,7 @@ function ScopedHarvestDialog({
         disabled={pending}
         onClick={() => dialog.current?.showModal()}
       >
-        <Plus size={18} /> Ghi nhận thu hoạch
+         Ghi nhận thu hoạch
       </button>
       {created && (
         <section className="panel" role="status">
@@ -221,7 +248,7 @@ function ScopedHarvestDialog({
               disabled={pending}
               onClick={() => dialog.current?.close()}
             >
-              <X size={18} />
+
             </button>
           </div>
           <fieldset
@@ -286,6 +313,35 @@ function ScopedHarvestDialog({
               </div>
             </div>
             <div className="field">
+              <label htmlFor="harvest-lot-name">Tên lô nông sản</label>
+              <input id="harvest-lot-name" className="input" required maxLength={255} value={lotName} onChange={(event) => setLotName(event.target.value)} />
+            </div>
+            <p className="notice">Người đại diện thu hoạch: thành viên được phân công cho vụ, hoặc tài khoản đang ghi nếu vụ chưa phân công.</p>
+            <div className="field">
+              <label htmlFor="harvest-image">Ảnh thu hoạch</label>
+              <select id="harvest-image" className="select" required value={evidenceRef} onChange={(event) => setEvidenceRef(event.target.value)}>
+                <option value="">Chọn ảnh đã tải lên vụ trồng</option>
+                {currentHarvestImages.map((row) => <option key={row.id} value={row.id}>{row.fileName}</option>)}
+              </select>
+              {cycleId && <Link href={`/production-cycles/${cycleId}/harvest/new`}>Tải ảnh và ghi thu hoạch trên hồ sơ vụ →</Link>}
+            </div>
+            <div className="field">
+              <label htmlFor="harvest-extra-images">Ảnh thu hoạch bổ sung (tối đa 4)</label>
+              <select id="harvest-extra-images" className="select" multiple size={Math.min(5, Math.max(2, currentHarvestImages.length))} value={additionalEvidenceRefs} onChange={(event) => {
+                const selected = Array.from(event.target.selectedOptions, (option) => option.value);
+                if (selected.length <= 4) setAdditionalEvidenceRefs(selected);
+              }}>
+                {currentHarvestImages.filter((row) => row.id !== evidenceRef).map((row) => <option key={row.id} value={row.id}>{row.fileName}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="harvest-lot-image">Ảnh lô nông sản</label>
+              <select id="harvest-lot-image" className="select" required value={lotImageEvidenceRef} onChange={(event) => setLotImageEvidenceRef(event.target.value)}>
+                <option value="">Chọn ảnh lô đã tải lên vụ trồng</option>
+                {currentLotImages.map((row) => <option key={row.id} value={row.id}>{row.fileName}</option>)}
+              </select>
+            </div>
+            <div className="field">
               <label htmlFor="harvest-code">Mã lô (để trống để tự sinh)</label>
               <input
                 id="harvest-code"
@@ -322,11 +378,7 @@ function ScopedHarvestDialog({
             </button>
             {(!recovery?.status || recovery.status.status === "NOT_FOUND") && (
               <button className="button" disabled={pending || !recovery}>
-                {pending ? (
-                  <LoaderCircle className="spinner" size={18} />
-                ) : (
-                  <Plus size={18} />
-                )}
+
                 {pending ? "Đang ghi nhận..." : "Tạo lô từ thu hoạch"}
               </button>
             )}

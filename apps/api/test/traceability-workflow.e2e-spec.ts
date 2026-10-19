@@ -18,6 +18,7 @@ import { LotHarvestService } from '../src/modules/lots/lot-harvest.service.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
 import { provisionChain } from './support/chain-scope.js';
+import { seedCycleEvidence } from './support/cycle-evidence.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 const prisma = new PrismaClient({
@@ -40,6 +41,13 @@ const prisma = new PrismaClient({
     let chainId: string;
     const users: Record<string, string> = {};
     const sessionIds: Record<string, string> = {};
+    const cycleEvidence = new Map<
+      string,
+      Awaited<ReturnType<typeof seedCycleEvidence>> & {
+        representativeUserId: string;
+        version: number;
+      }
+    >();
 
     beforeAll(async () => {
       await prisma.$queryRaw`SELECT 1`;
@@ -207,11 +215,32 @@ const prisma = new PrismaClient({
       user = 'farm',
       key = randomUUID(),
     ) {
+      const harvest = path.match(/^\/production-cycles\/([^/]+)\/harvests$/);
+      const care = path.match(/^\/production-cycles\/([^/]+)\/care$/);
+      const evidence = cycleEvidence.get(harvest?.[1] ?? care?.[1] ?? '');
+      const payload = evidence
+        ? {
+            ...(harvest
+              ? {
+                  version: evidence.version,
+                  lotName: 'Workflow harvest',
+                  representativeUserId: evidence.representativeUserId,
+                  evidenceRef: evidence.harvestEvidenceRef,
+                  lotImageEvidenceRef: evidence.lotImageEvidenceRef,
+                }
+              : {
+                  version: evidence.version,
+                  name: 'Workflow care record',
+                  evidenceRef: evidence.careEvidenceRef,
+                }),
+            ...body,
+          }
+        : body;
       return request(app.getHttpServer())
         .post('/api' + path)
         .set('Authorization', bearer(user))
         .set('Idempotency-Key', key)
-        .send(body);
+        .send(payload);
     }
     async function plantedCycle(quantity = 1) {
       const created = await post('/production-cycles', {
@@ -227,7 +256,16 @@ const prisma = new PrismaClient({
         version: 0,
         plantedAt: '2026-09-25T00:00:00.000Z',
       }).expect(201);
-      return cycle;
+      cycleEvidence.set(cycle.id, {
+        ...(await seedCycleEvidence(prisma, {
+          organizationId: farmOrgId,
+          cycleId: cycle.id,
+          actorId: users.farm,
+        })),
+        representativeUserId: users.farm,
+        version: 1,
+      });
+      return { ...cycle, version: 1 };
     }
     async function harvestedLot(quantity = 1) {
       const cycle = await plantedCycle(quantity);
@@ -512,6 +550,7 @@ const prisma = new PrismaClient({
       const harvest = async (harvestTime: string) =>
         (
           await post(`/production-cycles/${cycle.id}/harvests`, {
+            version: harvestTime === '2026-09-26T00:00:00.000Z' ? 1 : 2,
             quantity: 0.5,
             unit: 'kg',
             harvestTime,
@@ -1220,12 +1259,21 @@ const prisma = new PrismaClient({
         where: { lotId, type: 'HARVEST_IN' },
       });
       expect(Number(movement.afterQty)).toBe(1);
-      expect(await prisma.traceEvent.count({ where: { lotId } })).toBe(2);
+      const lotEvents = await prisma.traceEvent.findMany({
+        where: { lotId },
+        select: { eventType: true },
+        orderBy: { eventType: 'asc' },
+      });
+      expect(lotEvents.map((event) => event.eventType)).toEqual([
+        'EVIDENCE_ATTACHED',
+        'HARVEST_RECORDED',
+        'SENSOR_DIGEST_FINALIZED',
+      ]);
       expect(
         await prisma.blockchainOutbox.count({
           where: { traceEvent: { lotId } },
         }),
-      ).toBe(2);
+      ).toBe(lotEvents.length);
       await expect(
         prisma.commandCommit.update({
           where: { id: journal.id },
@@ -1526,6 +1574,7 @@ const prisma = new PrismaClient({
       const nextReading = await read('2026-09-26T12:00:00.000Z', 27);
       const second = (
         await post(`/production-cycles/${cycle.id}/harvests`, {
+          version: 2,
           quantity: 1,
           unit: 'kg',
           harvestTime: '2026-09-27T00:00:00.000Z',
@@ -1957,6 +2006,15 @@ const prisma = new PrismaClient({
         { version: 0, plantedAt: '2026-09-25T00:00:00.000Z' },
         as,
       ).expect(201);
+      cycleEvidence.set(cycle.id, {
+        ...(await seedCycleEvidence(prisma, {
+          organizationId: org.id,
+          cycleId: cycle.id,
+          actorId: user.id,
+        })),
+        representativeUserId: user.id,
+        version: 1,
+      });
       const { lot } = (
         await post(
           `/production-cycles/${cycle.id}/harvests`,
@@ -2029,7 +2087,7 @@ const prisma = new PrismaClient({
     it('validates malformed identifiers and blank master-data names at the HTTP boundary', async () => {
       await get('/inspections?lotId=not-a-uuid').expect(400);
       await get('/certificates?cycleId=not-a-uuid').expect(400);
-      await post('/catalog/products', { productName: '   ' }, 'admin').expect(
+      await post('/catalog/products', { productName: '   ' }, 'farm').expect(
         400,
       );
       await post(
@@ -2048,6 +2106,80 @@ const prisma = new PrismaClient({
         },
         'admin',
       ).expect(400);
+    });
+
+    it('keeps admin out of enterprise catalog writes and direct business-account creation', async () => {
+      await get('/catalog', 'admin').expect(200);
+      await post(
+        '/catalog/products',
+        { productName: 'Admin-only product' },
+        'admin',
+      ).expect(403);
+      await post(
+        '/catalog/farms',
+        { organizationId: farmOrgId, name: 'Admin-only farm' },
+        'admin',
+      ).expect(403);
+      await post(
+        '/catalog/plots',
+        { farmId, name: 'Admin-only plot' },
+        'admin',
+      ).expect(403);
+      await post(
+        '/organizations',
+        { name: 'Bypassed farm', type: 'FARM' },
+        'admin',
+      ).expect(400);
+      await post(
+        '/users',
+        {
+          email: `bypassed-${randomUUID()}@example.test`,
+          fullName: 'Bypassed employee',
+          password: 'A-test-password-123',
+          roleCode: 'FARM_STAFF',
+          organizationId: farmOrgId,
+        },
+        'admin',
+      ).expect(403);
+      await request(app.getHttpServer())
+        .patch(`/api/users/${users.farm}/status`)
+        .set('Authorization', bearer('admin'))
+        .set('Idempotency-Key', randomUUID())
+        .send({
+          accountStatus: 'LOCKED',
+          version: 0,
+          reason: 'Thử khóa tài khoản doanh nghiệp từ nền tảng',
+        })
+        .expect(403);
+      const roles = await get('/users/roles', 'admin').expect(200);
+      expect(
+        roles.body.data.map((role: { code: string }) => role.code),
+      ).toEqual([
+        'COMPLIANCE_REVIEWER',
+        'PLATFORM_CASE_MANAGER',
+        'PLATFORM_OPERATOR',
+        'PLATFORM_PRIVACY_OFFICER',
+        'SYSTEM_ADMIN',
+      ]);
+      const auditor = await post(
+        '/organizations',
+        {
+          name: `Independent auditor ${randomUUID()}`,
+          type: 'AUDITOR',
+        },
+        'admin',
+      ).expect(201);
+      await post(
+        '/users',
+        {
+          email: `independent-reviewer-${randomUUID()}@example.test`,
+          fullName: 'Independent reviewer',
+          password: 'A-test-password-123',
+          roleCode: 'COMPLIANCE_REVIEWER',
+          organizationId: auditor.body.data.id,
+        },
+        'admin',
+      ).expect(201);
     });
   },
 );

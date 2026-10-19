@@ -3,6 +3,8 @@ import {
   IsEmail,
   IsByteLength,
   IsIn,
+  IsInt,
+  Min,
   IsOptional,
   IsString,
   IsUUID,
@@ -10,6 +12,11 @@ import {
   MinLength,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import {
+  ReasonDto,
+  TemporaryPasswordField,
+  VersionedReasonDto,
+} from '../platform-governance/dto.js';
 
 export class CreateUserDto {
   @ApiProperty({ type: String, format: 'email' })
@@ -42,8 +49,19 @@ export class CreateUserDto {
   organizationId?: string;
 }
 
-export class UpdateUserStatusDto {
+export class UpdateUserStatusDto extends VersionedReasonDto {
   @ApiProperty({ enum: ['ACTIVE', 'INACTIVE', 'LOCKED'] })
   @IsIn(['ACTIVE', 'INACTIVE', 'LOCKED'])
   accountStatus!: 'ACTIVE' | 'INACTIVE' | 'LOCKED';
+}
+
+export class UnlockUserDto extends VersionedReasonDto {}
+
+export class RevokeUserSessionsDto extends ReasonDto {}
+
+export class ResetUserPasswordDto extends TemporaryPasswordField {
+  @ApiProperty({ type: Number, minimum: 0 })
+  @IsInt()
+  @Min(0)
+  version!: number;
 }

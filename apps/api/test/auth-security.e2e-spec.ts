@@ -129,15 +129,18 @@ describe('Auth security (e2e)', () => {
     '/api/catalog/plots',
     '/api/users',
     '/api/organizations',
-  ])('blocks farm staff from administration at %s', async (path) => {
-    user!.role.code = 'FARM_STAFF';
-    const token = await jwt.signAsync({ sub: user!.id, sid: user!.id });
-    await request(app.getHttpServer())
-      .post(path)
-      .set('Authorization', 'Bearer ' + token)
-      .send({})
-      .expect(403);
-  });
+  ])(
+    'validates catalog requests and blocks platform administration at %s',
+    async (path) => {
+      user!.role.code = 'FARM_STAFF';
+      const token = await jwt.signAsync({ sub: user!.id, sid: user!.id });
+      await request(app.getHttpServer())
+        .post(path)
+        .set('Authorization', 'Bearer ' + token)
+        .send({})
+        .expect(path.startsWith('/api/catalog/') ? 400 : 403);
+    },
+  );
 
   it('rejects incomplete enterprise registration before persistence', async () => {
     await request(app.getHttpServer())

@@ -2,21 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Search,
-  Download,
-  Leaf,
-  Truck,
-  Package,
-  ChevronRight,
-} from "lucide-react";
 import type { LotTrace } from "@/lib/types";
 import { StateBadge } from "./state-badge";
 import { ResponsiveTable } from "./responsive-table";
 import { labelForState } from "@/lib/display-labels";
 import { formatTraceDate } from "@/lib/format-date";
+import { EntityThumb } from "./workspace/entity-thumb";
 
-export function LotTable({ lots }: { lots: LotTrace[] }) {
+/** `withImages` adds a photo column; it needs an enterprise account to read evidence. */
+export function LotTable({ lots, withImages = false }: { lots: LotTrace[]; withImages?: boolean }) {
   const [query, setQuery] = useState("");
   const [state, setState] = useState("");
   const [farm, setFarm] = useState("");
@@ -39,23 +33,20 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
     ).values(),
   ];
   const stats = [
-    { label: "Tổng số lô", value: lots.length, icon: Leaf, state: "" },
+    { label: "Tổng số lô", value: lots.length, state: "" },
     {
       label: "Đã đến điểm nhận",
       value: lots.filter((lot) => lot.currentState === "ARRIVED").length,
-      icon: Package,
       state: "ARRIVED",
     },
     {
       label: "Đang vận chuyển",
       value: lots.filter((lot) => lot.currentState === "IN_TRANSPORT").length,
-      icon: Truck,
       state: "IN_TRANSPORT",
     },
     {
       label: "Đã thu hoạch",
       value: lots.filter((lot) => lot.currentState === "HARVESTED").length,
-      icon: Leaf,
       state: "HARVESTED",
     },
   ];
@@ -86,7 +77,7 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
   return (
     <>
       <section className="lot-stats" aria-label="Thống kê lô">
-        {stats.map(({ icon: Icon, ...stat }) => (
+        {stats.map((stat) => (
           <button
             className="stat-card"
             key={stat.label}
@@ -96,9 +87,6 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
             }}
             aria-pressed={state === stat.state}
           >
-            <span className="stat-icon">
-              <Icon size={22} />
-            </span>
             <span className="stat-body">
               <strong className="stat-value">{stat.value}</strong>
               <span className="stat-label">{stat.label}</span>
@@ -109,7 +97,7 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
       <section className="panel">
         <div className="table-toolbar">
           <label className="table-search">
-            <Search size={20} />
+
             <input
               placeholder="Tên nông sản, mã lô, trang trại..."
               aria-label="Tìm lô"
@@ -153,7 +141,7 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
             ))}
           </select>
           <button className="button secondary" onClick={exportCsv}>
-            <Download size={18} />
+
             Xuất CSV
           </button>
         </div>
@@ -162,13 +150,24 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
           rows={filtered.slice(start, start + perPage)}
           rowKey={(lot) => lot.lotId}
           columns={[
+            ...(withImages
+              ? [
+                  {
+                    key: "image",
+                    label: "Hình ảnh",
+                    render: (lot: LotTrace) => (
+                      <EntityThumb entityType="LOT" entityId={lot.lotId} kinds={["LOT_IMAGE", "HARVEST_IMAGE"]} name={lot.lotCode} />
+                    ),
+                  },
+                ]
+              : []),
             {
               key: "product",
               label: "Nông sản",
               render: (lot) => (
                 <Link className="product-link" href={`/lots/${lot.lotId}`}>
                   <span className="product-mark">
-                    <Leaf size={20} />
+
                   </span>
                   {lot.productName}
                 </Link>
@@ -206,7 +205,7 @@ export function LotTable({ lots }: { lots: LotTrace[] }) {
                   href={`/lots/${lot.lotId}`}
                   aria-label={`Xem lô ${lot.lotCode}`}
                 >
-                  Xem lô <ChevronRight size={16} />
+                  Xem lô
                 </Link>
               ),
             },

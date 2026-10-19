@@ -29,6 +29,11 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
     chainId: lot.harvest.cycle.chainId,
     traceToken: lot.traceQr?.traceToken,
     lotCode: lot.lotCode,
+    lotName: lot.lotName,
+    packageCount: lot.packageCount,
+    packaging: lot.packaging,
+    packedAt: lot.packedAt?.toISOString().slice(0, 10) ?? null,
+    initialStorageSiteId: lot.initialStorageSiteId,
     productName: lot.product.productName,
     harvestTime: lot.harvest.harvestTime,
     initialQuantity: Number(lot.initialQuantity),
@@ -137,6 +142,7 @@ export function toPublicLotDto(
     lotId: lot.id,
     traceToken,
     lotCode: lot.lotCode,
+    lotName: lot.lotName,
     productName: lot.product.productName,
     harvestTime: lot.harvest.harvestTime,
     initialQuantity: Number(lot.initialQuantity),
@@ -152,7 +158,7 @@ export function toPublicLotDto(
     },
     farmOrg: {
       organizationId: lot.harvest.cycle.farm.organizationId,
-      name: lot.harvest.cycle.farm.name,
+      name: lot.harvest.cycle.farm.privacy === 'PUBLIC' ? lot.harvest.cycle.farm.name : 'Vùng sản xuất riêng tư',
       type: 'FARM',
     },
     allowedCommands: [],
@@ -199,6 +205,12 @@ function publicCertificate(certificate: PublicLot['certificates'][number]) {
 
 function eventSummary(eventType: string) {
   const summaries: Record<string, string> = {
+    DISTRIBUTION_PROPOSED: 'Lập giao nhận và dành lượng hàng từ lô nguồn.',
+    DISTRIBUTION_ATTESTED: 'Một bên đã ký xác nhận nội dung giao nhận.',
+    DISTRIBUTION_READY: 'Các bên đã đồng thuận giao nhận.',
+    DISTRIBUTION_IN_TRANSIT: 'Hai bên đã ký bàn giao cho đơn vị vận chuyển.',
+    DISTRIBUTION_DELIVERED: 'Hai bên đã ký xác nhận nhận hàng.',
+    DISTRIBUTION_CANCELLED: 'Hủy giao nhận trước khi bàn giao hàng.',
     PRODUCTION_CYCLE_CREATED: 'Khởi tạo chu kỳ sản xuất.',
     CYCLE_PLANTED: 'Ghi nhận gieo trồng.',
     CARE_RECORDED: 'Ghi nhận hoạt động chăm sóc.',

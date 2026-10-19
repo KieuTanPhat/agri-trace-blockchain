@@ -10,6 +10,26 @@ const uuid = "[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}";
 const match = (path: string, pattern: string) =>
   path.match(new RegExp("^" + pattern + "$"));
 const creates: Record<string, Operation> = {
+  '/enterprise-workspace/profile/contact':'EW_PROFILE_CONTACT',
+  '/enterprise-workspace/profile/amendments':'EW_PROFILE_SUBMIT',
+  '/production-cycles/drafts':'EW_CREATE_CYCLE_DRAFT',
+  "/distribution/transfers": "DIST_CREATE",
+  "/distribution/keys": "EW_REGISTER_DISTRIBUTION_KEY",
+  "/distribution/notices": "EW_TRACE_NOTICE",
+  "/distribution/quantities": "EW_DISPOSITION",
+  '/distribution/allocations':'EW_ALLOCATE',
+  '/distribution/quarantine':'EW_QUARANTINE',
+  '/distribution/site-transfers':'EW_SITE_TRANSFER_CREATE',
+  '/enterprise-messages':'EW_MESSAGE_SEND',
+  '/distribution/qr/prints':'EW_QR_PRINT',
+  '/enterprise-workspace/materials':'EW_CREATE_MATERIAL',
+  '/enterprise-workspace/products-import/apply':'EW_IMPORT_PRODUCTS',
+  "/enterprise-workspace/roles": "EW_CREATE_ROLE",
+  '/enterprise-workspace/member-invitations':'EW_INVITE_MEMBER',
+  '/enterprise-workspace/ownership-transfers':'EW_OWNERSHIP_PROPOSE',
+  "/enterprise-workspace/partners": "EW_INVITE_PARTNER",
+  "/enterprise-workspace/sites": "EW_CREATE_SITE",
+  "/enterprise-workspace/vehicles": "EW_CREATE_VEHICLE",
   "/enterprise-connections": "ENTERPRISE_CONNECT",
   "/production-cycles": "CREATE_PRODUCTION_CYCLE",
   "/shipments": "CREATE_SHIPMENT",
@@ -40,8 +60,71 @@ export function commandRequest(
     discriminator = "",
   ) => ({ operation, payload: { ...data, ...ids }, discriminator });
   if (method === "POST" && creates[path]) return result(creates[path]);
-  const enterprise=match(path,`/(enterprise-enrollments|enterprise-connections)/(${uuid})/review`);
-  if(enterprise && method==='POST') return result(enterprise[1]==='enterprise-enrollments'?'ENTERPRISE_REVIEW':'ENTERPRISE_CONNECTION_REVIEW',{id:enterprise[2]});
+  const draftLink = match(path, `/production-cycles/drafts/(${uuid})/link`);
+  if (draftLink && method === "POST")
+    return result("EW_LINK_CYCLE_DRAFT", { id: draftLink[1] });
+  const profileAmendment=match(path,`/(enterprise-workspace/profile/amendments|enterprise-profile-amendments)/(${uuid})/(withdraw|review)`);
+  if(profileAmendment&&method==='POST')return result(profileAmendment[3]==='review'?'ENTERPRISE_PROFILE_REVIEW':'EW_PROFILE_WITHDRAW',{id:profileAmendment[2]});
+  const transfer = match(
+    path,
+    `/distribution/transfers/(${uuid})/(sign|cancel|journal|receipt|returns|consent-renewal|c2/prepare|c2/submit)`,
+  );
+  if (transfer && method === "POST")
+    return result(
+      ({receipt:'DIST_RECEIPT',returns:'DIST_RETURN','consent-renewal':'DIST_RENEW_CONSENT','c2/prepare':'DIST_C2_PREPARE','c2/submit':'DIST_C2_SUBMIT'} as Record<string,Operation>)[transfer[2]] ?? (transfer[2] === "sign"
+        ? "DIST_SIGN"
+        : transfer[2] === "journal"
+          ? "DIST_OBSERVE"
+          : "DIST_CANCEL"),
+      { id: transfer[1] },
+    );
+  const message=match(path,`/enterprise-messages/(${uuid})/(replies|read)`);
+  if(message&&method==='POST')return result(message[2]==='replies'?'EW_MESSAGE_REPLY':'EW_MESSAGE_READ',{id:message[1]});
+  const siteTransfer=match(path,`/distribution/site-transfers/(${uuid})/(dispatch|receive|resolve|cancel)`);
+  if(siteTransfer&&method==='POST')return result(({dispatch:'EW_SITE_TRANSFER_DISPATCH',receive:'EW_SITE_TRANSFER_RECEIVE',resolve:'EW_SITE_TRANSFER_RESOLVE',cancel:'EW_SITE_TRANSFER_CANCEL'} as Record<string,Operation>)[siteTransfer[2]],{id:siteTransfer[1]});
+  const returnSign=match(path,`/distribution/transfers/(${uuid})/returns/(${uuid})/sign`);
+  const invitation=match(path,`/enterprise-workspace/member-invitations/(${uuid})/revoke`);
+  if(invitation&&method==='POST')return result('EW_REVOKE_MEMBER_INVITATION',{id:invitation[1]});
+  const ownership=match(path,`/enterprise-workspace/ownership-transfers/(${uuid})/(accept|decline|cancel)`);
+  if(ownership&&method==='POST')return result(({accept:'EW_OWNERSHIP_ACCEPT',decline:'EW_OWNERSHIP_DECLINE',cancel:'EW_OWNERSHIP_CANCEL'} as Record<string,Operation>)[ownership[2]],{id:ownership[1]});
+  const enterpriseCase=match(path,`/enterprise-cases/(${uuid})/(acknowledge|respond)`);
+  if(enterpriseCase&&method==='POST')return result(enterpriseCase[2]==='acknowledge'?'EW_CASE_ACK':'EW_CASE_RESPOND',{id:enterpriseCase[1]});
+  if(returnSign&&method==='POST')return result('DIST_RETURN_SIGN',{id:returnSign[1],returnId:returnSign[2]});
+  const revision=match(path,`/enterprise-workspace/(products|materials|sites|vehicles)/(${uuid})(/revisions)?`);
+  if(revision&&method==='POST'&&(revision[1]==='products'||revision[1]==='materials'||revision[3]))return result(({products:'EW_UPDATE_PRODUCT',materials:'EW_UPDATE_MATERIAL',sites:'EW_REVISE_SITE',vehicles:'EW_REVISE_VEHICLE'} as Record<string,Operation>)[revision[1]],{id:revision[2]});
+  const manualActivation=match(path,`/enterprise-enrollments/(${uuid})/activate`);
+  if(manualActivation&&method==='POST')return result('ENTERPRISE_ACTIVATE',{id:manualActivation[1]});
+  const distributionKey = match(path, `/distribution/keys/(${uuid})/revoke`);
+  if (distributionKey && method === "POST")
+    return result("EW_REVOKE_DISTRIBUTION_KEY", { id: distributionKey[1] });
+  const supervisor = match(path, `/enterprise-workspace/members/(${uuid})/supervisor`);
+  if (supervisor && method === "POST")
+    return result("EW_CHANGE_MEMBER_SUPERVISOR", { id: supervisor[1] });
+  const workspace = match(
+    path,
+    `/enterprise-workspace/(members|roles|partners|sites|vehicles)/(${uuid})(/status)?`,
+  );
+  if (workspace && method === "POST") {
+    const operations: Record<string, Operation> = {
+      members: "EW_UPDATE_MEMBER",
+      roles: "EW_UPDATE_ROLE",
+      partners: "EW_RESOLVE_PARTNER",
+      sites: "EW_UPDATE_SITE",
+      vehicles: "EW_UPDATE_VEHICLE",
+    };
+    return result(operations[workspace[1]], { id: workspace[2] });
+  }
+  const enterprise = match(
+    path,
+    `/(enterprise-enrollments|enterprise-connections)/(${uuid})/review`,
+  );
+  if (enterprise && method === "POST")
+    return result(
+      enterprise[1] === "enterprise-enrollments"
+        ? "ENTERPRISE_REVIEW"
+        : "ENTERPRISE_CONNECTION_REVIEW",
+      { id: enterprise[2] },
+    );
   let signing = match(path, `/shipments/(${uuid})/handover-offers/intent`);
   if (signing && method === "POST")
     return result("PREPARE_HANDOVER_OFFER", { shipmentId: signing[1] });

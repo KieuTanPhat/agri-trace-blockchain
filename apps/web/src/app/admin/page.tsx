@@ -1,237 +1,182 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+
 import Link from "next/link";
-import { useAuth } from "@/lib/auth-store";
-import { request } from "@/lib/api-client";
-import { ResponsiveTable } from "@/components/responsive-table";
-import { labelForRole } from "@/lib/display-labels";
-import type { Role } from "@/lib/types";
-import { DataForm, type Field } from "@/components/data-form";
-import { emptyCatalog, type Catalog } from "@/lib/catalog";
+import type { Enrollment } from "@/lib/enterprise-onboarding";
 import type { components } from "@/lib/generated/api";
-type AdminUser = components["schemas"]["UserListDto"];
-type Org = { id: string; name: string; type: string; status: string };
-const tabs = ["Tổ chức", "Tài khoản", "Sản phẩm", "Nông trại", "Thửa đất"];
-const statusLabels: Record<string, string> = {
-  ACTIVE: "Đang hoạt động", INACTIVE: "Ngừng hoạt động", LOCKED: "Đã khóa",
-};
-const organizationLabels: Record<string, string> = {
-  FARM: "Nông trại", TRANSPORTER: "Vận chuyển", RETAILER: "Bán lẻ", AUDITOR: "Kiểm định",
-};
+import { useWorkspaceData } from "@/lib/workspace";
+import {
+  EmptyState,
+  LoadState,
+  OverviewChart,
+  PageHeader,
+  ReloadButton,
+  StatusBadge,
+} from "@/components/manage";
+
 export default function AdminPage() {
-  const { user } = useAuth();
-  const allowed = user?.role.code === "SYSTEM_ADMIN";
-  const [tab, setTab] = useState(0);
-  const [catalog, setCatalog] = useState<Catalog>(emptyCatalog);
-  const [orgs, setOrgs] = useState<Org[]>([]);
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [roles, setRoles] = useState<{ code: string; name: string }[]>([]);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [loading, setLoading] = useState(true);
-  const load = useCallback(async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const [c, o, u, r] = await Promise.all([
-        request<Catalog>("/catalog"),
-        request<Org[]>("/organizations"),
-        request<AdminUser[]>("/users"),
-        request<{ code: string; name: string }[]>("/users/roles"),
-      ]);
-      setCatalog(c);
-      setOrgs(o);
-      setUsers(u);
-      setRoles(r);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  useEffect(() => {
-    if (allowed) void load();
-  }, [allowed, load]);
-  if (!allowed)
-    return (
-      <div className="notice error" role="alert">
-        Chỉ quản trị viên được truy cập trang quản trị.
-      </div>
-    );
-  const orgOptions = orgs
-    .filter((o) => o.status === "ACTIVE")
-    .map((o) => ({ value: o.id, label: o.name }));
-  const farmOptions = catalog.farms
-    .filter((f) => f.status === "ACTIVE")
-    .map((f) => ({ value: f.id, label: f.name }));
-  const fields: Field[][] = [
-    [
-      { name: "name", label: "Tên tổ chức", required: true },
-      {
-        name: "type",
-        label: "Loại tổ chức",
-        required: true,
-        options: [
-          { value: "FARM", label: "Nông trại" },
-          { value: "TRANSPORTER", label: "Vận chuyển" },
-          { value: "RETAILER", label: "Bán lẻ" },
-          { value: "AUDITOR", label: "Kiểm định" },
-        ],
-      },
-    ],
-    [
-      { name: "fullName", label: "Họ tên", required: true },
-      { name: "email", label: "Email", type: "email", required: true },
-      {
-        name: "password",
-        label: "Mật khẩu (ít nhất 12 ký tự)",
-        type: "password",
-        required: true,
-      },
-      {
-        name: "roleCode",
-        label: "Vai trò",
-        required: true,
-        options: roles.map((r) => ({ value: r.code, label: labelForRole(r.code as Role) })),
-      },
-      {
-        name: "organizationId",
-        label: "Tổ chức (bắt buộc với tài khoản nghiệp vụ)",
-        options: orgOptions,
-      },
-    ],
-    [
-      { name: "productName", label: "Tên sản phẩm", required: true },
-      { name: "variety", label: "Giống" },
-      { name: "defaultUnit", label: "Đơn vị mặc định", required: true },
-    ],
-    [
-      { name: "name", label: "Tên nông trại", required: true },
-      {
-        name: "organizationId",
-        label: "Tổ chức sở hữu",
-        required: true,
-        options: orgOptions.filter(
-          (o) => orgs.find((x) => x.id === o.value)?.type === "FARM",
-        ),
-      },
-      { name: "location", label: "Địa chỉ" },
-    ],
-    [
-      { name: "name", label: "Tên thửa đất", required: true },
-      {
-        name: "farmId",
-        label: "Nông trại",
-        required: true,
-        options: farmOptions,
-      },
-      { name: "area", label: "Diện tích", type: "number", min: 0.01 },
-      { name: "unit", label: "Đơn vị diện tích" },
-      { name: "location", label: "Vị trí" },
-    ],
-  ];
-  const rows = [
-    orgs.map((o) => [o.id, o.name, organizationLabels[o.type] ?? o.type, statusLabels[o.status] ?? o.status]),
-    users.map((u) => [u.id, u.fullName, u.email, labelForRole(u.role.code as Role), statusLabels[u.accountStatus] ?? u.accountStatus]),
-    catalog.products.map((p) => [
-      p.id,
-      p.productName,
-      p.variety ?? "",
-      p.defaultUnit ?? "",
-      statusLabels[p.status] ?? p.status,
-    ]),
-    catalog.farms.map((f) => [
-      f.id,
-      f.name,
-      f.organization?.name ?? "",
-      f.location ?? "",
-      statusLabels[f.status] ?? f.status,
-    ]),
-    catalog.plots.map((p) => [
-      p.id,
-      p.name,
-      p.farm?.name ?? "",
-      [p.area, p.unit].filter(Boolean).join(" "),
-      statusLabels[p.status] ?? p.status,
-    ]),
-  ][tab];
-  const headers = [
-    ["Tên", "Loại", "Trạng thái"],
-    ["Họ tên", "Email", "Vai trò", "Trạng thái"],
-    ["Sản phẩm", "Giống", "Đơn vị", "Trạng thái"],
-    ["Nông trại", "Tổ chức", "Địa chỉ", "Trạng thái"],
-    ["Thửa đất", "Nông trại", "Diện tích", "Trạng thái"],
-  ][tab];
+  const state = useWorkspaceData<Enrollment[]>("/enterprise-enrollments");
+  const operations = useWorkspaceData<components["schemas"]["AdminSummaryDto"]>(
+    "/platform-operations/admin-summary",
+  );
+  const all = state.data ?? [];
+  const pending = all
+    .filter((entry) => entry.status === "PENDING_REVIEW")
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const queueItems = operations.data && state.data ? [
+    { label: "Hồ sơ doanh nghiệp", value: pending.length },
+    { label: "Phê duyệt hai bước", value: operations.data.pendingApprovals },
+    { label: "Hồ sơ sự cố", value: operations.data.openCases },
+    { label: "Yêu cầu quyền dữ liệu", value: operations.data.privacyRequests },
+  ] : null;
   return (
-    <div className="grid">
-      <section className="page-header">
-        <h1>Quản trị hệ thống</h1>
-        <Link className="button secondary" href="/admin/enterprises">Duyệt doanh nghiệp và kết nối</Link>
-        <Link className="button secondary" href="/admin/compliance-assignments">
-          Phân công người duyệt
-        </Link>
-      </section>
-      <div className="section-tabs" aria-label="Danh mục quản trị">
-        {tabs.map((t, i) => (
-          <button
-            className={tab === i ? "button" : "button secondary"}
-            key={t}
-            aria-pressed={tab === i}
-            onClick={() => setTab(i)}
-          >
-            {t}
-          </button>
+    <div className="manage-console">
+      <PageHeader
+        title="Tổng quan nền tảng"
+        description="Theo dõi công việc cần xử lý và tình trạng quản trị AgriTrace."
+        action={{ href: "/admin/enterprises", label: "Mở danh sách hồ sơ" }}
+      />
+      <LoadState {...state} />
+      <LoadState loading={false} error={operations.error} />
+      <div className="manage-metrics" aria-label="Công việc vận hành cần xử lý">
+        {[
+          {
+            label: "Hồ sơ chờ duyệt",
+            value: state.loading ? undefined : pending.length,
+            href: "/admin/enterprises",
+          },
+          {
+            label: "Phê duyệt hai bước",
+            value: operations.data?.pendingApprovals,
+            href: "/admin/approvals",
+          },
+          {
+            label: "Hồ sơ sự cố đang mở",
+            value: operations.data?.openCases,
+            href: "/admin/cases",
+          },
+          {
+            label: "Yêu cầu quyền dữ liệu",
+            value: operations.data?.privacyRequests,
+            href: "/admin/privacy",
+          },
+        ].map((metric) => (
+          <Link className="manage-metric" key={metric.label} href={metric.href}>
+            <span>{metric.label}</span>
+            <strong>{metric.value ?? "—"}</strong>
+            <small>Mở hàng đợi xử lý</small>
+          </Link>
         ))}
       </div>
-      {error && (
-        <div className="notice error" role="alert">
-          {error}{" "}
-          <button className="button secondary" onClick={() => void load()}>
-            Thử lại
-          </button>
+      {queueItems && <OverviewChart title="Công việc đang chờ" description="Số lượng hiện tại theo từng hàng đợi" items={queueItems} />}
+      <section className="manage-section" aria-labelledby="admin-queue-title">
+        <div className="manage-section-heading">
+          <div>
+            <p className="manage-overline">Ưu tiên xử lý</p>
+            <h2 id="admin-queue-title">Hồ sơ chờ duyệt</h2>
+            <p>Xem thông tin pháp lý trước khi đưa ra quyết định.</p>
+          </div>
+          <ReloadButton onClick={state.reload} />
         </div>
-      )}
-      {notice && (
-        <p className="notice" role="status">
-          {notice}
-        </p>
-      )}
-      <DataForm
-        key={tab}
-        title={"Thêm " + tabs[tab].toLocaleLowerCase("vi")}
-        path={
-          [
-            "/organizations",
-            "/users",
-            "/catalog/products",
-            "/catalog/farms",
-            "/catalog/plots",
-          ][tab]
-        }
-        fields={fields[tab]}
-        onSaved={() => {
-          setNotice("Đã thêm thành công.");
-          void load();
-        }}
-      />
-      <section className="panel">
-        <h2>Danh sách {tabs[tab].toLocaleLowerCase("vi")}</h2>
-        {loading ? (
-          <p>Đang tải…</p>
-        ) : rows.length === 0 ? (
-          <p>Chưa có dữ liệu.</p>
-        ) : (
-          <ResponsiveTable<string[]>
-            caption={"Danh sách " + tabs[tab]}
-            rows={rows}
-            rowKey={(row) => row[0]}
-            columns={headers.map((header, index) => ({
-              key: header,
-              label: header,
-              render: (row) => row[index + 1],
-            }))}
-          />
+        {!state.loading &&
+          !state.error &&
+          (pending.length ? (
+            <div className="manage-table-scroll">
+              <table className="manage-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Doanh nghiệp</th>
+                    <th scope="col">Mã số</th>
+                    <th scope="col">Ngày gửi</th>
+                    <th scope="col">Trạng thái</th>
+                    <th scope="col">
+                      <span className="sr-only">Thao tác</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pending.slice(0, 5).map((entry) => (
+                    <tr key={entry.id}>
+                      <td data-label="Doanh nghiệp">
+                        <strong>{entry.organizationName}</strong>
+                        <small>{entry.representativeEmail}</small>
+                      </td>
+                      <td data-label="Mã số">{entry.businessId}</td>
+                      <td data-label="Ngày gửi">
+                        {new Intl.DateTimeFormat("vi-VN", {
+                          timeZone: "Asia/Ho_Chi_Minh",
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        }).format(new Date(entry.createdAt))}
+                      </td>
+                      <td data-label="Trạng thái">
+                        <StatusBadge value={entry.status} />
+                      </td>
+                      <td data-label="Thao tác">
+                        <Link
+                          className="manage-row-link"
+                          href={`/admin/enterprises/${entry.id}`}
+                        >
+                          Xem hồ sơ
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState
+              title="Không có hồ sơ chờ duyệt"
+              description="Hồ sơ mới sẽ xuất hiện tại đây khi doanh nghiệp hoàn tất đăng ký."
+            />
+          ))}
+        {pending.length > 5 && (
+          <Link className="manage-section-footer" href="/admin/enterprises">
+            Xem toàn bộ {pending.length} hồ sơ chờ duyệt{" "}
+
+          </Link>
         )}
+      </section>
+      <section className="manage-section" aria-labelledby="admin-tools-title">
+        <div className="manage-section-heading">
+          <div>
+            <p className="manage-overline">Quản trị nền tảng</p>
+            <h2 id="admin-tools-title">Công việc khác</h2>
+          </div>
+        </div>
+        <div className="manage-tool-grid">
+          {[
+            {
+              href: "/admin/enterprises",
+              title: "Sản phẩm doanh nghiệp",
+              description: "Mở hồ sơ doanh nghiệp, chọn tab Sản phẩm.",
+            },
+            {
+              href: "/admin/organizations",
+              title: "Tổ chức tham gia",
+              description: "Tra cứu doanh nghiệp và quản lý tổ chức kiểm định.",
+            },
+            {
+              href: "/admin/users",
+              title: "Tài khoản nền tảng",
+              description: "Quản trị viên nội bộ và người kiểm định độc lập.",
+            },
+            {
+              href: "/admin/inspectors",
+              title: "Kiểm định viên",
+              description: "Gán người kiểm định theo nông trại và xem lịch sử.",
+            },
+          ].map(({ href, title, description }) => (
+            <Link className="manage-tool" href={href} key={href}>
+              <strong>{title}</strong>
+              <span>{description}</span>
+              <span className="manage-tool-open">
+                Mở chức năng
+              </span>
+            </Link>
+          ))}
+        </div>
       </section>
     </div>
   );

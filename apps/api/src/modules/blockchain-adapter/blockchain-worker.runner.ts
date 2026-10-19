@@ -11,6 +11,7 @@ import { BindingDeliveryService } from '../ledger/binding-delivery.service.js';
 import { LedgerControlService } from '../ledger/ledger-control.service.js';
 import { HandoverExpiryService } from '../shipments/handover-expiry.service.js';
 import { EnterpriseConnectionWorker } from '../enterprise-onboarding/enterprise-connection.worker.js';
+import { EnterpriseMailWorker } from '../enterprise-onboarding/enterprise-mail.worker.js';
 
 export type WorkerRuntimeState = {
   enabled: boolean;
@@ -46,12 +47,19 @@ export class BlockchainWorkerRunner
     @Optional() private readonly control?: LedgerControlService,
     @Optional() private readonly expiry?: HandoverExpiryService,
     @Optional() private readonly enterprise?: EnterpriseConnectionWorker,
+    @Optional() private readonly mail?: EnterpriseMailWorker,
   ) {}
 
   onApplicationBootstrap(): void {
-    this.state.fabricEnabled = this.config.get<string>('FABRIC_ENABLED') === 'true';
-    this.state.enabled = this.state.fabricEnabled ||
-      Boolean(this.expiry && this.config.get<string>('HANDOVER_EXPIRY_ENABLED') !== 'false');
+    this.state.fabricEnabled =
+      this.config.get<string>('FABRIC_ENABLED') === 'true';
+    this.state.enabled =
+      this.state.fabricEnabled ||
+      Boolean(this.mail?.enabled) ||
+      Boolean(
+        this.expiry &&
+        this.config.get<string>('HANDOVER_EXPIRY_ENABLED') !== 'false',
+      );
     this.state.startedAt = new Date();
     if (!this.state.enabled) {
       this.logger.warn('Blockchain worker is disabled by FABRIC_ENABLED');
@@ -68,7 +76,10 @@ export class BlockchainWorkerRunner
   }
 
   getState(): WorkerRuntimeState {
-    return { ...this.state, lastSuccessfulSteps: { ...this.state.lastSuccessfulSteps } };
+    return {
+      ...this.state,
+      lastSuccessfulSteps: { ...this.state.lastSuccessfulSteps },
+    };
   }
 
   private async runLoop(): Promise<void> {
@@ -78,24 +89,49 @@ export class BlockchainWorkerRunner
       // plane are independent: one failing never stalls the others.
       const steps: Array<[string, () => Promise<unknown>]> = [];
       const fabricEnabled = this.state.fabricEnabled;
-      if (fabricEnabled && this.config.get<string>('FABRIC_LEGACY_WRITER') !== 'false')
+      if (
+        fabricEnabled &&
+        this.config.get<string>('FABRIC_LEGACY_WRITER') !== 'false'
+      )
         steps.push(['legacy-writer', () => this.worker.processPending()]);
       if (fabricEnabled && this.control)
         steps.push(['ledger-control', () => this.control!.processAll()]);
       if (fabricEnabled && this.bindings)
         steps.push(['binding-delivery', () => this.bindings!.processAll()]);
       if (fabricEnabled && this.enterprise)
-        steps.push(['enterprise-connections', () => this.enterprise!.processAll()]);
-      if (this.expiry && this.config.get<string>('HANDOVER_EXPIRY_ENABLED') !== 'false')
-        steps.push(['handover-expiry', () => this.expiry!.expireDue(undefined,
-          this.positiveNumber('HANDOVER_EXPIRY_BATCH_SIZE', 100))]);
+        steps.push([
+          'enterprise-connections',
+          () => this.enterprise!.processAll(),
+        ]);
+      if (this.mail?.enabled)
+        steps.push(['enterprise-mail', () => this.mail!.processAll()]);
+      if (
+        this.expiry &&
+        this.config.get<string>('HANDOVER_EXPIRY_ENABLED') !== 'false'
+      )
+        steps.push([
+          'handover-expiry',
+          () =>
+            this.expiry!.expireDue(
+              undefined,
+              this.positiveNumber('HANDOVER_EXPIRY_BATCH_SIZE', 100),
+            ),
+        ]);
       const errors: string[] = [];
       for (const [name, step] of steps) {
         try {
           const result = await step();
-          if (name === 'binding-delivery' && result && typeof result === 'object' &&
-              'failedBindings' in result && Array.isArray(result.failedBindings) && result.failedBindings.length)
-            throw new Error(`${result.failedBindings.length} binding(s) unavailable`);
+          if (
+            name === 'binding-delivery' &&
+            result &&
+            typeof result === 'object' &&
+            'failedBindings' in result &&
+            Array.isArray(result.failedBindings) &&
+            result.failedBindings.length
+          )
+            throw new Error(
+              `${result.failedBindings.length} binding(s) unavailable`,
+            );
           this.state.lastSuccessfulSteps[name] = new Date();
         } catch (error) {
           const message =

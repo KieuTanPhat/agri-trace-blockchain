@@ -44,8 +44,8 @@ async function login(page, origin, user, password) {
   options.results?.push(result);
 }
 
-async function selectChain(page, options) {
-  await page.goto(`${options.origin}/supply-chains`, {
+async function selectChain(page, options, section) {
+  await page.goto(`${options.origin}/supply-chains/${options.fixture.chainId}/${section}`, {
     waitUntil: "domcontentloaded",
   });
   const select = page.getByLabel("Chọn chuỗi");
@@ -57,7 +57,10 @@ async function selectChain(page, options) {
         .count()) === 1,
     "current chain selection",
   );
-  await select.selectOption(options.fixture.chainId);
+  // Detail routes already select their chain. Re-selecting the same value fires
+  // onChange and clears members without changing the effect's selected key.
+  if ((await select.inputValue()) !== options.fixture.chainId)
+    await select.selectOption(options.fixture.chainId);
 }
 
 async function requestResult(page, pattern, work) {
@@ -67,8 +70,7 @@ async function requestResult(page, pattern, work) {
       pattern.test(new URL(value.url()).pathname),
     { timeout },
   );
-  await work();
-  const result = await response;
+  const [result] = await Promise.all([response, work()]);
   assert.equal(result.status(), 201, "Real UI command must return 201");
   const envelope = await result.json();
   assert.equal(
@@ -230,6 +232,9 @@ async function createSession(options) {
         ...contextOptions,
         extraHTTPHeaders: {
           "X-Forwarded-For": clientAddress(options.variant, party),
+          ...(party === "farm" && options.hydrationDelayMs
+            ? { "X-AgriTrace-Hydration-Delay-Ms": String(options.hydrationDelayMs) }
+            : {}),
         },
       });
       pages[party] = await contexts[party].newPage();
@@ -239,13 +244,6 @@ async function createSession(options) {
         label: `${options.variant}-${party}`,
         results: options.loginResults,
       });
-      if (party === "farm" && options.hydrationDelayMs) {
-        // Regression: static HTML arrives before the React login handlers.
-        await pages[party].route("**/_next/static/**/*.js", async (route) => {
-          await delay(options.hydrationDelayMs);
-          await route.continue();
-        });
-      }
       pages[party].on("request", (request) => {
         if (request.url().startsWith(`${options.origin}/api/`)) {
           const token = request.headers().authorization;
@@ -258,8 +256,6 @@ async function createSession(options) {
         options.fixture.users[party],
         options.fixture.password,
       );
-      if (party === "farm" && options.hydrationDelayMs)
-        await pages[party].unroute("**/_next/static/**/*.js");
     }
     return {
       browser,
@@ -278,7 +274,7 @@ async function createSession(options) {
 
 async function enrollKey(options, session, party, label, loseResponse = false) {
   const page = session.pages[party];
-  await selectChain(page, options);
+  await selectChain(page, options, "signing");
   const pathname = `/supply-chains/${options.fixture.chainId}/signing-keys`;
   let original;
   if (loseResponse)
@@ -484,14 +480,15 @@ async function planConsent(options, session) {
     ["retailer", "bán lẻ"],
   ]) {
     const page = session.pages[party];
-    await selectChain(page, options);
-    await requestResult(page, /\/shipment-plans\/[^/]+\/accept$/, () =>
-      page
+    await selectChain(page, options, "plans");
+    await requestResult(page, /\/shipment-plans\/[^/]+\/accept$/, async () => {
+      await page
         .getByRole("button", { name: `Xác nhận vai trò ${label}`, exact: true })
-        .click(),
-    );
+        .click();
+      await page.getByRole("dialog").getByRole("button", { name: "Xác nhận", exact: true }).click();
+    });
   }
-  await selectChain(session.pages.farm, options);
+  await selectChain(session.pages.farm, options, "plans");
   const finalized = await requestResult(
     session.pages.farm,
     /\/shipment-plans\/[^/]+\/finalize$/,
@@ -525,7 +522,7 @@ async function planConsent(options, session) {
 }
 
 async function invitation(options, session) {
-  await selectChain(session.pages.farm, options);
+  await selectChain(session.pages.farm, options, "members");
   const form = session.pages.farm
     .locator("form")
     .filter({
@@ -540,14 +537,16 @@ async function invitation(options, session) {
   await requestResult(session.pages.farm, /\/memberships$/, () =>
     form.getByRole("button", { name: "Mời đối tác", exact: true }).click(),
   );
-  await selectChain(session.pages.other, options);
+  await selectChain(session.pages.other, options, "members");
   await requestResult(
     session.pages.other,
     /\/memberships\/[^/]+\/accept$/,
-    () =>
-      session.pages.other
+    async () => {
+      await session.pages.other
         .getByRole("button", { name: "Chấp nhận tham gia", exact: true })
-        .click(),
+        .click();
+      await session.pages.other.getByRole("dialog").getByRole("button", { name: "Xác nhận", exact: true }).click();
+    },
   );
   assert.equal(
     await options.db.chainMembership.count({
@@ -717,6 +716,7 @@ export async function runHybridBrowserScenarios(options) {
   const owned = !options.browserSession;
   const groups = [...session.groups];
   const group = async (name, work) => {
+    console.log(JSON.stringify({ suite: "hybrid-browser", variant: options.variant, group: name }));
     await work();
     groups.push({ name, passed: true });
   };
@@ -918,6 +918,7 @@ export async function runHybridBrowserScenarios(options) {
         shipment,
         session.keys.farm,
       );
+      await session.pages.farm.locator('summary[aria-label^="Tài khoản:"]').filter({ visible: true }).first().click();
       await session.pages.farm
         .getByRole("button", { name: "Đăng xuất", exact: true })
         .click();
@@ -948,6 +949,7 @@ export async function runHybridBrowserScenarios(options) {
         0,
         "Another account cannot submit the prior review",
       );
+      await session.pages.farm.locator('summary[aria-label^="Tài khoản:"]').filter({ visible: true }).first().click();
       await session.pages.farm
         .getByRole("button", { name: "Đăng xuất", exact: true })
         .click();
