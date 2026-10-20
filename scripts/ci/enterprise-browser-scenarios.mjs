@@ -131,7 +131,8 @@ export async function runEnterpriseBrowserScenarios(options) {
       await owner.getByRole('dialog').getByLabel('Mã OTP', { exact: true }).fill(otp);
       await command(owner, '/auth/registration-otp/verify', () =>
         owner.getByRole('dialog').getByRole('button', { name: 'Xác nhận và gửi hồ sơ', exact: true }).click());
-      await owner.getByRole('alert').waitFor({ state: 'visible', timeout });
+      // Next.js keeps an empty route announcer alert; wait for the real one.
+      await owner.getByRole('alert').filter({ hasText: /\S/ }).first().waitFor({ state: 'visible', timeout });
       step('registration-recovery');
       assert.equal(await owner.getByRole('checkbox', { name: /^Tôi xác nhận thông tin chính xác/ }).isDisabled(), true);
       await noPasswordStorage(owner, otp);
