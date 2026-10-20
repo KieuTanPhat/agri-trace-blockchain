@@ -72,6 +72,8 @@ export async function runEnterpriseBrowserScenarios(options) {
       const email = `${randomUUID()}@example.test`, organizationName = `UI enterprise ${randomUUID()}`;
       options.secrets.push(email);
       await owner.goto(`${options.origin}/register`, { waitUntil: 'networkidle' });
+      // Step 1: role and organization.
+      await owner.getByRole('radio', { name: /^Nhà sản xuất \/ Hợp tác xã/ }).check();
       await owner.locator('#reg-organizationName').fill(organizationName);
       await owner.locator('#reg-businessId').fill(Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join(''));
       await owner.locator('#reg-registrationNumber').fill('UI-REG-' + randomUUID().slice(0, 8));
@@ -82,24 +84,24 @@ export async function runEnterpriseBrowserScenarios(options) {
         name: 'registration.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n% isolated registration fixture\n%%EOF\n'),
       });
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+      // Step 2: representative and login email; no password is chosen here.
+      const contactEmail = `contact-${randomUUID()}@example.test`;
+      options.secrets.push(contactEmail);
       await owner.locator('#reg-representative').fill('Đại diện demo');
       await owner.locator('#reg-representativeTitle').fill('Giám đốc');
       await owner.locator('#reg-phone').fill('0900000123');
-      await owner.locator('#reg-contactEmail').fill(email);
+      await owner.locator('#reg-contactEmail').fill(contactEmail);
       await owner.locator('#reg-fullName').fill('Đại diện demo');
       await owner.locator('#reg-email').fill(email);
-      await owner.locator('#reg-password').fill(options.operator.password);
-      await owner.locator('#reg-passwordConfirm').fill(options.operator.password);
+      assert.equal(await owner.locator('input[type="password"]').count(), 0, 'Registration must not ask for a password');
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+      // Step 3: production details.
       await owner.locator('#reg-productGroups').fill('Rau');
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+      // Step 4: service and hosting mode.
       await owner.locator('#reg-hostingMode').selectOption(mode);
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
-      const otpReceipt = await command(owner, '/auth/registration-otp/request', () => owner.getByRole('button', { name: 'Xác thực tài khoản', exact: true }).click());
-      const otp = await options.operator.readOtp(otpReceipt.verificationId);
-      options.secrets.push(otp);
-      await owner.getByLabel('Mã xác thực', { exact: true }).fill(otp);
-      await command(owner, '/auth/registration-otp/verify', () => owner.getByRole('button', { name: 'Xác nhận', exact: true }).click());
+      // Step 5: review and consents.
       await owner.getByRole('checkbox', { name: /^Tôi xác nhận thông tin chính xác/ }).check();
       await owner.getByRole('checkbox', { name: /^Tôi đồng ý với/ }).check();
       await owner.getByRole('checkbox', { name: /^Tôi đã đọc/ }).check();
@@ -120,12 +122,21 @@ export async function runEnterpriseBrowserScenarios(options) {
         else await route.fulfill({ response });
       };
       await owner.route('**/api/auth/register', registerRoute);
-      await owner.getByRole('button', { name: 'Gửi hồ sơ xét duyệt', exact: true }).click();
+      // Sending opens the OTP dialog, which mails a code to the login email;
+      // confirming the code sends the registration.
+      const otpReceipt = await command(owner, '/auth/registration-otp/request', () =>
+        owner.getByRole('button', { name: 'Gửi hồ sơ xét duyệt', exact: true }).click());
+      const otp = await options.operator.readOtp(otpReceipt.verificationId);
+      options.secrets.push(otp);
+      await owner.getByRole('dialog').getByLabel('Mã OTP', { exact: true }).fill(otp);
+      await command(owner, '/auth/registration-otp/verify', () =>
+        owner.getByRole('dialog').getByRole('button', { name: 'Xác nhận và gửi hồ sơ', exact: true }).click());
       await owner.getByRole('alert').waitFor({ state: 'visible', timeout });
       step('registration-recovery');
       assert.equal(await owner.getByRole('checkbox', { name: /^Tôi xác nhận thông tin chính xác/ }).isDisabled(), true);
-      await noPasswordStorage(owner, options.operator.password);
-      await owner.getByRole('button', { name: 'Thử lại hồ sơ ban đầu', exact: true }).click();
+      await noPasswordStorage(owner, otp);
+      // Resending reuses the original request (same body and request ID).
+      await owner.getByRole('button', { name: 'Gửi hồ sơ xét duyệt', exact: true }).click();
       await owner.getByRole('heading', { name: 'Cảm ơn bạn đã đăng ký AgriTrace', exact: true }).waitFor({ timeout });
       assert.equal(registrations, 2);
       await owner.unroute('**/api/auth/register', registerRoute);
@@ -135,6 +146,18 @@ export async function runEnterpriseBrowserScenarios(options) {
         if (new URL(request.url()).pathname.startsWith('/api/') && request.headers().authorization)
           authorization = request.headers().authorization;
       });
+      step('owner-first-login');
+      const temporary = await options.operator.readTemporaryPassword(enrollmentId);
+      options.secrets.push(temporary);
+      options.loginResults.push(await loginToDashboard(owner, options.origin, { email }, temporary,
+        { evidenceDir: options.diagnosticsDir, privateDir: options.privateDir, label: `enterprise-${mode}-first`,
+          destination: '/account/password' }));
+      await owner.getByLabel(/^Mật khẩu hiện tại/).fill(temporary);
+      await owner.getByLabel(/^Mật khẩu mới/).fill(options.operator.password);
+      await owner.getByLabel(/^Nhập lại mật khẩu mới/).fill(options.operator.password);
+      await owner.getByRole('button', { name: 'Đổi mật khẩu', exact: true }).click();
+      await owner.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true }).click();
+      await owner.waitForURL(url => url.pathname === '/login', { timeout });
       step('owner-login');
       await login(owner, { email }, `enterprise-${mode}`);
       await owner.goto(`${options.origin}/enterprise/onboarding`, { waitUntil: 'domcontentloaded' });

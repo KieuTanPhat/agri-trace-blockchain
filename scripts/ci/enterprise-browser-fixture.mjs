@@ -61,6 +61,13 @@ export async function createEnterpriseBrowserFixture(env) {
       assert.ok(mail.otpCiphertext, 'Isolated OTP mail must contain the encrypted code');
       return decryptOtp(mail.otpCiphertext, env.JWT_SECRET);
     },
+    // Registration never takes a password: the owner's temporary one is
+    // sealed in the CREDENTIALS mail, like an OTP.
+    readTemporaryPassword: async enrollmentId => {
+      const mail = await db.enterpriseMail.findFirstOrThrow({ where: { enrollmentId, kind: 'CREDENTIALS' } });
+      assert.ok(mail.otpCiphertext, 'Isolated credentials mail must contain the sealed temporary password');
+      return decryptOtp(mail.otpCiphertext, env.JWT_SECRET);
+    },
     publicPeer: {
       peerHost: '127.0.0.1', peerPort: 11051 + offset, peerServerName: 'peer0.org3.example.com',
       mspId: 'Org3MSP', tlsCaPem: readFileSync(identity('org3', 'Admin').tlsCertPath, 'utf8'),
