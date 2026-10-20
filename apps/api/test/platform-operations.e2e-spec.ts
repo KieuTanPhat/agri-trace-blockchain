@@ -437,11 +437,13 @@ second line`,
             routeDigest: randomUUID().replace(/-/gu, '').repeat(2),
           },
         });
+        // One instant: the schema requires last_healthy_at <= last_checked_at.
+        const observedAt = new Date();
         await tx.bindingWorkerHealth.create({
           data: {
             bindingDigest: binding.digest,
-            lastCheckedAt: new Date(),
-            lastHealthyAt: new Date(),
+            lastCheckedAt: observedAt,
+            lastHealthyAt: observedAt,
             certificateExpiresAt: binding.expires,
           },
         });
