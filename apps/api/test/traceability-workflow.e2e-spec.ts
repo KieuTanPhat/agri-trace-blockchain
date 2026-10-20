@@ -2100,7 +2100,6 @@ const prisma = new PrismaClient({
         {
           email: 'blank@example.test',
           fullName: '   ',
-          password: 'test-password-123',
           roleCode: 'FARM_STAFF',
           organizationId: farmOrgId,
         },
@@ -2135,7 +2134,6 @@ const prisma = new PrismaClient({
         {
           email: `bypassed-${randomUUID()}@example.test`,
           fullName: 'Bypassed employee',
-          password: 'A-test-password-123',
           roleCode: 'FARM_STAFF',
           organizationId: farmOrgId,
         },
@@ -2174,7 +2172,6 @@ const prisma = new PrismaClient({
         {
           email: `independent-reviewer-${randomUUID()}@example.test`,
           fullName: 'Independent reviewer',
-          password: 'A-test-password-123',
           roleCode: 'COMPLIANCE_REVIEWER',
           organizationId: auditor.body.data.id,
         },
