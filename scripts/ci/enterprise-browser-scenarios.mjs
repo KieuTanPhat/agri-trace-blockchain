@@ -193,7 +193,26 @@ export async function runEnterpriseBrowserScenarios(options) {
         await admin.waitForFunction(([selector, before]) => document.querySelectorAll(selector).length < before,
           [capabilityNote, pendingCapabilities], { timeout });
       }
+      // A paying producer chooses a plan, accepts the contract and pays its
+      // first invoice before the platform may activate it.
+      activePage = owner;
+      step('owner-service-purchase');
+      await owner.goto(`${options.origin}/enterprise/service`, { waitUntil: 'domcontentloaded' });
+      await owner.locator('select[name="hostingMode"]').selectOption(mode);
+      const previewed = owner.waitForResponse(response => new URL(response.url()).pathname === '/api/enterprise-service/preview' &&
+        response.request().method() === 'POST', { timeout });
+      await owner.getByRole('button', { name: 'Xem trước hợp đồng', exact: true }).click();
+      assert.ok([200, 201].includes((await previewed).status()), 'Service preview must succeed');
+      await owner.waitForURL(url => url.pathname === '/enterprise/service/contract', { timeout });
+      await owner.getByRole('checkbox', { name: /^Tôi đã đọc và đồng ý dùng hợp đồng thử nghiệm/ }).check();
+      await command(owner, '/enterprise-service/orders', () =>
+        owner.getByRole('button', { name: 'Xác nhận và đến thanh toán', exact: true }).click());
+      await owner.waitForURL(url => url.pathname === '/enterprise/service/payment', { timeout });
+      await command(owner, '/enterprise-service/payment-simulation', () =>
+        owner.getByRole('button', { name: 'Mô phỏng thanh toán thành công', exact: true }).click());
+      activePage = admin;
       step('admin-service-activation');
+      await admin.goto(`${options.origin}/admin/enterprises/${enrollmentId}`, { waitUntil: 'domcontentloaded' });
       await admin.getByLabel('Căn cứ kích hoạt (tối thiểu 10 ký tự)', { exact: true }).fill('Kích hoạt doanh nghiệp trong kiểm thử cách ly');
       await command(admin, `/enterprise-enrollments/${enrollmentId}/activate`, async () => {
         await admin.getByRole('button', { name: 'Cấp quyền sử dụng sau xét duyệt', exact: true }).click();
