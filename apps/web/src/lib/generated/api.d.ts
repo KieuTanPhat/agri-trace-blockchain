@@ -1552,6 +1552,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/enterprise-workspace/evidence/{id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["EnterpriseResourcesController_withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/enterprise-workspace/materials": {
         parameters: {
             query?: never;
@@ -1776,6 +1792,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/enterprise-workspace/partners/directory/{organizationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["EnterpriseWorkspaceController_partnerProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/enterprise-workspace/partners/external": {
         parameters: {
             query?: never;
@@ -1850,6 +1882,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["EnterpriseResourcesController_product"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/enterprise-workspace/products/{id}/photo-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["EnterpriseResourcesController_photoOrder"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1978,6 +2026,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["EnterpriseWorkspaceController_updateRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/enterprise-workspace/roles/{id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["EnterpriseWorkspaceController_deleteRole"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5217,9 +5281,18 @@ export interface components {
             reason: string;
             sequence: string;
         };
+        ChainParticipantDto: {
+            /** Format: uuid */
+            organizationId: string;
+            /**
+             * @description Stage this organization performs in the chain
+             * @enum {string}
+             */
+            stage: "FARM" | "PROCESSOR" | "TRANSPORTER" | "DISTRIBUTOR" | "RETAILER";
+        };
         ChainRecordDto: {
             /** @enum {string} */
-            chainType: "CROP";
+            chainType: "CROP" | "LIVESTOCK" | "AQUACULTURE" | "PROCESSED_FOOD";
             code: string | null;
             /** Format: date-time */
             createdAt: string;
@@ -5233,6 +5306,8 @@ export interface components {
             /** Format: date */
             plannedStartDate: string | null;
             productIds?: string[];
+            /** @description { stages: [{ stage, organizationIds[] }] } in supply order */
+            supplyModel?: Record<string, never> | null;
             version: number;
         };
         ChainVersionDto: {
@@ -5367,11 +5442,16 @@ export interface components {
             type: string;
         };
         CreateChainDto: {
-            /** @enum {string} */
-            chainType?: "CROP";
+            /**
+             * @description Defaults to CROP
+             * @enum {string}
+             */
+            chainType?: "CROP" | "LIVESTOCK" | "AQUACULTURE" | "PROCESSED_FOOD";
             description?: string;
             name: string;
             note?: string;
+            /** @description Supply model: the owner and each organization taking part, with the stage it performs. Other organizations are invited to the chain. Omitted: the owner at the stages of its approved capabilities. */
+            participants?: components["schemas"]["ChainParticipantDto"][];
             /** Format: date */
             plannedStartDate?: string;
             /** @description Active products of the owner organization */
@@ -5556,11 +5636,6 @@ export interface components {
             fullName: string;
             /** Format: uuid */
             organizationId?: string;
-            /**
-             * Format: password
-             * @description At least 12 characters and at most 72 UTF-8 bytes. Passwords are never trimmed or truncated.
-             */
-            password: string;
             roleCode: string;
         };
         CredentialsOverviewDto: {
@@ -5988,14 +6063,14 @@ export interface components {
             address: string;
             businessId: string;
             /** Format: email */
-            email?: string;
+            email: string;
             /** @enum {string} */
             kind: "FARM" | "TRANSPORTER" | "DISTRIBUTOR" | "RETAILER";
             name: string;
-            note?: string;
-            phone?: string;
-            representative?: string;
-            taxCode?: string;
+            note: string;
+            phone: string;
+            representative: string;
+            taxCode: string;
         };
         EnterpriseInvoicePayInput: {
             version: number;
@@ -6012,6 +6087,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             jobTitle: string | null;
+            /** @description Internal code, e.g. NV0001 */
+            memberCode: string | null;
             memberNote: string | null;
             phone: string | null;
             /** Format: uuid */
@@ -6022,18 +6099,20 @@ export interface components {
             workSiteId: string | null;
         };
         EnterpriseMemberInput: {
-            contactAddress?: string;
+            contactAddress: string;
             /** Format: email */
             email: string;
             fullName: string;
             jobTitle: string;
             memberNote?: string;
-            /** Format: password */
-            password: string;
-            phone?: string;
+            /** @description Required contact phone (Vietnamese number) */
+            phone: string;
             /** Format: uuid */
             responsibleFarmId?: string;
-            roles: components["schemas"]["MemberRoleInput"][];
+            roles: [
+                components["schemas"]["MemberRoleInput"],
+                ...components["schemas"]["MemberRoleInput"][]
+            ];
             /** @enum {number} */
             tier: 2 | 3;
             /** Format: uuid */
@@ -6048,6 +6127,7 @@ export interface components {
             fullName: string;
             /** Format: uuid */
             id: string;
+            memberCode: string | null;
             status: string;
             tier: number;
             version: number;
@@ -6077,8 +6157,11 @@ export interface components {
             /** Format: uuid */
             responsibleFarmId?: Record<string, never> | null;
             roles: components["schemas"]["MemberRoleInput"][];
-            /** @enum {string} */
-            status: "ACTIVE" | "LOCKED";
+            /**
+             * @description INACTIVE removes the member: roles and sessions are revoked, history stays.
+             * @enum {string}
+             */
+            status: "ACTIVE" | "LOCKED" | "INACTIVE";
             version: number;
             /** Format: uuid */
             workSiteId?: Record<string, never> | null;
@@ -6304,6 +6387,9 @@ export interface components {
             status: string;
             version: number;
         };
+        EnterpriseVersionInput: {
+            version: number;
+        };
         EscalateCaseDto: {
             note: string;
             version: number;
@@ -6327,7 +6413,7 @@ export interface components {
             /** Format: binary */
             file: string;
             /** @enum {string} */
-            kind?: "OTHER" | "PRODUCT_IMAGE" | "INSPECTION_IMAGE" | "AREA_IMAGE" | "LAND_CERTIFICATE" | "PRODUCTION_CONTRACT" | "QUALITY_CERTIFICATE" | "CYCLE_IMAGE" | "MATERIAL_IMAGE" | "SEED_IMAGE" | "CERTIFICATE_IMAGE" | "LOT_IMAGE" | "LOT_DOCUMENT" | "SITE_IMAGE" | "BUSINESS_LICENSE" | "TRANSFER_IMAGE" | "HARVEST_IMAGE" | "CARE_IMAGE" | "PARTNER_LOGO" | "MEMBER_AVATAR" | "MEMBER_DOCUMENT" | "CHAIN_IMAGE" | "QUARANTINE_IMAGE";
+            kind?: "OTHER" | "PRODUCT_IMAGE" | "INSPECTION_IMAGE" | "AREA_IMAGE" | "LAND_CERTIFICATE" | "PRODUCTION_CONTRACT" | "QUALITY_CERTIFICATE" | "CYCLE_IMAGE" | "MATERIAL_IMAGE" | "SEED_IMAGE" | "CERTIFICATE_IMAGE" | "LOT_IMAGE" | "LOT_DOCUMENT" | "SITE_IMAGE" | "BUSINESS_LICENSE" | "TRANSFER_IMAGE" | "HARVEST_IMAGE" | "CARE_IMAGE" | "PARTNER_LOGO" | "PARTNERSHIP_EVIDENCE" | "MEMBER_AVATAR" | "MEMBER_DOCUMENT" | "CHAIN_IMAGE" | "QUARANTINE_IMAGE";
             /** @description Only source-lot evidence can be public. Must also confirm publication. */
             public?: boolean;
             publicationConfirmed?: boolean;
@@ -6335,6 +6421,10 @@ export interface components {
             siteId?: string;
             /** Format: uuid */
             supersedesId?: string;
+        };
+        EvidenceWithdrawalInput: {
+            /** @description Why the product photo is no longer shown */
+            reason: string;
         };
         ExternalPartnerListDto: {
             items: components["schemas"]["ExternalPartnerRecordDto"][];
@@ -6707,7 +6797,7 @@ export interface components {
         };
         InspectCommandRequestDto: {
             /** @enum {string} */
-            operation: "EW_PROFILE_CONTACT" | "EW_PROFILE_SUBMIT" | "EW_PROFILE_WITHDRAW" | "ENTERPRISE_PROFILE_REVIEW" | "PRIVACY_REQUEST_CREATE" | "PLATFORM_PRIVACY_BREACH_CREATE" | "PLATFORM_PRIVACY_UPDATE" | "EW_CREATE_MEMBER" | "EW_INVITE_MEMBER" | "EW_REVOKE_MEMBER_INVITATION" | "EW_OWNERSHIP_PROPOSE" | "EW_OWNERSHIP_ACCEPT" | "EW_OWNERSHIP_DECLINE" | "EW_OWNERSHIP_CANCEL" | "EW_QR_PRINT" | "EW_UPDATE_MEMBER" | "EW_CHANGE_MEMBER_SUPERVISOR" | "EW_CREATE_ROLE" | "EW_UPDATE_ROLE" | "EW_INVITE_PARTNER" | "EW_CREATE_EXTERNAL_PARTNER" | "EW_RESOLVE_PARTNER" | "EW_CREATE_SITE" | "EW_COMPLETE_SITE" | "EW_UPDATE_SITE" | "EW_CREATE_VEHICLE" | "EW_UPDATE_VEHICLE" | "EW_CREATE_PRODUCT" | "EW_UPDATE_PRODUCT" | "EW_REVISE_SITE" | "EW_REVISE_VEHICLE" | "EW_CREATE_MATERIAL" | "EW_UPDATE_MATERIAL" | "EW_IMPORT_PRODUCTS" | "EW_UPLOAD_EVIDENCE" | "EW_COMPLETE_MATERIAL" | "EW_ALLOCATE" | "EW_QUARANTINE" | "EW_CASE_ACK" | "EW_CASE_RESPOND" | "EW_MESSAGE_SEND" | "EW_MESSAGE_REPLY" | "EW_MESSAGE_READ" | "EW_SITE_TRANSFER_CREATE" | "EW_SITE_TRANSFER_DISPATCH" | "EW_SITE_TRANSFER_RECEIVE" | "EW_SITE_TRANSFER_RESOLVE" | "EW_SITE_TRANSFER_CANCEL" | "DIST_RECEIPT" | "DIST_RETURN" | "DIST_RETURN_SIGN" | "DIST_RENEW_CONSENT" | "DIST_C2_PREPARE" | "DIST_C2_SUBMIT" | "EW_CREATE_FARM" | "EW_COMPLETE_FARM" | "EW_COMPLETE_PRODUCT" | "EW_CREATE_PLOT" | "EW_REGISTER_DISTRIBUTION_KEY" | "EW_REVOKE_DISTRIBUTION_KEY" | "DIST_CREATE" | "DIST_SIGN" | "DIST_CANCEL" | "DIST_OBSERVE" | "EW_TRACE_NOTICE" | "EW_DISPOSITION" | "ENTERPRISE_REVIEW" | "ENTERPRISE_ACTIVATE" | "ENTERPRISE_CONNECT" | "ENTERPRISE_CONNECTION_REVIEW" | "CREATE_PRODUCTION_CYCLE" | "EW_CREATE_CYCLE_DRAFT" | "EW_LINK_CYCLE_DRAFT" | "PLANT_PRODUCTION_CYCLE" | "RECORD_CARE" | "RECORD_SENSOR" | "INGEST_SENSOR_READING" | "INGEST_SHIPMENT_TELEMETRY" | "CLOSE_PRODUCTION_CYCLE" | "CANCEL_PRODUCTION_CYCLE" | "RECORD_HARVEST" | "CREATE_SHIPMENT" | "START_SHIPMENT" | "ARRIVE_SHIPMENT" | "RECEIVE_SHIPMENT" | "REJECT_SHIPMENT" | "DAMAGE_SHIPMENT" | "DAMAGE_LOT" | "MARK_FOR_SALE" | "MARK_SOLD" | "RECALL_LOT" | "EXPIRE_LOT" | "CREATE_INSPECTION" | "CREATE_CERTIFICATE" | "REVIEW_CERTIFICATE" | "CREATE_SENSOR_DIGEST" | "RECONCILE_CYCLE_SENSOR" | "BIND_SHIPMENT_DEVICE" | "UNBIND_SHIPMENT_DEVICE" | "CREATE_SHIPMENT_TELEMETRY_DIGEST" | "HYB_CREATE_CHAIN" | "HYB_ACTIVATE_BUSINESS_PROFILE" | "HYB_SUSPEND_BUSINESS_PROFILE" | "HYB_INVITE_MEMBERSHIP" | "HYB_ACCEPT_MEMBERSHIP" | "HYB_CHANGE_MEMBERSHIP" | "HYB_GRANT_ROLE" | "HYB_REVOKE_ROLE" | "HYB_SET_CAPABILITY" | "SCOPE_CREATE_SHIPMENT_PLAN" | "SCOPE_REVISE_SHIPMENT_PLAN" | "SCOPE_ACCEPT_SHIPMENT_PLAN" | "SCOPE_CANCEL_SHIPMENT_PLAN" | "SCOPE_FINALIZE_SHIPMENT_PLAN" | "PREPARE_HANDOVER_OFFER" | "PREPARE_HANDOVER_CONFIRM" | "SUBMIT_SIGNED_INTENT" | "REJECT_HANDOVER" | "CANCEL_HANDOVER" | "HYB_REGISTER_SIGNING_KEY" | "HYB_REVOKE_SIGNING_KEY";
+            operation: "EW_PROFILE_CONTACT" | "EW_PROFILE_SUBMIT" | "EW_PROFILE_WITHDRAW" | "ENTERPRISE_PROFILE_REVIEW" | "PRIVACY_REQUEST_CREATE" | "PLATFORM_PRIVACY_BREACH_CREATE" | "PLATFORM_PRIVACY_UPDATE" | "EW_CREATE_MEMBER" | "EW_INVITE_MEMBER" | "EW_REVOKE_MEMBER_INVITATION" | "EW_OWNERSHIP_PROPOSE" | "EW_OWNERSHIP_ACCEPT" | "EW_OWNERSHIP_DECLINE" | "EW_OWNERSHIP_CANCEL" | "EW_QR_PRINT" | "EW_UPDATE_MEMBER" | "EW_CHANGE_MEMBER_SUPERVISOR" | "EW_CREATE_ROLE" | "EW_UPDATE_ROLE" | "EW_DELETE_ROLE" | "EW_INVITE_PARTNER" | "EW_CREATE_EXTERNAL_PARTNER" | "EW_RESOLVE_PARTNER" | "EW_CREATE_SITE" | "EW_COMPLETE_SITE" | "EW_UPDATE_SITE" | "EW_CREATE_VEHICLE" | "EW_UPDATE_VEHICLE" | "EW_CREATE_PRODUCT" | "EW_UPDATE_PRODUCT" | "EW_REVISE_SITE" | "EW_REVISE_VEHICLE" | "EW_CREATE_MATERIAL" | "EW_UPDATE_MATERIAL" | "EW_IMPORT_PRODUCTS" | "EW_UPLOAD_EVIDENCE" | "EW_WITHDRAW_EVIDENCE" | "EW_ORDER_PRODUCT_PHOTOS" | "EW_COMPLETE_MATERIAL" | "EW_ALLOCATE" | "EW_QUARANTINE" | "EW_CASE_ACK" | "EW_CASE_RESPOND" | "EW_MESSAGE_SEND" | "EW_MESSAGE_REPLY" | "EW_MESSAGE_READ" | "EW_SITE_TRANSFER_CREATE" | "EW_SITE_TRANSFER_DISPATCH" | "EW_SITE_TRANSFER_RECEIVE" | "EW_SITE_TRANSFER_RESOLVE" | "EW_SITE_TRANSFER_CANCEL" | "DIST_RECEIPT" | "DIST_RETURN" | "DIST_RETURN_SIGN" | "DIST_RENEW_CONSENT" | "DIST_C2_PREPARE" | "DIST_C2_SUBMIT" | "EW_CREATE_FARM" | "EW_COMPLETE_FARM" | "EW_COMPLETE_PRODUCT" | "EW_CREATE_PLOT" | "EW_REGISTER_DISTRIBUTION_KEY" | "EW_REVOKE_DISTRIBUTION_KEY" | "DIST_CREATE" | "DIST_SIGN" | "DIST_CANCEL" | "DIST_OBSERVE" | "EW_TRACE_NOTICE" | "EW_DISPOSITION" | "ENTERPRISE_REVIEW" | "ENTERPRISE_ACTIVATE" | "ENTERPRISE_CONNECT" | "ENTERPRISE_CONNECTION_REVIEW" | "CREATE_PRODUCTION_CYCLE" | "EW_CREATE_CYCLE_DRAFT" | "EW_LINK_CYCLE_DRAFT" | "PLANT_PRODUCTION_CYCLE" | "RECORD_CARE" | "RECORD_SENSOR" | "INGEST_SENSOR_READING" | "INGEST_SHIPMENT_TELEMETRY" | "CLOSE_PRODUCTION_CYCLE" | "CANCEL_PRODUCTION_CYCLE" | "RECORD_HARVEST" | "CREATE_SHIPMENT" | "START_SHIPMENT" | "ARRIVE_SHIPMENT" | "RECEIVE_SHIPMENT" | "REJECT_SHIPMENT" | "DAMAGE_SHIPMENT" | "DAMAGE_LOT" | "MARK_FOR_SALE" | "MARK_SOLD" | "RECALL_LOT" | "EXPIRE_LOT" | "CREATE_INSPECTION" | "CREATE_CERTIFICATE" | "REVIEW_CERTIFICATE" | "CREATE_SENSOR_DIGEST" | "RECONCILE_CYCLE_SENSOR" | "BIND_SHIPMENT_DEVICE" | "UNBIND_SHIPMENT_DEVICE" | "CREATE_SHIPMENT_TELEMETRY_DIGEST" | "HYB_CREATE_CHAIN" | "HYB_ACTIVATE_BUSINESS_PROFILE" | "HYB_SUSPEND_BUSINESS_PROFILE" | "HYB_INVITE_MEMBERSHIP" | "HYB_ACCEPT_MEMBERSHIP" | "HYB_CHANGE_MEMBERSHIP" | "HYB_GRANT_ROLE" | "HYB_REVOKE_ROLE" | "HYB_SET_CAPABILITY" | "SCOPE_CREATE_SHIPMENT_PLAN" | "SCOPE_REVISE_SHIPMENT_PLAN" | "SCOPE_ACCEPT_SHIPMENT_PLAN" | "SCOPE_CANCEL_SHIPMENT_PLAN" | "SCOPE_FINALIZE_SHIPMENT_PLAN" | "PREPARE_HANDOVER_OFFER" | "PREPARE_HANDOVER_CONFIRM" | "SUBMIT_SIGNED_INTENT" | "REJECT_HANDOVER" | "CANCEL_HANDOVER" | "HYB_REGISTER_SIGNING_KEY" | "HYB_REVOKE_SIGNING_KEY";
             /** @description Payload gốc của command, gồm resource IDs như controller chuẩn hóa */
             payload: {
                 [key: string]: unknown;
@@ -7170,7 +7260,7 @@ export interface components {
             version: number;
         };
         MemberInvitationInput: {
-            contactAddress?: string;
+            contactAddress: string;
             /** Format: email */
             email: string;
             fullName: string;
@@ -7178,10 +7268,14 @@ export interface components {
             id: string;
             jobTitle: string;
             memberNote?: string;
-            phone?: string;
+            /** @description Required contact phone (Vietnamese number) */
+            phone: string;
             /** Format: uuid */
             responsibleFarmId?: string;
-            roles: components["schemas"]["MemberRoleInput"][];
+            roles: [
+                components["schemas"]["MemberRoleInput"],
+                ...components["schemas"]["MemberRoleInput"][]
+            ];
             /** @enum {number} */
             tier: 2 | 3;
             /** @description SHA-256 of a 32-byte token generated on the inviting device */
@@ -7406,6 +7500,33 @@ export interface components {
         OwnProfileWorkspaceRecordDto: {
             record: components["schemas"]["OwnProfileWorkspaceDto"];
         };
+        PartnerDirectoryProfileDto: {
+            activities: string[];
+            address: string | null;
+            agriTraceCode: string;
+            /** @description Approved capabilities */
+            capabilities: string[];
+            contactEmail: string | null;
+            description: string | null;
+            kind: string;
+            legalForm: string | null;
+            /** @enum {string|null} */
+            linkDirection: "SENT" | "RECEIVED" | null;
+            /**
+             * @description Existing link with the viewer, if any
+             * @enum {string|null}
+             */
+            linkStatus: "INVITED" | "ACTIVE" | "REJECTED" | "REVOKED" | null;
+            name: string;
+            /** Format: uuid */
+            organizationId: string;
+            phone: string | null;
+            province: string | null;
+            representative: string | null;
+            taxCode: string | null;
+            ward: string | null;
+            website: string | null;
+        };
         PartnerOrganizationDto: {
             /** @description AGT organization code */
             code: string;
@@ -7416,12 +7537,21 @@ export interface components {
             type: "DISTRIBUTOR" | "FARM" | "TRANSPORTER" | "RETAILER" | "AUDITOR" | "PROCESSOR";
         };
         PartnerSearchItemDto: {
+            /** @description AGT code; null for partners outside AgriTrace */
+            agriTraceCode: string | null;
             businessId: string;
             /** Format: uuid */
             id: string;
             kind: string;
+            /**
+             * @description Which group the query matched
+             * @enum {string}
+             */
+            matched: "TAX" | "NAME" | "CODE";
             name: string;
             registered: boolean;
+            /** @description Tax identifier */
+            taxCode: string | null;
         };
         PartnerSearchListDto: {
             items: components["schemas"]["PartnerSearchItemDto"][];
@@ -8025,6 +8155,10 @@ export interface components {
             id: string;
             productName: string;
         };
+        ProductPhotoOrderInput: {
+            /** @description Current product photo ids in display order; the first is the main photo */
+            order: string[];
+        };
         ProductRecordDto: {
             carrier?: string | null;
             category: string | null;
@@ -8473,7 +8607,7 @@ export interface components {
             details: components["schemas"]["EnterpriseRegistrationDetails"];
             /** Format: email */
             email: string;
-            /** @description One or two verified proofs for the admin email and enterprise contact email. One proof if both addresses are identical. */
+            /** @description Exactly one verified OTP proof for the admin login email. The contact email is not verified by OTP. */
             emailVerifications: components["schemas"]["RegistrationEmailProof"][];
             fullName: string;
             /** @enum {string} */
@@ -8486,11 +8620,6 @@ export interface components {
              * @enum {string}
              */
             participationModel?: "SINGLE" | "SUPPLY_CHAIN_ENTERPRISE";
-            /**
-             * Format: password
-             * @description At least 12 characters, at most 72 UTF-8 bytes; never trimmed.
-             */
-            password: string;
             /**
              * Format: uuid
              * @description Retain this id and the original form for retries.
@@ -9759,12 +9888,17 @@ export interface components {
             tier: number;
         };
         WorkspaceOrganizationDto: {
+            /** @description Tax identifier from registration */
+            businessId?: string | null;
             capabilities: ("DISTRIBUTOR" | "FARM" | "TRANSPORTER" | "RETAILER" | "AUDITOR" | "PROCESSOR")[];
             /** @description AGT organization code */
             code: string;
+            hostingMode?: string | null;
             /** Format: uuid */
             id: string;
             name: string;
+            /** @description SINGLE or SUPPLY_CHAIN_ENTERPRISE */
+            participationModel?: string;
             /** @enum {string} */
             status: "ACTIVE" | "INACTIVE";
             /** @enum {string} */
@@ -22271,6 +22405,130 @@ export interface operations {
             };
         };
     };
+    EnterpriseResourcesController_withdraw: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvidenceWithdrawalInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
     EnterpriseResourcesController_materials: {
         parameters: {
             query?: never;
@@ -24573,6 +24831,124 @@ export interface operations {
             };
         };
     };
+    EnterpriseWorkspaceController_partnerProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PartnerDirectoryProfileDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
     EnterpriseWorkspaceController_externalPartners: {
         parameters: {
             query?: never;
@@ -25186,6 +25562,130 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ProductRevisionInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    EnterpriseResourcesController_photoOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductPhotoOrderInput"];
             };
         };
         responses: {
@@ -26267,6 +26767,130 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["EnterpriseRoleInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    EnterpriseWorkspaceController_deleteRole: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnterpriseVersionInput"];
             };
         };
         responses: {

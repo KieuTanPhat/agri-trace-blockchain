@@ -6,6 +6,12 @@ export class ResourceRevisionInput {
  @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
  @ApiProperty({ maxLength: 1000 }) @IsString() @MinLength(10) @MaxLength(1000) reason!: string;
 }
+export class EvidenceWithdrawalInput {
+ @ApiProperty({minLength:5,maxLength:500,description:'Why the product photo is no longer shown'}) @IsString() @MinLength(5) @MaxLength(500) reason!:string;
+}
+export class ProductPhotoOrderInput {
+ @ApiProperty({type:[String],format:'uuid',description:'Current product photo ids in display order; the first is the main photo'}) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(200) @IsUUID('all',{each:true}) order!:string[];
+}
 export class EvidenceCompletionInput {
  @ApiProperty({minimum:0}) @IsInt() @Min(0) version!:number;
 }
@@ -69,7 +75,7 @@ export class ProductImportInput {
 export class EvidenceInput {
  @ApiProperty({required:false,format:'uuid'}) @IsOptional() @IsUUID() siteId?: string;
  @ApiProperty({enum:['PRODUCT','FARM','SITE','CYCLE','CYCLE_DRAFT','LOT','TRANSFER','MATERIAL','PROFILE','EXTERNAL_PARTNER','MEMBER','CHAIN','SITE_TRANSFER','QUARANTINE']}) @IsIn(['PRODUCT','FARM','SITE','CYCLE','CYCLE_DRAFT','LOT','TRANSFER','MATERIAL','PROFILE','EXTERNAL_PARTNER','MEMBER','CHAIN','SITE_TRANSFER','QUARANTINE']) entityType!: string;
- @ApiProperty({required:false,enum:['OTHER','PRODUCT_IMAGE','INSPECTION_IMAGE','AREA_IMAGE','LAND_CERTIFICATE','PRODUCTION_CONTRACT','QUALITY_CERTIFICATE','CYCLE_IMAGE','MATERIAL_IMAGE','SEED_IMAGE','CERTIFICATE_IMAGE','LOT_IMAGE','LOT_DOCUMENT','SITE_IMAGE','BUSINESS_LICENSE','TRANSFER_IMAGE','HARVEST_IMAGE','CARE_IMAGE','PARTNER_LOGO','MEMBER_AVATAR','MEMBER_DOCUMENT','CHAIN_IMAGE','QUARANTINE_IMAGE']}) @IsOptional() @IsIn(['OTHER','PRODUCT_IMAGE','INSPECTION_IMAGE','AREA_IMAGE','LAND_CERTIFICATE','PRODUCTION_CONTRACT','QUALITY_CERTIFICATE','CYCLE_IMAGE','MATERIAL_IMAGE','SEED_IMAGE','CERTIFICATE_IMAGE','LOT_IMAGE','LOT_DOCUMENT','SITE_IMAGE','BUSINESS_LICENSE','TRANSFER_IMAGE','HARVEST_IMAGE','CARE_IMAGE','PARTNER_LOGO','MEMBER_AVATAR','MEMBER_DOCUMENT','CHAIN_IMAGE','QUARANTINE_IMAGE']) kind?: string;
+ @ApiProperty({required:false,enum:['OTHER','PRODUCT_IMAGE','INSPECTION_IMAGE','AREA_IMAGE','LAND_CERTIFICATE','PRODUCTION_CONTRACT','QUALITY_CERTIFICATE','CYCLE_IMAGE','MATERIAL_IMAGE','SEED_IMAGE','CERTIFICATE_IMAGE','LOT_IMAGE','LOT_DOCUMENT','SITE_IMAGE','BUSINESS_LICENSE','TRANSFER_IMAGE','HARVEST_IMAGE','CARE_IMAGE','PARTNER_LOGO','PARTNERSHIP_EVIDENCE','MEMBER_AVATAR','MEMBER_DOCUMENT','CHAIN_IMAGE','QUARANTINE_IMAGE']}) @IsOptional() @IsIn(['OTHER','PRODUCT_IMAGE','INSPECTION_IMAGE','AREA_IMAGE','LAND_CERTIFICATE','PRODUCTION_CONTRACT','QUALITY_CERTIFICATE','CYCLE_IMAGE','MATERIAL_IMAGE','SEED_IMAGE','CERTIFICATE_IMAGE','LOT_IMAGE','LOT_DOCUMENT','SITE_IMAGE','BUSINESS_LICENSE','TRANSFER_IMAGE','HARVEST_IMAGE','CARE_IMAGE','PARTNER_LOGO','PARTNERSHIP_EVIDENCE','MEMBER_AVATAR','MEMBER_DOCUMENT','CHAIN_IMAGE','QUARANTINE_IMAGE']) kind?: string;
  @ApiProperty({format:'uuid'}) @IsUUID() entityId!: string;
  @ApiProperty({required:false,format:'uuid'}) @IsOptional() @IsUUID() supersedesId?: string;
  @ApiProperty({maxLength:1000}) @IsString() @MinLength(10) @MaxLength(1000) description!: string;

@@ -8,6 +8,8 @@ import "@/styles/site.css";
 import "@/styles/workspace.css";
 import "@/styles/manager.css";
 import "@/styles/refinement.css";
+import "@/styles/settings.css";
+import "@/styles/inbox.css";
 import { RegisterServiceWorker } from "@/components/register-service-worker";
 import { AuthProvider } from "@/lib/auth-store";
 import { AppFrame } from "@/components/app-frame";

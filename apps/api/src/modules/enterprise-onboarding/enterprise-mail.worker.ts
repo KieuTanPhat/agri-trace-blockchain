@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import nodemailer from 'nodemailer';
@@ -9,6 +9,7 @@ import { contractAttachment, enterpriseMailHtml } from './mail-template.js';
 /** Only Worker sends mail. Reserved test recipients always use the local sink. */
 @Injectable()
 export class EnterpriseMailWorker {
+  private readonly logger = new Logger(EnterpriseMailWorker.name);
   constructor(private readonly db: PrismaService) {}
   get enabled() {
     return ['mailpit', 'smtp'].includes(process.env.MAIL_TRANSPORT ?? '');
@@ -71,24 +72,31 @@ export class EnterpriseMailWorker {
           });
           continue;
         }
-        const otp = row.otpCiphertext
+        const sealed = row.otpCiphertext
           ? decryptOtp(row.otpCiphertext)
           : undefined;
+        const otp = row.kind === 'REGISTRATION_OTP' ? sealed : undefined;
+        const password = ['CREDENTIALS', 'ACCOUNT_CREDENTIALS'].includes(row.kind)
+          ? sealed
+          : undefined;
+        const links: Record<string, [string, string]> = {
+          APPROVED: ['Hoàn thiện dịch vụ', '/enterprise/service'],
+          CONTRACT: ['Xem hợp đồng', '/enterprise/service/contract'],
+          CREDENTIALS: ['Đăng nhập theo dõi hồ sơ', '/login'],
+          ACCOUNT_CREDENTIALS: ['Đăng nhập AgriTrace', '/login'],
+        };
+        const link = links[row.kind];
         const html = enterpriseMailHtml({
           subject: row.subject,
           text: row.text,
           otp,
-          ...(['APPROVED', 'CONTRACT'].includes(row.kind)
+          password,
+          ...(link
             ? {
                 action: {
-                  label:
-                    row.kind === 'APPROVED'
-                      ? 'Hoàn thiện dịch vụ'
-                      : 'Xem hợp đồng',
+                  label: link[0],
                   url: new URL(
-                    row.kind === 'APPROVED'
-                      ? '/enterprise/service'
-                      : '/enterprise/service/contract',
+                    link[1],
                     process.env.ENTERPRISE_WEB_BASE_URL ??
                       'http://127.0.0.1:3001',
                   ).href,
@@ -100,6 +108,9 @@ export class EnterpriseMailWorker {
           row.text +
           (otp
             ? `\n\nMã OTP: ${otp}\nHiệu lực 10 phút. Không chia sẻ mã.`
+            : '') +
+          (password
+            ? `\n\nMật khẩu tạm: ${password}\nĐổi mật khẩu ở lần đăng nhập đầu tiên.`
             : '');
         const logo = await readFile(
           new URL('../../../assets/agritrace-logo.png', import.meta.url),
@@ -226,7 +237,11 @@ export class EnterpriseMailWorker {
             leaseExpiresAt: null,
           },
         });
-      } catch {
+      } catch (cause) {
+        // The reason only, never the recipient, password or OTP.
+        this.logger.warn(
+          `Mail ${row.id} (${row.kind}) attempt ${row.attempts} failed: ${cause instanceof Error ? cause.message.slice(0, 200) : 'unknown error'}`,
+        );
         await this.db.enterpriseMail.updateMany({
           where: { id: row.id, leaseToken: token, status: 'PENDING' },
           data: {

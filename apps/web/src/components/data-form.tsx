@@ -1,11 +1,13 @@
 "use client";
-import { FormEvent, useId, useRef, useState } from "react";
+import { Fragment, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { request, retryPendingCommand } from "@/lib/api-client";
 import { importantAction, useConfirm } from "@/lib/confirm";
 export type Field = {
   name: string;
   label: string;
   type?: string;
+  className?: string;
+  placeholder?: string;
   required?: boolean;
   requiredWhen?: { field: string; value: string };
   min?: number;
@@ -31,6 +33,10 @@ export function DataForm({
   method = "POST",
   freezeOnUnknown = false,
   initialValues = {},
+  className,
+  showTitle = true,
+  submitLabel,
+  beforeFieldContent,
 }: {
   title: string;
   path: string;
@@ -41,6 +47,10 @@ export function DataForm({
   /** Keep sensitive, non-persisted command bodies in memory until reconciled. */
   freezeOnUnknown?: boolean;
   initialValues?: Record<string, string>;
+  className?: string;
+  showTitle?: boolean;
+  submitLabel?: string;
+  beforeFieldContent?: { field: string; children: ReactNode };
 }) {
   const formId = useId();
   const [values, setValues] = useState<Record<string, string>>(initialValues);
@@ -154,7 +164,11 @@ export function DataForm({
       !uncertain &&
       (attempt.current.body !== body || attempt.current.path !== method + path);
     // A retry of an uncertain request was already confirmed; only new commands ask again.
-    const warning = fresh ? importantAction(path) : null;
+    // Every first submission asks once; reconciling an uncertain one does not.
+    const warning = fresh
+      ? (importantAction(path) ??
+        "Xác nhận lưu thông tin này? Dữ liệu sẽ được ghi vào hệ thống và lưu lịch sử thay đổi.")
+      : null;
     if (warning && !(await confirm(warning, title))) return;
     if (fresh)
       attempt.current = { body, path: method + path, key: crypto.randomUUID() };
@@ -181,89 +195,106 @@ export function DataForm({
     }
   }
   return (
-    <form className="panel" onSubmit={submit}>
-      <h2>{title}</h2>
+    <form className={`panel${className ? ` ${className}` : ""}`} onSubmit={submit}>
+      {showTitle && <h2>{title}</h2>}
       <fieldset disabled={pending} className="management-fields">
         <div className="form-grid">
           {fields.map((f) => (
-            <label className="field" key={f.name}>
-              <span id={formId + f.name}>
-                {f.label}
-              </span>
-              {f.options && f.type === "multiselect" ? (
-                <select
-                  multiple
-                  size={Math.min(5, Math.max(2, f.options.length))}
-                  disabled={uncertain && !f.header}
-                  aria-labelledby={formId + f.name}
-                  className="select"
-                  value={(values[f.name] ?? "").split(",").filter(Boolean)}
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions, (option) => option.value);
-                    if (f.maxItems && selected.length > f.maxItems) {
-                      setError(`Chọn tối đa ${f.maxItems} ảnh bổ sung.`);
-                      return;
-                    }
-                    setError("");
-                    change(f.name, selected.join(","));
-                  }}
-                >
-                  {f.options.filter((o) => o.value !== values[f.excludes ?? ""]).map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              ) : f.options ? (
-                <select
-                  disabled={uncertain && !f.header}
-                  aria-labelledby={formId + f.name}
-                  className="select"
-                  required={f.required || (f.requiredWhen && values[f.requiredWhen.field] === f.requiredWhen.value)}
-                  value={values[f.name] ?? ""}
-                  onChange={(e) => change(f.name, e.target.value)}
-                >
-                  <option value="">Chọn…</option>
-                  {f.options
-                    .filter(
-                      (o) =>
-                        !f.dependsOn || o.parentValue === values[f.dependsOn],
-                    )
-                    .map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                </select>
-              ) : (
-                <input
-                  disabled={uncertain && !f.header}
-                  aria-labelledby={formId + f.name}
-                  className="input"
-                  type={f.type ?? "text"}
-                  min={f.min}
-                  maxLength={f.maxLength}
-                  pattern={f.pattern}
-                  minLength={f.type === "password" ? 12 : f.minLength}
-                  step={f.type === "number" ? (f.step ?? "any") : undefined}
-                  required={f.required || (f.requiredWhen && values[f.requiredWhen.field] === f.requiredWhen.value)}
-                  value={
-                    f.type === "checkbox" ? undefined : (values[f.name] ?? "")
-                  }
-                  checked={
-                    f.type === "checkbox"
-                      ? values[f.name] === "true"
-                      : undefined
-                  }
-                  onChange={(e) =>
-                    change(
-                      f.name,
-                      f.type === "checkbox"
-                        ? String(e.target.checked)
-                        : e.target.value,
-                    )
-                  }
-                />
+            <Fragment key={f.name}>
+              {beforeFieldContent?.field === f.name && (
+                <div className="form-grid-slot">{beforeFieldContent.children}</div>
               )}
-            </label>
+              <label className={`field${f.className ? ` ${f.className}` : ""}`}>
+                <span id={formId + f.name}>{f.label}</span>
+                {f.options && f.type === "multiselect" ? (
+                  <select
+                    multiple
+                    size={Math.min(5, Math.max(2, f.options.length))}
+                    disabled={uncertain && !f.header}
+                    aria-labelledby={formId + f.name}
+                    className="select"
+                    value={(values[f.name] ?? "").split(",").filter(Boolean)}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions, (option) => option.value);
+                      if (f.maxItems && selected.length > f.maxItems) {
+                        setError(`Chọn tối đa ${f.maxItems} ảnh bổ sung.`);
+                        return;
+                      }
+                      setError("");
+                      change(f.name, selected.join(","));
+                    }}
+                  >
+                    {f.options.filter((o) => o.value !== values[f.excludes ?? ""]).map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                ) : f.options ? (
+                  <select
+                    disabled={uncertain && !f.header}
+                    aria-labelledby={formId + f.name}
+                    className="select"
+                    required={f.required || (f.requiredWhen && values[f.requiredWhen.field] === f.requiredWhen.value)}
+                    value={values[f.name] ?? ""}
+                    onChange={(e) => change(f.name, e.target.value)}
+                  >
+                    <option value="">Chọn…</option>
+                    {f.options
+                      .filter(
+                        (o) =>
+                          !f.dependsOn || o.parentValue === values[f.dependsOn],
+                      )
+                      .map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                  </select>
+                ) : f.type === "textarea" ? (
+                  <textarea
+                    disabled={uncertain && !f.header}
+                    aria-labelledby={formId + f.name}
+                    className="input"
+                    maxLength={f.maxLength}
+                    minLength={f.minLength}
+                    required={f.required || (f.requiredWhen && values[f.requiredWhen.field] === f.requiredWhen.value)}
+                    rows={2}
+                    value={values[f.name] ?? ""}
+                    placeholder={f.placeholder}
+                    onChange={(e) => change(f.name, e.target.value)}
+                  />
+                ) : (
+                  <input
+                    disabled={uncertain && !f.header}
+                    aria-labelledby={formId + f.name}
+                    className="input"
+                    type={f.type ?? "text"}
+                    min={f.min}
+                    maxLength={f.maxLength}
+                    pattern={f.pattern}
+                    minLength={f.type === "password" ? 12 : f.minLength}
+                    step={f.type === "number" ? (f.step ?? "any") : undefined}
+                    placeholder={f.placeholder}
+                    required={f.required || (f.requiredWhen && values[f.requiredWhen.field] === f.requiredWhen.value)}
+                    value={
+                      f.type === "checkbox" ? undefined : (values[f.name] ?? "")
+                    }
+                    checked={
+                      f.type === "checkbox"
+                        ? values[f.name] === "true"
+                        : undefined
+                    }
+                    onChange={(e) =>
+                      change(
+                        f.name,
+                        f.type === "checkbox"
+                          ? String(e.target.checked)
+                          : e.target.value,
+                      )
+                    }
+                  />
+                )}
+              </label>
+            </Fragment>
           ))}
         </div>
       </fieldset>
@@ -273,7 +304,7 @@ export function DataForm({
         </p>
       )}
       <button className="button" disabled={pending}>
-        {pending ? "Đang lưu…" : uncertain ? "Thử lại yêu cầu ban đầu" : title}
+        {pending ? "Đang lưu…" : (submitLabel ?? title)}
       </button>
       {uncertain && (
         <p className="notice">

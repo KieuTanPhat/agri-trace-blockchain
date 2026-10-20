@@ -25,6 +25,7 @@ model User {
   responsibleFarmId          String?                     @map("responsible_farm_id") @db.Uuid
   contactAddress             String?                     @map("contact_address") @db.VarChar(500)
   memberNote                 String?                     @map("member_note") @db.VarChar(1000)
+  memberCode                 String?                     @map("member_code") @db.VarChar(20)
   platformCasesCreated PlatformCase[] @relation("PlatformCaseCreator")
   platformCaseEvents PlatformCaseEvent[]
   version                    Int                         @default(0) @map("version")
@@ -72,6 +73,7 @@ model User {
 
   @@unique([id, organizationId], map: "uq_user_org_scope")
   @@map("app_user")
+  credentialMails             EnterpriseMail[]            @relation("AccountCredentialMail")
 }
 
 model RefreshSession {
@@ -505,6 +507,7 @@ model SupplyChain {
   description         String?               @db.VarChar(2000)
   plannedStartDate    DateTime?             @map("planned_start_date") @db.Date
   note                String?               @db.VarChar(2000)
+  supplyModel         Json?                 @map("supply_model")
   version             Int                   @default(0)
   createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   owner               Organization          @relation(fields: [ownerOrganizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -665,6 +668,7 @@ model EnterpriseServiceOrder {
 model EnterpriseMail {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   enrollmentId String? @map("enrollment_id") @db.Uuid
+  userId String? @map("user_id") @db.Uuid
   verificationId String? @unique @map("verification_id") @db.Uuid
   otpCiphertext String? @map("otp_ciphertext")
   kind String @db.VarChar(30)
@@ -680,6 +684,7 @@ model EnterpriseMail {
   sentAt DateTime? @map("sent_at") @db.Timestamptz(6)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   enrollment EnterpriseEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  user User? @relation("AccountCredentialMail", fields:[userId], references:[id], onDelete:Restrict)
   verification RegistrationEmailVerification? @relation(fields:[verificationId],references:[id],onDelete:Restrict)
   @@unique([enrollmentId, kind])
   @@index([status, nextAttemptAt])
@@ -1068,6 +1073,7 @@ model EnterpriseInvitation {
  responsibleFarmId String? @map("responsible_farm_id") @db.Uuid
  contactAddress String? @map("contact_address") @db.VarChar(500)
  memberNote String? @map("member_note") @db.VarChar(1000)
+ memberCode String? @map("member_code") @db.VarChar(20)
  id String @id @db.Uuid
  organizationId String @map("organization_id") @db.Uuid
  creatorId String @map("creator_id") @db.Uuid
@@ -1156,8 +1162,20 @@ model TraceEvidence {
   actorId String @map("actor_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   harvestEvents HarvestEvent[]
+  withdrawal TraceEvidenceWithdrawal?
   @@index([organizationId,entityType,entityId])
   @@map("trace_evidence")
+}
+
+model TraceEvidenceWithdrawal {
+  evidenceId String @id @map("evidence_id") @db.Uuid
+  evidence TraceEvidence @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+  organizationId String @map("organization_id") @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  @@index([organizationId], map: "trace_evidence_withdrawal_org")
+  @@map("trace_evidence_withdrawal")
 }
 
 model ProductionMaterial {
@@ -3063,4 +3081,13 @@ model ProductUnitConversion {
 
   @@index([productId], map: "ix_unit_conversion_product")
   @@map("product_unit_conversion")
+}
+
+model ProductPhotoOrder {
+  productId String @id @map("product_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  evidenceIds String[] @map("evidence_ids") @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  updatedAt DateTime @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  @@map("product_photo_order")
 }

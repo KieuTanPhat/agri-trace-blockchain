@@ -149,12 +149,15 @@ export function loadTypography(): Typography {
 }
 
 export function saveTypography(value: Typography) {
+  let stored = true;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
   } catch {
+    stored = false;
     // Storage may be blocked; the change still applies until reload.
   }
   window.dispatchEvent(new CustomEvent(TYPOGRAPHY_EVENT, { detail: value }));
+  return stored;
 }
 
 /** Adds the stylesheet of every Google font the value uses, once each. */

@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { EvidenceThumbnails } from "@/components/workspace/image-gallery";
 import { useState, type FormEvent } from "react";
 import { request } from "@/lib/api-client";
 import {
@@ -71,6 +72,21 @@ export default function ProfileAmendmentReviewPage() {
             .join(", "),
         ],
         ["Hoạt động", list(data.profile?.activities), list(target.activities)],
+        // Contact requests carry these keys; legal requests leave them as is.
+        ...(["phone", "contactEmail", "website", "description"] as const)
+          .filter((key) => key in (target as object))
+          .map(
+            (key): [string, unknown, unknown] => [
+              {
+                phone: "Điện thoại",
+                contactEmail: "Email liên hệ",
+                website: "Website",
+                description: "Giới thiệu",
+              }[key],
+              data.profile?.[key],
+              (target as Record<string, unknown>)[key],
+            ],
+          ),
       ]
     : [];
   async function download(evidenceId: string) {
@@ -165,20 +181,12 @@ export default function ProfileAmendmentReviewPage() {
                 {fileError}
               </p>
             )}
-            <ul>
-              {data.evidence.map((r) => (
-                <li key={r.id}>
-                  <button
-                    type="button"
-                    className="text-link"
-                    onClick={() => void download(r.id)}
-                  >
-                    {r.fileName}
-                  </button>{" "}
-                  · {r.description} · SHA-256 {r.sha256.slice(0, 12)}…
-                </li>
-              ))}
-            </ul>
+            <EvidenceThumbnails
+              rows={data.evidence}
+              contentPath={(evidenceId) => `/enterprise-profile-amendments/${id}/evidence/${evidenceId}`}
+              onOpenFile={(r) => void download(r.id)}
+              caption={(r) => `${r.description} · SHA-256 ${r.sha256.slice(0, 12)}…`}
+            />
           </section>
           <section className="manage-section">
             <h2>Quyết định</h2>
@@ -231,7 +239,7 @@ export default function ProfileAmendmentReviewPage() {
                   </label>
                 </fieldset>
                 <button className="button" disabled={cmd.pending}>
-                  {cmd.frozen ? "Thử lại yêu cầu cũ" : "Ghi quyết định"}
+                  {"Ghi quyết định"}
                 </button>
               </form>
             )}

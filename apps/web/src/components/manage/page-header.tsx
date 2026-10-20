@@ -13,7 +13,6 @@ export type PageAction = {
 /** Title block shared by platform and enterprise management pages. */
 export function PageHeader({
   title,
-  description,
   back,
   backLabel = "Quay lại",
   action,
@@ -22,6 +21,7 @@ export function PageHeader({
   /** Kept for callers; page headers no longer show an overline. */
   eyebrow?: string;
   title: string;
+  /** Accepted for existing page calls; page descriptions are not displayed. */
   description?: ReactNode;
   back?: string;
   backLabel?: string;
@@ -39,7 +39,6 @@ export function PageHeader({
           </Link>
         )}
         <h1>{title}</h1>
-        {description && <p className="manage-description">{description}</p>}
       </div>
       {(action || actions) && (
         <div className="manage-header-actions">

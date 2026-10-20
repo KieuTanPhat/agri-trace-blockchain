@@ -19,6 +19,8 @@ import { registerEnterprise } from '../enterprise-onboarding/enterprise-onboardi
 import type { ChangePasswordDto } from './dto/change-password.dto.js';
 import { PlatformMfaService } from '../platform-governance/platform-mfa.service.js';
 import { isPlatformAdminRole } from './role-codes.js';
+import { registrationEmailInUse } from '../enterprise-onboarding/registration-email.js';
+import { enforcePasswordAge } from './password-age.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -58,12 +60,7 @@ export class AuthService {
   }
 
   async registrationEmailAvailability(email: string) {
-    // Equality on the same normalized expression as the unique index. ILIKE
-    // would interpret valid email characters such as '_' and '%' as patterns.
-    const [result] = await this.prisma.$queryRaw<{ used: boolean }[]>`
-      SELECT EXISTS(SELECT 1 FROM app_user WHERE lower(email) = ${email.trim().toLowerCase()}) AS used
-    `;
-    return { available: !result.used };
+    return { available: !(await registrationEmailInUse(this.prisma, email)) };
   }
 
   async login(input: LoginDto, previousRefreshToken?: string) {
@@ -152,6 +149,8 @@ export class AuthService {
             where: { id: current.id },
             data: { failedLoginCount: 0, lockedUntil: null },
           });
+        if (await enforcePasswordAge(tx, current))
+          current.mustChangePassword = true;
         const {
           passwordHash: _passwordHash,
           version: _version,
@@ -197,7 +196,9 @@ export class AuthService {
       // snapshot from before this transaction may authorize a new session.
       const session = await tx.refreshSession.findUnique({
         where: { tokenHash },
-        include: { user: { select: this.safeUserSelect } },
+        include: {
+          user: { select: { ...this.safeUserSelect, passwordChangedAt: true } },
+        },
       });
       if (!session) return { state: 'revoked' } as const;
       const familyId = session.familyId ?? session.id;
@@ -228,6 +229,11 @@ export class AuthService {
         return { state: 'revoked' } as const;
       }
       if (session.expiresAt <= new Date()) return { state: 'revoked' } as const;
+      const { passwordChangedAt, ...sessionUser } = session.user;
+      if (
+        await enforcePasswordAge(tx, { ...sessionUser, passwordChangedAt })
+      )
+        sessionUser.mustChangePassword = true;
 
       const nextToken = randomBytes(48).toString('base64url');
       const expiresAt = session.expiresAt;
@@ -250,7 +256,7 @@ export class AuthService {
       });
       return {
         state: 'rotated',
-        payload: this.authPayload(session.user, familyId, nextToken, expiresAt),
+        payload: this.authPayload(sessionUser, familyId, nextToken, expiresAt),
       } as const;
     });
     // Throw after commit so replay/account revocation is not rolled back.

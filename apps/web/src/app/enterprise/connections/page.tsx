@@ -241,9 +241,7 @@ export default function EnterprisePage() {
                     <button className="button" disabled={pending}>
                       {pending
                         ? "Đang gửi…"
-                        : original.current
-                          ? "Thử lại yêu cầu ban đầu"
-                          : "Gửi yêu cầu kết nối"}
+                        : "Gửi yêu cầu kết nối"}
                     </button>
                   </form>
                 )}

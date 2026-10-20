@@ -31,13 +31,13 @@ const evidenceKinds: Record<string, readonly string[]> = {
   MATERIAL: ['OTHER', 'MATERIAL_IMAGE', 'SEED_IMAGE', 'CERTIFICATE_IMAGE', 'INSPECTION_IMAGE'],
   PROFILE: ['OTHER', 'BUSINESS_LICENSE', 'CERTIFICATE_IMAGE'],
   MEMBER: ['OTHER', 'MEMBER_AVATAR', 'MEMBER_DOCUMENT'],
-  EXTERNAL_PARTNER: ['OTHER', 'PARTNER_LOGO', 'BUSINESS_LICENSE', 'CERTIFICATE_IMAGE', 'INSPECTION_IMAGE'],
+  EXTERNAL_PARTNER: ['OTHER', 'PARTNER_LOGO', 'PARTNERSHIP_EVIDENCE', 'BUSINESS_LICENSE', 'CERTIFICATE_IMAGE', 'INSPECTION_IMAGE'],
 };
 const imageOnlyKinds = new Set([
   'PRODUCT_IMAGE','INSPECTION_IMAGE','AREA_IMAGE','LAND_CERTIFICATE',
   'PRODUCTION_CONTRACT','QUALITY_CERTIFICATE','CYCLE_IMAGE','MATERIAL_IMAGE',
   'SEED_IMAGE','CERTIFICATE_IMAGE','LOT_IMAGE','SITE_IMAGE','TRANSFER_IMAGE',
-  'HARVEST_IMAGE','CARE_IMAGE','PARTNER_LOGO',
+  'HARVEST_IMAGE','CARE_IMAGE','PARTNER_LOGO','PARTNERSHIP_EVIDENCE',
   'MEMBER_AVATAR',
   'CHAIN_IMAGE',
   'QUARANTINE_IMAGE',
@@ -158,7 +158,16 @@ export class EnterpriseResourcesService {
    const context=await evidenceSubject(this.db,actor,type,id,'evidence.read',siteId);
    // Photos taken while the cycle was a draft belong to the same id.
    const types=type==='CYCLE'?['CYCLE','CYCLE_DRAFT']:[type];
-   return {items:await this.db.traceEvidence.findMany({where:{organizationId:actor.organizationId!,entityType:{in:types},entityId:id,...(context.siteId?{siteId:context.siteId}:{})},select:{id:true,entityType:true,entityId:true,siteId:true,supersedesId:true,fileName:true,mediaType:true,size:true,sha256:true,description:true,kind:true,public:true,createdAt:true},orderBy:{createdAt:'desc'},take:200})};
+   if(type==='PRODUCT'){
+     // Product photos follow the owner's chosen order; the first is the main photo.
+     const [rows,order]=await Promise.all([
+       this.db.traceEvidence.findMany({where:{organizationId:actor.organizationId!,entityType:'PRODUCT',entityId:id,withdrawal:null},select:{id:true,entityType:true,entityId:true,siteId:true,supersedesId:true,fileName:true,mediaType:true,size:true,sha256:true,description:true,kind:true,public:true,createdAt:true},orderBy:{createdAt:'desc'},take:200}),
+       this.db.productPhotoOrder.findUnique({where:{productId:id}}),
+     ]);
+     const rank=new Map((order?.evidenceIds??[]).map((evidenceId,index)=>[evidenceId,index]));
+     return {items:rows.map((row,index)=>({row,index})).sort((a,b)=>(rank.get(a.row.id)??1e6+a.index)-(rank.get(b.row.id)??1e6+b.index)).map(({row})=>row)};
+   }
+   return {items:await this.db.traceEvidence.findMany({where:{organizationId:actor.organizationId!,entityType:{in:types},entityId:id,withdrawal:null,...(context.siteId?{siteId:context.siteId}:{})},select:{id:true,entityType:true,entityId:true,siteId:true,supersedesId:true,fileName:true,mediaType:true,size:true,sha256:true,description:true,kind:true,public:true,createdAt:true},orderBy:{createdAt:'desc'},take:200})};
  }
  uploadEvidence(actor:CommandActor,input:EvidenceInput,file:EvidenceFile) {
    return commandTransaction(this.db,async tx=>{
@@ -182,13 +191,51 @@ export class EnterpriseResourcesService {
      }
      if(input.supersedesId) {
        const old=await tx.traceEvidence.findFirst({where:{id:input.supersedesId,organizationId:actor.organizationId!,entityType:input.entityType==='CYCLE'?{in:['CYCLE','CYCLE_DRAFT']}:input.entityType,entityId:input.entityId}});
-       if(!old || old.kind!==kind || old.siteId!==(context.siteId??null) || await tx.traceEvidence.findFirst({where:{supersedesId:old.id}})) throw new ConflictException('Chọn bản chứng cứ mới nhất cùng loại và phạm vi để đính chính');
+       if(!old || await tx.traceEvidenceWithdrawal.findUnique({where:{evidenceId:old.id}}) || old.kind!==kind || old.siteId!==(context.siteId??null) || await tx.traceEvidence.findFirst({where:{supersedesId:old.id}})) throw new ConflictException('Chọn bản chứng cứ mới nhất cùng loại và phạm vi để đính chính');
      }
      const total=await tx.traceEvidence.aggregate({where:{organizationId:actor.organizationId!},_sum:{size:true},_count:true});
      if(total._count>=1000 || (total._sum.size??0)+content.length>256*1024*1024) throw new ConflictException('Đã đạt giới hạn lưu chứng cứ của tổ chức');
      const row=await tx.traceEvidence.create({data:{organizationId:actor.organizationId!,entityType:input.entityType,entityId:input.entityId,...context,supersedesId:input.supersedesId,fileName:safeFileName(file.originalname),mediaType:media,size:content.length,sha256:createHash('sha256').update(content).digest('hex'),content:Uint8Array.from(content),description:input.description,kind,public:input.public??false,actorId:actor.sub!}});
      if(['LOT','CYCLE'].includes(input.entityType)) await this.trace.createInTransaction(tx,{entityType:input.entityType,entityId:input.entityId,lotId:input.entityType==='LOT'?input.entityId:undefined,cycleId:input.entityType==='CYCLE'?input.entityId:undefined,eventType:'EVIDENCE_ATTACHED',actor,businessData:{evidenceId:row.id,sha256:row.sha256,supersedesId:row.supersedesId,kind:row.kind,public:row.public}});
      return {record:{id:row.id,sha256:row.sha256,size:row.size,mediaType:row.mediaType}};
+   });
+ }
+ /** Hides a product photo without deleting it. A product on sale keeps at
+  * least three current photos, so a replacement is uploaded first. */
+ withdrawEvidence(actor:CommandActor,id:string,reason:string) {
+   return commandTransaction(this.db,async tx=>{
+     await enterpriseAuthority(tx,actor,'evidence.manage',undefined,undefined,true);
+     const row=await tx.traceEvidence.findFirst({where:{id,organizationId:actor.organizationId!},select:{id:true,entityType:true,entityId:true,kind:true}});
+     if(!row)throw new NotFoundException('Không tìm thấy ảnh');
+     if(row.entityType!=='PRODUCT')throw new ConflictException('Chỉ gỡ được ảnh sản phẩm');
+     await evidenceSubject(tx,actor,row.entityType,row.entityId,'evidence.manage');
+     const [product]=await tx.$queryRaw<Array<{status:string;evidence_complete:boolean}>>`SELECT status::text AS status, evidence_complete FROM product WHERE product_id = ${row.entityId}::uuid AND organization_id = ${actor.organizationId!}::uuid FOR UPDATE`;
+     if(!product)throw new NotFoundException('Không tìm thấy sản phẩm');
+     if(await tx.traceEvidenceWithdrawal.findUnique({where:{evidenceId:id}}))throw new ConflictException('Ảnh đã được gỡ');
+     if(await tx.traceEvidence.findFirst({where:{supersedesId:id}}))throw new ConflictException('Ảnh đã có bản thay thế');
+     if(row.kind==='PRODUCT_IMAGE'&&product.status==='ACTIVE'){
+       const rows=await tx.traceEvidence.findMany({where:{organizationId:actor.organizationId!,entityType:'PRODUCT',entityId:row.entityId,kind:'PRODUCT_IMAGE',withdrawal:null},select:{id:true,supersedesId:true}});
+       const superseded=new Set(rows.map(r=>r.supersedesId).filter(Boolean));
+       const remaining=rows.filter(r=>!superseded.has(r.id)&&r.id!==id).length;
+       if(remaining<3)throw new ConflictException('Sản phẩm đang hoạt động cần ít nhất ba ảnh; tải ảnh mới trước khi gỡ ảnh này');
+     }
+     await tx.traceEvidenceWithdrawal.create({data:{evidenceId:id,organizationId:actor.organizationId!,actorId:actor.sub!,reason:reason.trim()}});
+     return {record:{id,withdrawn:true}};
+   });
+ }
+ /** Saves the display order of a product's current photos. */
+ orderProductPhotos(actor:CommandActor,id:string,order:string[]) {
+   return commandTransaction(this.db,async tx=>{
+     await enterpriseAuthority(tx,actor,'catalog.manage',undefined,undefined,true);
+     const product=await tx.product.findFirst({where:{id,organizationId:actor.organizationId!},select:{id:true}});
+     if(!product)throw new NotFoundException('Không tìm thấy sản phẩm');
+     const rows=await tx.traceEvidence.findMany({where:{organizationId:actor.organizationId!,entityType:'PRODUCT',entityId:id,withdrawal:null},select:{id:true,supersedesId:true}});
+     const superseded=new Set(rows.map(r=>r.supersedesId).filter(Boolean));
+     const current=new Set(rows.filter(r=>!superseded.has(r.id)).map(r=>r.id));
+     const unique=[...new Set(order)];
+     if(unique.length!==order.length||unique.some(evidenceId=>!current.has(evidenceId)))throw new ConflictException('Danh sách ảnh đã thay đổi; tải lại trang rồi sắp xếp lại');
+     await tx.productPhotoOrder.upsert({where:{productId:id},create:{productId:id,organizationId:actor.organizationId!,evidenceIds:unique,actorId:actor.sub!},update:{evidenceIds:unique,actorId:actor.sub!,updatedAt:new Date()}});
+     return {record:{id,order:unique}};
    });
  }
  async evidenceFile(actor:CommandActor,id:string) {

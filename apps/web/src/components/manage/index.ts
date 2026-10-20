@@ -11,3 +11,4 @@ export {
   Section,
 } from "./layout";
 export { BarList, Metrics, ReasonAction, Tabs } from "./admin-widgets";
+export { InfoDialog } from "./info-dialog";

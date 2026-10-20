@@ -22,6 +22,7 @@ const { auth, location, replace } = vi.hoisted(() => ({
       fullName: "First user",
       organizationId: "first-org" as string | null,
       accessRevision: undefined as string | undefined,
+      mustChangePassword: false,
       role: { code: "AUDITOR", name: "Kiểm toán" },
     },
     logout: vi.fn(),
@@ -50,7 +51,26 @@ afterEach(() => {
   auth.user.fullName = "First user";
   auth.user.organizationId = "first-org";
   auth.user.accessRevision = undefined;
+  auth.user.mustChangePassword = false;
   auth.user.role = { code: "AUDITOR", name: "Kiểm toán" };
+});
+it("shows the password form to an enterprise owner with a temporary password without loading enterprise access", async () => {
+  const { request } = await import("@/lib/api-client");
+  auth.user.role = { code: "FARM_STAFF", name: "Nhân viên nông trại" };
+  auth.user.mustChangePassword = true;
+  location.pathname = "/account/password";
+  render(
+    <AppFrame>
+      <p>Đổi mật khẩu tạm</p>
+    </AppFrame>,
+  );
+  await act(async () => {});
+  expect(screen.getByText("Đổi mật khẩu tạm")).toBeInTheDocument();
+  expect(screen.queryByText("Chưa kiểm tra được quyền hiện tại.")).toBeNull();
+  expect(vi.mocked(request)).not.toHaveBeenCalledWith(
+    "/enterprise-access",
+    expect.anything(),
+  );
 });
 it("shows only platform functions for the system administrator", async () => {
   auth.user.role = { code: "SYSTEM_ADMIN", name: "Quản trị hệ thống" };

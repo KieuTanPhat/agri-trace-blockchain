@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsDateString,
@@ -13,6 +14,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 
 export class ChainVersionDto {
@@ -22,6 +24,13 @@ export class ChainVersionDto {
   @Min(0)
   version!: number;
 }
+export const CHAIN_TYPES = ['CROP', 'LIVESTOCK', 'AQUACULTURE', 'PROCESSED_FOOD'] as const;
+export const SUPPLY_STAGES = ['FARM', 'PROCESSOR', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER'] as const;
+export class ChainParticipantDto {
+  @ApiProperty({ type: String, format: 'uuid' }) @IsUUID() organizationId!: string;
+  @ApiProperty({ enum: SUPPLY_STAGES, description: 'Stage this organization performs in the chain' })
+  @IsIn(SUPPLY_STAGES) stage!: (typeof SUPPLY_STAGES)[number];
+}
 export class CreateChainDto {
   @ApiProperty({ type: String, maxLength: 255 })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -29,8 +38,16 @@ export class CreateChainDto {
   @MinLength(1)
   @MaxLength(255)
   name!: string;
-  @ApiProperty({ enum: ['CROP'], required: false })
-  @IsOptional() @IsIn(['CROP']) chainType?: 'CROP';
+  @ApiProperty({ enum: CHAIN_TYPES, required: false, description: 'Defaults to CROP' })
+  @IsOptional() @IsIn(CHAIN_TYPES) chainType?: (typeof CHAIN_TYPES)[number];
+  @ApiProperty({
+    type: [ChainParticipantDto],
+    description:
+      'Supply model: the owner and each organization taking part, with the stage it performs. Other organizations are invited to the chain. Omitted: the owner at the stages of its approved capabilities.',
+    required: false,
+  })
+  @IsOptional() @IsArray() @ArrayMinSize(1) @ArrayMaxSize(50) @ValidateNested({ each: true }) @Type(() => ChainParticipantDto)
+  participants?: ChainParticipantDto[];
   @ApiProperty({ required: false, maxLength: 2000 })
   @IsOptional() @IsString() @MaxLength(2000) description?: string;
   @ApiProperty({ required: false, format: 'date' })
@@ -107,7 +124,14 @@ export class ChainRecordDto {
   @ApiProperty({ type: String, format: 'uuid' }) ownerOrganizationId!: string;
   @ApiProperty({ type: String }) name!: string;
   @ApiProperty({ type: String, nullable: true }) code!: string | null;
-  @ApiProperty({ enum: ['CROP'] }) chainType!: string;
+  @ApiProperty({ enum: CHAIN_TYPES }) chainType!: string;
+  @ApiProperty({
+    type: Object,
+    nullable: true,
+    required: false,
+    description: '{ stages: [{ stage, organizationIds[] }] } in supply order',
+  })
+  supplyModel?: unknown;
   @ApiProperty({ type: String, nullable: true }) description!: string | null;
   @ApiProperty({ type: String, nullable: true, format: 'date' }) plannedStartDate!: string | null;
   @ApiProperty({ type: String, nullable: true }) note!: string | null;

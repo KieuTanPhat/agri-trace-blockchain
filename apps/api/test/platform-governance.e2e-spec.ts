@@ -11,6 +11,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcrypt';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { decryptOtp } from '../src/modules/enterprise-onboarding/registration-otp.service.js';
 import { AppModule } from '../src/app.module.js';
 import { ApiResponseInterceptor } from '../src/common/api/api-response.interceptor.js';
 import { GlobalExceptionFilter } from '../src/common/exception/global-exception.filter.js';
@@ -746,7 +747,6 @@ describe('Platform governance (real PostgreSQL)', () => {
       await post(admin, 'users', {
         email: `second-${randomUUID()}@example.test`,
         fullName: 'Quản trị thứ hai',
-        password: PASSWORD,
         roleCode: 'SYSTEM_ADMIN',
       }).expect(409);
       // Non-protected platform work (an auditor user) is unaffected.
@@ -756,7 +756,6 @@ describe('Platform governance (real PostgreSQL)', () => {
       await post(admin, 'users', {
         email: `rev-${randomUUID()}@example.test`,
         fullName: 'Người kiểm định',
-        password: PASSWORD,
         roleCode: 'COMPLIANCE_REVIEWER',
         organizationId: auditorOrg.id,
       }).expect(201);
@@ -902,7 +901,6 @@ describe('Platform governance (real PostgreSQL)', () => {
         params: {
           email,
           fullName: 'Quản trị viên mới',
-          temporaryPassword: 'Mat-Khau-Tam-Cua-QT-1',
         },
         reason: REASON,
       }).expect(201);
@@ -910,7 +908,7 @@ describe('Platform governance (real PostgreSQL)', () => {
         where: { id: proposed.body.data.id },
       });
       expect(plain(stored)).not.toContain('Mat-Khau-Tam-Cua-QT-1');
-      expect(proposed.body.data.payload.passwordHash).toBe('[REDACTED]');
+      expect(proposed.body.data.payload.passwordHash).toBeUndefined();
       expect(await prisma.user.count({ where: { email } })).toBe(0);
       await decide(proposed.body.data.id, 0, 'APPROVE', admin).expect(403);
       await decide(proposed.body.data.id, 0, 'APPROVE', admin2).expect(201);
@@ -923,8 +921,14 @@ describe('Platform governance (real PostgreSQL)', () => {
       const entry = (await auditRows({ subjectId: created.id })).find(
         (row) => row.action === 'USER_CREATED',
       );
-      expect(plain(entry)).not.toContain('Mat-Khau-Tam-Cua-QT-1');
-      await login(email, {}, 'Mat-Khau-Tam-Cua-QT-1').expect(201);
+      // The approved account receives a generated password by mail only.
+      const mail = await prisma.enterpriseMail.findFirstOrThrow({
+        where: { userId: created.id, kind: 'ACCOUNT_CREDENTIALS' },
+      });
+      const temporary = decryptOtp(mail.otpCiphertext!);
+      expect(plain(entry)).not.toContain(temporary);
+      expect(plain(stored)).not.toContain(temporary);
+      await login(email, {}, temporary).expect(201);
     });
 
     it('grants CREATE_CHAIN only through approval when enforced', async () => {

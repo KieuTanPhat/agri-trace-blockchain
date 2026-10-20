@@ -213,9 +213,7 @@ function CreateTicket({ admin, reload }: { admin: boolean; reload(): void }) {
         <button className="button" disabled={command.pending}>
           {command.pending
             ? "Đang xử lý…"
-            : command.frozen
-              ? "Thử lại yêu cầu ban đầu"
-              : "Gửi hồ sơ"}
+            : "Gửi hồ sơ"}
         </button>
       </form>
     </details>
@@ -421,9 +419,7 @@ function TicketDetail({
               <button className="button" disabled={command.pending}>
                 {command.pending
                   ? "Đang lưu…"
-                  : command.frozen
-                    ? "Thử lại yêu cầu ban đầu"
-                    : "Lưu xử lý"}
+                  : "Lưu xử lý"}
               </button>
               {!command.frozen && (
                 <button

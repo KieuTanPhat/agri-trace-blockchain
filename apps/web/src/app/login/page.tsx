@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { LoaderCircle, LogIn, ShieldCheck } from "lucide-react";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { useAuth } from "@/lib/auth-store";
+import { homeRoute, isEnterpriseUser } from "@/lib/management-routes";
 import { canAccessManagementRoute, platformAdminHome } from "@/lib/permissions";
 
 const MFA_REQUIRED_MESSAGE = "Cần mã xác thực hai yếu tố";
@@ -39,28 +40,28 @@ export default function LoginPage() {
   }, []);
   useEffect(() => {
     if (nextReady && !auth.isLoading && auth.isAuthenticated) {
-      const role = auth.user?.role.code;
       if (auth.user?.mustChangePassword) {
         // A temporary password only unlocks the page that replaces it.
         router.replace("/account/password");
         return;
       }
+      if (!auth.user) return;
+      const role = auth.user.role.code;
+      const home = homeRoute(role, isEnterpriseUser(auth.user));
+      // `next` may come from another account's session (e.g. after logout),
+      // so only follow it when this role may open that page.
       router.replace(
-        platformAdminHome(role) &&
-          role &&
-          (nextPath === "/dashboard" ||
-            !canAccessManagementRoute(nextPath, role))
-          ? platformAdminHome(role)!
-          : nextPath === "/dashboard" && role === "DISTRIBUTOR"
-            ? "/enterprise"
-            : nextPath,
+        (nextPath === "/dashboard" &&
+          (!!platformAdminHome(role) || role === "DISTRIBUTOR")) ||
+          !canAccessManagementRoute(nextPath, role, auth.user.productionAccess)
+          ? home
+          : nextPath,
       );
     }
   }, [
     auth.isAuthenticated,
     auth.isLoading,
-    auth.user?.role.code,
-    auth.user?.mustChangePassword,
+    auth.user,
     nextPath,
     nextReady,
     router,
@@ -116,10 +117,6 @@ export default function LoginPage() {
         <div>
           <p className="eyebrow">Cổng quản trị</p>
           <h1>Đăng nhập</h1>
-          <p className="muted">
-            Đăng nhập bằng tài khoản doanh nghiệp hoặc tài khoản được cấp để
-            thao tác theo quyền của bạn.
-          </p>
         </div>
         <div className="field">
           <label htmlFor="email">Email</label>

@@ -12,6 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthenticatedRequest, JwtPayload } from './auth.types.js';
 import { sessionFamilyWhere } from './session-family.js';
 import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
+import { enforcePasswordAge } from './password-age.js';
 
 const PASSWORD_CHANGE_ALLOWED = new Set([
   '/auth/me',
@@ -69,6 +70,8 @@ export class JwtAuthGuard implements CanActivate {
         organization: { select: { status: true } },
         accountStatus: true,
         mustChangePassword: true,
+        passwordChangedAt: true,
+        createdAt: true,
         enterpriseTier: true,
         enterpriseRoles: { include: { role: true } },
       },
@@ -84,6 +87,9 @@ export class JwtAuthGuard implements CanActivate {
     if (user.organizationId && user.organization?.status !== 'ACTIVE') {
       throw new UnauthorizedException('Tổ chức không còn hoạt động');
     }
+    // A password older than the maximum age becomes a forced change mid-session.
+    if (await enforcePasswordAge(this.prisma, user))
+      user.mustChangePassword = true;
     if (user.mustChangePassword) {
       // A temporary password only unlocks the way to replace it.
       const path = request.originalUrl

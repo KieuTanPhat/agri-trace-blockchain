@@ -4,11 +4,11 @@ export type AddressProvince = {
   wards: Array<{ code: string; name: string }>;
 };
 export const REGISTRATION_STEPS = [
-  "Doanh nghiệp",
+  "Vai trò & doanh nghiệp",
   "Đại diện & tài khoản",
-  "Hoạt động",
+  "Thông tin hoạt động",
   "Dịch vụ sử dụng",
-  "Kiểm tra & xác minh",
+  "Kiểm tra & gửi hồ sơ",
 ];
 export const LEGAL_FORM_OPTIONS = [
   ["ENTERPRISE", "Doanh nghiệp"],
@@ -24,6 +24,32 @@ export const ACTIVITY_OPTIONS = [
   ["DISTRIBUTOR", "Nhà phân phối"],
   ["RETAILER", "Nhà bán lẻ"],
 ] as const;
+/** The role chosen first; it fixes the participation model and activities. */
+export const REGISTRATION_ROLES = [
+  ["FARM", "Nhà sản xuất / Hợp tác xã", "Trồng trọt, thu hoạch và tạo lô nông sản. Mua gói dịch vụ và tạo chuỗi truy xuất."],
+  ["PROCESSOR", "Nhà chế biến", "Sơ chế, đóng gói, chế biến lô nông sản. Tham gia chuỗi khi được mời."],
+  ["TRANSPORTER", "Nhà vận chuyển", "Nhận và giao lô hàng giữa các khâu. Tham gia chuỗi khi được mời."],
+  ["DISTRIBUTOR", "Nhà phân phối", "Nhập kho, lưu kho và phân phối lô hàng. Tham gia chuỗi khi được mời."],
+  ["RETAILER", "Nhà bán lẻ", "Nhận hàng, bán lẻ và ghi nhận tiêu thụ. Tham gia chuỗi khi được mời."],
+  ["SUPPLY_CHAIN", "Doanh nghiệp có chuỗi cung ứng", "Một tổ chức có đăng ký vận hành toàn bộ vai trò: sản xuất, chế biến, vận chuyển, phân phối và bán lẻ."],
+] as const;
+export type RegistrationRole = (typeof REGISTRATION_ROLES)[number][0];
+const ALL_ACTIVITIES = ["FARM", "PROCESSOR", "TRANSPORTER", "DISTRIBUTOR", "RETAILER"];
+/** Draft fields derived from the chosen registration role. */
+export function registrationRoleFields(role: string) {
+  return role === "SUPPLY_CHAIN"
+    ? {
+        participationModel: "SUPPLY_CHAIN_ENTERPRISE",
+        activities: [...ALL_ACTIVITIES],
+        organizationType: "FARM",
+      }
+    : { participationModel: "SINGLE", activities: [role], organizationType: role };
+}
+/** Households and individual producers may only register as producers. */
+export const legalFormsFor = (role: string) =>
+  LEGAL_FORM_OPTIONS.filter(
+    ([code]) => role === "FARM" || registeredLegalForm(code),
+  );
 export const PARTICIPATION_OPTIONS = [
   ["SINGLE", "Một vai trò trong chuỗi", "Nhà sản xuất/HTX mua gói và tạo chuỗi; vận chuyển, chế biến, phân phối, bán lẻ tham gia miễn phí khi được mời."],
   ["SUPPLY_CHAIN_ENTERPRISE", "Doanh nghiệp chuỗi cung ứng", "Một tổ chức có đăng ký vận hành nhiều khâu (sản xuất, chế biến, vận chuyển, phân phối, bán lẻ). Mua gói Doanh nghiệp chuỗi; từng năng lực được xét duyệt riêng."],
@@ -77,10 +103,9 @@ export const registrationDefaults = {
   contactEmail: "",
   fullName: "",
   email: "",
-  password: "",
-  passwordConfirm: "",
   sameRepresentative: false,
   registrantRelationship: "REPRESENTATIVE",
+  registrationRole: "FARM",
   participationModel: "SINGLE",
   activities: ["FARM"] as string[],
   organizationType: "FARM",
@@ -135,10 +160,15 @@ export function validateRegistrationStep(
 ): RegistrationErrors {
   const errors: RegistrationErrors = {};
   if (step === 0) {
+    if (!REGISTRATION_ROLES.some(([code]) => code === d.registrationRole))
+      errors.registrationRole = "Chọn vai trò đăng ký của tổ chức.";
     if (!goodText(d.organizationName, 2, 255))
       errors.organizationName = "Tên tổ chức/chủ thể cần từ 2 đến 255 ký tự.";
-    if (!LEGAL_FORM_OPTIONS.some(([code]) => code === d.legalForm))
-      errors.legalForm = "Chọn loại chủ thể phù hợp.";
+    if (!legalFormsFor(d.registrationRole).some(([code]) => code === d.legalForm))
+      errors.legalForm =
+        d.registrationRole === "SUPPLY_CHAIN"
+          ? "Doanh nghiệp có chuỗi cung ứng cần là tổ chức có đăng ký kinh doanh."
+          : "Chọn loại chủ thể phù hợp với vai trò đăng ký.";
     if (registeredLegalForm(d.legalForm) && !d.businessId.trim())
       errors.businessId = "Nhập mã số thuế của tổ chức.";
     if (
@@ -216,17 +246,6 @@ export function validateRegistrationStep(
       errors.email = "Nhập email đăng nhập hợp lệ.";
     if (!goodText(d.fullName, 2, 255))
       errors.fullName = "Điền họ tên quản trị viên từ 2 đến 255 ký tự.";
-    if (
-      d.password.length < 12 ||
-      new TextEncoder().encode(d.password).length > 72 ||
-      !(/\p{L}/u.test(d.password) && /\d/.test(d.password))
-    )
-      errors.password =
-        "Mật khẩu cần ít nhất 12 ký tự, gồm chữ và số, tối đa 72 byte UTF-8.";
-    if (d.password !== d.passwordConfirm)
-      errors.passwordConfirm = "Mật khẩu xác nhận chưa trùng khớp.";
-    else if (!d.passwordConfirm)
-      errors.passwordConfirm = "Nhập lại mật khẩu để xác nhận.";
     if (d.registrantRelationship === "AUTHORIZED" && !files.AUTHORIZATION)
       errors.AUTHORIZATION =
         "Đính kèm giấy ủy quyền khi đăng ký thay người đại diện.";

@@ -130,7 +130,7 @@ export default function MessagesPage() {
                 <label>Nội dung<textarea className="input" name="body" required maxLength={4000} rows={6} /></label>
               </fieldset>
               <div className="manage-header-actions">
-                <button className="button" disabled={send.pending}>{send.frozen ? "Thử lại yêu cầu cũ" : "Gửi thông báo"}</button>
+                <button className="button" disabled={send.pending}>{"Gửi thông báo"}</button>
                 <button type="button" className="button secondary" onClick={() => setComposing(false)}>Hủy</button>
               </div>
             </form>
@@ -156,7 +156,7 @@ export default function MessagesPage() {
                   <form className="mail-reply" onSubmit={answer}>
                     <CommandState command={reply} />
                     <textarea className="input" name="body" required maxLength={4000} rows={3} placeholder="Nhập nội dung trả lời…" aria-label="Nội dung trả lời" disabled={reply.pending} />
-                    <button className="button" disabled={reply.pending}>{reply.frozen ? "Thử lại yêu cầu cũ" : "Gửi trả lời"}</button>
+                    <button className="button" disabled={reply.pending}>{"Gửi trả lời"}</button>
                   </form>
                 </>
               )}

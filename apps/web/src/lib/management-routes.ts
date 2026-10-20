@@ -257,6 +257,21 @@ export function mobileShortcuts(groups: NavGroup[], limit = 4): NavItem[] {
   ].slice(0, limit);
 }
 
+const nonEnterpriseRoles: Role[] = [
+  "SYSTEM_ADMIN",
+  "AUDITOR",
+  "COMPLIANCE_REVIEWER",
+  "IOT_DEVICE",
+  "SYSTEM_ACTOR",
+];
+
+/** Organization members who work inside the enterprise workspace. */
+export function isEnterpriseUser(
+  user?: { organizationId?: string | null; role: { code: Role } } | null,
+) {
+  return !!user?.organizationId && !nonEnterpriseRoles.includes(user.role.code);
+}
+
 export function homeRoute(role: Role, enterpriseUser: boolean) {
   return (
     platformAdminHome(role) ?? (enterpriseUser ? "/enterprise" : "/dashboard")

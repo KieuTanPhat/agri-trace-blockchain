@@ -136,9 +136,6 @@ export default function IotSimulatorPage() {
         </div>
         <div>
           <h1>Bộ giả lập cảm biến IoT</h1>
-          <p className="muted">
-            Gửi bản ghi cảm biến cho vụ trồng đang hoạt động.
-          </p>
         </div>
         <div className="header-features">
           <span className="header-feature">

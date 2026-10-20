@@ -14,7 +14,13 @@ import {
 import type { components } from "@/lib/generated/api";
 import type { Catalog } from "@/lib/catalog";
 import { sumQuantities } from "@/lib/quantity-display";
-import { EvidencePanel } from "./evidence-panel";
+import { useRef, useState } from "react";
+import {
+  EvidenceInputs,
+  EvidencePanel,
+  createdId,
+  uploadEvidenceFiles,
+} from "./evidence-panel";
 import { EmptyState, LoadState, PageHeader } from "@/components/manage";
 export const cycleStates: Record<string, string> = {
   CREATED: "Mới tạo",
@@ -24,8 +30,26 @@ export const cycleStates: Record<string, string> = {
   CANCELLED: "Đã hủy",
 };
 export function CycleCreate() {
-  const router = useRouter(),
-    catalog = useWorkspaceData<Catalog>("/catalog");
+  const catalog = useWorkspaceData<Catalog>("/catalog");
+  const images = useRef<HTMLFormElement>(null);
+  const [imageNote, setImageNote] = useState("");
+  const [created, setCreated] = useState<{ code: string; note: string } | null>(
+    null,
+  );
+  async function saved(result: unknown) {
+    const id = createdId(result);
+    const row = result as { cycleCode?: string; record?: { cycleCode?: string } };
+    const code = row?.record?.cycleCode ?? row?.cycleCode ?? "";
+    let note = "";
+    if (id && images.current) {
+      setImageNote("Đang tải ảnh vụ…");
+      const failed = await uploadEvidenceFiles(images.current, "CYCLE_DRAFT", id);
+      if (failed.length)
+        note = `Chưa tải được: ${failed.join(", ")}. Bổ sung trong trang chi tiết vụ.`;
+      setImageNote("");
+    }
+    setCreated({ code, note });
+  }
   const materials = useWorkspaceData<Items<ProductionMaterial>>("/enterprise-workspace/materials");
   const members = useWorkspaceData<Items<EnterpriseMember>>("/enterprise-workspace/members");
   return (
@@ -38,15 +62,43 @@ export function CycleCreate() {
         back="/production-cycles"
       />
       <LoadState {...catalog} />
-      {catalog.data && (
+      {created && (
+        <section className="panel" role="status">
+          <h2>Đã tạo vụ sản xuất</h2>
+          <p>
+            Mã vụ do hệ thống cấp: <strong>{created.code || "—"}</strong>
+          </p>
+          {created.note && <p className="notice">{created.note}</p>}
+          <Link className="button" href="/production-cycles">
+            Về danh sách vụ
+          </Link>
+        </section>
+      )}
+      {catalog.data && !created && (
+        <form
+          ref={images}
+          className="panel workspace-form"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <EvidenceInputs
+            entityType="CYCLE_DRAFT"
+            title="Hình ảnh vụ trồng (không bắt buộc)"
+          />
+          {imageNote && (
+            <p className="notice" role="status">
+              {imageNote}
+            </p>
+          )}
+        </form>
+      )}
+      {catalog.data && !created && (
         <DataForm
           title="Thông tin vụ nháp"
           path="/production-cycles/drafts"
           freezeOnUnknown
-          onSaved={() => router.push("/production-cycles")}
+          onSaved={(result) => void saved(result)}
           fields={[
             { name: "name", label: "Tên vụ trồng", required: true },
-            { name: "cycleCode", label: "Mã vụ nội bộ (tự sinh nếu để trống)" },
             {
               name: "farmId",
               label: "Nông trại",

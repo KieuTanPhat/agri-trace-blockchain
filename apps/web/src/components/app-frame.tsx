@@ -8,6 +8,7 @@ import { SiteFooter, ZaloFloat } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { useAuth } from "@/lib/auth-store";
+import { useConfirm } from "@/lib/confirm";
 import { canAccessManagementRoute, platformAdminHome } from "@/lib/permissions";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 import { PERMISSION_SYNC_EVENT } from "@/lib/permission-sync";
@@ -15,6 +16,7 @@ import { canUseEnterpriseRoute } from "@/lib/enterprise-access";
 import {
   homeRoute,
   isActiveRoute,
+  isEnterpriseUser,
   mobileShortcuts,
   routeContext,
   visibleAccountLinks,
@@ -39,6 +41,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
+  const confirm = useConfirm();
   const isPublic =
     pathname === "/" ||
     pathname === "/login" ||
@@ -53,17 +56,12 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const authorizationScope = getAuthorizationScope(auth.user);
   const privateAccessReady =
     !auth.privateAccessStatus || auth.privateAccessStatus === "ready";
-  const enterpriseUser =
-    !!auth.user?.organizationId &&
-    ![
-      "SYSTEM_ADMIN",
-      "AUDITOR",
-      "COMPLIANCE_REVIEWER",
-      "IOT_DEVICE",
-      "SYSTEM_ACTOR",
-    ].includes(auth.user.role.code);
+  const enterpriseUser = isEnterpriseUser(auth.user);
+  // The API rejects everything but the password change while one is forced.
+  const forcedPassword = !!auth.user?.mustChangePassword;
   const enterprise = useEnterpriseAccess({
-    enabled: enterpriseUser && !isPublic && auth.isAuthenticated,
+    enabled:
+      enterpriseUser && !isPublic && auth.isAuthenticated && !forcedPassword,
     scope: authorizationScope,
   });
   const access = enterprise.access;
@@ -147,6 +145,16 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     );
 
   const role = auth.user.role.code;
+  if (forcedPassword)
+    return (
+      <main className="public-content" id="main-content">
+        {pathname === "/account/password" ? (
+          children
+        ) : (
+          <div className="loading-state">Đang chuyển tới trang đổi mật khẩu…</div>
+        )}
+      </main>
+    );
   if (enterpriseUser && !access)
     return (
       <main className="public-content">
@@ -197,7 +205,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
         <div className="notice error" role="alert">
           Bạn không có quyền sử dụng chức năng này.
         </div>
-        <Link className="text-link" href="/dashboard">
+        <Link className="text-link" href={homeRoute(role, enterpriseUser)}>
           Về tổng quan
         </Link>
       </main>
@@ -234,7 +242,14 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   const home = homeRoute(role, enterpriseUser);
   const platform = !!platformAdminHome(role);
   const context = routeContext(pathname);
-  const logout = () => {
+  const logout = async () => {
+    if (
+      !(await confirm(
+        "Đăng xuất khỏi AgriTrace trên thiết bị này?",
+        "Xác nhận đăng xuất",
+      ))
+    )
+      return;
     void auth
       .logout()
       .then(() => {

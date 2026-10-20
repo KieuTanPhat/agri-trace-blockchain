@@ -193,7 +193,7 @@ export function toPublicLotDto(
     currentState: lot.currentState,
     ...evidence,
     originType: lot.originType,
-    processing: processingProvenance(lot.processingRun, lot.organization.name, true),
+    processing: processingProvenance(lot.processingRun, lot.organization?.name ?? '', true),
     productionCycle: cycleSummary(lot.harvest?.cycle),
     farmOrg: lot.harvest
       ? {

@@ -24,20 +24,21 @@ import {
   registerEnterprise,
   type Registration,
 } from "@/lib/enterprise-onboarding";
-import { RegistrationEmailOtp } from "./registration-email-otp";
+import { RegistrationOtpDialog } from "./registration-email-otp";
 import { RegistrationReview } from "./registration-review";
 import { useRegistrationEmail } from "@/lib/use-registration-email";
 import type { components } from "@/lib/generated/api";
 import type { AddressProvince } from "@/lib/registration-form";
 import {
   ACTIVITY_OPTIONS,
-  PARTICIPATION_OPTIONS,
+  REGISTRATION_ROLES,
+  legalFormsFor,
+  registrationRoleFields,
   PROCESSING_CERT_OPTIONS,
   PROCESSING_TYPE_OPTIONS,
   payingDraft,
   CERTIFICATION_OPTIONS,
   INTEREST_OPTIONS,
-  LEGAL_FORM_OPTIONS,
   REGISTRATION_STEPS,
   registeredLegalForm,
   registrationDefaults,
@@ -51,20 +52,14 @@ import {
 import "@/styles/registration.css";
 
 type S = components["schemas"];
-const DRAFT_KEY = "agritrace:enterprise-registration-draft:v4";
-const subtitles = [
-  "Cho chúng tôi biết về tổ chức hoặc cơ sở sản xuất của bạn.",
-  "Thông tin liên hệ và người quản lý tài khoản doanh nghiệp.",
-  "Chọn các hoạt động mà tổ chức của bạn đang thực hiện.",
-  "Chọn dịch vụ phù hợp với cách bạn muốn sử dụng AgriTrace.",
-  "Rà soát thông tin và xác thực email trước khi gửi xét duyệt.",
-];
+const DRAFT_KEY = "agritrace:enterprise-registration-draft:v5";
 const icons = {
   FARM: Sprout,
   PROCESSOR: Factory,
   TRANSPORTER: Truck,
   DISTRIBUTOR: Warehouse,
   RETAILER: Store,
+  SUPPLY_CHAIN: Building2,
 };
 const fileLabels: Record<DocumentKind, string> = {
   LOGO: "Logo tổ chức",
@@ -88,11 +83,18 @@ export function RegistrationFormPage() {
     draft.email,
     step === 1 && !pending && !frozen,
   );
+  const contactEmail = useRegistrationEmail(
+    draft.contactEmail,
+    step === 1 && !pending && !frozen,
+    "Email liên hệ đã được sử dụng trong hệ thống. Vui lòng dùng email khác.",
+  );
   const [addresses, setAddresses] = useState<AddressProvince[]>([]),
     [addressError, setAddressError] = useState("");
-  const [proofs, setProofs] = useState<
-    Record<string, S["RegistrationOtpVerifiedView"]>
-  >({});
+  const [proof, setProof] = useState<S["RegistrationOtpVerifiedView"] | null>(
+      null,
+    ),
+    [otpOpen, setOtpOpen] = useState(false),
+    [sentTo, setSentTo] = useState("");
   const registrationId = useRef("");
   if (!registrationId.current) registrationId.current = crypto.randomUUID();
   const original = useRef<Registration | null>(null),
@@ -101,11 +103,6 @@ export function RegistrationFormPage() {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const registered = registeredLegalForm(draft.legalForm),
     producer = draft.activities.includes("FARM");
-  const emails = [
-    ...new Set(
-      [draft.email, draft.contactEmail].map((e) => e.trim().toLowerCase()),
-    ),
-  ];
   useEffect(() => {
     let active = true;
     request<AddressProvince[]>("/reference-data/addresses", undefined, false)
@@ -134,8 +131,6 @@ export function RegistrationFormPage() {
         ) as (keyof RegistrationDraft)[]) {
           if (
             [
-              "password",
-              "passwordConfirm",
               "declaration",
               "termsAccepted",
               "privacyAcknowledged",
@@ -156,7 +151,7 @@ export function RegistrationFormPage() {
         ];
         setDraft(restored);
         setNotice(
-          "Đã khôi phục bản nháp. Nhập lại mật khẩu, chọn lại tài liệu và xác thực email khi gửi hồ sơ.",
+          "Đã khôi phục bản nháp. Chọn lại tài liệu và xác thực email khi gửi hồ sơ.",
         );
       }
     } catch {
@@ -188,7 +183,14 @@ export function RegistrationFormPage() {
     requestAnimationFrame(() => titleRef.current?.focus());
   }
   function fieldMessage(name: RegistrationField) {
-    return fieldErrors[name] || (name === "email" ? accountEmail.error : "");
+    return (
+      fieldErrors[name] ||
+      (name === "email"
+        ? accountEmail.error
+        : name === "contactEmail"
+          ? contactEmail.error
+          : "")
+    );
   }
   function fieldAttributes(name: RegistrationField) {
     return {
@@ -231,7 +233,11 @@ export function RegistrationFormPage() {
       busy.current = true;
       setPending(true);
       try {
-        if (!(await accountEmail.check())) {
+        const [account, contact] = await Promise.all([
+          accountEmail.check(),
+          contactEmail.check(),
+        ]);
+        if (!account || !contact) {
           if (step !== 1) setStep(1);
           return false;
         }
@@ -251,8 +257,6 @@ export function RegistrationFormPage() {
     try {
       const safe = {
         ...draft,
-        password: undefined,
-        passwordConfirm: undefined,
         declaration: undefined,
         termsAccepted: undefined,
         privacyAcknowledged: undefined,
@@ -260,7 +264,7 @@ export function RegistrationFormPage() {
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(safe));
       setNotice(
-        "Đã lưu bản nháp trên thiết bị này. Mật khẩu, OTP và tài liệu không được lưu vào bản nháp.",
+        "Đã lưu bản nháp trên thiết bị này. OTP và tài liệu không được lưu vào bản nháp.",
       );
     } catch {
       setError("Thiết bị không cho phép lưu bản nháp.");
@@ -475,26 +479,27 @@ export function RegistrationFormPage() {
       move(step + 1);
       return;
     }
+    // The login email is verified in its own dialog, right before sending.
     if (
       !original.current &&
-      emails.some(
-        (email) =>
-          !proofs[email] || Date.parse(proofs[email].expiresAt) <= Date.now(),
-      )
+      (!proof || Date.parse(proof.expiresAt) <= Date.now())
     ) {
-      setFieldErrors((current) => ({
-        ...current,
-        emailVerification: "Xác thực tài khoản trước khi gửi hồ sơ.",
-      }));
+      setOtpOpen(true);
       return;
     }
+    await sendRegistration(proof);
+  }
+  async function sendRegistration(
+    ownerProof: S["RegistrationOtpVerifiedView"] | null,
+  ) {
+    if (busy.current) return;
     busy.current = true;
     setPending(true);
     let activeUpload: DocumentKind | null = null;
     try {
       if (!original.current) {
+        if (!ownerProof) return;
         const documentIds: string[] = [];
-        const ownerProof = proofs[draft.email.trim().toLowerCase()];
         for (const [kind, selected] of Object.entries(files) as [
           DocumentKind,
           RegistrationFiles[DocumentKind],
@@ -531,7 +536,6 @@ export function RegistrationFormPage() {
         original.current = {
           requestId: registrationId.current,
           email: draft.email.trim(),
-          password: draft.password,
           fullName: draft.fullName.trim(),
           organizationName: draft.organizationName.trim(),
           businessId: draft.businessId.trim() || undefined,
@@ -540,10 +544,12 @@ export function RegistrationFormPage() {
           participationModel:
             draft.participationModel as Registration["participationModel"],
           hostingMode: draft.hostingMode as Registration["hostingMode"],
-          emailVerifications: emails.map((email) => ({
-            verificationId: proofs[email].verificationId,
-            token: proofs[email].token,
-          })),
+          emailVerifications: [
+            {
+              verificationId: ownerProof.verificationId,
+              token: ownerProof.token,
+            },
+          ],
           details: {
             formVersion: 2,
             legalForm:
@@ -625,11 +631,12 @@ export function RegistrationFormPage() {
       }
       setUploadStatus("Đang gửi hồ sơ…");
       await registerEnterprise(original.current);
+      setSentTo(original.current.email);
       original.current = null;
       uploaded.current.clear();
       setDraft(registrationDefaults);
       setFiles({});
-      setProofs({});
+      setProof(null);
       setFieldErrors({});
       setComplete(true);
       try {
@@ -673,8 +680,10 @@ export function RegistrationFormPage() {
           <p className="eyebrow">HỒ SƠ ĐÃ ĐƯỢC TIẾP NHẬN</p>
           <h1>Cảm ơn bạn đã đăng ký AgriTrace</h1>
           <p>
-            Hồ sơ đang chờ xét duyệt. Bạn có thể đăng nhập để theo dõi trạng
-            thái và nhận phản hồi qua email liên hệ.
+            Hồ sơ đang chờ xét duyệt. Mật khẩu đăng nhập tạm đã được gửi tới{" "}
+            <strong>{sentTo}</strong>. Đăng nhập bằng mật khẩu này để theo dõi
+            hồ sơ; hệ thống sẽ yêu cầu bạn đổi mật khẩu ở lần đăng nhập đầu
+            tiên.
           </p>
           <Link className="button" href="/login">
             Đăng nhập theo dõi hồ sơ <ArrowRight size={18} />
@@ -718,7 +727,6 @@ export function RegistrationFormPage() {
           <h1 tabIndex={-1} ref={titleRef}>
             {REGISTRATION_STEPS[step]}
           </h1>
-          <p>{subtitles[step]}</p>
           <small>
             <b>*</b> Thông tin cần cung cấp
           </small>
@@ -731,6 +739,65 @@ export function RegistrationFormPage() {
         <fieldset className="reg-fields" disabled={pending || frozen}>
           {step === 0 && (
             <>
+              <fieldset
+                className="reg-full reg-participation"
+                {...fieldAttributes("registrationRole")}
+              >
+                <legend className="reg-label">
+                  Vai trò đăng ký <b>*</b>
+                </legend>
+                <div className="reg-choice-grid reg-role-grid">
+                  {REGISTRATION_ROLES.map(([code, label, help]) => {
+                    const Icon = icons[code];
+                    return (
+                      <label
+                        key={code}
+                        className={`reg-choice${draft.registrationRole === code ? " is-selected" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="registrationRole"
+                          checked={draft.registrationRole === code}
+                          onChange={() => {
+                            setDraft((d) => ({
+                              ...d,
+                              registrationRole: code,
+                              ...registrationRoleFields(code),
+                              legalForm: legalFormsFor(code).some(
+                                ([form]) => form === d.legalForm,
+                              )
+                                ? d.legalForm
+                                : "ENTERPRISE",
+                              planCode: "",
+                            }));
+                            setFieldErrors((current) => ({
+                              ...current,
+                              registrationRole: undefined,
+                              legalForm: undefined,
+                            }));
+                          }}
+                        />
+                        <Icon size={25} aria-hidden="true" />
+                        <span>
+                          <strong>{label}</strong>
+                          <small>{help}</small>
+                        </span>
+                        <span className="reg-choice-mark" aria-hidden="true">
+                          {draft.registrationRole === code && (
+                            <Check size={13} />
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="reg-help">
+                  {payingDraft(draft.participationModel, draft.activities)
+                    ? "Vai trò này mua gói dịch vụ sau khi hồ sơ được duyệt và được quyền tạo chuỗi truy xuất."
+                    : "Vai trò này không cần mua gói; tổ chức ghi nghiệp vụ trong chuỗi khi được chủ chuỗi mời."}
+                </p>
+                {fieldError("registrationRole")}
+              </fieldset>
               {text(
                 "organizationName",
                 "Tên doanh nghiệp / HTX / chủ thể sản xuất",
@@ -743,7 +810,7 @@ export function RegistrationFormPage() {
               {select(
                 "legalForm",
                 "Loại hình chủ thể",
-                LEGAL_FORM_OPTIONS,
+                legalFormsFor(draft.registrationRole),
                 true,
               )}
               {text("businessId", "Mã số thuế / định danh pháp lý", {
@@ -911,19 +978,11 @@ export function RegistrationFormPage() {
                 required: true,
                 type: "email",
               })}
-              {text("password", "Mật khẩu", {
-                required: true,
-                type: "password",
-                max: 72,
-              })}
-              {text("passwordConfirm", "Xác nhận mật khẩu", {
-                required: true,
-                type: "password",
-                max: 72,
-              })}
               <p className="reg-help reg-full">
-                Ít nhất 12 ký tự, gồm chữ và số, tối đa 72 byte UTF-8. Email
-                đăng nhập sẽ được xác thực ở bước cuối.
+                Không cần tạo mật khẩu. Khi gửi hồ sơ, bạn xác thực email đăng
+                nhập bằng mã OTP; mật khẩu tạm được gửi về email này và phải
+                đổi ở lần đăng nhập đầu tiên. Email liên hệ và email đăng nhập
+                không được trùng email đã có trong hệ thống.
               </p>
               {select(
                 "registrantRelationship",
@@ -941,108 +1000,36 @@ export function RegistrationFormPage() {
           )}
           {step === 2 && (
             <>
-              <fieldset className="reg-full reg-participation">
-                <legend className="reg-label">
-                  Mô hình tham gia <b>*</b>
-                </legend>
-                <div className="reg-choice-grid">
-                  {PARTICIPATION_OPTIONS.map(([code, label, help]) => (
-                    <label
-                      key={code}
-                      className={`reg-choice${draft.participationModel === code ? " is-selected" : ""}`}
-                    >
-                      <input
-                        type="radio"
-                        name="participationModel"
-                        checked={draft.participationModel === code}
-                        onChange={() =>
-                          setDraft((d) => ({
-                            ...d,
-                            participationModel: code,
-                            activities:
-                              code === "SINGLE" ? d.activities.slice(0, 1) : d.activities,
-                            organizationType:
-                              code === "SINGLE"
-                                ? (d.activities[0] ?? d.organizationType)
-                                : d.organizationType,
-                            planCode: "",
-                          }))
-                        }
-                      />
-                      <span>
-                        <strong>{label}</strong>
-                        <small>{help}</small>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                <p className="reg-help">
-                  {payingDraft(draft.participationModel, draft.activities)
-                    ? "Mô hình này mua gói dịch vụ sau khi hồ sơ được duyệt và được quyền tạo chuỗi truy xuất."
-                    : "Mô hình này không cần mua gói; tổ chức chỉ ghi nghiệp vụ trong chuỗi được chủ chuỗi mời."}
-                </p>
-              </fieldset>
-              <div className="reg-full" {...fieldAttributes("activities")}>
-                <h2 className="reg-label">
-                  Hoạt động của tổ chức <b>*</b>
-                </h2>
-                <p className="reg-help">
-                  Có thể chọn nhiều hoạt động. Các hoạt động sẽ được xét duyệt
-                  theo hồ sơ.
-                </p>
-                <div className="reg-choice-grid">
-                  {ACTIVITY_OPTIONS.map(([code, label]) => {
-                    const Icon = icons[code];
-                    return (
-                      <label
-                        key={code}
-                        className={`reg-choice${draft.activities.includes(code) ? " is-selected" : ""}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={draft.activities.includes(code)}
-                          onChange={(e) => {
-                            // A single-role registration keeps exactly one activity.
-                            const activities =
-                              draft.participationModel === "SINGLE"
-                                ? e.target.checked
-                                  ? [code]
-                                  : []
-                                : e.target.checked
-                                  ? [...draft.activities, code]
-                                  : draft.activities.filter((a) => a !== code);
-                            setDraft((d) => ({
-                              ...d,
-                              activities,
-                              organizationType: activities.includes(
-                                d.organizationType,
-                              )
-                                ? d.organizationType
-                                : (activities[0] ?? ""),
-                            }));
-                          }}
-                        />
-                        <Icon size={25} />
-                        <span>{label}</span>
-                        <span className="reg-choice-mark" aria-hidden="true">
-                          {draft.activities.includes(code) && (
-                            <Check size={13} />
-                          )}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {fieldError("activities")}
+              <div className="reg-inline-note reg-full">
+                <ShieldCheck size={19} />
+                <span>
+                  Vai trò đăng ký:{" "}
+                  <strong>
+                    {REGISTRATION_ROLES.find(
+                      ([code]) => code === draft.registrationRole,
+                    )?.[1] ?? ""}
+                  </strong>
+                  .{" "}
+                  {draft.participationModel === "SUPPLY_CHAIN_ENTERPRISE"
+                    ? "Hồ sơ đăng ký đủ năm năng lực; mỗi năng lực được xét duyệt riêng."
+                    : "Năng lực này được xét duyệt theo hồ sơ."}{" "}
+                  Đổi vai trò ở bước 1 nếu cần.
+                </span>
               </div>
-              {select(
-                "organizationType",
-                "Hoạt động chính",
-                ACTIVITY_OPTIONS.filter(([code]) =>
-                  draft.activities.includes(code),
-                ),
-                true,
-                true,
+              {draft.participationModel === "SUPPLY_CHAIN_ENTERPRISE" &&
+                select(
+                  "organizationType",
+                  "Hoạt động chính",
+                  ACTIVITY_OPTIONS,
+                  true,
+                  true,
+                )}
+              {!producer && !draft.activities.includes("PROCESSOR") && (
+                <p className="reg-help reg-full">
+                  {draft.registrationRole === "TRANSPORTER"
+                    ? "Nhà vận chuyển không cần khai báo thêm thông tin chuyên môn khi đăng ký. Phương tiện và cơ sở được bổ sung sau khi hồ sơ được duyệt."
+                    : "Vai trò này không cần khai báo thêm thông tin chuyên môn khi đăng ký. Cơ sở, kho và điểm bán được bổ sung sau khi hồ sơ được duyệt."}
+                </p>
               )}
               {producer && (
                 <>
@@ -1326,31 +1313,14 @@ export function RegistrationFormPage() {
           {step === 4 && (
             <>
               <RegistrationReview draft={draft} files={files} onEdit={move} />
-              <div className="reg-otp-grid reg-full">
-                {emails.map((email) => (
-                  <RegistrationEmailOtp
-                    key={email}
-                    email={email}
-                    label={
-                      emails.length === 1
-                        ? "Email tài khoản và liên hệ"
-                        : email === draft.email.trim().toLowerCase()
-                          ? "Email đăng nhập"
-                          : "Email liên hệ"
-                    }
-                    registrationId={registrationId.current}
-                    proof={proofs[email]}
-                    onVerified={(proof) => {
-                      setProofs((current) => ({ ...current, [email]: proof }));
-                      setFieldErrors((current) => ({
-                        ...current,
-                        emailVerification: undefined,
-                      }));
-                    }}
-                  />
-                ))}
+              <div className="reg-inline-note reg-full">
+                <ShieldCheck size={19} />
+                <span>
+                  Khi bấm <strong>Gửi hồ sơ xét duyệt</strong>, AgriTrace gửi mã
+                  OTP tới email đăng nhập <strong>{draft.email.trim()}</strong>.
+                  Nhập mã để hoàn tất; mật khẩu tạm sẽ được gửi về email này.
+                </span>
               </div>
-              <div className="reg-full">{fieldError("emailVerification")}</div>
               <div className="reg-consents reg-full">
                 <label className="reg-check">
                   <input
@@ -1459,15 +1429,24 @@ export function RegistrationFormPage() {
           <button className="button reg-next" type="submit" disabled={pending}>
             {pending
               ? uploadStatus || "Đang xử lý…"
-              : frozen
-                ? "Thử lại hồ sơ ban đầu"
-                : step === 4
+              : step === 4
                   ? "Gửi hồ sơ xét duyệt"
                   : "Tiếp tục"}
             {!pending && <ArrowRight size={17} />}
           </button>
         </footer>
       </form>
+      <RegistrationOtpDialog
+        open={otpOpen}
+        email={draft.email.trim()}
+        registrationId={registrationId.current}
+        onCancel={() => setOtpOpen(false)}
+        onVerified={(verified) => {
+          setProof(verified);
+          setOtpOpen(false);
+          void sendRegistration(verified);
+        }}
+      />
       <p className="reg-bottom-note">
         <ShieldCheck size={15} /> Hồ sơ được bảo vệ và chỉ dùng cho việc đăng
         ký, xét duyệt và cung cấp dịch vụ.

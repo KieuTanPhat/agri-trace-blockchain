@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { useConfirm } from "@/lib/confirm";
 import {
   useWorkspaceData,
   useWorkspaceCommand,
@@ -24,6 +25,7 @@ import {
   StatusBadge,
 } from "@/components/manage";
 import { EntityThumb, ProductThumb } from "./entity-thumb";
+import { PartnerInviteDialog } from "./partner-invite-dialog";
 import { EvidenceInputs, checkEvidenceInputs, completeEvidence, createdId, createdVersion, uploadEvidenceFiles } from "./evidence-panel";
 type Kind = "sites" | "vehicles" | "partners" | "products" | "areas";
 type ExternalPartner = { id: string; businessId: string; name: string; kind: string; address: string; status?: string };
@@ -74,10 +76,12 @@ const config = {
     action: "Thêm sản phẩm",
     path: "/catalog",
     columns: [
-      ["image", "Hình ảnh"],
+      ["sku", "Mã sản phẩm"],
       ["productName", "Tên sản phẩm"],
       ["variety", "Giống / phân loại"],
-      ["defaultUnit", "Đơn vị"],
+      ["originFarm", "Vùng xuất xứ"],
+      ["defaultUnit", "Đơn vị tính"],
+      ["image", "Hình ảnh"],
       ["status", "Trạng thái"],
     ],
   },
@@ -141,7 +145,9 @@ export function ResourceList({ kind }: { kind: Kind }) {
       kind === "partners" ? `${c.path}/external` : null,
     ),
     overview = useWorkspaceData<Overview>("/enterprise-workspace"),
-    command = useWorkspaceCommand();
+    command = useWorkspaceCommand(),
+    confirm = useConfirm();
+  const [inviteOpen, setInviteOpen] = useState(false);
   const state = usesCatalog
     ? catalog
     : kind === "sites"
@@ -155,8 +161,11 @@ export function ResourceList({ kind }: { kind: Kind }) {
       ? (catalog.data?.products ?? []).map((r) => ({
           ...r,
           cells: {
+            sku: r.sku ?? "—",
             productName: r.productName,
-            variety: r.variety,
+            variety: r.variety || "—",
+            originFarm:
+              catalog.data?.farms.find((f) => f.id === r.originFarmId)?.name ?? "—",
             defaultUnit: r.defaultUnit,
           },
         }))
@@ -187,6 +196,20 @@ export function ResourceList({ kind }: { kind: Kind }) {
           : "catalog.manage";
   const canManage = overview.data?.permissions.includes(managePermission);
   async function change(row: ListRow, decision: string) {
+    const name = textValue(
+      row.cells.name ?? row.cells.partnerName ?? row.cells.registration ?? "",
+    );
+    const message =
+      kind === "partners"
+        ? {
+            ACCEPT: `Chấp nhận liên kết với ${name}?`,
+            REJECT: `Từ chối lời mời liên kết của ${name}?`,
+            REVOKE: `Thu hồi liên kết với ${name}? Đối tác không còn được chọn trong chuỗi mới.`,
+          }[decision] ?? "Xác nhận thao tác?"
+        : row.status === "ACTIVE"
+          ? `Ngừng sử dụng (xóa khỏi danh sách hoạt động) ${name}? Lịch sử đã ghi vẫn được giữ; có thể kích hoạt lại.`
+          : `Kích hoạt lại ${name}?`;
+    if (!(await confirm(message, "Xác nhận thao tác"))) return;
     const path =
       kind === "partners"
         ? `/enterprise-workspace/partners/${row.id}`
@@ -200,6 +223,8 @@ export function ResourceList({ kind }: { kind: Kind }) {
               version: row.version,
               status: row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
             },
+        "POST",
+        { confirmed: true },
       )
     )
       state.reload();
@@ -213,11 +238,21 @@ export function ResourceList({ kind }: { kind: Kind }) {
         title={c.title}
         description={c.description}
         action={
-          canManage
+          canManage && kind !== "partners"
             ? { href: `/enterprise/${kind}/new`, label: c.action }
             : undefined
         }
+        actions={
+          canManage && kind === "partners" ? (
+            <button type="button" className="button manage-primary-action" onClick={() => setInviteOpen(true)}>
+              {c.action}
+            </button>
+          ) : undefined
+        }
       />
+      {kind === "partners" && (
+        <PartnerInviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} onInvited={() => state.reload()} />
+      )}
       <LoadState {...state} />
       {kind === "partners" && <LoadState {...external} />}
       {kind === "products" && canManage && (
@@ -234,7 +269,7 @@ export function ResourceList({ kind }: { kind: Kind }) {
                 {c.columns.map(([key, label]) => (
                   <th key={key}>{label}</th>
                 ))}
-                {canManage && <th>Thao tác</th>}
+                {(canManage || kind === "products") && <th>Thao tác</th>}
               </tr>
             </thead>
             <tbody>
@@ -281,15 +316,9 @@ export function ResourceList({ kind }: { kind: Kind }) {
                               : "Danh mục dùng chung"}
                           </small>
                         )}
-                        {key === "productName" &&
-                          (Boolean(row.sku) || Boolean(row.gtin)) && (
-                            <small>
-                              {row.sku ? `SKU: ${textValue(row.sku)}` : ""}
-                              {row.gtin
-                                ? ` · GTIN: ${textValue(row.gtin)}`
-                                : ""}
-                            </small>
-                          )}
+                        {key === "productName" && Boolean(row.gtin) && (
+                          <small>GTIN: {textValue(row.gtin)}</small>
+                        )}
                         {key === "name" && kind === "areas" && (
                           <small>
                             {catalog.data?.plots
@@ -300,7 +329,7 @@ export function ResourceList({ kind }: { kind: Kind }) {
                         )}
                       </td>
                     ))}
-                    {canManage && (
+                    {(canManage || kind === "products") && (
                       <td data-label="Thao tác">
                         {kind === "partners" ? (
                           <div className="workspace-actions">
@@ -334,25 +363,46 @@ export function ResourceList({ kind }: { kind: Kind }) {
                             )}
                           </div>
                         ) : ["sites", "vehicles"].includes(kind) ? (
-                          <button
-                            className="text-link"
-                            disabled={command.pending}
-                            onClick={() => void change(row, "")}
-                          >
-                            {row.status === "ACTIVE"
-                              ? "Ngừng sử dụng"
-                              : "Kích hoạt"}
-                          </button>
+                          <span className="row-actions">
+                            <Link
+                              className="button secondary small"
+                              href={`/enterprise/${kind}/${row.id}`}
+                            >
+                              Sửa
+                            </Link>
+                            <button
+                              className={`button small ${row.status === "ACTIVE" ? "danger" : "secondary"}`}
+                              disabled={command.pending}
+                              onClick={() => void change(row, "")}
+                            >
+                              {row.status === "ACTIVE"
+                                ? "Ngừng sử dụng"
+                                : "Kích hoạt"}
+                            </button>
+                          </span>
                         ) : kind === "areas" ? (
-                          <Link
-                            className="text-link"
-                            href={`/enterprise/areas/plots/new?farmId=${row.id}`}
-                          >
-                            Thêm thửa đất
-                          </Link>
+                          <span className="row-actions">
+                            <Link
+                              className="button secondary small"
+                              href={`/enterprise/areas/${row.id}`}
+                            >
+                              Chi tiết
+                            </Link>
+                            <Link
+                              className="button secondary small"
+                              href={`/enterprise/areas/plots/new?farmId=${row.id}`}
+                            >
+                              Thêm thửa đất
+                            </Link>
+                          </span>
                         ) : (
-                          <span className="muted">
-                            {row.organizationId ? "Đang sử dụng" : "Dùng chung"}
+                          <span className="row-actions">
+                            <Link
+                              className="button secondary small"
+                              href={`/enterprise/${kind}/${row.id}`}
+                            >
+                              Xem chi tiết
+                            </Link>
                           </span>
                         )}
                       </td>
@@ -410,7 +460,7 @@ export function ResourceCreate({
     setUploadNote(problem);
     if (problem) return;
     const data = Object.fromEntries(
-      [...new FormData(form)].filter(([key]) => !key.startsWith("evidence:")),
+      [...new FormData(form)].filter(([key]) => !key.startsWith("evidence:") && key !== "evidenceDescription"),
     );
     let payload: Record<string, unknown> = { ...data };
     let path = c.path;
@@ -434,11 +484,11 @@ export function ResourceCreate({
         name: data.name,
         kind: data.kind,
         address: data.address,
-        phone: data.phone || undefined,
-        email: data.email || undefined,
-        taxCode: data.taxCode || undefined,
-        representative: data.representative || undefined,
-        note: data.note || undefined,
+        phone: String(data.phone ?? "").replace(/[ .()-]/g, ""),
+        email: String(data.email ?? "").trim(),
+        taxCode: String(data.taxCode ?? "").trim(),
+        representative: String(data.representative ?? "").trim(),
+        note: String(data.note ?? "").trim(),
       };
     }
     if (kind === "products") {
@@ -487,7 +537,7 @@ export function ResourceCreate({
     const id = createdId(result);
     if (evidenceType && id) {
       setUploadNote("Đang tải ảnh và giấy tờ…");
-      const failed = await uploadEvidenceFiles(form, evidenceType, id);
+      const failed = await uploadEvidenceFiles(form, evidenceType, id, String(new FormData(form).get("evidenceDescription") ?? ""));
       const detail = evidenceType === "EXTERNAL_PARTNER" ? `/enterprise/partners/external/${id}` : `/enterprise/${kind}/${id}`;
       if (failed.length) {
         // The record exists; its detail page is where the missing files go.
@@ -557,6 +607,15 @@ export function ResourceCreate({
       />
       <form className="panel workspace-form" onSubmit={submit}>
         <CommandState command={command} />
+        {kind === "products" && (
+          <>
+            <EvidenceInputs entityType="PRODUCT" title="Hình ảnh sản phẩm" disabled={command.pending || command.frozen || done} />
+            <label>
+              Mô tả hình ảnh (không bắt buộc)
+              <textarea className="input" name="evidenceDescription" maxLength={900} rows={2} disabled={command.pending || command.frozen || done} />
+            </label>
+          </>
+        )}
         <fieldset
           className="enterprise-fields"
           disabled={command.pending || command.frozen || done}
@@ -617,11 +676,11 @@ export function ResourceCreate({
                 {field("name", "Tên doanh nghiệp")}
                 <label>Loại hình<select className="input" name="kind"><option value="FARM">Nhà sản xuất</option><option value="TRANSPORTER">Nhà vận chuyển</option><option value="DISTRIBUTOR">Nhà phân phối</option><option value="RETAILER">Nhà bán lẻ</option></select></label>
                 {field("address", "Địa chỉ doanh nghiệp")}
-                {field("phone", "Số điện thoại", false)}
-                {field("email", "Email", false, "email")}
-                {field("taxCode", "Mã số thuế", false)}
-                {field("representative", "Người đại diện", false)}
-                {field("note", "Ghi chú", false)}
+                {field("phone", "Số điện thoại", true, "tel")}
+                {field("email", "Email", true, "email")}
+                {field("taxCode", "Mã số thuế", true)}
+                {field("representative", "Người đại diện", true)}
+                {field("note", "Ghi chú hợp tác", true)}
                 <p className="notice">Hồ sơ ngoài hệ thống chỉ để tham chiếu; không có quyền nhận hàng, ký hoặc xem dữ liệu chuỗi.</p>
               </>}
             </>
@@ -699,7 +758,7 @@ export function ResourceCreate({
             </>
           )}
         </fieldset>
-        {evidenceType && (
+        {evidenceType && evidenceType !== "PRODUCT" && (
           <EvidenceInputs entityType={evidenceType} disabled={command.pending || command.frozen || done} />
         )}
         {uploadNote && <p className="notice" role="status">{uploadNote}</p>}
@@ -710,9 +769,7 @@ export function ResourceCreate({
         >
           {command.pending
             ? "Đang lưu…"
-            : command.frozen
-              ? "Thử lại yêu cầu cũ"
-              : "Lưu thông tin"}
+            : "Lưu thông tin"}
         </button>
       </form>
     </div>

@@ -20,7 +20,7 @@ const productFields = [
   "Mã vạch GTIN", "Giá sản phẩm", "Điều kiện bảo quản", "Thành phần",
   "Hướng dẫn sử dụng", "Giống / phân loại", "Đơn vị mặc định", "Nguyên liệu",
   "Nhà xưởng sản xuất", "Nhà xuất khẩu", "Nhà nhập khẩu", "Nhà phân phối",
-  "Nhà vận chuyển", "Người quản lí",
+  "Nhà vận chuyển", "Người quản lí", "Hình ảnh sản phẩm", "Mô tả hình ảnh",
 ];
 const areaFields = [
   "Vị trí / địa chỉ", "Loại vùng sản xuất", "Khu vực", "Địa chỉ cụ thể",
@@ -37,6 +37,7 @@ const memberFields = [
   "Họ tên", "Email đăng nhập", "Cấp tài khoản", "Chức danh", "Số điện thoại liên hệ",
   "Cơ sở làm việc", "Vùng sản xuất phụ trách", "Địa chỉ liên hệ", "Ghi chú thành viên",
   "Nhóm quyền", "Phạm vi chuỗi", "Cơ sở / nông trại được phân công",
+  "Ảnh đại diện", "Giấy tờ / chứng nhận chuyên môn",
 ];
 const profileFields = [
   "Mã tổ chức AgriTrace", "Hoạt động đã duyệt", "Điện thoại", "Email liên hệ",

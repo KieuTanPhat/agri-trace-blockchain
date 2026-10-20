@@ -45,7 +45,7 @@ describe("DataForm retry", () => {
       />,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "Thử lại yêu cầu ban đầu" }),
+      screen.getByRole("button", { name: "Giao hồ sơ" }),
     );
     await waitFor(() => expect(saved).toHaveBeenCalledWith({ id: "case" }));
     expect(vi.mocked(request).mock.calls[1][1]).toEqual(

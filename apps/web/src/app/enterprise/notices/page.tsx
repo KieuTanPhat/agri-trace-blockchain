@@ -81,9 +81,7 @@ export default function NoticesPage() {
           <button className="button" disabled={cmd.pending} type="submit">
             {cmd.pending
               ? "Đang ghi…"
-              : cmd.frozen
-                ? "Thử lại yêu cầu cũ"
-                : "Phát hành thông báo"}
+              : "Phát hành thông báo"}
           </button>
         </form>
       )}

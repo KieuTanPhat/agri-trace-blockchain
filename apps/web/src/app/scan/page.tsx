@@ -24,10 +24,6 @@ export default function ScanPage() {
       <section className="scan-heading enter">
         <p className="eyebrow">TRA CỨU CÔNG KHAI</p>
         <h1>Quét mã. Hiểu nguồn gốc.</h1>
-        <p className="muted">
-          Xem hành trình của nông sản bằng mã QR trên sản phẩm. Không cần tài
-          khoản.
-        </p>
       </section>
       <div className="scan-layout enter" style={{ "--d": "120ms" } as React.CSSProperties}>
         <CameraScanner onTrace={(path) => router.push(path)} />

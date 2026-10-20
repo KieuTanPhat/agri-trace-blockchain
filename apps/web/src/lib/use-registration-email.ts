@@ -4,7 +4,12 @@ import { request } from "./api-client";
 import { isRegistrationEmailValid } from "./registration-form";
 import type { components } from "./generated/api";
 
-export function useRegistrationEmail(email: string, enabled: boolean) {
+/** Checks that no account or enterprise contact already uses the address. */
+export function useRegistrationEmail(
+  email: string,
+  enabled: boolean,
+  takenMessage = "Email đã được đăng ký. Vui lòng dùng email khác hoặc đăng nhập.",
+) {
   const normalized = email.trim().toLowerCase();
   const current = useRef(normalized);
   current.current = normalized;
@@ -49,7 +54,7 @@ export function useRegistrationEmail(email: string, enabled: boolean) {
           checking: false,
           error: result.available
             ? ""
-            : "Email đã được đăng ký. Vui lòng dùng email khác hoặc đăng nhập.",
+            : takenMessage,
         });
       return current.current === candidate && result.available;
     } catch (cause) {
@@ -66,7 +71,7 @@ export function useRegistrationEmail(email: string, enabled: boolean) {
     } finally {
       if (flight.current?.promise === promise) flight.current = null;
     }
-  }, []);
+  }, [takenMessage]);
   useEffect(() => {
     if (!enabled || !isRegistrationEmailValid(normalized)) return;
     const timer = setTimeout(() => {

@@ -126,13 +126,15 @@ function ContactForm({
     <form className="panel workspace-form" onSubmit={submit}>
       <h2>Liên hệ và giới thiệu</h2>
       <p className="muted">
-        Áp dụng ngay và lưu phiên bản cũ. Không dùng để đổi tên, mã pháp lý,
-        người đại diện hoặc hoạt động.
+        Thay đổi được gửi quản trị AgriTrace duyệt trước khi áp dụng; hồ sơ
+        hiện hành giữ nguyên tới khi được duyệt. Đổi tên, mã pháp lý, người đại
+        diện hoặc hoạt động dùng mẫu điều chỉnh pháp lý bên dưới.
       </p>
       <CommandState command={cmd} />
       {saved && (
         <p className="notice" role="status">
-          Đã lưu phiên bản mới của hồ sơ.
+          Đã gửi yêu cầu điều chỉnh liên hệ. Theo dõi kết quả trong danh sách
+          hồ sơ điều chỉnh bên dưới.
         </p>
       )}
       <fieldset
@@ -193,7 +195,7 @@ function ContactForm({
         </label>
       </fieldset>
       <button className="button" disabled={cmd.pending}>
-        {cmd.frozen ? "Thử lại yêu cầu cũ" : "Lưu liên hệ"}
+        {"Gửi admin duyệt"}
       </button>
     </form>
   );
@@ -319,7 +321,7 @@ function ProfileEvidence({
           </label>
         </fieldset>
         <button className="button secondary" disabled={pending}>
-          {uncertain ? "Thử lại yêu cầu cũ" : "Tải giấy tờ"}
+          {"Tải giấy tờ"}
         </button>
       </form>
     </section>
@@ -689,7 +691,7 @@ function AmendmentForm({
           cmd.pending || !evidence.data?.items.length || !activities.length
         }
       >
-        {cmd.frozen ? "Thử lại yêu cầu cũ" : "Gửi admin duyệt"}
+        {"Gửi admin duyệt"}
       </button>
     </form>
   );
@@ -777,7 +779,7 @@ function AmendmentList({
           </fieldset>
           <div className="workspace-actions">
             <button className="button secondary" disabled={cmd.pending}>
-              {cmd.frozen ? "Thử lại yêu cầu cũ" : "Xác nhận rút"}
+              {"Xác nhận rút"}
             </button>
             <button
               type="button"

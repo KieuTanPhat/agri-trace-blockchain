@@ -120,24 +120,17 @@ async function fillRegistration() {
   fill("Email liên hệ", "owner@example.test");
   fill("Họ tên quản trị viên", "Chủ doanh nghiệp");
   fill("Email đăng nhập", "owner@example.test");
-  fill("Mật khẩu", "long-demo-password-2026");
-  fill("Xác nhận mật khẩu", "long-demo-password-2026");
+  expect(screen.queryByLabelText(/^Mật khẩu/)).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Lưu nháp" }));
   expect(
-    localStorage.getItem("agritrace:enterprise-registration-draft:v4"),
-  ).not.toContain("long-demo-password-2026");
-  await next("Hoạt động");
+    localStorage.getItem("agritrace:enterprise-registration-draft:v5"),
+  ).toContain("owner@example.test");
+  await next("Thông tin hoạt động");
   fill("Nhóm sản phẩm chính", "Rau, gạo");
   await next("Dịch vụ sử dụng");
   fill("Giới thiệu ngắn về tổ chức", "Sản xuất nông sản sạch phục vụ kiểm thử.");
-  await next("Kiểm tra & xác minh");
-  fireEvent.click(
-    screen.getByRole("button", { name: "Xác thực tài khoản" }),
-  );
-  await screen.findByLabelText("Mã xác thực");
-  fill("Mã xác thực", "123456");
-  fireEvent.click(screen.getByRole("button", { name: "Xác nhận" }));
-  await screen.findByText("Đã xác thực");
+  await next("Kiểm tra & gửi hồ sơ");
+  expect(screen.queryByRole("button", { name: /Xác thực tài khoản/ })).toBeNull();
   fireEvent.click(screen.getByRole("checkbox", { name: /Tôi xác nhận/ }));
   fireEvent.click(screen.getByRole("checkbox", { name: /Tôi đồng ý với/ }));
   fireEvent.click(screen.getByRole("checkbox", { name: /Tôi đã đọc/ }));
@@ -146,7 +139,57 @@ async function fillRegistration() {
     .closest("form")!;
 }
 
-it("keeps the original registration and password only in memory after a lost response", async () => {
+/** "Gửi hồ sơ xét duyệt" opens the OTP dialog for the login email. */
+async function submitWithOtp(form: HTMLFormElement) {
+  fireEvent.submit(form);
+  const code = await screen.findByLabelText("Mã OTP");
+  await waitFor(() => expect(code).toBeEnabled());
+  fireEvent.change(code, { target: { value: "123456" } });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Xác nhận và gửi hồ sơ" }),
+  );
+}
+
+it("offers six registration roles and limits legal forms by role", async () => {
+  render(<RegisterPage />);
+  for (const role of [
+    "Nhà sản xuất / Hợp tác xã",
+    "Nhà chế biến",
+    "Nhà vận chuyển",
+    "Nhà phân phối",
+    "Nhà bán lẻ",
+    "Doanh nghiệp có chuỗi cung ứng",
+  ])
+    expect(screen.getByRole("radio", { name: new RegExp(role) })).toBeTruthy();
+  expect(screen.getByRole("option", { name: "Hộ nông dân sản xuất" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("radio", { name: /Nhà vận chuyển/ }));
+  expect(screen.queryByRole("option", { name: "Hộ nông dân sản xuất" })).toBeNull();
+});
+
+it("verifies only the login email in a dialog and sends no password", async () => {
+  render(<RegisterPage />);
+  await submitWithOtp(await fillRegistration());
+  await screen.findByRole("heading", {
+    name: "Cảm ơn bạn đã đăng ký AgriTrace",
+  });
+  const otpRequests = vi
+    .mocked(request)
+    .mock.calls.filter((c) => c[0] === "/auth/registration-otp/request");
+  expect(otpRequests).toHaveLength(1);
+  expect(JSON.parse(otpRequests[0][1]?.body as string).email).toBe(
+    "owner@example.test",
+  );
+  const body = JSON.parse(
+    vi.mocked(request).mock.calls.find((c) => c[0] === "/auth/register")![1]!
+      .body as string,
+  );
+  expect(body.password).toBeUndefined();
+  expect(body.emailVerifications).toHaveLength(1);
+  expect(body.participationModel).toBe("SINGLE");
+  expect(body.details.activities).toEqual(["FARM"]);
+}, 20_000);
+
+it("keeps the original registration only in memory after a lost response", async () => {
   const normal = vi.mocked(request).getMockImplementation()!;
   let writes = 0;
   vi.mocked(request).mockImplementation(async (path, options, auth) => {
@@ -158,9 +201,14 @@ it("keeps the original registration and password only in memory after a lost res
   });
   render(<RegisterPage />);
   const form = await fillRegistration();
-  fireEvent.submit(form);
-  await screen.findByRole("button", { name: "Thử lại hồ sơ ban đầu" });
-  expect(screen.getByRole("checkbox", { name: /Tôi xác nhận/ })).toBeDisabled();
+  await submitWithOtp(form);
+  // An unknown result keeps the original form; the same button reconciles it.
+  await waitFor(() =>
+    expect(
+      screen.getByRole("checkbox", { name: /Tôi xác nhận/ }),
+    ).toBeDisabled(),
+  );
+  expect(screen.queryByRole("button", { name: /Thử lại/ })).toBeNull();
   fireEvent.submit(form);
   await screen.findByRole("heading", {
     name: "Cảm ơn bạn đã đăng ký AgriTrace",
@@ -183,7 +231,7 @@ it("allows corrected input after a definitive registration rejection", async () 
     return normal(path, options, auth);
   });
   render(<RegisterPage />);
-  fireEvent.submit(await fillRegistration());
+  await submitWithOtp(await fillRegistration());
   await screen.findByRole("alert");
   expect(screen.getByRole("checkbox", { name: /Tôi xác nhận/ })).toBeEnabled();
 });
@@ -216,7 +264,8 @@ it("sends only the owned chain for managed hosting and keeps the original connec
   expect(screen.queryByRole("option", { name: "Chuỗi khác" })).toBeNull();
   expect(screen.queryByLabelText("Địa chỉ peer (IP hoặc DNS)")).toBeNull();
   fireEvent.submit(submit.closest("form")!);
-  await screen.findByRole("button", { name: "Thử lại yêu cầu ban đầu" });
+  await waitFor(() => expect(submit).toBeEnabled());
+  expect(screen.queryByRole("button", { name: /Thử lại/ })).toBeNull();
   fireEvent.submit(submit.closest("form")!);
   await waitFor(() =>
     expect(

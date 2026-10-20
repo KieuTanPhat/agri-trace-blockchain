@@ -225,7 +225,7 @@ export default function QrPage() {
               className="button"
               disabled={cmd.pending || history.loading}
             >
-              {cmd.frozen ? "Thử lại yêu cầu cũ" : "Ghi lịch sử và in"}
+              {"Ghi lịch sử và in"}
             </button>
             <button
               type="button"

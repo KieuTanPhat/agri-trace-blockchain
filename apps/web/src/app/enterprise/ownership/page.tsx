@@ -149,7 +149,7 @@ export default function OwnershipPage() {
             </label>
           </fieldset>
           <button className="button" disabled={propose.pending}>
-            {propose.frozen ? "Thử lại yêu cầu cũ" : "Gửi yêu cầu"}
+            {"Gửi yêu cầu"}
           </button>
         </form>
       )}
@@ -236,7 +236,7 @@ export default function OwnershipPage() {
             </fieldset>
             <div className="workspace-actions">
               <button className="button" disabled={resolve.pending}>
-                {resolve.frozen ? "Thử lại yêu cầu cũ" : "Xác nhận"}
+                {"Xác nhận"}
               </button>
               <button
                 type="button"

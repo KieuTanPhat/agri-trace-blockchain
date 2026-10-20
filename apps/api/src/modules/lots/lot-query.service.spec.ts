@@ -96,6 +96,8 @@ function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
     distributionLine: { findMany: vi.fn().mockResolvedValue([]) },
     distributionReceipt: { findMany: vi.fn().mockResolvedValue([]) },
     distributionRemainder: { findMany: vi.fn().mockResolvedValue([]) },
+    $executeRaw: vi.fn().mockResolvedValue(1),
+    traceQrBlock: { findFirst: vi.fn().mockResolvedValue(null) },
     traceNotice: { findMany: vi.fn().mockResolvedValue([]) },
     organization: { findMany: vi.fn().mockResolvedValue([]) },
     traceQr: {

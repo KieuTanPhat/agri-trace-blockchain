@@ -16,6 +16,7 @@ export const labels: Record<string, string> = {
   TRANSPORTER: "Vận chuyển",
   DISTRIBUTOR: "Nhà phân phối",
   RETAILER: "Bán lẻ",
+  PROCESSOR: "Chế biến",
   PRODUCTION: "Sản xuất",
   PACKING: "Sơ chế / đóng gói",
   WAREHOUSE: "Lưu giữ",

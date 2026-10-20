@@ -3,8 +3,10 @@
 import { useRef, useState, type FormEvent } from "react";
 import { request } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
+import { useConfirm } from "@/lib/confirm";
 import { useWorkspaceData, errorMessage, type Items, type Overview, type TraceEvidence } from "@/lib/workspace";
 import { LoadState } from "@/components/manage";
+import { EvidenceThumbnails } from "./image-gallery";
 
 const categories: Record<string, { value: string; label: string; minimum?: number }[]> = {
   CHAIN: [{ value: "CHAIN_IMAGE", label: "Ảnh chuỗi truy xuất" }],
@@ -26,13 +28,14 @@ const categories: Record<string, { value: string; label: string; minimum?: numbe
   LOT: [{ value: "LOT_IMAGE", label: "Ảnh lô nông sản", minimum: 1 }, { value: "LOT_DOCUMENT", label: "Giấy tờ liên quan" }, { value: "INSPECTION_IMAGE", label: "Ảnh kiểm định" }],
   TRANSFER: [{ value: "TRANSFER_IMAGE", label: "Ảnh / chứng từ giao nhận" }, { value: "INSPECTION_IMAGE", label: "Giấy kiểm định" }],
   PROFILE: [{ value: "BUSINESS_LICENSE", label: "Giấy phép kinh doanh" }, { value: "CERTIFICATE_IMAGE", label: "Giấy chứng nhận" }],
-  MEMBER: [{ value: "MEMBER_AVATAR", label: "Ảnh đại diện" }, { value: "MEMBER_DOCUMENT", label: "Giấy tờ / chứng nhận chuyên môn" }],
-  EXTERNAL_PARTNER: [{ value: "PARTNER_LOGO", label: "Logo doanh nghiệp" }, { value: "BUSINESS_LICENSE", label: "Giấy phép kinh doanh" }, { value: "CERTIFICATE_IMAGE", label: "Giấy chứng nhận" }, { value: "INSPECTION_IMAGE", label: "Giấy kiểm định / kiểm nghiệm" }],
+  MEMBER: [{ value: "MEMBER_AVATAR", label: "Ảnh đại diện", minimum: 1 }, { value: "MEMBER_DOCUMENT", label: "Giấy tờ / chứng nhận chuyên môn", minimum: 1 }],
+  EXTERNAL_PARTNER: [{ value: "PARTNERSHIP_EVIDENCE", label: "Ảnh bằng chứng hợp tác", minimum: 1 }, { value: "PARTNER_LOGO", label: "Logo doanh nghiệp" }, { value: "BUSINESS_LICENSE", label: "Giấy phép kinh doanh" }, { value: "CERTIFICATE_IMAGE", label: "Giấy chứng nhận" }, { value: "INSPECTION_IMAGE", label: "Giấy kiểm định / kiểm nghiệm" }],
 };
-const imageOnlyKinds = new Set(["QUARANTINE_IMAGE", "PRODUCT_IMAGE", "INSPECTION_IMAGE", "AREA_IMAGE", "LAND_CERTIFICATE", "PRODUCTION_CONTRACT", "QUALITY_CERTIFICATE", "CYCLE_IMAGE", "MATERIAL_IMAGE", "SEED_IMAGE", "CERTIFICATE_IMAGE", "LOT_IMAGE", "SITE_IMAGE", "TRANSFER_IMAGE", "HARVEST_IMAGE", "CARE_IMAGE", "PARTNER_LOGO", "MEMBER_AVATAR", "CHAIN_IMAGE"]);
+const imageOnlyKinds = new Set(["QUARANTINE_IMAGE", "PRODUCT_IMAGE", "INSPECTION_IMAGE", "AREA_IMAGE", "LAND_CERTIFICATE", "PRODUCTION_CONTRACT", "QUALITY_CERTIFICATE", "CYCLE_IMAGE", "MATERIAL_IMAGE", "SEED_IMAGE", "CERTIFICATE_IMAGE", "LOT_IMAGE", "SITE_IMAGE", "TRANSFER_IMAGE", "HARVEST_IMAGE", "CARE_IMAGE", "PARTNER_LOGO", "PARTNERSHIP_EVIDENCE", "MEMBER_AVATAR", "CHAIN_IMAGE"]);
 
 export function EvidencePanel({ entityType, entityId, siteId, allowPublic = false, materialKind, onUploaded }: { entityType: string; entityId: string; siteId?: string; allowPublic?: boolean; materialKind?: string; onUploaded?: () => void }) {
   const auth = useAuth();
+  const confirm = useConfirm();
   const overview = useWorkspaceData<Overview>("/enterprise-workspace");
   const scope = new URLSearchParams({ entityType, entityId, ...(siteId ? { siteId } : {}) });
   const state = useWorkspaceData<Items<TraceEvidence>>(`/enterprise-workspace/evidence?${scope}`);
@@ -55,6 +58,8 @@ export function EvidencePanel({ entityType, entityId, siteId, allowPublic = fals
         setError("Chọn file PNG, JPEG hoặc PDF tối đa 5 MB.");
         return;
       }
+      if (!(await confirm(`Tải "${file.name}" lên làm chứng cứ? File đã tải được lưu lịch sử, không xóa trực tiếp.`)))
+        return;
       attempt.current = { key: crypto.randomUUID(), body, userId: auth.user.id };
     }
     if (attempt.current.userId !== auth.user.id) {
@@ -108,10 +113,12 @@ export function EvidencePanel({ entityType, entityId, siteId, allowPublic = fals
       const count = current.filter((row) => row.kind === option.value).length;
       return <li key={option.value} data-complete={count >= (option.minimum ?? 0)}><strong>{option.label}</strong><span>{count}/{option.minimum} file tối thiểu</span></li>;
     })}</ul>}
-    <ul className="evidence-files">{state.data?.items.map((row) => <li key={row.id}>
-      <button type="button" className="text-link" disabled={pending} onClick={() => void download(row.id)}>{row.fileName}</button>
-      <span>{options.find((option) => option.value === row.kind)?.label ?? "Chứng cứ chưa phân loại"} · {row.description} · {row.public ? "Công khai trên QR" : "Nội bộ"}{row.supersedesId ? " · Bản đính chính" : ""}</span>
-    </li>)}</ul>
+    {state.data && !state.data.items.length && <p className="muted">Chưa có ảnh hoặc tài liệu.</p>}
+    <EvidenceThumbnails
+      rows={state.data?.items ?? []}
+      onOpenFile={(row) => void download(row.id)}
+      caption={(row) => `${options.find((option) => option.value === row.kind)?.label ?? "Chứng cứ chưa phân loại"}${row.public ? " · Công khai" : ""}${row.supersedesId ? " · Bản đính chính" : ""}`}
+    />
     {overview.data.permissions.includes("evidence.manage") && <form onSubmit={upload} className="workspace-form">
       <input type="hidden" name="entityType" value={entityType} /><input type="hidden" name="entityId" value={entityId} />
       {siteId && <input type="hidden" name="siteId" value={siteId} />}
@@ -122,7 +129,7 @@ export function EvidencePanel({ entityType, entityId, siteId, allowPublic = fals
         <label>Đính chính bản trước (nếu có)<select className="input" name="supersedesId" defaultValue=""><option value="">Chứng cứ mới</option>{current.filter((row) => row.kind === kind).map((row) => <option key={row.id} value={row.id}>{row.fileName}</option>)}</select></label>
         {allowPublic && <><label><input type="checkbox" name="public" value="true" />Công khai trên QR của lô nguồn</label><label><input type="checkbox" name="publicationConfirmed" value="true" />Tôi đã kiểm tra file phù hợp công bố và không chứa thông tin liên hệ hoặc giấy tờ cá nhân</label></>}
       </fieldset>
-      <button className="button" disabled={pending}>{uncertain ? "Thử lại yêu cầu cũ" : "Bổ sung chứng cứ"}</button>
+      <button className="button" disabled={pending}>{"Bổ sung chứng cứ"}</button>
     </form>}
   </section>;
 }
@@ -180,7 +187,7 @@ export function checkEvidenceInputs(form: HTMLFormElement) {
 
 /** Sends every picked file as evidence of the new record. Failures are
  * reported, not retried; the record's detail page lists what arrived. */
-export async function uploadEvidenceFiles(form: HTMLFormElement, entityType: string, entityId: string) {
+export async function uploadEvidenceFiles(form: HTMLFormElement, entityType: string, entityId: string, note = "") {
   const failed: string[] = [];
   for (const input of form.querySelectorAll<HTMLInputElement>('input[type="file"][name^="evidence:"]')) {
     const kind = input.name.slice("evidence:".length);
@@ -190,7 +197,8 @@ export async function uploadEvidenceFiles(form: HTMLFormElement, entityType: str
       body.set("entityId", entityId);
       body.set("kind", kind);
       body.set("file", file);
-      body.set("description", `${input.dataset.label ?? kind} — tải lên khi tạo mới`);
+      const typed = note.trim();
+      body.set("description", (typed.length >= 10 ? typed : `${input.dataset.label ?? kind} — tải lên khi tạo mới${typed ? ` · ${typed}` : ""}`).slice(0, 1000));
       try {
         await request("/enterprise-workspace/evidence", {
           method: "POST",

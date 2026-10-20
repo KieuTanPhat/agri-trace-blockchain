@@ -268,14 +268,6 @@ export default function NewApprovalPage() {
                 required: true,
                 nest: "params",
               },
-              {
-                name: "temporaryPassword",
-                label:
-                  "Mật khẩu tạm (ít nhất 12 ký tự; không được lưu dạng rõ)",
-                type: "password",
-                required: true,
-                nest: "params",
-              },
               reason,
               mfa,
             ]}

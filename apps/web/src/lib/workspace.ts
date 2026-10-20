@@ -69,6 +69,40 @@ export const permissionLabels: Record<string, string> = {
   "processing.read": "Xem lệnh chế biến",
   "processing.write": "Lập và hoàn tất lệnh chế biến",
 };
+/** Permissions shown in business groups so a role is easy to read. */
+export const permissionGroups: { title: string; codes: string[] }[] = [
+  {
+    title: "Hồ sơ & thành viên",
+    codes: ["profile.read", "profile.manage", "members.read", "members.manage", "roles.manage"],
+  },
+  { title: "Đối tác", codes: ["partners.read", "partners.manage"] },
+  {
+    title: "Danh mục, cơ sở & vật tư",
+    codes: ["catalog.read", "catalog.manage", "sites.read", "sites.manage", "vehicles.read", "vehicles.manage", "materials.read", "materials.manage"],
+  },
+  {
+    title: "Sản xuất & chế biến",
+    codes: ["production.read", "production.write", "processing.read", "processing.write"],
+  },
+  {
+    title: "Kho & phân phối",
+    codes: ["inventory.manage", "quarantine.manage", "quantity.adjust", "distribution.read", "distribution.write", "distribution.sign"],
+  },
+  {
+    title: "Truy xuất, chứng cứ & báo cáo",
+    codes: ["trace.read", "qr.manage", "evidence.read", "evidence.manage", "reports.read"],
+  },
+  { title: "Phản ánh & sự cố", codes: ["cases.read", "cases.respond"] },
+];
+/** Groups holding the given codes; codes outside every group go last. */
+export function groupPermissions(codes: string[]) {
+  const grouped = permissionGroups
+    .map((g) => ({ title: g.title, codes: g.codes.filter((c) => codes.includes(c)) }))
+    .filter((g) => g.codes.length);
+  const known = new Set(permissionGroups.flatMap((g) => g.codes));
+  const rest = codes.filter((c) => !known.has(c));
+  return rest.length ? [...grouped, { title: "Khác", codes: rest }] : grouped;
+}
 export function useWorkspaceData<T>(path: string | null) {
   const auth = useAuth(),
     scope = getAuthorizationScope(auth.user),
@@ -127,19 +161,31 @@ export function useWorkspaceCommand() {
   } | null>(null);
   const [pending, setPending] = useState(false),
     [error, setError] = useState(""),
-    [frozen, setFrozen] = useState(false);
+    [frozen, setFrozen] = useState(false),
+    [retrying, setRetrying] = useState(false);
   const confirm = useConfirm();
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   /** Resolves to the response body (truthy) on success, or false. */
   async function run<T = Row>(
     path: string,
     payload: unknown,
     method: "POST" | "PATCH" = "POST",
+    options: { confirmed?: boolean } = {},
   ): Promise<T | false> {
     if (pending) return false;
     if (pendingRequest.current?.scope !== scope) pendingRequest.current = null;
-    // Retrying an uncertain request keeps the original key and needs no second prompt.
-    const warning = pendingRequest.current ? null : importantAction(path);
-    if (warning && !(await confirm(warning))) return false;
+    // Every write is confirmed once; screens with their own summary dialog
+    // pass `confirmed`. Reconciling an uncertain request needs no new prompt.
+    if (!pendingRequest.current && !options.confirmed) {
+      const warning = importantAction(path) ?? defaultWriteWarning;
+      if (!(await confirm(warning))) return false;
+    }
     if (!pendingRequest.current)
       pendingRequest.current = {
         scope,
@@ -153,26 +199,52 @@ export function useWorkspaceCommand() {
     setFrozen(true);
     setError("");
     try {
-      const result = await request<T>(saved.path, {
-        method: saved.method,
-        headers: { "idempotency-key": saved.key },
-        body: saved.body,
-      });
-      pendingRequest.current = null;
-      setFrozen(false);
-      return (result ?? ({} as T)) as T;
-    } catch (e) {
-      setError(errorMessage(e));
-      const status = (e as { status?: number }).status;
-      const outcome=e as {recoveryId?:string;canRestart?:boolean};
-      if (outcome.canRestart || (!outcome.recoveryId && status && status >= 400 && status < 500 && status !== 408 && status !== 429)) {
-        pendingRequest.current = null;
-        setFrozen(false);
+      // An unknown outcome is reconciled by resending the same body and key,
+      // so the user never needs a separate retry action.
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const result = await request<T>(saved.path, {
+            method: saved.method,
+            headers: { "idempotency-key": saved.key },
+            body: saved.body,
+          });
+          pendingRequest.current = null;
+          setFrozen(false);
+          setError("");
+          return (result ?? ({} as T)) as T;
+        } catch (e) {
+          const status = (e as { status?: number }).status;
+          const outcome = e as { recoveryId?: string; canRestart?: boolean };
+          if (
+            outcome.canRestart ||
+            (!outcome.recoveryId &&
+              status &&
+              status >= 400 &&
+              status < 500 &&
+              status !== 408 &&
+              status !== 429)
+          ) {
+            pendingRequest.current = null;
+            setFrozen(false);
+            setError(errorMessage(e));
+            return false;
+          }
+          if (attempt >= AUTO_RETRY_DELAYS.length || !mounted.current) {
+            setError(errorMessage(e));
+            return false;
+          }
+          setRetrying(true);
+          await new Promise((r) => setTimeout(r, AUTO_RETRY_DELAYS[attempt]));
+        }
       }
-      return false;
     } finally {
+      setRetrying(false);
       setPending(false);
     }
   }
-  return { run, pending, error, frozen };
+  return { run, pending, error, frozen, retrying };
 }
+const defaultWriteWarning =
+  "Xác nhận lưu thông tin này? Dữ liệu sẽ được ghi vào hệ thống và lưu lịch sử thay đổi.";
+/** Backoff for resending an uncertain command with its original key. */
+const AUTO_RETRY_DELAYS = [1000, 3000, 7000];

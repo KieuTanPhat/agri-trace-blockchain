@@ -33,7 +33,14 @@ import { VIETNAM_ADDRESSES } from './address-catalog.js';
 import { serviceStage } from './enterprise-service.service.js';
 import { grantEnterpriseBusiness } from './service-activation.js';
 import { settingValue } from '../billing/billing-core.js';
-import { consumeRegistrationProofs } from './registration-otp.service.js';
+import {
+  consumeRegistrationProofs,
+  encryptOtp,
+} from './registration-otp.service.js';
+import {
+  registrationEmailInUse,
+  temporaryPassword,
+} from './registration-email.js';
 import {
   REGISTERED_FORMS,
   REGISTRATION_POLICY_VERSION,
@@ -193,7 +200,11 @@ export async function registerEnterprise(
     .update('agritrace:enterprise-registration:1\0')
     .update(canonicalize(normalized))
     .digest('hex');
-  const passwordHash = await hash(input.password, 12);
+  // The owner never chooses a password at signup; this one is mailed to the
+  // OTP-verified login email and must be replaced at first sign-in.
+  const password = temporaryPassword();
+  const passwordHash = await hash(password, 12);
+  const contactEmail = details.contactEmail.trim().toLowerCase();
   try {
     return await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`enterprise-registration:${input.requestId}`},0))`;
@@ -205,11 +216,11 @@ export async function registerEnterprise(
           throw new ConflictException('Mã đăng ký đã dùng cho nội dung khác');
         return receipt(old.id);
       }
+      // Contact emails have no unique index; serialize signups per address.
+      for (const email of [...new Set([normalized.email, contactEmail])].sort())
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`registration-email:${email}`},0))`;
       if (
-        (await tx.user.findFirst({
-          where: { email: normalized.email },
-          select: { id: true },
-        })) ||
+        (await registrationEmailInUse(tx, normalized.email)) ||
         (normalized.businessId &&
           (await tx.enterpriseEnrollment.findUnique({
             where: { businessId: normalized.businessId },
@@ -219,10 +230,17 @@ export async function registerEnterprise(
         throw new ConflictException(
           'Email hoặc mã doanh nghiệp đã được đăng ký',
         );
+      if (
+        contactEmail !== normalized.email &&
+        (await registrationEmailInUse(tx, contactEmail))
+      )
+        throw new ConflictException(
+          'Email liên hệ đã được sử dụng trong hệ thống; dùng email khác',
+        );
       await consumeRegistrationProofs(
         tx,
         input.requestId,
-        [normalized.email, input.details.contactEmail],
+        [normalized.email],
         input.emailVerifications,
         secret,
       );
@@ -306,7 +324,9 @@ export async function registerEnterprise(
           email: normalized.email,
           fullName: normalized.fullName,
           passwordHash,
+          mustChangePassword: true,
           enterpriseTier: 1,
+          memberCode: 'NV0001',
         },
       });
       await tx.enterpriseEnrollment.create({
@@ -318,6 +338,17 @@ export async function registerEnterprise(
           businessId: normalized.businessId,
           hostingMode: input.hostingMode,
           activationRequired: true,
+        },
+      });
+      // Encrypted like OTP mail; the Worker clears the ciphertext once sent.
+      await tx.enterpriseMail.create({
+        data: {
+          enrollmentId: input.requestId,
+          kind: 'CREDENTIALS',
+          recipient: normalized.email,
+          subject: 'AgriTrace — Tài khoản đăng nhập theo dõi hồ sơ doanh nghiệp',
+          text: `Hồ sơ đăng ký của ${normalized.organizationName} đã được tiếp nhận và đang chờ xét duyệt. Đăng nhập bằng email này và mật khẩu tạm dưới đây để theo dõi hồ sơ; hệ thống sẽ yêu cầu đổi mật khẩu ở lần đăng nhập đầu tiên.`,
+          otpCiphertext: encryptOtp(password, secret),
         },
       });
       if (input.details) {

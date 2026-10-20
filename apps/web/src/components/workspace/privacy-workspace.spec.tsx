@@ -53,9 +53,8 @@ describe("Private request recovery and account isolation", () => {
       target: { value: "Nội dung riêng tư cần được đối soát" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Gửi hồ sơ" }));
-    const retry = await screen.findByRole("button", {
-      name: "Thử lại yêu cầu ban đầu",
-    });
+    await screen.findByRole("alert");
+    const retry = screen.getByRole("button", { name: "Gửi hồ sơ" });
     expect(screen.getByLabelText(/Nội dung riêng tư/)).toBeDisabled();
     fireEvent.click(retry);
     await waitFor(() => expect(posts).toBe(2));

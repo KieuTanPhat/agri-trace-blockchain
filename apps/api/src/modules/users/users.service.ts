@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { queueAccountCredentials, temporaryCredential } from '../auth/account-credentials.js';
 import { hash } from 'bcrypt';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -151,16 +152,24 @@ export class UsersService {
     // two-person policy is enforced; see PlatformApprovalsService.
     if (isPlatformAdminRole(input.roleCode) && approvalsMode() === 'ENFORCED')
       throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
-    const passwordHash = await hash(input.password, 12);
-    return commandTransaction(this.prisma, (tx) =>
-      createPlatformUserTx(tx, actor, {
+    // The account receives a generated temporary password by mail.
+    const { password, passwordHash } = await temporaryCredential();
+    return commandTransaction(this.prisma, async (tx) => {
+      const user = await createPlatformUserTx(tx, actor, {
         email: input.email,
         fullName: input.fullName,
         passwordHash,
         roleCode: input.roleCode,
         organizationId: input.organizationId,
-      }),
-    );
+      });
+      await queueAccountCredentials(
+        tx,
+        user,
+        password,
+        'Quản trị AgriTrace đã tạo tài khoản cho bạn.',
+      );
+      return user;
+    });
   }
 
   /** Locks the row (organization first, then user: the session lock order),

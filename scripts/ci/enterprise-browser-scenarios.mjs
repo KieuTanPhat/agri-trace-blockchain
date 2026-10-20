@@ -13,7 +13,12 @@ const until = async (check, description, limit = timeout) => {
 };
 const command = async (page, route, click) => {
   const reply = page.waitForResponse(response => new URL(response.url()).pathname === `/api${route}` && response.request().method() === 'POST', { timeout });
-  const [response] = await Promise.all([reply, click()]);
+  await click();
+  // Every write asks once in the shared confirmation dialog; steps that
+  // already answered it leave nothing to click here.
+  await page.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true })
+    .click({ timeout: 3000 }).catch(() => undefined);
+  const response = await reply;
   assert.equal(response.status(), 201, `Real UI command rejected at ${route}`);
   const envelope = await response.json();
   assert.equal(envelope.success, true);
@@ -156,10 +161,15 @@ export async function runEnterpriseBrowserScenarios(options) {
       });
       activePage = owner;
       step('owner-create-chain');
-      await owner.goto(`${options.origin}/supply-chains`, { waitUntil: 'domcontentloaded' });
-      await owner.getByLabel('Tên chuỗi', { exact: true }).fill(`Enterprise chain ${randomUUID()}`);
-      await owner.getByLabel('Loại chuỗi', { exact: true }).selectOption('CROP');
-      const chain = await command(owner, '/supply-chains', () => owner.getByRole('button', { name: 'Tạo chuỗi truy xuất', exact: true }).click());
+      await owner.goto(`${options.origin}/supply-chains/new`, { waitUntil: 'domcontentloaded' });
+      await owner.getByLabel(/^Tên chuỗi/).fill(`Enterprise chain ${randomUUID()}`);
+      await owner.getByLabel(/^Loại chuỗi/).selectOption('CROP');
+      // The supply model is required: the owner performs production.
+      await owner.getByRole('checkbox', { name: /— Sản xuất$/ }).first().check();
+      const chain = await command(owner, '/supply-chains', async () => {
+        await owner.getByRole('button', { name: 'Tạo chuỗi truy xuất', exact: true }).click();
+        await owner.getByRole('dialog').getByRole('button', { name: 'Xác nhận tạo', exact: true }).click();
+      });
       assert.equal(chain.ownerOrganizationId, pending.organizationId);
       step('owner-connection-request');
       await owner.goto(`${options.origin}/enterprise/connections`, { waitUntil: 'domcontentloaded' });

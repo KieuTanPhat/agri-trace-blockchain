@@ -18,6 +18,7 @@ import { VIETNAM_ADDRESSES } from '../enterprise-onboarding/address-catalog.js';
 import { LEGAL_FORMS, REGISTERED_FORMS, RegistrationProductionDetails } from '../enterprise-onboarding/registration-profile.dto.js';
 import { appendPlatformAudit, lockPlatformAudit } from '../platform-governance/platform-audit.js';
 
+import { registrationEmailInUse } from '../enterprise-onboarding/registration-email.js';
 export class ProfileVersionInput {
  @ApiProperty({minimum:0}) @IsInt() @Min(0) version!:number;
  @ApiProperty({minLength:10,maxLength:1000}) @IsString() @MinLength(10) @MaxLength(1000) reason!:string;
@@ -69,8 +70,13 @@ export class ProfileAmendmentsService {
   const profile=await tx.enterpriseProfile.findUnique({where:{organizationId:actor.organizationId!}});
   if(!profile||profile.version!==input.version)throw new ConflictException('Hồ sơ đã đổi; tải lại phiên bản');
   if(await tx.enterpriseProfileAmendment.findFirst({where:{organizationId:actor.organizationId!,status:'PENDING'}}))throw new ConflictException('Rút hồ sơ đang chờ duyệt trước khi thay đổi thông tin liên hệ');
-  await this.archive(tx,actor,input.reason);
-  return {record:await tx.enterpriseProfile.update({where:{organizationId:actor.organizationId!},data:{phone:input.phone.trim(),contactEmail:input.contactEmail.trim().toLowerCase(),website:input.website?.trim()||null,description:input.description.trim()||null,version:{increment:1}}})};
+  const contactEmail=input.contactEmail.trim().toLowerCase();
+  if(contactEmail!==profile.contactEmail.toLowerCase()&&await registrationEmailInUse(tx,contactEmail))throw new ConflictException('Email liên hệ đã được sử dụng trong hệ thống; dùng email khác');
+  const org=await tx.organization.findUniqueOrThrow({where:{id:actor.organizationId!}});
+  // Contact changes are reviewed like legal ones: the request keeps every
+  // effective legal field and only replaces the contact block.
+  const target={name:org.name,legalForm:profile.legalForm,address:profile.address,province:profile.province,provinceCode:profile.provinceCode,ward:profile.ward,wardCode:profile.wardCode,representative:profile.representative,activities:[...profile.activities].sort(),legalData:profile.legalData,phone:input.phone.trim(),contactEmail,website:input.website?.trim()||null,description:input.description.trim()||null};
+  return {record:await tx.enterpriseProfileAmendment.create({data:{organizationId:org.id,creatorId:actor.sub!,profileVersion:input.version,organizationVersion:org.version,target:commandResponseJson(target),evidenceIds:[],reason:input.reason}})};
  });}
  submit(actor:CommandActor,input:SubmitProfileInput){return commandTransaction(this.db,async tx=>{
   await profileAuthority(tx,actor,true);

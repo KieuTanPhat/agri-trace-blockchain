@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { EvidenceThumbnails } from "@/components/workspace/image-gallery";
 import { Download, FileCheck2 } from "lucide-react";
 import { request } from "@/lib/api-client";
 import { onboardingError } from "@/lib/enterprise-onboarding";
@@ -218,9 +219,12 @@ export function RegistrationProfileDetails({
                   <FileCheck2 size={18} />{" "}
                   <strong>{kinds[file.kind] ?? file.kind}</strong>
                 </p>
-                <p style={{ overflowWrap: "anywhere" }}>
-                  {file.fileName} · {(file.size / 1024).toFixed(0)} KB
-                </p>
+                <EvidenceThumbnails
+                  rows={[file]}
+                  contentPath={(docId) => `/enterprise-registration-documents/${docId}`}
+                  onOpenFile={(row) => void download(row.id)}
+                  caption={(row) => `${row.fileName} · ${(row.size / 1024).toFixed(0)} KB`}
+                />
                 <button
                   className="button secondary"
                   type="button"

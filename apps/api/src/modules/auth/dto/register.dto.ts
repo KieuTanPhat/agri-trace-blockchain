@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
-  IsByteLength,
   IsEmail,
   IsIn,
   IsString,
@@ -106,11 +105,11 @@ export class RegisterDto {
   @ApiProperty({
     type: [RegistrationEmailProof],
     description:
-      'One or two verified proofs for the admin email and enterprise contact email. One proof if both addresses are identical.',
+      'Exactly one verified OTP proof for the admin login email. The contact email is not verified by OTP.',
   })
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(2)
+  @ArrayMaxSize(1)
   @ValidateNested({ each: true })
   @Type(() => RegistrationEmailProof)
   emailVerifications!: RegistrationEmailProof[];
@@ -127,19 +126,6 @@ export class RegisterDto {
   @IsEmail()
   @MaxLength(255)
   email!: string;
-
-  @ApiProperty({
-    format: 'password',
-    minLength: 12,
-    maxLength: 72,
-    description:
-      'At least 12 characters, at most 72 UTF-8 bytes; never trimmed.',
-  })
-  @IsString()
-  @MinLength(12)
-  @IsByteLength(12, 72)
-  @Matches(/^(?=.*\p{L})(?=.*\d)[\s\S]+$/u)
-  password!: string;
 
   @ApiProperty({ maxLength: 255 })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))

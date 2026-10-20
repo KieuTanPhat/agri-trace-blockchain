@@ -100,6 +100,9 @@ export function commandRequest(
   const supervisor = match(path, `/enterprise-workspace/members/(${uuid})/supervisor`);
   if (supervisor && method === "POST")
     return result("EW_CHANGE_MEMBER_SUPERVISOR", { id: supervisor[1] });
+  const roleDelete = match(path, `/enterprise-workspace/roles/(${uuid})/delete`);
+  if (roleDelete && method === "POST")
+    return result("EW_DELETE_ROLE", { id: roleDelete[1] });
   const workspace = match(
     path,
     `/enterprise-workspace/(members|roles|partners|sites|vehicles)/(${uuid})(/status)?`,

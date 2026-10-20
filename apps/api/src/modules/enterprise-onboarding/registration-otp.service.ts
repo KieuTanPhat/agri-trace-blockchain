@@ -121,7 +121,7 @@ export async function consumeRegistrationProofs(
     new Set(proofs.map((p) => p.verificationId)).size !== proofs.length
   )
     throw new BadRequestException(
-      'Xác thực OTP cho email doanh nghiệp và email đăng nhập trước khi gửi',
+      'Xác thực OTP cho email đăng nhập trước khi gửi hồ sơ',
     );
   const rows: RegistrationEmailVerification[] = [];
   for (const proof of [...proofs].sort((a, b) =>

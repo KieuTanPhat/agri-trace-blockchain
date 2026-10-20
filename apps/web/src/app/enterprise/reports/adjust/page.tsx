@@ -101,9 +101,7 @@ export default function AdjustQuantityPage() {
         <button className="button" type="submit" disabled={cmd.pending}>
           {cmd.pending
             ? "Đang ghi…"
-            : cmd.frozen
-              ? "Thử lại yêu cầu cũ"
-              : "Ghi nhận số lượng"}
+            : "Ghi nhận số lượng"}
         </button>
       </form>
     </div>

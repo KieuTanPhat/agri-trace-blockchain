@@ -43,7 +43,6 @@ const prisma = new PrismaClient({
       return {
         requestId: randomUUID(),
         email,
-        password,
         fullName: 'Người đại diện',
         organizationName: 'Doanh nghiệp demo',
         businessId: Array.from({ length: 10 }, () =>
@@ -124,15 +123,33 @@ const prisma = new PrismaClient({
         .expect(201);
       input.details.documentIds = [documentId];
     };
+    /** Signs in with the mailed temporary password and replaces it, as an owner does. */
+    const claim = async (email: string) => {
+      const mail = await prisma.enterpriseMail.findFirstOrThrow({
+        where: {
+          recipient: email,
+          kind: { in: ['CREDENTIALS', 'ACCOUNT_CREDENTIALS'] },
+        },
+      });
+      const temporary = decryptOtp(mail.otpCiphertext!);
+      const first = await post('/auth/login', {
+        email,
+        password: temporary,
+      }).expect(201);
+      expect(first.body.data.user.mustChangePassword).toBe(true);
+      await post(
+        '/auth/change-password',
+        { currentPassword: temporary, newPassword: password },
+        first.body.data.accessToken,
+      ).expect(201);
+      return post('/auth/login', { email, password }).expect(201);
+    };
     const register = async (
       mode: RegisterDto['hostingMode'] = 'MANAGED_ORG',
     ) => {
       const input = await verifiedForm(mode);
       await post('/auth/register', input).expect(201);
-      const login = await post('/auth/login', {
-        email: input.email,
-        password,
-      }).expect(201);
+      const login = await claim(input.email);
       const token = login.body.data.accessToken as string;
       const enrollment = (
         await get('/enterprise-enrollments/mine', token).expect(200)
@@ -179,6 +196,28 @@ const prisma = new PrismaClient({
       token: string;
       enrollment: { id: string };
     }) => {
+      // Activation requires every registered capability to be reviewed by a
+      // platform administrator first; the owner cannot review its own.
+      const pending = (
+        await get('/enterprise-enrollments/mine', a.token).expect(200)
+      ).body.data.capabilityRequests.filter(
+        (r: { status: string }) => r.status === 'PENDING',
+      ) as Array<{ id: string; version: number }>;
+      for (const r of pending) {
+        const review = {
+          version: r.version,
+          decision: 'APPROVE',
+          note: 'Đã đối chiếu năng lực trong kiểm thử cách ly',
+        };
+        await post(
+          `/capability-requests/${r.id}/review`,
+          review,
+          a.token,
+        ).expect(403);
+        await post(`/capability-requests/${r.id}/review`, review, admin).expect(
+          201,
+        );
+      }
       const current = (
         await get('/enterprise-enrollments/mine', a.token).expect(200)
       ).body.data;
@@ -211,6 +250,16 @@ const prisma = new PrismaClient({
         admin,
       ).expect(409);
     };
+    // The quotation names the digest of the published plan versions the
+    // organization sees, exactly as the service page reads it.
+    const serviceCatalog = async (token: string) =>
+      (await get('/enterprise-service', token).expect(200)).body.data
+        .catalog as {
+        version: string;
+        plans: Array<{ code: string; setup: number; annual: number }>;
+      };
+    const catalogVersion = async (token: string) =>
+      (await serviceCatalog(token)).version;
     const activate = async (a: {
       token: string;
       enrollment: { id: string };
@@ -222,7 +271,7 @@ const prisma = new PrismaClient({
         billingEmail: 'billing@example.test',
         billingName: 'Đơn vị kiểm thử',
         billingAddress: '123 Địa chỉ kiểm thử',
-        catalogVersion: 'agritrace-reference-2026-10-17',
+        catalogVersion: await catalogVersion(a.token),
       };
       const preview = (
         await post('/enterprise-service/preview', input, a.token).expect(201)
@@ -353,10 +402,7 @@ const prisma = new PrismaClient({
       await post('/auth/register', { ...input, fullName: 'Changed' }).expect(
         409,
       );
-      const login = await post('/auth/login', {
-        email: input.email,
-        password,
-      }).expect(201);
+      const login = await claim(input.email);
       await post(
         '/supply-chains',
         { name: 'Cannot create yet' },
@@ -373,12 +419,12 @@ const prisma = new PrismaClient({
       }
       expect(await prisma.enterpriseEnrollment.count()).toBe(before);
     });
-    it('rejects privilege injection and oversized Unicode passwords before any writes', async () => {
+    it('rejects privilege injection and client-chosen passwords before any writes', async () => {
       const before = await prisma.enterpriseEnrollment.count();
       for (const patch of [
         { role: 'SYSTEM_ADMIN' },
         { organizationType: 'AUDITOR' },
-        { password: '🌾'.repeat(19) },
+        { password: 'client-chosen-pass-2026' },
         { hostingMode: 'SERVICE' },
       ])
         await post('/auth/register', { ...form(), ...patch }).expect(400);
@@ -486,13 +532,14 @@ const prisma = new PrismaClient({
         ...input,
         requestId: randomUUID(),
       }).expect(400);
+      const existing = await register();
       await post('/auth/register', {
         ...input,
         details: {
           ...input.details,
-          contactEmail: 'other-' + randomUUID() + '@example.test',
+          contactEmail: existing.input.email.toUpperCase(),
         },
-      }).expect(400);
+      }).expect(409);
       await post('/auth/register', {
         ...input,
         emailVerifications: [{ verificationId: sendId, token: 'z'.repeat(43) }],
@@ -513,6 +560,34 @@ const prisma = new PrismaClient({
         undefined,
         newAttempt,
       ).expect(400);
+    });
+    it('keeps contact emails unique across accounts and enterprise contacts and mails a temporary password', async () => {
+      const contact = `contact-${randomUUID()}@example.test`;
+      const first = await verifiedForm();
+      first.details.contactEmail = contact;
+      await post('/auth/register', first).expect(201);
+      const mail = await prisma.enterpriseMail.findFirstOrThrow({
+        where: { recipient: first.email, kind: 'CREDENTIALS' },
+      });
+      expect(mail.enrollmentId).toBe(first.requestId);
+      expect(mail.text).not.toContain(decryptOtp(mail.otpCiphertext!));
+      expect(
+        (await prisma.user.findFirstOrThrow({ where: { email: first.email } }))
+          .mustChangePassword,
+      ).toBe(true);
+      for (const email of [contact, contact.toUpperCase(), first.email])
+        expect(
+          (
+            await post('/auth/registration-email-availability', {
+              email,
+            }).expect(200)
+          ).body.data.available,
+        ).toBe(false);
+      const second = await verifiedForm();
+      second.details.contactEmail = contact.toUpperCase();
+      await post('/auth/register', second).expect(409);
+      second.details.contactEmail = `other-${randomUUID()}@example.test`;
+      await post('/auth/register', second).expect(201);
     });
     it('rejects mismatched administrative codes, incomplete profiles and invalid tax identifiers', async () => {
       for (const patch of [
@@ -718,14 +793,25 @@ const prisma = new PrismaClient({
         billingName: 'Doanh nghiệp thanh toán',
         billingEmail: a.input.email,
         billingAddress: '123 Đường thanh toán',
-        catalogVersion: 'agritrace-reference-2026-10-17',
+        catalogVersion: '',
       };
       await post('/enterprise-service/preview', input, a.token).expect(403);
       await approve(a.enrollment.id).expect(201);
+      // A stale catalog version is rejected instead of being re-priced.
+      await post(
+        '/enterprise-service/preview',
+        { ...input, catalogVersion: 'agritrace-reference-2026-10-17' },
+        a.token,
+      ).expect(400);
+      const catalog = await serviceCatalog(a.token);
+      input.catalogVersion = catalog.version;
       const preview = (
         await post('/enterprise-service/preview', input, a.token).expect(201)
       ).body.data;
-      expect(preview.quotation.total).toBe(10_500_000);
+      // Priced from the currently published TRACE_10 version, which an
+      // administrator may have re-priced since the 10.5M seed.
+      const plan = catalog.plans.find((p) => p.code === 'TRACE_10')!;
+      expect(preview.quotation.total).toBe(plan.setup + plan.annual);
       await post(
         '/enterprise-service/orders',
         {
@@ -847,9 +933,11 @@ const prisma = new PrismaClient({
       const messages = await prisma.enterpriseMail.findMany({
         where: { enrollmentId: a.enrollment.id },
       });
+      // CREDENTIALS carries the temporary password mailed at registration.
       expect(messages.map((m) => m.kind).sort()).toEqual([
         'APPROVED',
         'CONTRACT',
+        'CREDENTIALS',
       ]);
       expect(messages.find((m) => m.kind === 'CONTRACT')?.attachment).toBe(
         preview.contractText,
@@ -1014,7 +1102,8 @@ const prisma = new PrismaClient({
         fullName: 'Manager',
         jobTitle: 'Quản lý kiểm thử',
         email: `manager-${randomUUID()}@example.test`,
-        password,
+        phone: '0901234567',
+        contactAddress: '12 Nguyễn Huệ, Quận 1',
         tier: 2,
         roles: [{ roleId: managerRole.id, chainIds: [], siteIds: [] }],
       };
@@ -1025,12 +1114,8 @@ const prisma = new PrismaClient({
           a.token,
         ).expect(201)
       ).body.data.record;
-      const managerToken = (
-        await post('/auth/login', {
-          email: managerInput.email,
-          password,
-        }).expect(201)
-      ).body.data.accessToken;
+      const managerToken = (await claim(managerInput.email)).body.data
+        .accessToken;
       await post(
         '/enterprise-workspace/roles',
         { name: 'Escalation', permissions: ['qr.manage'] },
@@ -1049,7 +1134,8 @@ const prisma = new PrismaClient({
         fullName: 'Staff',
         jobTitle: 'Nhân viên kiểm thử',
         email: `staff-${randomUUID()}@example.test`,
-        password,
+        phone: '0901234568',
+        contactAddress: '12 Nguyễn Huệ, Quận 1',
         tier: 3,
         roles: [{ roleId: readerRole.id, chainIds: [], siteIds: [] }],
       };
@@ -1060,11 +1146,7 @@ const prisma = new PrismaClient({
           managerToken,
         ).expect(201)
       ).body.data.record;
-      const childToken = (
-        await post('/auth/login', { email: childInput.email, password }).expect(
-          201,
-        )
-      ).body.data.accessToken;
+      const childToken = (await claim(childInput.email)).body.data.accessToken;
       await post(
         '/enterprise-workspace/members',
         { ...childInput, email: `other-${randomUUID()}@example.test` },
@@ -1090,6 +1172,122 @@ const prisma = new PrismaClient({
           where: { userId: child.id, revokedAt: null },
         }),
       ).toBe(0);
+    });
+    it('edits a role already assigned to members and applies it to every holder at once', async () => {
+      const a = await register();
+      await approve(a.enrollment.id).expect(201);
+      await activate(a);
+      const role = (
+        await post(
+          '/enterprise-workspace/roles',
+          { name: 'Kho', permissions: ['profile.read'] },
+          a.token,
+        ).expect(201)
+      ).body.data.record;
+      const input = {
+        fullName: 'Nhân viên kho',
+        jobTitle: 'Thủ kho',
+        email: `holder-${randomUUID()}@example.test`,
+        phone: '0901234569',
+        contactAddress: '12 Nguyễn Huệ, Quận 1',
+        tier: 3,
+      };
+      await post(
+        '/enterprise-workspace/members',
+        { ...input, roles: [] },
+        a.token,
+      ).expect(400);
+      const holder = (
+        await post(
+          '/enterprise-workspace/members',
+          { ...input, roles: [{ roleId: role.id, chainIds: [], siteIds: [] }] },
+          a.token,
+        ).expect(201)
+      ).body.data.record;
+      const holderToken = (await claim(input.email)).body.data.accessToken;
+      await get('/enterprise-workspace/sites', holderToken).expect(403);
+      const edited = (
+        await post(
+          `/enterprise-workspace/roles/${role.id}`,
+          {
+            name: 'Kho và cơ sở',
+            permissions: ['profile.read', 'sites.read'],
+            version: role.version,
+          },
+          a.token,
+        ).expect(201)
+      ).body.data;
+      expect(edited.affectedMembers).toBe(1);
+      expect(edited.record.permissions).toContain('sites.read');
+      // Same session, new permission: no sign-in needed.
+      await get('/enterprise-workspace/sites', holderToken).expect(200);
+      expect(
+        await prisma.refreshSession.count({
+          where: { userId: holder.id, revokedAt: null },
+        }),
+      ).toBeGreaterThan(0);
+    });
+    it('withdraws product photos without deleting them and keeps three on an active product', async () => {
+      const a = await register();
+      await approve(a.enrollment.id).expect(201);
+      await activate(a);
+      const image = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=',
+        'base64',
+      );
+      const upload = async (entityType: string, entityId: string, kind: string) =>
+        (
+          await request(app.getHttpServer())
+            .post('/api/enterprise-workspace/evidence')
+            .set('Authorization', `Bearer ${a.token}`)
+            .set('Idempotency-Key', randomUUID())
+            .field('entityType', entityType)
+            .field('entityId', entityId)
+            .field('kind', kind)
+            .field('description', 'Ảnh kiểm thử trên DB cách ly')
+            .attach('file', image, { filename: `${kind}.png`, contentType: 'image/png' })
+            .expect(201)
+        ).body.data.record;
+      const farm = (
+        await post(
+          '/catalog/farms',
+          {
+            organizationId: a.enrollment.organizationId,
+            name: 'Vùng ảnh sản phẩm',
+            kind: 'CROP',
+            region: 'Hà Nội',
+            address: '123 Địa chỉ vùng sản xuất',
+            areaM2: 100,
+            expectedOutput: 10,
+            outputUnit: 'kg',
+            privacy: 'PRIVATE',
+          },
+          a.token,
+        ).expect(201)
+      ).body.data;
+      const farmPhotos = [];
+      for (const kind of ['AREA_IMAGE', 'LAND_CERTIFICATE', 'PRODUCTION_CONTRACT', 'QUALITY_CERTIFICATE', 'INSPECTION_IMAGE'])
+        farmPhotos.push(await upload('FARM', farm.id, kind));
+      await post(`/catalog/farms/${farm.id}/complete`, { version: 0 }, a.token).expect(201);
+      const product = (
+        await post('/catalog/products', productForm(farm.id), a.token).expect(201)
+      ).body.data;
+      const photos = [];
+      for (let i = 0; i < 4; i++) photos.push(await upload('PRODUCT', product.id, 'PRODUCT_IMAGE'));
+      await post(`/catalog/products/${product.id}/complete`, { version: product.version }, a.token).expect(201);
+      const withdraw = (id: string) =>
+        post(`/enterprise-workspace/evidence/${id}/withdraw`, { reason: 'Ảnh mờ, không đúng sản phẩm' }, a.token);
+      await withdraw(photos[0].id).expect(201);
+      await withdraw(photos[0].id).expect(409);
+      await withdraw(photos[1].id).expect(409);
+      await withdraw(farmPhotos[0].id).expect(409);
+      const listed = (
+        await get(`/enterprise-workspace/evidence?entityType=PRODUCT&entityId=${product.id}`, a.token).expect(200)
+      ).body.data.items.map((row: { id: string }) => row.id);
+      expect(listed).not.toContain(photos[0].id);
+      expect(listed).toHaveLength(3);
+      // The file itself stays for audit.
+      expect(await prisma.traceEvidence.count({ where: { entityId: product.id } })).toBe(4);
     });
     it('rate limits public registration attempts with the actual global guard', async () => {
       throttleBypass.mockRestore();

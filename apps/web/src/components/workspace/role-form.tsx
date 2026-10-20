@@ -1,7 +1,9 @@
 "use client";
+
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import {
+  groupPermissions,
   permissionLabels,
   useWorkspaceCommand,
   useWorkspaceData,
@@ -11,21 +13,33 @@ import {
   type Overview,
 } from "@/lib/workspace";
 import { CommandState, PageHeader } from "@/components/manage";
-/** Create or edit an enterprise role. Editing sends the role's version so a
- * concurrent change is rejected instead of overwritten. */
+import { RolePermissionEditor } from "./role-permission-editor";
+
+/** Keep the same command and optimistic version while changing only the editor UI. */
 export function RoleForm({ role }: { role?: EnterpriseRole }) {
-  const router = useRouter(),
-    cmd = useWorkspaceCommand(),
-    overview = useWorkspaceData<Overview>("/enterprise-workspace"),
-    templates = useWorkspaceData<Items<EnterpriseRoleTemplate>>(
-      "/enterprise-workspace/role-templates",
+  const router = useRouter();
+  const cmd = useWorkspaceCommand();
+  const overview = useWorkspaceData<Overview>("/enterprise-workspace");
+  const templates = useWorkspaceData<Items<EnterpriseRoleTemplate>>(
+    "/enterprise-workspace/role-templates",
+  );
+  const [name, setName] = useState(role?.name ?? "");
+  const [selected, setSelected] = useState<string[]>(
+    role?.permissions ?? ["profile.read"],
+  );
+  const groups = groupPermissions(
+    Object.keys(permissionLabels).filter((code) =>
+      overview.data?.permissions.includes(code),
     ),
-    [selected, setSelected] = useState<string[]>(
-      role?.permissions ?? ["profile.read"],
-    );
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const name = String(new FormData(e.currentTarget).get("name"));
+  );
+  const visibleSelectedCount = groups.reduce(
+    (count, group) =>
+      count + group.codes.filter((code) => selected.includes(code)).length,
+    0,
+  );
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (
       await cmd.run(
         role
@@ -38,92 +52,63 @@ export function RoleForm({ role }: { role?: EnterpriseRole }) {
     )
       router.push("/enterprise/roles");
   }
+
   return (
-    <div className="manage-console">
+    <div className="manage-console role-editor-page">
       <PageHeader
-        actionKind="create"
         backLabel="Quay lại danh sách"
-        title={role ? `Chỉnh sửa nhóm quyền: ${role.name}` : "Tạo nhóm quyền"}
-        description={
-          role
-            ? "Thay đổi áp dụng cho mọi thành viên đang thuộc nhóm này."
-            : "Chỉ chọn các thao tác cần thiết cho công việc của thành viên."
-        }
+        title={role ? "Chỉnh sửa nhóm quyền" : "Tạo nhóm quyền"}
         back="/enterprise/roles"
       />
-      {role && (
-        <p className="notice">
-          Chỉ sửa được nhóm chưa gán cho thành viên nào. Nhóm đang dùng: tạo nhóm
-          mới với quyền mong muốn rồi chuyển từng thành viên sang.
-        </p>
-      )}
-      <form className="panel workspace-form" onSubmit={submit}>
+      <form className="workspace-form role-editor-form" onSubmit={submit}>
         <CommandState command={cmd} />
         <fieldset
           disabled={cmd.pending || cmd.frozen}
-          className="enterprise-fields"
+          className="enterprise-fields role-editor-fields"
         >
-          <label>
-            Mẫu theo công việc
-            <select
-              className="input"
-              defaultValue=""
-              onChange={(e) => {
-                const template = templates.data?.items.find(
-                  (t) => t.code === e.target.value,
-                );
-                if (template) setSelected(template.permissions);
-              }}
-            >
-              <option value="">Tự chọn quyền</option>
-              {templates.data?.items.map((t) => (
-                <option key={t.code} value={t.code}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Tên nhóm quyền
-            <input
-              className="input"
-              name="name"
-              defaultValue={role?.name}
-              required
-              minLength={2}
-              maxLength={100}
-            />
-          </label>
-          <div className="permission-grid">
-            {Object.entries(permissionLabels)
-              .filter(([code]) => overview.data?.permissions.includes(code))
-              .map(([code, label]) => (
-                <label className="permission-choice" key={code}>
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(code)}
-                    onChange={(e) =>
-                      setSelected((s) =>
-                        e.target.checked
-                          ? [...s, code]
-                          : s.filter((p) => p !== code),
-                      )
-                    }
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-          </div>
+          <RolePermissionEditor
+            groups={groups.map((group) => ({
+              title: group.title,
+              permissions: group.codes.map((code) => ({
+                code,
+                label: permissionLabels[code],
+              })),
+            }))}
+            templates={templates.data?.items ?? []}
+            selected={selected}
+            name={name}
+            editing={Boolean(role)}
+            templatesLoading={templates.loading && !templates.data}
+            templatesError={templates.error}
+            onNameChange={setName}
+            onSelectedChange={setSelected}
+          />
         </fieldset>
-        <button className="button" disabled={cmd.pending} type="submit">
-          {cmd.pending
-            ? "Đang lưu…"
-            : cmd.frozen
-              ? "Thử lại yêu cầu cũ"
-              : role
-                ? "Lưu thay đổi"
-                : "Tạo nhóm quyền"}
-        </button>
+        <div className="role-editor-actions">
+          <div className="role-editor-summary">
+            <span>{visibleSelectedCount} quyền đã chọn</span>
+            {role && (
+              <span>Áp dụng cho thành viên trong nhóm sau khi lưu.</span>
+            )}
+          </div>
+          <button
+            className="button secondary"
+            type="button"
+            disabled={cmd.pending || cmd.frozen}
+            onClick={() => router.push("/enterprise/roles")}
+          >
+            Hủy
+          </button>
+          <button className="button" disabled={cmd.pending} type="submit">
+            {cmd.pending
+              ? "Đang lưu…"
+              : cmd.frozen
+                ? "Thử lại yêu cầu cũ"
+                : role
+                  ? "Lưu thay đổi"
+                  : "Tạo nhóm quyền"}
+          </button>
+        </div>
       </form>
     </div>
   );

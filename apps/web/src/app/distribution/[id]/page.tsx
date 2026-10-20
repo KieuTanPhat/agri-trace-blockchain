@@ -157,9 +157,7 @@ export default function TransferPage() {
                   >
                     {signing
                       ? "Đang ký…"
-                      : cmd.frozen
-                        ? "Thử lại yêu cầu cũ"
-                        : `Ký ${labels[phase]?.toLowerCase()}`}
+                      : `Ký ${labels[phase]?.toLowerCase()}`}
                   </button>
                 ),
               )}

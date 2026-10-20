@@ -32,7 +32,7 @@ Quản trị nền tảng có thêm: `/admin/audit-log` (nhật ký kiểm toán
 và AUDITOR; lọc, phân trang cursor, kiểm tra toàn vẹn chuỗi băm, xuất CSV có giới
 hạn), `/admin/approvals` (+ `/new`, `/<id>`; đề xuất và phê duyệt hai bước),
 `/admin/security` (MFA TOTP) và `/account/password` (đổi mật khẩu; tài khoản đang
-dùng mật khẩu tạm bị chuyển thẳng tới đây). Màn hình khóa/mở khóa/đặt lại mật khẩu
+dùng mật khẩu tạm hoặc mật khẩu quá 30 ngày bị chuyển thẳng tới đây). Màn hình khóa/mở khóa/đặt lại mật khẩu
 ở `/admin/users/<id>` luôn đòi lý do; form giữ nguyên body và Idempotency-Key khi
 chưa rõ kết quả. Ẩn nút trên UI không thay cho kiểm tra quyền ở API.
 Danh mục truy xuất do doanh nghiệp có quyền
@@ -103,12 +103,26 @@ Thay đổi chỉ về giao diện phải giữ API/schema/business policy.
 
 ## Không gian doanh nghiệp và phân phối
 
-`/register` gồm năm bước: Doanh nghiệp, Đại diện & tài khoản, Hoạt động,
-Dịch vụ sử dụng, Kiểm tra & xác minh. Form desktop dùng khổ ngang rộng, trường ngắn xếp hai cột;
+Mọi thao tác ghi dữ liệu và đăng xuất đều hỏi xác nhận một lần
+(`useWorkspaceCommand`, `DataForm`); màn hình có hộp tóm tắt riêng (tạo thành
+viên, đối tác, chuỗi) truyền `confirmed` để không hỏi hai lần. Kết quả không rõ
+được tự gửi lại đúng yêu cầu cũ (cùng body và Idempotency-Key) sau 1, 3, 7 giây;
+nút giữ nhãn gốc, không có nút “Thử lại” riêng. Lỗi nhập liệu hiện ngay dưới ô.
+Hỗ trợ dùng `/enterprise/support` (danh sách), `/new` và `/<id>` (trao đổi). Chuỗi
+dùng `/supply-chains` (danh sách), `/new` (bắt buộc mô hình chuỗi cung ứng) và
+`/<id>` (chi tiết và các chức năng quản lý chuỗi).
+
+`/register` gồm năm bước: Vai trò & doanh nghiệp, Đại diện & tài khoản,
+Thông tin hoạt động, Dịch vụ sử dụng, Kiểm tra & gửi hồ sơ. Bước 1 chọn một
+trong sáu vai trò (sản xuất/HTX, chế biến, vận chuyển, phân phối, bán lẻ, doanh
+nghiệp có chuỗi cung ứng gồm toàn bộ vai trò); vai trò quyết định mô hình tham
+gia, năng lực, loại hình chủ thể được chọn và các mục ở bước 3. Form desktop dùng khổ ngang rộng, trường ngắn xếp hai cột;
 địa chỉ, tài liệu và nội dung dài chiếm cả hàng. Trên điện thoại dùng một cột.
 Tỉnh/thành và xã/phường chọn từ danh mục hai cấp; đổi
-tỉnh phải chọn lại xã. Kiểm định dạng mã số thuế, số điện thoại, URL, xác nhận mật
-khẩu và giới hạn 72 byte trước khi gửi. Bản nháp không lưu mật khẩu, OTP, proof
+tỉnh phải chọn lại xã. Kiểm định dạng mã số thuế, số điện thoại, URL và kiểm tra email đăng
+nhập/email liên hệ chưa được dùng trong hệ thống trước khi gửi. Form không có ô
+mật khẩu: mật khẩu tạm được gửi về email đăng nhập sau khi hồ sơ được tiếp nhận
+và phải đổi ở lần đăng nhập đầu. Bản nháp không lưu OTP, proof
 xác thực hoặc xác nhận thay
 người dùng. Yêu cầu đã gửi mà chưa rõ kết quả giữ nguyên body/requestId trong
 trang; không phát sinh requestId khác để thử lại.
@@ -145,8 +159,9 @@ thời điểm xác nhận từ server. Hồ sơ đã gửi chưa có luồng s�
 sử thiếu dữ liệu v2 tiếp tục được đánh dấu cho người xét duyệt.
 Bản rà soát trình bày các mục đầy đủ theo cặp nhãn/giá trị và danh sách tài liệu.
 Bỏ logo phụ lặp lại, khối giới thiệu xác thực email và dòng hướng dẫn giới hạn
-OTP. Nút bắt đầu là “Xác thực tài khoản”; thời hạn, giới hạn lần thử và cooldown
-vẫn được backend thực thi.
+OTP. Không có nút xác thực riêng: bấm “Gửi hồ sơ xét duyệt” mở hộp thoại gửi mã
+OTP tới email đăng nhập; nhập đúng mã thì form tải tài liệu và gửi hồ sơ. Thời
+hạn, giới hạn lần thử và cooldown vẫn được backend thực thi.
 
 Các chức năng có URL riêng:
 
@@ -157,8 +172,9 @@ Các chức năng có URL riêng:
 | Theo dõi hồ sơ / dịch vụ       | `/enterprise/onboarding`, `/enterprise/service`                                                                                                    |
 | Hợp đồng / thanh toán mô phỏng | `/enterprise/service/contract`, `/enterprise/service/payment`                                                                                      |
 | Quản trị nền tảng              | `/admin/organizations` (tra cứu tổ chức, tạo đơn vị kiểm định), `/admin/users` (quản trị viên và người kiểm định), `/admin/compliance-assignments` |
-| Thành viên / nhóm quyền        | `/enterprise/members`, `/enterprise/roles` và trang `new`/chi tiết riêng                                                                           |
+| Thành viên / nhóm quyền        | `/enterprise/members`, `/enterprise/members/:id` (chi tiết, chỉ xem), `/enterprise/members/:id/edit`, `/enterprise/roles` và trang `new` |
 | Liên kết / danh mục            | `/enterprise/partners`, `/enterprise/products`, `/enterprise/areas`                                                                                |
+| Sản phẩm                       | `/enterprise/products/:id` (chi tiết, ảnh, ngừng/mở bán, lịch sử chỉnh sửa), `/enterprise/products/:id/edit` (ảnh ở đầu trang, cập nhật có lý do) |
 | Cơ sở / phương tiện            | `/enterprise/sites`, `/enterprise/vehicles`                                                                                                        |
 | Vụ / nhật ký / thu hoạch       | `/production-cycles`, `/production-cycles/:id/journal`, `/production-cycles/:id/harvest` và trang nhập riêng                                       |
 | Giao nhận / nhật ký chặng      | `/distribution`, `/distribution/:id`, `/distribution/:id/journal`                                                                                  |
@@ -246,12 +262,12 @@ giao và ghi chú; trang chi tiết hiển thị các giá trị này trước k
 ### Quy ước khu quản trị và doanh nghiệp (19/10/2026)
 
 - Font chính là Inter, tải qua `next/font/google` lúc build và phục vụ từ cùng origin (`--font-inter`); Be Vietnam Pro là font dự phòng.
-- Sidebar dùng `agritrace-logo-on-dark.png` (bản của logo gốc, nền trong suốt, dòng chữ phụ đổi sang màu sáng để đọc được trên nền tối). Menu hiện đủ các nhóm, không thu gọn, theo thứ tự Công việc → Quản trị → Tổ chức → Sản xuất → Phân phối & kho → Chất lượng & báo cáo → Dịch vụ & cài đặt; mỗi nhóm có tiêu đề sáng và đường phân cách; trỏ chuột hoặc focus bàn phím gạch chân tên mục. "Cài đặt" (`/enterprise/settings`) hiện chỉ là trang chờ.
+- Sidebar dùng `agritrace-logo-on-dark.png` (bản của logo gốc, nền trong suốt, dòng chữ phụ đổi sang màu sáng để đọc được trên nền tối). Menu hiện đủ các nhóm, không thu gọn, theo thứ tự Công việc → Quản trị → Tổ chức → Sản xuất → Phân phối & kho → Chất lượng & báo cáo → Dịch vụ & cài đặt; mỗi nhóm có tiêu đề sáng và đường phân cách; trỏ chuột hoặc focus bàn phím gạch chân tên mục. "Cài đặt" (`/enterprise/settings`) dùng bố cục tab và hai cột: tùy chỉnh bên trái, xem trước bên phải.
 - Góc trên bên phải có chuông (icon duy nhất trong shell) với số đỏ luôn hiển thị, kể cả 0: tổng thông báo nội bộ chưa đọc và việc đang chờ từ `/distribution/tasks`.
 - "Quản lý thông báo" (`/enterprise/messages`) là hộp thư nội bộ: người có `members.manage` gửi thông báo cho tất cả hoặc từng thành viên đang hoạt động; người tham gia trả lời như chat; tin đã gửi không sửa/xóa. API `/enterprise-messages` dùng command journal (`EW_MESSAGE_SEND`, `EW_MESSAGE_REPLY`, `EW_MESSAGE_READ`) và không ghi trace/Fabric.
 - Lựa chọn Riêng tư/Công khai dùng hai ô tick (radio, chọn một trong hai) thay cho danh sách thả xuống. Trang Tổng quan chỉ giữ số liệu, dòng thời gian và lối tắt.
 - Không dùng icon trong shell, menu, tiêu đề trang và nút; nút chỉ có icon trước đây nay có chữ (Quét QR, Trang chủ, Menu, Đóng).
-- Form (`DataForm`, `.workspace-form`, `.enterprise-fields`) rộng theo vùng nội dung (tối đa 1680 px) và chia cột theo bề rộng đó (container query `manage`): một cột khi hẹp, hai cột từ 700 px, nhãn bên trái và ô nhập 60% bên phải từ 1000 px. Ô nhiều dòng, chọn nhiều (bắt đầu thẳng hàng với cột ô nhập bên trái), tiêu đề nhóm `.form-section-title`, thông báo và nút chiếm cả hàng. Trường bắt buộc tự có dấu `*` đỏ theo thuộc tính `required`.
+- Form (`DataForm`, `.workspace-form`, `.enterprise-fields`) rộng hết vùng nội dung, không có giới hạn chiều rộng hay lề căn giữa ở chế độ mặc định, và chia cột theo bề rộng đó (container query `manage`): một cột khi hẹp, hai cột từ 700 px, nhãn bên trái và ô nhập 60% bên phải từ 1000 px. Ô nhiều dòng, chọn nhiều (bắt đầu thẳng hàng với cột ô nhập bên trái), tiêu đề nhóm `.form-section-title`, thông báo và nút chiếm cả hàng. Trường bắt buộc tự có dấu `*` đỏ theo thuộc tính `required`.
 - `LoadState` hiển thị vòng xoay và khung xương khi chờ tải; tắt chuyển động khi `prefers-reduced-motion`.
 - `ConfirmProvider` (`lib/confirm.tsx`) hỏi xác nhận trước các lệnh làm thay đổi quyền, chữ ký, số lượng hoặc trạng thái (`importantAction`), áp dụng chung trong `DataForm` và `useWorkspaceCommand`. Gửi lại yêu cầu chưa rõ kết quả dùng key cũ và không hỏi lại.
 
@@ -276,3 +292,56 @@ giao và ghi chú; trang chi tiết hiển thị các giá trị này trước k
 - Trang QR công khai có mục "Sản phẩm được chế biến từ" và form phản ánh
   (`components/site/consumer-report-form.tsx`). Banner thông báo hệ thống ở
   `components/shell/system-notices.tsx`, ẩn trong phiên trình duyệt.
+
+### Biểu mẫu nhóm quyền
+
+- Trang tạo/sửa nhóm quyền có thanh tên nhóm và hàng chọn mẫu công việc phía trên.
+  Tất cả nhóm chức năng luôn mở, được chia thành ba bảng cạnh nhau trên desktop,
+  cân bằng theo số quyền để xem đồng thời toàn bộ quyền và nút lưu trong một
+  màn hình. Không có chuyển nhóm, thu gọn hoặc cuộn bên trong bảng.
+  “Chọn cả nhóm” chỉ đổi các quyền của nhóm chức năng đó.
+- Cột mẫu đang chọn được chỉnh trực tiếp; các cột còn lại chỉ xem để đối chiếu.
+  Chỉnh từng quyền vẫn giữ cột đang chọn. Mẫu có thể điền tên khi tạo mới nhưng
+  không ghi đè tên người dùng đã tự nhập hoặc tên nhóm đang sửa.
+- Khi bảng hẹp, chỉ giữ cột đang chỉnh; chọn cả nhóm bằng ô trên hàng tên nhóm.
+  Các mẫu vẫn chọn được ở hàng phía trên. Màn hình nhỏ xếp các bảng thành một
+  cột, giữ nguyên mọi quyền để đọc và thao tác; không ép chiều rộng tối thiểu
+  hay cuộn ngang. Lưu vẫn dùng command recovery và version hiện có.
+
+### Danh sách thành viên, sản phẩm và ảnh (20/10/2026)
+
+- Danh sách thành viên có các cột: Mã nhân viên, Thành viên, Số điện thoại, Email,
+  Cấp tài khoản, Nhóm quyền, Trạng thái và nút "Xem chi tiết" cuối dòng. Sửa và
+  xóa nằm trong trang chi tiết; email và họ tên chỉ xem, không sửa.
+- Tạo thành viên bắt buộc họ tên, email, cấp, chức danh, số điện thoại, địa chỉ
+  liên hệ, ít nhất một nhóm quyền, ảnh đại diện và giấy tờ chuyên môn. Ảnh và giấy
+  tờ được tải lên ngay sau khi tài khoản được tạo; không còn khung "bổ sung chứng cứ".
+- Danh sách sản phẩm có các cột: Mã sản phẩm, Tên sản phẩm, Giống / phân loại, Vùng
+  xuất xứ, Đơn vị tính, Trạng thái và nút "Xem chi tiết".
+- Ảnh hiển thị dạng thu nhỏ (`components/workspace/image-gallery.tsx`); bấm vào để
+  xem lớn, đóng bằng dấu × hoặc Esc. Ảnh giữ tỷ lệ và nằm trọn khung (`contain`),
+  không cắt theo khung. Trang sửa sản phẩm đặt ảnh trong cùng thẻ biểu mẫu: gỡ ảnh
+  bằng dấu × (kèm lý do) và "Bổ sung hình ảnh". Lịch sử chỉnh sửa mở trong hộp thoại
+  dạng nhật ký: ai sửa, lúc nào, lý do, trường nào đổi từ giá trị nào sang giá trị nào.
+  Trên desktop rộng, nhãn dùng chung cột 160 px; ô mô tả, ô nhập, ảnh và lý do sửa
+  căn thẳng theo cột này. Thẻ ảnh và nút thêm ảnh cùng kích thước 128 × 104 px.
+
+### Cài đặt giao diện
+
+Chiều rộng Mặc định và Mở rộng dùng hết vùng nội dung giữa sidebar và mép phải,
+giữ lề của shell; cấu hình Mặc định đã lưu cũng áp dụng như vậy sau khi tải lại.
+Chỉ lựa chọn Thu hẹp do người dùng chủ động chọn mới giới hạn nội dung ở 1120 px.
+
+Trang `/enterprise/settings` có các tab Giao diện, Thông tin hệ thống, Tài khoản & hồ sơ, Quản lý dữ liệu và Nâng cao. Màu chủ đề, màu tùy chỉnh, mật độ bảng và chiều rộng nội dung lưu tại `agritrace:appearance:v1`; kiểu chữ tiếp tục dùng `agritrace:typography:v1`. Các lựa chọn chỉ áp dụng trên trình duyệt hiện tại và đồng bộ giữa các tab cùng origin. Bản nháp chỉ đổi khung xem trước cho tới khi lưu; tùy chọn tự động lưu áp dụng sau 500 ms. Hủy trả về cấu hình đã lưu; khôi phục chọn cấu hình gốc để người dùng lưu. Tab Nâng cao giữ đủ 14 nhóm kiểu chữ và toàn bộ danh mục font. Tệp tải xuống chỉ chứa cấu hình giao diện đã lưu. Các tùy chỉnh không đổi quyền, dữ liệu nghiệp vụ hoặc cấu hình máy chủ.
+
+### Hộp công việc
+
+`/enterprise/inbox` gom giao nhận, lô cần xử lý, chuyển quyền và hồ sơ từ nền tảng
+thành các thẻ có bộ lọc loại, trạng thái, mức ưu tiên và tìm kiếm không dấu.
+Ba thống kê dùng dữ liệu trong phạm vi tài khoản: việc đang mở, việc cần phản hồi
+và hồ sơ nền tảng đã đóng; không suy ra số việc hoàn tất trong ngày từ API chỉ trả việc chờ.
+Nút **Xem chi tiết** mở hộp thoại chứa thông tin và lịch sử trao đổi được API chia sẻ,
+kèm liên kết sang giao nhận, lô, tồn kho hoặc chuyển quyền để xử lý tiếp.
+Xác nhận và phản hồi hồ sơ chỉ hiện theo `allowedActions`; gửi kèm version hiện tại
+qua `useWorkspaceCommand`. Đổi bộ lọc giữ nguyên bản nháp và yêu cầu chưa rõ kết quả;
+tải lại bị khóa khi đang gửi/đối soát. Không gán hạn hay mức ưu tiên cho việc chưa có dữ liệu đó.

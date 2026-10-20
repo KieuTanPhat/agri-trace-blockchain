@@ -1,7 +1,7 @@
 "use client";
 import { useParams } from "next/navigation";
-import { MemberForm } from "@/components/workspace/member-form";
+import { MemberDetail } from "@/components/workspace/member-detail";
 export default function Page() {
   const params = useParams<{ id: string }>();
-  return <MemberForm id={params.id} />;
+  return <MemberDetail id={params.id} />;
 }

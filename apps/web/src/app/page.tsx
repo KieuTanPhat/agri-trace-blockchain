@@ -162,11 +162,6 @@ export default function HomePage() {
                 Biến dữ liệu nông trại thành truy xuất nguồn gốc{" "}
                 <span className="accent-text">có thể chứng minh.</span>
               </h1>
-              <p className="lp-lead enter" style={delay(160)}>
-                AgriTrace kết nối vụ trồng, thu hoạch, giao nhận và chứng nhận với
-                từng lô nông sản. Một mã QR giúp người mua xem nguồn gốc, hành
-                trình và trạng thái bằng chứng.
-              </p>
               <p className="lp-promise enter" style={delay(220)}>
                 Dữ liệu nông trại · Bằng chứng sản xuất · Niềm tin người tiêu dùng
               </p>

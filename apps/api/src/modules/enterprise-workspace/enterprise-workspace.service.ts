@@ -7,9 +7,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { hash } from 'bcrypt';
 import { ENTERPRISE_ROLE_TEMPLATES, organizationCode, organizationIdFromCode } from './role-templates.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { queueAccountCredentials, temporaryCredential } from '../auth/account-credentials.js';
+import { nextMemberCode } from './member-code.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
 import type { Prisma } from '../../generated/prisma/client.js';
@@ -38,6 +39,7 @@ import type {
 
 const MEMBER_SELECT = {
   id: true,
+  memberCode: true,
   fullName: true,
   email: true,
   phone: true,
@@ -75,7 +77,11 @@ export class EnterpriseWorkspaceService {
     const auth = await enterpriseAuthority(this.db, actor, 'profile.read');
     const org = await this.db.organization.findUniqueOrThrow({
       where: { id: actor.organizationId! },
-      include: { profile: true, capabilities: { where: { revokedAt: null } } },
+      include: {
+        profile: true,
+        capabilities: { where: { revokedAt: null } },
+        enterpriseEnrollment: { select: { businessId: true, hostingMode: true } },
+      },
     });
     const has = (permission: string) =>
       auth.primary ||
@@ -126,6 +132,9 @@ export class EnterpriseWorkspaceService {
         type: org.type,
         status: org.status,
         capabilities: org.capabilities.map((c) => c.code),
+        participationModel: org.participationModel,
+        businessId: org.enterpriseEnrollment?.businessId ?? null,
+        hostingMode: org.enterpriseEnrollment?.hostingMode ?? null,
       },
       profile: org.profile,
       member: {
@@ -311,9 +320,9 @@ export class EnterpriseWorkspaceService {
     }
   }
   async createMember(actor: CommandActor, input: EnterpriseMemberInput) {
-    if (Buffer.byteLength(input.password, 'utf8') > 72)
-      throw new ConflictException('Mật khẩu tối đa 72 byte UTF-8');
-    const passwordHash = await hash(input.password, 12);
+    // The member never receives a password chosen by someone else: a
+    // temporary one is mailed and must be replaced at first sign-in.
+    const { password, passwordHash } = await temporaryCredential();
     return commandTransaction(this.db, async (tx) => {
       const auth = await this.validateDelegation(tx, actor, input.roles);
       await this.validateMemberProfileReferences(tx, actor, input);
@@ -325,6 +334,7 @@ export class EnterpriseWorkspaceService {
       await assertEntitlement(tx, actor.organizationId!, 'members');
       const user = await tx.user.create({
         data: {
+          memberCode: await nextMemberCode(tx, actor.organizationId!),
           organizationId: actor.organizationId!,
           roleId: role.id,
           email: input.email.trim().toLowerCase(),
@@ -336,11 +346,22 @@ export class EnterpriseWorkspaceService {
           contactAddress: input.contactAddress?.trim(),
           memberNote: input.memberNote?.trim(),
           passwordHash,
+          mustChangePassword: true,
           enterpriseTier: input.tier,
           supervisorId: actor.sub!,
         },
       });
       await this.assign(tx, actor, user.id, input.roles);
+      const organization = await tx.organization.findUniqueOrThrow({
+        where: { id: actor.organizationId! },
+        select: { name: true },
+      });
+      await queueAccountCredentials(
+        tx,
+        user,
+        password,
+        `Bạn đã được thêm làm thành viên của ${organization.name} trên AgriTrace (mã nội bộ ${user.memberCode}).`,
+      );
       return {
         record: await tx.user.findUniqueOrThrow({
           where: { id: user.id },
@@ -486,6 +507,37 @@ export class EnterpriseWorkspaceService {
       };
     });
   }
+  /** Removes a role nobody holds and no pending invitation grants. */
+  deleteRole(actor: CommandActor, id: string, version: number) {
+    return commandTransaction(this.db, async (tx) => {
+      await enterpriseAuthority(tx, actor, 'roles.manage', undefined, undefined, true);
+      const role = await tx.enterpriseRole.findFirst({
+        where: { id, organizationId: actor.organizationId! },
+        include: { members: true },
+      });
+      if (!role) throw new NotFoundException('Không tìm thấy nhóm quyền');
+      if (role.version !== version)
+        throw new ConflictException('Nhóm quyền đã thay đổi; tải lại trang');
+      if (role.members.length)
+        throw new ConflictException(
+          'Nhóm đang gán cho thành viên; chuyển các thành viên sang nhóm khác trước khi xóa',
+        );
+      const invitations = await tx.enterpriseInvitation.findMany({
+        where: { organizationId: actor.organizationId!, status: 'PENDING' },
+        select: { roles: true },
+      });
+      if (
+        invitations.some((i) =>
+          (i.roles as { roleId?: string }[]).some((r) => r.roleId === id),
+        )
+      )
+        throw new ConflictException(
+          'Nhóm đang nằm trong lời mời chưa kết thúc; thu hồi lời mời trước khi xóa',
+        );
+      await tx.enterpriseRole.delete({ where: { id } });
+      return { record: { id, deleted: true } };
+    });
+  }
   saveRole(actor: CommandActor, input: EnterpriseRoleInput, id?: string) {
     return commandTransaction(this.db, async (tx) => {
       const auth = await enterpriseAuthority(
@@ -532,11 +584,18 @@ export class EnterpriseWorkspaceService {
           include: { members: true },
         });
         if (!role) throw new NotFoundException('Không tìm thấy nhóm quyền');
-        // Editing an assigned role changes every delegate. Require explicit reassignment.
-        if (role.members.length)
-          throw new ConflictException(
-            'Nhóm đang được sử dụng; tạo nhóm mới rồi chuyển quyền từng thành viên',
-          );
+        // Editing an assigned role changes every holder at once. A manager may
+        // only do that when every holder is someone they manage.
+        if (!auth.primary && role.members.length) {
+          const holders = await tx.user.findMany({
+            where: { id: { in: role.members.map((m) => m.userId) } },
+            select: { id: true, supervisorId: true },
+          });
+          if (holders.some((h) => h.supervisorId !== actor.sub))
+            throw new ForbiddenException(
+              'Nhóm đang gán cho thành viên ngoài phạm vi bạn quản lý',
+            );
+        }
         const changed = await tx.enterpriseRole.updateMany({
           where: { id, version: input.version ?? -1 },
           data: {
@@ -547,8 +606,27 @@ export class EnterpriseWorkspaceService {
         });
         if (changed.count !== 1)
           throw new ConflictException('Nhóm quyền đã thay đổi');
+        // Chain grants are derived from role permissions; rebuild them for
+        // every active holder. Sessions stay, permissions are read per request.
+        const holderIds = [...new Set(role.members.map((m) => m.userId))];
+        const active = await tx.user.findMany({
+          where: { id: { in: holderIds }, accountStatus: 'ACTIVE' },
+          select: { id: true },
+        });
+        for (const holder of active) {
+          const grants = await tx.enterpriseMemberRole.findMany({
+            where: { userId: holder.id, organizationId: actor.organizationId! },
+            select: { roleId: true, chainIds: true, siteIds: true },
+          });
+          await this.assign(tx, actor, holder.id, grants);
+          await tx.user.update({
+            where: { id: holder.id },
+            data: { enterpriseRevision: { increment: 1 } },
+          });
+        }
         return {
           record: await tx.enterpriseRole.findUniqueOrThrow({ where: { id } }),
+          affectedMembers: active.length,
         };
       }
       return {
@@ -596,22 +674,84 @@ export class EnterpriseWorkspaceService {
     await enterpriseAuthority(this.db, actor, 'partners.read');
     const q = query.trim();
     if (q.length < 2 || q.length > 80) return { items: [] };
+    // An AgriTrace code is AGT- plus the organization UUID without dashes.
+    const codePart = q.replace(/^AGT-?/i, '').replace(/[^A-Fa-f0-9]/g, '').toLowerCase();
+    const like = `%${q.replace(/[\\%_]/g, (c) => '\\' + c)}%`;
     const [registered, external] = await Promise.all([
-      this.db.enterpriseEnrollment.findMany({
-        where: { status: 'APPROVED', organizationId: { not: actor.organizationId! },
-          OR: [{ businessId: { contains: q, mode: 'insensitive' } }, { organization: { name: { contains: q, mode: 'insensitive' } } }],
-        },
-        include: { organization: { select: { id: true, name: true, type: true } } }, take: 20,
-      }),
+      this.db.$queryRaw<{ organizationId: string; businessId: string | null; name: string; type: string }[]>`
+        SELECT e.organization_id AS "organizationId", e.business_id AS "businessId", o.name, o.type::text AS type
+          FROM enterprise_enrollment e JOIN organization o ON o.organization_id = e.organization_id
+         WHERE e.status = 'APPROVED' AND e.organization_id <> ${actor.organizationId!}::uuid
+           AND (e.business_id ILIKE ${like} OR o.name ILIKE ${like}
+             OR (${codePart.length >= 4} AND replace(e.organization_id::text, '-', '') LIKE ${`%${codePart}%`}))
+         ORDER BY o.name LIMIT 20`,
       this.db.enterpriseExternalPartner.findMany({
-        where: { organizationId: actor.organizationId!, OR: [{ businessId: { contains: q, mode: 'insensitive' } }, { name: { contains: q, mode: 'insensitive' } }] },
+        where: { organizationId: actor.organizationId!, OR: [
+          { businessId: { contains: q, mode: 'insensitive' } },
+          { taxCode: { contains: q, mode: 'insensitive' } },
+          { name: { contains: q, mode: 'insensitive' } },
+        ] },
         take: 20,
       }),
     ]);
+    const lower = q.toLowerCase();
+    const matched = (tax: string | null, name: string, code: string | null) =>
+      tax && tax.toLowerCase().includes(lower) ? 'TAX' : name.toLowerCase().includes(lower) ? 'NAME' : code ? 'CODE' : 'TAX';
     return { items: [
-      ...registered.map((row) => ({ id: row.organizationId, businessId: row.businessId ?? organizationCode(row.organizationId), name: row.organization.name, kind: row.organization.type, registered: true })),
-      ...external.map((row) => ({ id: row.id, businessId: row.businessId, name: row.name, kind: row.kind, registered: false })),
+      ...registered.map((row) => {
+        const code = organizationCode(row.organizationId);
+        return { id: row.organizationId, businessId: row.businessId ?? code, taxCode: row.businessId, agriTraceCode: code, name: row.name, kind: row.type, registered: true, matched: matched(row.businessId, row.name, code) };
+      }),
+      ...external.map((row) => ({ id: row.id, businessId: row.businessId, taxCode: row.taxCode ?? row.businessId, agriTraceCode: null, name: row.name, kind: row.kind, registered: false, matched: matched(row.taxCode ?? row.businessId, row.name, null) })),
     ] };
+  }
+  /** Business profile of another approved enterprise, for deciding whether
+   * to invite it. Only approved enterprises are listed; no member data. */
+  async partnerProfile(actor: CommandActor, organizationId: string) {
+    await enterpriseAuthority(this.db, actor, 'partners.read');
+    if (organizationId === actor.organizationId)
+      throw new NotFoundException('Không tìm thấy doanh nghiệp');
+    const enrollment = await this.db.enterpriseEnrollment.findFirst({
+      where: { organizationId, status: 'APPROVED' },
+      select: { businessId: true, organization: { select: { name: true, type: true } } },
+    });
+    if (!enrollment) throw new NotFoundException('Không tìm thấy doanh nghiệp');
+    const [profile, capabilities, link] = await Promise.all([
+      this.db.enterpriseProfile.findUnique({ where: { organizationId } }),
+      this.db.organizationCapability.findMany({
+        where: { organizationId, revokedAt: null },
+        select: { code: true },
+      }),
+      this.db.enterprisePartner.findFirst({
+        where: {
+          OR: [
+            { inviterId: actor.organizationId!, inviteeId: organizationId },
+            { inviterId: organizationId, inviteeId: actor.organizationId! },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+    return {
+      organizationId,
+      agriTraceCode: organizationCode(organizationId),
+      name: enrollment.organization.name,
+      kind: enrollment.organization.type,
+      taxCode: enrollment.businessId,
+      capabilities: capabilities.map((c) => c.code),
+      legalForm: profile?.legalForm ?? null,
+      address: profile?.address ?? null,
+      ward: profile?.ward ?? null,
+      province: profile?.province ?? null,
+      representative: profile?.representative ?? null,
+      phone: profile?.phone ?? null,
+      contactEmail: profile?.contactEmail ?? null,
+      website: profile?.website ?? null,
+      description: profile?.description ?? null,
+      activities: profile?.activities ?? [],
+      linkStatus: link?.status ?? null,
+      linkDirection: link ? (link.inviterId === actor.organizationId ? 'SENT' : 'RECEIVED') : null,
+    };
   }
   createExternalPartner(actor: CommandActor, input: EnterpriseExternalPartnerInput) {
     return commandTransaction(this.db, async (tx) => {

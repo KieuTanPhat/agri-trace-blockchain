@@ -5,16 +5,16 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 import { request, getOrganizations } from "@/lib/api-client";
-import { DataForm } from "@/components/data-form";
 import { LedgerStatusPanel } from "@/components/ledger-status-panel";
 import { SigningKeysPanel } from "@/components/signing-keys-panel";
 import { ShipmentPlansPanel } from "@/components/shipment-plans-panel";
 import { BusinessProfilePanel } from "@/components/business-profile-panel";
 import { EvidencePanel } from "@/components/workspace/evidence-panel";
 import { EntityThumb } from "@/components/workspace/entity-thumb";
-import { useWorkspaceData, type Catalog } from "@/lib/workspace";
+import { DataForm } from "@/components/data-form";
 import type { components } from "@/lib/generated/api";
 import type { Organization } from "@/lib/types";
+import { STAGES, SupplyModelView, chainTypeLabel } from "./chain-create";
 
 type Chain = components["schemas"]["ChainRecordDto"];
 type Member = components["schemas"]["MemberRecordDto"];
@@ -41,7 +41,14 @@ const roleLabels: Record<string, string> = {
 };
 
 type ChainView =
-  "chains" | "members" | "roles" | "business" | "ledger" | "signing" | "plans";
+  | "chains"
+  | "detail"
+  | "members"
+  | "roles"
+  | "business"
+  | "ledger"
+  | "signing"
+  | "plans";
 export default function ChainManagement({
   view = "chains",
   initialChainId = "",
@@ -165,7 +172,6 @@ function ChainWorkspace({
     context?.grants.some(
       (g) => g.chainId === selected && g.role === "CHAIN_MANAGER",
     );
-  const catalog = useWorkspaceData<Catalog>("/catalog");
   const canCreate = context?.grants.some(
     (g) => g.scope === "ORGANIZATION" && g.role === "CREATE_CHAIN",
   );
@@ -184,6 +190,7 @@ function ChainWorkspace({
               (
                 {
                   chains: "Chuỗi truy xuất",
+                  detail: chain?.name ?? "Chi tiết chuỗi",
                   members: "Thành viên chuỗi",
                   roles: "Quyền trong chuỗi",
                   business: "Phân công nghiệp vụ",
@@ -195,9 +202,16 @@ function ChainWorkspace({
             }
           </h1>
         </div>
-        <button className="button secondary" onClick={refresh}>
-          Tải lại quyền và dữ liệu
-        </button>
+        <div className="workspace-actions">
+          <button className="button secondary" onClick={refresh}>
+            Tải lại quyền và dữ liệu
+          </button>
+          {view === "chains" && canCreate && (
+            <Link className="button" href="/supply-chains/new">
+              + Thêm chuỗi truy xuất
+            </Link>
+          )}
+        </div>
       </section>
       {error && (
         <p className="notice error" role="alert">
@@ -205,31 +219,70 @@ function ChainWorkspace({
         </p>
       )}
       {loading && <p role="status">Đang tải chuỗi được cấp quyền…</p>}
-      {view === "chains" && canCreate && (
-        <DataForm
-          title="Tạo chuỗi truy xuất"
-          path="/supply-chains"
-          fields={[
-            {
-              name: "name",
-              label: "Tên chuỗi",
-              required: true,
-              maxLength: 255,
-            },
-            { name: "chainType", label: "Loại chuỗi", required: true, options: [{ value: "CROP", label: "Nông sản trồng trọt" }] },
-            { name: "description", label: "Mô tả chuỗi", maxLength: 2000 },
-            { name: "plannedStartDate", label: "Ngày bắt đầu hoạt động", type: "date" },
-            { name: "productIds", label: "Sản phẩm liên kết (không bắt buộc)", type: "multiselect", maxItems: 50, options: (catalog.data?.products ?? []).filter((product) => product.status === "ACTIVE").map((product) => ({ value: product.id, label: product.productName })) },
-            { name: "note", label: "Ghi chú khác", maxLength: 2000 },
-          ]}
-          onSaved={refresh}
-        />
+      {view === "chains" && (
+        <section className="panel">
+          <h2>Chuỗi đang quản lý và tham gia</h2>
+          {!loading && !chains.length && (
+            <p>Bạn chưa có chuỗi hoặc lời mời trong phạm vi được cấp.</p>
+          )}
+          {chains.length > 0 && (
+            <div className="manage-table-scroll">
+              <table className="manage-table">
+                <thead>
+                  <tr>
+                    <th>Ảnh</th>
+                    <th>Mã chuỗi</th>
+                    <th>Tên chuỗi</th>
+                    <th>Loại chuỗi</th>
+                    <th>Chủ chuỗi</th>
+                    <th>Mô hình</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chains.map((item) => {
+                    const model = (item.supplyModel as {
+                      stages?: { stage: string; organizationIds: string[] }[];
+                    } | null)?.stages ?? [];
+                    return (
+                      <tr key={item.id}>
+                        <td data-label="Ảnh">
+                          <EntityThumb entityType="CHAIN" entityId={item.id} kinds={["CHAIN_IMAGE"]} name={item.name} />
+                        </td>
+                        <td data-label="Mã chuỗi">{item.code ?? "—"}</td>
+                        <td data-label="Tên chuỗi">
+                          <strong>{item.name}</strong>
+                          {item.ownerOrganizationId === organizationId && (
+                            <small>Chuỗi của doanh nghiệp bạn</small>
+                          )}
+                        </td>
+                        <td data-label="Loại chuỗi">{chainTypeLabel(item.chainType)}</td>
+                        <td data-label="Chủ chuỗi">{name(item.ownerOrganizationId)}</td>
+                        <td data-label="Mô hình">
+                          {model.length
+                            ? STAGES.filter(([code]) => model.some((m) => m.stage === code))
+                                .map(([, title]) => title)
+                                .join(" → ")
+                            : "—"}
+                        </td>
+                        <td data-label="Thao tác">
+                          <Link className="button secondary small" href={`/supply-chains/${item.id}`}>
+                            Chi tiết
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
+      {view !== "chains" && (
       <section className="panel">
-        <h2>Chuỗi của tổ chức</h2>
-        {!loading && !chains.length && (
-          <p>Bạn chưa có chuỗi hoặc lời mời trong phạm vi được cấp.</p>
-        )}
+        <h2>{view === "detail" ? "Thông tin chuỗi" : "Chuỗi đang thao tác"}</h2>
+        {view !== "detail" && (
         <label className="field">
           <span>Chọn chuỗi</span>
           <select
@@ -249,8 +302,20 @@ function ChainWorkspace({
             ))}
           </select>
         </label>
-        {chain && <div className="chain-summary"><EntityThumb entityType="CHAIN" entityId={chain.id} kinds={["CHAIN_IMAGE"]} name={chain.name} /><p>Mã chuỗi: {chain.code ?? chain.id} · Chủ chuỗi: {name(chain.ownerOrganizationId)} · {chain.chainType === "CROP" ? "Nông sản trồng trọt" : chain.chainType}</p></div>}
-        {chain && view === "chains" && (
+        )}
+        {chain && <div className="chain-summary"><EntityThumb entityType="CHAIN" entityId={chain.id} kinds={["CHAIN_IMAGE"]} name={chain.name} /><p>Mã chuỗi: {chain.code ?? chain.id} · Chủ chuỗi: {name(chain.ownerOrganizationId)} · {chainTypeLabel(chain.chainType)}</p></div>}
+        {chain && view === "detail" && (
+          <>
+            <h3>Mô hình chuỗi cung ứng</h3>
+            <SupplyModelView
+              stages={(chain.supplyModel as { stages?: { stage: string; organizationIds: string[] }[] } | null)?.stages ?? []}
+              name={name}
+            />
+            {chain.description && <p>{chain.description}</p>}
+            <h3>Chức năng quản lý chuỗi</h3>
+          </>
+        )}
+        {chain && view === "detail" && (
           <div className="workspace-grid">
             {[
               ["members", "Thành viên chuỗi"],
@@ -271,10 +336,11 @@ function ChainWorkspace({
             ))}
           </div>
         )}
-        {chain && view === "chains" && chain.ownerOrganizationId === organizationId && (
+        {chain && view === "detail" && chain.ownerOrganizationId === organizationId && (
           <EvidencePanel entityType="CHAIN" entityId={chain.id} />
         )}
       </section>
+      )}
       {view === "business" && chain && !platformAdmin && (
         <BusinessProfilePanel
           key={`profile:${selected}:${revision}`}

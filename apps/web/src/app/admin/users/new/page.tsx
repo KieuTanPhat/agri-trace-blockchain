@@ -20,7 +20,7 @@ export default function NewPlatformUserPage() {
     <div className="manage-console manage-console--form">
       <PageHeader
         title="Tạo tài khoản nền tảng"
-        description="Chỉ tạo quản trị viên nội bộ hoặc người kiểm định độc lập. Doanh nghiệp tự quản lý nhân viên của mình."
+        description="Chỉ tạo quản trị viên nội bộ hoặc người kiểm định độc lập. Doanh nghiệp tự quản lý nhân viên của mình. Mật khẩu tạm được gửi tới email đăng nhập và phải đổi ở lần đăng nhập đầu tiên."
         back="/admin/users"
       />
       <LoadState {...organizations} />
@@ -81,12 +81,6 @@ export default function NewPlatformUserPage() {
               name: "email",
               label: "Email đăng nhập",
               type: "email",
-              required: true,
-            },
-            {
-              name: "password",
-              label: "Mật khẩu ban đầu (ít nhất 12 ký tự)",
-              type: "password",
               required: true,
             },
             ...(role === "COMPLIANCE_REVIEWER"

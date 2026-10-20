@@ -38,6 +38,12 @@ export class WorkspaceOrganizationDto {
   status!: Enums.OrganizationStatus;
   @ApiProperty({ enum: Enums.OrganizationType, isArray: true })
   capabilities!: Enums.OrganizationType[];
+  @ApiProperty({ type: String, required: false, description: 'SINGLE or SUPPLY_CHAIN_ENTERPRISE' })
+  participationModel?: string;
+  @ApiProperty({ type: String, nullable: true, required: false, description: 'Tax identifier from registration' })
+  businessId?: string | null;
+  @ApiProperty({ type: String, nullable: true, required: false })
+  hostingMode?: string | null;
 }
 export class WorkspaceMemberSummaryDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
@@ -94,6 +100,8 @@ export class EnterpriseMemberRoleDto {
   @ApiProperty({ type: EnterpriseRoleRecordDto }) role!: EnterpriseRoleRecordDto;
 }
 export class EnterpriseMemberDto {
+  @ApiProperty({ type: String, nullable: true, description: 'Internal code, e.g. NV0001' })
+  memberCode!: string | null;
   @ApiProperty({ type: String, nullable: true }) jobTitle!: string | null;
   @ApiProperty({ type: String, nullable: true }) phone!: string | null;
   @ApiProperty({ type: String, nullable: true, format: 'uuid' }) workSiteId!: string | null;
@@ -118,6 +126,7 @@ export class EnterpriseMemberListDto {
 
 export class EnterpriseMemberInvitationDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
+  @ApiProperty({ type: String, nullable: true }) memberCode!: string | null;
   @ApiProperty({ type: String }) email!: string;
   @ApiProperty({ type: String }) fullName!: string;
   @ApiProperty({ type: Number }) tier!: number;
@@ -179,6 +188,34 @@ export class PartnerSearchItemDto {
   @ApiProperty() name!: string;
   @ApiProperty() kind!: string;
   @ApiProperty() registered!: boolean;
+  @ApiProperty({ type: String, nullable: true, description: 'Tax identifier' })
+  taxCode!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: 'AGT code; null for partners outside AgriTrace' })
+  agriTraceCode!: string | null;
+  @ApiProperty({ enum: ['TAX', 'NAME', 'CODE'], description: 'Which group the query matched' })
+  matched!: 'TAX' | 'NAME' | 'CODE';
+}
+/** Business profile of an approved AgriTrace enterprise, shown before inviting. */
+export class PartnerDirectoryProfileDto {
+  @ApiProperty({ format: 'uuid' }) organizationId!: string;
+  @ApiProperty() agriTraceCode!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() kind!: string;
+  @ApiProperty({ type: String, nullable: true }) taxCode!: string | null;
+  @ApiProperty({ type: [String], description: 'Approved capabilities' }) capabilities!: string[];
+  @ApiProperty({ type: String, nullable: true }) legalForm!: string | null;
+  @ApiProperty({ type: String, nullable: true }) address!: string | null;
+  @ApiProperty({ type: String, nullable: true }) ward!: string | null;
+  @ApiProperty({ type: String, nullable: true }) province!: string | null;
+  @ApiProperty({ type: String, nullable: true }) representative!: string | null;
+  @ApiProperty({ type: String, nullable: true }) phone!: string | null;
+  @ApiProperty({ type: String, nullable: true }) contactEmail!: string | null;
+  @ApiProperty({ type: String, nullable: true }) website!: string | null;
+  @ApiProperty({ type: String, nullable: true }) description!: string | null;
+  @ApiProperty({ type: [String] }) activities!: string[];
+  @ApiProperty({ type: String, nullable: true, enum: ['INVITED', 'ACTIVE', 'REJECTED', 'REVOKED'], description: 'Existing link with the viewer, if any' })
+  linkStatus!: string | null;
+  @ApiProperty({ type: String, nullable: true, enum: ['SENT', 'RECEIVED'] }) linkDirection!: string | null;
 }
 export class PartnerSearchListDto {
   @ApiProperty({ type: [PartnerSearchItemDto] }) items!: PartnerSearchItemDto[];

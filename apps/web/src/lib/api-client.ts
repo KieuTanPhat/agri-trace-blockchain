@@ -241,6 +241,32 @@ export async function getPublicTrace(
   }
 }
 
+/** Use only explicitly published, current lot evidence for the public photograph. */
+export async function getPublicLotPhoto(
+  traceToken: string,
+): Promise<string | null> {
+  if (USE_MOCK_API) return null;
+  try {
+    const token = encodeURIComponent(traceToken);
+    const evidence = await request<{
+      items: Array<{ id: string; mediaType: string }>;
+    }>(`/trace/${token}/evidence`, undefined, false);
+    const photo = evidence.items.find((item) =>
+      ["image/jpeg", "image/png", "image/webp"].includes(item.mediaType),
+    );
+    const publicBase =
+      process.env.NEXT_PUBLIC_API_SAME_ORIGIN === "true"
+        ? "/api"
+        : PUBLIC_API_BASE_URL;
+    return photo
+      ? `${publicBase}/trace/${token}/evidence/${encodeURIComponent(photo.id)}`
+      : null;
+  } catch {
+    // An unavailable photograph must not hide the lot's warnings and trace.
+    return null;
+  }
+}
+
 export async function getOrganizations(): Promise<Organization[]> {
   const organizations =
     await request<

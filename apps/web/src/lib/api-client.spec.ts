@@ -22,6 +22,34 @@ const user = {
 const auth = { accessToken: "old", tokenType: "Bearer" as const, user };
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status });
+
+it("uses only public image evidence for the public lot photograph", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(
+    json({
+      success: true,
+      data: {
+        items: [
+          { id: "document", mediaType: "application/pdf" },
+          { id: "photo", mediaType: "image/jpeg" },
+        ],
+      },
+    }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  const { getPublicLotPhoto } = await import("./api-client");
+  expect(await getPublicLotPhoto("public-token")).toBe(
+    "http://api.test/api/trace/public-token/evidence/photo",
+  );
+  const [url, options] = fetchMock.mock.calls[0];
+  expect(url).toBe("http://api.test/api/trace/public-token/evidence");
+  expect(new Headers(options.headers).has("authorization")).toBe(false);
+});
+
+it("omits the photograph when public evidence is unavailable", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+  const { getPublicLotPhoto } = await import("./api-client");
+  expect(await getPublicLotPhoto("public-token")).toBeNull();
+});
 let restoreLocks: (() => void) | undefined;
 
 beforeEach(() => {

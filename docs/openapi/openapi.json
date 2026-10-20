@@ -1783,11 +1783,38 @@
         ],
         "type": "object"
       },
+      "ChainParticipantDto": {
+        "properties": {
+          "organizationId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "stage": {
+            "description": "Stage this organization performs in the chain",
+            "enum": [
+              "FARM",
+              "PROCESSOR",
+              "TRANSPORTER",
+              "DISTRIBUTOR",
+              "RETAILER"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "organizationId",
+          "stage"
+        ],
+        "type": "object"
+      },
       "ChainRecordDto": {
         "properties": {
           "chainType": {
             "enum": [
-              "CROP"
+              "CROP",
+              "LIVESTOCK",
+              "AQUACULTURE",
+              "PROCESSED_FOOD"
             ],
             "type": "string"
           },
@@ -1829,6 +1856,11 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "supplyModel": {
+            "description": "{ stages: [{ stage, organizationIds[] }] } in supply order",
+            "nullable": true,
+            "type": "object"
           },
           "version": {
             "type": "number"
@@ -2284,8 +2316,12 @@
       "CreateChainDto": {
         "properties": {
           "chainType": {
+            "description": "Defaults to CROP",
             "enum": [
-              "CROP"
+              "CROP",
+              "LIVESTOCK",
+              "AQUACULTURE",
+              "PROCESSED_FOOD"
             ],
             "type": "string"
           },
@@ -2300,6 +2336,13 @@
           "note": {
             "maxLength": 2000,
             "type": "string"
+          },
+          "participants": {
+            "description": "Supply model: the owner and each organization taking part, with the stage it performs. Other organizations are invited to the chain. Omitted: the owner at the stages of its approved capabilities.",
+            "items": {
+              "$ref": "#/components/schemas/ChainParticipantDto"
+            },
+            "type": "array"
           },
           "plannedStartDate": {
             "format": "date",
@@ -2866,13 +2909,6 @@
             "format": "uuid",
             "type": "string"
           },
-          "password": {
-            "description": "At least 12 characters and at most 72 UTF-8 bytes. Passwords are never trimmed or truncated.",
-            "format": "password",
-            "maxLength": 72,
-            "minLength": 12,
-            "type": "string"
-          },
           "roleCode": {
             "type": "string"
           }
@@ -2880,7 +2916,6 @@
         "required": [
           "email",
           "fullName",
-          "password",
           "roleCode"
         ],
         "type": "object"
@@ -4421,7 +4456,7 @@
             "type": "string"
           },
           "taxCode": {
-            "maxLength": 40,
+            "maxLength": 14,
             "type": "string"
           }
         },
@@ -4429,7 +4464,12 @@
           "businessId",
           "name",
           "kind",
-          "address"
+          "address",
+          "phone",
+          "email",
+          "taxCode",
+          "representative",
+          "note"
         ],
         "type": "object"
       },
@@ -4486,6 +4526,11 @@
             "nullable": true,
             "type": "string"
           },
+          "memberCode": {
+            "description": "Internal code, e.g. NV0001",
+            "nullable": true,
+            "type": "string"
+          },
           "memberNote": {
             "nullable": true,
             "type": "string"
@@ -4511,6 +4556,7 @@
           }
         },
         "required": [
+          "memberCode",
           "jobTitle",
           "phone",
           "workSiteId",
@@ -4532,6 +4578,7 @@
         "properties": {
           "contactAddress": {
             "maxLength": 500,
+            "minLength": 5,
             "type": "string"
           },
           "email": {
@@ -4550,13 +4597,8 @@
             "maxLength": 1000,
             "type": "string"
           },
-          "password": {
-            "format": "password",
-            "maxLength": 72,
-            "minLength": 12,
-            "type": "string"
-          },
           "phone": {
+            "description": "Required contact phone (Vietnamese number)",
             "maxLength": 30,
             "type": "string"
           },
@@ -4568,6 +4610,7 @@
             "items": {
               "$ref": "#/components/schemas/MemberRoleInput"
             },
+            "minItems": 1,
             "type": "array"
           },
           "tier": {
@@ -4585,8 +4628,9 @@
         "required": [
           "fullName",
           "jobTitle",
+          "phone",
+          "contactAddress",
           "email",
-          "password",
           "tier",
           "roles"
         ],
@@ -4612,6 +4656,10 @@
             "format": "uuid",
             "type": "string"
           },
+          "memberCode": {
+            "nullable": true,
+            "type": "string"
+          },
           "status": {
             "type": "string"
           },
@@ -4624,6 +4672,7 @@
         },
         "required": [
           "id",
+          "memberCode",
           "email",
           "fullName",
           "tier",
@@ -4737,9 +4786,11 @@
             "type": "array"
           },
           "status": {
+            "description": "INACTIVE removes the member: roles and sessions are revoked, history stays.",
             "enum": [
               "ACTIVE",
-              "LOCKED"
+              "LOCKED",
+              "INACTIVE"
             ],
             "type": "string"
           },
@@ -5617,6 +5668,18 @@
         ],
         "type": "object"
       },
+      "EnterpriseVersionInput": {
+        "properties": {
+          "version": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "type": "object"
+      },
       "EscalateCaseDto": {
         "properties": {
           "note": {
@@ -5725,6 +5788,7 @@
               "HARVEST_IMAGE",
               "CARE_IMAGE",
               "PARTNER_LOGO",
+              "PARTNERSHIP_EVIDENCE",
               "MEMBER_AVATAR",
               "MEMBER_DOCUMENT",
               "CHAIN_IMAGE",
@@ -5753,6 +5817,20 @@
           "entityId",
           "description",
           "file"
+        ],
+        "type": "object"
+      },
+      "EvidenceWithdrawalInput": {
+        "properties": {
+          "reason": {
+            "description": "Why the product photo is no longer shown",
+            "maxLength": 500,
+            "minLength": 5,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
         ],
         "type": "object"
       },
@@ -7077,6 +7155,7 @@
               "EW_CHANGE_MEMBER_SUPERVISOR",
               "EW_CREATE_ROLE",
               "EW_UPDATE_ROLE",
+              "EW_DELETE_ROLE",
               "EW_INVITE_PARTNER",
               "EW_CREATE_EXTERNAL_PARTNER",
               "EW_RESOLVE_PARTNER",
@@ -7093,6 +7172,8 @@
               "EW_UPDATE_MATERIAL",
               "EW_IMPORT_PRODUCTS",
               "EW_UPLOAD_EVIDENCE",
+              "EW_WITHDRAW_EVIDENCE",
+              "EW_ORDER_PRODUCT_PHOTOS",
               "EW_COMPLETE_MATERIAL",
               "EW_ALLOCATE",
               "EW_QUARANTINE",
@@ -8919,6 +9000,7 @@
         "properties": {
           "contactAddress": {
             "maxLength": 500,
+            "minLength": 5,
             "type": "string"
           },
           "email": {
@@ -8942,6 +9024,7 @@
             "type": "string"
           },
           "phone": {
+            "description": "Required contact phone (Vietnamese number)",
             "maxLength": 30,
             "type": "string"
           },
@@ -8953,6 +9036,7 @@
             "items": {
               "$ref": "#/components/schemas/MemberRoleInput"
             },
+            "minItems": 1,
             "type": "array"
           },
           "tier": {
@@ -8974,6 +9058,8 @@
         "required": [
           "fullName",
           "jobTitle",
+          "phone",
+          "contactAddress",
           "email",
           "tier",
           "roles",
@@ -9799,6 +9885,116 @@
         ],
         "type": "object"
       },
+      "PartnerDirectoryProfileDto": {
+        "properties": {
+          "activities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "address": {
+            "nullable": true,
+            "type": "string"
+          },
+          "agriTraceCode": {
+            "type": "string"
+          },
+          "capabilities": {
+            "description": "Approved capabilities",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "contactEmail": {
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "legalForm": {
+            "nullable": true,
+            "type": "string"
+          },
+          "linkDirection": {
+            "enum": [
+              "SENT",
+              "RECEIVED"
+            ],
+            "nullable": true,
+            "type": "string"
+          },
+          "linkStatus": {
+            "description": "Existing link with the viewer, if any",
+            "enum": [
+              "INVITED",
+              "ACTIVE",
+              "REJECTED",
+              "REVOKED"
+            ],
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organizationId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "phone": {
+            "nullable": true,
+            "type": "string"
+          },
+          "province": {
+            "nullable": true,
+            "type": "string"
+          },
+          "representative": {
+            "nullable": true,
+            "type": "string"
+          },
+          "taxCode": {
+            "nullable": true,
+            "type": "string"
+          },
+          "ward": {
+            "nullable": true,
+            "type": "string"
+          },
+          "website": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "organizationId",
+          "agriTraceCode",
+          "name",
+          "kind",
+          "taxCode",
+          "capabilities",
+          "legalForm",
+          "address",
+          "ward",
+          "province",
+          "representative",
+          "phone",
+          "contactEmail",
+          "website",
+          "description",
+          "activities",
+          "linkStatus",
+          "linkDirection"
+        ],
+        "type": "object"
+      },
       "PartnerOrganizationDto": {
         "properties": {
           "code": {
@@ -9834,6 +10030,11 @@
       },
       "PartnerSearchItemDto": {
         "properties": {
+          "agriTraceCode": {
+            "description": "AGT code; null for partners outside AgriTrace",
+            "nullable": true,
+            "type": "string"
+          },
           "businessId": {
             "type": "string"
           },
@@ -9844,11 +10045,25 @@
           "kind": {
             "type": "string"
           },
+          "matched": {
+            "description": "Which group the query matched",
+            "enum": [
+              "TAX",
+              "NAME",
+              "CODE"
+            ],
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
           "registered": {
             "type": "boolean"
+          },
+          "taxCode": {
+            "description": "Tax identifier",
+            "nullable": true,
+            "type": "string"
           }
         },
         "required": [
@@ -9856,7 +10071,10 @@
           "businessId",
           "name",
           "kind",
-          "registered"
+          "registered",
+          "taxCode",
+          "agriTraceCode",
+          "matched"
         ],
         "type": "object"
       },
@@ -11988,6 +12206,22 @@
         ],
         "type": "object"
       },
+      "ProductPhotoOrderInput": {
+        "properties": {
+          "order": {
+            "description": "Current product photo ids in display order; the first is the main photo",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "order"
+        ],
+        "type": "object"
+      },
       "ProductRecordDto": {
         "properties": {
           "carrier": {
@@ -13627,7 +13861,7 @@
             "type": "string"
           },
           "emailVerifications": {
-            "description": "One or two verified proofs for the admin email and enterprise contact email. One proof if both addresses are identical.",
+            "description": "Exactly one verified OTP proof for the admin login email. The contact email is not verified by OTP.",
             "items": {
               "$ref": "#/components/schemas/RegistrationEmailProof"
             },
@@ -13666,13 +13900,6 @@
             ],
             "type": "string"
           },
-          "password": {
-            "description": "At least 12 characters, at most 72 UTF-8 bytes; never trimmed.",
-            "format": "password",
-            "maxLength": 72,
-            "minLength": 12,
-            "type": "string"
-          },
           "requestId": {
             "description": "Retain this id and the original form for retries.",
             "format": "uuid",
@@ -13683,7 +13910,6 @@
           "emailVerifications",
           "requestId",
           "email",
-          "password",
           "fullName",
           "organizationName",
           "organizationType",
@@ -17936,6 +18162,11 @@
       },
       "WorkspaceOrganizationDto": {
         "properties": {
+          "businessId": {
+            "description": "Tax identifier from registration",
+            "nullable": true,
+            "type": "string"
+          },
           "capabilities": {
             "items": {
               "enum": [
@@ -17954,11 +18185,19 @@
             "description": "AGT organization code",
             "type": "string"
           },
+          "hostingMode": {
+            "nullable": true,
+            "type": "string"
+          },
           "id": {
             "format": "uuid",
             "type": "string"
           },
           "name": {
+            "type": "string"
+          },
+          "participationModel": {
+            "description": "SINGLE or SUPPLY_CHAIN_ENTERPRISE",
             "type": "string"
           },
           "status": {
@@ -35030,6 +35269,183 @@
         ]
       }
     },
+    "/api/enterprise-workspace/evidence/{id}/withdraw": {
+      "post": {
+        "operationId": "EnterpriseResourcesController_withdraw",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvidenceWithdrawalInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "enterprise-resources"
+        ]
+      }
+    },
     "/api/enterprise-workspace/materials": {
       "get": {
         "operationId": "EnterpriseResourcesController_materials",
@@ -38198,6 +38614,165 @@
         ]
       }
     },
+    "/api/enterprise-workspace/partners/directory/{organizationId}": {
+      "get": {
+        "operationId": "EnterpriseWorkspaceController_partnerProfile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organizationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PartnerDirectoryProfileDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "enterprise-workspace"
+        ]
+      }
+    },
     "/api/enterprise-workspace/partners/external": {
       "get": {
         "operationId": "EnterpriseWorkspaceController_externalPartners",
@@ -39030,6 +39605,183 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ProductRevisionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "enterprise-resources"
+        ]
+      }
+    },
+    "/api/enterprise-workspace/products/{id}/photo-order": {
+      "post": {
+        "operationId": "EnterpriseResourcesController_photoOrder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductPhotoOrderInput"
               }
             }
           },
@@ -40506,6 +41258,183 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EnterpriseRoleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "enterprise-workspace"
+        ]
+      }
+    },
+    "/api/enterprise-workspace/roles/{id}/delete": {
+      "post": {
+        "operationId": "EnterpriseWorkspaceController_deleteRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnterpriseVersionInput"
               }
             }
           },

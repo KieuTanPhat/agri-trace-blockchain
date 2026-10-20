@@ -18,6 +18,7 @@ import {
   organizationGrant,
 } from './chain-policy.js';
 import type { ChangeMemberDto, CreateChainDto, GrantRoleDto } from './dto.js';
+import { SUPPLY_STAGES } from './dto.js';
 import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import { assertBusinessActivationReady } from './business-profile.commands.js';
 import { bindingObservation } from '../ledger/binding-observation.js';
@@ -378,6 +379,49 @@ export class SupplyChainsService {
     return this.transaction(async (tx) => {
       await assertEntitlement(tx, actor.organizationId!, 'chains');
       const productIds = input.productIds ?? [];
+      // The supply model names the owner and every organization taking part;
+      // the others are invited in the same transaction.
+      const participants =
+        input.participants ??
+        (
+          await tx.organizationCapability.findMany({
+            where: { organizationId: actor.organizationId!, revokedAt: null },
+            select: { code: true },
+          })
+        )
+          .filter((c) => (SUPPLY_STAGES as readonly string[]).includes(c.code))
+          .map((c) => ({
+            organizationId: actor.organizationId!,
+            stage: c.code as (typeof SUPPLY_STAGES)[number],
+          }));
+      if (
+        input.participants &&
+        !participants.some((p) => p.organizationId === actor.organizationId)
+      )
+        throw new UnprocessableEntityException(
+          'Mô hình chuỗi cần có tổ chức của bạn ở ít nhất một khâu',
+        );
+      const others = [
+        ...new Set(
+          participants
+            .map((p) => p.organizationId)
+            .filter((id) => id !== actor.organizationId),
+        ),
+      ];
+      for (const organizationId of others)
+        await this.activeOrganization(tx, organizationId);
+      const supplyModel = {
+        stages: SUPPLY_STAGES.map((stage) => ({
+          stage,
+          organizationIds: [
+            ...new Set(
+              participants
+                .filter((p) => p.stage === stage)
+                .map((p) => p.organizationId),
+            ),
+          ],
+        })).filter((s) => s.organizationIds.length),
+      };
       if (productIds.length && await tx.product.count({ where: { id: { in: productIds }, organizationId: actor.organizationId!, status: 'ACTIVE' } }) !== productIds.length)
         throw new UnprocessableEntityException('Sản phẩm liên kết phải là sản phẩm đang hoạt động của doanh nghiệp');
       const chain = await tx.supplyChain.create({
@@ -389,6 +433,7 @@ export class SupplyChainsService {
           plannedStartDate: input.plannedStartDate ? normalizeExpiryDate(input.plannedStartDate) : undefined,
           note: input.note,
           productIds,
+          supplyModel,
           ownerOrganizationId: actor.organizationId!,
         },
       });
@@ -410,6 +455,12 @@ export class SupplyChainsService {
         },
       });
       await this.audit(tx, actor, 'CREATE_CHAIN', chain.id, 0, chain.id);
+      for (const organizationId of others) {
+        const member = await tx.chainMembership.create({
+          data: { chainId: chain.id, organizationId },
+        });
+        await this.audit(tx, actor, 'INVITE_MEMBER', member.id, member.version, chain.id);
+      }
       return chain;
     });
   }

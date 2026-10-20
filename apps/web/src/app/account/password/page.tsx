@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/lib/confirm";
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
 import { request } from "@/lib/api-client";
@@ -15,12 +16,19 @@ export default function ChangePasswordPage() {
   const [again, setAgain] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
-  const forced = Boolean(auth.user?.mustChangePassword);
+  const confirm = useConfirm();
   const mismatch = again !== "" && next !== again;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy.current || mismatch) return;
+    if (
+      !(await confirm(
+        "Đổi mật khẩu? Các phiên đăng nhập khác sẽ bị thu hồi và bạn cần đăng nhập lại bằng mật khẩu mới.",
+        "Xác nhận đổi mật khẩu",
+      ))
+    )
+      return;
     busy.current = true;
     setPending(true);
     setError("");
@@ -45,11 +53,6 @@ export default function ChangePasswordPage() {
       <header className="manage-page-header">
         <div>
           <h1>Đổi mật khẩu</h1>
-          <p className="manage-description">
-            {forced
-              ? "Bạn đang dùng mật khẩu tạm do quản trị viên đặt. Hãy đặt mật khẩu mới để tiếp tục."
-              : "Mật khẩu mới ít nhất 12 ký tự và phải khác mật khẩu hiện tại. Mọi thiết bị khác sẽ bị đăng xuất."}
-          </p>
         </div>
       </header>
       <form className="panel" onSubmit={submit}>

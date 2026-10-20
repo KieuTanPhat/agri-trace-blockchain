@@ -114,7 +114,7 @@ export default function InventoryPage() {
             <label>Khối lượng ({textValue(lot?.unit)})<input className="input" name="quantity" required inputMode="decimal" pattern={decimal} /></label>
             <label>Lý do<textarea className="input" name="reason" required minLength={10} maxLength={1000} /></label>
           </fieldset>
-          <button className="button" disabled={cmd.pending}>{cmd.frozen ? "Thử lại yêu cầu cũ" : "Phân bổ"}</button>
+          <button className="button" disabled={cmd.pending}>{"Phân bổ"}</button>
         </form>
       )}
 
@@ -132,7 +132,7 @@ export default function InventoryPage() {
               <label>Ghi chú khác<textarea className="input" name="note" maxLength={1000} /></label>
               <label className="checkbox"><input type="checkbox" name="dispatch" /> Xuất hàng ngay sau khi lập phiếu</label>
             </fieldset>
-            <button className="button" disabled={cmd.pending}>{cmd.frozen ? "Thử lại yêu cầu cũ" : "Lập phiếu"}</button>
+            <button className="button" disabled={cmd.pending}>{"Lập phiếu"}</button>
           </form>
           <section className="panel">
             <h2>Phiếu chuyển kho</h2>
@@ -192,7 +192,7 @@ export default function InventoryPage() {
               <label>Mô tả lý do<textarea className="input" name="reason" required minLength={10} maxLength={1000} /></label>
               <label>Ghi chú khác<textarea className="input" name="note" maxLength={1000} /></label>
             </fieldset>
-            <button className="button" disabled={cmd.pending}>{cmd.frozen ? "Thử lại yêu cầu cũ" : "Đưa vào cách ly"}</button>
+            <button className="button" disabled={cmd.pending}>{"Đưa vào cách ly"}</button>
           </form>
           <section className="panel">
             <h2>Phiếu cách ly</h2>

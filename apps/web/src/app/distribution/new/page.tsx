@@ -256,9 +256,7 @@ export default function NewTransferPage() {
         <button className="button" disabled={cmd.pending} type="submit">
           {cmd.pending
             ? "Đang tạo…"
-            : cmd.frozen
-              ? "Thử lại yêu cầu cũ"
-              : "Tạo giao nhận"}
+            : "Tạo giao nhận"}
         </button>
       </form>
     </div>

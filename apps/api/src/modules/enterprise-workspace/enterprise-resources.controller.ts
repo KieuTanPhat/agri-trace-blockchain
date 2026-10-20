@@ -10,7 +10,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { WorkspaceListDto, WorkspaceRecordDto } from './dto.js';
 import { EnterpriseResourcesService, type EvidenceFile } from './enterprise-resources.service.js';
-import { EvidenceCompletionInput, EvidenceInput, EvidenceSubjectQuery, EvidenceUploadDocumentation, MaterialInput, MaterialRevisionInput, ProductImportInput, ProductRevisionInput } from './resources.dto.js';
+import { EvidenceCompletionInput, EvidenceInput, EvidenceWithdrawalInput, ProductPhotoOrderInput, EvidenceSubjectQuery, EvidenceUploadDocumentation, MaterialInput, MaterialRevisionInput, ProductImportInput, ProductRevisionInput } from './resources.dto.js';
 import { SiteRevisionInput,VehicleRevisionInput,EvidenceContentDto } from './resources.dto.js';
 import { EnterpriseRevisionListDto, ProductionMaterialListDto, TraceEvidenceListDto } from './workspace-response.dto.js';
 @ApiTags('enterprise-resources') @ApiBearerAuth() @UseGuards(JwtAuthGuard) @Controller('enterprise-workspace')
@@ -21,6 +21,8 @@ export class EnterpriseResourcesController {
  }
  @Post('products/:id') @ApiHeader({name:'Idempotency-Key',required:true}) @ApiDataResponse(WorkspaceRecordDto,201)
  product(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() dto:ProductRevisionInput,@IdempotencyKey() key:string){return this.run(req,key,'EW_UPDATE_PRODUCT',{id,...dto},()=>this.service.updateProduct(req.user,id,dto));}
+ @Post('products/:id/photo-order') @ApiHeader({name:'Idempotency-Key',required:true}) @ApiDataResponse(WorkspaceRecordDto,201)
+ photoOrder(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() dto:ProductPhotoOrderInput,@IdempotencyKey() key:string){return this.run(req,key,'EW_ORDER_PRODUCT_PHOTOS',{id,...dto},()=>this.service.orderProductPhotos(req.user,id,dto.order));}
  @Get('revisions/:entityType/:id') @ApiDataResponse(EnterpriseRevisionListDto)
  revisions(@Req() req:AuthenticatedRequest,@Param('entityType') type:string,@Param('id',ParseUUIDPipe) id:string){return this.service.revisions(req.user,type,id);}
  @Post('sites/:id/revisions') @ApiHeader({name:'Idempotency-Key',required:true}) @ApiDataResponse(WorkspaceRecordDto,201)
@@ -50,6 +52,8 @@ export class EnterpriseResourcesController {
   const digest=createHash('sha256').update(file.buffer).digest('hex');
   return this.run(req,key,'EW_UPLOAD_EVIDENCE',{...dto,fileName:file.originalname,sha256:digest},()=>this.service.uploadEvidence(req.user,dto,file));
  }
+ @Post('evidence/:id/withdraw') @ApiHeader({name:'Idempotency-Key',required:true}) @ApiDataResponse(WorkspaceRecordDto,201)
+ withdraw(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() dto:EvidenceWithdrawalInput,@IdempotencyKey() key:string){return this.run(req,key,'EW_WITHDRAW_EVIDENCE',{id,...dto},()=>this.service.withdrawEvidence(req.user,id,dto.reason));}
  @Get('evidence/:id/file')
  @ApiResponse({status:200,description:'Private attachment, no-store',content:Object.fromEntries(['application/pdf','image/png','image/jpeg'].map(media=>[media,{schema:{type:'string',format:'binary'}}]))})
  async file(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string,@Res() res:Response){const row=await this.service.evidenceFile(req.user,id);sendFile(res,row);}

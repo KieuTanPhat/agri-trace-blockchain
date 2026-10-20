@@ -1,4 +1,5 @@
 import { isPlatformAdminRole } from '../auth/role-codes.js';
+import { queueAccountCredentials, temporaryCredential } from '../auth/account-credentials.js';
 import {
   ConflictException,
   ForbiddenException,
@@ -190,28 +191,14 @@ export class PlatformApprovalsService {
         if (!isEmail(email))
           throw new UnprocessableEntityException('Email không hợp lệ');
         const fullName = text(params, 'fullName');
-        const password = params.temporaryPassword;
-        if (
-          typeof password !== 'string' ||
-          Buffer.byteLength(password, 'utf8') < 12 ||
-          Buffer.byteLength(password, 'utf8') > 72
-        )
-          throw new UnprocessableEntityException(
-            'Mật khẩu tạm phải từ 12 đến 72 byte',
-          );
         if (await tx.user.findFirst({ where: { email } }))
           throw new ConflictException('Email đã tồn tại');
         return {
           subjectType: 'USER_ACCOUNT',
           subjectId: createHash('sha256').update(email).digest('hex'),
           organizationId: null,
-          // The plaintext never enters the proposal: only its bcrypt hash.
-          payload: {
-            email,
-            fullName,
-            roleCode,
-            passwordHash: await hash(password, 12),
-          },
+          // No password enters the proposal: approval generates and mails one.
+          payload: { email, fullName, roleCode },
         };
       }
       case 'ADMIN_PASSWORD_RESET': {
@@ -610,15 +597,25 @@ export class PlatformApprovalsService {
         return { executed: true, grantId: grant.id };
       }
       case 'SYSTEM_ADMIN_CREATE': {
+        // Older proposals carry a proposer-chosen hash; new ones get a
+        // generated password mailed to the account.
+        const fresh =
+          typeof p.passwordHash === 'string' ? null : await temporaryCredential();
         const created = await createPlatformUserTx(tx, actor, {
           email: String(p.email),
           fullName: String(p.fullName),
-          passwordHash: String(p.passwordHash),
+          passwordHash: fresh?.passwordHash ?? String(p.passwordHash),
           roleCode:
             typeof p.roleCode === 'string' ? p.roleCode : 'SYSTEM_ADMIN',
-          // The proposer chose the password: force a change at first sign-in.
           mustChangePassword: true,
         });
+        if (fresh)
+          await queueAccountCredentials(
+            tx,
+            created,
+            fresh.password,
+            'Tài khoản quản trị AgriTrace của bạn đã được phê duyệt.',
+          );
         return { executed: true, userId: created.id };
       }
       case 'ADMIN_PASSWORD_RESET': {

@@ -1,5 +1,10 @@
 "use client";
-import { ResourceCreate } from "@/components/workspace/resources";
+import { Suspense } from "react";
+import { PartnerCreate } from "@/components/workspace/partner-create";
 export default function Page() {
-  return <ResourceCreate kind="partners" />;
+  return (
+    <Suspense>
+      <PartnerCreate />
+    </Suspense>
+  );
 }

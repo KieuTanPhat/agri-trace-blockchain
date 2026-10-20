@@ -18,6 +18,7 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { EnterpriseWorkspaceService } from './enterprise-workspace.service.js';
 import {
   EnterpriseMemberInput,
+  EnterpriseVersionInput,
   EnterpriseMemberUpdate,
   MemberSupervisorInput,
   EnterprisePartnerDecision,
@@ -34,6 +35,7 @@ import {
   EnterprisePartnerListDto,
   ExternalPartnerListDto,
   PartnerSearchListDto,
+  PartnerDirectoryProfileDto,
   EnterpriseRoleListDto,
   EnterpriseRoleTemplateListDto,
   EnterpriseSiteListDto,
@@ -97,6 +99,12 @@ export class EnterpriseWorkspaceController {
     @Req() req: AuthenticatedRequest, @Query('q') query = '',
   ) {
     return this.service.searchPartners(req.user, query);
+  }
+  @Get('partners/directory/:organizationId') @ApiDataResponse(PartnerDirectoryProfileDto) partnerProfile(
+    @Req() req: AuthenticatedRequest,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+  ) {
+    return this.service.partnerProfile(req.user, organizationId);
   }
   @Get('partners/external') @ApiDataResponse(ExternalPartnerListDto) externalPartners(
     @Req() req: AuthenticatedRequest,
@@ -174,6 +182,19 @@ export class EnterpriseWorkspaceController {
   ) {
     return this.run(req, key, 'EW_UPDATE_ROLE', { id, ...dto }, () =>
       this.service.saveRole(req.user, dto, id),
+    );
+  }
+  @Post('roles/:id/delete')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(WorkspaceRecordDto, 201)
+  deleteRole(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: EnterpriseVersionInput,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.run(req, key, 'EW_DELETE_ROLE', { id, ...dto }, () =>
+      this.service.deleteRole(req.user, id, dto.version),
     );
   }
   @Post('partners')

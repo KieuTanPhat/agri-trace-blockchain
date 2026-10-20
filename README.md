@@ -107,7 +107,7 @@ Frontend chạy ở `http://localhost:3000`; API chạy ở
 `http://localhost:8080/api`. Trang `/` giới thiệu AgriTrace bằng tiếng Việt và cung cấp tra cứu QR công khai.
 Truy cập trực tiếp `/login` để đăng nhập; sau đăng nhập mở `/dashboard`.
 Trang giới thiệu không có liên kết đăng nhập hoặc lô/QR mẫu.
-Doanh nghiệp vào `/register` (năm bước và OTP email), theo dõi hồ sơ ở
+Doanh nghiệp vào `/register` (chọn vai trò, năm bước, OTP email đăng nhập; mật khẩu tạm gửi qua email), theo dõi hồ sơ ở
 `/enterprise/onboarding`. Admin duyệt trước; doanh nghiệp chọn mô hình peer và
 gói tham khảo tại `/enterprise/service`, xem hợp đồng ở `/enterprise/service/contract`,
 hoàn tất thanh toán mô phỏng local ở `/enterprise/service/payment`; thao tác này
@@ -174,6 +174,34 @@ bộ lọc CD. Không coi CI xanh là quyền tự merge hoặc deploy.
 Khi triển khai được duyệt, giữ smoke thực trên VPS theo runbook. Không đặt
 maintenance deadline 2 giờ, canary riêng, collector/systemd timer hoặc quan sát
 liên tục 24 giờ; sự cố sau bàn giao do chủ dự án vận hành.
+
+## Seed đầy đủ trên database local hiện tại
+
+Quy trình tại [kế hoạch seed](docs/plans/full-current-database-seed-2026-10-20.md)
+chỉ dành cho stack local `agri-trace-demo-local`, database `agri_trace` cổng 5433.
+Nó **thay toàn bộ dữ liệu** sau backup; không tạo database khác. Các tài khoản,
+khóa ký demo, khóa mã hóa local, checkpoint và backup nằm trong `.codex/`, không
+commit hoặc gửi chúng ra ngoài. Ảnh chụp kèm nguồn và giấy phép nằm trong
+`scripts/demo/assets/manifest.json`; giấy tờ có nhãn DEMO, không có giá trị pháp lý.
+
+```powershell
+# Chuẩn bị: build API/Gateway theo hướng dẫn kiểm tra bên dưới; stack local đang chạy.
+python scripts/demo/prepare-assets.py
+# Tạo tài liệu demo theo prepare-documents.py (cần reportlab, pypdf và pdftoppm).
+./scripts/demo/seed-current.ps1                    # Chỉ xác minh target
+./scripts/demo/seed-current.ps1 -ReplaceCurrentData # Backup rồi thay dữ liệu một lần
+./scripts/demo/seed-current.ps1 -Resume             # Tiếp tục checkpoint, không reset lại
+./scripts/demo/seed-current.ps1 -Verify             # Kiểm DB, quyền và đăng nhập thật
+node scripts/demo/verify-browser.mjs
+```
+
+Seed giữ nguyên schema/guard từ snapshot trong chính DB này, giữ catalog hệ thống
+và migration catalog; không tắt trigger. Để dùng dữ liệu quyền riêng tư, helper
+tạo khóa mã hóa local và Compose override riêng, pin đúng API image đang chạy.
+Khi kiểm tra đạt, khởi động lại Web/Worker đã dừng. Credential nằm ở
+`.codex/seed-current/accounts.json`; receipt và đường dẫn backup ở cùng thư mục.
+`-Restore` kiểm checksum và phục hồi snapshot trước seed vào chính DB đó sau khi
+dừng writer. Không coi backup DB local là bằng chứng khôi phục production/Fabric.
 
 ## Kiểm tra toàn bộ
 

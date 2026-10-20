@@ -171,7 +171,7 @@ class CompleteEvidenceDto {
   @ApiProperty({ minimum: 0 }) @Type(() => Number) @IsInt() @Min(0) version!: number;
 }
 async function evidenceCounts(tx: Prisma.TransactionClient, organizationId: string, entityType: string, entityId: string) {
-  const rows = await tx.traceEvidence.findMany({ where: { organizationId, entityType, entityId }, select: { id: true, kind: true, supersedesId: true } });
+  const rows = await tx.traceEvidence.findMany({ where: { organizationId, entityType, entityId, withdrawal: null }, select: { id: true, kind: true, supersedesId: true } });
   const superseded = new Set(rows.map((row) => row.supersedesId).filter(Boolean));
   const counts = new Map<string, number>();
   for (const row of rows) if (!superseded.has(row.id)) counts.set(row.kind, (counts.get(row.kind) ?? 0) + 1);

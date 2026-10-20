@@ -65,13 +65,44 @@ concurrency, restart, restore and direct ledger verification. See
 
 ## Enterprise workspace and source-preserving distribution
 
-New registrations require a five-step v2 profile, catalog-bound province/ward
-codes and OTP verification for both enterprise contact and owner login email
-(one proof when identical). OTP expires in 10 minutes, permits at most five
+New registrations start by choosing one registration role: producer/cooperative,
+processor, transporter, distributor, retailer, or a supply-chain enterprise that
+registers all five capabilities (registered legal forms only). They require a
+five-step v2 profile, catalog-bound province/ward codes and exactly one OTP proof
+for the owner login email; the contact email is not OTP-verified. Neither the
+login email nor the contact email may match any existing account email or
+enterprise contact email (case-insensitive). Signup takes no password: the API
+generates a temporary password, marks the owner `mustChangePassword`, and queues
+an encrypted `CREDENTIALS` mail to the verified login email; the Worker clears
+the ciphertext once sent. OTP expires in 10 minutes, permits at most five
 wrong attempts, and is single use for the bound registration. Resend waits 60
 seconds and is limited per email. Exact verification retries preserve the attempt.
-Drafts exclude passwords, OTPs, proof tokens, files and acceptance checkboxes;
-queued OTP content is encrypted. Registered enterprises/cooperatives/business
+Drafts exclude OTPs, proof tokens, files and acceptance checkboxes;
+queued OTP and password content is encrypted.
+
+Accounts created by someone else never receive a chosen password: enterprise
+members (`POST /enterprise-workspace/members`, phone required) and platform
+users (direct or approved `SYSTEM_ADMIN_CREATE`) get a generated temporary
+password through an encrypted `ACCOUNT_CREDENTIALS` mail tied to the account and
+must change it at first sign-in. Members carry an internal code `NV0001…`
+unique per organization; removing a member sets `INACTIVE`, revokes roles and
+sessions, locks descendants and keeps history. A role can be deleted only when
+no member or pending invitation uses it. Contact changes to the enterprise
+profile are amendments reviewed by a platform administrator like legal ones.
+External partners require phone, email, tax code, representative, note and at
+least one `PARTNERSHIP_EVIDENCE` image. Partner search matches tax code, name
+or AGT code and reports which group matched. Chains have a type (`CROP`,
+`LIVESTOCK`, `AQUACULTURE`, `PROCESSED_FOOD`) and a supply model (stages with
+their organizations); organizations other than the owner are invited when the
+chain is created. These types only classify chains: production, harvest and lot
+rules are still crop rules.
+
+Human accounts must change their password every `PASSWORD_MAX_AGE_DAYS` days
+(default 30; `0` disables). Age counts from the last change, or from account
+creation when the password was never changed. Login, refresh and the JWT guard
+turn an expired password into `mustChangePassword`, which only permits
+`/auth/me`, `/auth/change-password` and logout until it is replaced.
+`IOT_DEVICE` and `SYSTEM_ACTOR` are exempt. Registered enterprises/cooperatives/business
 households require a tax identifier, registration number and registration file.
 Producer households and individual producers may omit these legal identifiers;
 they must declare production activity. Production currently supports CROP only.
@@ -508,3 +539,22 @@ Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-proc
   nội bộ không hiện cho doanh nghiệp; yêu cầu đã đóng không nhận trả lời.
 - Thông báo hệ thống chỉ là banner theo đối tượng và thời gian (tối đa 90 ngày),
   độc lập với chế độ khóa ghi của controller.
+
+## Nhóm quyền đang dùng và ảnh sản phẩm (20/10/2026)
+
+- Nhóm quyền đã gán cho thành viên vẫn sửa được. Quyền mới có hiệu lực ngay cho
+  mọi thành viên đang hoạt động trong nhóm, không thu hồi phiên; quyền theo chuỗi
+  (`scoped_role_grant` CHAIN) của từng người được cấp lại theo nhóm như khi sửa
+  thành viên. Quản lý cấp 2 chỉ sửa được nhóm khi mọi người giữ nhóm đều do mình
+  quản lý, và không cấp quyền vượt quyền đang có. Người quản lý cấp 2 vẫn giới hạn
+  quyền thực tế của nhân viên cấp 3 theo `enterpriseAuthority`.
+- Tạo thành viên bắt buộc địa chỉ liên hệ và ít nhất một nhóm quyền (API trả 400 nếu
+  thiếu).
+- `trace_evidence` vẫn bất biến. Gỡ ảnh sản phẩm ghi một dòng chỉ thêm vào
+  `trace_evidence_withdrawal` (lý do, người gỡ); file và hash được giữ để đối soát,
+  nhưng không còn trong danh sách ảnh và không được tính vào điều kiện ba ảnh. Chỉ
+  gỡ được ảnh sản phẩm của chính tổ chức; sản phẩm đang hoạt động phải còn ít nhất
+  ba ảnh sản phẩm sau khi gỡ.
+- Worker giải mã mật khẩu tạm/OTP trong hàng đợi mail bằng `JWT_SECRET`, nên Worker
+  phải được cấu hình cùng giá trị với API. Lỗi gửi mail được ghi log (chỉ lý do,
+  không có người nhận, mật khẩu hay OTP).

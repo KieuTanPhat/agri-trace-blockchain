@@ -2,9 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   ArrayUnique,
   IsArray,
-  IsByteLength,
   IsEmail,
   IsIn,
   IsInt,
@@ -61,21 +61,16 @@ export class EnterpriseMemberInput {
   @MaxLength(255)
   fullName!: string;
   @ApiProperty({ maxLength: 255 }) @IsString() @MinLength(2) @MaxLength(255) jobTitle!: string;
-  @ApiProperty({ required: false, maxLength: 30 }) @IsOptional() @IsString() @MaxLength(30) phone?: string;
+  @ApiProperty({ maxLength: 30, description: 'Required contact phone (Vietnamese number)' }) @IsString() @Matches(/^(?:0[35789]\d{8}|02\d{9}|\+84(?:[35789]\d{8}|2\d{9}))$/, { message: 'Số điện thoại liên hệ không hợp lệ' }) phone!: string;
   @ApiProperty({ required: false, format: 'uuid' }) @IsOptional() @IsUUID() workSiteId?: string;
   @ApiProperty({ required: false, format: 'uuid' }) @IsOptional() @IsUUID() responsibleFarmId?: string;
-  @ApiProperty({ required: false, maxLength: 500 }) @IsOptional() @IsString() @MaxLength(500) contactAddress?: string;
+  @ApiProperty({ minLength: 5, maxLength: 500 }) @IsString() @MinLength(5, { message: 'Nhập địa chỉ liên hệ từ 5 ký tự' }) @MaxLength(500) contactAddress!: string;
   @ApiProperty({ required: false, maxLength: 1000 }) @IsOptional() @IsString() @MaxLength(1000) memberNote?: string;
   @ApiProperty({ format: 'email' }) @IsEmail() @MaxLength(255) email!: string;
-  @ApiProperty({ format: 'password', minLength: 12, maxLength: 72 })
-  @IsString()
-  @MinLength(12)
-  @MaxLength(72)
-  @IsByteLength(12, 72)
-  password!: string;
   @ApiProperty({ enum: [2, 3] }) @IsIn([2, 3]) tier!: number;
-  @ApiProperty({ type: MemberRoleInput, isArray: true })
+  @ApiProperty({ type: MemberRoleInput, isArray: true, minItems: 1 })
   @IsArray()
+  @ArrayMinSize(1, { message: 'Chọn ít nhất một nhóm quyền' })
   @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => MemberRoleInput)
@@ -94,9 +89,12 @@ export class EnterpriseMemberUpdate {
   @ApiProperty({ required: false, maxLength: 500, nullable: true }) @IsOptional() @IsString() @MaxLength(500) contactAddress?: string | null;
   @ApiProperty({ required: false, maxLength: 1000, nullable: true }) @IsOptional() @IsString() @MaxLength(1000) memberNote?: string | null;
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
-  @ApiProperty({ enum: ['ACTIVE', 'LOCKED'] })
-  @IsIn(['ACTIVE', 'LOCKED'])
-  status!: 'ACTIVE' | 'LOCKED';
+  @ApiProperty({
+    enum: ['ACTIVE', 'LOCKED', 'INACTIVE'],
+    description: 'INACTIVE removes the member: roles and sessions are revoked, history stays.',
+  })
+  @IsIn(['ACTIVE', 'LOCKED', 'INACTIVE'])
+  status!: 'ACTIVE' | 'LOCKED' | 'INACTIVE';
   @ApiProperty({ type: MemberRoleInput, isArray: true })
   @IsArray()
   @ArrayMaxSize(10)
@@ -121,11 +119,11 @@ export class EnterpriseExternalPartnerInput {
   @ApiProperty({ maxLength: 255 }) @IsString() @MinLength(2) @MaxLength(255) name!: string;
   @ApiProperty({ enum: ['FARM','TRANSPORTER','DISTRIBUTOR','RETAILER'] }) @IsIn(['FARM','TRANSPORTER','DISTRIBUTOR','RETAILER']) kind!: string;
   @ApiProperty({ maxLength: 500 }) @IsString() @MinLength(5) @MaxLength(500) address!: string;
-  @ApiProperty({ required: false, maxLength: 30 }) @IsOptional() @IsString() @MaxLength(30) phone?: string;
-  @ApiProperty({ required: false, format: 'email' }) @IsOptional() @IsEmail() @MaxLength(255) email?: string;
-  @ApiProperty({ required: false, maxLength: 40 }) @IsOptional() @IsString() @MaxLength(40) taxCode?: string;
-  @ApiProperty({ required: false, maxLength: 255 }) @IsOptional() @IsString() @MaxLength(255) representative?: string;
-  @ApiProperty({ required: false, maxLength: 1000 }) @IsOptional() @IsString() @MaxLength(1000) note?: string;
+  @ApiProperty({ maxLength: 30 }) @IsString() @Matches(/^(?:0[35789]\d{8}|02\d{9}|\+84(?:[35789]\d{8}|2\d{9}))$/, { message: 'Số điện thoại không hợp lệ' }) phone!: string;
+  @ApiProperty({ format: 'email' }) @IsEmail({}, { message: 'Email không hợp lệ' }) @MaxLength(255) email!: string;
+  @ApiProperty({ maxLength: 14 }) @IsString() @Matches(/^(?:\d{10}(?:-?\d{3})?|\d{12})$/, { message: 'Mã số thuế cần 10, 12 hoặc 13 số' }) taxCode!: string;
+  @ApiProperty({ maxLength: 255 }) @IsString() @MinLength(2) @MaxLength(255) representative!: string;
+  @ApiProperty({ maxLength: 1000 }) @IsString() @MinLength(5) @MaxLength(1000) note!: string;
 }
 export class EnterprisePartnerDecision {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
@@ -193,4 +191,7 @@ export class WorkspaceRecordDto {
 export class WorkspaceListDto {
   @ApiProperty({ type: 'object', additionalProperties: true, isArray: true })
   items!: Record<string, unknown>[];
+}
+export class EnterpriseVersionInput {
+  @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
 }

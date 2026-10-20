@@ -846,3 +846,77 @@
     font-size: var(--text-xl);
   }
 }
+/* Registration role picker: six roles, the supply-chain enterprise last. */
+.reg-role-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.reg-role-grid .reg-choice {
+  align-items: flex-start;
+}
+.reg-role-grid .reg-choice > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.reg-participation .reg-choice > .reg-choice-mark {
+  display: flex;
+}
+@media (max-width: 1000px) {
+  .reg-role-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .reg-role-grid {
+    grid-template-columns: 1fr;
+  }
+  .reg-role-grid .reg-choice {
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    min-height: 0;
+  }
+}
+/* OTP dialog opened by "Gửi hồ sơ xét duyệt". */
+.reg-otp-dialog {
+  width: min(460px, calc(100vw - 24px));
+}
+.reg-otp-dialog-head {
+  display: grid;
+  justify-items: center;
+  gap: var(--s-2);
+  text-align: center;
+  color: var(--green-700);
+}
+.reg-otp-dialog-head h2 {
+  margin: 0;
+  color: var(--green-900);
+  font-size: var(--text-lg);
+}
+.reg-otp-dialog-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.reg-otp-dialog-head strong {
+  color: var(--ink, inherit);
+}
+.reg-otp-input {
+  text-align: center;
+  font-size: 24px;
+  letter-spacing: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.reg-otp-dialog .reg-help .text-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.reg-otp-dialog .reg-help .text-link:disabled {
+  color: var(--muted);
+  cursor: default;
+}

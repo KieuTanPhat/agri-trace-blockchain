@@ -55,18 +55,31 @@ export function ReloadButton({ onClick }: { onClick(): void }) {
 export function CommandState({
   command,
 }: {
-  command: { pending: boolean; error: string; frozen: boolean };
+  command: {
+    pending: boolean;
+    error: string;
+    frozen: boolean;
+    retrying?: boolean;
+  };
 }) {
   return (
     <>
-      {command.error && (
-        <p className="notice error" role="alert">
-          {command.error}
+      {command.retrying ? (
+        <p className="notice" role="status">
+          Chưa nhận được phản hồi. Hệ thống đang tự gửi lại đúng yêu cầu cũ để
+          đối soát, không tạo bản ghi trùng…
         </p>
+      ) : (
+        command.error && (
+          <p className="notice error" role="alert">
+            {command.error}
+          </p>
+        )
       )}
       {command.frozen && !command.pending && (
         <p className="notice">
-          Đang giữ yêu cầu cũ. Thử lại để đối soát; chưa tạo yêu cầu mới.
+          Chưa xác nhận được kết quả. Bấm lại nút lưu để đối soát yêu cầu cũ;
+          hệ thống không tạo yêu cầu mới.
         </p>
       )}
     </>
