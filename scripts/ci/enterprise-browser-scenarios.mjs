@@ -177,6 +177,22 @@ export async function runEnterpriseBrowserScenarios(options) {
       await admin.getByRole('button', { name: 'Phê duyệt', exact: true }).click();
       await command(admin, `/enterprise-enrollments/${enrollmentId}/review`, () => admin.getByRole('button', { name: 'Xác nhận phê duyệt', exact: true }).click());
       assert.equal(await options.operator.db.organizationCapability.count({ where: { organizationId: pending.organizationId } }), 0);
+      // Each requested capability is approved on its own before activation.
+      step('admin-capability-review');
+      const capabilityNote = '[aria-label^="Căn cứ duyệt năng lực"]';
+      await admin.locator(capabilityNote).first().waitFor({ timeout });
+      for (let pendingCapabilities = await admin.locator(capabilityNote).count(); pendingCapabilities > 0;
+        pendingCapabilities = await admin.locator(capabilityNote).count()) {
+        await admin.locator(capabilityNote).first().fill('Đã đối chiếu năng lực trong kiểm thử cách ly');
+        const reviewed = admin.waitForResponse(response => /^\/api\/capability-requests\/[^/]+\/review$/.test(new URL(response.url()).pathname) &&
+          response.request().method() === 'POST', { timeout });
+        await admin.getByRole('button', { name: 'Duyệt năng lực', exact: true }).first().click();
+        await admin.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true })
+          .click({ timeout: 3000 }).catch(() => undefined);
+        assert.equal((await reviewed).status(), 201, 'Capability review must be accepted');
+        await admin.waitForFunction(([selector, before]) => document.querySelectorAll(selector).length < before,
+          [capabilityNote, pendingCapabilities], { timeout });
+      }
       step('admin-service-activation');
       await admin.getByLabel('Căn cứ kích hoạt (tối thiểu 10 ký tự)', { exact: true }).fill('Kích hoạt doanh nghiệp trong kiểm thử cách ly');
       await command(admin, `/enterprise-enrollments/${enrollmentId}/activate`, async () => {
