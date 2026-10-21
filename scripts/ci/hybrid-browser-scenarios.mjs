@@ -70,7 +70,19 @@ async function requestResult(page, pattern, work) {
       pattern.test(new URL(value.url()).pathname),
     { timeout },
   );
-  const [result] = await Promise.all([response, work()]);
+  // Every write asks once in the shared confirmation dialog; steps that
+  // already answered it leave nothing to click here.
+  const [result] = await Promise.all([
+    response,
+    (async () => {
+      await work();
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Xác nhận", exact: true })
+        .click({ timeout: 3000 })
+        .catch(() => undefined);
+    })(),
+  ]);
   assert.equal(result.status(), 201, "Real UI command must return 201");
   const envelope = await result.json();
   assert.equal(
