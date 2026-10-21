@@ -210,13 +210,23 @@ export class EnterpriseServiceService {
       this.db,
       audienceFor(row.organization.participationModel),
     );
+    const paying = await payingEnrollment(
+      this.db,
+      row.organizationId,
+      row.organization.participationModel,
+    );
+    // A paying organization must buy a plan before the platform may activate
+    // it (assertActivationReady), so its owner first sees the purchase steps.
+    const base = serviceStage(row);
+    const stage =
+      base === 'AWAITING_ACTIVATION' && paying && !row.serviceOrder
+        ? 'SELECT_SERVICE'
+        : base === 'AWAITING_ACTIVATION' && paying && row.serviceOrder?.status === 'AWAITING_PAYMENT'
+          ? 'AWAITING_PAYMENT'
+          : base;
     return {
-      stage: serviceStage(row),
-      paying: await payingEnrollment(
-        this.db,
-        row.organizationId,
-        row.organization.participationModel,
-      ),
+      stage,
+      paying,
       catalog: serviceCatalog(plans, catalogDigest(plans)),
       order: row.serviceOrder ? orderView(row.serviceOrder) : null,
       emails,
