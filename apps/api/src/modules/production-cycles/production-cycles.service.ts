@@ -283,6 +283,16 @@ export class ProductionCyclesService {
     await this.access.assertProductionCycleAccess(actor, id);
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'cycle', id);
+      const cycle = await tx.productionCycle.findUniqueOrThrow({
+        where: { id },
+      });
+      if (
+        cycle.version !== input.version ||
+        !['PLANTED', 'GROWING'].includes(cycle.currentState)
+      )
+        throw new ConflictException(
+          'Version hoặc trạng thái chu kỳ không hợp lệ',
+        );
       const plantedAt =
         (await plantedTime(tx, id)) ??
         (

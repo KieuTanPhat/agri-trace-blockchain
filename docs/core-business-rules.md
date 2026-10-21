@@ -62,3 +62,38 @@ is still undergoing validation; the rules below are requirements to preserve.
 Release tests must exercise these invariants on the exact candidate, including
 concurrency, restart, restore and direct ledger verification. See
 [the current release gates](plans/hybrid-production-readiness-2026-10-13.md).
+
+## Production cycle command matrix
+
+Giữ mô hình ProductionCycle → HarvestEvent → Lot. Matrix dưới đây ghi nhận
+implementation hiện hành; chủ task xác nhận giữ hành vi care/sensor ngày
+2026-10-21, còn chờ Phát nghiệm thu. BR-07 trong đặc tả Batch đã archive không
+phải quy tắc chuyển trạng thái cho ProductionCycle.
+
+| State trước | Command | State sau | Version |
+| --- | --- | --- | --- |
+| Chưa có | create | CREATED | 0 |
+| CREATED | plant | PLANTED | Bắt buộc version hiện tại, tăng 1 |
+| PLANTED/GROWING | care | GROWING | Bắt buộc version hiện tại, tăng 1 |
+| PLANTED/GROWING | sensor reading | Giữ nguyên | Không nhận/tăng cycle version; khóa aggregate |
+| PLANTED/GROWING | harvest | Giữ nguyên | Không nhận cycle version; tăng 1 dưới khóa aggregate, kiểm tổng sản lượng |
+| PLANTED/GROWING | close | COMPLETED | Bắt buộc version hiện tại, tăng 1 |
+| CREATED/PLANTED/GROWING | cancel | CANCELLED | Bắt buộc version hiện tại, tăng 1 |
+| COMPLETED/CANCELLED | plant/care/sensor/harvest/close/cancel | Từ chối | Không thay đổi |
+
+Actor ghi là tài khoản hiện hành có FARM_STAFF grant, capability, membership
+và accepted production assignment đúng chuỗi/tổ chức; create kiểm farm thuộc
+tổ chức và quyền tạo trong chuỗi. Admin/Auditor không ghi thay. Sensor ingestion
+bằng thiết bị đi qua quyền thiết bị và cùng boundary cycle. Policy được kiểm
+trong transaction và trước replay; trái quyền trả 403. Transition sai state hoặc
+stale version trả 409. Sensor raw bị chặn state ở precheck trả 422, nếu state
+đổi trong lúc chờ khóa trả 409. Replay đúng key/body giữ kết quả đã commit,
+không thực thi lại transition. API không có endpoint patch state tùy ý và DTO
+không nhận currentState.
+
+Create/plant/care/close/cancel và harvest ghi trace/outbox cùng transaction với
+domain/journal. Raw sensor chỉ ghi off-chain; digest/window mới được anchor.
+FE tại `apps/web/src/app/production-cycles/page.tsx` dùng canWriteProduction từ
+API cùng state để hiện command; server vẫn là nơi quyết định quyền/version.
+Matrix không thay xác nhận quyền AGT-007 hoặc nghiệm thu AC-03/04/05/24/26 của
+Tuấn/Phát; cần evidence đúng SHA và môi trường.

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
 import { provisionChainIn } from './support/chain-scope.js';
+import { fixtureRoute } from './support/ledger-route-fixture.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 
@@ -130,10 +131,14 @@ async function createCoreFixture(tx: Prisma.TransactionClient) {
       ledgerRoute: {
         create: {
           definition: {
-            connect: { digest: process.env.LEDGER_ACTIVE_ROUTE_DIGEST! },
+            connectOrCreate: {
+              where: { digest: fixtureRoute.digest },
+              create: fixtureRoute,
+            },
           },
         },
       },
+      chainContext: { create: { chainId } },
       entityType: 'LOT',
       entityId: lot.id,
       lotId: lot.id,
@@ -171,6 +176,15 @@ async function createCoreFixture(tx: Prisma.TransactionClient) {
     });
     afterAll(async () => {
       await prisma.$disconnect();
+    });
+
+    it('commits the valid core fixture before testing rejected mutations', async () => {
+      const fixture = await prisma.$transaction(createCoreFixture);
+      expect(
+        await prisma.traceEvent.findUnique({
+          where: { id: fixture.traceEvent.id },
+        }),
+      ).not.toBeNull();
     });
 
     it('rejects duplicate role code', async () => {
@@ -418,6 +432,43 @@ async function createCoreFixture(tx: Prisma.TransactionClient) {
         });
       });
     });
+
+    it.each([
+      ['COMPLETED', 'CREATED'],
+      ['COMPLETED', 'PLANTED'],
+      ['COMPLETED', 'GROWING'],
+      ['COMPLETED', 'CANCELLED'],
+      ['CANCELLED', 'CREATED'],
+      ['CANCELLED', 'PLANTED'],
+      ['CANCELLED', 'GROWING'],
+      ['CANCELLED', 'COMPLETED'],
+    ] as const)(
+      'rejects terminal cycle transition %s -> %s in SQL',
+      async (terminal, next) => {
+        // Commit the valid fixture first so setup failure cannot satisfy the
+        // assertion intended for the forbidden transition.
+        const cycle = await prisma.$transaction(async (tx) => {
+          const fixture = await createCoreFixture(tx);
+          return tx.productionCycle.update({
+            where: { id: fixture.cycle.id },
+            data: { currentState: terminal, version: { increment: 1 } },
+          });
+        });
+        await expect(
+          prisma.$transaction((tx) =>
+            tx.productionCycle.update({
+              where: { id: cycle.id },
+              data: { currentState: next, version: { increment: 1 } },
+            }),
+          ),
+        ).rejects.toThrow('invalid production cycle transition');
+        expect(
+          await prisma.productionCycle.findUniqueOrThrow({
+            where: { id: cycle.id },
+          }),
+        ).toEqual(cycle);
+      },
+    );
 
     it('rejects an invalid Shipment state transition', async () => {
       await expectDatabaseReject(async (tx) => {

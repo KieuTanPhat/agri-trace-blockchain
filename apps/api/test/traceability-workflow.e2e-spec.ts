@@ -213,7 +213,7 @@ const prisma = new PrismaClient({
         .set('Idempotency-Key', key)
         .send(body);
     }
-    async function plantedCycle(quantity = 1) {
+    async function createdCycle(quantity = 1) {
       const created = await post('/production-cycles', {
         chainId,
         farmId,
@@ -222,13 +222,382 @@ const prisma = new PrismaClient({
         maxHarvestQuantity: quantity,
         harvestUnit: 'kg',
       }).expect(201);
-      const cycle = created.body.data;
+      return created.body.data;
+    }
+    async function plantedCycle(quantity = 1) {
+      const cycle = await createdCycle(quantity);
       await post(`/production-cycles/${cycle.id}/plant`, {
         version: 0,
         plantedAt: '2026-09-25T00:00:00.000Z',
       }).expect(201);
       return cycle;
     }
+
+    async function cycleSnapshot(id: string) {
+      const events = await prisma.traceEvent.findMany({
+        where: { cycleId: id },
+        orderBy: { id: 'asc' },
+      });
+      return {
+        cycle: await prisma.productionCycle.findUniqueOrThrow({
+          where: { id },
+        }),
+        care: await prisma.careRecord.count({ where: { cycleId: id } }),
+        sensor: await prisma.sensorReading.count({ where: { cycleId: id } }),
+        harvest: await prisma.harvestEvent.count({ where: { cycleId: id } }),
+        events,
+        outbox: await prisma.blockchainOutbox.count({
+          where: { eventId: { in: events.map((event) => event.id) } },
+        }),
+      };
+    }
+
+    it('enforces CREATED boundaries and rejects client-supplied state', async () => {
+      const cycle = await createdCycle();
+      const base = `/production-cycles/${cycle.id}`;
+      const before = await cycleSnapshot(cycle.id);
+      await post(`${base}/plant`, {
+        version: 1,
+        plantedAt: '2026-09-25T00:00:00.000Z',
+      }).expect(409);
+      await post(`${base}/close`, { version: 0 }).expect(409);
+      await post(`${base}/care`, {
+        version: 0,
+        careType: 'WATER',
+        eventTime: '2026-09-26T00:00:00.000Z',
+      }).expect(409);
+      await post(`${base}/harvests`, {
+        quantity: 1,
+        unit: 'kg',
+        harvestTime: '2026-09-26T00:00:00.000Z',
+      }).expect(409);
+      await post(`${base}/plant`, {
+        version: 0,
+        plantedAt: '2026-09-25T00:00:00.000Z',
+        currentState: 'COMPLETED',
+      }).expect(400);
+      await request(app.getHttpServer())
+        .patch('/api' + base)
+        .set('Authorization', bearer('farm'))
+        .send({ currentState: 'COMPLETED' })
+        .expect(404);
+      expect(await cycleSnapshot(cycle.id)).toEqual(before);
+      await post(`${base}/cancel`, {
+        version: 0,
+        reason: 'Stop before planting',
+      }).expect(201);
+    });
+
+    it('serializes competing cycle versions, preserves replay and anchors care', async () => {
+      const cycle = await plantedCycle();
+      const base = `/production-cycles/${cycle.id}`;
+      const body = {
+        version: 1,
+        careType: 'WATER',
+        eventTime: '2026-09-26T00:00:00.000Z',
+      };
+      const keys = [randomUUID(), randomUUID()];
+      const results = await Promise.all(
+        keys.map((key) => post(`${base}/care`, body, 'farm', key)),
+      );
+      expect(results.map((result) => result.status).sort()).toEqual([201, 409]);
+      const after = await cycleSnapshot(cycle.id);
+      expect(after.cycle).toMatchObject({
+        currentState: 'GROWING',
+        version: 2,
+      });
+      expect(after.care).toBe(1);
+      expect(after.events.map((event) => event.eventType).sort()).toEqual(
+        ['PRODUCTION_CYCLE_CREATED', 'CYCLE_PLANTED', 'CARE_RECORDED'].sort(),
+      );
+      expect(after.outbox).toBe(3);
+      await post(
+        `${base}/care`,
+        body,
+        'farm',
+        keys[results.findIndex((result) => result.status === 201)],
+      ).expect(201);
+      // A stale command must be a conflict even when its timestamp predates planting.
+      await post(`${base}/care`, {
+        ...body,
+        eventTime: '2026-09-24T00:00:00.000Z',
+      }).expect(409);
+      await post(`${base}/plant`, {
+        version: 2,
+        plantedAt: '2026-09-25T00:00:00.000Z',
+      }).expect(409);
+      await post(`${base}/close`, { version: 1 }).expect(409);
+      await post(`${base}/cancel`, { version: 1, reason: 'Stale' }).expect(409);
+      expect(await cycleSnapshot(cycle.id)).toEqual(after);
+      await post(`${base}/care`, { ...body, version: 2 }).expect(201);
+      expect((await cycleSnapshot(cycle.id)).cycle).toMatchObject({
+        currentState: 'GROWING',
+        version: 3,
+      });
+    });
+
+    it.each([
+      ['close', false],
+      ['close', true],
+      ['cancel', false],
+      ['cancel', true],
+    ] as const)(
+      'blocks every cycle write after %s (growing=%s) without side effects',
+      async (terminal, growing) => {
+        const cycle = await plantedCycle();
+        const base = `/production-cycles/${cycle.id}`;
+        if (growing)
+          await post(`${base}/care`, {
+            version: 1,
+            careType: 'WATER',
+            eventTime: '2026-09-26T00:00:00.000Z',
+          }).expect(201);
+        const version = growing ? 2 : 1;
+        const device = (
+          await post('/iot/devices', {
+            organizationId: farmOrgId,
+            cycleId: cycle.id,
+            deviceCode: randomUUID(),
+            name: 'Boundary sensor',
+            type: 'TEMPERATURE',
+          }).expect(201)
+        ).body.data;
+        await post(`${base}/${terminal}`, {
+          version,
+          ...(terminal === 'cancel' ? { reason: 'End cycle' } : {}),
+        }).expect(201);
+        const before = await cycleSnapshot(cycle.id);
+        expect(before.cycle).toMatchObject({
+          currentState: terminal === 'close' ? 'COMPLETED' : 'CANCELLED',
+          version: version + 1,
+        });
+        expect(before.outbox).toBe(before.events.length);
+        expect(
+          before.events.some(
+            (event) =>
+              event.eventType ===
+              (terminal === 'close' ? 'CYCLE_COMPLETED' : 'CYCLE_CANCELLED'),
+          ),
+        ).toBe(true);
+        const commands = [
+          ['plant', { version: 2, plantedAt: '2026-09-25T00:00:00.000Z' }, 409],
+          [
+            'care',
+            {
+              version: 2,
+              careType: 'WATER',
+              eventTime: '2026-09-26T00:00:00.000Z',
+            },
+            409,
+          ],
+          ['close', { version: 2 }, 409],
+          ['cancel', { version: 2, reason: 'Again' }, 409],
+          [
+            'harvests',
+            {
+              quantity: 1,
+              unit: 'kg',
+              harvestTime: '2026-09-26T00:00:00.000Z',
+            },
+            409,
+          ],
+          [
+            'sensor-readings',
+            {
+              deviceId: device.id,
+              sensorType: 'TEMPERATURE',
+              value: 25,
+              unit: 'C',
+              recordedAt: '2026-09-26T00:00:00.000Z',
+            },
+            422,
+          ],
+        ] as const;
+        for (const [command, body, status] of commands)
+          await post(
+            `${base}/${command}`,
+            'version' in body ? { ...body, version: version + 1 } : body,
+          ).expect(status);
+        expect(await cycleSnapshot(cycle.id)).toEqual(before);
+      },
+    );
+
+    it('keeps raw sensor readings off-chain without advancing PLANTED or GROWING', async () => {
+      const cycle = await plantedCycle();
+      const base = `/production-cycles/${cycle.id}`;
+      const device = (
+        await post('/iot/devices', {
+          organizationId: farmOrgId,
+          cycleId: cycle.id,
+          deviceCode: randomUUID(),
+          name: 'Matrix sensor',
+          type: 'TEMPERATURE',
+        }).expect(201)
+      ).body.data;
+      for (const state of ['PLANTED', 'GROWING']) {
+        const before = await cycleSnapshot(cycle.id);
+        expect(before.cycle.currentState).toBe(state);
+        const key = randomUUID();
+        const body = {
+          deviceId: device.id,
+          sensorType: 'TEMPERATURE',
+          value: 25,
+          unit: 'C',
+          recordedAt: '2026-09-26T00:00:00.000Z',
+        };
+        const first = await post(
+          `${base}/sensor-readings`,
+          body,
+          'farm',
+          key,
+        ).expect(201);
+        const replay = await post(
+          `${base}/sensor-readings`,
+          body,
+          'farm',
+          key,
+        ).expect(201);
+        expect(replay.body.data).toEqual(first.body.data);
+        const after = await cycleSnapshot(cycle.id);
+        expect(after.cycle).toEqual(before.cycle);
+        expect(after.events).toEqual(before.events);
+        expect(after.outbox).toBe(before.outbox);
+        expect(after.sensor).toBe(before.sensor + 1);
+        if (state === 'PLANTED')
+          await post(`${base}/care`, {
+            version: before.cycle.version,
+            careType: 'WATER',
+            eventTime: body.recordedAt,
+          }).expect(201);
+      }
+    });
+
+    it.each(['foreign', 'admin', 'auditor', 'transporter', 'retailer'])(
+      'rejects cycle commands for %s with 403 and no domain writes',
+      async (actor) => {
+        const cycle = await plantedCycle();
+        const before = await cycleSnapshot(cycle.id);
+        const commands = [
+          ['plant', { version: 1, plantedAt: '2026-09-25T00:00:00.000Z' }],
+          [
+            'care',
+            {
+              version: 1,
+              careType: 'WATER',
+              eventTime: '2026-09-26T00:00:00.000Z',
+            },
+          ],
+          ['close', { version: 1 }],
+          ['cancel', { version: 1, reason: 'Unauthorized' }],
+          [
+            'harvests',
+            {
+              quantity: 1,
+              unit: 'kg',
+              harvestTime: '2026-09-26T00:00:00.000Z',
+            },
+          ],
+          [
+            'sensor-readings',
+            {
+              deviceId: randomUUID(),
+              sensorType: 'TEMPERATURE',
+              value: 25,
+              unit: 'C',
+              recordedAt: '2026-09-26T00:00:00.000Z',
+            },
+          ],
+        ] as const;
+        for (const [command, body] of commands)
+          await post(
+            `/production-cycles/${cycle.id}/${command}`,
+            body,
+            actor,
+          ).expect(403);
+        expect(await cycleSnapshot(cycle.id)).toEqual(before);
+      },
+    );
+    it.each(['plant', 'care', 'close', 'cancel'] as const)(
+      'rolls back %s domain, trace, outbox and journal together on storage failure',
+      async (command) => {
+        const cycle =
+          command === 'plant' ? await createdCycle() : await plantedCycle();
+        const before = await cycleSnapshot(cycle.id);
+        const key = randomUUID();
+        const trace = app.get(TraceService);
+        const append = trace.createInTransaction.bind(trace);
+        vi.spyOn(trace, 'createInTransaction').mockImplementationOnce(
+          async (...args) => {
+            await append(...args);
+            throw new Error('Simulated failure after trace and outbox inserts');
+          },
+        );
+        const body = {
+          plant: { version: 0, plantedAt: '2026-09-25T00:00:00.000Z' },
+          care: {
+            version: 1,
+            careType: 'WATER',
+            eventTime: '2026-09-26T00:00:00.000Z',
+          },
+          close: { version: 1 },
+          cancel: { version: 1, reason: 'Rollback test' },
+        }[command];
+        await post(
+          `/production-cycles/${cycle.id}/${command}`,
+          body,
+          'farm',
+          key,
+        ).expect(500);
+        expect(await cycleSnapshot(cycle.id)).toEqual(before);
+        const record = await prisma.idempotencyRecord.findFirstOrThrow({
+          where: { idempotencyKey: key },
+          include: { commandCommit: true },
+        });
+        expect(record.status).toBe('PROCESSING');
+        expect(record.commandCommit).toBeNull();
+        // An unknown outcome cannot execute again, even though this injected
+        // failure rolled back. The original key must remain fenced.
+        await post(
+          `/production-cycles/${cycle.id}/${command}`,
+          body,
+          'farm',
+          key,
+        ).expect(409);
+        expect(await cycleSnapshot(cycle.id)).toEqual(before);
+      },
+    );
+
+    it.each(['close', 'cancel'] as const)(
+      'serializes %s against harvest at the terminal boundary',
+      async (terminal) => {
+        const cycle = await plantedCycle();
+        const base = `/production-cycles/${cycle.id}`;
+        const [end, harvest] = await Promise.all([
+          post(`${base}/${terminal}`, {
+            version: 1,
+            ...(terminal === 'cancel' ? { reason: 'Race' } : {}),
+          }),
+          post(`${base}/harvests`, {
+            quantity: 1,
+            unit: 'kg',
+            harvestTime: '2026-09-26T00:00:00.000Z',
+          }),
+        ]);
+        expect([end.status, harvest.status].sort()).toEqual([201, 409]);
+        const after = await cycleSnapshot(cycle.id);
+        expect(after.cycle.version).toBe(2);
+        expect(after.harvest).toBe(harvest.status === 201 ? 1 : 0);
+        expect(after.cycle.currentState).toBe(
+          end.status === 201
+            ? terminal === 'close'
+              ? 'COMPLETED'
+              : 'CANCELLED'
+            : 'PLANTED',
+        );
+        expect(after.outbox).toBe(after.events.length);
+      },
+    );
+
     async function harvestedLot(quantity = 1) {
       const cycle = await plantedCycle(quantity);
       const result = await post(`/production-cycles/${cycle.id}/harvests`, {

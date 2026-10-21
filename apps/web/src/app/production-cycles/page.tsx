@@ -383,6 +383,34 @@ function CycleWorkspace() {
               ))
             )}
           </div>
+          {canWriteDetail && active && (
+            <DataForm
+              key={detail.id + "close"}
+              title="Kết thúc vụ trồng (ngừng chăm sóc và thu hoạch)"
+              path={"/production-cycles/" + detail.id + "/close"}
+              extra={{ version: detail.version }}
+              fields={[]}
+              onSaved={saved}
+            />
+          )}
+          {canWriteDetail &&
+            ["CREATED", "PLANTED", "GROWING"].includes(detail.currentState) && (
+              <DataForm
+                key={detail.id + "cancel"}
+                title="Hủy vụ trồng (không thể mở lại)"
+                path={"/production-cycles/" + detail.id + "/cancel"}
+                extra={{ version: detail.version }}
+                fields={[
+                  {
+                    name: "reason",
+                    label: "Lý do hủy",
+                    required: true,
+                    maxLength: 500,
+                  },
+                ]}
+                onSaved={saved}
+              />
+            )}
         </section>
       )}
       {harvest && (
