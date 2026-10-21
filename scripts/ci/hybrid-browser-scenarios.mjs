@@ -934,6 +934,11 @@ export async function runHybridBrowserScenarios(options) {
       await session.pages.farm
         .getByRole("button", { name: "Đăng xuất", exact: true })
         .click();
+      // Signing out asks once in the shared confirmation dialog.
+      await session.pages.farm
+        .getByRole("dialog")
+        .getByRole("button", { name: "Xác nhận", exact: true })
+        .click();
       await session.pages.farm.waitForURL((url) => url.pathname === "/login", {
         timeout,
       });
@@ -964,6 +969,11 @@ export async function runHybridBrowserScenarios(options) {
       await session.pages.farm.locator('summary[aria-label^="Tài khoản:"]').filter({ visible: true }).first().click();
       await session.pages.farm
         .getByRole("button", { name: "Đăng xuất", exact: true })
+        .click();
+      // Signing out asks once in the shared confirmation dialog.
+      await session.pages.farm
+        .getByRole("dialog")
+        .getByRole("button", { name: "Xác nhận", exact: true })
         .click();
       await session.pages.farm.waitForURL((url) => url.pathname === "/login", {
         timeout,
