@@ -29,6 +29,14 @@ describe('Maintenance protects cutover writers', () => {
     call('POST', '/api/auth/logout');
     expect(next.handle).toHaveBeenCalledTimes(3);
   });
+  it('allows only exact native auth paths under a separately enabled consumer flag', () => {
+    const enabled = fixture({ HYBRID_WRITES_MODE: 'CLOSED', CONSUMER_AUTH_ENABLED: 'true' });
+    for (const action of ['register', 'login', 'password-reset', 'refresh', 'logout']) enabled.call('POST', `/api/auth/mobile/${action}`);
+    expect(enabled.next.handle).toHaveBeenCalledTimes(5);
+    expect(() => enabled.call('POST', '/api/auth/register')).toThrow(ServiceUnavailableException);
+    expect(() => enabled.call('POST', '/api/auth/mobile/register/extra')).toThrow(ServiceUnavailableException);
+    expect(() => fixture({ HYBRID_WRITES_MODE: 'CLOSED' }).call('POST', '/api/auth/mobile/login')).toThrow(ServiceUnavailableException);
+  });
   it('uses authenticated actor identity rather than submitted actor fields', () => {
     const { call, next } = fixture({ HYBRID_WRITES_MODE: 'CANARY', HYBRID_CANARY_ACTOR_IDS: ACTOR });
     expect(() => call('POST', '/api/production-cycles', undefined, { sub: ACTOR })).toThrow(ServiceUnavailableException);

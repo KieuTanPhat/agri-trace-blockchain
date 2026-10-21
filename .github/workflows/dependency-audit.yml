@@ -91,9 +91,34 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  mobile-audit:
+    name: Mobile independent dependencies
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.22.3'
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm install --global npm@12.1.0
+      - run: npm ci --prefix apps/mobile --no-audit --no-fund
+      - run: node scripts/ci/audit-mobile.mjs
+      - name: Upload mobile dependency evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mobile-dependencies-${{ github.sha }}
+          path: apps/mobile/.audit/
+          if-no-files-found: warn
+          retention-days: 14
+
   gate:
     name: Dependency gate
-    needs: [audit, workspace-peers]
+    needs: [audit, workspace-peers, mobile-audit]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

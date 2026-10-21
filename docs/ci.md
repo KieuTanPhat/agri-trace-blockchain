@@ -9,9 +9,19 @@ actions được cố định bằng SHA và cập nhật qua Dependabot.
 
 | Check bắt buộc | Kiểm tra |
 | --- | --- |
-| `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |
+| `Application gate` | API/Web/Mobile trên Node 22.22.3, 24.15.0, 26.0.0; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |
 | `Blockchain gate` | Gateway/chaincode trên ba phiên bản Node; coverage chaincode; cài/audit/check chaincode độc lập; Worker contract; API → outbox → Worker → Fabric → proof. |
-| `Dependency gate` | Audit hai lockfile và dependency đã cài; kiểm peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. |
+| `Dependency gate` | Audit root, standalone chaincode, mobile và dependency đã cài; kiểm peer graph; chặn moderate/high/critical, gồm dependency phát triển. |
+
+Mobile là package độc lập, có lockfile riêng. PR chỉ `apps/mobile/` chọn job
+`Mobile`, không tự chọn container/Fabric; API/public contract thay đổi cũng chọn
+mobile. Root manifest/generator/workflow vẫn chọn đầy đủ gate hiện có. Job mobile
+cài bằng lockfile riêng, lint/typecheck/test/Expo compatibility và export Android/iOS;
+Node22 kiểm thêm public UI fixture 320/390/768px bằng Chromium. Đây là kiểm bundle/UI,
+không phải native APK, camera hay nghiệm thu dữ liệu thật. Không tạo required check mới.
+Audit mobile chạy full/production và `npm ls --all`, lưu metadata và JSON vào artifact
+`mobile-dependencies-<SHA>`; chưa có ngoại lệ được duyệt. Advisory moderate/high còn
+tồn tại phải chặn Dependency gate, không coi CI code xanh là quyền bỏ qua audit.
 
 Mỗi workflow tạo gate cho mọi PR, kể cả PR chỉ sửa tài liệu. Việc chọn job
 diễn ra trong `scripts/ci/changes.mjs`, thay vì bỏ cả workflow bằng `paths`:

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { compare } from 'bcrypt';
+import { compare, hash } from 'bcrypt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
@@ -27,17 +27,43 @@ export class AuthService {
   ) {}
 
   register(input: RegisterDto) {
-    return registerEnterprise(this.prisma,input,this.config?.getOrThrow<string>('JWT_SECRET') ?? process.env.JWT_SECRET!);
+    return registerEnterprise(
+      this.prisma,
+      input,
+      this.config?.getOrThrow<string>('JWT_SECRET') ?? process.env.JWT_SECRET!,
+    );
   }
 
   async login(input: LoginDto, previousRefreshToken?: string) {
+    return this.loginAccount(input, previousRefreshToken);
+  }
+
+  async loginConsumer(
+    phone: string,
+    password: string,
+    previousRefreshToken?: string,
+  ) {
+    return this.loginAccount(
+      { email: '', password },
+      previousRefreshToken,
+      phone,
+    );
+  }
+
+  private dummyPassword = hash(randomBytes(32).toString('hex'), 12);
+
+  private async loginAccount(
+    input: LoginDto,
+    previousRefreshToken?: string,
+    consumerPhone?: string,
+  ) {
     const email = input.email.trim().toLowerCase();
 
     // The live database enforces case-insensitive uniqueness through
     // ux_app_user_email_lower, an expression index Prisma cannot expose as a
     // findUnique selector.
     const user = await this.prisma.user.findFirst({
-      where: { email },
+      where: consumerPhone ? { phone: consumerPhone } : { email },
       include: {
         role: {
           select: {
@@ -50,8 +76,23 @@ export class AuthService {
       },
     });
 
-    if (!user || !(await compare(input.password, user.passwordHash))) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
+    const matches = user
+      ? await compare(input.password, user.passwordHash)
+      : consumerPhone
+        ? await compare(input.password, await this.dummyPassword)
+        : false;
+    if (
+      !user ||
+      !matches ||
+      (consumerPhone
+        ? user.role.code !== 'CONSUMER' || user.organizationId !== null
+        : user.role.code === 'CONSUMER')
+    ) {
+      throw new UnauthorizedException(
+        consumerPhone
+          ? 'Số điện thoại hoặc mật khẩu không chính xác'
+          : 'Email hoặc mật khẩu không chính xác',
+      );
     }
 
     if (user.accountStatus !== 'ACTIVE') {
@@ -59,6 +100,11 @@ export class AuthService {
     }
     if (user.organizationId && user.organization?.status !== 'ACTIVE') {
       throw new UnauthorizedException('Tổ chức hiện không hoạt động');
+    }
+    // Validate/retire the previous native family BEFORE issuing a new one.
+    // A wrong-kind previous credential must not leave an unreturned active family.
+    if (consumerPhone && previousRefreshToken) {
+      await this.logout({ refreshToken: previousRefreshToken }, true);
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -70,6 +116,13 @@ export class AuthService {
       if (
         !current ||
         current.passwordHash !== user.passwordHash ||
+        (consumerPhone &&
+          (current.role.code !== 'CONSUMER' ||
+            current.organizationId !== null ||
+            current.phone !== consumerPhone ||
+            !(await tx.consumerProfile.findUnique({
+              where: { userId: current.id },
+            })))) ||
         current.accountStatus !== 'ACTIVE' ||
         (current.organizationId && current.organization?.status !== 'ACTIVE')
       ) {
@@ -82,13 +135,13 @@ export class AuthService {
     });
     // A browser account switch also invalidates access tokens held by other
     // tabs. Logout uses the same DB locks as rotation, including old tokens.
-    if (previousRefreshToken) {
+    if (previousRefreshToken && !consumerPhone) {
       await this.logout({ refreshToken: previousRefreshToken });
     }
     return result;
   }
 
-  async refresh(input: RefreshTokenDto) {
+  async refresh(input: RefreshTokenDto, consumerOnly = false) {
     const tokenHash = this.hashRefreshToken(input.refreshToken);
     const owner = await this.prisma.refreshSession.findUnique({
       where: { tokenHash },
@@ -111,6 +164,15 @@ export class AuthService {
         include: { user: { select: this.safeUserSelect } },
       });
       if (!session) return { state: 'revoked' } as const;
+      if (
+        consumerOnly &&
+        (session.user.role.code !== 'CONSUMER' ||
+          session.user.organizationId !== null ||
+          !(await tx.consumerProfile.findUnique({
+            where: { userId: session.userId },
+          })))
+      )
+        return { state: 'revoked' } as const;
       const familyId = session.familyId ?? session.id;
       if (
         session.user.accountStatus !== 'ACTIVE' ||
@@ -172,17 +234,25 @@ export class AuthService {
     return result.payload;
   }
 
-  async logout(input: RefreshTokenDto) {
+  async logout(input: RefreshTokenDto, consumerOnly = false) {
     const session = await this.prisma.refreshSession.findUnique({
       where: { tokenHash: this.hashRefreshToken(input.refreshToken) },
       select: {
         id: true,
         familyId: true,
         userId: true,
-        user: { select: { organizationId: true } },
+        user: {
+          select: { organizationId: true, role: { select: { code: true } } },
+        },
       },
     });
     if (session) {
+      if (
+        consumerOnly &&
+        (session.user.role.code !== 'CONSUMER' ||
+          session.user.organizationId !== null)
+      )
+        throw new UnauthorizedException('Phiên không hợp lệ');
       await this.prisma.$transaction(async (tx) => {
         await lockSessionOwner(tx, session.userId, session.user.organizationId);
         await this.revokeFamily(tx, session.familyId ?? session.id);
@@ -211,7 +281,7 @@ export class AuthService {
     return user;
   }
 
-  private async createAuthResponse(
+  async createAuthResponse(
     tx: Prisma.TransactionClient,
     user: {
       id: string;

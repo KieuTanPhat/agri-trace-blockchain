@@ -1,0 +1,12 @@
+node_modules/
+.audit/
+.ui-artifacts/
+.expo/
+dist/
+android/
+ios/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+expo-env.d.ts
