@@ -4,7 +4,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
@@ -49,10 +49,51 @@ export class LotHarvestService {
         });
         if (!cycle)
           throw new NotFoundException('Không tìm thấy chu kỳ sản xuất');
+        if (cycle.version !== input.version)
+          throw new ConflictException('Vụ đã thay đổi; tải lại trước khi thu hoạch');
         if (!['PLANTED', 'GROWING'].includes(cycle.currentState))
           throw new ConflictException(
             'Chu kỳ không ở trạng thái có thể thu hoạch',
           );
+        const representative = await tx.user.findFirst({ where: {
+          id: input.representativeUserId,
+          organizationId: actor.organizationId!,
+          accountStatus: 'ACTIVE',
+        }, select: { id: true, fullName: true } });
+        if (!representative || input.representativeUserId !== (cycle.responsibleUserId ?? actor.sub))
+          throw new UnprocessableEntityException('Người đại diện phải là thành viên được phân công cho vụ hoặc tài khoản đang ghi khi vụ chưa phân công');
+        const harvestEvidenceIds = [input.evidenceRef, ...(input.additionalEvidenceRefs ?? [])];
+        if (new Set(harvestEvidenceIds).size !== harvestEvidenceIds.length)
+          throw new UnprocessableEntityException('Ảnh thu hoạch bị chọn trùng');
+        const harvestEvidence = await tx.traceEvidence.findMany({
+          where: {
+            id: { in: harvestEvidenceIds },
+            organizationId: actor.organizationId!,
+            entityType: 'CYCLE',
+            entityId: cycleId,
+            kind: 'HARVEST_IMAGE',
+            mediaType: { in: ['image/png', 'image/jpeg'] },
+          },
+        });
+        const supersededHarvestImages = await tx.traceEvidence.count({ where: { supersedesId: { in: harvestEvidenceIds } } });
+        if (harvestEvidence.length !== harvestEvidenceIds.length || supersededHarvestImages)
+          throw new UnprocessableEntityException('Cần 1–5 ảnh thu hoạch hiện hành thuộc vụ này');
+        const primaryHarvestEvidence = harvestEvidence.find((row) => row.id === input.evidenceRef)!;
+        const lotImage = await tx.traceEvidence.findFirst({
+          where: {
+            id: input.lotImageEvidenceRef,
+            organizationId: actor.organizationId!,
+            entityType: 'CYCLE',
+            entityId: cycleId,
+            kind: 'LOT_IMAGE',
+            mediaType: { in: ['image/png', 'image/jpeg'] },
+          },
+        });
+        if (!lotImage || await tx.traceEvidence.findFirst({ where: { supersedesId: lotImage.id } }))
+          throw new UnprocessableEntityException('Cần ảnh lô hiện hành thuộc vụ này');
+        const evidenceUsage = await tx.traceEvidence.aggregate({ where: { organizationId: actor.organizationId! }, _count: true, _sum: { size: true } });
+        if (evidenceUsage._count >= 1000 || (evidenceUsage._sum.size ?? 0) + lotImage.size > 256 * 1024 * 1024)
+          throw new ConflictException('Đã đạt giới hạn lưu chứng cứ của tổ chức');
         if (cycle.harvestUnit && cycle.harvestUnit !== input.unit)
           throw new UnprocessableEntityException(
             'Đơn vị thu hoạch không khớp kế hoạch',
@@ -73,6 +114,15 @@ export class LotHarvestService {
         const expiryDate = input.expiryDate
           ? normalizeExpiryDate(input.expiryDate)
           : undefined;
+        const packedAt = input.packedAt ? normalizeExpiryDate(input.packedAt) : undefined;
+        if (packedAt && packedAt < normalizeExpiryDate(harvestTime.toISOString()))
+          throw new UnprocessableEntityException('Ngày đóng gói không trước ngày thu hoạch');
+        if (expiryDate && packedAt && expiryDate < packedAt)
+          throw new UnprocessableEntityException('Ngày hết hạn không trước ngày đóng gói');
+        if (input.initialStorageSiteId) {
+          const site = await tx.enterpriseSite.findFirst({ where: { id: input.initialStorageSiteId, organizationId: actor.organizationId!, status: 'ACTIVE' } });
+          if (!site) throw new UnprocessableEntityException('Cơ sở lưu giữ ban đầu không thuộc tổ chức hoặc chưa hoạt động');
+        }
         if (
           expiryDate &&
           expiryDate < normalizeExpiryDate(harvestTime.toISOString())
@@ -103,6 +153,7 @@ export class LotHarvestService {
         const harvest = await tx.harvestEvent.create({
           data: {
             cycleId,
+            harvestCode: `TH-${randomUUID().slice(0, 12).toUpperCase()}`,
             finalSensorDigestId: input.finalSensorDigestId,
             harvestTime,
             quantity: harvestedQuantity,
@@ -110,6 +161,12 @@ export class LotHarvestService {
             grade: input.grade,
             qualityNote: input.qualityNote,
             harvestArea: input.harvestArea,
+            evidenceRef: primaryHarvestEvidence.id,
+            evidenceIds: harvestEvidenceIds,
+            representativeUserId: representative.id,
+            representative: representative.fullName,
+            harvestMethod: input.harvestMethod,
+            note: input.note,
           },
         });
         const lotCode =
@@ -118,6 +175,7 @@ export class LotHarvestService {
         const lot = await tx.lot.create({
           data: {
             lotCode,
+            lotName: input.lotName,
             harvestId: harvest.id,
             productId: cycle.productId,
             farmOrgId: cycle.farmOrgId,
@@ -126,8 +184,18 @@ export class LotHarvestService {
             unit: input.unit,
             grade: input.grade,
             expiryDate,
+            packageCount: input.packageCount,
+            packaging: input.packaging,
+            packedAt,
+            initialStorageSiteId: input.initialStorageSiteId,
           },
         });
+        const lotEvidence = await tx.traceEvidence.create({ data: {
+          organizationId: actor.organizationId!, entityType: 'LOT', entityId: lot.id,
+          chainId: cycle.chainId, fileName: lotImage.fileName, mediaType: lotImage.mediaType,
+          size: lotImage.size, sha256: lotImage.sha256, content: lotImage.content,
+          description: lotImage.description, kind: 'LOT_IMAGE', public: false, actorId: actor.sub!,
+        } });
         const sensorWindow = await finalizeHarvestSensorWindow(
           tx,
           sensorSnapshot,
@@ -163,16 +231,39 @@ export class LotHarvestService {
           actor,
           eventTime: harvest.harvestTime,
           businessData: {
+            harvestCode: harvest.harvestCode,
             lotCode,
+            lotName: input.lotName,
             quantity: harvestedQuantity.toString(),
             unit: input.unit,
             grade: input.grade ?? null,
             expiryDate: lot.expiryDate?.toISOString().slice(0, 10) ?? null,
             qualityNote: input.qualityNote ?? null,
             harvestArea: input.harvestArea ?? null,
+            representative: representative.fullName,
+            representativeUserId: representative.id,
+            harvestMethod: input.harvestMethod ?? null,
+            packageCount: input.packageCount ?? null,
+            packaging: input.packaging ?? null,
+            packedAt: packedAt?.toISOString().slice(0, 10) ?? null,
+            initialStorageSiteId: input.initialStorageSiteId ?? null,
+            note: input.note ?? null,
+            evidenceRef: primaryHarvestEvidence.id,
+            evidenceSha256: primaryHarvestEvidence.sha256,
+            evidenceIds: harvestEvidenceIds.map((evidenceId) => ({
+              evidenceId,
+              sha256: harvestEvidence.find((row) => row.id === evidenceId)!.sha256,
+            })),
+            lotImageEvidenceId: lotEvidence.id,
+            lotImageSha256: lotEvidence.sha256,
             sensorWindowId: sensorWindow.id,
             sensorEvidenceStatus: sensorWindow.status,
           },
+        });
+        await this.trace.createInTransaction(tx, {
+          entityType: 'LOT', entityId: lot.id, cycleId, lotId: lot.id,
+          eventType: 'EVIDENCE_ATTACHED', actor,
+          businessData: { evidenceId: lotEvidence.id, sha256: lotEvidence.sha256, sourceEvidenceId: lotImage.id, kind: 'LOT_IMAGE', public: false },
         });
         await tx.quantityMovement.create({
           data: {
@@ -186,6 +277,24 @@ export class LotHarvestService {
             afterQty: harvestedQuantity,
           },
         });
+        if (input.initialStorageSiteId) {
+          await tx.lotHolding.create({ data: {
+            lotId: lot.id, organizationId: actor.organizationId!, quantity: harvestedQuantity,
+          } });
+          await tx.lotSiteHolding.create({ data: {
+            lotId: lot.id, organizationId: actor.organizationId!,
+            siteId: input.initialStorageSiteId, quantity: harvestedQuantity,
+          } });
+          await this.trace.createInTransaction(tx, {
+            entityType: 'LOT', entityId: lot.id, cycleId, lotId: lot.id,
+            eventType: 'DISTRIBUTION_SITE_ALLOCATED', actor,
+            businessData: {
+              siteId: input.initialStorageSiteId, fromSiteId: null,
+              quantity: harvestedQuantity.toFixed(3), unit: input.unit,
+              reason: 'Cơ sở lưu giữ ban đầu khi thu hoạch',
+            },
+          });
+        }
         const traceToken = randomBytes(24).toString('base64url');
         const traceQr = await tx.traceQr.create({
           data: {

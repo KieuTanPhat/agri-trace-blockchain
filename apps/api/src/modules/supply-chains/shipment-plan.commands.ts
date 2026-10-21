@@ -333,7 +333,7 @@ async function draftLot(
       harvest: { select: { cycle: { select: { chainId: true } } } },
     },
   });
-  if (!lot || lot.harvest.cycle.chainId !== chainId)
+  if (!lot || lot.harvest?.cycle.chainId !== chainId)
     throw new NotFoundException('Không tìm thấy lô trong chuỗi');
   if (
     lot.currentState !== 'HARVESTED' ||

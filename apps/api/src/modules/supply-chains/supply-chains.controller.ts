@@ -29,6 +29,7 @@ import {
   ChainVersionDto,
   ChangeMemberDto,
   CreateChainDto,
+  SuspendChainDto,
   GrantRecordDto,
   GrantRoleDto,
   InviteMemberDto,
@@ -121,7 +122,7 @@ export class SupplyChainsController {
     @IdempotencyKey() key: string,
   ) {
     return this.command(req, key, 'HYB_CREATE_CHAIN', input, () =>
-      this.service.create(req.user, input.name),
+      this.service.create(req.user, input),
     );
   }
 
@@ -150,6 +151,20 @@ export class SupplyChainsController {
       { ...input, chainId },
       () =>
         this.service.activateBusinessProfile(req.user, chainId, input.version),
+    );
+  }
+
+  @Post('supply-chains/:chainId/business-profile/suspend')
+  @ApiDataResponse(BusinessProfileDto, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  suspend(
+    @Req() req: AuthenticatedRequest,
+    @Param('chainId', ParseUUIDPipe) chainId: string,
+    @Body() input: SuspendChainDto,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.command(req, key, 'HYB_SUSPEND_BUSINESS_PROFILE', { ...input, chainId }, () =>
+      this.service.suspendBusinessProfile(req.user, chainId, input.version, input.reason),
     );
   }
 

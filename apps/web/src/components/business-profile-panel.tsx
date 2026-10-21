@@ -26,6 +26,7 @@ export function BusinessProfilePanel({
     profile: Profile;
   } | null>(null);
   const [error, setError] = useState("");
+  const [revision, setRevision] = useState(0);
   useEffect(() => {
     let active = true;
     setLoaded(null);
@@ -40,7 +41,8 @@ export function BusinessProfilePanel({
     return () => {
       active = false;
     };
-  }, [chainId]);
+  }, [chainId, revision]);
+  const changed = () => { setRevision((value) => value + 1); onChanged(); };
   const profile = loaded?.chainId === chainId ? loaded.profile : null;
   return (
     <section className="panel" aria-label="Trạng thái nghiệp vụ chuỗi">
@@ -67,9 +69,22 @@ export function BusinessProfilePanel({
               path={`/supply-chains/${chainId}/business-profile/activate`}
               fields={[]}
               extra={{ version: profile.version }}
-              onSaved={onChanged}
+              onSaved={changed}
             />
           )}
+          {profile.state === "ACTIVE" && canActivate && (
+            <DataForm
+              key={`${chainId}:suspend:${profile.version}`}
+              title="Ngừng hoạt động chuỗi"
+              path={`/supply-chains/${chainId}/business-profile/suspend`}
+              fields={[{ name: "reason", label: "Lý do ngừng hoạt động", required: true, minLength: 10, maxLength: 1000 }]}
+              extra={{ version: profile.version }}
+              onSaved={changed}
+            />
+          )}
+          {profile.state === "SUSPENDED" && <p>
+            Lý do: {profile.suspensionReason ?? "—"} · {profile.suspendedAt ? new Date(profile.suspendedAt).toLocaleString("vi-VN") : ""}. Lịch sử và QR đã phát hành vẫn tra cứu được.
+          </p>}
         </>
       )}
     </section>

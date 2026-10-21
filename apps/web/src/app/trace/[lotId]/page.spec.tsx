@@ -5,7 +5,10 @@ import { getPublicTrace } from "@/lib/api-client";
 import { mockLots, mockPublicTrace } from "@/lib/mock-api";
 import type { ProofStatus } from "@/lib/types";
 
-vi.mock("@/lib/api-client", () => ({ getPublicTrace: vi.fn() }));
+vi.mock("@/lib/api-client", () => ({
+  getPublicTrace: vi.fn(),
+  getPublicLotPhoto: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("next/image", () => ({ default: () => null }));
 vi.mock("@/components/qr-code-card", () => ({ QrCodeCard: () => null }));
 afterEach(() => {
@@ -30,6 +33,8 @@ it.each([
     expect(container.querySelector(".proof-summary")).toHaveClass(
       `proof-${proofTone}`,
     );
-    expect(container.querySelectorAll(`.badge.${badgeTone}`).length).toBeGreaterThan(0);
+    expect(
+      container.querySelectorAll(`.badge.${badgeTone}`).length,
+    ).toBeGreaterThan(0);
   },
 );

@@ -24,7 +24,7 @@ import {
  */
 export type PreparedIntentInput = {
   intentId: string;
-  operation: 'HANDOVER_OFFER' | 'HANDOVER_CONFIRM';
+  operation: 'HANDOVER_OFFER' | 'HANDOVER_CONFIRM' | 'DISTRIBUTION_ATTEST';
   keyRef: string;
   expiresAt: string;
   intent: IntentBody;

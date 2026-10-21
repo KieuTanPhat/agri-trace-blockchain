@@ -7,6 +7,10 @@ import {
 } from '@nestjs/common';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  appendPlatformAudit,
+  lockPlatformAudit,
+} from '../platform-governance/platform-audit.js';
 import type { Actor } from '../trace/trace.service.js';
 
 @Injectable()
@@ -39,6 +43,7 @@ export class ComplianceAssignmentsService {
   ) {
     this.assertAdmin(actor);
     return commandTransaction(this.prisma, async (tx) => {
+      await lockPlatformAudit(tx);
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`assignment:${input.reviewerUserId}:${input.farmId}`}, 0))`;
       const reviewer = await tx.user.findUnique({
         where: { id: input.reviewerUserId },
@@ -71,7 +76,7 @@ export class ComplianceAssignmentsService {
         })
       )
         throw new ConflictException('Phân công đang hoạt động đã tồn tại');
-      return tx.complianceAssignment.create({
+      const created = await tx.complianceAssignment.create({
         data: {
           reviewerUserId: input.reviewerUserId,
           farmId: input.farmId,
@@ -84,14 +89,26 @@ export class ComplianceAssignmentsService {
           },
         },
       });
+      await appendPlatformAudit(tx, {
+        actor: { sub: actor.sub, role: actor.role },
+        action: 'COMPLIANCE_ASSIGNMENT_GRANTED',
+        subjectType: 'COMPLIANCE_ASSIGNMENT',
+        subjectId: created.id,
+        organizationId: farm.organizationId,
+        reason: input.reason,
+        details: { reviewerUserId: input.reviewerUserId, farmId: input.farmId },
+      });
+      return created;
     });
   }
 
   async revoke(id: string, reason: string, actor: Actor) {
     this.assertAdmin(actor);
     return commandTransaction(this.prisma, async (tx) => {
+      await lockPlatformAudit(tx);
       const assignment = await tx.complianceAssignment.findUnique({
         where: { id },
+        include: { farm: { select: { organizationId: true } } },
       });
       if (!assignment) throw new NotFoundException('Không tìm thấy phân công');
       const result = await tx.complianceAssignment.updateMany({
@@ -106,6 +123,18 @@ export class ComplianceAssignmentsService {
           action: 'REVOKED',
           actorUserId: actor.sub!,
           reason: this.reason(reason),
+        },
+      });
+      await appendPlatformAudit(tx, {
+        actor: { sub: actor.sub, role: actor.role },
+        action: 'COMPLIANCE_ASSIGNMENT_REVOKED',
+        subjectType: 'COMPLIANCE_ASSIGNMENT',
+        subjectId: id,
+        organizationId: assignment.farm.organizationId,
+        reason,
+        details: {
+          reviewerUserId: assignment.reviewerUserId,
+          farmId: assignment.farmId,
         },
       });
       return tx.complianceAssignment.findUniqueOrThrow({ where: { id } });

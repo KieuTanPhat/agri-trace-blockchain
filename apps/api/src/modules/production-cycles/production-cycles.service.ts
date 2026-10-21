@@ -2,6 +2,7 @@ import {
   assertBusinessActor,
   FARM_WRITE_ROLES,
 } from '../auth/business-write.policy.js';
+import { randomUUID } from 'node:crypto';
 import {
   ConflictException,
   ForbiddenException,
@@ -23,6 +24,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
 import { activeChainBindingDigest } from '../ledger/ledger-permissions.js';
+import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
 import {
   scopedCycleReadWhere,
   scopedLotReadWhere,
@@ -43,6 +45,8 @@ import type {
   SensorReadingDto,
   VersionedCommandDto,
   ReconcileCycleSensorDto,
+  CreateProductionCycleDraftDto,
+  LinkProductionCycleDraftDto,
 } from './dto.js';
 
 @Injectable()
@@ -143,7 +147,73 @@ export class ProductionCyclesService {
     return scopedCycleReadWhere(actor);
   }
 
-  async create(input: CreateProductionCycleDto, actor: Actor) {
+  async drafts(actor: Actor) {
+    actor = effectiveCommandActor(actor);
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
+    const auth = await enterpriseAuthority(this.prisma, actor, 'production.read');
+    return { items: await this.prisma.productionCycleDraft.findMany({
+      where: {
+        organizationId: actor.organizationId!,
+        ...(auth.primary
+          ? {}
+          : { farmId: { in: [...new Set(auth.matching.flatMap((role) => role.siteIds))] } }),
+      },
+      orderBy: { createdAt: 'desc' },
+    }) };
+  }
+
+  createDraft(input: CreateProductionCycleDraftDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
+    return commandTransaction(this.prisma, async (tx) => {
+      await enterpriseAuthority(tx, actor, 'production.write', undefined, input.farmId, true);
+      const [farm, plot, product, seed, responsible] = await Promise.all([
+        tx.farm.findFirst({ where: { id: input.farmId, organizationId: actor.organizationId!, status: 'ACTIVE', evidenceComplete: true } }),
+        tx.plot.findFirst({ where: { id: input.plotId, farmId: input.farmId, status: 'ACTIVE' } }),
+        tx.product.findFirst({ where: { id: input.productId, status: 'ACTIVE', evidenceComplete: true, OR: [{ organizationId: actor.organizationId! }, { organizationId: null }] } }),
+        input.seedMaterialId ? tx.productionMaterial.findFirst({ where: { id: input.seedMaterialId, organizationId: actor.organizationId!, kind: 'SEED', status: 'ACTIVE', evidenceComplete: true } }) : null,
+        input.responsibleUserId ? tx.user.findFirst({ where: { id: input.responsibleUserId, organizationId: actor.organizationId!, accountStatus: 'ACTIVE' } }) : null,
+      ]);
+      if (!farm || !plot || !product) throw new UnprocessableEntityException('Vùng, thửa đất hoặc sản phẩm không hợp lệ');
+      if (input.seedMaterialId && !seed) throw new UnprocessableEntityException('Giống không thuộc doanh nghiệp hoặc chưa hoạt động');
+      if (input.responsibleUserId && !responsible) throw new UnprocessableEntityException('Người phụ trách không thuộc doanh nghiệp hoặc chưa hoạt động');
+      const startDate = normalizeExpiryDate(input.startDate);
+      const plannedHarvest = normalizeExpiryDate(input.plannedHarvest);
+      if (plannedHarvest < startDate) throw new UnprocessableEntityException('Ngày dự kiến thu hoạch phải sau ngày bắt đầu');
+      const cycleCode = input.cycleCode?.trim() || `VU-${randomUUID().slice(0, 12).toUpperCase()}`;
+      if (await tx.productionCycle.findFirst({ where: { farmId: farm.id, cycleCode } })) throw new ConflictException('Mã vụ đã được sử dụng');
+      return { record: await tx.productionCycleDraft.create({ data: {
+        organizationId: actor.organizationId!, farmId: farm.id, plotId: plot.id, productId: product.id,
+        name: input.name.trim(), cycleCode, startDate, plannedHarvest,
+        seedMaterialId: seed?.id, responsibleUserId: responsible?.id,
+        cultivationMethod: input.cultivationMethod?.trim(),
+        cultivatedArea: input.cultivatedArea,
+        maxHarvestQuantity: input.maxHarvestQuantity === undefined ? undefined : quantity(input.maxHarvestQuantity),
+        harvestUnit: input.harvestUnit.trim(), note: input.note?.trim(),
+      } }) };
+    });
+  }
+
+  async linkDraft(id: string, input: LinkProductionCycleDraftDto, actor: Actor) {
+    actor = effectiveCommandActor(actor);
+    assertBusinessActor(actor, FARM_WRITE_ROLES);
+    const draft = await this.prisma.productionCycleDraft.findFirst({ where: { id, organizationId: actor.organizationId! } });
+    if (!draft) throw new NotFoundException('Không tìm thấy vụ nháp');
+    if (draft.version !== input.version) throw new ConflictException('Vụ nháp đã thay đổi');
+    return this.create({
+      chainId: input.chainId, farmId: draft.farmId, plotId: draft.plotId, productId: draft.productId,
+      cycleCode: draft.cycleCode, name: draft.name, cultivatedArea: Number(draft.cultivatedArea),
+      startDate: draft.startDate.toISOString().slice(0, 10),
+      plannedHarvest: draft.plannedHarvest.toISOString().slice(0, 10),
+      maxHarvestQuantity: draft.maxHarvestQuantity === null ? undefined : Number(draft.maxHarvestQuantity),
+      harvestUnit: draft.harvestUnit, note: draft.note ?? undefined,
+      seedMaterialId: draft.seedMaterialId ?? undefined,
+      responsibleUserId: draft.responsibleUserId ?? undefined,
+      cultivationMethod: draft.cultivationMethod ?? undefined,
+    }, actor, { id, version: input.version });
+  }
+
+  async create(input: CreateProductionCycleDto, actor: Actor, fromDraft?: { id: string; version: number }) {
     actor = effectiveCommandActor(actor);
     assertBusinessActor(actor, FARM_WRITE_ROLES);
     const farm = await this.access.assertFarmAccess(actor, input.farmId);
@@ -153,7 +223,7 @@ export class ProductionCyclesService {
         ? this.prisma.plot.findUnique({ where: { id: input.plotId } })
         : null,
     ]);
-    if (!product || product.status !== 'ACTIVE')
+    if (!product || product.status !== 'ACTIVE' || !product.evidenceComplete)
       throw new NotFoundException(
         'Sản phẩm không tồn tại hoặc không hoạt động',
       );
@@ -166,6 +236,19 @@ export class ProductionCyclesService {
       );
 
     return commandTransaction(this.prisma, async (tx) => {
+      await authorizeBusinessCommand(tx, actor, { chainId: input.chainId, role: 'FARM_STAFF' }, true);
+      await enterpriseAuthority(tx, actor, 'production.write', input.chainId, input.farmId, true);
+      if (input.seedMaterialId && !(await tx.productionMaterial.findFirst({ where: { id: input.seedMaterialId, organizationId: actor.organizationId!, kind: 'SEED', status: 'ACTIVE', evidenceComplete: true } })))
+        throw new UnprocessableEntityException('Giống không thuộc doanh nghiệp hoặc chưa hoạt động');
+      if (input.responsibleUserId && !(await tx.user.findFirst({ where: { id: input.responsibleUserId, organizationId: actor.organizationId!, accountStatus: 'ACTIVE' } })))
+        throw new UnprocessableEntityException('Người phụ trách không thuộc doanh nghiệp hoặc chưa hoạt động');
+      if (fromDraft) {
+        const consumed = await tx.productionCycleDraft.deleteMany({ where: {
+          id: fromDraft.id, organizationId: actor.organizationId!, version: fromDraft.version,
+          farmId: input.farmId, plotId: input.plotId, productId: input.productId, cycleCode: input.cycleCode,
+        } });
+        if (consumed.count !== 1) throw new ConflictException('Vụ nháp đã thay đổi hoặc được liên kết');
+      }
       const activeFarm = await tx.farm.findUnique({
         where: { id: farm.id },
         include: { organization: true },
@@ -179,10 +262,14 @@ export class ProductionCyclesService {
       if (
         !activeFarm ||
         activeFarm.status !== 'ACTIVE' ||
+        !activeFarm.evidenceComplete ||
         activeFarm.organization.status !== 'ACTIVE' ||
         activeFarm.organizationId !== actor.organizationId ||
         !activeProduct ||
         activeProduct.status !== 'ACTIVE' ||
+        !activeProduct.evidenceComplete ||
+        (activeProduct.organizationId !== null &&
+          activeProduct.organizationId !== actor.organizationId) ||
         (input.plotId &&
           (!activePlot ||
             activePlot.status !== 'ACTIVE' ||
@@ -197,14 +284,24 @@ export class ProductionCyclesService {
         await tx.$queryRaw`SELECT chain_id FROM chain_ledger_profile WHERE chain_id = ${input.chainId}::uuid FOR SHARE`;
       const bindingDigest = await activeChainBindingDigest(tx, input.chainId);
       if (process.env.FABRIC_LEGACY_WRITER === 'false' && !bindingDigest)
-        throw new ConflictException('Chuỗi cần binding Fabric hoạt động trước khi tạo vụ sản xuất');
+        throw new ConflictException(
+          'Chuỗi cần binding Fabric hoạt động trước khi tạo vụ sản xuất',
+        );
       if (process.env.FABRIC_LEGACY_WRITER === 'false' && bindingDigest) {
-        const states = await tx.$queryRaw<Array<{ status: string }>>`SELECT status::text AS status FROM fabric_binding_state WHERE binding_digest = ${bindingDigest} FOR SHARE`;
+        const states = await tx.$queryRaw<
+          Array<{ status: string }>
+        >`SELECT status::text AS status FROM fabric_binding_state WHERE binding_digest = ${bindingDigest} FOR SHARE`;
         if (states[0]?.status !== 'ACTIVE')
           throw new ConflictException('Binding Fabric chưa hoạt động');
       }
       const cycle = await tx.productionCycle.create({
         data: {
+          ...(fromDraft ? { id: fromDraft.id } : {}),
+          name: input.name?.trim(),
+          cultivatedArea: input.cultivatedArea,
+          seedMaterialId: input.seedMaterialId,
+          responsibleUserId: input.responsibleUserId,
+          cultivationMethod: input.cultivationMethod?.trim(),
           cycleCode: input.cycleCode.trim(),
           farmId: farm.id,
           farmOrgId: farm.organizationId,
@@ -251,10 +348,32 @@ export class ProductionCyclesService {
           farmId: cycle.farmId,
           plotId: cycle.plotId,
           productId: cycle.productId,
-          maxHarvestQuantity: String(cycle.maxHarvestQuantity),
+          seedMaterialId: cycle.seedMaterialId,
+          responsibleUserId: cycle.responsibleUserId,
+          cultivationMethod: cycle.cultivationMethod,
+          maxHarvestQuantity: cycle.maxHarvestQuantity?.toString() ?? null,
           harvestUnit: cycle.harvestUnit,
         },
       });
+      if (fromDraft) {
+        // The cycle keeps the draft id, so draft photos already name it. Evidence
+        // rows are immutable; record each one on the ledger now that the cycle
+        // exists, in upload order and with the same payload as a cycle upload.
+        // Runs after the draft delete: uploads holding the draft lock are visible.
+        const draftEvidence = await tx.traceEvidence.findMany({
+          where: { organizationId: actor.organizationId!, entityType: 'CYCLE_DRAFT', entityId: cycle.id },
+          orderBy: { createdAt: 'asc' },
+        });
+        for (const row of draftEvidence)
+          await this.trace.createInTransaction(tx, {
+            entityType: 'CYCLE',
+            entityId: cycle.id,
+            cycleId: cycle.id,
+            eventType: 'EVIDENCE_ATTACHED',
+            actor,
+            businessData: { evidenceId: row.id, sha256: row.sha256, supersedesId: row.supersedesId, kind: row.kind, public: row.public },
+          });
+      }
       return cycle;
     });
   }
@@ -312,15 +431,49 @@ export class ProductionCyclesService {
         throw new ConflictException(
           'Version hoặc trạng thái chu kỳ không hợp lệ',
         );
+        const material=input.materialId?await tx.productionMaterial.findFirst({where:{id:input.materialId,organizationId:actor.organizationId!,status:'ACTIVE'}}):null;
+        if(input.materialId) {
+          await enterpriseAuthority(tx,actor,'materials.read');
+          if(!material || (material.expiryDate && material.expiryDate.toISOString().slice(0,10)<eventTime.toISOString().slice(0,10)))throw new ConflictException('Đầu vào không thuộc tổ chức, đã ngừng dùng hoặc hết hạn tại ngày sử dụng');
+          if(input.unit && input.unit!==material.unit)throw new ConflictException('Đơn vị nhật ký khác danh mục vật tư');
+        }
+        const careEvidenceIds = [input.evidenceRef, ...(input.additionalEvidenceRefs ?? [])];
+        if (new Set(careEvidenceIds).size !== careEvidenceIds.length)
+          throw new UnprocessableEntityException('Ảnh nhật ký bị chọn trùng');
+        const careEvidence = await tx.traceEvidence.findMany({ where: {
+          id: { in: careEvidenceIds }, organizationId: actor.organizationId!,
+          entityType: 'CYCLE', entityId: id, kind: 'CARE_IMAGE',
+          mediaType: { in: ['image/png', 'image/jpeg'] },
+        } });
+        const superseded = await tx.traceEvidence.count({ where: { supersedesId: { in: careEvidenceIds } } });
+        if (careEvidence.length !== careEvidenceIds.length || superseded)
+          throw new ForbiddenException('Cần 1–5 ảnh nhật ký hiện hành thuộc vụ này');
+      const performerUserId = input.performerUserId ?? actor.sub!;
+      const assigned = await tx.productionCycle.findUniqueOrThrow({ where: { id }, select: { responsibleUserId: true } });
+      if (performerUserId !== actor.sub && performerUserId !== assigned.responsibleUserId)
+        throw new UnprocessableEntityException('Người thực hiện phải là tài khoản đang ghi hoặc thành viên được phân công cho vụ');
+      if (!await tx.user.findFirst({ where: { id: performerUserId, organizationId: actor.organizationId!, accountStatus: 'ACTIVE' } }))
+        throw new UnprocessableEntityException('Người thực hiện không còn hoạt động trong doanh nghiệp');
       const care = await tx.careRecord.create({
         data: {
           cycleId: id,
+          performerUserId,
+          cropCondition: input.cropCondition?.trim() || undefined,
+          name: input.name.trim(),
+          journalCode: `NK-${randomUUID().slice(0, 12).toUpperCase()}`,
           careType: input.careType,
           eventTime,
-          materialName: input.materialName,
+            materialId:material?.id,
+            materialVersion:material?.version,
+            materialName: material?.name ?? input.materialName,
+            activeIngredient:material?.activeIngredient ?? input.activeIngredient,
+            applicationArea:input.applicationArea,
+            withdrawalPeriod:material?.withdrawalDays ?? input.withdrawalPeriod,
+            evidenceRef:input.evidenceRef,
+            evidenceIds: careEvidenceIds,
           quantity:
             input.quantity === undefined ? undefined : quantity(input.quantity),
-          unit: input.unit,
+            unit: material?.unit ?? input.unit,
           method: input.method,
           note: input.note,
         },
@@ -333,8 +486,22 @@ export class ProductionCyclesService {
         actor,
         eventTime: care.eventTime,
         businessData: {
+          journalCode: care.journalCode,
+          name: care.name,
           careType: care.careType,
           materialName: care.materialName,
+            materialId:care.materialId,
+            materialVersion:care.materialVersion,
+            supplier:material?.supplier ?? null,
+            batchCode:material?.batchCode ?? null,
+            activeIngredient:care.activeIngredient,
+            applicationArea:care.applicationArea,
+            withdrawalPeriod:care.withdrawalPeriod,
+            evidenceRef:care.evidenceRef,
+            evidenceIds: careEvidenceIds.map((evidenceId) => ({
+              evidenceId,
+              sha256: careEvidence.find((row) => row.id === evidenceId)!.sha256,
+            })),
           quantity: care.quantity?.toString() ?? null,
           unit: care.unit,
           method: care.method,

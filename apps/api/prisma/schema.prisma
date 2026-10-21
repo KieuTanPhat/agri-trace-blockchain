@@ -19,6 +19,28 @@ model Role {
 }
 
 model User {
+  phone                      String?                     @db.VarChar(30)
+  jobTitle                   String?                     @map("job_title") @db.VarChar(255)
+  workSiteId                 String?                     @map("work_site_id") @db.Uuid
+  responsibleFarmId          String?                     @map("responsible_farm_id") @db.Uuid
+  contactAddress             String?                     @map("contact_address") @db.VarChar(500)
+  memberNote                 String?                     @map("member_note") @db.VarChar(1000)
+  memberCode                 String?                     @map("member_code") @db.VarChar(20)
+  platformCasesCreated PlatformCase[] @relation("PlatformCaseCreator")
+  platformCaseEvents PlatformCaseEvent[]
+  version                    Int                         @default(0) @map("version")
+  failedLoginCount           Int                         @default(0) @map("failed_login_count")
+  lockedUntil                DateTime?                   @map("locked_until") @db.Timestamptz(6)
+  mustChangePassword         Boolean                     @default(false) @map("must_change_password")
+  passwordChangedAt          DateTime?                   @map("password_changed_at") @db.Timestamptz(6)
+  platformMfa                PlatformMfa?
+  platformAudits             PlatformAudit[]
+  platformApprovalsProposed  PlatformApproval[]          @relation("PlatformApprovalProposer")
+  platformApprovalsDecided   PlatformApproval[]          @relation("PlatformApprovalDecider")
+  enterpriseTier             Int? @map("enterprise_tier")
+  supervisorId               String? @map("supervisor_id") @db.Uuid
+  enterpriseRevision         Int @default(0) @map("enterprise_revision")
+  enterpriseRoles            EnterpriseMemberRole[]
   enterpriseEnrollment EnterpriseEnrollment?
   ledgerPermissions          LedgerPermission[]
   id                         String                      @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
@@ -34,6 +56,7 @@ model User {
   role                       Role                        @relation(fields: [roleId], references: [id], onUpdate: NoAction)
   trackingBindings           ShipmentTrackingBinding[]
   traceEvents                TraceEvent[]
+  harvestRepresentations     HarvestEvent[]              @relation("HarvestRepresentative")
   refreshSessions            RefreshSession[]
   complianceAssignments      ComplianceAssignment[]
   complianceAssignmentAudits ComplianceAssignmentAudit[]
@@ -50,6 +73,7 @@ model User {
 
   @@unique([id, organizationId], map: "uq_user_org_scope")
   @@map("app_user")
+  credentialMails             EnterpriseMail[]            @relation("AccountCredentialMail")
 }
 
 model RefreshSession {
@@ -69,11 +93,24 @@ model RefreshSession {
 }
 
 model Organization {
+  platformCasesOwned PlatformCase[] @relation("PlatformCaseOwner")
+  platformCaseEvents PlatformCaseEvent[]
+  version                 Int                       @default(0) @map("version")
+  platformAudits          PlatformAudit[]
+  platformApprovals       PlatformApproval[]
+  profile                 EnterpriseProfile?
+  registrationDocuments EnterpriseRegistrationDocument[]
+  enterpriseRoles         EnterpriseRole[]
+  enterpriseSites         EnterpriseSite[]
+  enterpriseVehicles      EnterpriseVehicle[]
+  products                Product[]
   enterpriseEnrollment EnterpriseEnrollment?
   id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @map("organization_id") @db.Uuid
   name                    String                    @db.VarChar(255)
   type                    OrganizationType
   status                  OrganizationStatus        @default(ACTIVE)
+  /// SINGLE: one registered activity. SUPPLY_CHAIN_ENTERPRISE: several reviewed capabilities.
+  participationModel      String                    @default("SINGLE") @map("participation_model") @db.VarChar(30)
   createdAt               DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime                  @default(now()) @map("updated_at") @db.Timestamptz(6)
   users                   User[]
@@ -87,6 +124,10 @@ model Organization {
   trackingBindings        ShipmentTrackingBinding[]
   traceEvents             TraceEvent[]
   capabilities            OrganizationCapability[]
+  capabilityRequests      CapabilityRequest[]
+  subscriptions           Subscription[]
+  supportTickets          SupportTicket[]
+  invoices                Invoice[]
   ownedChains             SupplyChain[]
   chainMemberships        ChainMembership[]
   scopedGrants            ScopedRoleGrant[]
@@ -116,12 +157,357 @@ model OrganizationCapability {
   @@map("organization_capability")
 }
 
+/// Reviewable request for one registered capability. Approval never grants
+/// business authority by itself; activation or an audited review does.
+model CapabilityRequest {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  code           OrganizationType
+  status         String           @default("PENDING") @db.VarChar(20)
+  details        Json             @default("{}")
+  evidenceIds    String[]         @default([]) @map("evidence_ids") @db.Uuid
+  reviewNote     String?          @map("review_note") @db.VarChar(1000)
+  reviewedBy     String?          @map("reviewed_by") @db.Uuid
+  reviewedAt     DateTime?        @map("reviewed_at") @db.Timestamptz(6)
+  version        Int              @default(0)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([status, createdAt], map: "ix_capability_request_status")
+  @@map("capability_request")
+}
+
+/// Plan family offered to paying participants.
+model ServicePlan {
+  code        String               @id @db.VarChar(30)
+  name        String               @db.VarChar(120)
+  audience    String               @db.VarChar(30)
+  description String?              @db.VarChar(1000)
+  status      String               @default("ACTIVE") @db.VarChar(20)
+  sortOrder   Int                  @default(0) @map("sort_order")
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  versions    ServicePlanVersion[]
+
+  @@map("service_plan")
+}
+
+/// Published versions are immutable; quotations and subscriptions keep them.
+model ServicePlanVersion {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planCode      String         @map("plan_code") @db.VarChar(30)
+  version       Int
+  setupFee      BigInt         @map("setup_fee")
+  annualFee     BigInt         @map("annual_fee")
+  termMonths    Int            @default(12) @map("term_months")
+  limits        Json
+  status        String         @default("DRAFT") @db.VarChar(20)
+  note          String?        @db.VarChar(1000)
+  createdBy     String?        @map("created_by") @db.Uuid
+  publishedBy   String?        @map("published_by") @db.Uuid
+  publishedAt   DateTime?      @map("published_at") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan          ServicePlan    @relation(fields: [planCode], references: [code], onDelete: Restrict, onUpdate: NoAction)
+  subscriptions Subscription[]
+  invoices      Invoice[]
+
+  @@unique([planCode, version])
+  @@map("service_plan_version")
+}
+
+/// Effective GRACE/RESTRICTED states are derived from endsAt and the grace setting.
+model Subscription {
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  planVersionId String             @map("plan_version_id") @db.Uuid
+  status        String             @default("PENDING_PAYMENT") @db.VarChar(20)
+  startsAt      DateTime?          @map("starts_at") @db.Timestamptz(6)
+  endsAt        DateTime?          @map("ends_at") @db.Timestamptz(6)
+  sourceOrderId String?            @unique @map("source_order_id") @db.Uuid
+  cancelledAt   DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason  String?            @map("cancel_reason") @db.VarChar(1000)
+  version       Int                @default(0)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  planVersion   ServicePlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  invoices      Invoice[]
+
+  @@map("subscription")
+}
+
+model Invoice {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number            String              @unique @db.VarChar(30)
+  organizationId    String              @map("organization_id") @db.Uuid
+  subscriptionId    String?             @map("subscription_id") @db.Uuid
+  planVersionId     String?             @map("plan_version_id") @db.Uuid
+  kind              String              @db.VarChar(20)
+  lines             Json
+  amount            BigInt
+  currency          String              @default("VND") @db.VarChar(3)
+  status            String              @default("ISSUED") @db.VarChar(20)
+  issuedAt          DateTime            @default(now()) @map("issued_at") @db.Timestamptz(6)
+  dueAt             DateTime            @map("due_at") @db.Timestamptz(6)
+  paidAt            DateTime?           @map("paid_at") @db.Timestamptz(6)
+  provider          String?             @db.VarChar(20)
+  providerReference String?             @map("provider_reference") @db.VarChar(120)
+  simulated         Boolean             @default(false)
+  voidReason        String?             @map("void_reason") @db.VarChar(1000)
+  createdBy         String?             @map("created_by") @db.Uuid
+  version           Int                 @default(0)
+  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  subscription      Subscription?       @relation(fields: [subscriptionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  planVersion       ServicePlanVersion? @relation(fields: [planVersionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  payments          InvoicePayment[]
+
+  @@index([organizationId, issuedAt(sort: Desc)], map: "ix_invoice_org")
+  @@index([status, dueAt], map: "ix_invoice_status")
+  @@map("invoice")
+}
+
+model InvoicePayment {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId  String   @map("invoice_id") @db.Uuid
+  provider   String   @db.VarChar(20)
+  amount     BigInt
+  reference  String?  @db.VarChar(120)
+  recordedBy String?  @map("recorded_by") @db.Uuid
+  note       String?  @db.VarChar(1000)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([invoiceId], map: "ix_invoice_payment_invoice")
+  @@map("invoice_payment")
+}
+
+/// A processor consumes held input lots and creates finished lots. Completed
+/// runs are immutable and must balance inputs against outputs and losses.
+model ProcessingRun {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code            String             @unique @db.VarChar(40)
+  organizationId  String             @map("organization_id") @db.Uuid
+  chainId         String             @map("chain_id") @db.Uuid
+  siteId          String             @map("site_id") @db.Uuid
+  processType     String             @map("process_type") @db.VarChar(30)
+  baseUnit        String             @map("base_unit") @db.VarChar(30)
+  recipe          String?            @db.VarChar(500)
+  note            String?            @db.VarChar(1000)
+  status          String             @default("DRAFT") @db.VarChar(20)
+  originCycleId   String?            @map("origin_cycle_id") @db.Uuid
+  inputTotal      Decimal?           @map("input_total") @db.Decimal(14, 3)
+  outputTotal     Decimal?           @map("output_total") @db.Decimal(14, 3)
+  lossTotal       Decimal?           @map("loss_total") @db.Decimal(14, 3)
+  variancePercent Decimal?           @map("variance_percent") @db.Decimal(9, 3)
+  createdBy       String             @map("created_by") @db.Uuid
+  completedBy     String?            @map("completed_by") @db.Uuid
+  completedAt     DateTime?          @map("completed_at") @db.Timestamptz(6)
+  cancelledAt     DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason    String?            @map("cancel_reason") @db.VarChar(1000)
+  version         Int                @default(0)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  inputs          ProcessingInput[]
+  outputs         ProcessingOutput[]
+  losses          ProcessingLoss[]
+  lots            Lot[]              @relation("ProcessingRunLots")
+  chain           SupplyChain        @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([organizationId, createdAt(sort: Desc)], map: "ix_processing_run_org")
+  @@index([chainId, status], map: "ix_processing_run_chain")
+  @@map("processing_run")
+}
+
+model ProcessingInput {
+  id       String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  runId    String        @map("run_id") @db.Uuid
+  lotId    String        @map("lot_id") @db.Uuid
+  quantity Decimal       @db.Decimal(14, 3)
+  unit     String        @db.VarChar(30)
+  run      ProcessingRun @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  lot      Lot           @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([runId, lotId])
+  @@index([lotId], map: "ix_processing_input_lot")
+  @@map("processing_input")
+}
+
+model ProcessingOutput {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  runId        String        @map("run_id") @db.Uuid
+  productId    String        @map("product_id") @db.Uuid
+  kind         String        @db.VarChar(20)
+  quantity     Decimal       @db.Decimal(14, 3)
+  unit         String        @db.VarChar(30)
+  baseQuantity Decimal       @map("base_quantity") @db.Decimal(14, 3)
+  lotName      String?       @map("lot_name") @db.VarChar(255)
+  grade        String?       @db.VarChar(100)
+  packaging    String?       @db.VarChar(255)
+  packageCount Int?          @map("package_count")
+  expiryDate   DateTime?     @map("expiry_date") @db.Date
+  lotId        String?       @unique @map("lot_id") @db.Uuid
+  run          ProcessingRun @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  lot          Lot?          @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([runId], map: "ix_processing_output_run")
+  @@map("processing_output")
+}
+
+model ProcessingLoss {
+  id       String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  runId    String        @map("run_id") @db.Uuid
+  reason   String        @db.VarChar(30)
+  quantity Decimal       @db.Decimal(14, 3)
+  note     String?       @db.VarChar(500)
+  run      ProcessingRun @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("processing_loss")
+}
+
+/// Administrative QR block. The page keeps resolving with a public warning.
+model TraceQrBlock {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lotId         String    @map("lot_id") @db.Uuid
+  reason        String    @db.VarChar(1000)
+  publicMessage String    @map("public_message") @db.VarChar(500)
+  blockedBy     String    @map("blocked_by") @db.Uuid
+  blockedAt     DateTime  @default(now()) @map("blocked_at") @db.Timestamptz(6)
+  unblockedBy   String?   @map("unblocked_by") @db.Uuid
+  unblockedAt   DateTime? @map("unblocked_at") @db.Timestamptz(6)
+  unblockReason String?   @map("unblock_reason") @db.VarChar(1000)
+  version       Int       @default(0)
+
+  @@map("trace_qr_block")
+}
+
+/// Anonymous daily scan counter per lot.
+model TraceScanDaily {
+  lotId String   @map("lot_id") @db.Uuid
+  day   DateTime @db.Date
+  scans Int      @default(0)
+
+  @@id([lotId, day])
+  @@index([day], map: "ix_trace_scan_daily_day")
+  @@map("trace_scan_daily")
+}
+
+model SystemNotice {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String    @db.VarChar(200)
+  body        String    @db.VarChar(2000)
+  audience    String    @db.VarChar(30)
+  severity    String    @db.VarChar(20)
+  startsAt    DateTime  @map("starts_at") @db.Timestamptz(6)
+  endsAt      DateTime  @map("ends_at") @db.Timestamptz(6)
+  status      String    @default("PUBLISHED") @db.VarChar(20)
+  createdBy   String    @map("created_by") @db.Uuid
+  withdrawnBy String?   @map("withdrawn_by") @db.Uuid
+  withdrawnAt DateTime? @map("withdrawn_at") @db.Timestamptz(6)
+  version     Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([status, startsAt, endsAt], map: "ix_system_notice_active")
+  @@map("system_notice")
+}
+
+model SupportTicket {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String           @unique @db.VarChar(30)
+  organizationId String           @map("organization_id") @db.Uuid
+  createdBy      String           @map("created_by") @db.Uuid
+  category       String           @db.VarChar(30)
+  priority       String           @default("NORMAL") @db.VarChar(20)
+  subject        String           @db.VarChar(200)
+  status         String           @default("OPEN") @db.VarChar(30)
+  assigneeId     String?          @map("assignee_id") @db.Uuid
+  dueAt          DateTime         @map("due_at") @db.Timestamptz(6)
+  resolution     String?          @db.VarChar(2000)
+  closedAt       DateTime?        @map("closed_at") @db.Timestamptz(6)
+  version        Int              @default(0)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  messages       SupportMessage[]
+
+  @@index([status, dueAt], map: "ix_support_ticket_status")
+  @@index([organizationId, createdAt(sort: Desc)], map: "ix_support_ticket_org")
+  @@map("support_ticket")
+}
+
+model SupportMessage {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId   String        @map("ticket_id") @db.Uuid
+  authorId   String        @map("author_id") @db.Uuid
+  authorSide String        @map("author_side") @db.VarChar(20)
+  body       String        @db.VarChar(4000)
+  internal   Boolean       @default(false)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([ticketId, createdAt], map: "ix_support_message_ticket")
+  @@map("support_message")
+}
+
+model ConsumerReport {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lotId        String    @map("lot_id") @db.Uuid
+  requestId    String    @unique @map("request_id") @db.Uuid
+  category     String    @db.VarChar(30)
+  description  String    @db.VarChar(2000)
+  contactEmail String?   @map("contact_email") @db.VarChar(255)
+  contactPhone String?   @map("contact_phone") @db.VarChar(30)
+  consent      Boolean   @default(false)
+  sourceHash   String    @map("source_hash") @db.VarChar(64)
+  status       String    @default("NEW") @db.VarChar(20)
+  triageNote   String?   @map("triage_note") @db.VarChar(1000)
+  triagedBy    String?   @map("triaged_by") @db.Uuid
+  triagedAt    DateTime? @map("triaged_at") @db.Timestamptz(6)
+  caseId       String?   @map("case_id") @db.Uuid
+  version      Int       @default(0)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt], map: "ix_consumer_report_status")
+  @@map("consumer_report")
+}
+
+model ReferenceItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category    String   @db.VarChar(30)
+  code        String   @db.VarChar(40)
+  label       String   @db.VarChar(120)
+  description String?  @db.VarChar(500)
+  status      String   @default("ACTIVE") @db.VarChar(20)
+  sortOrder   Int      @default(0) @map("sort_order")
+  version     Int      @default(0)
+  updatedBy   String?  @map("updated_by") @db.Uuid
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([category, code])
+  @@map("reference_item")
+}
+
+/// Versioned, non-secret business parameters edited through maker-checker.
+model PlatformSetting {
+  key         String   @id @db.VarChar(80)
+  value       Json
+  description String   @db.VarChar(500)
+  version     Int      @default(0)
+  updatedBy   String?  @map("updated_by") @db.Uuid
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("platform_setting")
+}
+
 model SupplyChain {
   enterpriseConnections EnterpriseConnection[]
   ledgerProfile       ChainLedgerProfile?
   id                  String                @id @default(dbgenerated("gen_random_uuid()")) @map("chain_id") @db.Uuid
   ownerOrganizationId String                @map("owner_organization_id") @db.Uuid
   name                String                @db.VarChar(255)
+  code                String?               @unique @db.VarChar(40)
+  chainType           String                @default("CROP") @map("chain_type") @db.VarChar(30)
+  description         String?               @db.VarChar(2000)
+  plannedStartDate    DateTime?             @map("planned_start_date") @db.Date
+  note                String?               @db.VarChar(2000)
+  supplyModel         Json?                 @map("supply_model")
   version             Int                   @default(0)
   createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   owner               Organization          @relation(fields: [ownerOrganizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -135,21 +521,27 @@ model SupplyChain {
   eventContexts       EventChainContext[]
   signingIntents      SigningIntent[]
   handovers           ShipmentHandover[]
+  processingRuns      ProcessingRun[]
 
   @@index([ownerOrganizationId])
+  productIds String[] @default([]) @map("product_ids") @db.Uuid
   @@map("supply_chain")
 }
 
 /// Registration alone grants no business capabilities or chain permissions.
 model EnterpriseEnrollment {
+  serviceActivatedAt DateTime? @map("service_activated_at") @db.Timestamptz(6)
+  serviceActivatedBy String? @map("service_activated_by") @db.Uuid
+  serviceActivationReason String? @map("service_activation_reason") @db.VarChar(1000)
   id String @id @db.Uuid
   organizationId String @unique @map("organization_id") @db.Uuid
   ownerId String @unique @map("owner_id") @db.Uuid
   registrationDigest String @map("registration_digest") @db.VarChar(64)
-  businessId String @unique @map("business_id") @db.VarChar(40)
+  businessId String? @unique @map("business_id") @db.VarChar(40)
   hostingMode String @map("hosting_mode") @db.VarChar(30)
   status String @default("PENDING_REVIEW") @db.VarChar(30)
   version Int @default(0)
+  activationRequired Boolean @default(false) @map("activation_required")
   reviewNote String? @map("review_note") @db.VarChar(1000)
   reviewedBy String? @map("reviewed_by") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -157,6 +549,8 @@ model EnterpriseEnrollment {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   connections EnterpriseConnection[]
+  serviceOrder EnterpriseServiceOrder?
+  messages EnterpriseMail[]
   @@map("enterprise_enrollment")
 }
 
@@ -184,6 +578,628 @@ model EnterpriseConnection {
   chain SupplyChain @relation(fields: [chainId], references: [id], onDelete: Restrict)
   @@index([status, leaseExpiresAt])
   @@map("enterprise_connection")
+}
+
+/// Operational enterprise data is private; only explicit trace projections are public.
+model EnterpriseProfile {
+  legalData Json @default("{}") @map("legal_data")
+  organizationId String @id @map("organization_id") @db.Uuid
+  legalForm String @map("legal_form") @db.VarChar(40)
+  address String @db.VarChar(500)
+  province String @db.VarChar(100)
+  provinceCode String? @map("province_code") @db.VarChar(2)
+  wardCode String? @map("ward_code") @db.VarChar(5)
+  ward String? @db.VarChar(100)
+  phone String @db.VarChar(30)
+  contactEmail String @map("contact_email") @db.VarChar(255)
+  representative String @db.VarChar(255)
+  activities String[]
+  website String? @db.VarChar(255)
+  description String? @db.VarChar(2000)
+  declarationAcceptedAt DateTime @map("declaration_accepted_at") @db.Timestamptz(6)
+  registrationData Json @default("{}") @map("registration_data")
+  version Int @default(0)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  @@map("enterprise_profile")
+}
+
+model EnterpriseProfileAmendment {
+ id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+ organizationId String @map("organization_id") @db.Uuid
+ creatorId String @map("creator_id") @db.Uuid
+ profileVersion Int @map("profile_version")
+ organizationVersion Int @map("organization_version")
+ target Json
+ evidenceIds String[] @map("evidence_ids") @db.Uuid
+ reason String @db.VarChar(1000)
+ status String @default("PENDING") @db.VarChar(20)
+ version Int @default(0)
+ reviewNote String? @map("review_note") @db.VarChar(1000)
+ reviewedBy String? @map("reviewed_by") @db.Uuid
+ createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+ reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(6)
+ @@index([organizationId])
+ @@map("enterprise_profile_amendment")
+}
+
+/// Private documents submitted with an email-verified registration. Never public QR data.
+model EnterpriseRegistrationDocument {
+  id String @id @db.Uuid
+  registrationId String @map("registration_id") @db.Uuid
+  verificationId String @map("verification_id") @db.Uuid
+  organizationId String? @map("organization_id") @db.Uuid
+  kind String @db.VarChar(30)
+  fileName String @map("file_name") @db.VarChar(180)
+  mediaType String @map("media_type") @db.VarChar(40)
+  size Int
+  sha256 String @db.VarChar(64)
+  content Bytes
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization Organization? @relation(fields:[organizationId],references:[id],onDelete:Restrict)
+  verification RegistrationEmailVerification @relation(fields:[verificationId],references:[id],onDelete:Restrict)
+  @@index([registrationId], map: "ix_registration_document_registration")
+  @@index([organizationId], map: "ix_registration_document_organization")
+  @@map("enterprise_registration_document")
+}
+
+/// Immutable quotation/contract snapshot; only its simulated settlement may advance.
+model EnterpriseServiceOrder {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enrollmentId String @unique @map("enrollment_id") @db.Uuid
+  planCode String @map("plan_code") @db.VarChar(30)
+  hostingMode String @map("hosting_mode") @db.VarChar(30)
+  billingEmail String @map("billing_email") @db.VarChar(255)
+  billingName String @map("billing_name") @db.VarChar(255)
+  billingAddress String @map("billing_address") @db.VarChar(500)
+  amount Int
+  quotation Json
+  contractText String @map("contract_text")
+  contractDigest String @map("contract_digest") @db.VarChar(64)
+  status String @default("AWAITING_PAYMENT") @db.VarChar(30)
+  acceptedAt DateTime @map("accepted_at") @db.Timestamptz(6)
+  paidAt DateTime? @map("paid_at") @db.Timestamptz(6)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  enrollment EnterpriseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  @@map("enterprise_service_order")
+}
+
+/// Transactional mail outbox. Worker uses only an explicitly configured local mailbox.
+model EnterpriseMail {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enrollmentId String? @map("enrollment_id") @db.Uuid
+  userId String? @map("user_id") @db.Uuid
+  verificationId String? @unique @map("verification_id") @db.Uuid
+  otpCiphertext String? @map("otp_ciphertext")
+  kind String @db.VarChar(30)
+  recipient String @db.VarChar(255)
+  subject String @db.VarChar(255)
+  text String
+  attachment String?
+  status String @default("PENDING") @db.VarChar(20)
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  leaseToken String? @map("lease_token") @db.Uuid
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz(6)
+  sentAt DateTime? @map("sent_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  enrollment EnterpriseEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  user User? @relation("AccountCredentialMail", fields:[userId], references:[id], onDelete:Restrict)
+  verification RegistrationEmailVerification? @relation(fields:[verificationId],references:[id],onDelete:Restrict)
+  @@unique([enrollmentId, kind])
+  @@index([status, nextAttemptAt])
+  @@map("enterprise_mail")
+}
+
+model RegistrationEmailVerification {
+  id String @id @db.Uuid
+  registrationId String @map("registration_id") @db.Uuid
+  email String @db.VarChar(255)
+  codeDigest String @map("code_digest") @db.VarChar(64)
+  attempts Int @default(0)
+  verifiedAt DateTime? @map("verified_at") @db.Timestamptz(6)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(6)
+  supersededAt DateTime? @map("superseded_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  mail EnterpriseMail?
+  verificationAttempts RegistrationOtpAttempt[]
+  documents EnterpriseRegistrationDocument[]
+  @@index([email,createdAt])
+  @@index([registrationId,email])
+  @@map("registration_email_verification")
+}
+model RegistrationOtpAttempt {
+  id String @id @db.Uuid
+  verificationId String @map("verification_id") @db.Uuid
+  requestDigest String @map("request_digest") @db.VarChar(64)
+  success Boolean
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  verification RegistrationEmailVerification @relation(fields:[verificationId],references:[id],onDelete:Restrict)
+  @@map("registration_otp_attempt")
+}
+
+model EnterpriseRole {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  name String @db.VarChar(100)
+  permissions String[]
+  version Int @default(0)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  members EnterpriseMemberRole[]
+  @@unique([id, organizationId])
+  @@unique([organizationId, name])
+  @@map("enterprise_role")
+}
+
+model EnterpriseMemberRole {
+  userId String @map("user_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  roleId String @map("role_id") @db.Uuid
+  chainIds String[] @map("chain_ids") @db.Uuid
+  siteIds String[] @map("site_ids") @db.Uuid
+  user User @relation(fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  role EnterpriseRole @relation(fields: [roleId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  @@id([userId, roleId])
+  @@map("enterprise_member_role")
+}
+
+model EnterprisePartner {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inviterId String @map("inviter_id") @db.Uuid
+  inviteeId String @map("invitee_id") @db.Uuid
+  status String @default("INVITED") @db.VarChar(20)
+  version Int @default(0)
+  note String? @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@unique([inviterId, inviteeId])
+  @@map("enterprise_partner")
+}
+
+/// A private address book entry. It never conveys chain membership, custody,
+/// signing authority, or the ability to receive a distribution transfer.
+model EnterpriseExternalPartner {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  businessId     String   @map("business_id") @db.VarChar(40)
+  name           String   @db.VarChar(255)
+  kind           String   @db.VarChar(30)
+  address        String   @db.VarChar(500)
+  phone          String?  @db.VarChar(30)
+  email          String?  @db.VarChar(255)
+  taxCode        String?  @map("tax_code") @db.VarChar(40)
+  representative String?  @db.VarChar(255)
+  note           String?  @db.VarChar(1000)
+  version        Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@unique([organizationId, businessId])
+  @@index([organizationId, name])
+  @@map("enterprise_external_partner")
+}
+
+model EnterpriseSite {
+  farmId String? @unique @map("farm_id") @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  name String @db.VarChar(255)
+  kind String @db.VarChar(30)
+  address String @db.VarChar(500)
+  region String? @db.VarChar(255)
+  ward String? @db.VarChar(255)
+  areaM2 Decimal? @map("area_m2") @db.Decimal(14,2)
+  coldAreaM2 Decimal? @map("cold_area_m2") @db.Decimal(14,2)
+  capacityKg Decimal? @map("capacity_kg") @db.Decimal(14,3)
+  expectedOutputTons Decimal? @map("expected_output_tons") @db.Decimal(14,3)
+  manager String? @db.VarChar(255)
+  representative String? @db.VarChar(255)
+  phone String? @db.VarChar(30)
+  email String? @db.VarChar(255)
+  otherInfo String? @map("other_info") @db.VarChar(2000)
+  /// Member in charge; same organization through a composite foreign key.
+  staffUserId String? @map("staff_user_id") @db.Uuid
+  evidenceComplete Boolean @default(true) @map("evidence_complete")
+  status String @default("ACTIVE") @db.VarChar(20)
+  version Int @default(0)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  @@unique([id, organizationId])
+  @@map("enterprise_site")
+}
+
+model EnterpriseVehicle {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  registration String @db.VarChar(40)
+  kind String @db.VarChar(100)
+  status String @default("ACTIVE") @db.VarChar(20)
+  version Int @default(0)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  @@unique([organizationId, registration])
+  @@map("enterprise_vehicle")
+}
+
+/// Distribution has a single authoritative allocation per source lot.
+/// Legacy shipments and this flow cannot both own the same lot.
+model LotHolding {
+  lotId String @map("lot_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  quantity Decimal @db.Decimal(14,3)
+  reserved Decimal @default(0) @db.Decimal(14,3)
+  version Int @default(0)
+  @@id([lotId, organizationId])
+  @@map("lot_holding")
+}
+
+model DistributionTransfer {
+  plannedPickupAt DateTime? @map("planned_pickup_at") @db.Timestamptz(6)
+  plannedDeliveryAt DateTime? @map("planned_delivery_at") @db.Timestamptz(6)
+  note String? @db.VarChar(1000)
+  handoverMode HandoverMode @default(STANDARD) @map("handover_mode")
+  attestationEpoch Int @default(0) @map("attestation_epoch")
+  receiptDigest String? @map("receipt_digest") @db.VarChar(64)
+  senderSiteId String? @map("sender_site_id") @db.Uuid
+  carrierSiteId String? @map("carrier_site_id") @db.Uuid
+  receiverSiteId String? @map("receiver_site_id") @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chainId String @map("chain_id") @db.Uuid
+  senderId String @map("sender_id") @db.Uuid
+  carrierId String @map("carrier_id") @db.Uuid
+  receiverId String @map("receiver_id") @db.Uuid
+  origin String @db.VarChar(500)
+  destination String @db.VarChar(500)
+  vehicleId String? @map("vehicle_id") @db.Uuid
+  status String @default("PROPOSED") @db.VarChar(30)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  lines DistributionLine[]
+  attestations DistributionAttestation[]
+  @@index([senderId, status])
+  @@index([receiverId, status])
+  @@index([carrierId, status])
+  @@map("distribution_transfer")
+}
+
+model DistributionLine {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transferId String @map("transfer_id") @db.Uuid
+  lotId String @map("lot_id") @db.Uuid
+  quantity Decimal @db.Decimal(14,3)
+  unit String @db.VarChar(30)
+  transfer DistributionTransfer @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  @@unique([transferId, lotId])
+  @@index([lotId])
+  @@map("distribution_line")
+}
+
+/// Immutable signatures over a canonical transfer snapshot, phase and actor.
+model DistributionAttestation {
+  epoch Int @default(0)
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transferId String @map("transfer_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  phase String @db.VarChar(20)
+  keyRef String @map("key_ref") @db.Uuid
+  digest String @db.VarChar(64)
+  signature String @db.VarChar(86)
+  authority Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  transfer DistributionTransfer @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  @@unique([transferId, organizationId, phase,epoch])
+  @@map("distribution_attestation")
+}
+
+model DistributionKey {
+  id String @id @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  publicKey String @map("public_key") @db.VarChar(59)
+  label String @db.VarChar(100)
+  status String @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@unique([id, organizationId])
+  @@map("distribution_key")
+}
+
+model TraceNotice {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lotId String @map("lot_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  kind String @db.VarChar(20)
+  message String @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@index([lotId])
+  @@map("trace_notice")
+}
+
+model DistributionObservation {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transferId String @map("transfer_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  eventTime DateTime @map("event_time") @db.Timestamptz(6)
+  note String @db.VarChar(1000)
+  temperature Decimal? @db.Decimal(6,2)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@index([transferId,eventTime])
+  @@map("distribution_observation")
+}
+
+/// Site allocations never replace the organization-level conservation ledger.
+model LotSiteHolding {
+  lotId String @map("lot_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  siteId String @map("site_id") @db.Uuid
+  quantity Decimal @db.Decimal(14,3)
+  reserved Decimal @default(0) @db.Decimal(14,3)
+  quarantined Decimal @default(0) @db.Decimal(14,3)
+  version Int @default(0)
+  @@id([lotId,organizationId,siteId])
+  @@map("lot_site_holding")
+}
+
+/// Internal transfer slip between two sites of one organization. Goods leave the
+/// source on dispatch; only the confirmed quantity enters the destination.
+model SiteTransfer {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code String @unique @db.VarChar(40)
+  organizationId String @map("organization_id") @db.Uuid
+  lotId String @map("lot_id") @db.Uuid
+  fromSiteId String @map("from_site_id") @db.Uuid
+  toSiteId String @map("to_site_id") @db.Uuid
+  quantity Decimal @db.Decimal(14,3)
+  unit String @db.VarChar(30)
+  receivedQuantity Decimal? @map("received_quantity") @db.Decimal(14,3)
+  status String @default("PENDING") @db.VarChar(20)
+  resolution String? @db.VarChar(20)
+  reason String @db.VarChar(1000)
+  note String? @db.VarChar(1000)
+  receiverUserId String? @map("receiver_user_id") @db.Uuid
+  receiptNote String? @map("receipt_note") @db.VarChar(1000)
+  resolutionNote String? @map("resolution_note") @db.VarChar(1000)
+  createdBy String @map("created_by") @db.Uuid
+  dispatchedBy String? @map("dispatched_by") @db.Uuid
+  receivedBy String? @map("received_by") @db.Uuid
+  resolvedBy String? @map("resolved_by") @db.Uuid
+  cancelledBy String? @map("cancelled_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  dispatchedAt DateTime? @map("dispatched_at") @db.Timestamptz(6)
+  receivedAt DateTime? @map("received_at") @db.Timestamptz(6)
+  resolvedAt DateTime? @map("resolved_at") @db.Timestamptz(6)
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  version Int @default(0)
+  @@index([organizationId,lotId], map: "site_transfer_org_lot")
+  @@index([organizationId,status], map: "site_transfer_org_status")
+  @@map("site_transfer")
+}
+
+/// Quarantine slip at one site. Release and damage reduce its open quantity.
+model QuarantineCase {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code String @unique @db.VarChar(40)
+  organizationId String @map("organization_id") @db.Uuid
+  lotId String @map("lot_id") @db.Uuid
+  siteId String @map("site_id") @db.Uuid
+  quantity Decimal @db.Decimal(14,3)
+  unit String @db.VarChar(30)
+  cause String @db.VarChar(30)
+  reason String @db.VarChar(1000)
+  note String? @db.VarChar(1000)
+  releasedQuantity Decimal @default(0) @map("released_quantity") @db.Decimal(14,3)
+  disposedQuantity Decimal @default(0) @map("disposed_quantity") @db.Decimal(14,3)
+  status String @default("ACTIVE") @db.VarChar(20)
+  createdBy String @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  closedAt DateTime? @map("closed_at") @db.Timestamptz(6)
+  version Int @default(0)
+  @@index([organizationId,lotId,siteId], map: "quarantine_case_org_lot")
+  @@map("quarantine_case")
+}
+
+/// Immutable actual receipt. Unreceived quantity remains in carrier custody.
+model DistributionReceipt {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transferId String @unique @map("transfer_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  lines Json
+  reason String @db.VarChar(1000)
+  digest String @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@map("distribution_receipt")
+}
+
+model DistributionRemainder {
+  transferId String @map("transfer_id") @db.Uuid
+  lotId String @map("lot_id") @db.Uuid
+  quantity Decimal @db.Decimal(14,3)
+  version Int @default(0)
+  @@id([transferId,lotId])
+  @@map("distribution_remainder")
+}
+
+model DistributionReturn {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transferId String @map("transfer_id") @db.Uuid
+  lines Json
+  reason String @db.VarChar(1000)
+  digest String @db.VarChar(64)
+  status String @default("PROPOSED") @db.VarChar(20)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@index([transferId])
+  @@map("distribution_return")
+}
+
+model DistributionReturnSignature {
+  returnId String @map("return_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  keyRef String @map("key_ref") @db.Uuid
+  authority Json
+  signature String @db.VarChar(86)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@id([returnId,organizationId])
+  @@map("distribution_return_signature")
+}
+
+model DistributionSignedIntent {
+  documentId String @map("document_id") @db.Uuid
+  documentType String @map("document_type") @db.VarChar(20)
+  transferId String @map("transfer_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  phase String @db.VarChar(20)
+  epoch Int
+  lotId String @map("lot_id") @db.Uuid
+  intentId String @unique @map("intent_id") @db.Uuid
+  @@id([documentId,organizationId,phase,epoch,lotId])
+  @@map("distribution_signed_intent")
+}
+
+model EnterpriseRevision {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  entityType String @map("entity_type") @db.VarChar(30)
+  entityId String @map("entity_id") @db.Uuid
+  version Int
+  snapshot Json
+  reason String @db.VarChar(1000)
+  actorId String @map("actor_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@unique([entityType,entityId,version])
+  @@index([organizationId])
+  @@map("enterprise_revision")
+}
+model EnterpriseInvitation {
+ phone String? @db.VarChar(30)
+ jobTitle String? @map("job_title") @db.VarChar(255)
+ workSiteId String? @map("work_site_id") @db.Uuid
+ responsibleFarmId String? @map("responsible_farm_id") @db.Uuid
+ contactAddress String? @map("contact_address") @db.VarChar(500)
+ memberNote String? @map("member_note") @db.VarChar(1000)
+ memberCode String? @map("member_code") @db.VarChar(20)
+ id String @id @db.Uuid
+ organizationId String @map("organization_id") @db.Uuid
+ creatorId String @map("creator_id") @db.Uuid
+ email String @db.VarChar(255)
+ fullName String @map("full_name") @db.VarChar(255)
+ tier Int
+ roles Json
+ tokenDigest String @map("token_digest") @db.VarChar(64)
+ authorityScope String @map("authority_scope") @db.VarChar(64)
+ delegationDigest String @map("delegation_digest") @db.VarChar(64)
+ status String @default("PENDING") @db.VarChar(20)
+ expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+ acceptedAt DateTime? @map("accepted_at") @db.Timestamptz(6)
+ acceptedUserId String? @map("accepted_user_id") @db.Uuid
+ acceptanceRequestId String? @unique @map("acceptance_request_id") @db.Uuid
+ acceptanceDigest String? @map("acceptance_digest") @db.VarChar(64)
+ version Int @default(0)
+ createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+ @@index([organizationId,creatorId])
+ @@map("enterprise_invitation")
+}
+/// Append-only; the number of printed labels is not evidence of goods quantity.
+model TraceLabelPrint {
+ id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+ organizationId String @map("organization_id") @db.Uuid
+ lotId String @map("lot_id") @db.Uuid
+ actorId String @map("actor_id") @db.Uuid
+ template String @db.VarChar(20)
+ copies Int
+ reprint Boolean
+ reason String? @db.VarChar(1000)
+ createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+ @@index([organizationId,lotId,createdAt], map: "trace_label_print_lot")
+ @@map("trace_label_print")
+}
+/// Level-1 ownership changes only after the named member accepts.
+/// Append-only record of an owner moving a tier-3 member under another manager.
+/// guard_enterprise_hierarchy accepts the user update only next to this row.
+model EnterpriseSupervisorChange {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  memberId String @map("member_id") @db.Uuid
+  fromSupervisorId String? @map("from_supervisor_id") @db.Uuid
+  toSupervisorId String @map("to_supervisor_id") @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  /// Filled by PostgreSQL so it equals the transaction's now() the guard checks.
+  createdAt DateTime @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  @@index([organizationId, memberId, createdAt], map: "enterprise_supervisor_change_member")
+  @@map("enterprise_supervisor_change")
+}
+
+model EnterpriseOwnershipTransfer {
+ id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+ organizationId String @map("organization_id") @db.Uuid
+ fromUserId String @map("from_user_id") @db.Uuid
+ toUserId String @map("to_user_id") @db.Uuid
+ enrollmentVersion Int? @map("enrollment_version")
+ retainPreviousAdmin Boolean @map("retain_previous_admin")
+ reason String @db.VarChar(1000)
+ status String @default("PENDING") @db.VarChar(20)
+ version Int @default(0)
+ resolutionNote String? @map("resolution_note") @db.VarChar(1000)
+ expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+ createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+ resolvedAt DateTime? @map("resolved_at") @db.Timestamptz(6)
+ @@index([organizationId,createdAt], map: "enterprise_ownership_transfer_org")
+ @@map("enterprise_ownership_transfer")
+}
+
+model TraceEvidence {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  entityType String @map("entity_type") @db.VarChar(30)
+  entityId String @map("entity_id") @db.Uuid
+  chainId String? @map("chain_id") @db.Uuid
+  siteId String? @map("site_id") @db.Uuid
+  supersedesId String? @map("supersedes_id") @db.Uuid
+  fileName String @map("file_name") @db.VarChar(180)
+  mediaType String @map("media_type") @db.VarChar(40)
+  size Int
+  sha256 String @db.VarChar(64)
+  content Bytes
+  description String @db.VarChar(1000)
+  kind String @default("OTHER") @db.VarChar(40)
+  public Boolean @default(false)
+  actorId String @map("actor_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  harvestEvents HarvestEvent[]
+  withdrawal TraceEvidenceWithdrawal?
+  @@index([organizationId,entityType,entityId])
+  @@map("trace_evidence")
+}
+
+model TraceEvidenceWithdrawal {
+  evidenceId String @id @map("evidence_id") @db.Uuid
+  evidence TraceEvidence @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+  organizationId String @map("organization_id") @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  @@index([organizationId], map: "trace_evidence_withdrawal_org")
+  @@map("trace_evidence_withdrawal")
+}
+
+model ProductionMaterial {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  code String @db.VarChar(100)
+  name String @db.VarChar(255)
+  kind String @db.VarChar(30)
+  supplier String? @db.VarChar(255)
+  batchCode String? @map("batch_code") @db.VarChar(100)
+  activeIngredient String? @map("active_ingredient") @db.VarChar(255)
+  seedType String? @map("seed_type") @db.VarChar(100)
+  price Decimal? @db.Decimal(14,2)
+  origin String? @db.VarChar(255)
+  manufacturer String? @db.VarChar(255)
+  description String? @db.VarChar(2000)
+  evidenceComplete Boolean @default(true) @map("evidence_complete")
+  unit String @db.VarChar(30)
+  withdrawalDays Int? @map("withdrawal_days")
+  expiryDate DateTime? @map("expiry_date") @db.Date
+  status String @default("ACTIVE") @db.VarChar(20)
+  version Int @default(0)
+  @@unique([organizationId,code])
+  @@map("production_material")
 }
 
 model ChainMembership {
@@ -258,6 +1274,7 @@ enum GrantScope {
 }
 
 enum ScopedRole {
+  DISTRIBUTOR
   ORG_ADMIN
   CREATE_CHAIN
   CHAIN_MANAGER
@@ -316,6 +1333,9 @@ model ChainBusinessProfile {
   state        ChainBusinessProfileState @default(PREPARING)
   scopeVersion Int                       @default(1) @map("scope_version")
   version      Int                       @default(0)
+  suspendedAt  DateTime?                 @map("suspended_at") @db.Timestamptz(6)
+  suspendedBy  String?                   @map("suspended_by") @db.Uuid
+  suspensionReason String?               @map("suspension_reason") @db.VarChar(1000)
   createdAt    DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
   chain        SupplyChain               @relation(fields: [chainId], references: [id], onUpdate: NoAction, onDelete: Restrict)
 
@@ -433,6 +1453,26 @@ model Farm {
   id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @map("farm_id") @db.Uuid
   organizationId        String                 @map("organization_id") @db.Uuid
   name                  String                 @db.VarChar(255)
+  internalCode          String?                @unique @map("internal_code") @db.VarChar(40)
+  kind                  String?                @db.VarChar(100)
+  region                String?                @db.VarChar(255)
+  address               String?                @db.VarChar(500)
+  areaM2                Decimal?               @map("area_m2") @db.Decimal(14, 2)
+  expectedOutput        Decimal?               @map("expected_output") @db.Decimal(14, 3)
+  outputUnit            String?                @map("output_unit") @db.VarChar(30)
+  representative        String?                @db.VarChar(255)
+  phone                 String?                @db.VarChar(30)
+  email                 String?                @db.VarChar(255)
+  privacy               String                 @default("PRIVATE") @db.VarChar(10)
+  otherInfo             String?                @map("other_info") @db.VarChar(2000)
+  cropCode              String?                @map("crop_code") @db.VarChar(100)
+  /// Production materials of the same organization, checked by the API.
+  inputMaterialIds      String[]               @default([]) @map("input_material_ids") @db.Uuid
+  seedMaterialIds       String[]               @default([]) @map("seed_material_ids") @db.Uuid
+  /// Facility of the same organization through a composite foreign key.
+  linkedSiteId          String?                @map("linked_site_id") @db.Uuid
+  evidenceComplete      Boolean                @default(true) @map("evidence_complete")
+  version               Int                    @default(0)
   location              String?
   status                OrganizationStatus     @default(ACTIVE)
   createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -440,6 +1480,7 @@ model Farm {
   organization          Organization           @relation(fields: [organizationId], references: [id], onUpdate: NoAction)
   plots                 Plot[]
   cycles                ProductionCycle[]
+  originProducts        Product[]
   complianceAssignments ComplianceAssignment[]
 
   @@index([organizationId], map: "ix_farm_organization")
@@ -465,6 +1506,19 @@ model Plot {
 }
 
 model Product {
+  organizationId String? @map("organization_id") @db.Uuid
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  sku String? @db.VarChar(100)
+  gtin String? @db.VarChar(14)
+  category String? @db.VarChar(100)
+  originFarmId String? @map("origin_farm_id") @db.Uuid
+  originFarm Farm? @relation(fields: [originFarmId], references: [id], onDelete: Restrict)
+  price Decimal? @db.Decimal(14,2)
+  storageConditions String? @map("storage_conditions") @db.VarChar(2000)
+  ingredients String? @db.VarChar(2000)
+  usageInstructions String? @map("usage_instructions") @db.VarChar(2000)
+  evidenceComplete Boolean @default(true) @map("evidence_complete")
+  version Int @default(0)
   id          String             @id @default(dbgenerated("gen_random_uuid()")) @map("product_id") @db.Uuid
   productName String             @map("product_name") @db.VarChar(255)
   variety     String?            @db.VarChar(255)
@@ -475,13 +1529,27 @@ model Product {
   updatedAt   DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
   lots        Lot[]
   cycles      ProductionCycle[]
+  processingOutputs ProcessingOutput[]
+  unitConversions ProductUnitConversion[]
 
+  rawMaterials String? @map("raw_materials") @db.VarChar(2000)
+  manufacturingSiteId String? @map("manufacturing_site_id") @db.Uuid
+  exporter String? @db.VarChar(255)
+  importer String? @db.VarChar(255)
+  distributor String? @db.VarChar(255)
+  carrier String? @db.VarChar(255)
+  managerUserId String? @map("manager_user_id") @db.Uuid
   @@map("product")
 }
 
 model ProductionCycle {
   ledgerContexts     CycleLedgerContext[]
   id                 String               @id @default(dbgenerated("gen_random_uuid()")) @map("cycle_id") @db.Uuid
+  name               String?              @db.VarChar(255)
+  cultivatedArea     Decimal?             @map("cultivated_area") @db.Decimal(12, 2)
+  seedMaterialId     String?              @map("seed_material_id") @db.Uuid
+  responsibleUserId  String?              @map("responsible_user_id") @db.Uuid
+  cultivationMethod  String?              @map("cultivation_method") @db.VarChar(255)
   cycleCode          String               @map("cycle_code") @db.VarChar(100)
   productId          String               @map("product_id") @db.Uuid
   farmId             String               @map("farm_id") @db.Uuid
@@ -523,8 +1591,38 @@ model ProductionCycle {
   @@map("production_cycle")
 }
 
+/// A local planning record. It has no chain, trace event or Fabric stream until
+/// linked, at which point the same UUID becomes a ProductionCycle atomically.
+model ProductionCycleDraft {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  farmId             String    @map("farm_id") @db.Uuid
+  plotId             String    @map("plot_id") @db.Uuid
+  productId          String    @map("product_id") @db.Uuid
+  name               String    @db.VarChar(255)
+  cycleCode          String    @map("cycle_code") @db.VarChar(100)
+  startDate          DateTime  @map("start_date") @db.Date
+  plannedHarvest     DateTime  @map("planned_harvest") @db.Date
+  cultivatedArea     Decimal   @map("cultivated_area") @db.Decimal(12, 2)
+  seedMaterialId     String?   @map("seed_material_id") @db.Uuid
+  responsibleUserId  String?   @map("responsible_user_id") @db.Uuid
+  cultivationMethod  String?   @map("cultivation_method") @db.VarChar(255)
+  maxHarvestQuantity Decimal?  @map("max_harvest_quantity") @db.Decimal(14, 3)
+  harvestUnit        String    @map("harvest_unit") @db.VarChar(30)
+  note               String?
+  version            Int       @default(0)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@unique([farmId, cycleCode])
+  @@index([organizationId, createdAt])
+  @@map("production_cycle_draft")
+}
+
 model CareRecord {
+  materialId String? @map("material_id") @db.Uuid
+  materialVersion Int? @map("material_version")
   id               String          @id @default(dbgenerated("gen_random_uuid()")) @map("care_id") @db.Uuid
+  name             String?         @db.VarChar(255)
+  journalCode      String?         @unique @map("journal_code") @db.VarChar(40)
   cycleId          String          @map("cycle_id") @db.Uuid
   careType         String          @map("care_type") @db.VarChar(100)
   eventTime        DateTime        @map("event_time") @db.Timestamptz(6)
@@ -537,10 +1635,13 @@ model CareRecord {
   withdrawalPeriod Int?            @map("withdrawal_period")
   note             String?
   evidenceRef      String?         @map("evidence_ref")
+  evidenceIds      String[]        @default([]) @map("evidence_ids") @db.Uuid
   createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   cycle            ProductionCycle @relation(fields: [cycleId], references: [id], onUpdate: NoAction)
 
   @@index([cycleId, eventTime], map: "ix_care_record_cycle_time")
+  performerUserId String? @map("performer_user_id") @db.Uuid
+  cropCondition String? @map("crop_condition") @db.VarChar(500)
   @@map("care_record")
 }
 
@@ -611,6 +1712,7 @@ model SensorDigest {
 
 model HarvestEvent {
   id                    String                      @id @default(dbgenerated("gen_random_uuid()")) @map("harvest_id") @db.Uuid
+  harvestCode           String?                     @unique @map("harvest_code") @db.VarChar(40)
   cycleId               String                      @map("cycle_id") @db.Uuid
   finalSensorDigestId   String?                     @unique @map("final_sensor_digest_id") @db.Uuid
   harvestTime           DateTime                    @map("harvest_time") @db.Timestamptz(6)
@@ -619,6 +1721,14 @@ model HarvestEvent {
   qualityNote           String?                     @map("quality_note")
   grade                 String?                     @db.VarChar(100)
   harvestArea           String?                     @map("harvest_area") @db.VarChar(255)
+  evidenceRef           String?                     @map("evidence_ref") @db.Uuid
+  representative        String?                     @db.VarChar(255)
+  representativeUserId  String?                     @map("representative_user_id") @db.Uuid
+  evidenceIds           String[]                    @default([]) @map("evidence_ids") @db.Uuid
+  representativeUser    User?                       @relation("HarvestRepresentative", fields: [representativeUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  harvestMethod         String?                     @map("harvest_method") @db.VarChar(100)
+  note                  String?                     @db.VarChar(2000)
+  evidence              TraceEvidence?              @relation(fields: [evidenceRef], references: [id], onDelete: Restrict, onUpdate: NoAction)
   createdAt             DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
   cycle                 ProductionCycle             @relation(fields: [cycleId], references: [id], onUpdate: NoAction)
   finalSensorDigest     SensorDigest?               @relation(fields: [finalSensorDigestId], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -632,9 +1742,14 @@ model HarvestEvent {
 }
 
 model Lot {
+  platformCases PlatformCase[]
   id                String             @id @default(dbgenerated("gen_random_uuid()")) @map("lot_id") @db.Uuid
   lotCode           String             @unique @map("lot_code") @db.VarChar(120)
-  harvestId         String             @unique @map("harvest_id") @db.Uuid
+  lotName           String?            @map("lot_name") @db.VarChar(255)
+  harvestId         String?            @unique @map("harvest_id") @db.Uuid
+  /// HARVEST lots come from a harvest; TRANSFORMATION lots from a processing run.
+  originType        String             @default("HARVEST") @map("origin_type") @db.VarChar(20)
+  processingRunId   String?            @map("processing_run_id") @db.Uuid
   productId         String             @map("product_id") @db.Uuid
   farmOrgId         String             @map("farm_org_id") @db.Uuid
   initialQuantity   Decimal            @map("initial_quantity") @db.Decimal(14, 3)
@@ -642,6 +1757,10 @@ model Lot {
   unit              String             @db.VarChar(30)
   grade             String?            @db.VarChar(100)
   expiryDate        DateTime?          @map("expiry_date") @db.Date
+  packageCount      Int?               @map("package_count")
+  packaging         String?            @db.VarChar(255)
+  packedAt          DateTime?          @map("packed_at") @db.Date
+  initialStorageSiteId String?         @map("initial_storage_site_id") @db.Uuid
   currentState      LotState           @default(HARVESTED) @map("current_state")
   parentLotId       String?            @map("parent_lot_id") @db.Uuid
   lineageType       String?            @map("lineage_type") @db.VarChar(100)
@@ -651,7 +1770,10 @@ model Lot {
   certificates      Certificate[]
   inspections       Inspection[]
   organization      Organization       @relation(fields: [farmOrgId], references: [id], onUpdate: NoAction)
-  harvest           HarvestEvent       @relation(fields: [harvestId], references: [id], onUpdate: NoAction)
+  harvest           HarvestEvent?      @relation(fields: [harvestId], references: [id], onUpdate: NoAction)
+  processingRun     ProcessingRun?     @relation("ProcessingRunLots", fields: [processingRunId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  processingInputs  ProcessingInput[]
+  processingOutput  ProcessingOutput?
   parentLot         Lot?               @relation("LotLineage", fields: [parentLotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   childLots         Lot[]              @relation("LotLineage")
   product           Product            @relation(fields: [productId], references: [id], onUpdate: NoAction)
@@ -1194,6 +2316,7 @@ enum InspectionResult {
 }
 
 enum LotState {
+  CONSUMED
   HARVESTED
   IN_TRANSPORT
   ARRIVED
@@ -1216,10 +2339,12 @@ enum OrganizationStatus {
 }
 
 enum OrganizationType {
+  DISTRIBUTOR
   FARM
   TRANSPORTER
   RETAILER
   AUDITOR
+  PROCESSOR
 
   @@map("organization_type")
 }
@@ -1578,6 +2703,7 @@ enum SigningKeyStatus {
 enum SigningOperation {
   HANDOVER_OFFER
   HANDOVER_CONFIRM
+  DISTRIBUTION_ATTEST
 
   @@map("signing_operation")
 }
@@ -1749,4 +2875,219 @@ model ShipmentHandover {
   @@unique([shipmentId, kind], map: "ux_handover_confirmed", where: raw("(state = 'CONFIRMED'::handover_state)"))
   @@index([chainId, state], map: "ix_handover_chain")
   @@map("shipment_handover")
+}
+
+model PlatformPrivacyTicket {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind String @db.VarChar(10)
+  requestType String @map("request_type") @db.VarChar(20)
+  requesterId String? @map("requester_id") @db.Uuid
+  createdBy String @map("created_by") @db.Uuid
+  payloadCiphertext String @map("payload_ciphertext")
+  status String @default("OPEN") @db.VarChar(12)
+  reporting String @default("UNASSESSED") @db.VarChar(12)
+  detectedAt DateTime? @map("detected_at") @db.Timestamptz(6)
+  deadlineAt DateTime? @map("deadline_at") @db.Timestamptz(6)
+  reportedAt DateTime? @map("reported_at") @db.Timestamptz(6)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  events PlatformPrivacyEvent[]
+  @@index([requesterId, createdAt(sort: Desc)], map: "ix_platform_privacy_requester")
+  @@index([kind, status, deadlineAt], map: "ix_platform_privacy_queue")
+  @@map("platform_privacy_ticket")
+}
+
+model PlatformPrivacyEvent {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId String @map("ticket_id") @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  visibility String @db.VarChar(8)
+  action String @db.VarChar(20)
+  payloadCiphertext String @map("payload_ciphertext")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  ticket PlatformPrivacyTicket @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@index([ticketId, createdAt], map: "ix_platform_privacy_event_ticket")
+  @@map("platform_privacy_event")
+}
+
+model PlatformAudit {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @map("platform_audit_id") @db.Uuid
+  sequence       BigInt        @unique(map: "uq_platform_audit_sequence")
+  occurredAt     DateTime      @map("occurred_at") @db.Timestamptz(3)
+  actorUserId    String?       @map("actor_user_id") @db.Uuid
+  actorRole      String        @map("actor_role") @db.VarChar(50)
+  action         String        @db.VarChar(80)
+  subjectType    String        @map("subject_type") @db.VarChar(50)
+  subjectId      String        @map("subject_id") @db.VarChar(64)
+  organizationId String?       @map("organization_id") @db.Uuid
+  reason         String?
+  requestId      String?       @map("request_id") @db.VarChar(100)
+  idempotencyKey String?       @map("idempotency_key") @db.VarChar(255)
+  outcome        String        @default("SUCCESS") @db.VarChar(20)
+  details        Json          @default("{}")
+  prevHash       String        @map("prev_hash") @db.Char(64)
+  entryHash      String        @unique(map: "uq_platform_audit_entry_hash") @map("entry_hash") @db.Char(64)
+  actor          User?         @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([occurredAt(sort: Desc), sequence(sort: Desc)], map: "ix_platform_audit_time")
+  @@index([actorUserId, sequence(sort: Desc)], map: "ix_platform_audit_actor")
+  @@index([action, sequence(sort: Desc)], map: "ix_platform_audit_action")
+  @@index([subjectType, subjectId, sequence(sort: Desc)], map: "ix_platform_audit_subject")
+  @@map("platform_audit")
+}
+
+model PlatformMfa {
+  userId             String    @id @map("user_id") @db.Uuid
+  secretCiphertext   String    @map("secret_ciphertext")
+  status             String    @db.VarChar(10)
+  recoveryCodeHashes Json      @default("[]") @map("recovery_code_hashes")
+  lastUsedStep       BigInt?   @map("last_used_step")
+  enabledAt          DateTime? @map("enabled_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("platform_mfa")
+}
+
+model PlatformApproval {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @map("platform_approval_id") @db.Uuid
+  operation      String        @db.VarChar(40)
+  subjectType    String        @map("subject_type") @db.VarChar(50)
+  subjectId      String        @map("subject_id") @db.VarChar(64)
+  organizationId String?       @map("organization_id") @db.Uuid
+  payload        Json
+  payloadHash    String        @map("payload_hash") @db.Char(64)
+  proposerId     String        @map("proposer_id") @db.Uuid
+  proposerReason String        @map("proposer_reason")
+  status         String        @default("PENDING") @db.VarChar(12)
+  expiresAt      DateTime      @map("expires_at") @db.Timestamptz(6)
+  decidedBy      String?       @map("decided_by") @db.Uuid
+  decidedAt      DateTime?     @map("decided_at") @db.Timestamptz(6)
+  decisionNote   String?       @map("decision_note")
+  result         Json?
+  version        Int           @default(0)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
+  proposer       User          @relation("PlatformApprovalProposer", fields: [proposerId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  decider        User?         @relation("PlatformApprovalDecider", fields: [decidedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([status, expiresAt], map: "ix_platform_approval_status")
+  @@index([proposerId, createdAt(sort: Desc)], map: "ix_platform_approval_proposer")
+  @@map("platform_approval")
+}
+
+model PlatformCase {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @map("platform_case_id") @db.Uuid
+  caseNumber          BigInt              @default(dbgenerated("nextval('platform_case_number_seq')")) @unique(map: "uq_platform_case_number") @map("case_number")
+  title               String              @db.VarChar(200)
+  description         String
+  category            String              @db.VarChar(20)
+  severity            String              @db.VarChar(10)
+  source              String              @db.VarChar(12)
+  status              String              @default("OPEN") @db.VarChar(14)
+  lotId               String?             @map("lot_id") @db.Uuid
+  ownerOrganizationId String?             @map("owner_organization_id") @db.Uuid
+  responseDueAt       DateTime?           @map("response_due_at") @db.Timestamptz(6)
+  acknowledgedAt      DateTime?           @map("acknowledged_at") @db.Timestamptz(6)
+  respondedAt         DateTime?           @map("responded_at") @db.Timestamptz(6)
+  escalatedAt         DateTime?           @map("escalated_at") @db.Timestamptz(6)
+  closedAt            DateTime?           @map("closed_at") @db.Timestamptz(6)
+  closeReason         String?             @map("close_reason")
+  createdBy           String              @map("created_by") @db.Uuid
+  version             Int                 @default(0)
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
+  lot                 Lot?                @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  owner               Organization?       @relation("PlatformCaseOwner", fields: [ownerOrganizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  creator             User                @relation("PlatformCaseCreator", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  events              PlatformCaseEvent[]
+
+  @@index([status, responseDueAt], map: "ix_platform_case_status")
+  @@map("platform_case")
+}
+
+model PlatformCaseEvent {
+  id                  String       @id @default(dbgenerated("gen_random_uuid()")) @map("platform_case_event_id") @db.Uuid
+  caseId              String       @map("platform_case_id") @db.Uuid
+  action              String       @db.VarChar(20)
+  visibility          String       @db.VarChar(8)
+  actorUserId         String       @map("actor_user_id") @db.Uuid
+  actorOrganizationId String?      @map("actor_organization_id") @db.Uuid
+  note                String
+  details             Json         @default("{}")
+  createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  case                PlatformCase @relation(fields: [caseId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  actor               User         @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  organization        Organization? @relation(fields: [actorOrganizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([caseId, createdAt], map: "ix_platform_case_event_case")
+  @@map("platform_case_event")
+}
+
+/// Internal notification thread of one organization; replies form a chat.
+model EnterpriseMessageThread {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  subject String @db.VarChar(200)
+  createdBy String @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastMessageAt DateTime @default(now()) @map("last_message_at") @db.Timestamptz(6)
+  messages EnterpriseMessage[]
+  participants EnterpriseMessageParticipant[]
+  @@index([organizationId,lastMessageAt(sort: Desc)], map: "enterprise_message_thread_org")
+  @@map("enterprise_message_thread")
+}
+
+model EnterpriseMessage {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  threadId String @map("thread_id") @db.Uuid
+  authorId String @map("author_id") @db.Uuid
+  body String @db.VarChar(4000)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  thread EnterpriseMessageThread @relation(fields: [threadId], references: [id])
+  @@index([threadId,createdAt], map: "enterprise_message_thread_time")
+  @@map("enterprise_message")
+}
+
+model EnterpriseMessageParticipant {
+  threadId String @map("thread_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  readAt DateTime? @map("read_at") @db.Timestamptz(6)
+  thread EnterpriseMessageThread @relation(fields: [threadId], references: [id])
+  @@id([threadId,userId])
+  @@index([userId], map: "enterprise_message_participant_user")
+  @@map("enterprise_message_participant")
+}
+
+/// Factor turning one unit of a processed product into the run's base unit.
+/// Append-only; a conversion is revoked, never edited.
+model ProductUnitConversion {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String    @map("product_id") @db.Uuid
+  unit      String    @db.VarChar(30)
+  baseUnit  String    @map("base_unit") @db.VarChar(30)
+  factor    Decimal   @db.Decimal(14, 6)
+  note      String?   @db.VarChar(500)
+  createdBy String    @map("created_by") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedBy String?   @map("revoked_by") @db.Uuid
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokeReason String? @map("revoke_reason") @db.VarChar(500)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([productId], map: "ix_unit_conversion_product")
+  @@map("product_unit_conversion")
+}
+
+model ProductPhotoOrder {
+  productId String @id @map("product_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  evidenceIds String[] @map("evidence_ids") @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  updatedAt DateTime @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  @@map("product_photo_order")
 }

@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
   waitFor,
 } from "@testing-library/react";
 import {
@@ -12,13 +13,14 @@ import {
   getProductionCycles,
   readSession,
   recordHarvest,
+  request,
 } from "@/lib/api-client";
 import { acceptBusinessAccessRevision } from "@/lib/permission-sync";
 import { HarvestDialog } from "./harvest-dialog";
 
 const { user, auth } = vi.hoisted(() => {
   const user = {
-    id: "87247bd2-c19b-4f9c-ab44-fd2ea5f96fa",
+    id: "87247bd2-c19b-4f9c-ab44-fd2ea5f96fa0",
     role: { code: "FARM_STAFF" },
     organizationId: "173f44c2-06ef-4221-8c75-f68e292415b0",
     accountStatus: "ACTIVE",
@@ -31,12 +33,15 @@ vi.mock("@/lib/api-client", () => ({
   getProductionCycles: vi.fn(),
   readSession: vi.fn(),
   recordHarvest: vi.fn(),
+  request: vi.fn(),
 }));
 vi.mock("@/lib/auth-store", () => ({ useAuth: () => auth }));
 vi.mock("./qr-code-card", () => ({
   QrCodeCard: ({ value }: { value: string }) => <span>{value}</span>,
 }));
 const cycleId = "59c1b564-2736-4ea7-bdb5-701e20423f23";
+const harvestEvidenceId = "b42eb5f4-b7c2-4d68-84b7-4f42fe0a0021";
+const lotEvidenceId = "f8c20f73-d564-47de-a183-48ee75db763b";
 const result = {
   lot: { id: "ad2fbfe8-5837-40db-b8f7-d22cfae5fba2", lotCode: "AUTO-1" },
   traceQr: { traceToken: "restored-qr" },
@@ -62,9 +67,26 @@ beforeEach(() => {
   auth.user = user;
   vi.mocked(readSession).mockReturnValue({ user } as never);
   vi.mocked(getHarvestRequestStatus).mockResolvedValue({ status: "NOT_FOUND" });
+  vi.mocked(request).mockResolvedValue({
+    items: [
+      {
+        id: harvestEvidenceId,
+        kind: "HARVEST_IMAGE",
+        fileName: "harvest.jpg",
+        supersedesId: null,
+      },
+      {
+        id: lotEvidenceId,
+        kind: "LOT_IMAGE",
+        fileName: "lot.jpg",
+        supersedesId: null,
+      },
+    ],
+  } as never);
   vi.mocked(getProductionCycles).mockResolvedValue([
     {
       id: cycleId,
+      version: 0,
       cycleCode: "CYCLE-1",
       currentState: "GROWING",
       harvestUnit: "kg",
@@ -90,8 +112,23 @@ async function enterHarvest(container: HTMLElement) {
   fireEvent.change(screen.getByLabelText("Chu kỳ sản xuất"), {
     target: { value: cycleId },
   });
+  await within(screen.getByLabelText("Ảnh thu hoạch")).findByRole("option", {
+    name: "harvest.jpg",
+  });
+  await within(screen.getByLabelText("Ảnh lô nông sản")).findByRole("option", {
+    name: "lot.jpg",
+  });
   fireEvent.change(screen.getByLabelText("Số lượng"), {
     target: { value: "10" },
+  });
+  fireEvent.change(screen.getByLabelText("Tên lô nông sản"), {
+    target: { value: "Harvest lot" },
+  });
+  fireEvent.change(screen.getByLabelText("Ảnh thu hoạch"), {
+    target: { value: harvestEvidenceId },
+  });
+  fireEvent.change(screen.getByLabelText("Ảnh lô nông sản"), {
+    target: { value: lotEvidenceId },
   });
   fireEvent.submit(container.querySelector("form")!);
 }

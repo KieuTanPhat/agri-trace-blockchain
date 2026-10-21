@@ -1,15 +1,18 @@
 # Current project context
 
-Updated 2026-10-14 for the fresh hosted Hybrid release. This file describes source and
-release limits separately. Swagger generated from NestJS is the API contract;
+Updated 2026-10-17 with the local enterprise and distribution extension; the
+2026-10-14 hosted Hybrid release limits remain separate. Swagger generated from NestJS is the API contract;
 current AGT issues and the approved Hybrid plan define acceptance and ownership.
 
 ## Domain
 
 The model is `ProductionCycle → HarvestEvent → Lot → Shipment`. A cycle supports
 multiple harvests; each harvest creates its own Lot, QR, quantity movement, sensor
-window, trace event and outbox in one transaction. A Lot has one Shipment and
-retains an append-only quantity/custody history. Corrections append new evidence;
+window, trace event and outbox in one transaction. A Lot uses either its legacy
+single Shipment or the new organization holdings and multi-line distribution
+transfers, never both. Each distribution line keeps its original source Lot;
+splitting quantities does not create mixed or transformed Lots. Both paths retain
+an append-only quantity/custody history. Corrections append new evidence;
 existing hashed or signed data must not be edited.
 
 Business actions use current account/session/organization, active capability,
@@ -32,6 +35,25 @@ integrity, recall, expiry and missing-sensor warnings independently of proof.
 `VERIFIED` describes evidence, not product quality or independent certification.
 
 ## Hybrid source and release
+
+The local extension includes five-step v2 registration with conditional legal
+profiles, genuine private supporting documents, service preferences, separate
+policy acknowledgements, catalog-bound two-level addresses and email OTP.
+Producer households/individuals may omit tax identifiers; production supports
+CROP only. Administrator review precedes service/peer-model selection,
+contract preview and simulated settlement. Settlement marks the order
+`PAID_SIMULATED` and queues its email; a separate platform-admin activation grants
+new business authority before the enterprise can configure a peer. The Worker
+delivers OTP/review/contract mail, using the local sink for test recipients and
+TLS for configured SMTP. Tier 1/2/3 membership and custom permissions never replace
+chain membership, capabilities or accepted assignments. Private screens use a
+permission-filtered system manager sidebar. The local service contract and payment
+are demonstration artifacts; NAPAS/QR collection and qualified contract signatures
+are not implemented. Existing admitted enrollments retain their earlier policy.
+
+New partial distribution remains disabled on DUAL_SIGNED chains pending its own
+c2 integration and isolated Fabric acceptance. A local database or browser result
+does not establish real Fabric or production acceptance for that new protocol.
 
 Claude baseline `2f132e26dd26270b907a4a4c82070637c6a5536f` implements A chain
 scope, B immutable Fabric binding/permission registry and C independent Ed25519
@@ -97,3 +119,22 @@ Read [current business rules](core-business-rules.md), [ADR-004](adr-004-hybrid-
 The owner authorized merge/deploy after validation. There is no two-hour cap,
 separate production canary or continuous observation/agent on-call obligation.
 The archived Batch specification and retired cutover receipts are dated history.
+
+## Quản trị nền tảng (P0, 2026-10-18)
+
+Migration `20261029000000_platform_governance` thêm `platform_audit` (nối băm,
+append-only), `platform_mfa`, `platform_approval` và các cột version/khóa tạm cho
+`app_user`, `organization`. Mã nằm ở `apps/api/src/modules/platform-governance`;
+quy tắc ở [business rules](core-business-rules.md). Biến cấu hình mới:
+`PLATFORM_SECRET_KEY`, `PLATFORM_MFA_MODE`, `PLATFORM_APPROVALS_MODE`,
+`PLATFORM_LOGIN_MAX_ATTEMPTS`, `PLATFORM_LOGIN_LOCK_MINUTES`,
+`PLATFORM_APPROVAL_TTL_HOURS`.
+
+P1 bổ sung vận hành chỉ đọc, hồ sơ sự cố và diễn tập thu hồi. Migration
+`20261031000000_platform_privacy` thêm hộp thư quyền dữ liệu/hồ sơ vi phạm mã hóa;
+`20261101000000_platform_admin_roles` thêm ba vai hẹp cho vận hành, điều phối sự
+cố và dữ liệu cá nhân. API không cấp quyền ghi nghiệp vụ cho các vai này.
+Xem [quy tắc](core-business-rules.md), [giao diện](frontend.md) và
+[plan quản trị](plans/platform-governance.md) để phân biệt phần đã triển khai với
+đề xuất bảo trì/loại bỏ còn cần quyết định. Cảnh báo hạn khóa Ed25519/vân tay
+chứng thư vẫn ghi rõ dữ liệu chưa được theo dõi; không suy ra hạn từ trạng thái.

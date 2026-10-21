@@ -9,5 +9,6 @@ import { UsersService } from './users.service.js';
   imports: [PrismaModule, AuthModule, IdempotencyModule],
   controllers: [UsersController],
   providers: [UsersService],
+  exports: [UsersService],
 })
 export class UsersModule {}

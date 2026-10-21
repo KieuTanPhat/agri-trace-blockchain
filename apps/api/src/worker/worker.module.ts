@@ -10,6 +10,7 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { WorkerHealthController } from './worker-health.controller.js';
 import { HandoverExpiryService } from '../modules/shipments/handover-expiry.service.js';
 import { EnterpriseConnectionWorker } from '../modules/enterprise-onboarding/enterprise-connection.worker.js';
+import { EnterpriseMailWorker } from '../modules/enterprise-onboarding/enterprise-mail.worker.js';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule],
@@ -21,6 +22,7 @@ import { EnterpriseConnectionWorker } from '../modules/enterprise-onboarding/ent
     LedgerControlService,
     HandoverExpiryService,
     EnterpriseConnectionWorker,
+    EnterpriseMailWorker,
     BlockchainWorkerService,
     BlockchainWorkerRunner,
   ],

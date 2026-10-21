@@ -21,6 +21,8 @@ export class AuthUserDto {
   organization!: AuthOrganizationDto | null;
   @ApiProperty({ type: AuthRoleDto }) role!: AuthRoleDto;
   @ApiProperty() accountStatus!: string;
+  @ApiProperty({ type: Boolean, description: 'Bắt buộc đổi mật khẩu trước khi dùng các chức năng khác' })
+  mustChangePassword!: boolean;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ type: String, format: 'date-time' }) updatedAt!: Date;
 }
@@ -58,4 +60,24 @@ class RevocationDto {
 export class AuthLogoutResponseDto extends AuthEnvelopeDto {
   @ApiProperty({ enum: [true] }) success!: boolean;
   @ApiProperty({ type: RevocationDto }) data!: RevocationDto;
+}
+
+class PasswordChangedDto {
+  @ApiProperty({ enum: [true] }) changed!: boolean;
+  @ApiProperty({ type: Number }) sessionsRevoked!: number;
+}
+
+export class AuthPasswordChangedResponseDto extends AuthEnvelopeDto {
+  @ApiProperty({ enum: [true] }) success!: boolean;
+  @ApiProperty({ type: PasswordChangedDto }) data!: PasswordChangedDto;
+}
+
+class AllSessionsRevokedDto {
+  @ApiProperty({ enum: [true] }) revoked!: boolean;
+  @ApiProperty({ type: Number }) sessionsRevoked!: number;
+}
+
+export class AuthLogoutAllResponseDto extends AuthEnvelopeDto {
+  @ApiProperty({ enum: [true] }) success!: boolean;
+  @ApiProperty({ type: AllSessionsRevokedDto }) data!: AllSessionsRevokedDto;
 }

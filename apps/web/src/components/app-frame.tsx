@@ -1,118 +1,102 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import {
-  BadgeCheck,
-  Blocks,
-  Ellipsis,
-  House,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Network,
-  Package,
-  ScanLine,
-  Search,
-  Settings2,
-  Sprout,
-  Thermometer,
-  X,
-  type LucideIcon,
-} from "lucide-react";
 import { SiteFooter, ZaloFloat } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { BrandLogo } from "@/components/ui/brand-logo";
-import { getLots } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
-import type { LotTrace } from "@/lib/types";
-import { canAccessManagementRoute } from "@/lib/permissions";
+import { useConfirm } from "@/lib/confirm";
+import { canAccessManagementRoute, platformAdminHome } from "@/lib/permissions";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 import { PERMISSION_SYNC_EVENT } from "@/lib/permission-sync";
+import { canUseEnterpriseRoute } from "@/lib/enterprise-access";
+import {
+  homeRoute,
+  isActiveRoute,
+  isEnterpriseUser,
+  mobileShortcuts,
+  routeContext,
+  visibleAccountLinks,
+  visibleGroups,
+  type RouteViewer,
+} from "@/lib/management-routes";
 import { PendingCommandsPanel } from "./pending-commands-panel";
-
-type NavItem = { href: string; label: string; icon: LucideIcon };
-
-const navigationGroups: { title: string; items: NavItem[] }[] = [
-  {
-    title: "Vận hành",
-    items: [
-      { href: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
-      { href: "/production-cycles", label: "Vụ trồng", icon: Sprout },
-      { href: "/lots", label: "Lô nông sản", icon: Package },
-      { href: "/supply-chains", label: "Chuỗi và đối tác", icon: Network },
-      { href: "/enterprise", label: "Kết nối doanh nghiệp", icon: Blocks },
-    ],
-  },
-  {
-    title: "Tuân thủ",
-    items: [
-      {
-        href: "/compliance",
-        label: "Kiểm định, chứng nhận",
-        icon: BadgeCheck,
-      },
-    ],
-  },
-  {
-    title: "Hệ thống",
-    items: [
-      { href: "/admin", label: "Quản trị", icon: Settings2 },
-      { href: "/iot-simulator", label: "Cảm biến IoT", icon: Thermometer },
-      { href: "/scan", label: "Quét mã QR", icon: ScanLine },
-    ],
-  },
-];
-
-function isActive(pathname: string, href: string) {
-  return href === "/dashboard"
-    ? pathname === "/dashboard"
-    : pathname.startsWith(href.split("/").slice(0, 2).join("/"));
-}
+import { AccountMenu } from "./shell/account-menu";
+import { BackButton } from "./shell/back-button";
+import { FieldFocus } from "./shell/field-focus";
+import { TypographySync } from "./shell/typography-sync";
+import { NotificationsMenu } from "./shell/notifications-menu";
+import { MenuSearch } from "./shell/menu-search";
+import { SystemNotices } from "./shell/system-notices";
+import { NavGroups } from "./shell/nav-groups";
+import {
+  useEnterpriseAccess,
+  usePendingTaskCount,
+} from "./shell/use-shell-data";
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
+  const confirm = useConfirm();
   const isPublic =
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/register" ||
+    pathname === "/join-organization" ||
+    pathname === "/terms" ||
+    pathname === "/privacy" ||
     pathname === "/scan" ||
     pathname.startsWith("/trace/");
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileDialog = useRef<HTMLDialogElement>(null);
-  const [query, setQuery] = useState("");
   const authorizationScope = getAuthorizationScope(auth.user);
-  const [searchData, setSearchData] = useState<{
-    scope?: string;
-    lots: LotTrace[];
-  }>({ lots: [] });
   const privateAccessReady =
     !auth.privateAccessStatus || auth.privateAccessStatus === "ready";
-  const lots =
-    privateAccessReady && searchData.scope === authorizationScope
-      ? searchData.lots
-      : [];
-  const [searchFailed, setSearchFailed] = useState(false);
+  const enterpriseUser = isEnterpriseUser(auth.user);
+  // The API rejects everything but the password change while one is forced.
+  const forcedPassword = !!auth.user?.mustChangePassword;
+  const enterprise = useEnterpriseAccess({
+    enabled:
+      enterpriseUser && !isPublic && auth.isAuthenticated && !forcedPassword,
+    scope: authorizationScope,
+  });
+  const access = enterprise.access;
+  const mayReadTasks =
+    !isPublic && !!access && canUseEnterpriseRoute("/enterprise/inbox", access);
+  const pendingTasks = usePendingTaskCount({
+    enabled: mayReadTasks,
+    scope: authorizationScope,
+    pathname,
+    revision: enterprise.revision,
+  });
   useEffect(() => {
-    let active = true;
-    setSearchData({ lots: [] });
-    setQuery("");
-    setSearchFailed(false);
-    if (!auth.isAuthenticated || isPublic) return;
-    getLots()
-      .then((items) => {
-        if (active) setSearchData({ scope: authorizationScope, lots: items });
-      })
-      .catch(() => {
-        if (active) setSearchFailed(true);
-      });
-    return () => {
-      active = false;
-    };
-  }, [auth.isAuthenticated, authorizationScope, isPublic]);
+    if (
+      !enterpriseUser ||
+      !access ||
+      ["ACTIVE", "ACTIVE_LEGACY"].includes(access.stage) ||
+      pathname.startsWith("/enterprise/onboarding") ||
+      pathname.startsWith("/enterprise/service")
+    )
+      return;
+    router.replace(
+      ["PENDING_REVIEW", "REJECTED"].includes(access.stage)
+        ? "/enterprise/onboarding"
+        : "/enterprise/service",
+    );
+  }, [access, enterpriseUser, pathname, router]);
+  useEffect(() => {
+    // A temporary password only opens the page that replaces it.
+    if (
+      auth.user?.mustChangePassword &&
+      !isPublic &&
+      pathname !== "/account/password"
+    )
+      router.replace("/account/password");
+  }, [auth.user?.mustChangePassword, isPublic, pathname, router]);
   useEffect(() => {
     if (!auth.isLoading && !auth.isAuthenticated && !isPublic)
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
@@ -161,56 +145,127 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     );
 
   const role = auth.user.role.code;
+  if (forcedPassword)
+    return (
+      <main className="public-content" id="main-content">
+        {pathname === "/account/password" ? (
+          children
+        ) : (
+          <div className="loading-state">Đang chuyển tới trang đổi mật khẩu…</div>
+        )}
+      </main>
+    );
+  if (enterpriseUser && !access)
+    return (
+      <main className="public-content">
+        <p
+          className={enterprise.error ? "notice error" : "loading-state"}
+          role={enterprise.error ? "alert" : "status"}
+        >
+          {enterprise.error
+            ? "Chưa kiểm tra được quyền hiện tại."
+            : "Đang tải quyền hiện tại…"}
+        </p>
+        {enterprise.error && (
+          <button className="button secondary" onClick={enterprise.retry}>
+            Kiểm tra lại
+          </button>
+        )}
+      </main>
+    );
+  if (
+    enterpriseUser &&
+    access &&
+    !["ACTIVE", "ACTIVE_LEGACY"].includes(access.stage) &&
+    !pathname.startsWith("/enterprise/onboarding") &&
+    !pathname.startsWith("/enterprise/service")
+  )
+    return (
+      <main className="public-content">
+        <p className="notice">
+          {access.stage === "PENDING_REVIEW"
+            ? "Hồ sơ đang chờ admin duyệt."
+            : "Hoàn thiện dịch vụ để kích hoạt không gian doanh nghiệp."}
+        </p>
+        <Link
+          className="button"
+          href={
+            access.stage === "PENDING_REVIEW" || access.stage === "REJECTED"
+              ? "/enterprise/onboarding"
+              : "/enterprise/service"
+          }
+        >
+          Theo dõi và hoàn thiện hồ sơ
+        </Link>
+      </main>
+    );
   if (!canAccessManagementRoute(pathname, role, auth.user?.productionAccess))
     return (
       <main className="public-content">
         <div className="notice error" role="alert">
           Bạn không có quyền sử dụng chức năng này.
         </div>
-        <Link className="text-link" href="/dashboard">
+        <Link className="text-link" href={homeRoute(role, enterpriseUser)}>
           Về tổng quan
         </Link>
       </main>
     );
-  const roleName = auth.user.role.name || auth.user.role.code;
-  const groups = navigationGroups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter(({ href }) =>
-        canAccessManagementRoute(href, role, auth.user?.productionAccess),
-      ),
-    }))
-    .filter((group) => group.items.length);
-  const allowed = groups.flatMap((group) => group.items);
-  const matching = query.trim().toLocaleLowerCase("vi")
-    ? lots.filter((lot) =>
-        `${lot.productName} ${lot.lotCode} ${lot.farmOrg.name}`
-          .toLocaleLowerCase("vi")
-          .includes(query.trim().toLocaleLowerCase("vi")),
-      )
-    : [];
-  const renderGroups = (onNavigate?: () => void) =>
-    groups.map((group) => (
-      <div className="nav-group" key={group.title}>
-        <p className="nav-group-title">{group.title}</p>
-        {group.items.map(({ href, label, icon: Icon }) => (
-          <Link
-            className="nav-link"
-            href={href}
-            key={href}
-            title={label}
-            aria-current={isActive(pathname, href) ? "page" : undefined}
-            onClick={onNavigate}
-          >
-            <Icon size={20} />
-            <span>{label}</span>
-          </Link>
-        ))}
-      </div>
-    ));
+  if (enterpriseUser && access && !canUseEnterpriseRoute(pathname, access))
+    return (
+      <main className="public-content">
+        <p className="notice error" role="alert">
+          Bạn chưa được cấp quyền sử dụng chức năng này.
+        </p>
+        <Link className="button secondary" href="/enterprise">
+          Về doanh nghiệp
+        </Link>
+      </main>
+    );
+  const roleName =
+    enterpriseUser && access
+      ? access.primary
+        ? "Quản trị doanh nghiệp · Cấp 1"
+        : access.tier === 2
+          ? "Quản lý được ủy quyền · Cấp 2"
+          : access.tier === 3
+            ? "Nhân viên · Cấp 3"
+            : auth.user.role.name || role
+      : auth.user.role.name || role;
+  const viewer: RouteViewer = {
+    role,
+    productionAccess: auth.user.productionAccess,
+    enterpriseAccess: access,
+    enterpriseUser,
+  };
+  const groups = visibleGroups(viewer);
+  const shortcuts = mobileShortcuts(groups);
+  const home = homeRoute(role, enterpriseUser);
+  const platform = !!platformAdminHome(role);
+  const context = routeContext(pathname);
+  const logout = async () => {
+    if (
+      !(await confirm(
+        "Đăng xuất khỏi AgriTrace trên thiết bị này?",
+        "Xác nhận đăng xuất",
+      ))
+    )
+      return;
+    void auth
+      .logout()
+      .then(() => {
+        router.replace("/login");
+      })
+      .catch(() => {
+        window.alert("Không thể đăng xuất. Vui lòng thử lại.");
+      });
+  };
 
   return (
-    <div className="app-shell" data-mobile-open={mobileOpen}>
+    <div
+      className="app-shell"
+      data-mobile-open={mobileOpen}
+      data-surface={platform ? "admin" : undefined}
+    >
       <a className="skip-link" href="#main-content">
         Đi đến nội dung
       </a>
@@ -223,80 +278,64 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           aria-controls="mobile-management-navigation"
           onClick={() => setMobileOpen(!mobileOpen)}
         >
-          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          {mobileOpen ? "Đóng" : "Menu"}
         </button>
-        <Link
-          className="brand"
-          href="/dashboard"
-          aria-label="AgriTrace - Tổng quan"
-        >
+        <Link className="brand" href={home} aria-label="AgriTrace - Tổng quan">
           <BrandLogo height={40} priority />
         </Link>
-        <div className="header-search">
-          <Search size={18} />
-          <input
-            aria-label="Tìm lô nông sản"
-            placeholder="Tìm nông sản, mã lô, trang trại..."
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") setQuery("");
-            }}
-          />
-          {query.trim() && (
-            <div className="search-results">
-              {matching.map((lot) => (
-                <Link
-                  key={lot.lotId}
-                  href={`/lots/${lot.lotId}`}
-                  onClick={() => setQuery("")}
-                >
-                  <strong>{lot.productName}</strong>
-                  <span>{lot.lotCode}</span>
-                </Link>
-              ))}
-              {searchFailed ? (
-                <p>Chưa tải được danh sách lô.</p>
-              ) : (
-                !matching.length && <p>Không tìm thấy lô phù hợp.</p>
-              )}
-            </div>
+        <nav className="workspace-context" aria-label="Vị trí hiện tại">
+          <strong>
+            {platform ? "Quản trị nền tảng" : "Không gian doanh nghiệp"}
+          </strong>
+          {context && (
+            <>
+              <span aria-hidden="true">/</span>
+              <span>{context.group.title}</span>
+              <span aria-hidden="true">/</span>
+              <Link
+                href={context.item.href}
+                aria-current={
+                  pathname === context.item.href ? "page" : undefined
+                }
+              >
+                {context.item.label}
+              </Link>
+            </>
           )}
+        </nav>
+        <div className="topbar-search">
+          <MenuSearch groups={groups} extra={visibleAccountLinks(viewer)} />
         </div>
-        <div className="topbar-meta">
-          <span className="workspace-avatar" aria-hidden="true">
-            {auth.user.fullName.slice(0, 2).toUpperCase()}
-          </span>
-          <span>
-            {auth.user.fullName}
-            <small>{roleName}</small>
-          </span>
+        <div className="topbar-actions">
+          <Link
+            className="icon-button"
+            href="/scan"
+            aria-label="Quét mã QR"
+            title="Quét mã QR"
+          >
+            Quét QR
+          </Link>
+          <Link
+            className="icon-button"
+            href="/"
+            aria-label="Trang giới thiệu"
+            title="Trang giới thiệu"
+          >
+            Trang chủ
+          </Link>
+          <NotificationsMenu
+            enabled={mayReadTasks}
+            scope={authorizationScope}
+            pathname={pathname}
+          />
+          <AccountMenu
+            fullName={auth.user.fullName}
+            roleName={roleName}
+            links={visibleAccountLinks(viewer)}
+            pathname={pathname}
+            onLogout={logout}
+          />
         </div>
-        <Link
-          className="icon-button"
-          href="/"
-          aria-label="Trang giới thiệu"
-          title="Trang giới thiệu"
-        >
-          <House size={19} />
-        </Link>
-        <button
-          className="icon-button"
-          title="Đăng xuất"
-          aria-label="Đăng xuất"
-          onClick={() => {
-            void auth
-              .logout()
-              .then(() => {
-                router.replace("/login");
-              })
-              .catch(() => {
-                window.alert("Không thể đăng xuất. Vui lòng thử lại.");
-              });
-          }}
-        >
-          <LogOut size={19} />
-        </button>
       </header>
       <dialog
         className="mobile-management-nav"
@@ -307,14 +346,16 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
         onCancel={() => setMobileOpen(false)}
       >
         <div className="panel-title">
-          <h2 id="mobile-nav-title">Không gian quản lý</h2>
+          <h2 id="mobile-nav-title">
+            {platform ? "Quản trị nền tảng" : "Không gian quản lý"}
+          </h2>
           <button
             className="icon-button"
             type="button"
             aria-label="Đóng menu quản lý"
             onClick={() => setMobileOpen(false)}
           >
-            <X size={20} />
+            Đóng
           </button>
         </div>
         <div className="mobile-user">
@@ -322,28 +363,51 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           <span>{roleName}</span>
         </div>
         <nav aria-label="Điều hướng quản lý trên điện thoại">
-          {renderGroups(() => setMobileOpen(false))}
+          <NavGroups
+            groups={groups}
+            pathname={pathname}
+            pendingTasks={pendingTasks}
+            onNavigate={() => setMobileOpen(false)}
+          />
         </nav>
         <Link
           className="button secondary"
           href="/"
           onClick={() => setMobileOpen(false)}
         >
-          <House size={18} /> Trang giới thiệu
+           Trang giới thiệu
         </Link>
       </dialog>
       <div className="layout">
         <aside className="sidebar" id="main-navigation">
-          <nav aria-label="Điều hướng chính">{renderGroups()}</nav>
-          <div className="sidebar-footer">
-            <Blocks size={22} />
-            <div>
-              <strong>Hyperledger Fabric</strong>
-              <span>Dữ liệu truy xuất chuỗi khối</span>
-            </div>
+          <Link className="sidebar-brand" href={home} aria-label="AgriTrace">
+            <Image
+              className="sidebar-brand-logo"
+              src="/agritrace/brand/agritrace-logo-on-dark.png"
+              alt="AgriTrace — Truy xuất nguồn gốc nông sản Việt"
+              width={720}
+              height={212}
+              priority
+            />
+            <small className="sidebar-brand-area">{platform ? "Quản trị nền tảng" : "Không gian doanh nghiệp"}</small>
+          </Link>
+          <nav aria-label="Điều hướng chính">
+            <NavGroups
+              groups={groups}
+              pathname={pathname}
+              pendingTasks={pendingTasks}
+            />
+          </nav>
+          <div className="sidebar-identity">
+            <span className="workspace-avatar" aria-hidden="true">
+              {auth.user.fullName.slice(0, 2).toUpperCase()}
+            </span>
+            <span><strong>{auth.user.fullName}</strong><small>{roleName}</small></span>
           </div>
         </aside>
         <main className="content" id="main-content">
+          <FieldFocus />
+          <TypographySync />
           {!privateAccessReady && (
             <div
               className="notice"
@@ -368,10 +432,12 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           )}
           <div
             className="page-content"
-            key={`${authorizationScope}:${pathname}`}
+            key={`${authorizationScope}:${pathname.startsWith("/enterprise/service") ? "/enterprise/service" : pathname}`}
             hidden={!privateAccessReady}
             style={privateAccessReady ? undefined : { display: "none" }}
           >
+            <BackButton pathname={pathname} home={home} />
+            <SystemNotices scope={authorizationScope} />
             <PendingCommandsPanel
               key={authorizationScope}
               onSettled={() => window.location.reload()}
@@ -385,13 +451,12 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <nav className="bottom-nav" aria-label="Điều hướng nhanh">
-        {allowed.slice(0, 4).map(({ href, label, icon: Icon }) => (
+        {shortcuts.map(({ href, label }) => (
           <Link
             href={href}
             key={href}
-            aria-current={isActive(pathname, href) ? "page" : undefined}
+            aria-current={isActiveRoute(pathname, href) ? "page" : undefined}
           >
-            <Icon size={20} />
             <span>{label.split(",")[0]}</span>
           </Link>
         ))}
@@ -400,7 +465,6 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
           aria-label="Mở thêm điều hướng"
           onClick={() => setMobileOpen(true)}
         >
-          <Ellipsis size={20} />
           <span>Thêm</span>
         </button>
       </nav>

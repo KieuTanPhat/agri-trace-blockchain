@@ -86,6 +86,7 @@ export async function signPreparedIntent(
     chainRef: string;
     bindingDigest: string;
     entityId: string;
+    entityType?: string;
     operation: string;
     keyRef: string;
   },
@@ -106,7 +107,7 @@ export async function signPreparedIntent(
       prepared.keyRef !== expected.keyRef ||
       prepared.intent.chainRef !== expected.chainRef ||
       prepared.intent.bindingDigest !== expected.bindingDigest ||
-      prepared.intent.entityType !== "SHIPMENT" ||
+      prepared.intent.entityType !== (expected.entityType ?? "SHIPMENT") ||
       prepared.intent.entityId !== expected.entityId ||
       prepared.intent.operation !== expected.operation)
   )

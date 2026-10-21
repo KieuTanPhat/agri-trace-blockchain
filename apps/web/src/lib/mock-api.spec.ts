@@ -54,6 +54,8 @@ describe("public trace mock projection", () => {
           "initialQuantity",
           "lotCode",
           "lotId",
+          "originType",
+          "processing",
           "productName",
           "productionCycle",
           "proofStatus",
@@ -97,7 +99,7 @@ describe("public trace mock projection", () => {
     const trace = mockPublicTrace(mockLots[1].lotId);
 
     expect(trace?.shipment).toBeNull();
-    expect(trace?.productionCycle.startDate).toBeNull();
+    expect(trace?.productionCycle?.startDate).toBeNull();
     expect(trace?.certificates).toEqual([]);
     expect(mockPublicTrace("missing-token")).toBeNull();
   });

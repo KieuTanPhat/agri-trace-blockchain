@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { LotTable } from "@/components/lot-table";
 import { HarvestDialog } from "@/components/harvest-dialog";
 import { LoadingState } from "@/components/loading-state";
@@ -8,9 +10,17 @@ import { ErrorState } from "@/components/error-state";
 import { getLots } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
 import type { LotTrace } from "@/lib/types";
-import { Package } from "lucide-react";
-
 export default function LotsPage() {
+  return (
+    <Suspense>
+      <Lots />
+    </Suspense>
+  );
+}
+
+function Lots() {
+  // Opened from a product's detail page: only that product's lots.
+  const product = useSearchParams().get("product") ?? "";
   const { user } = useAuth();
   const [lots, setLots] = useState<LotTrace[] | null>(null);
   const [error, setError] = useState("");
@@ -28,14 +38,10 @@ export default function LotsPage() {
     <div className="grid">
       <section className="page-header">
         <div className="page-header-icon">
-          <Package size={32} />
+
         </div>
         <div>
-          <p className="eyebrow">Quản lý lô</p>
           <h1>Danh sách lô nông sản</h1>
-          <p className="muted">
-            Theo dõi trạng thái, lịch sử và các thao tác khả dụng trên từng lô.
-          </p>
         </div>
         <div className="header-actions">
           {user?.role.code === "FARM_STAFF" && (
@@ -52,7 +58,22 @@ export default function LotsPage() {
           onAction={load}
         />
       ) : lots ? (
-        <LotTable lots={lots} />
+        <>
+          {product && (
+            <p className="notice">
+              <span>
+                Đang xem lô của sản phẩm <strong>{product}</strong> ·{" "}
+                <Link className="text-link" href="/lots">
+                  Xem tất cả lô
+                </Link>
+              </span>
+            </p>
+          )}
+          <LotTable
+            lots={product ? lots.filter((lot) => lot.productName === product) : lots}
+            withImages={!!user?.organizationId}
+          />
+        </>
       ) : (
         <LoadingState title="Đang tải danh sách lô" />
       )}

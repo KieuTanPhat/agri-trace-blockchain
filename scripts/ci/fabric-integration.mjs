@@ -95,7 +95,19 @@ async function main() {
     });
     for (const code of ['FARM_STAFF', 'CHAIN_MANAGER'])
       await db.scopedRoleGrant.create({ data: { userId: actor.id, organizationId: org.id, scope: 'CHAIN', chainId: chain.id, role: code } });
-    console.log(JSON.stringify({ chainId: chain.id, farmId: farm.id, productId: product.id }));
+    const workspaceRole = await db.enterpriseRole.create({ data: {
+      organizationId: org.id,
+      name: 'CI production operator',
+      permissions: ['profile.read', 'production.read', 'production.write'],
+    } });
+    await db.enterpriseMemberRole.create({ data: {
+      userId: actor.id,
+      organizationId: org.id,
+      roleId: workspaceRole.id,
+      chainIds: [chain.id],
+      siteIds: [farm.id],
+    } });
+    console.log(JSON.stringify({ chainId: chain.id, farmId: farm.id, productId: product.id, organizationId: org.id, actorId: actor.id }));
   `);
   const auth = await http('/auth/login', undefined, { email, password });
   assert.ok(auth.accessToken, 'Login must issue an access token');
@@ -118,12 +130,30 @@ async function main() {
     version: 0,
     plantedAt: new Date(Date.now() - 60_000).toISOString(),
   }, randomUUID());
-  await http(`/production-cycles/${cycle.id}/care`, token, {
+  const cycleEvidence = database(`
+    const { createHash } = await import('node:crypto');
+    const content = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=', 'base64');
+    const sha256 = createHash('sha256').update(content).digest('hex');
+    const refs = {};
+    for (const kind of ['CARE_IMAGE','HARVEST_IMAGE','LOT_IMAGE']) {
+      const row = await db.traceEvidence.create({ data: { organizationId: ${JSON.stringify(fixture.organizationId)}, entityType: 'CYCLE', entityId: ${JSON.stringify(cycle.id)}, fileName: kind.toLowerCase() + '.png', mediaType: 'image/png', size: content.length, sha256, content, description: 'CI private evidence fixture', kind, actorId: ${JSON.stringify(fixture.actorId)} }, select: { id: true } });
+      refs[kind] = row.id;
+    }
+    console.log(JSON.stringify(refs));
+  `);
+  const care = await http(`/production-cycles/${cycle.id}/care`, token, {
     version: 1,
+    name: 'CI watering record',
     careType: 'WATERING',
+    evidenceRef: cycleEvidence.CARE_IMAGE,
     eventTime: new Date().toISOString(),
   }, randomUUID());
   const harvest = await http(`/production-cycles/${cycle.id}/harvests`, token, {
+    version: care.version,
+    lotName: 'CI Fabric vegetables harvest',
+    representativeUserId: fixture.actorId,
+    evidenceRef: cycleEvidence.HARVEST_IMAGE,
+    lotImageEvidenceRef: cycleEvidence.LOT_IMAGE,
     quantity: 3,
     unit: 'kg',
     harvestTime: new Date().toISOString(),
@@ -141,9 +171,14 @@ async function main() {
     console.log(JSON.stringify(events));
   `);
   const pending = readEvents();
-  assert.equal(pending.length, 5, 'Create, plant, care, harvest sensor window and harvest must each append one event');
+  assert.equal(pending.length, 6, 'Create, plant, care, sensor window, harvest and lot-image attachment must each append one event');
   assert.equal(pending.filter(event => event.eventType === 'PRODUCTION_CYCLE_CREATED').length, 1);
   assert.equal(pending.filter(event => event.eventType === 'SENSOR_DIGEST_FINALIZED').length, 1);
+  assert.equal(pending.filter(event => event.eventType === 'HARVEST_RECORDED').length, 1);
+  const lotImages = pending.filter(event => event.eventType === 'EVIDENCE_ATTACHED');
+  assert.equal(lotImages.length, 1);
+  assert.equal(lotImages[0].entityType, 'LOT');
+  assert.equal(lotImages[0].entityId, harvest.lot.id);
   for (const event of pending) {
     assert.equal(event.blockchainOutbox?.status, 'PENDING');
     assert.equal(event.blockchainProof, null);

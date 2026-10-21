@@ -12,5 +12,6 @@ import { TraceModule } from '../trace/trace.module.js';
   imports: [AuthModule, PrismaModule, IdempotencyModule, TraceModule],
   controllers: [SupplyChainsController, ShipmentPlansController],
   providers: [SupplyChainsService, ShipmentPlansService],
+  exports: [SupplyChainsService],
 })
 export class SupplyChainsModule {}

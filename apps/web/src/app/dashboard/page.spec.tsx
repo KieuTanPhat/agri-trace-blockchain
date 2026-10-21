@@ -31,7 +31,7 @@ it.each([
   "RETAILER",
   "FARM_STAFF",
 ] as Role[])(
-  "shows both simulator links only when %s can open that route",
+  "shows the simulator shortcut only when %s can open that route",
   async (role) => {
     auth.user.role.code = role;
     vi.mocked(getDashboard).mockResolvedValue(await mockDashboard());
@@ -40,6 +40,6 @@ it.each([
     const links = screen
       .getAllByRole("link")
       .filter((link) => link.getAttribute("href") === "/iot-simulator");
-    expect(links).toHaveLength(role === "FARM_STAFF" ? 2 : 0);
+    expect(links).toHaveLength(role === "FARM_STAFF" ? 1 : 0);
   },
 );

@@ -5,8 +5,9 @@ import { ErrorState } from "@/components/error-state";
 import { QrCodeCard } from "@/components/qr-code-card";
 import { StateBadge } from "@/components/state-badge";
 import { TimelineItem } from "@/components/timeline-item";
+import { ConsumerReportForm } from "@/components/site/consumer-report-form";
 import { Reveal } from "@/components/ui/reveal";
-import { getPublicTrace } from "@/lib/api-client";
+import { getPublicLotPhoto, getPublicTrace } from "@/lib/api-client";
 import { labelForProof } from "@/lib/display-labels";
 import { formatTraceDate } from "@/lib/format-date";
 import { LotWarnings } from "@/components/lot-warnings";
@@ -45,6 +46,7 @@ export default async function PublicTracePage({
       />
     );
 
+  const photo = await getPublicLotPhoto(trace.traceToken ?? lotId);
   const proof = trace.blockchainProof;
   const proofTone = {
     VERIFIED: "verified",
@@ -56,24 +58,45 @@ export default async function PublicTracePage({
   return (
     <div className="trace-page">
       <LotWarnings lot={trace} />
+      {!!trace.notices?.length && (
+        <section className="notice error" role="alert">
+          <h2>Thông báo từ doanh nghiệp sản xuất</h2>
+          {trace.notices.map((n, i) => (
+            <p key={i}>
+              <strong>
+                {n.kind === "RECALL" ? "Thu hồi lô nguồn" : "Cảnh báo"}:
+              </strong>{" "}
+              {String(n.message ?? "")}
+            </p>
+          ))}
+        </section>
+      )}
 
       <section className="trace-hero enter">
-        <Image
-          className="trace-product-photo"
-          src="/farm-greens.png"
-          alt="Nông sản tại trang trại"
-          width={500}
-          height={500}
-        />
+        {photo && (
+          <Image
+            className="trace-product-photo"
+            src={photo}
+            alt={trace.lotName ?? trace.productName}
+            width={500}
+            height={500}
+            unoptimized
+          />
+        )}
         <div>
           <p className="eyebrow eyebrow-pill">Tra cứu công khai</p>
           <h1>{trace.productName}</h1>
           <p className="muted">
-            {trace.lotCode} · {trace.farmOrg.name} · Vụ{" "}
-            {trace.productionCycle.cycleCode}
+            {trace.lotCode} · {trace.farmOrg.name} ·{" "}
+            {trace.productionCycle
+              ? `Vụ ${trace.productionCycle.cycleCode}`
+              : `Lệnh chế biến ${trace.processing?.code ?? ""}`}
           </p>
           <div className="actions">
-            <StateBadge state={trace.currentState} />
+            <StateBadge
+              state={trace.currentState}
+              originType={trace.originType}
+            />
             <StateBadge state={trace.proofStatus} />
           </div>
         </div>
@@ -84,7 +107,7 @@ export default async function PublicTracePage({
           <h2>Thông tin lô hàng</h2>
           <ul className="fact-list">
             <li>
-              <span>Thu hoạch</span>
+              <span>{trace.processing ? "Chế biến" : "Thu hoạch"}</span>
               <span>{formatTraceDate(trace.harvestTime)}</span>
             </li>
             <li>
@@ -101,7 +124,9 @@ export default async function PublicTracePage({
             <li>
               <span>Cảm biến</span>
               <span>
-                {trace.sensorEvidence.readingCount} mẫu trong khoảng đã chốt
+                {trace.sensorEvidence.status === "NOT_APPLICABLE"
+                  ? "Không áp dụng cho lô chế biến; xem dữ liệu ở lô nguyên liệu"
+                  : `${trace.sensorEvidence.readingCount} mẫu trong khoảng đã chốt`}
               </span>
             </li>
             {trace.sensorEvidence.periodStart &&
@@ -153,6 +178,98 @@ export default async function PublicTracePage({
           )}
         </section>
       </Reveal>
+
+      {!!trace.distributionJourney?.length && (
+        <section className="panel">
+          <p className="eyebrow">TRUY XUÔI / TRUY NGƯỢC</p>
+          <h2>Hành trình phân phối của lô nguồn</h2>
+          <p className="muted">
+            Các chặng dưới đây cùng sử dụng mã lô {trace.lotCode}. Số lượng thể
+            hiện phần hàng của chặng tương ứng.
+          </p>
+          <div className="workspace-journey">
+            {trace.distributionJourney.map((leg, index) => (
+              <article key={`${leg.recordedAt}-${index}`}>
+                <h3>
+                  {leg.senderName} → {leg.receiverName}
+                </h3>
+                <p>Vận chuyển: {leg.carrierName}</p>
+                <p>
+                  Dự kiến: {leg.quantity} {leg.unit} ·{" "}
+                  {(
+                    {
+                      PROPOSED: "Chờ đồng thuận",
+                      READY: "Sẵn sàng giao",
+                      IN_TRANSIT: "Đang vận chuyển",
+                      DELIVERED: "Đã nhận hàng",
+                    } as Record<string, string>
+                  )[leg.status] ?? leg.status}
+                </p>
+                {leg.receivedQuantity !== null &&
+                leg.receivedQuantity !== undefined ? (
+                  <p>
+                    Thực nhận: {leg.receivedQuantity} {leg.unit} · Chờ đối soát
+                    với vận chuyển: {leg.pendingQuantity ?? "0.000"} {leg.unit}{" "}
+                    · Đã bàn giao trả: {leg.returnedQuantity ?? "0.000"}{" "}
+                    {leg.unit}
+                  </p>
+                ) : (
+                  <p>
+                    Chưa hoàn tất bàn giao nhận. Bên nhận trên chặng là bên dự
+                    kiến.
+                  </p>
+                )}
+                <p>{formatTraceDate(leg.recordedAt)}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+      {trace.processing && (
+        <section className="panel">
+          <p className="eyebrow">NGUỒN NGUYÊN LIỆU</p>
+          <h2>Sản phẩm được chế biến từ</h2>
+          <p className="muted">
+            {trace.processing.processorName} hoàn tất lệnh{" "}
+            {trace.processing.code}
+            {trace.processing.completedAt
+              ? ` ngày ${formatTraceDate(trace.processing.completedAt)}`
+              : ""}
+            : đầu vào {trace.processing.inputTotal} {trace.processing.baseUnit}{" "}
+            = thành phẩm/phụ phẩm {trace.processing.outputTotal} + hao hụt{" "}
+            {trace.processing.lossTotal} {trace.processing.baseUnit}.
+          </p>
+          <div className="workspace-journey">
+            {trace.processing.inputs.map((input) => (
+              <article key={input.lotCode}>
+                <h3>{input.productName}</h3>
+                <p>
+                  Lô {input.lotCode} · {input.quantity} {input.unit}
+                </p>
+                <p>
+                  {input.originType === "TRANSFORMATION"
+                    ? "Bán thành phẩm của"
+                    : "Sản xuất bởi"}
+                  : {input.producerName}
+                </p>
+                {input.harvestTime && (
+                  <p>Thu hoạch: {formatTraceDate(input.harvestTime)}</p>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+      {!!trace.productionWarnings?.length && (
+        <section className="panel" aria-label="Lưu ý từ nhật ký sản xuất">
+          <h2>Lưu ý trước khi sử dụng</h2>
+          {trace.productionWarnings.map((w) => (
+            <p key={w} className="notice warning">
+              {w}
+            </p>
+          ))}
+        </section>
+      )}
 
       <Reveal className="grid two">
         <section className="panel">
@@ -212,7 +329,9 @@ export default async function PublicTracePage({
             </div>
             <div className="info-item">
               <span className="info-label">Hàm băm dữ liệu</span>
-              <span className="info-value">{proof?.dataHash ?? "Chưa tạo"}</span>
+              <span className="info-value">
+                {proof?.dataHash ?? "Chưa tạo"}
+              </span>
             </div>
             <div className="info-item">
               <span className="info-label">Thời điểm ghi nhận</span>
@@ -225,6 +344,9 @@ export default async function PublicTracePage({
           </div>
         </section>
       </Reveal>
+      <section className="panel" aria-label="Phản ánh sản phẩm">
+        <ConsumerReportForm traceToken={trace.traceToken ?? lotId} />
+      </section>
     </div>
   );
 }

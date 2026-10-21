@@ -16,10 +16,9 @@ import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
 import { LotWarnings } from "@/components/lot-warnings";
 import { HandoverPanel } from "@/components/handover-panel";
+import { EvidencePanel } from "@/components/workspace/evidence-panel";
 import { useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
-import { Clock, Link as LinkIcon, Package, ShieldCheck } from "lucide-react";
-
 export default function LotDetailPage() {
   const { lotId } = useParams<{ lotId: string }>();
   const auth = useAuth();
@@ -85,13 +84,12 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
     <>
       <section className="page-header">
         <div className="page-header-icon">
-          <Package size={22} />
+
         </div>
         <div>
-          <p className="eyebrow">Chi tiết lô</p>
-          <h1>{lot.productName}</h1>
+          <h1>{lot.lotName ?? lot.productName}</h1>
           <p className="muted">
-            {lot.lotCode} — {lot.farmOrg.name}
+            {lot.lotCode} · {lot.productName} — {lot.farmOrg.name}
           </p>
         </div>
         <div className="header-actions">
@@ -101,6 +99,14 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
       </section>
 
       <LotWarnings lot={lot} />
+      {lot.distributionMode && (
+        <p className="notice">
+          Lô này đang được phân phối theo từng phần.{" "}
+          <Link className="text-link" href="/enterprise/reports">
+            Xem đối soát và các chặng giao nhận →
+          </Link>
+        </p>
+      )}
 
       <section className="grid two">
         <div className="grid">
@@ -110,6 +116,9 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
               Ban đầu: {lot.initialQuantity} {lot.unit} · Còn lại:{" "}
               {lot.availableQuantity} {lot.unit}
             </p>
+            {(lot.packageCount || lot.packaging || lot.packedAt) && <p>
+              Đóng gói: {lot.packageCount ?? "—"} kiện · {lot.packaging ?? "Chưa ghi quy cách"} · {lot.packedAt ?? "Chưa ghi ngày"}
+            </p>}
             <p>
               Đã nhận: {lot.shipment?.receivedQuantity ?? "Chưa nhận"}{" "}
               {lot.shipment?.receivedQuantity != null ? lot.unit : ""} · Đã
@@ -201,9 +210,6 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
           <div className="panel">
             <div className="panel-title">
               <div className="panel-title-left">
-                <span className="panel-icon info">
-                  <Package size={16} />
-                </span>
                 <h2>Thông tin lô</h2>
               </div>
             </div>
@@ -231,7 +237,7 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
             </div>
             {traceToken && (
               <Link className="button secondary" href={`/trace/${traceToken}`}>
-                <LinkIcon size={14} /> Xem trang tra cứu công khai
+                 Xem trang tra cứu công khai
               </Link>
             )}
           </div>
@@ -239,9 +245,6 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
           <div className="panel">
             <div className="panel-title">
               <div className="panel-title-left">
-                <span className="panel-icon warning">
-                  <Clock size={16} />
-                </span>
                 <h2>Dòng thời gian</h2>
               </div>
             </div>
@@ -258,9 +261,6 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
           <div className="panel">
             <div className="panel-title">
               <div className="panel-title-left">
-                <span className="panel-icon success">
-                  <ShieldCheck size={16} />
-                </span>
                 <h2>Mã QR truy xuất</h2>
               </div>
             </div>
@@ -277,6 +277,7 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
           </div>
         </div>
       </section>
+      {user.organizationId && <EvidencePanel entityType="LOT" entityId={lotId} allowPublic={user.organizationId === lot.farmOrg.organizationId} />}
     </>
   );
 }

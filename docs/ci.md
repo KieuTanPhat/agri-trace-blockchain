@@ -114,6 +114,13 @@ Job `changes` còn chạy `deploy/ci/migrations-immutable.mjs`: PR sửa, xóa h
 
 ## Hybrid trong CI
 
+Suite `platform-privacy-recall.e2e-spec.ts` kiểm HTTP/scope, đồng hồ 72 giờ,
+history guard, login/lock race và xoay ciphertext trên PostgreSQL thật. Bài xoay
+khóa tạo database con ngẫu nhiên từ TEST_DATABASE_URL đã cách ly, migrate đầy đủ
+rồi chỉ xóa database do chính nó tạo. Test user cần quyền CREATEDB (service
+PostgreSQL của Application CI đáp ứng điều này); không cấp URL production cho
+suite. Việc tách database giữ nguyên MFA fixture của các suite khác.
+
 Application CI chạy SQL/binding/dual handover, migration lịch sử và cleanup cài
 mới trên PostgreSQL 18. Blockchain CI có job `Hybrid A B C real Fabric and browser`:
 mạng 3 Org cách ly, API → Worker → ledger, fault/load và Chromium desktop/mobile.

@@ -124,6 +124,37 @@ Chỉ merge PR đổi controller sau khi bước cập nhật hoàn tất; bản
 
 ## Recovery, tài nguyên và bàn giao
 
+### Xoay khóa mã hóa nền tảng
+
+`PLATFORM_SECRET_KEY` tách khỏi JWT/Fabric keys. Compose truyền biến này cho API;
+operator cấu hình riêng trước khi dùng MFA/hộp thư riêng tư. Không thay giá trị
+trực tiếp khi còn ciphertext dùng khóa cũ.
+
+Sau backup đã xác minh và dừng API/Worker, chạy từ `apps/api` bằng user operator.
+Hai file khóa phải là đường dẫn tuyệt đối, file thường private (0600 trên Linux),
+không nằm trong Git. Khóa không được truyền bằng nội dung trên command line.
+
+```bash
+node dist/operator/rotate-platform-secret.js --old-key-file /private/platform-old.key --new-key-file /private/platform-new.key
+```
+
+Mặc định chỉ kiểm giải mã, round trip và báo số lượng. Để áp, thêm cả ba cờ
+`--apply --services-stopped --invalidate-recovery-codes`. Công cụ khóa audit,
+kiểm tất cả seed MFA/nội dung riêng tư trước khi ghi, mã hóa lại cùng transaction,
+giữ nguyên AAD/metadata/lịch sử và append audit chỉ chứa số lượng. HMAC mã khôi
+phục không thể chuyển sang khóa khác nên bị thu hồi; người dùng cấp lại ở
+`/admin/security` với TOTP hợp lệ, kể cả khi mode REQUIRED. Endpoint
+`POST /auth/mfa/recovery-codes` tiêu thụ factor một lần, thay toàn bộ HMAC và trả
+mã mới đúng một lần; không lưu secret vào journal/audit và không tắt MFA.
+Không sửa TOTP seed/trạng thái của người dùng khi xoay khóa.
+
+Sau commit, cấu hình API dùng khóa mới, kiểm MFA/đọc hồ sơ riêng tư trên môi
+trường cách ly rồi mới khởi động dịch vụ. Giữ cả hai khóa và backup đến khi đã
+đối soát. Nếu kết quả COMMIT chưa rõ, giữ dịch vụ dừng, dùng chế độ chỉ kiểm với
+từng cặp khóa để xác định khóa đang giải mã được; không tự đổi lại env hoặc
+restore riêng database sau khi ledger đã có ghi. Không chạy công cụ này tự động
+trong CD hoặc qua route quản trị.
+
 ### Nâng giao thức chữ ký c1 lên c2
 
 Bản sửa ràng buộc nội dung dùng intent protocol 2, envelope 6.0.0 / private hash

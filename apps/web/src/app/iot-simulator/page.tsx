@@ -5,7 +5,6 @@ import { ErrorState } from "@/components/error-state";
 import { getProductionCycles, sendSensorReading } from "@/lib/api-client";
 import { saveStoredIotReading } from "@/lib/iot-local-store";
 import type { ProductionCycleOption, SensorReadingResponse } from "@/lib/types";
-import { Activity, Check, Code2, Copy, Droplet, ShieldCheck, Thermometer, Wifi } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 
@@ -133,24 +132,20 @@ export default function IotSimulatorPage() {
     <div className="grid">
       <section className="page-header">
         <div className="page-header-icon">
-          <Wifi size={22} />
+
         </div>
         <div>
-          <p className="eyebrow">IOT-01</p>
           <h1>Bộ giả lập cảm biến IoT</h1>
-          <p className="muted">
-            Gửi bản ghi cảm biến cho vụ trồng đang hoạt động.
-          </p>
         </div>
         <div className="header-features">
           <span className="header-feature">
-            <Thermometer size={14} /> Giám sát môi trường
+             Giám sát môi trường
           </span>
           <span className="header-feature">
-            <Activity size={14} /> Ghi nhận môi trường
+             Ghi nhận môi trường
           </span>
           <span className="header-feature">
-            <Wifi size={14} /> Kết nối minh bạch
+             Kết nối minh bạch
           </span>
         </div>
       </section>
@@ -159,9 +154,6 @@ export default function IotSimulatorPage() {
         <div className="panel form-grid">
           <div className="panel-title">
             <div className="panel-title-left">
-              <span className="panel-icon info">
-                <Activity size={16} />
-              </span>
               <div>
                 <h2>Cấu hình cảm biến</h2>
                 <p className="muted" style={{ marginTop: 2, fontSize: 12 }}>
@@ -172,7 +164,7 @@ export default function IotSimulatorPage() {
           </div>
           <div className="field">
             <label htmlFor="device">
-              <Wifi size={12} /> Thiết bị
+               Thiết bị
             </label>
             <input
               className="input"
@@ -202,7 +194,7 @@ export default function IotSimulatorPage() {
           <div className="form-row">
             <div className="field">
               <label htmlFor="sensor-type">
-                <Thermometer size={12} /> Loại cảm biến
+                 Loại cảm biến
               </label>
               <select
                 className="select"
@@ -224,7 +216,7 @@ export default function IotSimulatorPage() {
             </div>
             <div className="field">
               <label htmlFor="sensor-value">
-                <Droplet size={12} /> Giá trị và đơn vị
+                 Giá trị và đơn vị
               </label>
               <input
                 className="input"
@@ -262,7 +254,7 @@ export default function IotSimulatorPage() {
                 status === "retrying"
               }
             >
-              <Activity size={14} /> Gửi dữ liệu
+               Gửi dữ liệu
             </button>
             <button
               className="button secondary"
@@ -299,7 +291,7 @@ export default function IotSimulatorPage() {
           <div className="json-panel">
             <div className="json-heading">
               <span>
-                <Code2 size={22} />
+
                 Dữ liệu yêu cầu (JSON)
               </span>
               <button
@@ -316,7 +308,7 @@ export default function IotSimulatorPage() {
                 }}
               >
                 <span>
-                  {copied ? <Check size={17} /> : <Copy size={17} />}
+
                   {copied ? "Đã sao chép" : "Sao chép"}
                 </span>
               </button>
@@ -326,7 +318,7 @@ export default function IotSimulatorPage() {
             </pre>
           </div>
           <div className="design-note">
-            <ShieldCheck size={40} />
+
             <div>
               <strong>Dữ liệu sẽ được gửi an toàn</strong>
               <p>

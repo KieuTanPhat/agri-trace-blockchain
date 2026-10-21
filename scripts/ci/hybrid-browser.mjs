@@ -23,6 +23,9 @@ await withHybridStack(async ({ env, root, evidenceDir, receipt, npm }) => {
   env.FABRIC_LEGACY_WRITER = 'false';
   env.FABRIC_WORKER_INTERVAL_MS = '500';
   env.ENTERPRISE_ONBOARDING_ENABLED = 'true';
+  // Isolated stack only (NODE_ENV=test): a paying producer settles its first
+  // invoice through the local payment simulation before activation.
+  env.ENTERPRISE_PAYMENT_SIMULATION_ENABLED = 'true';
   env.NEXT_PUBLIC_API_BASE_URL = '/api';
   env.NEXT_PUBLIC_USE_MOCK_API = 'false';
   env.FABRIC_BINDINGS_CONFIG = path.join(root, 'browser-bindings.json');

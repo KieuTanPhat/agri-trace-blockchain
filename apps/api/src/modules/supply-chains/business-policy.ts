@@ -1,3 +1,4 @@
+import { harvestOf } from '../lots/lot-origin.js';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
@@ -43,7 +44,7 @@ export async function businessRoot(
   });
   if (!lot) throw new NotFoundException('Không tìm thấy đối tượng');
   return {
-    cycle: lot.harvest.cycle,
+    cycle: harvestOf(lot).cycle,
     lotId: lot.id,
     shipmentId: lot.shipment?.id ?? null,
   };

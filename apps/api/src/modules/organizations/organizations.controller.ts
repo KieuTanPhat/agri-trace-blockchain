@@ -57,17 +57,31 @@ export class OrganizationsController {
         requestType: 'COMMAND',
         payload: input,
       },
-      () => this.service.create(input),
+      () => this.service.create(req.user, input),
     );
   }
 
   @ApiDataResponse(OrganizationRecordDto, 200)
   @Roles('SYSTEM_ADMIN')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() input: UpdateOrganizationDto,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.service.update(id, input);
+    return this.idem.executeCommand(
+      {
+        idempotencyKey: key,
+        requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 200,
+        operation: 'PLATFORM_ORG_UPDATE',
+        requestType: 'COMMAND',
+        payload: { ...input, id },
+      },
+      () => this.service.update(req.user, id, input),
+    );
   }
 }

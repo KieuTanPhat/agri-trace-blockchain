@@ -11,7 +11,9 @@ export function lotEvidence(
   lot: InternalLot | PublicLot,
   events: ProofEvent[],
 ) {
-  const window = lot.harvest.sensorWindow;
+  // Processed lots carry no growing-period sensor window of their own.
+  const processed = !lot.harvest;
+  const window = lot.harvest?.sensorWindow ?? null;
   const finalized = events.filter(
     (event) =>
       event.lotId === lot.id && event.eventType === 'SENSOR_DIGEST_FINALIZED',
@@ -29,7 +31,9 @@ export function lotEvidence(
         privateTraceEvidenceMatches(event) &&
         sensorWindowEventMatches(window, lot.id, event),
     );
-  const sensorStatus = !window
+  const sensorStatus = processed
+    ? 'NOT_APPLICABLE'
+    : !window
     ? 'LEGACY_UNVERIFIED'
     : !validSensor
       ? 'INTEGRITY_WARNING'
@@ -53,7 +57,7 @@ export function lotEvidence(
   if (sensorStatus === 'LEGACY_UNVERIFIED') warnings.push('LEGACY_UNVERIFIED');
   if (sensorStatus === 'INTEGRITY_WARNING')
     warnings.push('SENSOR_INTEGRITY_WARNING');
-  if (lot.harvest._count.lateReadings > 0) warnings.push('LATE_READINGS');
+  if ((lot.harvest?._count.lateReadings ?? 0) > 0) warnings.push('LATE_READINGS');
   return {
     quantityReconciled,
     stateReconciled,
@@ -67,7 +71,7 @@ export function lotEvidence(
       periodStart: window?.periodStart.toISOString() ?? null,
       periodEnd: window?.periodEnd.toISOString() ?? null,
       finalizedAt: window?.finalizedAt.toISOString() ?? null,
-      lateReadingCount: lot.harvest._count.lateReadings,
+      lateReadingCount: lot.harvest?._count.lateReadings ?? 0,
     },
   };
 }
