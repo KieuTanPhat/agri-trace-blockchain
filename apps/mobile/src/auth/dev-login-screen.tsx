@@ -7,9 +7,11 @@ import { demoSession, useAuth, realAuthEnabled } from "./use-auth";
 import { normalizePhone, validateLogin } from "./validation";
 import { AuthScaffold } from "./auth-scaffold";
 import { colors, space } from "../theme/tokens";
+import { deferAuthNavigation } from "./deferred-navigation";
 
 export default function LoginScreen() {
   const auth = useAuth();
+  const authenticated = auth.status === "authenticated";
   const waiting =
     auth.status === "authenticating" ||
     auth.status === "restoring" ||
@@ -18,6 +20,17 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const errors = validateLogin(phone, password);
+  useFocusEffect(
+    useCallback(() => {
+      if (!authenticated) return;
+      return deferAuthNavigation(() => {
+        // Recheck the live session: never navigate using a stale success after
+        // logout/cancellation. Focus cleanup also cancels pending navigation.
+        if (demoSession.snapshot().status === "authenticated")
+          router.dismissTo("/(tabs)/account");
+      });
+    }, [authenticated]),
+  );
   useFocusEffect(
     useCallback(
       () => () => {
@@ -34,7 +47,9 @@ export default function LoginScreen() {
     const success = await demoSession.login(normalizePhone(phone)!, password);
     if (success) {
       setPassword("");
-      router.replace("/account");
+      setSubmitted(false);
+      // Navigation is scheduled by the focused authenticated-render effect,
+      // not in this same auth/input state update.
     }
   }
   if (!auth.available)
@@ -63,21 +78,21 @@ export default function LoginScreen() {
         label="Số điện thoại"
         value={phone}
         onChangeText={setPhone}
-        error={submitted ? errors.phone : undefined}
-        disabled={waiting}
+        error={submitted && !authenticated ? errors.phone : undefined}
+        disabled={waiting || authenticated}
       />
       <AuthField
         label="Mật khẩu"
         value={password}
         onChangeText={setPassword}
         password
-        error={submitted ? errors.password : undefined}
-        disabled={waiting}
+        error={submitted && !authenticated ? errors.password : undefined}
+        disabled={waiting || authenticated}
       />
       {auth.error ? <Notice danger>{auth.error}</Notice> : null}
       <Button
-        label={realAuthEnabled ? "Đăng nhập" : "Đăng nhập bản thử"}
-        disabled={waiting}
+        label={authenticated ? "Đang mở tài khoản…" : realAuthEnabled ? "Đăng nhập" : "Đăng nhập bản thử"}
+        disabled={waiting || authenticated}
         busy={auth.status === "authenticating" || auth.status === "restoring"}
         onPress={() => void submit()}
       />
@@ -86,13 +101,13 @@ export default function LoginScreen() {
           realAuthEnabled ? "Đăng ký thử nghiệm SMS thật" : "Đăng ký bản thử"
         }
         secondary
-        disabled={waiting}
+        disabled={waiting || authenticated}
         onPress={() => router.push("/register")}
       />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Quên mật khẩu"
-        disabled={waiting}
+        disabled={waiting || authenticated}
         onPress={() => router.push("/forgot-password")}
         style={{
           minHeight: 44,

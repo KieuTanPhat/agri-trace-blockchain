@@ -92,7 +92,7 @@ Kiểm tra source chỉ chống mất cấu hình workaround, không mô phỏng
 Giữ key/native boundary đơn lẻ vẫn chưa hết crash trên BlueStacks; nút hiện giữ
 cố định bốn slot nền/leading/label/trailing, chỉ đổi opacity và animating khi busy.
 
-**Trạng thái bàn giao review 2026-10-21: native crash chưa được giải quyết.**
+**Lịch sử điều tra 2026-10-21, trước bản chuyển trang trì hoãn bên dưới:**
 Tester vẫn gặp `SurfaceMountingManager.addViewAt` / `The specified child already
 has a parent` sau đăng nhập và khi đăng xuất trên BlueStacks Air 3, kể cả sau các
 workaround trên. Sau reload có thể khôi phục phiên đã lưu; điều đó không chứng
@@ -105,6 +105,39 @@ ADB/DevTools chưa thu được log native bổ sung; chưa đối chiếu độ
 native trong APK đang cài với dependency JS. Test source/unit không thay thế
 nghiệm thu login → logout → cold relaunch trên Android. Không nâng dependency,
 tắt kiểm tra xác thực hay xóa dữ liệu app để che crash.
+
+Bản thử sau commit `a40187e` chỉ đổi đích thành công của login/registration sang
+`router.dismissTo("/(tabs)/account")`: dùng lại nhóm tabs bên dưới form, thay vì
+`replace` tạo thêm một nhóm tabs. Khi vào form trực tiếp không có tabs trong
+history, `dismissTo` thay form bằng một nhóm tabs. Test dùng StackRouter đang cài
+kiểm tra giữ nguyên tabs key, bỏ login/register khỏi history và fallback trực
+tiếp; chưa chứng minh hết crash Android. Giữ nguyên keyboard/tab bar và session
+coordinator để nghiệm thu riêng thay đổi điều hướng này trước.
+
+Tester xác nhận `dismissTo` vẫn crash khi **đăng nhập**. Bản chẩn đoán tiếp theo
+không tự điều hướng sau login: xóa mật khẩu ở RAM, giữ form mounted và đổi nút
+thành **Vào tài khoản** khi phiên đã xác nhận. Chỉ một lần bấm riêng mới gọi
+`dismissTo`. Ghi rõ crash trước khi xuất hiện nút này hay sau khi bấm nó để phân
+biệt cập nhật auth với tháo màn hình. Đây là hành vi tạm của màn dev, không phải
+nghiệm thu hết crash hay UX đăng nhập cuối cùng; registration chưa đổi sang
+bước bấm riêng. Không tự gửi lại login/OTP để đối soát.
+
+Tester đã vào được tài khoản bằng lần bấm riêng. Bản thử tự động tiếp theo bỏ
+nút chẩn đoán: effect của màn login đang focus đợi 300 ms và hai animation frame
+sau render authenticated rồi `dismissTo`. Cleanup hủy lịch khi blur/unmount hoặc
+trạng thái auth đổi; callback kiểm lại phiên hiện hành trước điều hướng. Trong
+lúc chờ, form bị khóa và nút hiện **Đang mở tài khoản…**. Đây chỉ là workaround
+tách thời điểm cập nhật, không phải tín hiệu native mount đã hoàn tất; cần test
+lại trên Android, chưa được coi là hết crash. Registration vẫn theo đường cũ.
+
+Kết quả tester báo sau bản trì hoãn: login đã tự vào tài khoản và không còn gặp
+crash trong lần thử được báo lại. Đây là quan sát thủ công, chưa phải evidence
+native gắn đúng SHA/APK hoặc nghiệm thu toàn bộ thiết bị/registration/logout.
+Luồng quên mật khẩu thật chưa nghiệm thu xong: tester gặp `auth/session-expired`
+và sau đó `auth/too-many-requests`. Không tự retry SMS hoặc tìm cách vượt giới
+hạn Firebase. Bộ đếm gửi lại ở UI không chứng minh server đã hết hạn chế; chưa
+có thời điểm chắc chắn được gửi lại. Test fixture không thay cho kiểm tra OTP
+thật, mật khẩu cũ bị từ chối và mật khẩu mới đăng nhập được.
 
 Logout ghi đồng bộ dấu không nhạy cảm `agritrace.consumer.logout-intent.v1` vào
 SecureStore trước lần thông báo UI đầu tiên (không yêu cầu biometrics). Khi mở

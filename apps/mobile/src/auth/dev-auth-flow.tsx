@@ -205,7 +205,7 @@ export default function AuthFlow({
       proof.current = null;
       setDraft(emptyRegistration());
       setCode("");
-      router.replace("/account");
+      router.dismissTo("/(tabs)/account");
     });
   }
   function resetPassword() {
