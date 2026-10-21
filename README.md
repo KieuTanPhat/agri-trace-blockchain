@@ -20,6 +20,7 @@ bên ngoài; external partner authority vẫn NotEvaluated, không tuyên bố H
 apps/
   api/                 NestJS API + dedicated blockchain worker entrypoint
   web/                 Next.js PWA
+  mobile/              ACheck Expo, package/lockfile độc lập (không thuộc workspace)
 blockchain/
   chaincode/           Smart contract Hyperledger Fabric
   gateway/             Adapter kết nối Fabric Gateway
@@ -96,6 +97,8 @@ npm run dev:worker
 Frontend chạy ở `http://localhost:3000`; API chạy ở
 `http://localhost:8080/api`. Trang `/` giới thiệu AgriTrace bằng tiếng Việt và cung cấp tra cứu QR công khai.
 Truy cập trực tiếp `/login` để đăng nhập; sau đăng nhập mở `/dashboard`.
+Mobile consumer chạy riêng theo [README mobile](apps/mobile/README.md): khung tab,
+quét/nhập QR, public trace và lịch sử local; không có quyền ghi nghiệp vụ.
 Trang giới thiệu không có liên kết đăng nhập hoặc lô/QR mẫu.
 Doanh nghiệp vào `/register`, theo dõi hồ sơ và yêu cầu peer ở `/enterprise`;
 quản trị xét duyệt tại `/admin/enterprises`. API và Worker mặc định đóng admission
@@ -171,7 +174,8 @@ npm run api-contract:check
 
 Exporter dùng metadata đã compile và cấu hình riêng, không mở listener hoặc
 kết nối database/Fabric. Kết quả nằm trong `docs/openapi/openapi.json`, checksum
-`docs/openapi/openapi.sha256` và `apps/web/src/lib/generated/api.d.ts`; sửa DTO/decorator NestJS rồi sinh lại,
+`docs/openapi/openapi.sha256`, `apps/web/src/lib/generated/api.d.ts` và
+`apps/mobile/src/api/generated/api.d.ts`; sửa DTO/decorator NestJS rồi sinh lại,
 không sửa trực tiếp file sinh. CI API chặn contract lệch và schema public lộ
 các field nội bộ đã liệt kê trong generator.
 
@@ -192,6 +196,11 @@ npm run check --workspace apps/api
 npm run check --workspace blockchain/chaincode
 npm run check --workspace blockchain/gateway
 ```
+
+Mobile không dùng `--workspace`: cài riêng bằng `npm ci --prefix apps/mobile`,
+rồi `npm --prefix apps/mobile run check`. Application CI gọi check/export mobile
+tường minh; Dependency CI audit lockfile mobile độc lập. Root Docker build loại
+`apps/mobile` khỏi context, không đóng gói Expo vào image API/Web.
 
 Web chạy ESLint cho React/TypeScript/accessibility và Oxlint cho các rule Next.js.
 `npm run build --workspace apps/web` chạy cả hai trước khi biên dịch; `check`

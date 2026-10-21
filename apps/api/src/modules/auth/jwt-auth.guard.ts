@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { isUUID } from 'class-validator';
@@ -85,6 +86,18 @@ export class JwtAuthGuard implements CanActivate {
     if (!activeSession) {
       throw new UnauthorizedException(
         'Phiên đăng nhập đã bị thu hồi hoặc hết hạn',
+      );
+    }
+
+    // Consumer sessions never authorize enterprise/internal routes, even a newly
+    // added controller without Roles metadata. Public endpoints remain anonymous.
+    if (
+      user.role.code === 'CONSUMER' &&
+      request.originalUrl?.split('?')[0].replace(/^\/api(?=\/)/, '') !==
+        '/consumer/me'
+    ) {
+      throw new ForbiddenException(
+        'Tài khoản người tiêu dùng không có quyền truy cập nghiệp vụ',
       );
     }
 

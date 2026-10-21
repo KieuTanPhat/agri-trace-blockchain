@@ -53,7 +53,8 @@
     "check": "npm run agents:check && npm run test:agents && npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
   },
   "workspaces": [
-    "apps/*",
+    "apps/api",
+    "apps/web",
     "blockchain/chaincode",
     "blockchain/gateway"
   ],

@@ -1,0 +1,63 @@
+{
+  "name": "agritrace-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "packageManager": "npm@12.1.0",
+  "engines": {
+    "node": "^22.22.3 || ^24.15.0 || >=26.0.0",
+    "npm": ">=12.1.0"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --max-warnings 0 app src tests app.config.ts",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:session": "node --import tsx --test tests/native-session.test.ts",
+    "test:ui": "node --import tsx ../../scripts/ci/mobile-browser.ts",
+    "test:auth-release": "node scripts/check-auth-release.mjs",
+    "check": "npm run lint && npm run typecheck && npm test && expo install --check",
+    "export:android": "expo export --platform android --output-dir dist/android",
+    "export:ios": "expo export --platform ios --output-dir dist/ios",
+    "export:web": "expo export --platform web --output-dir dist/web"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-firebase/app": "26.0.0",
+    "@react-native-firebase/auth": "26.0.0",
+    "expo": "57.0.30",
+    "expo-camera": "~57.0.6",
+    "expo-constants": "57.0.22",
+    "expo-dev-client": "~57.0.20",
+    "expo-font": "57.0.4",
+    "expo-linking": "57.0.13",
+    "expo-router": "57.0.28",
+    "expo-secure-store": "~57.0.4",
+    "expo-splash-screen": "57.0.10",
+    "expo-status-bar": "57.0.1",
+    "lucide-react-native": "1.59.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-gesture-handler": "2.32.0",
+    "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-screens": "4.26.0",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "0.21.2",
+    "react-native-worklets": "0.10.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.4",
+    "oxlint": "1.58.0",
+    "tsx": "4.20.5",
+    "typescript": "6.0.3"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "fsevents": false
+  }
+}
