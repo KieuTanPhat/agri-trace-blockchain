@@ -3019,7 +3019,7 @@
       "target": "apps/web/src/components/ledger/kit/command-dialog.tsx",
       "source": "src/components/kit/command-dialog.tsx",
       "sourceSha256": "d837012ec5e5f478257a8c32b09da9128577c578636c63726449489e47882319",
-      "targetSha256": "098ed181870f6af9d186b91f82d0a9ab3726102021b1a3c2f76d4245760b3209"
+      "targetSha256": "b4d3a9222ae6d6960d47c61960b3d7b90bb084dffe54b69eb8abe8be33882430"
     },
     {
       "target": "apps/web/src/components/ledger/workspace/grants-editor.tsx",
@@ -3089,6 +3089,41 @@
       "sourceSha256": "c271082e7d2ce6a5a1a9e69c9d259ef1dab73959ae6a84c9742013bbcd855628",
       "targetSha256": "9eece8ba4c57f96884bfe6e753052107295be1b0bd8ec750f15264b3591f4fc6",
       "adaptation": "Ledger auth presentation; baseline session/MFA/password policy and API, without preview accounts."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/approvals/[id]/screen.tsx",
+      "source": "src/app/(console)/approvals/[id]/page.tsx",
+      "sourceSha256": "3fc3d3583cdf28ffb753b5dcb6d9b73df3815be01e0c49c795eeed51b04e78fa",
+      "targetSha256": "04178b551374a7441b90f27a3f1f54060f286df12bfa072de2584695dd43408f",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
+      "source": "src/app/(console)/enterprises/[id]/page.tsx",
+      "sourceSha256": "78453590a6cd12810be6cf510315669daf0de4d8b398042269f10aa2db0e91bd",
+      "targetSha256": "8f3c4030f56f5846162b01e486e66906d2d5e8d7104099e799ea4ab96b047632",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/screen.tsx",
+      "source": "src/app/(console)/enterprises/page.tsx",
+      "sourceSha256": "327e7a1010427bd86ee3221503d03d4d36dfdd8e86983a6f4cc33672c1421c99",
+      "targetSha256": "7f79973830e1a3e08ca12cb42d47202b34c72bc3cb99f29e7a62f8f8536de2f0",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/guard.tsx",
+      "source": "src/components/kit/guard.tsx",
+      "sourceSha256": "d9ef1f31ac5afdc7ccb1d2a4453c00da37248eae82691732e9436f59a980e8ad",
+      "targetSha256": "6c5952c2be00b080ed351b6306ff4273c23df0837df51c910177eb78624ff47e",
+      "adaptation": "Ledger presentation/display only; baseline route policy and business timing remain authoritative."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/use-now.ts",
+      "source": "src/lib/use-now.ts",
+      "sourceSha256": "b38cb5afbd6fc5f0aa48d95446a52abfe22e8b780003bb12ba42fd21c139878b",
+      "targetSha256": "b38cb5afbd6fc5f0aa48d95446a52abfe22e8b780003bb12ba42fd21c139878b",
+      "adaptation": "Ledger presentation/display only; baseline route policy and business timing remain authoritative."
     }
   ],
   "newLedgerComposition": [
@@ -3123,6 +3158,18 @@
     {
       "target": "apps/web/src/components/ledger/auth-route-gate.tsx",
       "basis": "New access boundary with Ledger states, identity-scoped private subtree and preserved forms during same-identity permission checks."
+    },
+    {
+      "target": "apps/web/src/components/ledger/route-screen.tsx",
+      "basis": "New Ledger kit composition for canonical baseline route/data/private-file behavior missing from the preview; no legacy UI source."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/document-download.tsx",
+      "basis": "New Ledger kit composition for canonical baseline route/data/private-file behavior missing from the preview; no legacy UI source."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/profile-details.tsx",
+      "basis": "New Ledger kit composition for canonical baseline route/data/private-file behavior missing from the preview; no legacy UI source."
     }
   ]
 }

@@ -9,7 +9,8 @@ import {
   type Resolver,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQueryClient, type QueryKey } from "@tanstack/react-query";
+import { type QueryKey } from "@tanstack/react-query";
+import { useLedgerQueryClient as useQueryClient } from "@/lib/ledger/data";
 import { toast } from "sonner";
 import type { z } from "zod";
 import { Loader2, ShieldCheck } from "lucide-react";

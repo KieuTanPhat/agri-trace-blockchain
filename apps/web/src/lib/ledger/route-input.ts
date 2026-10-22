@@ -4,6 +4,10 @@ export type LedgerRouteInput = Readonly<{
 }>;
 
 export type LedgerScreenProps = { route: LedgerRouteInput };
+export type LedgerPageInput = {
+  params?: Promise<Record<string, string | string[]>>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
 
 export async function resolveLedgerRouteInput(input: {
   params?: Promise<Record<string, string | string[]>>;

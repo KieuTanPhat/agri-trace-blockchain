@@ -7,7 +7,6 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { components } from "@/lib/generated/api";
@@ -16,7 +15,6 @@ import { ledgerRequest } from "@/lib/ledger/request";
 import { actorA } from "@/test/ledger-actors";
 import { installBrowserLocks } from "@/test/browser-locks";
 import { setLocale } from "@/lib/ledger/i18n";
-import { LocaleBoundary } from "../locale";
 import { CommandForm } from "./command-dialog";
 import { TextField } from "./form-fields";
 import { LedgerProviders } from "../providers";
@@ -74,7 +72,6 @@ afterEach(() => {
 async function renderCommandScenario(
   outcome:
     "committed-response-lost" | "not-found" | "rejected" | "known-conflict",
-  withAuth = false,
 ) {
   const requests: Wire[] = [],
     done = vi.fn();
@@ -168,15 +165,8 @@ async function renderCommandScenario(
       )}
     </CommandForm>
   );
-  render(
-    withAuth ? (
-      <LedgerProviders>{content}</LedgerProviders>
-    ) : (
-      <QueryClientProvider client={new QueryClient()}>
-        <LocaleBoundary>{content}</LocaleBoundary>
-      </QueryClientProvider>
-    ),
-  );
+  render(<LedgerProviders>{content}</LedgerProviders>);
+  await screen.findByLabelText("Tên sản phẩm");
   return { requests, done };
 }
 it("freezes a lost response and inspects COMMITTED without sending another domain command", async () => {
@@ -246,7 +236,6 @@ it("unlocks a confirmed rejection without reporting success", async () => {
 it("retains an actual uncertain command across permission revalidation without a new POST", async () => {
   const { requests, done } = await renderCommandScenario(
     "committed-response-lost",
-    true,
   );
   await screen.findByLabelText("Tên sản phẩm");
   fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
