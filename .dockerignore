@@ -34,5 +34,7 @@ blockchain/network/identities
 artifacts
 .tools
 graphify-out
+.superpowers
+.codegraph
 docs-analysis
 tools
