@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -15,20 +18,20 @@ function Triage({ row, onDone }: { row: Row; onDone(): void }) {
   };
   return (
     <div className="admin-reason">
-      <textarea className="input" aria-label="Ghi chú phân loại" placeholder="Ghi chú phân loại (tối thiểu 10 ký tự)" value={note} onChange={(e) => setNote(e.target.value)} />
+      <Textarea className="input" aria-label="Ghi chú phân loại" placeholder="Ghi chú phân loại (tối thiểu 10 ký tự)" value={note} onChange={(e) => setNote(e.target.value)} />
       <label className="field">
         Mức độ khi chuyển sự cố
-        <select className="input" value={severity} onChange={(e) => setSeverity(e.target.value)}>
+        <NativeSelect className="input" value={severity} onChange={(e) => setSeverity(e.target.value)}>
           <option value="LOW">Thấp</option>
           <option value="MEDIUM">Trung bình</option>
           <option value="HIGH">Cao</option>
           <option value="CRITICAL">Nghiêm trọng</option>
-        </select>
+        </NativeSelect>
       </label>
       <div className="actions">
-        <button type="button" className="button" disabled={command.pending || note.trim().length < 10} onClick={() => void send("ESCALATE")}>Chuyển hồ sơ sự cố</button>
-        <button type="button" className="button secondary" disabled={command.pending || note.trim().length < 10} onClick={() => void send("DUPLICATE")}>Trùng lặp</button>
-        <button type="button" className="button secondary" disabled={command.pending || note.trim().length < 10} onClick={() => void send("DISMISS")}>Không xử lý</button>
+        <Button type="button" className="button" disabled={command.pending || note.trim().length < 10} onClick={() => void send("ESCALATE")}>Chuyển hồ sơ sự cố</Button>
+        <Button type="button" className="button secondary" disabled={command.pending || note.trim().length < 10} onClick={() => void send("DUPLICATE")}>Trùng lặp</Button>
+        <Button type="button" className="button secondary" disabled={command.pending || note.trim().length < 10} onClick={() => void send("DISMISS")}>Không xử lý</Button>
       </div>
       <CommandState command={command} />
     </div>

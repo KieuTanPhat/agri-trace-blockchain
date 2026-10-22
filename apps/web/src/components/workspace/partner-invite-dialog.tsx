@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import { useState } from "react";
 import { CommandState, InfoDialog, LoadState } from "@/components/manage";
@@ -59,9 +62,9 @@ export function PartnerInviteDialog({ open, onClose, onInvited }: { open: boolea
       rows={[]}
       onClose={close}
       actions={
-        <button type="button" className="button secondary" disabled={command.pending} onClick={close}>
+        <Button type="button" className="button secondary" disabled={command.pending} onClick={close}>
           Đóng
-        </button>
+        </Button>
       }
     >
       <div className="partner-invite">
@@ -77,19 +80,19 @@ export function PartnerInviteDialog({ open, onClose, onInvited }: { open: boolea
                   MST {inviting.taxCode ?? "—"} · {inviting.agriTraceCode} · {labels[inviting.kind] ?? inviting.kind}
                 </small>
               </div>
-              <button type="button" className="text-link" onClick={() => setInviting(null)}>
+              <Button type="button" className="text-link" onClick={() => setInviting(null)}>
                 Quay lại
-              </button>
+              </Button>
             </div>
             <label>
               Lời nhắn (không bắt buộc)
-              <textarea className="input" rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+              <Textarea className="input" rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
             <p className="notice">Doanh nghiệp được mời cần chấp nhận lời mời. Liên kết không tự cấp quyền vào chuỗi.</p>
             <div className="dialog-actions">
-              <button type="button" className="button" disabled={command.pending} onClick={() => void invite()}>
+              <Button type="button" className="button" disabled={command.pending} onClick={() => void invite()}>
                 {command.pending ? "Đang gửi…" : "Gửi lời mời"}
-              </button>
+              </Button>
             </div>
           </div>
         ) : viewing ? (
@@ -122,12 +125,12 @@ export function PartnerInviteDialog({ open, onClose, onInvited }: { open: boolea
                   ))}
                 </dl>
                 <div className="dialog-actions">
-                  <button type="button" className="button secondary" onClick={() => setViewing(null)}>
+                  <Button type="button" className="button secondary" onClick={() => setViewing(null)}>
                     Quay lại kết quả
-                  </button>
-                  <button type="button" className="button" disabled={busy} onClick={() => setInviting(viewing)}>
+                  </Button>
+                  <Button type="button" className="button" disabled={busy} onClick={() => setInviting(viewing)}>
                     {busy ? linkLabel[profile.data.linkStatus ?? ""] : "Mời liên kết"}
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -136,7 +139,7 @@ export function PartnerInviteDialog({ open, onClose, onInvited }: { open: boolea
           <div className="workspace-form partner-search">
             <label>
               Tìm doanh nghiệp trên AgriTrace
-              <input
+              <Input
                 className="input"
                 autoFocus
                 placeholder="Nhập MST, tên doanh nghiệp hoặc mã AGT-…"

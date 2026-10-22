@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { request } from "./api-client";
 import { useAuth } from "./auth-store";
@@ -211,6 +212,7 @@ export function useWorkspaceCommand() {
           pendingRequest.current = null;
           setFrozen(false);
           setError("");
+          toast.success("Đã lưu thay đổi");
           return (result ?? ({} as T)) as T;
         } catch (e) {
           const status = (e as { status?: number }).status;

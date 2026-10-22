@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -61,7 +62,7 @@ export default function AdminUsersPage({
             value={query}
             onChange={setQuery}
           />
-          <select
+          <NativeSelect
             hidden={reviewersOnly}
             className="manage-filter-select"
             aria-label="Lọc nhóm tài khoản"
@@ -75,7 +76,7 @@ export default function AdminUsersPage({
               </option>
             ))}
             <option value="COMPLIANCE_REVIEWER">Người kiểm định</option>
-          </select>
+          </NativeSelect>
           <ReloadButton onClick={state.reload} />
         </FilterBar>
         <div className="manage-results-summary" role="status">

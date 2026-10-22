@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -43,7 +46,7 @@ export default function AdjustQuantityPage() {
         >
           <label>
             Lô đang giữ
-            <select
+            <NativeSelect
               className="input"
               name="lotId"
               value={lotId}
@@ -59,22 +62,22 @@ export default function AdjustQuantityPage() {
                     {textValue(l.unreserved ?? l.available)} {textValue(l.unit)}
                   </option>
                 ))}
-            </select>
+            </NativeSelect>
           </label>
           <label>
             Cơ sở giữ hàng
-            <select className="input" name="siteId" required key={lotId}><option value="">Chọn cơ sở</option>{(lot?.siteHoldings as Row[]|undefined)?.map(s=><option key={String(s.siteId)} value={String(s.siteId)}>{textValue(s.siteName)} · khả dụng {textValue(s.available)} {textValue(lot?.unit)}</option>)}</select>
+            <NativeSelect className="input" name="siteId" required key={lotId}><option value="">Chọn cơ sở</option>{(lot?.siteHoldings as Row[]|undefined)?.map(s=><option key={String(s.siteId)} value={String(s.siteId)}>{textValue(s.siteName)} · khả dụng {textValue(s.available)} {textValue(lot?.unit)}</option>)}</NativeSelect>
           </label>
           <label>
             Loại ghi nhận
-            <select className="input" name="kind">
+            <NativeSelect className="input" name="kind">
               <option value="SALE">Bán ra — doanh nghiệp bán lẻ</option>
               <option value="DAMAGE">Hao hụt / hư hỏng</option>
-            </select>
+            </NativeSelect>
           </label>
           <label>
             Số lượng ({textValue(lot?.unit)})
-            <input
+            <Input
               className="input"
               name="quantity"
               required
@@ -84,7 +87,7 @@ export default function AdjustQuantityPage() {
           </label>
           <label>
             Lý do
-            <input
+            <Input
               className="input"
               name="reason"
               required
@@ -92,17 +95,17 @@ export default function AdjustQuantityPage() {
               maxLength={500}
             />
           </label>
-          <label><input type="checkbox" name="fromQuarantine" value="true"/>Ghi hư hỏng từ lượng đang cách ly (cần quyền quản lý cách ly)</label>
+          <label><Input type="checkbox" name="fromQuarantine" value="true"/>Ghi hư hỏng từ lượng đang cách ly (cần quyền quản lý cách ly)</label>
         </fieldset>
         <p className="notice">
           Chỉ ghi giảm lượng doanh nghiệp đang giữ và chưa dành giao. Lịch sử số
           lượng được giữ nguyên để đối soát.
         </p>
-        <button className="button" type="submit" disabled={cmd.pending}>
+        <Button className="button" type="submit" disabled={cmd.pending}>
           {cmd.pending
             ? "Đang ghi…"
             : "Ghi nhận số lượng"}
-        </button>
+        </Button>
       </form>
     </div>
   );

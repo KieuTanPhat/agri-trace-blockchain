@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import "@/styles/shadcn.css";
 import "@/styles/tokens.css";
 import "@/styles/base.css";
 import "@/styles/motion.css";
@@ -10,6 +11,8 @@ import "@/styles/manager.css";
 import "@/styles/refinement.css";
 import "@/styles/settings.css";
 import "@/styles/inbox.css";
+import "@/styles/shadcn-workspace.css";
+import { WorkspaceThemeProvider } from "@/components/shell/theme-provider";
 import { RegisterServiceWorker } from "@/components/register-service-worker";
 import { AuthProvider } from "@/lib/auth-store";
 import { AppFrame } from "@/components/app-frame";
@@ -52,14 +55,16 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="vi" className={inter.variable}>
+    <html lang="vi" className={inter.variable} suppressHydrationWarning>
       <body>
+        <WorkspaceThemeProvider>
         <AuthProvider>
           <RegisterServiceWorker />
           <ConfirmProvider>
             <AppFrame>{children}</AppFrame>
           </ConfirmProvider>
         </AuthProvider>
+        </WorkspaceThemeProvider>
       </body>
     </html>
   );

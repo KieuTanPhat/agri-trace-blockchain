@@ -1,6 +1,8 @@
 "use client";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
 
 /** Commands that change custody, authority, signatures or quantities ask for a second confirmation. */
 const rules: [RegExp, string][] = [
@@ -41,8 +43,6 @@ export function useConfirm(): Ask {
 }
 
 export function ConfirmProvider({ children }: { children: ReactNode }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const confirmButton = useRef<HTMLButtonElement>(null);
   const resolver = useRef<((value: boolean) => void) | null>(null);
   const [request, setRequest] = useState<{ title: string; message: string } | null>(null);
   const settle = useCallback((value: boolean) => {
@@ -57,39 +57,18 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       resolver.current = resolve;
     });
   }, []);
-  useEffect(() => {
-    const node = dialog.current;
-    if (!node) return;
-    if (request && !node.open) {
-      node.showModal();
-      confirmButton.current?.focus();
-    }
-    if (!request && node.open) node.close();
-  }, [request]);
   return (
     <ConfirmContext.Provider value={ask}>
       {children}
-      <dialog
-        ref={dialog}
-        className="confirm-dialog"
-        aria-labelledby="confirm-dialog-title"
-        aria-describedby="confirm-dialog-message"
-        onCancel={(event) => {
-          event.preventDefault();
-          settle(false);
-        }}
-      >
-        <h2 id="confirm-dialog-title">{request?.title}</h2>
-        <p id="confirm-dialog-message">{request?.message}</p>
-        <div className="confirm-dialog-actions">
-          <button type="button" className="button secondary" onClick={() => settle(false)}>
-            Quay lại
-          </button>
-          <button type="button" className="button" ref={confirmButton} onClick={() => settle(true)}>
-            Xác nhận
-          </button>
-        </div>
-      </dialog>
+      <Dialog open={!!request} onOpenChange={(open) => { if (!open) settle(false); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{request?.title}</DialogTitle><DialogDescription>{request?.message}</DialogDescription></DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => settle(false)}>Quay lại</Button>
+            <Button type="button" onClick={() => settle(true)}>Xác nhận</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ConfirmContext.Provider>
   );
 }

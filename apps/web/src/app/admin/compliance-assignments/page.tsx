@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -57,7 +58,7 @@ export default function AdminAssignmentsPage() {
             value={query}
             onChange={setQuery}
           />
-          <select
+          <NativeSelect
             className="manage-filter-select"
             aria-label="Lọc trạng thái phân công"
             value={status}
@@ -66,7 +67,7 @@ export default function AdminAssignmentsPage() {
             <option value="ACTIVE">Đang hoạt động</option>
             <option value="REVOKED">Đã thu hồi</option>
             <option value="">Tất cả</option>
-          </select>
+          </NativeSelect>
           <ReloadButton
             onClick={() => {
               assignments.reload();

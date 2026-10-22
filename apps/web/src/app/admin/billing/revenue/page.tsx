@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useState } from "react";
 import { useWorkspaceData } from "@/lib/workspace";
@@ -28,9 +29,9 @@ export default function RevenuePage() {
       <div className="admin-inline-form manage-section">
         <label className="field">
           Số tháng
-          <select className="input" value={months} onChange={(e) => setMonths(Number(e.target.value))}>
+          <NativeSelect className="input" value={months} onChange={(e) => setMonths(Number(e.target.value))}>
             {[3, 6, 12, 24].map((m) => <option key={m} value={m}>{m} tháng</option>)}
-          </select>
+          </NativeSelect>
         </label>
       </div>
       <LoadState loading={state.loading} error={state.error} />

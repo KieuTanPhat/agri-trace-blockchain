@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -43,14 +44,14 @@ export default function DirectoryPage() {
   ) => (
     <label className="field">
       {labelText}
-      <select className="input" value={value} onChange={(e) => set(e.target.value)}>
+      <NativeSelect className="input" value={value} onChange={(e) => set(e.target.value)}>
         <option value="">Tất cả</option>
         {Object.entries(options).map(([k, v]) => (
           <option key={k} value={k}>
             {v}
           </option>
         ))}
-      </select>
+      </NativeSelect>
     </label>
   );
   return (

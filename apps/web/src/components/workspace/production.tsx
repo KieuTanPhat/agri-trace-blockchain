@@ -1,4 +1,5 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DataForm } from "@/components/data-form";
@@ -320,23 +321,23 @@ export function CycleDetail({
           )}
           {view === "harvest" && (
             <div className="manage-section manage-table-scroll">
-              <table className="manage-table">
-                <thead>
-                  <tr>
-                    <th>Thu hoạch</th>
-                    <th>Số lượng</th>
-                    <th>Lô nguồn</th>
-                    <th>Dữ liệu cảm biến</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="manage-table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Thu hoạch</TableHead>
+                    <TableHead>Số lượng</TableHead>
+                    <TableHead>Lô nguồn</TableHead>
+                    <TableHead>Dữ liệu cảm biến</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {c.harvestEvents.map((h) => (
-                    <tr key={h.id}>
-                      <td data-label="Thu hoạch">{h.harvestCode ?? h.id.slice(0, 8)} · {new Date(h.harvestTime).toLocaleString("vi-VN")}</td>
-                      <td data-label="Số lượng">
+                    <TableRow key={h.id}>
+                      <TableCell data-label="Thu hoạch">{h.harvestCode ?? h.id.slice(0, 8)} · {new Date(h.harvestTime).toLocaleString("vi-VN")}</TableCell>
+                      <TableCell data-label="Số lượng">
                         {h.quantity} {h.unit}
-                      </td>
-                      <td data-label="Lô nguồn">
+                      </TableCell>
+                      <TableCell data-label="Lô nguồn">
                         {h.lot ? (
                           <Link
                             className="text-link"
@@ -347,16 +348,16 @@ export function CycleDetail({
                         ) : (
                           "—"
                         )}
-                      </td>
-                      <td data-label="Dữ liệu cảm biến">
+                      </TableCell>
+                      <TableCell data-label="Dữ liệu cảm biến">
                         {h.sensorWindow
                           ? `${h.sensorWindow.readingCount} mẫu · ${h.sensorWindow.status === "NO_DATA" ? "Chưa có dữ liệu" : "Đã chốt"}`
                           : "Chưa đối soát"}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
           {view === "plant" && canWrite && c.currentState === "CREATED" && (

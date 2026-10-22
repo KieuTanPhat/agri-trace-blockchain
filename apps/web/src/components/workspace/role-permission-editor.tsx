@@ -1,4 +1,7 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import { useState } from "react";
 import type { EnterpriseRoleTemplate } from "@/lib/workspace";
@@ -33,7 +36,7 @@ function PermissionCheckbox({
 }) {
   return (
     <label className={`role-matrix-check${onChange ? "" : " is-preview"}`}>
-      <input
+      <Input
         type="checkbox"
         aria-label={label}
         checked={checked}
@@ -115,7 +118,7 @@ export function RolePermissionEditor({
               *
             </span>
           </label>
-          <input
+          <Input
             id="role-name"
             className="input"
             name="name"
@@ -127,16 +130,16 @@ export function RolePermissionEditor({
           />
         </div>
         <div className="role-template-grid">
-          <button
+          <Button
             type="button"
             className={`role-template-option${activeCode === null ? " is-selected" : ""}`}
             aria-pressed={activeCode === null}
             onClick={() => chooseTemplate(null)}
           >
             Tự chọn quyền
-          </button>
+          </Button>
           {templates.map((template) => (
-            <button
+            <Button
               type="button"
               key={template.code}
               className={`role-template-option${activeCode === template.code ? " is-selected" : ""}`}
@@ -144,7 +147,7 @@ export function RolePermissionEditor({
               onClick={() => chooseTemplate(template)}
             >
               {template.name}
-            </button>
+            </Button>
           ))}
         </div>
         {templatesLoading && (
@@ -173,7 +176,7 @@ export function RolePermissionEditor({
                 role="region"
                 aria-label={`Bảng phân quyền ${index + 1}`}
               >
-                <table
+                <Table
                   className={`role-permission-table${columns.length > 6 ? " is-many-columns" : ""}`}
                 >
                   <caption className="sr-only">
@@ -194,17 +197,17 @@ export function RolePermissionEditor({
                       />
                     ))}
                   </colgroup>
-                  <thead>
-                    <tr>
-                      <th scope="col">Chức năng / Quyền</th>
-                      <th
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead scope="col">Chức năng / Quyền</TableHead>
+                      <TableHead
                         scope="col"
                         className="role-permission-group-column-heading"
                       >
                         Chọn cả nhóm
-                      </th>
+                      </TableHead>
                       {columns.map((column) => (
-                        <th
+                        <TableHead
                           scope="col"
                           key={column.code ?? "custom"}
                           className={
@@ -213,7 +216,7 @@ export function RolePermissionEditor({
                               : "role-comparison-column"
                           }
                         >
-                          <button
+                          <Button
                             type="button"
                             className="role-column-button"
                             aria-label={`Chọn mẫu ${column.name}`}
@@ -235,11 +238,11 @@ export function RolePermissionEditor({
                             >
                               Chọn quyền
                             </span>
-                          </button>
-                        </th>
+                          </Button>
+                        </TableHead>
                       ))}
-                    </tr>
-                  </thead>
+                    </TableRow>
+                  </TableHeader>
                   {panel.map((group) => {
                     const codes = group.permissions.map(
                       (permission) => permission.code,
@@ -247,14 +250,14 @@ export function RolePermissionEditor({
                     const all = codes.every((code) => selected.includes(code));
                     const some = codes.some((code) => selected.includes(code));
                     return (
-                      <tbody key={group.title}>
-                        <tr className="role-permission-group-row">
-                          <th scope="rowgroup">
+                      <TableBody key={group.title}>
+                        <TableRow className="role-permission-group-row">
+                          <TableHead scope="rowgroup">
                             <span className="role-group-heading">
                               {group.title}
                             </span>
-                          </th>
-                          <td className="role-permission-group-column">
+                          </TableHead>
+                          <TableCell className="role-permission-group-column">
                             <PermissionCheckbox
                               label={`Chọn cả nhóm ${group.title}`}
                               checked={all}
@@ -263,7 +266,7 @@ export function RolePermissionEditor({
                                 togglePermissions(codes, checked)
                               }
                             />
-                          </td>
+                          </TableCell>
                           {columns.map((column) => {
                             const active = column.code === activeCode;
                             const permissions = active
@@ -276,7 +279,7 @@ export function RolePermissionEditor({
                               permissions.includes(code),
                             );
                             return (
-                              <td
+                              <TableCell
                                 key={column.code ?? "custom"}
                                 className={
                                   active
@@ -295,17 +298,17 @@ export function RolePermissionEditor({
                                       : undefined
                                   }
                                 />
-                              </td>
+                              </TableCell>
                             );
                           })}
-                        </tr>
+                        </TableRow>
                         {group.permissions.map((permission) => (
-                          <tr
+                          <TableRow
                             className="role-permission-row"
                             key={permission.code}
                           >
-                            <th scope="row">{permission.label}</th>
-                            <td className="role-permission-group-column">
+                            <TableHead scope="row">{permission.label}</TableHead>
+                            <TableCell className="role-permission-group-column">
                               <PermissionCheckbox
                                 label={`Chọn quyền ${permission.label}`}
                                 checked={selected.includes(permission.code)}
@@ -313,11 +316,11 @@ export function RolePermissionEditor({
                                   togglePermissions([permission.code], checked)
                                 }
                               />
-                            </td>
+                            </TableCell>
                             {columns.map((column) => {
                               const active = column.code === activeCode;
                               return (
-                                <td
+                                <TableCell
                                   key={column.code ?? "custom"}
                                   className={
                                     active
@@ -341,15 +344,15 @@ export function RolePermissionEditor({
                                         : undefined
                                     }
                                   />
-                                </td>
+                                </TableCell>
                               );
                             })}
-                          </tr>
+                          </TableRow>
                         ))}
-                      </tbody>
+                      </TableBody>
                     );
                   })}
-                </table>
+                </Table>
               </div>
             ))}
         </section>

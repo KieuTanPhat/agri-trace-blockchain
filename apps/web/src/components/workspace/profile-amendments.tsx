@@ -1,4 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { request } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
@@ -144,7 +148,7 @@ function ContactForm({
       >
         <label>
           Điện thoại
-          <input
+          <Input
             className="input"
             name="phone"
             required
@@ -155,7 +159,7 @@ function ContactForm({
         </label>
         <label>
           Email liên hệ
-          <input
+          <Input
             className="input"
             name="contactEmail"
             type="email"
@@ -166,7 +170,7 @@ function ContactForm({
         </label>
         <label>
           Website (không bắt buộc)
-          <input
+          <Input
             className="input"
             name="website"
             type="url"
@@ -176,7 +180,7 @@ function ContactForm({
         </label>
         <label>
           Giới thiệu
-          <textarea
+          <Textarea
             className="input"
             name="description"
             maxLength={2000}
@@ -185,7 +189,7 @@ function ContactForm({
         </label>
         <label>
           Lý do thay đổi
-          <textarea
+          <Textarea
             className="input"
             name="reason"
             required
@@ -194,9 +198,9 @@ function ContactForm({
           />
         </label>
       </fieldset>
-      <button className="button" disabled={cmd.pending}>
+      <Button className="button" disabled={cmd.pending}>
         {"Gửi admin duyệt"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -296,12 +300,12 @@ function ProfileEvidence({
         ))}
       </ul>
       <form onSubmit={upload} className="workspace-form">
-        <input type="hidden" name="entityType" value="PROFILE" />
-        <input type="hidden" name="entityId" value={organizationId} />
+        <Input type="hidden" name="entityType" value="PROFILE" />
+        <Input type="hidden" name="entityId" value={organizationId} />
         <fieldset disabled={pending || uncertain} className="enterprise-fields">
           <label>
             File PNG, JPEG hoặc PDF, tối đa 5 MB
-            <input
+            <Input
               className="input"
               type="file"
               name="file"
@@ -311,7 +315,7 @@ function ProfileEvidence({
           </label>
           <label>
             Mô tả giấy tờ
-            <textarea
+            <Textarea
               className="input"
               name="description"
               required
@@ -320,9 +324,9 @@ function ProfileEvidence({
             />
           </label>
         </fieldset>
-        <button className="button secondary" disabled={pending}>
+        <Button className="button secondary" disabled={pending}>
           {"Tải giấy tờ"}
-        </button>
+        </Button>
       </form>
     </section>
   );
@@ -450,7 +454,7 @@ function AmendmentForm({
       >
         <label>
           Tên tổ chức
-          <input
+          <Input
             className="input"
             name="name"
             required
@@ -461,7 +465,7 @@ function AmendmentForm({
         </label>
         <label>
           Loại hình
-          <select
+          <NativeSelect
             className="input"
             value={legalForm}
             onChange={(e) => setLegalForm(e.target.value)}
@@ -471,12 +475,12 @@ function AmendmentForm({
                 {label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           Mã số thuế / mã hộ kinh doanh
           {registeredLegalForm(legalForm) ? "" : " (không bắt buộc)"}
-          <input
+          <Input
             className="input"
             name="businessId"
             maxLength={40}
@@ -489,7 +493,7 @@ function AmendmentForm({
           <>
             <label>
               Số giấy đăng ký
-              <input
+              <Input
                 className="input"
                 name="registrationNumber"
                 required
@@ -499,7 +503,7 @@ function AmendmentForm({
             </label>
             <label>
               Chức vụ người đại diện
-              <input
+              <Input
                 className="input"
                 name="representativeTitle"
                 required
@@ -511,7 +515,7 @@ function AmendmentForm({
         )}
         <label>
           Người đại diện
-          <input
+          <Input
             className="input"
             name="representative"
             required
@@ -522,7 +526,7 @@ function AmendmentForm({
         </label>
         <label>
           Tỉnh / thành phố
-          <select
+          <NativeSelect
             className="input"
             value={provinceCode}
             onChange={(e) => setProvinceCode(e.target.value)}
@@ -534,11 +538,11 @@ function AmendmentForm({
                 {p.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           Xã / phường
-          <select
+          <NativeSelect
             className="input"
             name="wardCode"
             required
@@ -551,11 +555,11 @@ function AmendmentForm({
                 {w.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           Địa chỉ
-          <input
+          <Input
             className="input"
             name="address"
             required
@@ -568,7 +572,7 @@ function AmendmentForm({
           <legend>Hoạt động đề nghị</legend>
           {ACTIVITY_OPTIONS.map(([value, label]) => (
             <label key={value}>
-              <input
+              <Input
                 type="checkbox"
                 checked={activities.includes(value)}
                 onChange={(e) =>
@@ -588,7 +592,7 @@ function AmendmentForm({
             <legend>Sản xuất trồng trọt</legend>
             <label>
               Nhóm sản phẩm (cách nhau bằng dấu phẩy)
-              <input
+              <Input
                 className="input"
                 name="productGroups"
                 required
@@ -599,7 +603,7 @@ function AmendmentForm({
             </label>
             <label>
               Mã vùng trồng
-              <input
+              <Input
                 className="input"
                 name="growingAreaCode"
                 maxLength={100}
@@ -608,7 +612,7 @@ function AmendmentForm({
             </label>
             <label>
               Mã cơ sở đóng gói
-              <input
+              <Input
                 className="input"
                 name="packingFacilityCode"
                 maxLength={100}
@@ -617,7 +621,7 @@ function AmendmentForm({
             </label>
             <label>
               Quy mô ước tính
-              <input
+              <Input
                 className="input"
                 name="scaleEstimate"
                 maxLength={200}
@@ -626,7 +630,7 @@ function AmendmentForm({
             </label>
             <label>
               Số cơ sở
-              <input
+              <Input
                 className="input"
                 name="facilityCount"
                 type="number"
@@ -641,7 +645,7 @@ function AmendmentForm({
             </label>
             {CERTIFICATION_OPTIONS.map(([value, label]) => (
               <label key={value}>
-                <input
+                <Input
                   type="checkbox"
                   name="certifications"
                   value={value}
@@ -659,7 +663,7 @@ function AmendmentForm({
           {evidence.data?.items.length ? (
             evidence.data.items.map((r) => (
               <label key={String(r.id)}>
-                <input
+                <Input
                   type="checkbox"
                   name="evidenceIds"
                   value={String(r.id)}
@@ -676,7 +680,7 @@ function AmendmentForm({
         </fieldset>
         <label>
           Lý do điều chỉnh
-          <textarea
+          <Textarea
             className="input"
             name="reason"
             required
@@ -685,14 +689,14 @@ function AmendmentForm({
           />
         </label>
       </fieldset>
-      <button
+      <Button
         className="button"
         disabled={
           cmd.pending || !evidence.data?.items.length || !activities.length
         }
       >
         {"Gửi admin duyệt"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -747,13 +751,13 @@ function AmendmentList({
               {r.status === "PENDING" && (
                 <>
                   {" "}
-                  <button
+                  <Button
                     type="button"
                     className="text-link"
                     onClick={() => setSelected(r)}
                   >
                     Rút hồ sơ
-                  </button>
+                  </Button>
                 </>
               )}
             </li>
@@ -768,7 +772,7 @@ function AmendmentList({
           >
             <label>
               Lý do rút hồ sơ
-              <textarea
+              <Textarea
                 className="input"
                 name="reason"
                 required
@@ -778,17 +782,17 @@ function AmendmentList({
             </label>
           </fieldset>
           <div className="workspace-actions">
-            <button className="button secondary" disabled={cmd.pending}>
+            <Button className="button secondary" disabled={cmd.pending}>
               {"Xác nhận rút"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="text-link"
               disabled={cmd.frozen}
               onClick={() => setSelected(null)}
             >
               Hủy
-            </button>
+            </Button>
           </div>
         </form>
       )}

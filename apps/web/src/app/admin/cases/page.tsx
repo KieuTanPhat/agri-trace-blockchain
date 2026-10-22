@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -79,7 +82,7 @@ export default function CasesPage() {
       />
       <section className="manage-section" aria-label="Danh sách hồ sơ">
         <div className="manage-filter-bar manage-audit-filters">
-          <select
+          <NativeSelect
             className="manage-filter-select"
             aria-label="Lọc trạng thái"
             value={status}
@@ -91,8 +94,8 @@ export default function CasesPage() {
                 {label}
               </option>
             ))}
-          </select>
-          <select
+          </NativeSelect>
+          <NativeSelect
             className="manage-filter-select"
             aria-label="Lọc mức độ"
             value={severity}
@@ -104,10 +107,10 @@ export default function CasesPage() {
                 {label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <label className="manage-date-field">
             <span>
-              <input
+              <Input
                 type="checkbox"
                 checked={overdue}
                 onChange={(event) => setOverdue(event.target.checked)}
@@ -188,14 +191,14 @@ export default function CasesPage() {
           />
         )}
         {next && (
-          <button
+          <Button
             className="manage-section-footer"
             type="button"
             disabled={loading}
             onClick={() => void load(next)}
           >
             {loading ? "Đang tải…" : "Tải thêm"}
-          </button>
+          </Button>
         )}
       </section>
     </div>

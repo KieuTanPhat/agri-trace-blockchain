@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useState } from "react";
 import { useWorkspaceCommand, useWorkspaceData } from "@/lib/workspace";
@@ -71,11 +73,11 @@ export default function EnterpriseBillingPage() {
                 }}
               >
                 <label className="field">Gói gia hạn
-                  <select className="input" value={planCode || String(b.subscription.planCode)} onChange={(e) => setPlanCode(e.target.value)}>
+                  <NativeSelect className="input" value={planCode || String(b.subscription.planCode)} onChange={(e) => setPlanCode(e.target.value)}>
                     {b.plans.map((p) => <option key={String(p.code)} value={String(p.code)}>{String(p.name)} — {money(p.annual)}/kỳ</option>)}
-                  </select>
+                  </NativeSelect>
                 </label>
-                <button className="button" disabled={command.pending}>Tạo hóa đơn gia hạn</button>
+                <Button className="button" disabled={command.pending}>Tạo hóa đơn gia hạn</Button>
               </form>
             </Section>
           )}
@@ -96,9 +98,9 @@ export default function EnterpriseBillingPage() {
                   cell: (r) =>
                     r.status === "ISSUED" ? (
                       b.simulationEnabled ? (
-                        <button type="button" className="button secondary small" disabled={command.pending} onClick={async () => {
+                        <Button type="button" className="button secondary small" disabled={command.pending} onClick={async () => {
                           if ((await command.run(`/enterprise-billing/invoices/${r.id}/payment-simulation`, { version: r.version })) !== false) state.reload();
-                        }}>Thanh toán mô phỏng</button>
+                        }}>Thanh toán mô phỏng</Button>
                       ) : (
                         <small>Chuyển khoản với nội dung {String(r.number)}; AgriTrace xác nhận khi nhận tiền.</small>
                       )

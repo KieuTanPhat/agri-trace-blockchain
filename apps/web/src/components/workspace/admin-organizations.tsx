@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -16,6 +17,7 @@ import {
 type Organization = { id: string; name: string; type: string; status: string };
 const organizationLabels: Record<string, string> = {
   FARM: "Sản xuất",
+  PROCESSOR: "Chế biến",
   TRANSPORTER: "Vận chuyển",
   DISTRIBUTOR: "Phân phối",
   RETAILER: "Bán lẻ",
@@ -57,7 +59,7 @@ export default function AdminOrganizationsPage({
             value={query}
             onChange={setQuery}
           />
-          <select
+          <NativeSelect
             hidden={auditorsOnly}
             className="manage-filter-select"
             aria-label="Lọc loại tổ chức"
@@ -70,7 +72,7 @@ export default function AdminOrganizationsPage({
                 {label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <ReloadButton onClick={state.reload} />
         </FilterBar>
         <div className="manage-results-summary" role="status">

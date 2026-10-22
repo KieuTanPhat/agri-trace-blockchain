@@ -63,7 +63,7 @@ export default function AdminDashboardPage() {
   return (
     <ManagePage>
       <PageHeader
-        title="Dashboard hệ thống"
+        title="Tổng quan hệ thống"
         description="Tình trạng nền tảng, công việc chờ xử lý và hoạt động gần đây. Quản trị chỉ điều phối; mọi ghi nghiệp vụ lô, giao nhận thuộc doanh nghiệp."
         actions={<ReloadButton onClick={state.reload} />}
       />

@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useState, type FormEvent } from "react";
 import {
   useWorkspaceData,
@@ -110,7 +113,7 @@ export default function OwnershipPage() {
           >
             <label>
               Người nhận
-              <select
+              <NativeSelect
                 className="input"
                 name="toUserId"
                 required
@@ -124,22 +127,22 @@ export default function OwnershipPage() {
                       {textValue(m.fullName)} · {textValue(m.email)}
                     </option>
                   ))}
-              </select>
+              </NativeSelect>
             </label>
             <label>
               Sau khi chuyển
-              <select
+              <NativeSelect
                 className="input"
                 name="retainPreviousAdmin"
                 defaultValue="false"
               >
                 <option value="false">Bỏ quyền quản trị cấp 1 của tôi</option>
                 <option value="true">Giữ quyền quản trị cấp 1 của tôi</option>
-              </select>
+              </NativeSelect>
             </label>
             <label>
               Lý do
-              <textarea
+              <Textarea
                 className="input"
                 name="reason"
                 required
@@ -148,9 +151,9 @@ export default function OwnershipPage() {
               />
             </label>
           </fieldset>
-          <button className="button" disabled={propose.pending}>
+          <Button className="button" disabled={propose.pending}>
             {"Gửi yêu cầu"}
-          </button>
+          </Button>
         </form>
       )}
       <section className="panel">
@@ -180,30 +183,30 @@ export default function OwnershipPage() {
                   <span className="workspace-actions">
                     {(r.to as Row | null)?.id === me && (
                       <>
-                        <button
+                        <Button
                           type="button"
                           className="button"
                           onClick={() => setAction({ row: r, kind: "accept" })}
                         >
                           Chấp nhận
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
                           className="button secondary"
                           onClick={() => setAction({ row: r, kind: "decline" })}
                         >
                           Từ chối
-                        </button>
+                        </Button>
                       </>
                     )}
                     {(r.from as Row | null)?.id === me && (
-                      <button
+                      <Button
                         type="button"
                         className="button secondary"
                         onClick={() => setAction({ row: r, kind: "cancel" })}
                       >
                         Hủy yêu cầu
-                      </button>
+                      </Button>
                     )}
                   </span>
                 )}
@@ -225,7 +228,7 @@ export default function OwnershipPage() {
                   : action.kind === "decline"
                     ? "Lý do từ chối"
                     : "Lý do hủy"}
-                <textarea
+                <Textarea
                   className="input"
                   name="note"
                   required
@@ -235,17 +238,17 @@ export default function OwnershipPage() {
               </label>
             </fieldset>
             <div className="workspace-actions">
-              <button className="button" disabled={resolve.pending}>
+              <Button className="button" disabled={resolve.pending}>
                 {"Xác nhận"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 className="text-link"
                 disabled={resolve.frozen}
                 onClick={() => setAction(null)}
               >
                 Đóng
-              </button>
+              </Button>
             </div>
           </form>
         )}

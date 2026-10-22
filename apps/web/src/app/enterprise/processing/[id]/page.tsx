@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -29,7 +30,7 @@ export default function ProcessingRunPage() {
             actions={
               run.status === "DRAFT" && (
                 <div className="actions">
-                  <button type="button" className="button" disabled={command.pending} onClick={() => void complete()}>Hoàn tất chế biến</button>
+                  <Button type="button" className="button" disabled={command.pending} onClick={() => void complete()}>Hoàn tất chế biến</Button>
                   <ReasonAction label="Hủy lệnh" danger disabled={command.pending} onSubmit={async (reason) => {
                     const done = await command.run(`/processing-runs/${id}/cancel`, { version: run.version, reason });
                     if (done !== false) state.reload();

@@ -1,4 +1,5 @@
 "use client";
+import { Input } from "@/components/ui/input";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -64,7 +65,7 @@ export default function InvoicesPage() {
                       label="Xác nhận chuyển khoản"
                       disabled={command.pending}
                       extra={
-                        <input
+                        <Input
                           className="input"
                           aria-label="Mã giao dịch ngân hàng"
                           placeholder="Mã giao dịch / nội dung chuyển khoản"

@@ -1,4 +1,7 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -120,20 +123,20 @@ export default function AdminProductsPage() {
         <div className="manage-filter-bar">
           <div className="manage-search-field">
 
-            <input
+            <Input
               aria-label="Tìm doanh nghiệp hoặc sản phẩm"
               placeholder="Tìm tên doanh nghiệp, sản phẩm, SKU hoặc GTIN"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
             {query && (
-              <button
+              <Button
                 type="button"
                 aria-label="Xóa từ khóa tìm kiếm"
                 onClick={() => setQuery("")}
               >
 
-              </button>
+              </Button>
             )}
           </div>
           <ReloadButton onClick={data.reload} />
@@ -144,14 +147,14 @@ export default function AdminProductsPage() {
           aria-label="Lọc doanh nghiệp theo sản phẩm"
         >
           {filters.map((entry) => (
-            <button
+            <Button
               type="button"
               key={entry.value}
               aria-pressed={filter === entry.value}
               onClick={() => setFilter(entry.value)}
             >
               {entry.label}
-            </button>
+            </Button>
           ))}
         </div>
         <div className="manage-results-summary" role="status">
@@ -161,22 +164,22 @@ export default function AdminProductsPage() {
           !data.error &&
           (resultCount ? (
             <div className="manage-table-scroll">
-              <table className="manage-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Doanh nghiệp</th>
-                    <th scope="col">Lĩnh vực</th>
-                    <th scope="col">Sản phẩm</th>
-                    <th scope="col">Đang hoạt động</th>
-                    <th scope="col">
+              <Table className="manage-table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col">Doanh nghiệp</TableHead>
+                    <TableHead scope="col">Lĩnh vực</TableHead>
+                    <TableHead scope="col">Sản phẩm</TableHead>
+                    <TableHead scope="col">Đang hoạt động</TableHead>
+                    <TableHead scope="col">
                       <span className="sr-only">Thao tác</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {rows.map(({ organization, total, active, matches }) => (
-                    <tr key={organization.id}>
-                      <td data-label="Doanh nghiệp">
+                    <TableRow key={organization.id}>
+                      <TableCell data-label="Doanh nghiệp">
                         <strong>{organization.name}</strong>
                         {matches.length > 0 && (
                           <small>
@@ -189,60 +192,60 @@ export default function AdminProductsPage() {
                               ` và ${matches.length - 3} sản phẩm khác`}
                           </small>
                         )}
-                      </td>
-                      <td data-label="Lĩnh vực">
+                      </TableCell>
+                      <TableCell data-label="Lĩnh vực">
                         {organizationTypeLabels[organization.type] ??
                           organization.type}
-                      </td>
-                      <td data-label="Sản phẩm">
+                      </TableCell>
+                      <TableCell data-label="Sản phẩm">
                         {total || <span className="manage-muted">Chưa có</span>}
-                      </td>
-                      <td data-label="Đang hoạt động">
+                      </TableCell>
+                      <TableCell data-label="Đang hoạt động">
                         {total ? active : "—"}
-                      </td>
-                      <td data-label="Thao tác">
+                      </TableCell>
+                      <TableCell data-label="Thao tác">
                         <Link
                           className="manage-row-link"
                           href={`/admin/products/${organization.id}`}
                         >
                           Xem sản phẩm
                         </Link>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
                   {showShared && (
-                    <tr>
-                      <td data-label="Doanh nghiệp">
+                    <TableRow>
+                      <TableCell data-label="Doanh nghiệp">
                         <strong>{sharedCatalogName}</strong>
                         <small>
                           Sản phẩm tham chiếu, không thuộc doanh nghiệp nào
                         </small>
-                      </td>
-                      <td data-label="Lĩnh vực">—</td>
-                      <td data-label="Sản phẩm">
+                      </TableCell>
+                      <TableCell data-label="Lĩnh vực">—</TableCell>
+                      <TableCell data-label="Sản phẩm">
                         {sharedProducts.length || (
                           <span className="manage-muted">Chưa có</span>
                         )}
-                      </td>
-                      <td data-label="Đang hoạt động">
+                      </TableCell>
+                      <TableCell data-label="Đang hoạt động">
                         {sharedProducts.length
                           ? sharedProducts.filter(
                               (product) => product.status === "ACTIVE",
                             ).length
                           : "—"}
-                      </td>
-                      <td data-label="Thao tác">
+                      </TableCell>
+                      <TableCell data-label="Thao tác">
                         <Link
                           className="manage-row-link"
                           href={`/admin/products/${sharedCatalogId}`}
                         >
                           Xem sản phẩm
                         </Link>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <EmptyState

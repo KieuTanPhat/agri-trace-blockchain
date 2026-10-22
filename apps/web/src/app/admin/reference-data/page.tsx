@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useState } from "react";
 import { useWorkspaceCommand, useWorkspaceData } from "@/lib/workspace";
@@ -29,18 +32,18 @@ export default function ReferenceDataPage() {
       <CommandState command={command} />
       <Section title={form.version === undefined ? "Thêm mục" : `Sửa mục ${form.code}`}>
         <form className="admin-inline-form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
-          <label className="field">Mã<input className="input" required pattern="[A-Za-z0-9_]{1,40}" disabled={form.version !== undefined} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></label>
-          <label className="field">Tên hiển thị<input className="input" required value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} /></label>
-          <label className="field">Mô tả<input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
-          <label className="field">Thứ tự<input className="input" type="number" min={0} value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} /></label>
+          <label className="field">Mã<Input className="input" required pattern="[A-Za-z0-9_]{1,40}" disabled={form.version !== undefined} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></label>
+          <label className="field">Tên hiển thị<Input className="input" required value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} /></label>
+          <label className="field">Mô tả<Input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
+          <label className="field">Thứ tự<Input className="input" type="number" min={0} value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} /></label>
           <label className="field">Trạng thái
-            <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+            <NativeSelect className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
               <option value="ACTIVE">Đang dùng</option>
               <option value="INACTIVE">Ngừng dùng</option>
-            </select>
+            </NativeSelect>
           </label>
-          <button className="button" disabled={command.pending}>Lưu</button>
-          {form.version !== undefined && <button type="button" className="button secondary" onClick={() => setForm(empty)}>Hủy sửa</button>}
+          <Button className="button" disabled={command.pending}>Lưu</Button>
+          {form.version !== undefined && <Button type="button" className="button secondary" onClick={() => setForm(empty)}>Hủy sửa</Button>}
         </form>
       </Section>
       <LoadState loading={state.loading} error={state.error} />
@@ -56,7 +59,7 @@ export default function ReferenceDataPage() {
             { header: "Mô tả", cell: (r) => String(r.description ?? "—") },
             { header: "Thứ tự", cell: (r) => String(r.sortOrder) },
             { header: "Trạng thái", cell: (r) => <StatusBadge value={r.status} /> },
-            { header: "", cell: (r) => <button type="button" className="button secondary small" onClick={() => setForm({ code: r.code, label: r.label, description: String(r.description ?? ""), status: r.status, sortOrder: r.sortOrder, version: r.version })}>Sửa</button> },
+            { header: "", cell: (r) => <Button type="button" className="button secondary small" onClick={() => setForm({ code: r.code, label: r.label, description: String(r.description ?? ""), status: r.status, sortOrder: r.sortOrder, version: r.version })}>Sửa</Button> },
           ]}
         />
       </Section>

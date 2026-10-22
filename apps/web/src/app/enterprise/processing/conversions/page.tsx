@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useState } from "react";
 import { useWorkspaceCommand, useWorkspaceData } from "@/lib/workspace";
@@ -44,18 +47,18 @@ export default function UnitConversionsPage() {
           }}
         >
           <label className="field">Sản phẩm
-            <select className="input" required value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}>
+            <NativeSelect className="input" required value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}>
               <option value="">Chọn sản phẩm</option>
               {products.map((p) => <option key={p.id} value={p.id}>{p.productName}</option>)}
-            </select>
+            </NativeSelect>
           </label>
-          <label className="field">Đơn vị ghi nhận<input className="input" required maxLength={30} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="hộp" /></label>
-          <label className="field">Đơn vị cơ sở<input className="input" required maxLength={30} value={form.baseUnit} onChange={(e) => setForm({ ...form, baseUnit: e.target.value })} /></label>
+          <label className="field">Đơn vị ghi nhận<Input className="input" required maxLength={30} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="hộp" /></label>
+          <label className="field">Đơn vị cơ sở<Input className="input" required maxLength={30} value={form.baseUnit} onChange={(e) => setForm({ ...form, baseUnit: e.target.value })} /></label>
           <label className="field">Hệ số (1 đơn vị ghi nhận = ? đơn vị cơ sở)
-            <input className="input" required inputMode="decimal" pattern="^(?:0|[1-9]\d{0,7})(?:\.\d{1,6})?$" value={form.factor} onChange={(e) => setForm({ ...form, factor: e.target.value })} placeholder="0.5" />
+            <Input className="input" required inputMode="decimal" pattern="^(?:0|[1-9]\d{0,7})(?:\.\d{1,6})?$" value={form.factor} onChange={(e) => setForm({ ...form, factor: e.target.value })} placeholder="0.5" />
           </label>
-          <label className="field">Ghi chú<input className="input" maxLength={500} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Hộp 500 g tịnh" /></label>
-          <button className="button" disabled={command.pending}>Khai hệ số</button>
+          <label className="field">Ghi chú<Input className="input" maxLength={500} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Hộp 500 g tịnh" /></label>
+          <Button className="button" disabled={command.pending}>Khai hệ số</Button>
         </form>
       </Section>
       <Section title="Hệ số đã khai">

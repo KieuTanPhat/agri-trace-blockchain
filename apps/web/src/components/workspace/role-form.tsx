@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -91,15 +92,15 @@ export function RoleForm({ role }: { role?: EnterpriseRole }) {
               <span>Áp dụng cho thành viên trong nhóm sau khi lưu.</span>
             )}
           </div>
-          <button
+          <Button
             className="button secondary"
             type="button"
             disabled={cmd.pending || cmd.frozen}
             onClick={() => router.push("/enterprise/roles")}
           >
             Hủy
-          </button>
-          <button className="button" disabled={cmd.pending} type="submit">
+          </Button>
+          <Button className="button" disabled={cmd.pending} type="submit">
             {cmd.pending
               ? "Đang lưu…"
               : cmd.frozen
@@ -107,7 +108,7 @@ export function RoleForm({ role }: { role?: EnterpriseRole }) {
                 : role
                   ? "Lưu thay đổi"
                   : "Tạo nhóm quyền"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

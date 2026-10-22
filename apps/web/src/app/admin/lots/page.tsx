@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -65,9 +67,9 @@ export default function AdminLotsPage() {
       >
         <label className="field">
           Từ khóa
-          <input className="input" value={q} minLength={2} required onChange={(e) => setQ(e.target.value)} placeholder="LOT-..., mã QR hoặc tên sản phẩm" />
+          <Input className="input" value={q} minLength={2} required onChange={(e) => setQ(e.target.value)} placeholder="LOT-..., mã QR hoặc tên sản phẩm" />
         </label>
-        <button className="button">Tìm</button>
+        <Button className="button">Tìm</Button>
       </form>
       <LoadState loading={!!query && state.loading} error={state.error} />
       <CommandState command={command} />
@@ -92,9 +94,9 @@ export default function AdminLotsPage() {
                 header: "Thao tác",
                 cell: (r) => (
                   <div className="actions">
-                    <button type="button" className="button secondary small" onClick={() => void openLineage(String(r.lotId))}>
+                    <Button type="button" className="button secondary small" onClick={() => void openLineage(String(r.lotId))}>
                       Cây nguồn gốc
-                    </button>
+                    </Button>
                     {r.traceToken ? <Link className="button secondary small" href={`/trace/${r.traceToken}`}>Trang QR</Link> : null}
                     {r.qrBlock ? (
                       <StatusBadge value="LOCKED" label="QR đang khóa" />
@@ -104,7 +106,7 @@ export default function AdminLotsPage() {
                         danger
                         disabled={command.pending}
                         extra={
-                          <input
+                          <Input
                             className="input"
                             id={`public-${r.lotId}`}
                             aria-label="Cảnh báo hiển thị cho người quét"

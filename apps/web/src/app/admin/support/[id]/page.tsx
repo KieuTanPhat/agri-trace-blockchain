@@ -1,4 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -44,14 +48,14 @@ export default function SupportTicketPage() {
               <div className="admin-inline-form">
                 <label className="field">
                   Giao cho
-                  <select className="input" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+                  <NativeSelect className="input" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
                     <option value="">Chọn nhân sự</option>
                     {staff.data?.items.map((s) => <option key={String(s.id)} value={String(s.id)}>{String(s.fullName)} ({String(s.role)})</option>)}
-                  </select>
+                  </NativeSelect>
                 </label>
-                <button type="button" className="button secondary" disabled={!assignee || command.pending} onClick={async () => done(await command.run(`/platform-admin/tickets/${id}/assign`, { assigneeId: assignee, version: ticket.version }))}>
+                <Button type="button" className="button secondary" disabled={!assignee || command.pending} onClick={async () => done(await command.run(`/platform-admin/tickets/${id}/assign`, { assigneeId: assignee, version: ticket.version }))}>
                   Giao việc
-                </button>
+                </Button>
                 <ReasonAction label="Đóng yêu cầu" disabled={command.pending} placeholder="Kết quả xử lý (tối thiểu 10 ký tự)" onSubmit={async (reason) => done(await command.run(`/platform-admin/tickets/${id}/close`, { version: ticket.version, reason }))} />
               </div>
             )}
@@ -74,19 +78,19 @@ export default function SupportTicketPage() {
                   if (done(await command.run(`/platform-admin/tickets/${id}/reply`, { body: body.trim(), internal, status: internal ? undefined : next, version: ticket.version })) !== false) setBody("");
                 }}
               >
-                <textarea className="input" aria-label="Nội dung trả lời" required minLength={2} value={body} onChange={(e) => setBody(e.target.value)} />
-                <label><input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} /> Ghi chú nội bộ (doanh nghiệp không thấy)</label>
+                <Textarea className="input" aria-label="Nội dung trả lời" required minLength={2} value={body} onChange={(e) => setBody(e.target.value)} />
+                <label><Input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} /> Ghi chú nội bộ (doanh nghiệp không thấy)</label>
                 {!internal && (
                   <label className="field">
                     Trạng thái sau khi trả lời
-                    <select className="input" value={next} onChange={(e) => setNext(e.target.value)}>
+                    <NativeSelect className="input" value={next} onChange={(e) => setNext(e.target.value)}>
                       <option value="WAITING_CUSTOMER">Chờ doanh nghiệp</option>
                       <option value="IN_PROGRESS">Đang xử lý</option>
                       <option value="RESOLVED">Đã giải quyết</option>
-                    </select>
+                    </NativeSelect>
                   </label>
                 )}
-                <button className="button" disabled={command.pending}>Gửi</button>
+                <Button className="button" disabled={command.pending}>Gửi</Button>
               </form>
             )}
           </Section>

@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -46,14 +47,14 @@ export default function ApprovalsPage() {
           aria-label="Lọc trạng thái đề xuất"
         >
           {filters.map((filter) => (
-            <button
+            <Button
               type="button"
               key={filter.value}
               aria-pressed={status === filter.value}
               onClick={() => setStatus(filter.value)}
             >
               {filter.label}
-            </button>
+            </Button>
           ))}
           <ReloadButton onClick={state.reload} />
         </div>

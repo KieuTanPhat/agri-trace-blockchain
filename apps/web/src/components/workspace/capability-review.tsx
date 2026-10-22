@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 import { useState } from "react";
 import type { Enrollment } from "@/lib/enterprise-onboarding";
@@ -68,7 +70,7 @@ export function CapabilityReview({ enrollment, onDone }: { enrollment: Enrollmen
             </div>
             {request.status === "PENDING" && (
               <div className="admin-reason">
-                <textarea
+                <Textarea
                   className="input"
                   aria-label={`Căn cứ duyệt năng lực ${label(capabilityLabels, request.code)}`}
                   placeholder="Căn cứ quyết định (tối thiểu 10 ký tự)"
@@ -77,12 +79,12 @@ export function CapabilityReview({ enrollment, onDone }: { enrollment: Enrollmen
                   onChange={(e) => setNotes({ ...notes, [request.id]: e.target.value })}
                 />
                 <div className="actions">
-                  <button className="button" type="button" disabled={command.pending || (notes[request.id] ?? "").trim().length < 10} onClick={() => void decide(request, "APPROVE")}>
+                  <Button className="button" type="button" disabled={command.pending || (notes[request.id] ?? "").trim().length < 10} onClick={() => void decide(request, "APPROVE")}>
                     Duyệt năng lực
-                  </button>
-                  <button className="button secondary" type="button" disabled={command.pending || (notes[request.id] ?? "").trim().length < 10} onClick={() => void decide(request, "REJECT")}>
+                  </Button>
+                  <Button className="button secondary" type="button" disabled={command.pending || (notes[request.id] ?? "").trim().length < 10} onClick={() => void decide(request, "REJECT")}>
                     Từ chối
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}

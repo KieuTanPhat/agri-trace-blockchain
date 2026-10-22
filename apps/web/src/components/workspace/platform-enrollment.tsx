@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 import { CapabilityReview } from "./capability-review";
 import Link from "next/link";
@@ -74,7 +76,7 @@ export function ReviewDecision({
     <div className="manage-review-form">
       <label className="field">
         Ghi chú xét duyệt
-        <textarea
+        <Textarea
           className="input"
           value={note}
           onChange={(event) => setNote(event.target.value)}
@@ -90,14 +92,14 @@ export function ReviewDecision({
         </p>
       )}
       {original.current ? (
-        <button
+        <Button
           className="button"
           type="button"
           disabled={pending}
           onClick={() => void send(original.current!.input.decision)}
         >
           {pending ? "Đang đối soát…" : "Thử lại quyết định ban đầu"}
-        </button>
+        </Button>
       ) : choice ? (
         <div
           className="manage-confirmation"
@@ -113,7 +115,7 @@ export function ReviewDecision({
               : "Hồ sơ sẽ được trả lại kèm ghi chú của bạn."}
           </p>
           <div className="manage-confirmation-actions">
-            <button
+            <Button
               className="button"
               type="button"
               disabled={pending || !note.trim()}
@@ -124,35 +126,35 @@ export function ReviewDecision({
                 : choice === "APPROVE"
                   ? "Xác nhận phê duyệt"
                   : "Xác nhận từ chối"}
-            </button>
-            <button
+            </Button>
+            <Button
               className="button secondary"
               type="button"
               disabled={pending}
               onClick={() => setChoice(null)}
             >
               Hủy
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
         <div className="manage-review-actions">
-          <button
+          <Button
             className="button"
             type="button"
             disabled={pending || !note.trim()}
             onClick={() => setChoice("APPROVE")}
           >
             Phê duyệt
-          </button>
-          <button
+          </Button>
+          <Button
             className="button secondary"
             type="button"
             disabled={pending || !note.trim()}
             onClick={() => setChoice("REJECT")}
           >
             Từ chối
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -253,20 +255,20 @@ export default function PlatformEnrollment({ id }: { id: string }) {
             role="group"
             aria-label="Nội dung hồ sơ doanh nghiệp"
           >
-            <button
+            <Button
               type="button"
               aria-pressed={tab === "profile"}
               onClick={() => setTab("profile")}
             >
               Hồ sơ và kết nối
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               aria-pressed={tab === "products"}
               onClick={() => setTab("products")}
             >
               Sản phẩm
-            </button>
+            </Button>
           </div>
           {tab === "products" && (
             <EnterpriseProductsPanel
@@ -376,13 +378,13 @@ export default function PlatformEnrollment({ id }: { id: string }) {
                   Xem danh sách sản phẩm doanh nghiệp đã tạo. Admin chỉ xem,
                   không chỉnh sửa.
                 </p>
-                <button
+                <Button
                   type="button"
                   onClick={() => setTab("products")}
                   className="manage-row-link"
                 >
                   Xem sản phẩm
-                </button>
+                </Button>
               </section>
             )}
             <section className="manage-section manage-detail-section">

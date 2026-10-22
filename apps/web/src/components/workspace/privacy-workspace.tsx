@@ -1,4 +1,9 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useEffect, useRef, useState } from "react";
 import type { components } from "@/lib/generated/api";
@@ -140,7 +145,7 @@ function CreateTicket({ admin, reload }: { admin: boolean; reload(): void }) {
           {admin ? (
             <label className="field">
               Thời điểm phát hiện
-              <input
+              <Input
                 type="datetime-local"
                 className="input"
                 required
@@ -155,7 +160,7 @@ function CreateTicket({ admin, reload }: { admin: boolean; reload(): void }) {
           ) : (
             <label className="field">
               Loại yêu cầu
-              <select
+              <NativeSelect
                 className="input"
                 value={requestType}
                 onChange={(event) => setRequestType(event.target.value)}
@@ -167,12 +172,12 @@ function CreateTicket({ admin, reload }: { admin: boolean; reload(): void }) {
                       {label}
                     </option>
                   ))}
-              </select>
+              </NativeSelect>
             </label>
           )}
           <label className="field">
             Nội dung riêng tư
-            <textarea
+            <Textarea
               className="input"
               required
               minLength={10}
@@ -189,7 +194,7 @@ function CreateTicket({ admin, reload }: { admin: boolean; reload(): void }) {
         {admin && (
           <label className="field">
             Mã xác thực hai yếu tố (nếu đã bật)
-            <input
+            <Input
               className="input"
               value={mfaCode}
               onChange={(event) => setMfaCode(event.target.value)}
@@ -210,11 +215,11 @@ function CreateTicket({ admin, reload }: { admin: boolean; reload(): void }) {
             khác khi kết quả chưa rõ.
           </p>
         )}
-        <button className="button" disabled={command.pending}>
+        <Button className="button" disabled={command.pending}>
           {command.pending
             ? "Đang xử lý…"
             : "Gửi hồ sơ"}
-        </button>
+        </Button>
       </form>
     </details>
   );
@@ -308,7 +313,7 @@ function TicketDetail({
               <fieldset disabled={command.frozen || command.pending}>
                 <label className="field">
                   Trạng thái tiếp theo
-                  <select
+                  <NativeSelect
                     className="input"
                     value={status}
                     onChange={(event) => setStatus(event.target.value)}
@@ -320,13 +325,13 @@ function TicketDetail({
                         </option>
                       ),
                     )}
-                  </select>
+                  </NativeSelect>
                 </label>
                 {row.kind === "BREACH" ? (
                   <>
                     <label className="field">
                       Đánh giá nghĩa vụ báo cáo
-                      <select
+                      <NativeSelect
                         className="input"
                         value={reporting}
                         onChange={(event) => setReporting(event.target.value)}
@@ -338,13 +343,13 @@ function TicketDetail({
                         <option value="NOT_REQUIRED">
                           Không thuộc diện báo cáo (ghi căn cứ)
                         </option>
-                      </select>
+                      </NativeSelect>
                     </label>
                     {!row.reportedAt && (
                       <>
                         <label className="field">
                           Đã thông báo bên ngoài lúc
-                          <input
+                          <Input
                             type="datetime-local"
                             className="input"
                             value={reportedAt}
@@ -355,7 +360,7 @@ function TicketDetail({
                         </label>
                         <label className="field">
                           Tham chiếu bằng chứng
-                          <input
+                          <Input
                             className="input"
                             maxLength={500}
                             required={!!reportedAt}
@@ -372,19 +377,19 @@ function TicketDetail({
                 ) : (
                   <label className="field">
                     Phạm vi phản hồi
-                    <select
+                    <NativeSelect
                       className="input"
                       value={visibility}
                       onChange={(event) => setVisibility(event.target.value)}
                     >
                       <option value="INTERNAL">Ghi chú nội bộ</option>
                       <option value="SHARED">Chia sẻ với người yêu cầu</option>
-                    </select>
+                    </NativeSelect>
                   </label>
                 )}
                 <label className="field">
                   Nội dung / căn cứ
-                  <textarea
+                  <Textarea
                     className="input"
                     required
                     minLength={reporting === "NOT_REQUIRED" ? 20 : 10}
@@ -396,7 +401,7 @@ function TicketDetail({
               </fieldset>
               <label className="field">
                 Mã xác thực hai yếu tố (nếu đã bật)
-                <input
+                <Input
                   className="input"
                   value={mfaCode}
                   onChange={(event) => setMfaCode(event.target.value)}
@@ -416,19 +421,19 @@ function TicketDetail({
                   đối soát.
                 </p>
               )}
-              <button className="button" disabled={command.pending}>
+              <Button className="button" disabled={command.pending}>
                 {command.pending
                   ? "Đang lưu…"
                   : "Lưu xử lý"}
-              </button>
+              </Button>
               {!command.frozen && (
-                <button
+                <Button
                   type="button"
                   className="button secondary"
                   onClick={detail.reload}
                 >
                   Tải lại trạng thái hồ sơ
-                </button>
+                </Button>
               )}
             </form>
           )}
@@ -464,37 +469,37 @@ function PrivacyContent({ admin }: { admin: boolean }) {
         <h2>{admin ? "Hàng đợi xử lý" : "Yêu cầu của bạn"}</h2>
         {state.data?.items.length ? (
           <div className="manage-table-scroll">
-            <table className="manage-table">
-              <thead>
-                <tr>
-                  <th>Loại</th>
-                  <th>Tiếp nhận</th>
-                  <th>Trạng thái</th>
-                  <th>Thời hạn / báo cáo</th>
-                  <th>Chi tiết</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="manage-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Loại</TableHead>
+                  <TableHead>Tiếp nhận</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead>Thời hạn / báo cáo</TableHead>
+                  <TableHead>Chi tiết</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {state.data.items.map((row) => (
-                  <tr key={row.id}>
-                    <td data-label="Loại">{rights[row.requestType]}</td>
-                    <td data-label="Tiếp nhận">{formatDateTime(row.createdAt)}</td>
-                    <td data-label="Trạng thái">{statuses[row.status]}</td>
-                    <td data-label="Thời hạn / báo cáo">
+                  <TableRow key={row.id}>
+                    <TableCell data-label="Loại">{rights[row.requestType]}</TableCell>
+                    <TableCell data-label="Tiếp nhận">{formatDateTime(row.createdAt)}</TableCell>
+                    <TableCell data-label="Trạng thái">{statuses[row.status]}</TableCell>
+                    <TableCell data-label="Thời hạn / báo cáo">
                       <Clock row={row} now={now} />
-                    </td>
-                    <td data-label="Chi tiết">
-                      <button
+                    </TableCell>
+                    <TableCell data-label="Chi tiết">
+                      <Button
                         className="button secondary"
                         onClick={() => setSelected(row.id)}
                       >
                         Xem
-                      </button>
-                    </td>
-                  </tr>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         ) : (
           !state.loading &&
@@ -507,21 +512,21 @@ function PrivacyContent({ admin }: { admin: boolean }) {
         )}
         <div className="manage-filter-bar">
           {cursor && (
-            <button className="button secondary" onClick={() => setCursor("")}>
+            <Button className="button secondary" onClick={() => setCursor("")}>
               Trang đầu
-            </button>
+            </Button>
           )}
           {state.data?.nextCursor && (
-            <button
+            <Button
               className="button secondary"
               onClick={() => setCursor(state.data!.nextCursor!)}
             >
               Trang tiếp
-            </button>
+            </Button>
           )}
-          <button className="button secondary" onClick={state.reload}>
+          <Button className="button secondary" onClick={state.reload}>
             Tải lại
-          </button>
+          </Button>
         </div>
       </section>
       {selected && (

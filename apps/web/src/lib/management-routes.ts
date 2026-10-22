@@ -30,7 +30,7 @@ export const navigationGroups: NavGroup[] = [
     title: "Tổng quan",
     area: "platform",
     items: [
-      { href: "/admin", label: "Dashboard hệ thống", mobile: true },
+      { href: "/admin", label: "Tổng quan hệ thống", mobile: true },
       { href: "/admin/inbox", label: "Hồ sơ chờ xử lý", mobile: true },
       { href: "/admin/notices", label: "Thông báo hệ thống" },
     ],

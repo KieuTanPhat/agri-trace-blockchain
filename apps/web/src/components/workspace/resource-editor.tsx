@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { DataForm, type Field } from "@/components/data-form";
 import { CommandState, LoadState, PageHeader } from "@/components/manage";
@@ -111,7 +112,7 @@ export function ResourceEditor({ id, kind }: { id: string; kind: Kind }) {
       {incomplete && (kind === "products" || kind === "materials" || kind === "sites") && <section className="panel">
         <p className="notice">{kind === "products" ? "Tải ít nhất ba ảnh sản phẩm" : kind === "sites" ? "Tải ít nhất một ảnh cơ sở" : "Tải ít nhất một ảnh giống hoặc vật tư"} rồi hoàn tất để kích hoạt.</p>
         <CommandState command={complete} />
-        <button className="button" disabled={complete.pending || complete.frozen} onClick={async () => { if (await complete.run(completePath, { version: row.version })) state.reload(); }}>Hoàn tất ảnh và kích hoạt</button>
+        <Button className="button" disabled={complete.pending || complete.frozen} onClick={async () => { if (await complete.run(completePath, { version: row.version })) state.reload(); }}>Hoàn tất ảnh và kích hoạt</Button>
       </section>}
       {products && overview.data && !overview.data.permissions.includes(permission) && <section className="panel">
         <h2>Hình ảnh sản phẩm</h2>

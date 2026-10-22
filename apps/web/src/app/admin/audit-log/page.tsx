@@ -1,4 +1,9 @@
 "use client";
+import { CursorPagination } from "@/components/ui/pagination";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { request } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
@@ -134,7 +139,7 @@ export default function AuditLogPage() {
             setApplied(filters);
           }}
         >
-          <select
+          <NativeSelect
             className="manage-filter-select"
             aria-label="Lọc theo hành động"
             value={filters.action}
@@ -148,8 +153,8 @@ export default function AuditLogPage() {
                 {auditActionLabels[action] ?? action}
               </option>
             ))}
-          </select>
-          <select
+          </NativeSelect>
+          <NativeSelect
             className="manage-filter-select"
             aria-label="Lọc theo loại đối tượng"
             value={filters.subjectType}
@@ -163,10 +168,10 @@ export default function AuditLogPage() {
                 {label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <label className="manage-date-field">
             <span>Từ</span>
-            <input
+            <Input
               type="datetime-local"
               className="manage-filter-select"
               value={filters.from}
@@ -177,7 +182,7 @@ export default function AuditLogPage() {
           </label>
           <label className="manage-date-field">
             <span>Đến</span>
-            <input
+            <Input
               type="datetime-local"
               className="manage-filter-select"
               value={filters.to}
@@ -186,10 +191,10 @@ export default function AuditLogPage() {
               }
             />
           </label>
-          <button className="button" type="submit">
+          <Button className="button" type="submit">
             Lọc
-          </button>
-          <button
+          </Button>
+          <Button
             className="button secondary"
             type="button"
             onClick={() => {
@@ -198,11 +203,11 @@ export default function AuditLogPage() {
             }}
           >
             Xóa lọc
-          </button>
+          </Button>
           <ReloadButton onClick={() => void load(applied)} />
         </form>
         <div className="manage-audit-tools">
-          <button
+          <Button
             className="button secondary"
             type="button"
             disabled={busy !== ""}
@@ -210,8 +215,8 @@ export default function AuditLogPage() {
           >
 
             {busy === "verify" ? "Đang kiểm tra…" : "Kiểm tra toàn vẹn chuỗi"}
-          </button>
-          <button
+          </Button>
+          <Button
             className="button secondary"
             type="button"
             disabled={busy !== ""}
@@ -219,7 +224,7 @@ export default function AuditLogPage() {
           >
 
             {busy === "export" ? "Đang xuất…" : "Xuất CSV (theo bộ lọc)"}
-          </button>
+          </Button>
         </div>
         {verification && (
           <p
@@ -243,24 +248,24 @@ export default function AuditLogPage() {
         </div>
         {items.length ? (
           <div className="manage-table-scroll">
-            <table className="manage-table">
-              <thead>
-                <tr>
-                  <th scope="col">Thời điểm</th>
-                  <th scope="col">Người thực hiện</th>
-                  <th scope="col">Hành động</th>
-                  <th scope="col">Đối tượng</th>
-                  <th scope="col">Lý do / chi tiết</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="manage-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Thời điểm</TableHead>
+                  <TableHead scope="col">Người thực hiện</TableHead>
+                  <TableHead scope="col">Hành động</TableHead>
+                  <TableHead scope="col">Đối tượng</TableHead>
+                  <TableHead scope="col">Lý do / chi tiết</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {items.map((entry) => (
-                  <tr key={entry.id}>
-                    <td data-label="Thời điểm">
+                  <TableRow key={entry.id}>
+                    <TableCell data-label="Thời điểm">
                       <strong>#{entry.sequence}</strong>
                       <small>{formatDateTime(entry.occurredAt)}</small>
-                    </td>
-                    <td data-label="Người thực hiện">
+                    </TableCell>
+                    <TableCell data-label="Người thực hiện">
                       {entry.actor ? (
                         <>
                           <strong>{entry.actor.fullName}</strong>
@@ -269,18 +274,18 @@ export default function AuditLogPage() {
                       ) : (
                         <strong>Hệ thống</strong>
                       )}
-                    </td>
-                    <td data-label="Hành động">
+                    </TableCell>
+                    <TableCell data-label="Hành động">
                       {auditActionLabels[entry.action] ?? entry.action}
                       {entry.outcome !== "SUCCESS" && (
                         <small>{entry.outcome}</small>
                       )}
-                    </td>
-                    <td data-label="Đối tượng">
+                    </TableCell>
+                    <TableCell data-label="Đối tượng">
                       {entry.organization?.name ?? entry.subjectType}
                       <small>{entry.subjectId}</small>
-                    </td>
-                    <td data-label="Lý do / chi tiết">
+                    </TableCell>
+                    <TableCell data-label="Lý do / chi tiết">
                       {entry.reason ?? "—"}
                       <details>
                         <summary>Chi tiết kỹ thuật</summary>
@@ -297,11 +302,11 @@ export default function AuditLogPage() {
                           )}
                         </pre>
                       </details>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         ) : (
           !loading &&
@@ -312,16 +317,7 @@ export default function AuditLogPage() {
             />
           )
         )}
-        {next && (
-          <button
-            className="manage-section-footer"
-            type="button"
-            disabled={loading}
-            onClick={() => void load(applied, next)}
-          >
-            {loading ? "Đang tải…" : "Tải thêm bản ghi cũ hơn"}
-          </button>
-        )}
+        {next && <CursorPagination count={items.length} loading={loading} onMore={() => void load(applied, next)} />}
       </section>
     </div>
   );

@@ -1,4 +1,9 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -244,9 +249,9 @@ export function ResourceList({ kind }: { kind: Kind }) {
         }
         actions={
           canManage && kind === "partners" ? (
-            <button type="button" className="button manage-primary-action" onClick={() => setInviteOpen(true)}>
+            <Button type="button" className="button manage-primary-action" onClick={() => setInviteOpen(true)}>
               {c.action}
-            </button>
+            </Button>
           ) : undefined
         }
       />
@@ -263,22 +268,22 @@ export function ResourceList({ kind }: { kind: Kind }) {
       <CommandState command={command} />
       <div className="manage-section manage-table-scroll">
         {rows.length ? (
-          <table className="manage-table">
-            <thead>
-              <tr>
+          <Table className="manage-table">
+            <TableHeader>
+              <TableRow>
                 {c.columns.map(([key, label]) => (
-                  <th key={key}>{label}</th>
+                  <TableHead key={key}>{label}</TableHead>
                 ))}
-                {(canManage || kind === "products") && <th>Thao tác</th>}
-              </tr>
-            </thead>
-            <tbody>
+                {(canManage || kind === "products") && <TableHead>Thao tác</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((row) => {
                 const item: Record<string, Cell> = { ...row.cells, status: row.status };
                 return (
-                  <tr key={row.id}>
+                  <TableRow key={row.id}>
                     {c.columns.map(([key, label]) => (
-                      <td key={key} data-label={label}>
+                      <TableCell key={key} data-label={label}>
                         {key === "image" ? (
                           kind === "products" ? (
                             <ProductThumb productId={row.id} name={textValue(item.productName)} />
@@ -327,39 +332,39 @@ export function ResourceList({ kind }: { kind: Kind }) {
                               .join(" · ") || "Chưa có thửa đất"}
                           </small>
                         )}
-                      </td>
+                      </TableCell>
                     ))}
                     {(canManage || kind === "products") && (
-                      <td data-label="Thao tác">
+                      <TableCell data-label="Thao tác">
                         {kind === "partners" ? (
                           <div className="workspace-actions">
                             {row.status === "INVITED" &&
                               row.inviteeId === ownId && (
                                 <>
-                                  <button
+                                  <Button
                                     className="text-link"
                                     disabled={command.pending}
                                     onClick={() => void change(row, "ACCEPT")}
                                   >
                                     Chấp nhận
-                                  </button>
-                                  <button
+                                  </Button>
+                                  <Button
                                     className="text-link"
                                     disabled={command.pending}
                                     onClick={() => void change(row, "REJECT")}
                                   >
                                     Từ chối
-                                  </button>
+                                  </Button>
                                 </>
                               )}
                             {["INVITED", "ACTIVE"].includes(row.status) && (
-                              <button
+                              <Button
                                 className="text-link"
                                 disabled={command.pending}
                                 onClick={() => void change(row, "REVOKE")}
                               >
                                 Thu hồi
-                              </button>
+                              </Button>
                             )}
                           </div>
                         ) : ["sites", "vehicles"].includes(kind) ? (
@@ -370,7 +375,7 @@ export function ResourceList({ kind }: { kind: Kind }) {
                             >
                               Sửa
                             </Link>
-                            <button
+                            <Button
                               className={`button small ${row.status === "ACTIVE" ? "danger" : "secondary"}`}
                               disabled={command.pending}
                               onClick={() => void change(row, "")}
@@ -378,7 +383,7 @@ export function ResourceList({ kind }: { kind: Kind }) {
                               {row.status === "ACTIVE"
                                 ? "Ngừng sử dụng"
                                 : "Kích hoạt"}
-                            </button>
+                            </Button>
                           </span>
                         ) : kind === "areas" ? (
                           <span className="row-actions">
@@ -405,13 +410,13 @@ export function ResourceList({ kind }: { kind: Kind }) {
                             </Link>
                           </span>
                         )}
-                      </td>
+                      </TableCell>
                     )}
-                  </tr>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         ) : (
           !state.loading && !state.error && <EmptyState />
         )}
@@ -573,7 +578,7 @@ export function ResourceCreate({
   ) => (
     <label>
       {label}
-      <input
+      <Input
         className="input"
         name={name}
         required={required}
@@ -612,7 +617,7 @@ export function ResourceCreate({
             <EvidenceInputs entityType="PRODUCT" title="Hình ảnh sản phẩm" disabled={command.pending || command.frozen || done} />
             <label>
               Mô tả hình ảnh (không bắt buộc)
-              <textarea className="input" name="evidenceDescription" maxLength={900} rows={2} disabled={command.pending || command.frozen || done} />
+              <Textarea className="input" name="evidenceDescription" maxLength={900} rows={2} disabled={command.pending || command.frozen || done} />
             </label>
           </>
         )}
@@ -625,7 +630,7 @@ export function ResourceCreate({
               {field("name", "Tên cơ sở")}
               <label>
                 Loại cơ sở
-                <select className="input" name="kind">
+                <NativeSelect className="input" name="kind">
                   {[
                     "PRODUCTION",
                     "PACKING",
@@ -640,7 +645,7 @@ export function ResourceCreate({
                       {labels[k]}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
               {field("address", "Địa chỉ")}
               {field("region", "Tỉnh / thành phố")}
@@ -649,9 +654,9 @@ export function ResourceCreate({
               {field("coldAreaM2", "Diện tích kho lạnh (m²)", false, "number")}
               {field("capacityKg", "Sức chứa tối đa (kg)", false, "number")}
               {field("expectedOutputTons", "Sản lượng dự kiến (tấn/năm)", false, "number")}
-              <label>Vùng sản xuất liên kết (nếu có)<select className="input" name="farmId"><option value="">Không liên kết</option>{catalog.data?.farms.filter((farm) => farm.status === "ACTIVE" && farm.evidenceComplete).map((farm) => <option key={farm.id} value={farm.id}>{farm.name}</option>)}</select></label>
+              <label>Vùng sản xuất liên kết (nếu có)<NativeSelect className="input" name="farmId"><option value="">Không liên kết</option>{catalog.data?.farms.filter((farm) => farm.status === "ACTIVE" && farm.evidenceComplete).map((farm) => <option key={farm.id} value={farm.id}>{farm.name}</option>)}</NativeSelect></label>
               {field("manager", "Người quản lý cơ sở", false)}
-              <label>Nhân viên phụ trách (nếu có)<select className="input" name="staffUserId"><option value="">Chưa chọn</option>{(productMembers.data?.items ?? []).filter((member) => member.accountStatus === "ACTIVE").map((member) => <option key={member.id} value={member.id}>{member.fullName}{member.jobTitle ? ` · ${member.jobTitle}` : ""}</option>)}</select></label>
+              <label>Nhân viên phụ trách (nếu có)<NativeSelect className="input" name="staffUserId"><option value="">Chưa chọn</option>{(productMembers.data?.items ?? []).filter((member) => member.accountStatus === "ACTIVE").map((member) => <option key={member.id} value={member.id}>{member.fullName}{member.jobTitle ? ` · ${member.jobTitle}` : ""}</option>)}</NativeSelect></label>
               {field("representative", "Người đại diện", false)}
               {field("phone", "Điện thoại", false)}
               {field("email", "Email", false, "email")}
@@ -666,15 +671,15 @@ export function ResourceCreate({
           )}
           {kind === "partners" && (
             <>
-              <label>Loại hồ sơ<select className="input" value={partnerMode} onChange={(event) => { setPartnerMode(event.target.value as "registered" | "external"); setSearchTerm(""); }}><option value="registered">Mời doanh nghiệp AgriTrace</option><option value="external">Ghi nhận doanh nghiệp ngoài hệ thống</option></select></label>
-              <label>Mã doanh nghiệp / từ khóa tìm kiếm<input className="input" name="businessId" required value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} maxLength={40} /></label>
-              {suggestions.data?.items.length ? <div className="partner-suggestions"><strong>Kết quả tìm kiếm</strong>{suggestions.data.items.map((item) => <button key={item.id} type="button" className="text-link" onClick={() => { setSearchTerm(item.businessId); setPartnerMode(item.registered ? "registered" : "external"); }}>{item.name} · {item.businessId} · {item.registered ? "AgriTrace" : "Hồ sơ ngoài hệ thống"}</button>)}</div> : null}
+              <label>Loại hồ sơ<NativeSelect className="input" value={partnerMode} onChange={(event) => { setPartnerMode(event.target.value as "registered" | "external"); setSearchTerm(""); }}><option value="registered">Mời doanh nghiệp AgriTrace</option><option value="external">Ghi nhận doanh nghiệp ngoài hệ thống</option></NativeSelect></label>
+              <label>Mã doanh nghiệp / từ khóa tìm kiếm<Input className="input" name="businessId" required value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} maxLength={40} /></label>
+              {suggestions.data?.items.length ? <div className="partner-suggestions"><strong>Kết quả tìm kiếm</strong>{suggestions.data.items.map((item) => <Button key={item.id} type="button" className="text-link" onClick={() => { setSearchTerm(item.businessId); setPartnerMode(item.registered ? "registered" : "external"); }}>{item.name} · {item.businessId} · {item.registered ? "AgriTrace" : "Hồ sơ ngoài hệ thống"}</Button>)}</div> : null}
               {partnerMode === "registered" ? <>
                 {field("note", "Lời nhắn (không bắt buộc)", false)}
                 <p className="notice">Doanh nghiệp AgriTrace cần chấp nhận lời mời. Quan hệ liên kết không tự cấp quyền vào chuỗi.</p>
               </> : <>
                 {field("name", "Tên doanh nghiệp")}
-                <label>Loại hình<select className="input" name="kind"><option value="FARM">Nhà sản xuất</option><option value="TRANSPORTER">Nhà vận chuyển</option><option value="DISTRIBUTOR">Nhà phân phối</option><option value="RETAILER">Nhà bán lẻ</option></select></label>
+                <label>Loại hình<NativeSelect className="input" name="kind"><option value="FARM">Nhà sản xuất</option><option value="TRANSPORTER">Nhà vận chuyển</option><option value="DISTRIBUTOR">Nhà phân phối</option><option value="RETAILER">Nhà bán lẻ</option></NativeSelect></label>
                 {field("address", "Địa chỉ doanh nghiệp")}
                 {field("phone", "Số điện thoại", true, "tel")}
                 {field("email", "Email", true, "email")}
@@ -690,7 +695,7 @@ export function ResourceCreate({
               {field("productName", "Tên sản phẩm")}
               {field("sku", "Mã sản phẩm (tự sinh nếu trống)", false)}
               {field("category", "Danh mục sản phẩm")}
-              <label>Vùng sản xuất xuất xứ<select className="input" name="originFarmId" required><option value="">Chọn vùng đã hoàn tất hồ sơ</option>{catalog.data?.farms.filter((farm) => farm.status === "ACTIVE" && farm.evidenceComplete).map((farm) => <option key={farm.id} value={farm.id}>{farm.name}</option>)}</select></label>
+              <label>Vùng sản xuất xuất xứ<NativeSelect className="input" name="originFarmId" required><option value="">Chọn vùng đã hoàn tất hồ sơ</option>{catalog.data?.farms.filter((farm) => farm.status === "ACTIVE" && farm.evidenceComplete).map((farm) => <option key={farm.id} value={farm.id}>{farm.name}</option>)}</NativeSelect></label>
               {field("gtin", "Mã vạch GTIN (nếu có)", false)}
               {field("price", "Giá sản phẩm (nếu có)", false, "number")}
               {field("storageConditions", "Điều kiện bảo quản")}
@@ -698,7 +703,7 @@ export function ResourceCreate({
               {field("usageInstructions", "Hướng dẫn sử dụng")}
               <label>
                 Mô tả sản phẩm
-                <textarea
+                <Textarea
                   className="input"
                   name="description"
                   maxLength={2000}
@@ -708,12 +713,12 @@ export function ResourceCreate({
               {field("variety", "Giống / phân loại", false)}
               {field("defaultUnit", "Đơn vị mặc định (ví dụ: kg)")}
               {field("rawMaterials", "Nguyên liệu (nếu có)", false)}
-              <label>Nhà xưởng sản xuất (nếu có)<select className="input" name="manufacturingSiteId"><option value="">Chưa chọn</option>{productSites.data?.items.filter((site) => site.status === "ACTIVE").map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</select></label>
+              <label>Nhà xưởng sản xuất (nếu có)<NativeSelect className="input" name="manufacturingSiteId"><option value="">Chưa chọn</option>{productSites.data?.items.filter((site) => site.status === "ACTIVE").map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</NativeSelect></label>
               {field("exporter", "Nhà xuất khẩu (nếu có)", false)}
               {field("importer", "Nhà nhập khẩu (nếu có)", false)}
               {field("distributor", "Nhà phân phối (nếu có)", false)}
               {field("carrier", "Nhà vận chuyển (nếu có)", false)}
-              <label>Người quản lí (nếu có)<select className="input" name="managerUserId"><option value="">Chưa chọn</option>{productMembers.data?.items.filter((member) => member.accountStatus === "ACTIVE").map((member) => <option key={member.id} value={member.id}>{member.fullName}</option>)}</select></label>
+              <label>Người quản lí (nếu có)<NativeSelect className="input" name="managerUserId"><option value="">Chưa chọn</option>{productMembers.data?.items.filter((member) => member.accountStatus === "ACTIVE").map((member) => <option key={member.id} value={member.id}>{member.fullName}</option>)}</NativeSelect></label>
             </>
           )}
           {kind === "areas" && (
@@ -721,14 +726,14 @@ export function ResourceCreate({
               {plot && (
                 <label>
                   Nông trại
-                  <select className="input" name="farmId" required>
+                  <NativeSelect className="input" name="farmId" required>
                     <option value="">Chọn nông trại</option>
                     {catalog.data?.farms.map((f) => (
                       <option key={f.id} value={f.id}>
                         {f.name}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </label>
               )}
               {field("name", plot ? "Tên thửa đất" : "Tên vùng / nông trại")}
@@ -740,10 +745,10 @@ export function ResourceCreate({
                 {field("expectedOutput", "Sản lượng dự kiến", true, "number")}
                 {field("outputUnit", "Đơn vị sản lượng")}
                 {field("cropCode", "Mã vụ trồng (nếu có)", false)}
-                <label>Vật tư đầu vào (nếu có, giữ Ctrl để chọn nhiều)<select className="input" name="inputMaterialIds" multiple>{(areaMaterials.data?.items ?? []).filter((m) => m.kind !== "SEED").map((m) => <option key={m.id} value={m.id}>{m.code} · {m.name}</option>)}</select></label>
-                <label>Loại giống (nếu có, giữ Ctrl để chọn nhiều)<select className="input" name="seedMaterialIds" multiple>{(areaMaterials.data?.items ?? []).filter((m) => m.kind === "SEED").map((m) => <option key={m.id} value={m.id}>{m.code} · {m.name}{m.seedType ? ` (${m.seedType})` : ""}</option>)}</select></label>
-                <label>Nhà xưởng liên kết (nếu có)<select className="input" name="linkedSiteId"><option value="">Không liên kết</option>{(productSites.data?.items ?? []).filter((site) => site.status === "ACTIVE").map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</select></label>
-                <fieldset className="tick-group"><legend>Quyền hiển thị thông tin <span aria-hidden="true">*</span></legend><label className="tick-choice"><input type="radio" name="privacy" value="PRIVATE" defaultChecked required /> Riêng tư</label><label className="tick-choice"><input type="radio" name="privacy" value="PUBLIC" /> Công khai</label></fieldset>
+                <label>Vật tư đầu vào (nếu có, giữ Ctrl để chọn nhiều)<NativeSelect className="input" name="inputMaterialIds" multiple>{(areaMaterials.data?.items ?? []).filter((m) => m.kind !== "SEED").map((m) => <option key={m.id} value={m.id}>{m.code} · {m.name}</option>)}</NativeSelect></label>
+                <label>Loại giống (nếu có, giữ Ctrl để chọn nhiều)<NativeSelect className="input" name="seedMaterialIds" multiple>{(areaMaterials.data?.items ?? []).filter((m) => m.kind === "SEED").map((m) => <option key={m.id} value={m.id}>{m.code} · {m.name}{m.seedType ? ` (${m.seedType})` : ""}</option>)}</NativeSelect></label>
+                <label>Nhà xưởng liên kết (nếu có)<NativeSelect className="input" name="linkedSiteId"><option value="">Không liên kết</option>{(productSites.data?.items ?? []).filter((site) => site.status === "ACTIVE").map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</NativeSelect></label>
+                <fieldset className="tick-group"><legend>Quyền hiển thị thông tin <span aria-hidden="true">*</span></legend><label className="tick-choice"><Input type="radio" name="privacy" value="PRIVATE" defaultChecked required /> Riêng tư</label><label className="tick-choice"><Input type="radio" name="privacy" value="PUBLIC" /> Công khai</label></fieldset>
                 {field("representative", "Người đại diện", false)}
                 {field("phone", "Điện thoại liên hệ", false)}
                 {field("email", "Email liên hệ", false, "email")}
@@ -762,7 +767,7 @@ export function ResourceCreate({
           <EvidenceInputs entityType={evidenceType} disabled={command.pending || command.frozen || done} />
         )}
         {uploadNote && <p className="notice" role="status">{uploadNote}</p>}
-        <button
+        <Button
           className="button"
           disabled={command.pending || done}
           type="submit"
@@ -770,7 +775,7 @@ export function ResourceCreate({
           {command.pending
             ? "Đang lưu…"
             : "Lưu thông tin"}
-        </button>
+        </Button>
       </form>
     </div>
   );

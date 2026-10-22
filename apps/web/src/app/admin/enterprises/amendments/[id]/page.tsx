@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useParams } from "next/navigation";
 import { EvidenceThumbnails } from "@/components/workspace/image-gallery";
@@ -214,7 +217,7 @@ export default function ProfileAmendmentReviewPage() {
                 >
                   <label>
                     Quyết định
-                    <select
+                    <NativeSelect
                       className="input"
                       value={data.stale ? "REJECT" : decision}
                       onChange={(e) =>
@@ -225,11 +228,11 @@ export default function ProfileAmendmentReviewPage() {
                         <option value="APPROVE">Duyệt điều chỉnh</option>
                       )}
                       <option value="REJECT">Từ chối</option>
-                    </select>
+                    </NativeSelect>
                   </label>
                   <label>
                     Căn cứ quyết định
-                    <textarea
+                    <Textarea
                       className="input"
                       name="reason"
                       required
@@ -238,9 +241,9 @@ export default function ProfileAmendmentReviewPage() {
                     />
                   </label>
                 </fieldset>
-                <button className="button" disabled={cmd.pending}>
+                <Button className="button" disabled={cmd.pending}>
                   {"Ghi quyết định"}
-                </button>
+                </Button>
               </form>
             )}
           </section>

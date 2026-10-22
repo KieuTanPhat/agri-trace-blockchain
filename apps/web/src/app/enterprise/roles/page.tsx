@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
   groupPermissions,
@@ -76,14 +77,14 @@ export default function RolesPage() {
                     Sửa
                   </Link>
                   {usage(r.id) === 0 && (
-                    <button
+                    <Button
                       type="button"
                       className="button danger small"
                       disabled={command.pending}
                       onClick={() => void remove(r)}
                     >
                       Xóa
-                    </button>
+                    </Button>
                   )}
                 </span>
               )}

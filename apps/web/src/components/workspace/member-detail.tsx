@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -118,9 +119,9 @@ export function MemberDetail({ id }: { id: string }) {
               <Link className="button" replace href={`/enterprise/members/${member.id}/edit`}>
                 Sửa thông tin và quyền
               </Link>
-              <button type="button" className="button danger" disabled={command.pending} onClick={() => void remove()}>
+              <Button type="button" className="button danger" disabled={command.pending} onClick={() => void remove()}>
                 Xóa thành viên
-              </button>
+              </Button>
             </div>
           )}
           <section className="panel member-profile">

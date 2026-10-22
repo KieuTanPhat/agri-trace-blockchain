@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -102,12 +103,12 @@ export default function LedgerPage() {
             <SearchField label="Tìm theo txId hoặc mã băm" value={q} onChange={setQ} />
             <label className="field">
               Trạng thái
-              <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <NativeSelect className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="">Tất cả</option>
                 <option value="PENDING">Đang chờ</option>
                 <option value="CONFIRMED">Đã xác nhận</option>
                 <option value="FAILED">Lỗi</option>
-              </select>
+              </NativeSelect>
             </label>
           </FilterBar>
           <LoadState loading={txs.loading} error={txs.error} />

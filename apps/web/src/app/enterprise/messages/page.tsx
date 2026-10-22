@@ -1,4 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useEffect, useState, type FormEvent } from "react";
 import { request } from "@/lib/api-client";
 import { useWorkspaceCommand, useWorkspaceData, textValue, type EnterpriseMember, type Items } from "@/lib/workspace";
@@ -83,7 +87,7 @@ export default function MessagesPage() {
       <PageHeader
         title="Quản lý thông báo"
         description="Thông báo nội bộ trong doanh nghiệp. Quản trị gửi cho thành viên; người nhận trả lời ngay trong cuộc hội thoại."
-        actions={list.data?.canSend && <button type="button" className="button" onClick={() => { setComposing(true); setSelected(null); }}>Soạn thông báo</button>}
+        actions={list.data?.canSend && <Button type="button" className="button" onClick={() => { setComposing(true); setSelected(null); }}>Soạn thông báo</Button>}
       />
       <LoadState {...list} />
       <div className="mail-layout">
@@ -95,14 +99,14 @@ export default function MessagesPage() {
           <ul>
             {threads.map((t) => (
               <li key={t.id}>
-                <button type="button" className="mail-item" data-unread={t.unread} aria-current={t.id === selected ? "true" : undefined} onClick={() => { setSelected(t.id); setComposing(false); }}>
+                <Button type="button" className="mail-item" data-unread={t.unread} aria-current={t.id === selected ? "true" : undefined} onClick={() => { setSelected(t.id); setComposing(false); }}>
                   <span className="mail-item-top">
                     <strong>{t.subject}</strong>
                     <time>{time(t.lastMessageAt)}</time>
                   </span>
                   <span className="mail-item-from">{t.lastAuthorName ?? t.createdByName ?? "—"} · {t.messages} tin</span>
                   <span className="mail-item-preview">{t.preview}</span>
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
@@ -114,24 +118,24 @@ export default function MessagesPage() {
               <h2>Soạn thông báo</h2>
               <CommandState command={send} />
               <fieldset className="enterprise-fields" disabled={send.pending || send.frozen}>
-                <label>Tiêu đề<input className="input" name="subject" required minLength={3} maxLength={200} /></label>
+                <label>Tiêu đề<Input className="input" name="subject" required minLength={3} maxLength={200} /></label>
                 <div className="mail-recipients">
                   <span>Người nhận</span>
-                  <label className="choice"><input type="radio" name="audience" checked={allMembers} onChange={() => setAllMembers(true)} /> Tất cả thành viên</label>
-                  <label className="choice"><input type="radio" name="audience" checked={!allMembers} onChange={() => setAllMembers(false)} /> Chọn thành viên</label>
+                  <label className="choice"><Input type="radio" name="audience" checked={allMembers} onChange={() => setAllMembers(true)} /> Tất cả thành viên</label>
+                  <label className="choice"><Input type="radio" name="audience" checked={!allMembers} onChange={() => setAllMembers(false)} /> Chọn thành viên</label>
                 </div>
                 {!allMembers && (
                   <label>Thành viên nhận
-                    <select className="input" name="recipientIds" multiple required size={Math.min(6, Math.max(3, members.data?.items.length ?? 3))}>
+                    <NativeSelect className="input" name="recipientIds" multiple required size={Math.min(6, Math.max(3, members.data?.items.length ?? 3))}>
                       {(members.data?.items ?? []).filter((m) => m.accountStatus === "ACTIVE").map((m) => <option key={m.id} value={m.id}>{m.fullName} · {textValue(m.jobTitle)}</option>)}
-                    </select>
+                    </NativeSelect>
                   </label>
                 )}
-                <label>Nội dung<textarea className="input" name="body" required maxLength={4000} rows={6} /></label>
+                <label>Nội dung<Textarea className="input" name="body" required maxLength={4000} rows={6} /></label>
               </fieldset>
               <div className="manage-header-actions">
-                <button className="button" disabled={send.pending}>{"Gửi thông báo"}</button>
-                <button type="button" className="button secondary" onClick={() => setComposing(false)}>Hủy</button>
+                <Button className="button" disabled={send.pending}>{"Gửi thông báo"}</Button>
+                <Button type="button" className="button secondary" onClick={() => setComposing(false)}>Hủy</Button>
               </div>
             </form>
           ) : !selected ? (
@@ -155,8 +159,8 @@ export default function MessagesPage() {
                   </ol>
                   <form className="mail-reply" onSubmit={answer}>
                     <CommandState command={reply} />
-                    <textarea className="input" name="body" required maxLength={4000} rows={3} placeholder="Nhập nội dung trả lời…" aria-label="Nội dung trả lời" disabled={reply.pending} />
-                    <button className="button" disabled={reply.pending}>{"Gửi trả lời"}</button>
+                    <Textarea className="input" name="body" required maxLength={4000} rows={3} placeholder="Nhập nội dung trả lời…" aria-label="Nội dung trả lời" disabled={reply.pending} />
+                    <Button className="button" disabled={reply.pending}>{"Gửi trả lời"}</Button>
                   </form>
                 </>
               )}

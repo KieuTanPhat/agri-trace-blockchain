@@ -1,4 +1,5 @@
 "use client";
+import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import {
   ProductTable,
@@ -29,7 +30,7 @@ export function EnterpriseProductsPanel({
       <div className="manage-filter-bar">
         <label className="field">
           Tìm sản phẩm
-          <input
+          <Input
             className="input"
             value={query}
             onChange={(event) => setQuery(event.target.value)}

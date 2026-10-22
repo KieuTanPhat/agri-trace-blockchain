@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -25,32 +26,32 @@ export default function NewPlatformUserPage() {
       />
       <LoadState {...organizations} />
       <div className="manage-choice" role="group" aria-label="Loại tài khoản">
-        <button
+        <Button
           type="button"
           aria-pressed={role === "COMPLIANCE_REVIEWER"}
           onClick={() => setRole("COMPLIANCE_REVIEWER")}
         >
           Người kiểm định
-        </button>
+        </Button>
         {Object.entries(platformAdminLabels)
           .filter(([code]) => code !== "SYSTEM_ADMIN")
           .map(([code, label]) => (
-            <button
+            <Button
               type="button"
               key={code}
               aria-pressed={role === code}
               onClick={() => setRole(code)}
             >
               {label}
-            </button>
+            </Button>
           ))}
-        <button
+        <Button
           type="button"
           aria-pressed={role === "SYSTEM_ADMIN"}
           onClick={() => setRole("SYSTEM_ADMIN")}
         >
           Quản trị viên
-        </button>
+        </Button>
       </div>
       {role === "COMPLIANCE_REVIEWER" &&
         !organizations.loading &&

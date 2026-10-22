@@ -1,4 +1,9 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import {
@@ -148,7 +153,7 @@ export function ChainCreate() {
     <label>
       {label} {required && <span aria-hidden="true">*</span>}
       {key === "description" || key === "note" ? (
-        <textarea
+        <Textarea
           className="input"
           rows={3}
           maxLength={2000}
@@ -156,7 +161,7 @@ export function ChainCreate() {
           onChange={(e) => setForm({ ...form, [key]: e.target.value })}
         />
       ) : (
-        <input
+        <Input
           className="input"
           type={type}
           maxLength={255}
@@ -190,7 +195,7 @@ export function ChainCreate() {
           {field("name", "Tên chuỗi", "text", true)}
           <label>
             Loại chuỗi <span aria-hidden="true">*</span>
-            <select
+            <NativeSelect
               className="input"
               value={form.chainType}
               onChange={(e) => setForm({ ...form, chainType: e.target.value })}
@@ -200,12 +205,12 @@ export function ChainCreate() {
                   {title}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           {field("plannedStartDate", "Ngày bắt đầu hoạt động", "date")}
           <label>
             Sản phẩm liên kết (không bắt buộc)
-            <select
+            <NativeSelect
               className="input"
               multiple
               value={productIds}
@@ -220,7 +225,7 @@ export function ChainCreate() {
                     {p.productName}
                   </option>
                 ))}
-            </select>
+            </NativeSelect>
           </label>
           <div className="full-row">{field("description", "Mô tả chuỗi")}</div>
           <div className="full-row">{field("note", "Ghi chú khác")}</div>
@@ -233,39 +238,39 @@ export function ChainCreate() {
             Tích khâu mà từng tổ chức đảm nhận. Danh sách gồm doanh nghiệp của bạn và các doanh nghiệp liên kết đang hoạt động.
           </p>
           <div className="manage-table-scroll">
-            <table className="manage-table">
-              <thead>
-                <tr>
-                  <th>Tổ chức</th>
+            <Table className="manage-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tổ chức</TableHead>
                   {STAGES.map(([code, title]) => (
-                    <th key={code}>{title}</th>
+                    <TableHead key={code}>{title}</TableHead>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {organizations.map((o) => (
-                  <tr key={o.id}>
-                    <td data-label="Tổ chức">
+                  <TableRow key={o.id}>
+                    <TableCell data-label="Tổ chức">
                       <strong>{o.name}</strong>
                       <small>
                         {o.own ? "Doanh nghiệp của bạn · " : ""}
                         {o.kinds.map((k) => labels[k] ?? k).join(", ")}
                       </small>
-                    </td>
+                    </TableCell>
                     {STAGES.map(([code, title]) => (
-                      <td key={code} data-label={title}>
-                        <input
+                      <TableCell key={code} data-label={title}>
+                        <Input
                           type="checkbox"
                           aria-label={`${o.name} — ${title}`}
                           checked={(picked[o.id] ?? []).includes(code)}
                           onChange={(e) => toggle(o.id, code, e.target.checked)}
                         />
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           {errors.model && (
             <span className="field-error" role="alert">
@@ -276,9 +281,9 @@ export function ChainCreate() {
           <SupplyModelView stages={stages} name={name} />
         </fieldset>
         <div className="form-actions">
-          <button className="button" disabled={command.pending}>
+          <Button className="button" disabled={command.pending}>
             Tạo chuỗi truy xuất
-          </button>
+          </Button>
         </div>
       </form>
       <InfoDialog
@@ -294,22 +299,22 @@ export function ChainCreate() {
         onClose={() => setReview(false)}
         actions={
           <>
-            <button
+            <Button
               type="button"
               className="button secondary"
               disabled={command.pending}
               onClick={() => setReview(false)}
             >
               Quay lại sửa
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="button"
               disabled={command.pending}
               onClick={() => void confirm()}
             >
               {command.pending ? "Đang tạo…" : "Xác nhận tạo"}
-            </button>
+            </Button>
           </>
         }
       >

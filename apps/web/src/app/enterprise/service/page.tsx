@@ -1,4 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -148,7 +152,7 @@ export default function ServicePage() {
               <h2>1. Mô hình quản lý peer</h2>
               <label className="field">
                 Mô hình vận hành
-                <select
+                <NativeSelect
                   className="input"
                   name="hostingMode"
                   required
@@ -158,7 +162,7 @@ export default function ServicePage() {
                   <option value="SELF_MANAGED_ORG">
                     Doanh nghiệp tự quản lý peer
                   </option>
-                </select>
+                </NativeSelect>
               </label>
               <p className="muted">
                 Chi phí máy chủ và vận hành peer cần báo giá riêng. Chỉ cấu hình
@@ -173,7 +177,7 @@ export default function ServicePage() {
                 {data.catalog.plans.map((plan, i) => (
                   <label className="service-plan" key={plan.code}>
                     <span>
-                      <input
+                      <Input
                         type="radio"
                         name="planCode"
                         value={plan.code}
@@ -216,7 +220,7 @@ export default function ServicePage() {
               </p>
               <label className="field">
                 Tên đơn vị thanh toán
-                <input
+                <Input
                   className="input"
                   name="billingName"
                   required
@@ -227,7 +231,7 @@ export default function ServicePage() {
               </label>
               <label className="field">
                 Email thanh toán
-                <input
+                <Input
                   className="input"
                   name="billingEmail"
                   type="email"
@@ -242,7 +246,7 @@ export default function ServicePage() {
               </label>
               <label className="field">
                 Địa chỉ thanh toán
-                <textarea
+                <Textarea
                   className="input"
                   name="billingAddress"
                   required
@@ -257,9 +261,9 @@ export default function ServicePage() {
                     .join(", ")}
                 />
               </label>
-              <button className="button" disabled={pending}>
+              <Button className="button" disabled={pending}>
                 {pending ? "Đang chuẩn bị…" : "Xem trước hợp đồng"}
-              </button>
+              </Button>
             </section>
           </fieldset>
         </form>

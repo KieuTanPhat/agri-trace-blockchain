@@ -1,4 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useRef, useState, type FormEvent } from "react";
 import { request } from "@/lib/api-client";
@@ -120,16 +124,16 @@ export function EvidencePanel({ entityType, entityId, siteId, allowPublic = fals
       caption={(row) => `${options.find((option) => option.value === row.kind)?.label ?? "Chứng cứ chưa phân loại"}${row.public ? " · Công khai" : ""}${row.supersedesId ? " · Bản đính chính" : ""}`}
     />
     {overview.data.permissions.includes("evidence.manage") && <form onSubmit={upload} className="workspace-form">
-      <input type="hidden" name="entityType" value={entityType} /><input type="hidden" name="entityId" value={entityId} />
-      {siteId && <input type="hidden" name="siteId" value={siteId} />}
+      <Input type="hidden" name="entityType" value={entityType} /><Input type="hidden" name="entityId" value={entityId} />
+      {siteId && <Input type="hidden" name="siteId" value={siteId} />}
       <fieldset disabled={pending || uncertain} className="enterprise-fields">
-        <label>Loại ảnh / chứng từ<select className="input" name="kind" value={kind} onChange={(event) => setKind(event.target.value)}>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-        <label>File chứng cứ<input className="input" type="file" name="file" accept={imageOnlyKinds.has(kind) ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} required /></label>
-        <label>Mô tả / căn cứ<textarea className="input" name="description" required minLength={10} maxLength={1000} /></label>
-        <label>Đính chính bản trước (nếu có)<select className="input" name="supersedesId" defaultValue=""><option value="">Chứng cứ mới</option>{current.filter((row) => row.kind === kind).map((row) => <option key={row.id} value={row.id}>{row.fileName}</option>)}</select></label>
-        {allowPublic && <><label><input type="checkbox" name="public" value="true" />Công khai trên QR của lô nguồn</label><label><input type="checkbox" name="publicationConfirmed" value="true" />Tôi đã kiểm tra file phù hợp công bố và không chứa thông tin liên hệ hoặc giấy tờ cá nhân</label></>}
+        <label>Loại ảnh / chứng từ<NativeSelect className="input" name="kind" value={kind} onChange={(event) => setKind(event.target.value)}>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</NativeSelect></label>
+        <label>File chứng cứ<Input className="input" type="file" name="file" accept={imageOnlyKinds.has(kind) ? "image/png,image/jpeg" : "image/png,image/jpeg,application/pdf"} required /></label>
+        <label>Mô tả / căn cứ<Textarea className="input" name="description" required minLength={10} maxLength={1000} /></label>
+        <label>Đính chính bản trước (nếu có)<NativeSelect className="input" name="supersedesId" defaultValue=""><option value="">Chứng cứ mới</option>{current.filter((row) => row.kind === kind).map((row) => <option key={row.id} value={row.id}>{row.fileName}</option>)}</NativeSelect></label>
+        {allowPublic && <><label><Input type="checkbox" name="public" value="true" />Công khai trên QR của lô nguồn</label><label><Input type="checkbox" name="publicationConfirmed" value="true" />Tôi đã kiểm tra file phù hợp công bố và không chứa thông tin liên hệ hoặc giấy tờ cá nhân</label></>}
       </fieldset>
-      <button className="button" disabled={pending}>{"Bổ sung chứng cứ"}</button>
+      <Button className="button" disabled={pending}>{"Bổ sung chứng cứ"}</Button>
     </form>}
   </section>;
 }
@@ -158,7 +162,7 @@ export function EvidenceInputs({ entityType, title = "Ảnh và giấy tờ", di
         <label key={option.value}>
           {option.label}
           {option.minimum ? ` (tối thiểu ${option.minimum})` : " (không bắt buộc)"}
-          <input
+          <Input
             className="input"
             type="file"
             multiple

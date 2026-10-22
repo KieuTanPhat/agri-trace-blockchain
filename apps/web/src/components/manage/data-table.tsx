@@ -1,3 +1,4 @@
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import type { ReactNode } from "react";
 import { EmptyState } from "./states";
 
@@ -29,21 +30,21 @@ export function DataTable<T>({
   if (rows && !rows.length && empty) return <EmptyState {...empty} />;
   return (
     <div className="manage-table-scroll">
-      <table className="manage-table" aria-label={label}>
-        <thead>
-          <tr>
+      <Table className="manage-table" aria-label={label}>
+        <TableHeader>
+          <TableRow>
             {columns.map((column, index) => (
-              <th className={column.className} key={index} scope="col">
+              <TableHead className={column.className} key={index} scope="col">
                 {column.header}
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {(rows ?? []).map((row) => (
-            <tr key={rowKey(row)}>
+            <TableRow key={rowKey(row)}>
               {columns.map((column, index) => (
-                <td
+                <TableCell
                   className={column.className}
                   key={index}
                   data-label={
@@ -53,12 +54,12 @@ export function DataTable<T>({
                   }
                 >
                   {column.cell(row)}
-                </td>
+                </TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

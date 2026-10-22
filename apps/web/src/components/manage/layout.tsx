@@ -1,3 +1,6 @@
+import { Search, X } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import type { ReactNode } from "react";
 
 /** Page container for every management page; `form` narrows it for editing. */
@@ -39,7 +42,7 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="manage-section" aria-label={title ? undefined : label}>
+    <Card role="region" className="manage-section" aria-label={title ? undefined : label}>
       {(title || actions) && (
         <div className="manage-section-heading">
           <div>
@@ -50,8 +53,8 @@ export function Section({
           {actions}
         </div>
       )}
-      {children}
-    </section>
+      <CardContent className="manage-section-content">{children}</CardContent>
+    </Card>
   );
 }
 
@@ -72,8 +75,9 @@ export function SearchField({
 }) {
   return (
     <div className="manage-search-field">
+      <Search size={16} className="manage-search-icon" aria-hidden="true" />
 
-      <input
+      <Input
         aria-label={label}
         placeholder={placeholder ?? label}
         value={value}
@@ -85,7 +89,7 @@ export function SearchField({
           aria-label="Xóa từ khóa tìm kiếm"
           onClick={() => onChange("")}
         >
-
+          <X size={16} aria-hidden="true" />
         </button>
       )}
     </div>

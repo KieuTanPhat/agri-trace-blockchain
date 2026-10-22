@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import { useState } from "react";
 import { useWorkspaceCommand, useWorkspaceData } from "@/lib/workspace";
@@ -25,7 +27,7 @@ function DraftForm({ plan, onDone }: { plan: Plan; onDone(): void }) {
   const num = (key: keyof typeof form, text: string) => (
     <label className="field">
       {text}
-      <input className="input" type="number" min={0} value={form[key] as number} onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })} />
+      <Input className="input" type="number" min={0} value={form[key] as number} onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })} />
     </label>
   );
   return (
@@ -46,9 +48,9 @@ function DraftForm({ plan, onDone }: { plan: Plan; onDone(): void }) {
       {num("qrLabels", "Tem QR/kỳ")}
       <label className="field">
         Ghi chú thay đổi
-        <input className="input" required minLength={10} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+        <Input className="input" required minLength={10} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
       </label>
-      <button className="button" disabled={command.pending}>Tạo phiên bản nháp</button>
+      <Button className="button" disabled={command.pending}>Tạo phiên bản nháp</Button>
       <CommandState command={command} />
     </form>
   );
@@ -76,9 +78,9 @@ export default function BillingPlansPage() {
           help={`Đối tượng: ${audienceLabels[plan.audience] ?? plan.audience}`}
           actions={
             !plan.versions.some((v) => v.status === "DRAFT") && (
-              <button type="button" className="button secondary" onClick={() => setEditing(editing === plan.code ? "" : plan.code)}>
+              <Button type="button" className="button secondary" onClick={() => setEditing(editing === plan.code ? "" : plan.code)}>
                 {editing === plan.code ? "Đóng" : "Soạn bảng giá mới"}
-              </button>
+              </Button>
             )
           }
         >

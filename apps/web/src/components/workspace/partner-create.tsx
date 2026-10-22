@@ -1,4 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 import { labels, useWorkspaceCommand } from "@/lib/workspace";
@@ -62,7 +66,7 @@ export function PartnerCreate() {
   ) => (
     <label>
       {label} <span aria-hidden="true">*</span>
-      <input
+      <Input
         className="input"
         type={type}
         value={ext[name]}
@@ -176,7 +180,7 @@ export function PartnerCreate() {
         <section className="panel partner-search">
           <label>
             Tìm doanh nghiệp
-            <input
+            <Input
               className="input"
               autoFocus
               placeholder="Nhập MST, tên doanh nghiệp hoặc mã AGT-…"
@@ -187,7 +191,7 @@ export function PartnerCreate() {
           <PartnerMatches {...search} onPick={pick} pickLabel="Mời liên kết" />
           <div className="partner-search-foot">
             <span className="muted">Không tìm thấy doanh nghiệp cần liên kết?</span>
-            <button
+            <Button
               type="button"
               className="button secondary"
               onClick={() => {
@@ -201,7 +205,7 @@ export function PartnerCreate() {
               }}
             >
               Ghi nhận doanh nghiệp ngoài hệ thống
-            </button>
+            </Button>
           </div>
         </section>
       )}
@@ -215,13 +219,13 @@ export function PartnerCreate() {
                 {labels[picked.kind] ?? picked.kind}
               </small>
             </div>
-            <button type="button" className="text-link" onClick={() => setMode("search")}>
+            <Button type="button" className="text-link" onClick={() => setMode("search")}>
               Chọn doanh nghiệp khác
-            </button>
+            </Button>
           </div>
           <label>
             Lời nhắn (không bắt buộc)
-            <textarea
+            <Textarea
               className="input"
               rows={3}
               maxLength={1000}
@@ -233,9 +237,9 @@ export function PartnerCreate() {
             Doanh nghiệp được mời cần chấp nhận lời mời. Liên kết không tự cấp quyền vào chuỗi.
           </p>
           <div className="form-actions">
-            <button className="button" disabled={command.pending}>
+            <Button className="button" disabled={command.pending}>
               Gửi lời mời
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -248,9 +252,9 @@ export function PartnerCreate() {
         >
           <div className="partner-picked">
             <strong>Doanh nghiệp ngoài hệ thống</strong>
-            <button type="button" className="text-link" onClick={() => setMode("search")}>
+            <Button type="button" className="text-link" onClick={() => setMode("search")}>
               Quay lại tìm kiếm
-            </button>
+            </Button>
           </div>
           <fieldset className="enterprise-fields" disabled={command.pending}>
             {input(
@@ -261,7 +265,7 @@ export function PartnerCreate() {
             )}
             <label>
               Loại hình
-              <select
+              <NativeSelect
                 className="input"
                 value={ext.kind}
                 onChange={(e) => setExt({ ...ext, kind: e.target.value })}
@@ -271,7 +275,7 @@ export function PartnerCreate() {
                     {labels[k] ?? k}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             {input(
               "taxCode",
@@ -295,9 +299,9 @@ export function PartnerCreate() {
             Hồ sơ ngoài hệ thống chỉ để tham chiếu; không có quyền nhận hàng, ký hoặc xem dữ liệu chuỗi.
           </p>
           <div className="form-actions">
-            <button className="button" disabled={command.pending}>
+            <Button className="button" disabled={command.pending}>
               Lưu doanh nghiệp liên kết
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -312,22 +316,22 @@ export function PartnerCreate() {
         onClose={() => setReview(null)}
         actions={
           <>
-            <button
+            <Button
               type="button"
               className="button secondary"
               disabled={command.pending}
               onClick={() => setReview(null)}
             >
               Quay lại sửa
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="button"
               disabled={command.pending}
               onClick={() => void confirm()}
             >
               {command.pending ? "Đang lưu…" : "Xác nhận"}
-            </button>
+            </Button>
           </>
         }
       />
@@ -338,13 +342,13 @@ export function PartnerCreate() {
         rows={done?.rows ?? []}
         onClose={() => router.push("/enterprise/partners")}
         actions={
-          <button
+          <Button
             type="button"
             className="button"
             onClick={() => router.push("/enterprise/partners")}
           >
             Về danh sách đối tác
-          </button>
+          </Button>
         }
       />
     </div>

@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import {
@@ -105,20 +107,20 @@ export default function AdminOrganizationProductsPage() {
             <div className="manage-filter-bar">
               <div className="manage-search-field">
 
-                <input
+                <Input
                   aria-label="Tìm sản phẩm theo tên, mã hoặc giống"
                   placeholder="Tìm tên, SKU, GTIN hoặc giống"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                 />
                 {query && (
-                  <button
+                  <Button
                     type="button"
                     aria-label="Xóa từ khóa tìm kiếm"
                     onClick={() => setQuery("")}
                   >
 
-                  </button>
+                  </Button>
                 )}
               </div>
               <ReloadButton onClick={data.reload} />
@@ -129,14 +131,14 @@ export default function AdminOrganizationProductsPage() {
               aria-label="Lọc trạng thái sản phẩm"
             >
               {filters.map((filter) => (
-                <button
+                <Button
                   type="button"
                   key={filter.value}
                   aria-pressed={status === filter.value}
                   onClick={() => setStatus(filter.value)}
                 >
                   {filter.label}
-                </button>
+                </Button>
               ))}
             </div>
             <div className="manage-results-summary" role="status">

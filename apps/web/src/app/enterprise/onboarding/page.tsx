@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import type { components } from "@/lib/generated/api";
 import { useWorkspaceData } from "@/lib/workspace";
@@ -71,9 +72,9 @@ export default function OnboardingPage() {
               thông tin cần bổ sung; chưa thực hiện thanh toán.
             </p>
           )}
-          <button className="button secondary" onClick={state.reload}>
+          <Button className="button secondary" onClick={state.reload}>
             Cập nhật trạng thái
-          </button>
+          </Button>
           <RegistrationProfileDetails
             details={row.details}
             documents={row.documents}

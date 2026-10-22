@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import type { components } from "@/lib/generated/api";
 import { useWorkspaceCommand, useWorkspaceData } from "@/lib/workspace";
@@ -94,7 +95,7 @@ export default function PaymentPage() {
                 hiện sau; không có mã QR ngân hàng hoặc thông tin nhận tiền
                 thật.
               </p>
-              <button
+              <Button
                 className="button"
                 disabled={
                   !state.data?.catalog.simulationEnabled || command.pending
@@ -106,7 +107,7 @@ export default function PaymentPage() {
                   : command.frozen
                     ? "Thử lại giao dịch cũ"
                     : "Mô phỏng thanh toán thành công"}
-              </button>
+              </Button>
               {!state.data?.catalog.simulationEnabled && (
                 <p>Thanh toán mô phỏng chưa được bật trong môi trường này.</p>
               )}

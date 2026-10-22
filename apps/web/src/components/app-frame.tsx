@@ -1,12 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { SiteFooter, ZaloFloat } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
-import { BrandLogo } from "@/components/ui/brand-logo";
 import { useAuth } from "@/lib/auth-store";
 import { useConfirm } from "@/lib/confirm";
 import { canAccessManagementRoute, platformAdminHome } from "@/lib/permissions";
@@ -15,9 +13,7 @@ import { PERMISSION_SYNC_EVENT } from "@/lib/permission-sync";
 import { canUseEnterpriseRoute } from "@/lib/enterprise-access";
 import {
   homeRoute,
-  isActiveRoute,
   isEnterpriseUser,
-  mobileShortcuts,
   routeContext,
   visibleAccountLinks,
   visibleGroups,
@@ -31,7 +27,10 @@ import { TypographySync } from "./shell/typography-sync";
 import { NotificationsMenu } from "./shell/notifications-menu";
 import { MenuSearch } from "./shell/menu-search";
 import { SystemNotices } from "./shell/system-notices";
-import { NavGroups } from "./shell/nav-groups";
+import { WorkspaceSidebar } from "./shell/workspace-sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "./ui/sidebar";
+import { Separator } from "./ui/separator";
+import { ThemeToggle } from "./shell/theme-provider";
 import {
   useEnterpriseAccess,
   usePendingTaskCount,
@@ -51,8 +50,6 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     pathname === "/privacy" ||
     pathname === "/scan" ||
     pathname.startsWith("/trace/");
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const mobileDialog = useRef<HTMLDialogElement>(null);
   const authorizationScope = getAuthorizationScope(auth.user);
   const privateAccessReady =
     !auth.privateAccessStatus || auth.privateAccessStatus === "ready";
@@ -101,26 +98,6 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     if (!auth.isLoading && !auth.isAuthenticated && !isPublic)
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
   }, [auth.isAuthenticated, auth.isLoading, isPublic, pathname, router]);
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
-  useEffect(() => {
-    const dialog = mobileDialog.current;
-    if (mobileOpen && dialog && !dialog.open) dialog.showModal();
-    if (!mobileOpen && dialog?.open) dialog.close();
-    if (!mobileOpen) return;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const desktop = window.matchMedia("(min-width: 901px)");
-    const resize = () => {
-      if (desktop.matches) setMobileOpen(false);
-    };
-    desktop.addEventListener("change", resize);
-    return () => {
-      document.body.style.overflow = overflow;
-      desktop.removeEventListener("change", resize);
-    };
-  }, [mobileOpen]);
 
   if (pathname === "/") return <>{children}</>;
   if (isPublic)
@@ -238,7 +215,6 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     enterpriseUser,
   };
   const groups = visibleGroups(viewer);
-  const shortcuts = mobileShortcuts(groups);
   const home = homeRoute(role, enterpriseUser);
   const platform = !!platformAdminHome(role);
   const context = routeContext(pathname);
@@ -261,28 +237,13 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div
-      className="app-shell"
-      data-mobile-open={mobileOpen}
-      data-surface={platform ? "admin" : undefined}
-    >
-      <a className="skip-link" href="#main-content">
-        Đi đến nội dung
-      </a>
-      <header className="topbar">
-        <button
-          className="icon-button menu-button"
-          type="button"
-          aria-label={mobileOpen ? "Đóng điều hướng" : "Mở điều hướng"}
-          aria-expanded={mobileOpen}
-          aria-controls="mobile-management-navigation"
-          onClick={() => setMobileOpen(!mobileOpen)}
-        >
-          {mobileOpen ? "Đóng" : "Menu"}
-        </button>
-        <Link className="brand" href={home} aria-label="AgriTrace - Tổng quan">
-          <BrandLogo height={40} priority />
-        </Link>
+    <SidebarProvider className="app-shell shadcn-workspace" data-surface={platform ? "admin" : "enterprise"}>
+      <a className="skip-link" href="#main-content">Đi đến nội dung</a>
+      <WorkspaceSidebar groups={groups} pathname={pathname} home={home} platform={platform} pendingTasks={pendingTasks} fullName={auth.user.fullName} roleName={roleName} />
+      <SidebarInset>
+        <header className="workspace-header">
+          <SidebarTrigger aria-label="Đóng/mở điều hướng" />
+          <Separator orientation="vertical" className="h-4" />
         <nav className="workspace-context" aria-label="Vị trí hiện tại">
           <strong>
             {platform ? "Quản trị nền tảng" : "Không gian doanh nghiệp"}
@@ -303,109 +264,15 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             </>
           )}
         </nav>
-        <div className="topbar-search">
-          <MenuSearch groups={groups} extra={visibleAccountLinks(viewer)} />
-        </div>
-        <div className="topbar-actions">
-          <Link
-            className="icon-button"
-            href="/scan"
-            aria-label="Quét mã QR"
-            title="Quét mã QR"
-          >
-            Quét QR
-          </Link>
-          <Link
-            className="icon-button"
-            href="/"
-            aria-label="Trang giới thiệu"
-            title="Trang giới thiệu"
-          >
-            Trang chủ
-          </Link>
-          <NotificationsMenu
-            enabled={mayReadTasks}
-            scope={authorizationScope}
-            pathname={pathname}
-          />
-          <AccountMenu
-            fullName={auth.user.fullName}
-            roleName={roleName}
-            links={visibleAccountLinks(viewer)}
-            pathname={pathname}
-            onLogout={logout}
-          />
-        </div>
-      </header>
-      <dialog
-        className="mobile-management-nav"
-        id="mobile-management-navigation"
-        ref={mobileDialog}
-        aria-labelledby="mobile-nav-title"
-        onClose={() => setMobileOpen(false)}
-        onCancel={() => setMobileOpen(false)}
-      >
-        <div className="panel-title">
-          <h2 id="mobile-nav-title">
-            {platform ? "Quản trị nền tảng" : "Không gian quản lý"}
-          </h2>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="Đóng menu quản lý"
-            onClick={() => setMobileOpen(false)}
-          >
-            Đóng
-          </button>
-        </div>
-        <div className="mobile-user">
-          <strong>{auth.user.fullName}</strong>
-          <span>{roleName}</span>
-        </div>
-        <nav aria-label="Điều hướng quản lý trên điện thoại">
-          <NavGroups
-            groups={groups}
-            pathname={pathname}
-            pendingTasks={pendingTasks}
-            onNavigate={() => setMobileOpen(false)}
-          />
-        </nav>
-        <Link
-          className="button secondary"
-          href="/"
-          onClick={() => setMobileOpen(false)}
-        >
-           Trang giới thiệu
-        </Link>
-      </dialog>
-      <div className="layout">
-        <aside className="sidebar" id="main-navigation">
-          <Link className="sidebar-brand" href={home} aria-label="AgriTrace">
-            <Image
-              className="sidebar-brand-logo"
-              src="/agritrace/brand/agritrace-logo-on-dark.png"
-              alt="AgriTrace — Truy xuất nguồn gốc nông sản Việt"
-              width={720}
-              height={212}
-              priority
-            />
-            <small className="sidebar-brand-area">{platform ? "Quản trị nền tảng" : "Không gian doanh nghiệp"}</small>
-          </Link>
-          <nav aria-label="Điều hướng chính">
-            <NavGroups
-              groups={groups}
-              pathname={pathname}
-              pendingTasks={pendingTasks}
-            />
-          </nav>
-          <div className="sidebar-identity">
-            <span className="workspace-avatar" aria-hidden="true">
-              {auth.user.fullName.slice(0, 2).toUpperCase()}
-            </span>
-            <span><strong>{auth.user.fullName}</strong><small>{roleName}</small></span>
+
+          <div className="workspace-header-search"><MenuSearch groups={groups} extra={visibleAccountLinks(viewer)} /></div>
+          <div className="workspace-header-actions">
+            <ThemeToggle />
+            <NotificationsMenu enabled={mayReadTasks} scope={authorizationScope} pathname={pathname} />
+            <AccountMenu fullName={auth.user.fullName} roleName={roleName} links={visibleAccountLinks(viewer)} pathname={pathname} onLogout={logout} />
           </div>
-        </aside>
-        <main className="content" id="main-content">
+        </header>
+        <main className="workspace-main" id="main-content">
           <FieldFocus />
           <TypographySync />
           {!privateAccessReady && (
@@ -444,30 +311,10 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             />
             {children}
           </div>
-          <footer className="footer">
-            <span>AgriTrace</span>
-            <span>Nguồn gốc rõ ràng. Hành trình minh bạch.</span>
-          </footer>
+
         </main>
-      </div>
-      <nav className="bottom-nav" aria-label="Điều hướng nhanh">
-        {shortcuts.map(({ href, label }) => (
-          <Link
-            href={href}
-            key={href}
-            aria-current={isActiveRoute(pathname, href) ? "page" : undefined}
-          >
-            <span>{label.split(",")[0]}</span>
-          </Link>
-        ))}
-        <button
-          type="button"
-          aria-label="Mở thêm điều hướng"
-          onClick={() => setMobileOpen(true)}
-        >
-          <span>Thêm</span>
-        </button>
-      </nav>
-    </div>
+        <footer className="workspace-footer"><span>AgriTrace</span><span>Nguồn gốc rõ ràng. Hành trình minh bạch.</span></footer>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

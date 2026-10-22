@@ -54,7 +54,7 @@ Mã nằm ở `apps/web/src/styles`, nạp theo thứ tự trong `app/layout.tsx
 | `app.css`    | Thành phần dùng chung: panel, nút, form, notice, badge, bảng/thẻ dữ liệu, timeline, hộp thoại, khung quản lý, dashboard, trace, scanner                  |
 | `site.css`   | Header/footer công khai, landing (`lp-*`), đăng nhập                                                                                                     |
 
-Cam/vàng chỉ làm điểm nhấn (CTA, vệt gạch chân, số bước, trạng thái đang chọn). Trạng thái lỗi/cảnh báo/thành công dùng màu trạng thái riêng, không dùng màu thương hiệu. Trang công khai (giới thiệu, truy xuất QR, đăng nhập, đăng ký) dùng icon `lucide-react`; khu quản trị và doanh nghiệp không dùng icon, chỉ dùng chữ. Logo và biểu tượng PWA nằm ở `public/agritrace/brand` và `public/icons`; favicon/apple icon ở `src/app/icon.png`, `src/app/apple-icon.png`.
+Cam/vàng chỉ làm điểm nhấn (CTA, vệt gạch chân, số bước, trạng thái đang chọn). Trạng thái lỗi/cảnh báo/thành công dùng màu trạng thái riêng, không dùng màu thương hiệu. Trang công khai (giới thiệu, truy xuất QR, đăng nhập, đăng ký) dùng icon `lucide-react`; khu quản trị và doanh nghiệp dùng icon Lucide kèm nhãn tiếng Việt theo ShadcnStore. Logo và biểu tượng PWA nằm ở `public/agritrace/brand` và `public/icons`; favicon/apple icon ở `src/app/icon.png`, `src/app/apple-icon.png`.
 
 Breakpoint dùng thống nhất: 600 px (điện thoại), 900 px (máy tính bảng, sidebar chuyển thành ngăn kéo và thanh điều hướng dưới), 1200 px (rộng). Khi thêm style, dùng token thay vì mã màu hoặc cỡ chữ viết cứng.
 
@@ -71,7 +71,7 @@ cho đến khi React đã gắn handler và hoàn tất khôi phục phiên. Bà
 nút sẵn sàng, kiểm POST login trả 201 rồi mới kiểm điều hướng; lỗi giữ response
 status/timing, console, ảnh đã che input và trace đã loại credential trong artifact.
 
-Khung quản lý dùng sidebar nhóm theo công việc (Vận hành, Tuân thủ, Hệ thống; chỉ hiện mục vai trò được truy cập) trên desktop. Từ 900 px trở xuống là thanh điều hướng dưới với bốn mục đầu và nút "Thêm" mở ngăn kéo dạng hộp thoại có quản lý focus và Escape. Bảng lô, vụ trồng, danh mục quản trị và lịch sử số lượng dùng cùng dữ liệu cho bảng desktop và thẻ mobile ở 600 px trở xuống. Bộ lọc và phân trang áp dụng cho cả hai. Biểu mẫu chuyển về một cột, input 16 px, thao tác tối thiểu 44 px, hộp thoại có chiều cao theo viewport và cuộn nội dung.
+Khung quản lý dùng sidebar nhóm theo công việc (Vận hành, Tuân thủ, Hệ thống; chỉ hiện mục vai trò được truy cập) trên desktop. Khung ShadcnStore dùng sidebar thu gọn trên desktop; dưới 768 px, nút điều hướng trên header mở ngăn kéo có quản lý focus và Escape. Bảng lô, vụ trồng, danh mục quản trị và lịch sử số lượng dùng cùng dữ liệu cho bảng desktop và thẻ mobile ở 600 px trở xuống. Bộ lọc và phân trang áp dụng cho cả hai. Biểu mẫu chuyển về một cột, input 16 px, thao tác tối thiểu 44 px, hộp thoại có chiều cao theo viewport và cuộn nội dung.
 
 Dashboard mở bằng số liệu và "Việc cần làm" (cảnh báo và thao tác khả dụng của lô nổi bật), không có banner giới thiệu.
 
@@ -345,3 +345,167 @@ kèm liên kết sang giao nhận, lô, tồn kho hoặc chuyển quyền để 
 Xác nhận và phản hồi hồ sơ chỉ hiện theo `allowedActions`; gửi kèm version hiện tại
 qua `useWorkspaceCommand`. Đổi bộ lọc giữ nguyên bản nháp và yêu cầu chưa rõ kết quả;
 tải lại bị khóa khi đang gửi/đối soát. Không gán hạn hay mức ưu tiên cho việc chưa có dữ liệu đó.
+
+## Giao diện ShadcnStore
+
+Nguồn: shadcnstore/shadcn-dashboard-landing-template, tag v1.0.0 (7c4e3f3efefdf89dbd040378ebb6cd930f849e1b), nextjs-version (Next.js 15 / React 19). Giữ Next.js 15.5 của AgriTrace. Giấy phép MIT tại apps/web/licenses/shadcnstore-MIT.txt.
+
+Route rà soát trước triển khai (route động dùng ngoặc vuông):
+
+- `/admin`
+- `/admin/approvals`
+- `/admin/approvals/[id]`
+- `/admin/approvals/new`
+- `/admin/audit-log`
+- `/admin/backup`
+- `/admin/billing`
+- `/admin/billing/invoices`
+- `/admin/billing/revenue`
+- `/admin/billing/subscriptions`
+- `/admin/cases`
+- `/admin/cases/[id]`
+- `/admin/cases/new`
+- `/admin/chains`
+- `/admin/compliance-assignments`
+- `/admin/compliance-assignments/[id]`
+- `/admin/compliance-assignments/new`
+- `/admin/directory`
+- `/admin/directory/[id]`
+- `/admin/enterprises`
+- `/admin/enterprises/[id]`
+- `/admin/enterprises/[id]/connections/[connectionId]`
+- `/admin/enterprises/amendments`
+- `/admin/enterprises/amendments/[id]`
+- `/admin/inbox`
+- `/admin/inspectors`
+- `/admin/ledger`
+- `/admin/lots`
+- `/admin/monitoring`
+- `/admin/notices`
+- `/admin/operations`
+- `/admin/organizations`
+- `/admin/organizations/new`
+- `/admin/privacy`
+- `/admin/products`
+- `/admin/products/[organizationId]`
+- `/admin/qr`
+- `/admin/recall`
+- `/admin/reference-data`
+- `/admin/reports`
+- `/admin/roles`
+- `/admin/security`
+- `/admin/security-alerts`
+- `/admin/settings`
+- `/admin/statistics`
+- `/admin/support`
+- `/admin/support/[id]`
+- `/admin/trace-report`
+- `/admin/users`
+- `/admin/users/[id]`
+- `/admin/users/new`
+- `/enterprise`
+- `/enterprise/areas`
+- `/enterprise/areas/[id]`
+- `/enterprise/areas/new`
+- `/enterprise/areas/plots/new`
+- `/enterprise/billing`
+- `/enterprise/connections`
+- `/enterprise/help`
+- `/enterprise/inbox`
+- `/enterprise/inventory`
+- `/enterprise/materials`
+- `/enterprise/materials/[id]`
+- `/enterprise/materials/new`
+- `/enterprise/members`
+- `/enterprise/members/[id]`
+- `/enterprise/members/[id]/edit`
+- `/enterprise/members/invitations`
+- `/enterprise/members/new`
+- `/enterprise/messages`
+- `/enterprise/notices`
+- `/enterprise/onboarding`
+- `/enterprise/ownership`
+- `/enterprise/partners`
+- `/enterprise/partners/external/[id]`
+- `/enterprise/partners/new`
+- `/enterprise/processing`
+- `/enterprise/processing/[id]`
+- `/enterprise/processing/conversions`
+- `/enterprise/processing/new`
+- `/enterprise/products`
+- `/enterprise/products/[id]`
+- `/enterprise/products/[id]/edit`
+- `/enterprise/products/import`
+- `/enterprise/products/new`
+- `/enterprise/profile`
+- `/enterprise/qr`
+- `/enterprise/reports`
+- `/enterprise/reports/adjust`
+- `/enterprise/roles`
+- `/enterprise/roles/[id]`
+- `/enterprise/roles/new`
+- `/enterprise/service`
+- `/enterprise/service/contract`
+- `/enterprise/service/payment`
+- `/enterprise/settings`
+- `/enterprise/signing`
+- `/enterprise/sites`
+- `/enterprise/sites/[id]`
+- `/enterprise/sites/new`
+- `/enterprise/support`
+- `/enterprise/support/[id]`
+- `/enterprise/support/new`
+- `/enterprise/vehicles`
+- `/enterprise/vehicles/[id]`
+- `/enterprise/vehicles/new`
+
+
+Component nhập từ template: button, input, textarea, table, card, badge,
+sidebar, sheet, separator, tooltip, skeleton, dialog, dropdown-menu, tabs,
+select, label và sonner. NativeSelect dùng cùng style với select trigger để
+bảo toàn required/multiple/FormData và handler hiện có. Bố cục dựa trên
+BaseLayout/AppSidebar/NavMain; chỉ dùng menu đã lọc quyền của AgriTrace.
+CSS Tailwind không nạp preflight toàn cục; token template có tiền tố `--ui-`
+để tránh đụng token của trang công khai. Style cũ còn consumer được giữ lại.
+Màu sáng/tối/hệ thống lưu ở `agritrace:color-mode`, theo thay đổi hệ điều hành.
+Toast thành công chỉ hiện sau khi API xác nhận command; lỗi/unknown vẫn hiện
+inline và giữ nguyên cơ chế đối soát.
+
+### Seed UI không phá dữ liệu
+
+Tạo database local riêng **agri_trace_ui_test**, chạy toàn bộ migration bằng
+`npm run db:migrate --workspace apps/api` với `DATABASE_URL` trỏ đúng database
+này. Không dùng seed-current.ps1 cho công việc UI vì script đó thay dữ liệu.
+Sau `npm ci` từ root, chạy PowerShell:
+
+```powershell
+$env:NODE_ENV = 'development'
+$env:AGRITRACE_UI_SEED = 'local-test-only'
+# Điền connection string của database test local vừa tạo, không dùng production.
+$env:TEST_DATABASE_URL = 'postgresql://USER:PASSWORD@127.0.0.1:5433/agri_trace_ui_test'
+$env:UI_SEED_PASSWORD = '<mat-khau-test-rieng-it-nhat-16-ky-tu>'
+node scripts/demo/seed-ui.mjs
+node --test scripts/demo/seed-ui.test.mjs
+```
+
+Seed chạy trong transaction, khóa chống chạy đồng thời, ID cố định và INSERT
+ON CONFLICT DO NOTHING. Chạy lại không đổi mật khẩu, không ghi đè trạng thái
+đã chỉnh và không xóa dữ liệu. Có tổ chức sản xuất/chế biến hoạt động và ngừng,
+chủ quản cấp 1, quản lý cấp 2, nhân viên cấp 3 hoạt động/khóa/ngừng và ba nhóm
+quyền. Đây là fixture legacy trên DB test, không giả lập hồ sơ đăng ký đã duyệt
+hay cấp binding Fabric. Không tạo lô/chữ ký/proof giả. Tài khoản đăng nhập:
+`ui-admin@ui.agritrace.test`, `processor-owner@ui.agritrace.test`,
+`farm-owner@ui.agritrace.test`; mật khẩu là biến seed ở lần chạy đầu.
+Chạy API test với DATABASE_URL của database này rồi chạy Web; giao diện vẫn
+đọc API thật. Kiểm tra guard seed không thay cho kiểm thử DB đã migrate.
+
+
+Kiểm tra trình duyệt với fixture chỉ trong Playwright (không phải nghiệm thu API):
+chạy Web tại localhost:3100, rồi `node scripts/demo/check-ui-browser.mjs`.
+Có thể đặt `UI_TEST_BROWSER=msedge` để dùng Edge đã cài, hoặc cài Chromium của
+Playwright. Script chặn request API bằng fixture trong browser context riêng;
+không bật NEXT_PUBLIC_MOCK_API. Kiểm danh sách tổ chức/tài khoản, thành viên,
+nhóm quyền/form tạo nhóm, form tài khoản và chế biến ở 320/390/768/1440 px,
+sáng/tối, tìm kiếm/lọc/rỗng/lỗi, drawer Escape, dialog hủy, request tạo nhóm
+quyền và idempotency key, toast, lưu chế độ màu và theo hệ thống. Ảnh và kết quả
+nằm trong thư mục tạm hệ thống `agritrace-shadcn-ui`, không commit.

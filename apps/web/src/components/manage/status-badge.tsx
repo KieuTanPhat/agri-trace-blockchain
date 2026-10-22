@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { labels as workspaceLabels } from "@/lib/status-labels";
 
 const statusLabels: Record<string, string> = {
@@ -56,8 +57,8 @@ export function StatusBadge({
   label?: string;
 }) {
   return (
-    <span className={`manage-status manage-status--${statusTone(value)}`}>
+    <Badge variant="outline" className={`manage-status manage-status--${statusTone(value)}`}>
       {label ?? statusLabel(value)}
-    </span>
+    </Badge>
   );
 }

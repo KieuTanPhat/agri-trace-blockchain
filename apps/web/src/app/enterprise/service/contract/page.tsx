@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -84,21 +86,21 @@ export default function ContractPage() {
               </code>
             </p>
             <div className="workspace-actions">
-              <button className="button secondary" onClick={download}>
+              <Button className="button secondary" onClick={download}>
                 Tải bản hợp đồng
-              </button>
-              <button
+              </Button>
+              <Button
                 className="button secondary"
                 onClick={() => window.print()}
               >
                 In / lưu PDF
-              </button>
+              </Button>
             </div>
           </section>
           {!order && (
             <section className="panel grid">
               <label className="permission-choice">
-                <input
+                <Input
                   type="checkbox"
                   checked={accepted}
                   disabled={command.frozen}
@@ -109,7 +111,7 @@ export default function ContractPage() {
                   trên.
                 </span>
               </label>
-              <button
+              <Button
                 className="button"
                 disabled={!accepted || command.pending}
                 onClick={() => void confirm()}
@@ -117,7 +119,7 @@ export default function ContractPage() {
                 {command.frozen
                   ? "Thử lại xác nhận cũ"
                   : "Xác nhận và đến thanh toán"}
-              </button>
+              </Button>
               {!command.frozen && (
                 <Link className="text-link" href="/enterprise/service">
                   Chỉnh thông tin trước khi xác nhận

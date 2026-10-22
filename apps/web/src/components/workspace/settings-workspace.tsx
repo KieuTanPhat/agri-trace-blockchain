@@ -1,4 +1,8 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
@@ -72,7 +76,7 @@ function FontSelect({
   inherit?: string;
 }) {
   return (
-    <select
+    <NativeSelect
       className="select"
       aria-label={label}
       value={value ?? ""}
@@ -88,7 +92,7 @@ function FontSelect({
           ))}
         </optgroup>
       ))}
-    </select>
+    </NativeSelect>
   );
 }
 function Choices<T extends string>({
@@ -105,14 +109,14 @@ function Choices<T extends string>({
   return (
     <div className="settings-choices" role="group" aria-label={label}>
       {options.map(([id, text]) => (
-        <button
+        <Button
           type="button"
           key={id}
           aria-pressed={value === id}
           onClick={() => onChange(id)}
         >
           {text}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -134,36 +138,36 @@ function Sample() {
         </div>
         <div className="ts-main">
           <h3 className="ts-h1">Tiêu đề trang</h3>
-          <table className="settings-sample-table">
-            <thead>
-              <tr>
-                <th className="ts-th">Tên sản phẩm</th>
-                <th className="ts-th">Loại</th>
-                <th className="ts-th">Số lượng</th>
-                <th className="ts-th">Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="settings-sample-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="ts-th">Tên sản phẩm</TableHead>
+                <TableHead className="ts-th">Loại</TableHead>
+                <TableHead className="ts-th">Số lượng</TableHead>
+                <TableHead className="ts-th">Trạng thái</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {[
                 ["Cà chua", "1.200", "Hoạt động"],
                 ["Rau xà lách", "800", "Hoạt động"],
                 ["Ớt chuông", "450", "Tạm dừng"],
               ].map(([name, quantity, status], index) => (
-                <tr key={name}>
-                  <td className="ts-td">{name}</td>
-                  <td className="ts-td">Rau quả</td>
-                  <td className="ts-td">{quantity}</td>
-                  <td className="ts-td">
+                <TableRow key={name}>
+                  <TableCell className="ts-td">{name}</TableCell>
+                  <TableCell className="ts-td">Rau quả</TableCell>
+                  <TableCell className="ts-td">{quantity}</TableCell>
+                  <TableCell className="ts-td">
                     <span
                       className={`ts-badge settings-sample-badge${index === 2 ? " is-paused" : ""}`}
                     >
                       {status}
                     </span>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
       <p className="settings-preview-caption ts-muted">
@@ -290,7 +294,7 @@ export function SettingsWorkspace() {
       <header className="settings-heading">
         <h1>Cài đặt</h1>
         <div className="settings-heading-actions">
-          <button
+          <Button
             className="button secondary"
             type="button"
             disabled={!ready || !changed}
@@ -300,20 +304,20 @@ export function SettingsWorkspace() {
             }}
           >
             Hủy thay đổi
-          </button>
-          <button
+          </Button>
+          <Button
             className="button"
             type="button"
             disabled={!ready || !changed}
             onClick={apply}
           >
             Lưu thay đổi
-          </button>
+          </Button>
         </div>
       </header>
       <div className="settings-tabs" role="tablist" aria-label="Nhóm cài đặt">
         {tabs.map(([id, label], index) => (
-          <button
+          <Button
             key={id}
             type="button"
             id={`settings-tab-${id}`}
@@ -338,7 +342,7 @@ export function SettingsWorkspace() {
             }}
           >
             {label}
-          </button>
+          </Button>
         ))}
       </div>
       {message && (
@@ -398,7 +402,7 @@ export function SettingsWorkspace() {
                   </label>
                   <label>
                     <span>Cỡ chữ (px)</span>
-                    <select
+                    <NativeSelect
                       className="select"
                       value={draft.typography.roles.body?.size ?? ""}
                       onChange={(e) =>
@@ -423,11 +427,11 @@ export function SettingsWorkspace() {
                             {draft.typography.roles.body.size}
                           </option>
                         )}
-                    </select>
+                    </NativeSelect>
                   </label>
                   <label>
                     <span>Độ đậm</span>
-                    <select
+                    <NativeSelect
                       className="select"
                       value={draft.typography.roles.body?.weight ?? ""}
                       onChange={(e) =>
@@ -444,7 +448,7 @@ export function SettingsWorkspace() {
                           {label}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </label>
                 </div>
                 <div className="settings-fields settings-fields-two">
@@ -495,7 +499,7 @@ export function SettingsWorkspace() {
                     <label key={key}>
                       <span>{label}</span>
                       <span className="settings-color-control">
-                        <input
+                        <Input
                           type="color"
                           aria-label={label}
                           value={draft.appearance[key]}
@@ -519,7 +523,7 @@ export function SettingsWorkspace() {
                 <div className="settings-fields settings-fields-three">
                   <label>
                     <span>Cỡ chữ tiêu đề</span>
-                    <input
+                    <Input
                       className="input"
                       type="number"
                       min={10}
@@ -537,7 +541,7 @@ export function SettingsWorkspace() {
                   </label>
                   <label>
                     <span>Cỡ chữ dữ liệu</span>
-                    <input
+                    <Input
                       className="input"
                       type="number"
                       min={10}
@@ -555,7 +559,7 @@ export function SettingsWorkspace() {
                   </label>
                   <label>
                     <span>Độ đậm dữ liệu</span>
-                    <select
+                    <NativeSelect
                       className="select"
                       value={draft.typography.roles.tableCell?.weight ?? ""}
                       onChange={(e) =>
@@ -572,7 +576,7 @@ export function SettingsWorkspace() {
                           {label}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </label>
                 </div>
               </Card>
@@ -596,7 +600,7 @@ export function SettingsWorkspace() {
                   </div>
                 </dl>
                 <label className="settings-check">
-                  <input
+                  <Input
                     type="checkbox"
                     checked={draft.appearance.autoSave}
                     onChange={(e) =>
@@ -616,13 +620,13 @@ export function SettingsWorkspace() {
                 title="Khôi phục cài đặt gốc"
                 help="Đưa giao diện và kiểu chữ về thiết kế ban đầu."
               >
-                <button
+                <Button
                   type="button"
                   className="button secondary small"
                   onClick={reset}
                 >
                   Khôi phục cài đặt gốc
-                </button>
+                </Button>
               </Card>
             </div>
           </div>
@@ -681,13 +685,13 @@ export function SettingsWorkspace() {
             <p className="settings-note">
               Tệp gồm màu sắc, kiểu chữ, mật độ bảng và chiều rộng nội dung.
             </p>
-            <button
+            <Button
               type="button"
               className="button secondary"
               onClick={download}
             >
               Tải bản sao cài đặt giao diện
-            </button>
+            </Button>
             <Link className="text-link" href="/account/privacy">
               Quản lý quyền dữ liệu cá nhân
             </Link>
@@ -704,47 +708,47 @@ export function SettingsWorkspace() {
               aria-label="Mẫu kiểu chữ"
             >
               {PRESETS.map((preset) => (
-                <button
+                <Button
                   key={preset.id}
                   className="button secondary small"
                   type="button"
                   onClick={() => setTypography(preset.value)}
                 >
                   {preset.label}
-                </button>
+                </Button>
               ))}
             </div>
             <div className="manage-table-scroll">
-              <table className="manage-table typo-table">
-                <thead>
-                  <tr>
-                    <th>Loại nội dung</th>
-                    <th>Font</th>
-                    <th>Cỡ chữ (px)</th>
-                    <th>Độ đậm</th>
-                    <th>Xem nhanh</th>
-                    <th aria-label="Đặt lại" />
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="manage-table typo-table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Loại nội dung</TableHead>
+                    <TableHead>Font</TableHead>
+                    <TableHead>Cỡ chữ (px)</TableHead>
+                    <TableHead>Độ đậm</TableHead>
+                    <TableHead>Xem nhanh</TableHead>
+                    <TableHead aria-label="Đặt lại" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {TEXT_ROLES.map((role) => {
                     const style = draft.typography.roles[role.id] ?? {};
                     return (
-                      <tr key={role.id}>
-                        <td data-label="Loại nội dung">
+                      <TableRow key={role.id}>
+                        <TableCell data-label="Loại nội dung">
                           <strong>{role.label}</strong>
                           <small>{role.hint}</small>
-                        </td>
-                        <td data-label="Font">
+                        </TableCell>
+                        <TableCell data-label="Font">
                           <FontSelect
                             label={`Font cho ${role.label}`}
                             value={style.font}
                             inherit="Theo font toàn hệ thống"
                             onChange={(font) => setRole(role.id, { font })}
                           />
-                        </td>
-                        <td data-label="Cỡ chữ (px)">
-                          <input
+                        </TableCell>
+                        <TableCell data-label="Cỡ chữ (px)">
+                          <Input
                             className="input typo-size"
                             type="number"
                             min={10}
@@ -763,9 +767,9 @@ export function SettingsWorkspace() {
                               })
                             }
                           />
-                        </td>
-                        <td data-label="Độ đậm">
-                          <select
+                        </TableCell>
+                        <TableCell data-label="Độ đậm">
+                          <NativeSelect
                             className="select"
                             aria-label={`Độ đậm cho ${role.label}`}
                             value={style.weight ?? ""}
@@ -783,9 +787,9 @@ export function SettingsWorkspace() {
                                 {label}
                               </option>
                             ))}
-                          </select>
-                        </td>
-                        <td data-label="Xem nhanh">
+                          </NativeSelect>
+                        </TableCell>
+                        <TableCell data-label="Xem nhanh">
                           <span
                             className="typo-swatch"
                             style={{
@@ -798,10 +802,10 @@ export function SettingsWorkspace() {
                           >
                             Aa Ắ ệ 123
                           </span>
-                        </td>
-                        <td>
+                        </TableCell>
+                        <TableCell>
                           {(style.font || style.size || style.weight) && (
-                            <button
+                            <Button
                               className="text-link"
                               type="button"
                               aria-label={`Đặt lại ${role.label}`}
@@ -812,14 +816,14 @@ export function SettingsWorkspace() {
                               }}
                             >
                               Đặt lại
-                            </button>
+                            </Button>
                           )}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </Card>
         )}

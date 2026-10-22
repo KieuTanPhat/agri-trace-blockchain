@@ -1,4 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import Link from "next/link";
 import {
   useCallback,
@@ -105,13 +109,13 @@ export default function EnterprisePage() {
         <div>
           <h1>Đăng ký và kết nối</h1>
         </div>
-        <button
+        <Button
           className="button secondary"
           onClick={() => void refresh()}
           disabled={pending}
         >
           Cập nhật trạng thái
-        </button>
+        </Button>
       </section>
       {error && (
         <div role="alert" className="notice error">
@@ -162,13 +166,13 @@ export default function EnterprisePage() {
                     >
                       <label className="field">
                         Chuỗi của doanh nghiệp
-                        <select className="input" name="chainId" required>
+                        <NativeSelect className="input" name="chainId" required>
                           {availableChains.map((c) => (
                             <option key={c.id} value={c.id}>
                               {c.name}
                             </option>
                           ))}
-                        </select>
+                        </NativeSelect>
                       </label>
                       {row.hostingMode === "SELF_MANAGED_ORG" ? (
                         <>
@@ -179,7 +183,7 @@ export default function EnterprisePage() {
                           </p>
                           <label className="field">
                             Địa chỉ peer (IP hoặc DNS)
-                            <input
+                            <Input
                               className="input"
                               name="peerHost"
                               required
@@ -188,7 +192,7 @@ export default function EnterprisePage() {
                           </label>
                           <label className="field">
                             Cổng peer
-                            <input
+                            <Input
                               className="input"
                               name="peerPort"
                               type="number"
@@ -200,7 +204,7 @@ export default function EnterprisePage() {
                           </label>
                           <label className="field">
                             Tên máy trong chứng thư TLS
-                            <input
+                            <Input
                               className="input"
                               name="peerServerName"
                               required
@@ -209,7 +213,7 @@ export default function EnterprisePage() {
                           </label>
                           <label className="field">
                             MSP của doanh nghiệp
-                            <input
+                            <Input
                               className="input"
                               name="mspId"
                               required
@@ -218,7 +222,7 @@ export default function EnterprisePage() {
                           </label>
                           <label className="field">
                             Chứng thư TLS CA công khai (PEM)
-                            <textarea
+                            <Textarea
                               className="input"
                               name="tlsCaPem"
                               rows={6}
@@ -238,11 +242,11 @@ export default function EnterprisePage() {
                         </p>
                       )}
                     </fieldset>
-                    <button className="button" disabled={pending}>
+                    <Button className="button" disabled={pending}>
                       {pending
                         ? "Đang gửi…"
                         : "Gửi yêu cầu kết nối"}
-                    </button>
+                    </Button>
                   </form>
                 )}
               </section>

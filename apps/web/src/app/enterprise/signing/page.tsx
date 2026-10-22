@@ -1,4 +1,6 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { generateDistributionKey } from "@/lib/distribution-signer";
 import {
@@ -61,7 +63,7 @@ export default function SigningPage() {
           Tài khoản cấp 1 đăng ký khóa cho doanh nghiệp. Khi thu hồi khóa, các
           bàn giao chưa hoàn tất cần được đối soát.
         </p>
-        <button
+        <Button
           className="button"
           disabled={
             creating ||
@@ -72,46 +74,46 @@ export default function SigningPage() {
           onClick={() => void create()}
         >
           {creating ? "Đang tạo khóa…" : "Tạo khóa trên thiết bị này"}
-        </button>
+        </Button>
       </section>
       <div className="manage-section manage-table-scroll">
-        <table className="manage-table">
-          <thead>
-            <tr>
-              <th>Khóa</th>
-              <th>Ngày tạo</th>
-              <th>Trạng thái</th>
-              <th>Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="manage-table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Khóa</TableHead>
+              <TableHead>Ngày tạo</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead>Thao tác</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {state.data?.items.map((k) => (
-              <tr key={String(k.id)}>
-                <td data-label="Khóa">
+              <TableRow key={String(k.id)}>
+                <TableCell data-label="Khóa">
                   {textValue(k.label)}
                   <small>{textValue(k.id)}</small>
-                </td>
-                <td data-label="Ngày tạo">
+                </TableCell>
+                <TableCell data-label="Ngày tạo">
                   {new Date(String(k.createdAt)).toLocaleDateString("vi-VN")}
-                </td>
-                <td data-label="Trạng thái">
+                </TableCell>
+                <TableCell data-label="Trạng thái">
                   <StatusBadge value={String(k.status)} />
-                </td>
-                <td data-label="Thao tác">
+                </TableCell>
+                <TableCell data-label="Thao tác">
                   {k.status === "ACTIVE" && overview.data?.member.primary && (
-                    <button
+                    <Button
                       className="text-link"
                       disabled={cmd.pending}
                       onClick={() => void revoke(String(k.id))}
                     >
                       Thu hồi
-                    </button>
+                    </Button>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

@@ -1,4 +1,8 @@
 "use client";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { Fragment, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { request, retryPendingCommand } from "@/lib/api-client";
 import { importantAction, useConfirm } from "@/lib/confirm";
@@ -207,7 +211,7 @@ export function DataForm({
               <label className={`field${f.className ? ` ${f.className}` : ""}`}>
                 <span id={formId + f.name}>{f.label}</span>
                 {f.options && f.type === "multiselect" ? (
-                  <select
+                  <NativeSelect
                     multiple
                     size={Math.min(5, Math.max(2, f.options.length))}
                     disabled={uncertain && !f.header}
@@ -227,9 +231,9 @@ export function DataForm({
                     {f.options.filter((o) => o.value !== values[f.excludes ?? ""]).map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 ) : f.options ? (
-                  <select
+                  <NativeSelect
                     disabled={uncertain && !f.header}
                     aria-labelledby={formId + f.name}
                     className="select"
@@ -248,9 +252,9 @@ export function DataForm({
                           {o.label}
                         </option>
                       ))}
-                  </select>
+                  </NativeSelect>
                 ) : f.type === "textarea" ? (
-                  <textarea
+                  <Textarea
                     disabled={uncertain && !f.header}
                     aria-labelledby={formId + f.name}
                     className="input"
@@ -263,7 +267,7 @@ export function DataForm({
                     onChange={(e) => change(f.name, e.target.value)}
                   />
                 ) : (
-                  <input
+                  <Input
                     disabled={uncertain && !f.header}
                     aria-labelledby={formId + f.name}
                     className="input"
@@ -303,9 +307,9 @@ export function DataForm({
           {error}
         </p>
       )}
-      <button className="button" disabled={pending}>
+      <Button className="button" disabled={pending}>
         {pending ? "Đang lưu…" : (submitLabel ?? title)}
-      </button>
+      </Button>
       {uncertain && (
         <p className="notice">
           Giữ nguyên tab và yêu cầu để đối soát; chưa chuẩn bị yêu cầu mới khi
@@ -313,17 +317,17 @@ export function DataForm({
         </p>
       )}
       {recoveryId && (
-        <button
+        <Button
           className="button secondary"
           type="button"
           disabled={pending}
           onClick={() => void recover()}
         >
           Kiểm tra và thử lại yêu cầu trước
-        </button>
+        </Button>
       )}
       {canRestart && (
-        <button
+        <Button
           className="button secondary"
           type="button"
           disabled={pending}
@@ -335,7 +339,7 @@ export function DataForm({
           }}
         >
           Chuẩn bị yêu cầu mới
-        </button>
+        </Button>
       )}
     </form>
   );

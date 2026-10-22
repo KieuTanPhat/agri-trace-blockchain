@@ -1,4 +1,5 @@
 "use client";
+import { Input } from "@/components/ui/input";
 
 import { useState } from "react";
 import { useWorkspaceCommand, useWorkspaceData } from "@/lib/workspace";
@@ -61,7 +62,7 @@ export default function SettingsPage() {
                         label="Đổi"
                         disabled={command.pending}
                         extra={
-                          <input
+                          <Input
                             className="input"
                             aria-label={`Giá trị mới cho ${r.key}`}
                             placeholder={r.hint ?? "Giá trị mới"}

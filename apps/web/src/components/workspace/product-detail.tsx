@@ -1,4 +1,7 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -181,18 +184,18 @@ export function ProductDetail({ id }: { id: string }) {
                 </Link>
               )}
               {canManage && (
-                <button
+                <Button
                   type="button"
                   className={`button ${row.status === "ACTIVE" ? "danger" : "secondary"}`}
                   disabled={cmd.pending}
                   onClick={() => setStatusOpen(true)}
                 >
                   {row.status === "ACTIVE" ? "Ngừng bán" : "Mở bán lại"}
-                </button>
+                </Button>
               )}
-              <button type="button" className="button secondary" onClick={() => setLogOpen(true)}>
+              <Button type="button" className="button secondary" onClick={() => setLogOpen(true)}>
                 Lịch sử chỉnh sửa ({history.data?.items.length ?? 0})
-              </button>
+              </Button>
             </div>
           </header>
 
@@ -201,15 +204,15 @@ export function ProductDetail({ id }: { id: string }) {
               <h2>Hình ảnh sản phẩm</h2>
               {photos.length ? (
                 <div className="product-view-photos">
-                  <button type="button" className="product-view-main" onClick={() => setPhoto(photos[0])}>
+                  <Button type="button" className="product-view-main" onClick={() => setPhoto(photos[0])}>
                     {photos[0].url && <Image src={photos[0].url} alt={photos[0].row.fileName} width={640} height={420} unoptimized />}
-                  </button>
+                  </Button>
                   <div className="product-view-thumbs">
                     {photos.slice(1, 5).map((file, index) => (
-                      <button type="button" key={file.id} onClick={() => setPhoto(file)}>
+                      <Button type="button" key={file.id} onClick={() => setPhoto(file)}>
                         {file.url && <Image src={file.url} alt={file.row.fileName} width={200} height={130} unoptimized />}
                         {index === 3 && photos.length > 5 && <span className="product-view-more">+{photos.length - 5}</span>}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>
@@ -284,7 +287,7 @@ export function ProductDetail({ id }: { id: string }) {
         <form className="workspace-form" onSubmit={changeStatus}>
           <label>
             Lý do
-            <textarea
+            <Textarea
               className="input"
               required
               minLength={10}
@@ -294,16 +297,16 @@ export function ProductDetail({ id }: { id: string }) {
             />
           </label>
           <div className="dialog-actions">
-            <button type="button" className="button secondary" onClick={() => setStatusOpen(false)}>
+            <Button type="button" className="button secondary" onClick={() => setStatusOpen(false)}>
               Hủy
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               className={`button ${nextStatus === "INACTIVE" ? "danger" : ""}`}
               disabled={cmd.pending || reason.trim().length < 10}
             >
               {cmd.pending ? "Đang lưu…" : nextStatus === "INACTIVE" ? "Xác nhận ngừng bán" : "Xác nhận mở bán"}
-            </button>
+            </Button>
           </div>
         </form>
       </InfoDialog>
@@ -351,9 +354,9 @@ export function RevisionLog({
       rows={[]}
       onClose={onClose}
       actions={
-        <button type="button" className="button" onClick={onClose}>
+        <Button type="button" className="button" onClick={onClose}>
           Đóng
-        </button>
+        </Button>
       }
     >
       <ol className="revision-log">
@@ -373,24 +376,24 @@ export function RevisionLog({
               </header>
               <p>Lý do: {revision.reason}</p>
               {changes.length ? (
-                <table className="manage-table compact">
-                  <thead>
-                    <tr>
-                      <th>Trường</th>
-                      <th>Trước</th>
-                      <th>Sau</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table className="manage-table compact">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Trường</TableHead>
+                      <TableHead>Trước</TableHead>
+                      <TableHead>Sau</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {changes.map(([field, label]) => (
-                      <tr key={field}>
-                        <td>{label}</td>
-                        <td>{name(field, before[field])}</td>
-                        <td>{name(field, next[field])}</td>
-                      </tr>
+                      <TableRow key={field}>
+                        <TableCell>{label}</TableCell>
+                        <TableCell>{name(field, before[field])}</TableCell>
+                        <TableCell>{name(field, next[field])}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               ) : (
                 <p className="muted">Không đổi trường thông tin nào.</p>
               )}

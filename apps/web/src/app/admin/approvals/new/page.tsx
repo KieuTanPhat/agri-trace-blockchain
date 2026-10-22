@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -64,7 +66,7 @@ function OrganizationSelect({
   return (
     <label className="field">
       <span>{label}</span>
-      <select
+      <NativeSelect
         className="select"
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -75,7 +77,7 @@ function OrganizationSelect({
             {org.name}
           </option>
         ))}
-      </select>
+      </NativeSelect>
     </label>
   );
 }
@@ -179,14 +181,14 @@ export default function NewApprovalPage() {
         aria-label="Loại thao tác cần phê duyệt"
       >
         {operations.map((item) => (
-          <button
+          <Button
             key={item}
             type="button"
             aria-pressed={operation === item}
             onClick={() => setOperation(item)}
           >
             {approvalOperationLabels[item]}
-          </button>
+          </Button>
         ))}
       </div>
       <div className="manage-form-shell">
@@ -319,7 +321,7 @@ export default function NewApprovalPage() {
           <>
             <label className="field">
               <span>Yêu cầu kết nối chờ duyệt</span>
-              <select
+              <NativeSelect
                 className="select"
                 value={connectionId}
                 onChange={(event) => setConnectionId(event.target.value)}
@@ -330,7 +332,7 @@ export default function NewApprovalPage() {
                     {enrollment.organizationName} · {connection.id.slice(0, 8)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             {!pending.length && !enrollments.loading && (
               <p className="notice" role="status">

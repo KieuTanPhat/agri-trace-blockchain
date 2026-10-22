@@ -1,4 +1,7 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { request } from "@/lib/api-client";
@@ -254,7 +257,7 @@ export default function OperationsPage() {
       />
       <section className="manage-section" aria-label="Bộ lọc vận hành">
         <div className="manage-filter-bar manage-audit-filters">
-          <select
+          <NativeSelect
             className="manage-filter-select"
             aria-label="Lọc theo chuỗi"
             value={chainId}
@@ -266,8 +269,8 @@ export default function OperationsPage() {
                 {chain.name}
               </option>
             ))}
-          </select>
-          <select
+          </NativeSelect>
+          <NativeSelect
             className="manage-filter-select"
             aria-label="Lọc theo tổ chức"
             value={organizationId}
@@ -279,7 +282,7 @@ export default function OperationsPage() {
                 {organization.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <ReloadButton onClick={refresh} />
         </div>
         <div className="manage-results-summary" role="status">
@@ -322,7 +325,7 @@ export default function OperationsPage() {
           aria-label="Nhóm chi tiết"
         >
           {sections.map((item) => (
-            <button
+            <Button
               type="button"
               key={item.key}
               aria-pressed={section === item.key}
@@ -334,12 +337,12 @@ export default function OperationsPage() {
               }}
             >
               {item.label}
-            </button>
+            </Button>
           ))}
         </div>
         {statusOptions[section] && (
           <div className="manage-filter-bar">
-            <select
+            <NativeSelect
               className="manage-filter-select"
               aria-label="Lọc trạng thái"
               value={status}
@@ -350,7 +353,7 @@ export default function OperationsPage() {
                   {label}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
         )}
         {error && (
@@ -369,9 +372,9 @@ export default function OperationsPage() {
           credentials && <CredentialsPanel data={credentials} />
         ) : rows.length ? (
           <div className="manage-table-scroll">
-            <table className="manage-table">
+            <Table className="manage-table">
               <OperationsTable section={section} rows={rows} />
-            </table>
+            </Table>
           </div>
         ) : (
           !loading &&
@@ -383,14 +386,14 @@ export default function OperationsPage() {
           )
         )}
         {next && (
-          <button
+          <Button
             className="manage-section-footer"
             type="button"
             disabled={loading}
             onClick={() => void loadRows(next)}
           >
             {loading ? "Đang tải…" : "Tải thêm"}
-          </button>
+          </Button>
         )}
       </section>
     </div>
@@ -401,146 +404,146 @@ function OperationsTable({ section, rows }: { section: Section; rows: Row[] }) {
   if (section === "outbox")
     return (
       <>
-        <thead>
-          <tr>
-            <th scope="col">Sự kiện</th>
-            <th scope="col">Trạng thái</th>
-            <th scope="col">Số lần thử</th>
-            <th scope="col">Lần thử tới</th>
-            <th scope="col">Tuổi</th>
-            <th scope="col">Tổ chức / chuỗi</th>
-          </tr>
-        </thead>
-        <tbody>
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">Sự kiện</TableHead>
+            <TableHead scope="col">Trạng thái</TableHead>
+            <TableHead scope="col">Số lần thử</TableHead>
+            <TableHead scope="col">Lần thử tới</TableHead>
+            <TableHead scope="col">Tuổi</TableHead>
+            <TableHead scope="col">Tổ chức / chuỗi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((row) => (
-            <tr key={String(row.id)}>
-              <td data-label="Sự kiện">
+            <TableRow key={String(row.id)}>
+              <TableCell data-label="Sự kiện">
                 <strong>{text(row.eventType)}</strong>
                 <small>{text(row.lastError)}</small>
-              </td>
-              <td data-label="Trạng thái">
+              </TableCell>
+              <TableCell data-label="Trạng thái">
                 {text(row.status)}
                 {row.leased === true && <small>Đang được Worker giữ</small>}
-              </td>
-              <td data-label="Số lần thử">{text(row.attemptCount)}</td>
-              <td data-label="Lần thử tới">{when(row.nextAttemptAt)}</td>
-              <td data-label="Tuổi">{age(row.ageSeconds)}</td>
-              <td data-label="Tổ chức / chuỗi">
+              </TableCell>
+              <TableCell data-label="Số lần thử">{text(row.attemptCount)}</TableCell>
+              <TableCell data-label="Lần thử tới">{when(row.nextAttemptAt)}</TableCell>
+              <TableCell data-label="Tuổi">{age(row.ageSeconds)}</TableCell>
+              <TableCell data-label="Tổ chức / chuỗi">
                 {orgName(row.organization)}
                 <small>{text(row.chainName)}</small>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
+        </TableBody>
       </>
     );
   if (section === "holds")
     return (
       <>
-        <thead>
-          <tr>
-            <th scope="col">Phạm vi</th>
-            <th scope="col">Lý do</th>
-            <th scope="col">Mở lúc</th>
-            <th scope="col">Tuổi</th>
-          </tr>
-        </thead>
-        <tbody>
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">Phạm vi</TableHead>
+            <TableHead scope="col">Lý do</TableHead>
+            <TableHead scope="col">Mở lúc</TableHead>
+            <TableHead scope="col">Tuổi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((row) => (
-            <tr key={String(row.id)}>
-              <td data-label="Phạm vi">{text(row.scope)}</td>
-              <td data-label="Lý do">{text(row.reason)}</td>
-              <td data-label="Mở lúc">{when(row.openedAt)}</td>
-              <td data-label="Tuổi">{age(row.ageSeconds)}</td>
-            </tr>
+            <TableRow key={String(row.id)}>
+              <TableCell data-label="Phạm vi">{text(row.scope)}</TableCell>
+              <TableCell data-label="Lý do">{text(row.reason)}</TableCell>
+              <TableCell data-label="Mở lúc">{when(row.openedAt)}</TableCell>
+              <TableCell data-label="Tuổi">{age(row.ageSeconds)}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
+        </TableBody>
       </>
     );
   if (section === "ledger-jobs")
     return (
       <>
-        <thead>
-          <tr>
-            <th scope="col">Tác vụ</th>
-            <th scope="col">Trạng thái</th>
-            <th scope="col">Số lần thử</th>
-            <th scope="col">Lần thử tới</th>
-            <th scope="col">Tuổi</th>
-          </tr>
-        </thead>
-        <tbody>
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">Tác vụ</TableHead>
+            <TableHead scope="col">Trạng thái</TableHead>
+            <TableHead scope="col">Số lần thử</TableHead>
+            <TableHead scope="col">Lần thử tới</TableHead>
+            <TableHead scope="col">Tuổi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((row) => (
-            <tr key={String(row.id)}>
-              <td data-label="Tác vụ">
+            <TableRow key={String(row.id)}>
+              <TableCell data-label="Tác vụ">
                 <strong>{text(row.operation)}</strong>
                 <small>{text(row.lastError)}</small>
-              </td>
-              <td data-label="Trạng thái">{text(row.status)}</td>
-              <td data-label="Số lần thử">{text(row.attemptCount)}</td>
-              <td data-label="Lần thử tới">{when(row.nextAttemptAt)}</td>
-              <td data-label="Tuổi">{age(row.ageSeconds)}</td>
-            </tr>
+              </TableCell>
+              <TableCell data-label="Trạng thái">{text(row.status)}</TableCell>
+              <TableCell data-label="Số lần thử">{text(row.attemptCount)}</TableCell>
+              <TableCell data-label="Lần thử tới">{when(row.nextAttemptAt)}</TableCell>
+              <TableCell data-label="Tuổi">{age(row.ageSeconds)}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
+        </TableBody>
       </>
     );
   if (section === "binding-health")
     return (
       <>
-        <thead>
-          <tr>
-            <th scope="col">Kết nối</th>
-            <th scope="col">Kiểm tra gần nhất</th>
-            <th scope="col">Khỏe gần nhất</th>
-            <th scope="col">Lỗi</th>
-            <th scope="col">Chứng thư hết hạn</th>
-          </tr>
-        </thead>
-        <tbody>
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">Kết nối</TableHead>
+            <TableHead scope="col">Kiểm tra gần nhất</TableHead>
+            <TableHead scope="col">Khỏe gần nhất</TableHead>
+            <TableHead scope="col">Lỗi</TableHead>
+            <TableHead scope="col">Chứng thư hết hạn</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((row) => (
-            <tr key={String(row.bindingDigest)}>
-              <td data-label="Kết nối">
+            <TableRow key={String(row.bindingDigest)}>
+              <TableCell data-label="Kết nối">
                 <strong>{text(row.bindingDigest)}…</strong>
                 {row.stale === true && (
                   <small>Quá lâu chưa được kiểm tra</small>
                 )}
-              </td>
-              <td data-label="Kiểm tra gần nhất">{when(row.lastCheckedAt)}</td>
-              <td data-label="Khỏe gần nhất">{when(row.lastHealthyAt)}</td>
-              <td data-label="Lỗi">{text(row.lastErrorCode)}</td>
-              <td data-label="Chứng thư hết hạn">
+              </TableCell>
+              <TableCell data-label="Kiểm tra gần nhất">{when(row.lastCheckedAt)}</TableCell>
+              <TableCell data-label="Khỏe gần nhất">{when(row.lastHealthyAt)}</TableCell>
+              <TableCell data-label="Lỗi">{text(row.lastErrorCode)}</TableCell>
+              <TableCell data-label="Chứng thư hết hạn">
                 {when(row.certificateExpiresAt)}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
+        </TableBody>
       </>
     );
   return (
     <>
-      <thead>
-        <tr>
-          <th scope="col">Loại thư</th>
-          <th scope="col">Trạng thái</th>
-          <th scope="col">Số lần thử</th>
-          <th scope="col">Lần thử tới</th>
-          <th scope="col">Tuổi</th>
-          <th scope="col">Tổ chức</th>
-        </tr>
-      </thead>
-      <tbody>
+      <TableHeader>
+        <TableRow>
+          <TableHead scope="col">Loại thư</TableHead>
+          <TableHead scope="col">Trạng thái</TableHead>
+          <TableHead scope="col">Số lần thử</TableHead>
+          <TableHead scope="col">Lần thử tới</TableHead>
+          <TableHead scope="col">Tuổi</TableHead>
+          <TableHead scope="col">Tổ chức</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {rows.map((row) => (
-          <tr key={String(row.id)}>
-            <td data-label="Loại thư">{text(row.kind)}</td>
-            <td data-label="Trạng thái">{text(row.status)}</td>
-            <td data-label="Số lần thử">{text(row.attempts)}</td>
-            <td data-label="Lần thử tới">{when(row.nextAttemptAt)}</td>
-            <td data-label="Tuổi">{age(row.ageSeconds)}</td>
-            <td data-label="Tổ chức">{orgName(row.organization)}</td>
-          </tr>
+          <TableRow key={String(row.id)}>
+            <TableCell data-label="Loại thư">{text(row.kind)}</TableCell>
+            <TableCell data-label="Trạng thái">{text(row.status)}</TableCell>
+            <TableCell data-label="Số lần thử">{text(row.attempts)}</TableCell>
+            <TableCell data-label="Lần thử tới">{when(row.nextAttemptAt)}</TableCell>
+            <TableCell data-label="Tuổi">{age(row.ageSeconds)}</TableCell>
+            <TableCell data-label="Tổ chức">{orgName(row.organization)}</TableCell>
+          </TableRow>
         ))}
-      </tbody>
+      </TableBody>
     </>
   );
 }
@@ -585,38 +588,38 @@ function CredentialsPanel({ data }: { data: CredentialsOverview }) {
       <h3>Chứng thư hết hạn hoặc sắp hết hạn (30 ngày)</h3>
       {cert.items.length ? (
         <div className="manage-table-scroll">
-          <table className="manage-table">
-            <thead>
-              <tr>
-                <th scope="col">Kết nối</th>
-                <th scope="col">Hết hạn</th>
-                <th scope="col">Còn lại</th>
-                <th scope="col">Nhóm</th>
-                <th scope="col">Kiểm tra gần nhất</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="manage-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col">Kết nối</TableHead>
+                <TableHead scope="col">Hết hạn</TableHead>
+                <TableHead scope="col">Còn lại</TableHead>
+                <TableHead scope="col">Nhóm</TableHead>
+                <TableHead scope="col">Kiểm tra gần nhất</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {cert.items.map((item) => (
-                <tr key={item.bindingDigest}>
-                  <td data-label="Kết nối">{item.bindingDigest}…</td>
-                  <td data-label="Hết hạn">
+                <TableRow key={item.bindingDigest}>
+                  <TableCell data-label="Kết nối">{item.bindingDigest}…</TableCell>
+                  <TableCell data-label="Hết hạn">
                     {when(item.certificateExpiresAt)}
-                  </td>
-                  <td data-label="Còn lại">
+                  </TableCell>
+                  <TableCell data-label="Còn lại">
                     {item.daysLeft < 0
                       ? `Quá hạn ${-item.daysLeft} ngày`
                       : `${item.daysLeft} ngày`}
-                  </td>
-                  <td data-label="Nhóm">
+                  </TableCell>
+                  <TableCell data-label="Nhóm">
                     {bandLabel[item.bucket] ?? item.bucket}
-                  </td>
-                  <td data-label="Kiểm tra gần nhất">
+                  </TableCell>
+                  <TableCell data-label="Kiểm tra gần nhất">
                     {when(item.lastCheckedAt)}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       ) : (
         <EmptyState
@@ -630,24 +633,24 @@ function CredentialsPanel({ data }: { data: CredentialsOverview }) {
       </h3>
       {data.credentials.items.length > 0 && (
         <div className="manage-table-scroll">
-          <table className="manage-table">
-            <thead>
-              <tr>
-                <th scope="col">Kết nối</th>
-                <th scope="col">Vân tay (đầu)</th>
-                <th scope="col">Thu hồi lúc</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="manage-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col">Kết nối</TableHead>
+                <TableHead scope="col">Vân tay (đầu)</TableHead>
+                <TableHead scope="col">Thu hồi lúc</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {data.credentials.items.map((item) => (
-                <tr key={item.id}>
-                  <td data-label="Kết nối">{item.bindingDigest}…</td>
-                  <td data-label="Vân tay (đầu)">{item.fingerprint}…</td>
-                  <td data-label="Thu hồi lúc">{when(item.revokedAt)}</td>
-                </tr>
+                <TableRow key={item.id}>
+                  <TableCell data-label="Kết nối">{item.bindingDigest}…</TableCell>
+                  <TableCell data-label="Vân tay (đầu)">{item.fingerprint}…</TableCell>
+                  <TableCell data-label="Thu hồi lúc">{when(item.revokedAt)}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
       <h3>
@@ -657,26 +660,26 @@ function CredentialsPanel({ data }: { data: CredentialsOverview }) {
       </h3>
       {data.signingKeys.items.length > 0 && (
         <div className="manage-table-scroll">
-          <table className="manage-table">
-            <thead>
-              <tr>
-                <th scope="col">Khóa</th>
-                <th scope="col">Tổ chức</th>
-                <th scope="col">Thu hồi lúc</th>
-                <th scope="col">Lý do</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="manage-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col">Khóa</TableHead>
+                <TableHead scope="col">Tổ chức</TableHead>
+                <TableHead scope="col">Thu hồi lúc</TableHead>
+                <TableHead scope="col">Lý do</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {data.signingKeys.items.map((item) => (
-                <tr key={item.keyRef}>
-                  <td data-label="Khóa">{item.label}</td>
-                  <td data-label="Tổ chức">{orgName(item.organization)}</td>
-                  <td data-label="Thu hồi lúc">{when(item.revokedAt)}</td>
-                  <td data-label="Lý do">{text(item.revokeReason)}</td>
-                </tr>
+                <TableRow key={item.keyRef}>
+                  <TableCell data-label="Khóa">{item.label}</TableCell>
+                  <TableCell data-label="Tổ chức">{orgName(item.organization)}</TableCell>
+                  <TableCell data-label="Thu hồi lúc">{when(item.revokedAt)}</TableCell>
+                  <TableCell data-label="Lý do">{text(item.revokeReason)}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

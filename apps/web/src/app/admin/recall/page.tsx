@@ -1,4 +1,7 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import { useRef, useState } from "react";
 import type { components } from "@/lib/generated/api";
@@ -60,7 +63,7 @@ export default function RecallPage() {
       >
         <label className="field">
           ID lô nguồn
-          <input
+          <Input
             className="input"
             required
             value={lotId}
@@ -68,9 +71,9 @@ export default function RecallPage() {
             placeholder="UUID của lô cần diễn tập"
           />
         </label>
-        <button className="button" disabled={loading}>
+        <Button className="button" disabled={loading}>
           {loading ? "Đang tổng hợp…" : "Tạo bản diễn tập"}
-        </button>
+        </Button>
       </form>
       {error && (
         <p className="notice error" role="alert">
@@ -88,7 +91,7 @@ export default function RecallPage() {
                   {data.movements.length} chặng
                 </p>
               </div>
-              <button
+              <Button
                 className="button secondary"
                 type="button"
                 onClick={() =>
@@ -100,7 +103,7 @@ export default function RecallPage() {
                 }
               >
                 Tải bản diễn tập
-              </button>
+              </Button>
             </div>
             {data.truncated && (
               <p className="notice error" role="alert">
@@ -115,61 +118,61 @@ export default function RecallPage() {
           <section className="manage-section">
             <h2>Lô thuộc phạm vi</h2>
             <div className="manage-table-scroll">
-              <table className="manage-table">
-                <thead>
-                  <tr>
-                    <th>Lô</th>
-                    <th>Trạng thái</th>
-                    <th>Lượng ban đầu</th>
-                    <th>Lượng khả dụng ghi nhận</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="manage-table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Lô</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead>Lượng ban đầu</TableHead>
+                    <TableHead>Lượng khả dụng ghi nhận</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {data.lots.map((lot) => (
-                    <tr key={lot.id}>
-                      <td data-label="Lô">
+                    <TableRow key={lot.id}>
+                      <TableCell data-label="Lô">
                         {lot.lotCode}
                         <small>{lot.id}</small>
-                      </td>
-                      <td data-label="Trạng thái">{lot.state}</td>
-                      <td data-label="Lượng ban đầu">
+                      </TableCell>
+                      <TableCell data-label="Trạng thái">{lot.state}</TableCell>
+                      <TableCell data-label="Lượng ban đầu">
                         {lot.initialQuantity} {lot.unit}
-                      </td>
-                      <td data-label="Lượng khả dụng ghi nhận">
+                      </TableCell>
+                      <TableCell data-label="Lượng khả dụng ghi nhận">
                         {lot.availableQuantity} {lot.unit}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </section>
           <section className="manage-section">
             <h2>Phân bổ theo doanh nghiệp</h2>
             {data.holdings.length ? (
               <div className="manage-table-scroll">
-                <table className="manage-table">
-                  <thead>
-                    <tr>
-                      <th>Doanh nghiệp</th>
-                      <th>Lô</th>
-                      <th>Đang phân bổ</th>
-                      <th>Trong đó giữ chỗ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table className="manage-table">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Doanh nghiệp</TableHead>
+                      <TableHead>Lô</TableHead>
+                      <TableHead>Đang phân bổ</TableHead>
+                      <TableHead>Trong đó giữ chỗ</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {data.holdings.map((h) => (
-                      <tr key={`${h.lotId}:${h.organizationId}`}>
-                        <td data-label="Doanh nghiệp">{h.organizationName}</td>
-                        <td data-label="Lô">
+                      <TableRow key={`${h.lotId}:${h.organizationId}`}>
+                        <TableCell data-label="Doanh nghiệp">{h.organizationName}</TableCell>
+                        <TableCell data-label="Lô">
                           {data.lots.find((l) => l.id === h.lotId)?.lotCode}
-                        </td>
-                        <td data-label="Đang phân bổ">{h.quantity}</td>
-                        <td data-label="Trong đó giữ chỗ">{h.reserved}</td>
-                      </tr>
+                        </TableCell>
+                        <TableCell data-label="Đang phân bổ">{h.quantity}</TableCell>
+                        <TableCell data-label="Trong đó giữ chỗ">{h.reserved}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             ) : (
               <EmptyState
@@ -181,32 +184,32 @@ export default function RecallPage() {
           <section className="manage-section">
             <h2>Chặng liên quan</h2>
             <div className="manage-table-scroll">
-              <table className="manage-table">
-                <thead>
-                  <tr>
-                    <th>Chặng</th>
-                    <th>Lô</th>
-                    <th>Bên nhận (ID)</th>
-                    <th>Lượng giao</th>
-                    <th>Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="manage-table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Chặng</TableHead>
+                    <TableHead>Lô</TableHead>
+                    <TableHead>Bên nhận (ID)</TableHead>
+                    <TableHead>Lượng giao</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {data.movements.map((m) => (
-                    <tr key={`${m.kind}:${m.id}:${m.lotId}`}>
-                      <td data-label="Chặng">{m.id}</td>
-                      <td data-label="Lô">
+                    <TableRow key={`${m.kind}:${m.id}:${m.lotId}`}>
+                      <TableCell data-label="Chặng">{m.id}</TableCell>
+                      <TableCell data-label="Lô">
                         {data.lots.find((l) => l.id === m.lotId)?.lotCode}
-                      </td>
-                      <td data-label="Bên nhận (ID)">{m.receiverId}</td>
-                      <td data-label="Lượng giao">
+                      </TableCell>
+                      <TableCell data-label="Bên nhận (ID)">{m.receiverId}</TableCell>
+                      <TableCell data-label="Lượng giao">
                         {m.quantity} {m.unit}
-                      </td>
-                      <td data-label="Trạng thái">{m.status}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell data-label="Trạng thái">{m.status}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </section>
         </>

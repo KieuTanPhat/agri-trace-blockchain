@@ -1,4 +1,8 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import Link from "next/link";
 import { useState } from 'react';
 import { useWorkspaceData, textValue, type Row,type Overview } from "@/lib/workspace";
@@ -46,13 +50,13 @@ export default function ReportsPage() {
         description="Số lượng theo lô nguồn và doanh nghiệp đang giữ. Các lượng khác đơn vị được đối soát riêng."
       />
       <div className="workspace-actions">
-        <button
+        <Button
           className="button secondary"
           onClick={download}
           disabled={!state.data}
         >
           Tải CSV trang đang xem
-        </button>
+        </Button>
         {overview.data?.permissions.includes('quantity.adjust')&&<Link className="button secondary" href="/enterprise/reports/adjust">
           Ghi giảm lượng hàng
         </Link>}
@@ -61,25 +65,25 @@ export default function ReportsPage() {
           Xem các chặng giao nhận →
         </Link>
       </div>
-      <section className="panel enterprise-fields" aria-label="Lọc báo cáo"><label>Tìm lô / sản phẩm<input className="input" value={q} maxLength={100} onChange={e=>{setQ(e.target.value);setPage(1);}}/></label><label>Cơ sở<select className="input" value={siteId} onChange={e=>{setSiteId(e.target.value);setPage(1);}}><option value="">Tất cả cơ sở trong quyền</option>{sites.data?.items.map(s=><option key={String(s.id)} value={String(s.id)}>{textValue(s.name)}</option>)}</select></label><label>Hết hạn đến ngày<input className="input" type="date" value={expiryBefore} onChange={e=>{setExpiryBefore(e.target.value);setPage(1);}}/></label></section>
+      <section className="panel enterprise-fields" aria-label="Lọc báo cáo"><label>Tìm lô / sản phẩm<Input className="input" value={q} maxLength={100} onChange={e=>{setQ(e.target.value);setPage(1);}}/></label><label>Cơ sở<NativeSelect className="input" value={siteId} onChange={e=>{setSiteId(e.target.value);setPage(1);}}><option value="">Tất cả cơ sở trong quyền</option>{sites.data?.items.map(s=><option key={String(s.id)} value={String(s.id)}>{textValue(s.name)}</option>)}</NativeSelect></label><label>Hết hạn đến ngày<Input className="input" type="date" value={expiryBefore} onChange={e=>{setExpiryBefore(e.target.value);setPage(1);}}/></label></section>
       <LoadState {...state} />
       <div className="manage-section manage-table-scroll">
         {state.data?.lots.length ? (
-          <table className="manage-table">
-            <thead>
-              <tr>
-                <th>Lô nguồn</th>
-                <th>Lượng nguồn</th>
-                <th>Còn toàn lô</th>
-                <th>Đang giữ</th>
-                <th>Đã dành giao</th>
-                <th>Có thể giao tiếp</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="manage-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Lô nguồn</TableHead>
+                <TableHead>Lượng nguồn</TableHead>
+                <TableHead>Còn toàn lô</TableHead>
+                <TableHead>Đang giữ</TableHead>
+                <TableHead>Đã dành giao</TableHead>
+                <TableHead>Có thể giao tiếp</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {state.data.lots.map((l) => (
-                <tr key={String(l.lotId)}>
-                  <td>
+                <TableRow key={String(l.lotId)}>
+                  <TableCell>
                     {textValue(l.lotCode)}
                     {Boolean(l.blocked) && (
                       <small className="workspace-badge blocked">
@@ -95,7 +99,7 @@ export default function ReportsPage() {
                         Truy xuất hai chiều →
                       </Link>
                     )}
-                  </td>
+                  </TableCell>
                   {[
                     "initialQuantity",
                     "globalAvailable",
@@ -103,19 +107,19 @@ export default function ReportsPage() {
                     "reserved",
                     "available",
                   ].map((c) => (
-                    <td key={c}>
+                    <TableCell key={c}>
                       {textValue(l[c])} {textValue(l.unit)}
-                    </td>
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         ) : (
           !state.loading && !state.error && <EmptyState />
         )}
       </div>
-      <nav className="workspace-actions" aria-label="Trang báo cáo"><button className="button secondary" disabled={page===1||state.loading} onClick={()=>setPage(p=>p-1)}>Trang trước</button><span>Trang {page}</span><button className="button secondary" disabled={!state.data?.hasNext||state.loading} onClick={()=>setPage(p=>p+1)}>Trang sau</button></nav>
+      <nav className="workspace-actions" aria-label="Trang báo cáo"><Button className="button secondary" disabled={page===1||state.loading} onClick={()=>setPage(p=>p-1)}>Trang trước</Button><span>Trang {page}</span><Button className="button secondary" disabled={!state.data?.hasNext||state.loading} onClick={()=>setPage(p=>p+1)}>Trang sau</Button></nav>
       <section className="panel">
         <h2>Hành trình phân phối</h2>
         <p className="muted">

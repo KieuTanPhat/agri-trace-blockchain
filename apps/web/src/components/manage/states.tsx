@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Inbox, RefreshCw } from "lucide-react";
 /** Loading or error line for a page's data request. */
 export function LoadState({
   loading,
@@ -11,11 +14,11 @@ export function LoadState({
     <div className="panel manage-loading" role="status" aria-live="polite">
       <span className="manage-spinner" aria-hidden="true" />
       <span>Đang tải dữ liệu…</span>
-      <span className="manage-skeleton" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </span>
+      <div className="manage-skeleton" aria-hidden="true">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-full" />
+      </div>
     </div>
   ) : error ? (
     <p className="notice error" role="alert">
@@ -33,6 +36,7 @@ export function EmptyState({
 }) {
   return (
     <div className="manage-empty">
+      <Inbox size={28} className="mx-auto mb-3 text-muted-foreground" aria-hidden="true" />
       <strong>{title}</strong>
       <p>{description}</p>
     </div>
@@ -41,13 +45,13 @@ export function EmptyState({
 
 export function ReloadButton({ onClick }: { onClick(): void }) {
   return (
-    <button
-      className="button secondary manage-reload"
+    <Button variant="outline"
+      className="manage-reload"
       type="button"
       onClick={onClick}
     >
-       Tải lại
-    </button>
+      <RefreshCw size={14} aria-hidden="true" /> Tải lại
+    </Button>
   );
 }
 

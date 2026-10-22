@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -13,6 +15,7 @@ export type PageAction = {
 /** Title block shared by platform and enterprise management pages. */
 export function PageHeader({
   title,
+  description,
   back,
   backLabel = "Quay lại",
   action,
@@ -39,14 +42,16 @@ export function PageHeader({
           </Link>
         )}
         <h1>{title}</h1>
+        {description && <div className="manage-page-description">{description}</div>}
       </div>
       {(action || actions) && (
         <div className="manage-header-actions">
           {actions}
           {action && (
-            <Link className="button manage-primary-action" href={action.href}>
+            <Button asChild><Link href={action.href}>
+              {action.kind === "create" && <Plus size={16} aria-hidden="true" />}
               {action.label}
-            </Link>
+            </Link></Button>
           )}
         </div>
       )}

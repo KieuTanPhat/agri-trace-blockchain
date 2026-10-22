@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import Link from "next/link";
 import {
   useCallback,
@@ -106,7 +109,7 @@ function CaseReply({
         <span className="sr-only">
           Ghi chú hoặc phản hồi cho hồ sơ #{record.caseNumber}
         </span>
-        <input
+        <Input
           id={inputId}
           className="input"
           value={note}
@@ -117,35 +120,35 @@ function CaseReply({
         />
       </label>
       {command.frozen ? (
-        <button
+        <Button
           className="button"
           type="button"
           disabled={command.pending}
           onClick={() => void execute(lastAction)}
         >
           {command.pending ? "Đang đối soát…" : "Thử lại yêu cầu cũ"}
-        </button>
+        </Button>
       ) : (
         <>
           {allowed.includes("ACKNOWLEDGE") && (
-            <button
+            <Button
               className="button secondary"
               type="submit"
               value="ACKNOWLEDGE"
               disabled={command.pending}
             >
               Xác nhận đã nhận
-            </button>
+            </Button>
           )}
           {allowed.includes("RESPOND") && (
-            <button
+            <Button
               className="button"
               type="submit"
               value="RESPOND"
               disabled={command.pending}
             >
               Gửi phản hồi
-            </button>
+            </Button>
           )}
         </>
       )}
@@ -239,13 +242,13 @@ function InboxCard({
         </dl>
       </div>
       <footer className="inbox-card-actions">
-        <button
+        <Button
           className="button secondary"
           type="button"
           onClick={() => setOpen(true)}
         >
           Xem chi tiết
-        </button>
+        </Button>
         {record ? (
           <CaseReply record={record} onSaved={onCaseSaved} onBusy={onBusy} />
         ) : (
@@ -263,13 +266,13 @@ function InboxCard({
         onClose={() => setOpen(false)}
         actions={
           <>
-            <button
+            <Button
               className="button secondary"
               type="button"
               onClick={() => setOpen(false)}
             >
               Đóng
-            </button>
+            </Button>
             {relatedHref && (
               <Link className="button secondary" href={relatedHref}>
                 {item.relatedLabel}
@@ -447,14 +450,14 @@ export function InboxWorkspace() {
         />
         <div className="inbox-refresh">
           {loadedAt && <span>Tải dữ liệu lúc {loadedAt}</span>}
-          <button
+          <Button
             className="button secondary"
             type="button"
             disabled={loading || busy.size > 0}
             onClick={reload}
           >
             {loading ? "Đang tải…" : "Tải lại"}
-          </button>
+          </Button>
         </div>
       </div>
       <section className="inbox-stats" aria-label="Thống kê công việc">
@@ -492,7 +495,7 @@ export function InboxWorkspace() {
                     : openItems.filter((item) => item.kind === entry.key)
                         .length;
               return (
-                <button
+                <Button
                   type="button"
                   key={entry.key}
                   aria-pressed={tab === entry.key}
@@ -502,12 +505,12 @@ export function InboxWorkspace() {
                   }}
                 >
                   {entry.label} <span>({count})</span>
-                </button>
+                </Button>
               );
             })}
         </div>
         <div className="inbox-filters">
-          <select
+          <NativeSelect
             className="input"
             aria-label="Lọc trạng thái công việc"
             value={status}
@@ -520,8 +523,8 @@ export function InboxWorkspace() {
                 {label}
               </option>
             ))}
-          </select>
-          <select
+          </NativeSelect>
+          <NativeSelect
             className="input"
             aria-label="Lọc mức ưu tiên"
             value={priority}
@@ -534,8 +537,8 @@ export function InboxWorkspace() {
               </option>
             ))}
             <option value="NONE">Chưa phân mức</option>
-          </select>
-          <input
+          </NativeSelect>
+          <Input
             className="input"
             type="search"
             aria-label="Tìm kiếm công việc"
@@ -584,13 +587,13 @@ export function InboxWorkspace() {
                 : "Các việc được giao sẽ xuất hiện tại đây."}
           </p>
           {items.length > 0 && (
-            <button
+            <Button
               className="button secondary"
               type="button"
               onClick={clearFilters}
             >
               Xóa bộ lọc
-            </button>
+            </Button>
           )}
         </div>
       )}

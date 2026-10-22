@@ -1,4 +1,5 @@
 "use client";
+import { Tabs as TabsRoot, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
@@ -133,20 +134,8 @@ export function Tabs({
   onChange(value: string): void;
 }) {
   return (
-    <div className="admin-tabs" role="tablist">
-      {tabs.map((tab) => (
-        <button
-          key={tab.value}
-          type="button"
-          role="tab"
-          aria-selected={tab.value === value}
-          className={tab.value === value ? "active" : undefined}
-          onClick={() => onChange(tab.value)}
-        >
-          {tab.label}
-          {tab.count !== undefined && <span>{tab.count}</span>}
-        </button>
-      ))}
-    </div>
+    <TabsRoot value={value} onValueChange={onChange}>
+      <TabsList aria-label="Nhóm dữ liệu">{tabs.map(tab => <TabsTrigger key={tab.value} value={tab.value}>{tab.label}{tab.count !== undefined && <span>{tab.count}</span>}</TabsTrigger>)}</TabsList>
+    </TabsRoot>
   );
 }

@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -98,18 +101,18 @@ export default function NewProcessingRunPage() {
         <Section title="1. Cơ sở và quy trình">
           <div className="admin-inline-form">
             <label className="field">Cơ sở chế biến
-              <select className="input" required value={siteId} onChange={(e) => { setSiteId(e.target.value); setInputs([]); }}>
+              <NativeSelect className="input" required value={siteId} onChange={(e) => { setSiteId(e.target.value); setInputs([]); }}>
                 <option value="">Chọn cơ sở</option>
                 {sites.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-              </select>
+              </NativeSelect>
             </label>
             <label className="field">Loại chế biến
-              <select className="input" value={processType} onChange={(e) => setProcessType(e.target.value)}>
+              <NativeSelect className="input" value={processType} onChange={(e) => setProcessType(e.target.value)}>
                 {Object.entries(processTypeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
+              </NativeSelect>
             </label>
-            <label className="field">Quy trình / công thức<input className="input" maxLength={500} value={recipe} onChange={(e) => setRecipe(e.target.value)} placeholder="Ví dụ: sấy 60°C trong 8 giờ" /></label>
-            <label className="field">Ghi chú<input className="input" maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+            <label className="field">Quy trình / công thức<Input className="input" maxLength={500} value={recipe} onChange={(e) => setRecipe(e.target.value)} placeholder="Ví dụ: sấy 60°C trong 8 giờ" /></label>
+            <label className="field">Ghi chú<Input className="input" maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} /></label>
           </div>
         </Section>
         <Section title="2. Nguyên liệu đầu vào" help={`Đơn vị cơ sở: ${baseUnit}. Mọi lô đầu vào phải cùng chuỗi và cùng đơn vị.`}>
@@ -118,7 +121,7 @@ export default function NewProcessingRunPage() {
             return (
               <div className="admin-inline-form" key={`${m.lotId}-${m.siteId}`}>
                 <label className="reg-check">
-                  <input
+                  <Input
                     type="checkbox"
                     checked={!!line}
                     onChange={(e) => setInputs(e.target.checked ? [...inputs, { lotId: String(m.lotId), quantity: String(m.available) }] : inputs.filter((i) => i.lotId !== m.lotId))}
@@ -127,7 +130,7 @@ export default function NewProcessingRunPage() {
                 </label>
                 {line && (
                   <label className="field">Lượng dùng
-                    <input className="input" type="number" step="0.001" min="0.001" max={Number(m.available)} required value={line.quantity} onChange={(e) => setInputs(inputs.map((i) => (i.lotId === m.lotId ? { ...i, quantity: e.target.value } : i)))} />
+                    <Input className="input" type="number" step="0.001" min="0.001" max={Number(m.available)} required value={line.quantity} onChange={(e) => setInputs(inputs.map((i) => (i.lotId === m.lotId ? { ...i, quantity: e.target.value } : i)))} />
                   </label>
                 )}
               </div>
@@ -143,19 +146,19 @@ export default function NewProcessingRunPage() {
             return (
               <div className="admin-inline-form" key={index}>
                 <label className="field">Sản phẩm
-                  <select className="input" required value={o.productId} onChange={(e) => set({ productId: e.target.value })}>
+                  <NativeSelect className="input" required value={o.productId} onChange={(e) => set({ productId: e.target.value })}>
                     <option value="">Chọn sản phẩm</option>
                     {products.filter((p) => p.status === "ACTIVE").map((p) => <option key={p.id} value={p.id}>{p.productName}</option>)}
-                  </select>
+                  </NativeSelect>
                 </label>
                 <label className="field">Loại
-                  <select className="input" value={o.kind} onChange={(e) => set({ kind: e.target.value })}>
+                  <NativeSelect className="input" value={o.kind} onChange={(e) => set({ kind: e.target.value })}>
                     <option value="PRODUCT">Thành phẩm</option>
                     <option value="BY_PRODUCT">Phụ phẩm</option>
-                  </select>
+                  </NativeSelect>
                 </label>
-                <label className="field">Lượng<input className="input" type="number" step="0.001" min="0.001" required value={o.quantity} onChange={(e) => set({ quantity: e.target.value })} /></label>
-                <label className="field">Đơn vị<input className="input" required maxLength={30} value={o.unit} onChange={(e) => set({ unit: e.target.value })} /></label>
+                <label className="field">Lượng<Input className="input" type="number" step="0.001" min="0.001" required value={o.quantity} onChange={(e) => set({ quantity: e.target.value })} /></label>
+                <label className="field">Đơn vị<Input className="input" required maxLength={30} value={o.unit} onChange={(e) => set({ unit: e.target.value })} /></label>
                 {!same(o.unit, baseUnit) && (
                   <p className={Number.isNaN(factorOf(o)) ? "notice error" : "muted"}>
                     {Number.isNaN(factorOf(o))
@@ -163,14 +166,14 @@ export default function NewProcessingRunPage() {
                       : `Quy đổi: ${baseOf(o).toFixed(3)} ${baseUnit} (1 ${o.unit} = ${factorOf(o)} ${baseUnit})`}
                   </p>
                 )}
-                <label className="field">Quy cách<input className="input" maxLength={255} value={o.packaging} onChange={(e) => set({ packaging: e.target.value })} placeholder="Túi 500g" /></label>
-                <label className="field">Số kiện<input className="input" type="number" min="1" value={o.packageCount} onChange={(e) => set({ packageCount: e.target.value })} /></label>
-                <label className="field">Hạn sử dụng<input className="input" type="date" value={o.expiryDate} onChange={(e) => set({ expiryDate: e.target.value })} /></label>
-                {outputs.length > 1 && <button type="button" className="button secondary small" onClick={() => setOutputs(outputs.filter((_, i) => i !== index))}>Bỏ</button>}
+                <label className="field">Quy cách<Input className="input" maxLength={255} value={o.packaging} onChange={(e) => set({ packaging: e.target.value })} placeholder="Túi 500g" /></label>
+                <label className="field">Số kiện<Input className="input" type="number" min="1" value={o.packageCount} onChange={(e) => set({ packageCount: e.target.value })} /></label>
+                <label className="field">Hạn sử dụng<Input className="input" type="date" value={o.expiryDate} onChange={(e) => set({ expiryDate: e.target.value })} /></label>
+                {outputs.length > 1 && <Button type="button" className="button secondary small" onClick={() => setOutputs(outputs.filter((_, i) => i !== index))}>Bỏ</Button>}
               </div>
             );
           })}
-          <button type="button" className="button secondary" onClick={() => setOutputs([...outputs, newOutput()])}>Thêm thành phẩm/phụ phẩm</button>
+          <Button type="button" className="button secondary" onClick={() => setOutputs([...outputs, newOutput()])}>Thêm thành phẩm/phụ phẩm</Button>
         </Section>
         <Section title="4. Hao hụt">
           {losses.map((l, index) => {
@@ -178,17 +181,17 @@ export default function NewProcessingRunPage() {
             return (
               <div className="admin-inline-form" key={index}>
                 <label className="field">Lý do
-                  <select className="input" value={l.reason} onChange={(e) => set({ reason: e.target.value })}>
+                  <NativeSelect className="input" value={l.reason} onChange={(e) => set({ reason: e.target.value })}>
                     {Object.entries(lossReasonLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
+                  </NativeSelect>
                 </label>
-                <label className="field">Lượng ({baseUnit})<input className="input" type="number" step="0.001" min="0.001" required value={l.quantity} onChange={(e) => set({ quantity: e.target.value })} /></label>
-                <label className="field">Ghi chú<input className="input" maxLength={500} value={l.note} onChange={(e) => set({ note: e.target.value })} /></label>
-                <button type="button" className="button secondary small" onClick={() => setLosses(losses.filter((_, i) => i !== index))}>Bỏ</button>
+                <label className="field">Lượng ({baseUnit})<Input className="input" type="number" step="0.001" min="0.001" required value={l.quantity} onChange={(e) => set({ quantity: e.target.value })} /></label>
+                <label className="field">Ghi chú<Input className="input" maxLength={500} value={l.note} onChange={(e) => set({ note: e.target.value })} /></label>
+                <Button type="button" className="button secondary small" onClick={() => setLosses(losses.filter((_, i) => i !== index))}>Bỏ</Button>
               </div>
             );
           })}
-          <button type="button" className="button secondary" onClick={() => setLosses([...losses, { reason: "MOISTURE", quantity: "", note: "" }])}>Thêm hao hụt</button>
+          <Button type="button" className="button secondary" onClick={() => setLosses([...losses, { reason: "MOISTURE", quantity: "", note: "" }])}>Thêm hao hụt</Button>
         </Section>
         <Section title="5. Cân bằng khối lượng">
           <p className={balanced ? "admin-check-ok" : "admin-check-alert"}>
@@ -196,7 +199,7 @@ export default function NewProcessingRunPage() {
             {!balanced && ` (chênh ${(inputTotal - outputTotal - lossTotal).toFixed(3)})`}
           </p>
           <p className="muted">Nền tảng có thể cho phép sai lệch nhỏ theo cấu hình; nếu vượt mức, API sẽ từ chối.</p>
-          <button className="button" disabled={command.pending || !inputs.length || !siteId || mixedChain || mixedUnit || missingFactor}>Lưu lệnh nháp</button>
+          <Button className="button" disabled={command.pending || !inputs.length || !siteId || mixedChain || mixedUnit || missingFactor}>Lưu lệnh nháp</Button>
         </Section>
       </form>
     </ManagePage>

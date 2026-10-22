@@ -98,7 +98,7 @@ export function saveAppearance(value: Appearance): boolean {
   window.dispatchEvent(new CustomEvent(APPEARANCE_EVENT, { detail: value }));
   return stored;
 }
-export function appearanceCss(value: Appearance, scope = ".app-shell") {
+export function appearanceCss(value: Appearance, scope = ".app-shell:not(.shadcn-workspace)") {
   const v = normalizeAppearance(value);
   const padding = { comfortable: 14, standard: 10, compact: 7, dense: 4 }[
     v.density
@@ -125,7 +125,11 @@ export function appearanceCss(value: Appearance, scope = ".app-shell") {
   ${scope} :is(.manage-table, .settings-sample-table) :is(th, td) { padding-block: var(--display-row-padding); }
   ${scope} .ts-nav-active { background: var(--primary); color: #fff; }
   ${scope} .ts-button { background: var(--primary); }
-  ${scope} .ts-link { color: var(--primary); }`;
+  ${scope} .ts-link { color: var(--primary); }
+  .shadcn-workspace { --display-row-padding: ${padding}px; ${v.theme !== "default" ? `--ui-primary: ${v.primary}; --ui-primary-foreground: #fff;` : ""} }
+  .light .shadcn-workspace { ${v.theme !== "default" ? `--ui-background: ${v.background}; --ui-secondary: ${v.secondary};` : ""} }
+  .shadcn-workspace .page-content { max-width: ${width}; margin-inline: ${margin}; }
+  .shadcn-workspace .manage-table :is(th, td) { padding-block: var(--display-row-padding); }`;
 }
 export function applyAppearance(value: Appearance) {
   let style = document.getElementById(

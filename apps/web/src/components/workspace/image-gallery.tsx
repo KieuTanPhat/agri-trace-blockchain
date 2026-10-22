@@ -1,4 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import Image from "next/image";
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -158,7 +162,7 @@ export function ImageGallery({
                 {index + 1}
               </span>
             )}
-            <button
+            <Button
               type="button"
               className="image-gallery-thumb"
               title={file.row.fileName}
@@ -169,10 +173,10 @@ export function ImageGallery({
               ) : (
                 <span>{file.row.mediaType === "application/pdf" ? "PDF" : "…"}</span>
               )}
-            </button>
+            </Button>
             <small>{orderPath && index === 0 ? "Ảnh chính" : (labels[file.row.kind] ?? "Tệp khác")}</small>
             {removable && (
-              <button
+              <Button
                 type="button"
                 className="image-gallery-remove"
                 aria-label={`Gỡ ảnh ${file.row.fileName}`}
@@ -180,7 +184,7 @@ export function ImageGallery({
                 onClick={() => setRemoving(file)}
               >
                 ×
-              </button>
+              </Button>
             )}
           </li>
         ))}
@@ -268,7 +272,7 @@ export function EvidenceThumbnails<T extends ThumbRow>({
       <ul className="image-gallery-grid">
         {files.map((file) => (
           <li key={file.id} className="image-gallery-item">
-            <button
+            <Button
               type="button"
               className="image-gallery-thumb"
               title={file.row.description ? `${file.row.fileName} — ${file.row.description}` : file.row.fileName}
@@ -279,7 +283,7 @@ export function EvidenceThumbnails<T extends ThumbRow>({
               ) : (
                 <span>{file.row.mediaType === "application/pdf" ? "PDF" : "…"}</span>
               )}
-            </button>
+            </Button>
             <small title={caption(file.row)}>{caption(file.row)}</small>
           </li>
         ))}
@@ -322,9 +326,9 @@ export function Lightbox({ file, label, onClose }: { file: LoadedOf<ThumbRow> | 
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <button type="button" className="image-lightbox-close" aria-label="Đóng ảnh" onClick={onClose}>
+      <Button type="button" className="image-lightbox-close" aria-label="Đóng ảnh" onClick={onClose}>
         ×
-      </button>
+      </Button>
       {file?.url && (
         <figure>
           <Image src={file.url} alt={file.row.fileName} width={1600} height={1200} unoptimized />
@@ -376,7 +380,7 @@ function RemoveDialog({ file, onClose, onRemoved }: { file: Loaded | null; onClo
         <CommandState command={cmd} />
         <label>
           Lý do gỡ ảnh
-          <textarea
+          <Textarea
             className="input"
             minLength={5}
             maxLength={500}
@@ -385,12 +389,12 @@ function RemoveDialog({ file, onClose, onRemoved }: { file: Loaded | null; onClo
           />
         </label>
         <div className="dialog-actions">
-          <button type="button" className="button secondary" disabled={cmd.pending} onClick={onClose}>
+          <Button type="button" className="button secondary" disabled={cmd.pending} onClick={onClose}>
             Hủy
-          </button>
-          <button type="button" className="button danger" disabled={cmd.pending || reason.trim().length < 5} onClick={() => void submit()}>
+          </Button>
+          <Button type="button" className="button danger" disabled={cmd.pending || reason.trim().length < 5} onClick={() => void submit()}>
             {cmd.pending ? "Đang gỡ…" : "Gỡ ảnh"}
-          </button>
+          </Button>
         </div>
       </div>
     </dialog>
@@ -471,7 +475,7 @@ export function ImageUpload({
           <span className="product-image-picker-icon" aria-hidden="true">+</span>
           <strong>Thêm ảnh</strong>
           <small>PNG/JPG ≤ 5 MB</small>
-          <input
+          <Input
             ref={compactFileInput}
             className="product-image-picker-input"
             aria-label="Chọn ảnh sản phẩm"
@@ -508,28 +512,28 @@ export function ImageUpload({
         <legend>{title}</legend>
         <label>
           Loại ảnh
-          <select className="input" value={kind} onChange={(e) => setKind(e.target.value)}>
+          <NativeSelect className="input" value={kind} onChange={(e) => setKind(e.target.value)}>
             {options.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           Tải ảnh (PNG/JPEG, tối đa 5 MB mỗi ảnh)
-          <input className="input" type="file" name="files" multiple accept="image/png,image/jpeg" required />
+          <Input className="input" type="file" name="files" multiple accept="image/png,image/jpeg" required />
         </label>
         <label>
           Mô tả ảnh (không bắt buộc)
-          <textarea className="input" name="description" maxLength={900} rows={2} />
+          <Textarea className="input" name="description" maxLength={900} rows={2} />
         </label>
       </fieldset>
       {error && <p className="notice error" role="alert">{error}</p>}
       {note && <p className="notice" role="status">{note}</p>}
-      <button className="button" disabled={pending}>
+      <Button className="button" disabled={pending}>
         {pending ? "Đang tải…" : "Bổ sung hình ảnh"}
-      </button>
+      </Button>
     </form>
   );
 }

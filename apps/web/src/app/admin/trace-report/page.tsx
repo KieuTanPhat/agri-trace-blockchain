@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import { useState } from "react";
 import { request } from "@/lib/api-client";
@@ -71,11 +73,11 @@ export default function TraceReportPage() {
       )}
       <Section title="Xuất dữ liệu khóa theo lô (CSV)" help="Mỗi dòng: mã lô, sản phẩm, tổ chức, nguồn gốc (thu hoạch/chế biến), lượng, thời điểm, chuỗi, lệnh chế biến và các lô đầu vào. Mặc định 90 ngày gần nhất.">
         <div className="admin-inline-form">
-          <label className="field">Từ ngày<input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-          <label className="field">Đến ngày<input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
-          <button type="button" className="button" disabled={busy} onClick={() => void exportCsv()}>
+          <label className="field">Từ ngày<Input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
+          <label className="field">Đến ngày<Input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+          <Button type="button" className="button" disabled={busy} onClick={() => void exportCsv()}>
             {busy ? "Đang xuất…" : "Tải CSV"}
-          </button>
+          </Button>
         </div>
         {error && <p className="notice error">{error}</p>}
       </Section>

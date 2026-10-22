@@ -1,4 +1,5 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 
 import { useMemo } from "react";
 import type { Catalog } from "@/lib/catalog";
@@ -50,25 +51,25 @@ export function useAdminProducts() {
 export function ProductTable({ products }: { products: AdminProduct[] }) {
   return (
     <div className="manage-table-scroll">
-      <table className="manage-table">
-        <thead>
-          <tr>
-            <th scope="col">Sản phẩm</th>
-            <th scope="col">Mã sản phẩm</th>
-            <th scope="col">Giống / phân loại</th>
-            <th scope="col">Đơn vị</th>
-            <th scope="col">Cập nhật</th>
-            <th scope="col">Trạng thái</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table className="manage-table">
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">Sản phẩm</TableHead>
+            <TableHead scope="col">Mã sản phẩm</TableHead>
+            <TableHead scope="col">Giống / phân loại</TableHead>
+            <TableHead scope="col">Đơn vị</TableHead>
+            <TableHead scope="col">Cập nhật</TableHead>
+            <TableHead scope="col">Trạng thái</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {products.map((product) => (
-            <tr key={product.id}>
-              <td data-label="Sản phẩm">
+            <TableRow key={product.id}>
+              <TableCell data-label="Sản phẩm">
                 <strong>{product.productName}</strong>
                 {product.description && <small>{product.description}</small>}
-              </td>
-              <td data-label="Mã sản phẩm">
+              </TableCell>
+              <TableCell data-label="Mã sản phẩm">
                 {product.sku || product.gtin ? (
                   <>
                     {product.sku && <span>SKU: {product.sku}</span>}
@@ -77,24 +78,24 @@ export function ProductTable({ products }: { products: AdminProduct[] }) {
                 ) : (
                   "—"
                 )}
-              </td>
-              <td data-label="Giống / phân loại">{product.variety || "—"}</td>
-              <td data-label="Đơn vị">{product.defaultUnit || "—"}</td>
-              <td data-label="Cập nhật">
+              </TableCell>
+              <TableCell data-label="Giống / phân loại">{product.variety || "—"}</TableCell>
+              <TableCell data-label="Đơn vị">{product.defaultUnit || "—"}</TableCell>
+              <TableCell data-label="Cập nhật">
                 {new Intl.DateTimeFormat("vi-VN", {
                   timeZone: "Asia/Ho_Chi_Minh",
                   day: "2-digit",
                   month: "2-digit",
                   year: "numeric",
                 }).format(new Date(product.updatedAt))}
-              </td>
-              <td data-label="Trạng thái">
+              </TableCell>
+              <TableCell data-label="Trạng thái">
                 <StatusBadge value={product.status} />
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

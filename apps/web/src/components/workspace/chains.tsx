@@ -1,4 +1,7 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -203,9 +206,9 @@ function ChainWorkspace({
           </h1>
         </div>
         <div className="workspace-actions">
-          <button className="button secondary" onClick={refresh}>
+          <Button className="button secondary" onClick={refresh}>
             Tải lại quyền và dữ liệu
-          </button>
+          </Button>
           {view === "chains" && canCreate && (
             <Link className="button" href="/supply-chains/new">
               + Thêm chuỗi truy xuất
@@ -227,54 +230,54 @@ function ChainWorkspace({
           )}
           {chains.length > 0 && (
             <div className="manage-table-scroll">
-              <table className="manage-table">
-                <thead>
-                  <tr>
-                    <th>Ảnh</th>
-                    <th>Mã chuỗi</th>
-                    <th>Tên chuỗi</th>
-                    <th>Loại chuỗi</th>
-                    <th>Chủ chuỗi</th>
-                    <th>Mô hình</th>
-                    <th>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="manage-table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ảnh</TableHead>
+                    <TableHead>Mã chuỗi</TableHead>
+                    <TableHead>Tên chuỗi</TableHead>
+                    <TableHead>Loại chuỗi</TableHead>
+                    <TableHead>Chủ chuỗi</TableHead>
+                    <TableHead>Mô hình</TableHead>
+                    <TableHead>Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {chains.map((item) => {
                     const model = (item.supplyModel as {
                       stages?: { stage: string; organizationIds: string[] }[];
                     } | null)?.stages ?? [];
                     return (
-                      <tr key={item.id}>
-                        <td data-label="Ảnh">
+                      <TableRow key={item.id}>
+                        <TableCell data-label="Ảnh">
                           <EntityThumb entityType="CHAIN" entityId={item.id} kinds={["CHAIN_IMAGE"]} name={item.name} />
-                        </td>
-                        <td data-label="Mã chuỗi">{item.code ?? "—"}</td>
-                        <td data-label="Tên chuỗi">
+                        </TableCell>
+                        <TableCell data-label="Mã chuỗi">{item.code ?? "—"}</TableCell>
+                        <TableCell data-label="Tên chuỗi">
                           <strong>{item.name}</strong>
                           {item.ownerOrganizationId === organizationId && (
                             <small>Chuỗi của doanh nghiệp bạn</small>
                           )}
-                        </td>
-                        <td data-label="Loại chuỗi">{chainTypeLabel(item.chainType)}</td>
-                        <td data-label="Chủ chuỗi">{name(item.ownerOrganizationId)}</td>
-                        <td data-label="Mô hình">
+                        </TableCell>
+                        <TableCell data-label="Loại chuỗi">{chainTypeLabel(item.chainType)}</TableCell>
+                        <TableCell data-label="Chủ chuỗi">{name(item.ownerOrganizationId)}</TableCell>
+                        <TableCell data-label="Mô hình">
                           {model.length
                             ? STAGES.filter(([code]) => model.some((m) => m.stage === code))
                                 .map(([, title]) => title)
                                 .join(" → ")
                             : "—"}
-                        </td>
-                        <td data-label="Thao tác">
+                        </TableCell>
+                        <TableCell data-label="Thao tác">
                           <Link className="button secondary small" href={`/supply-chains/${item.id}`}>
                             Chi tiết
                           </Link>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </section>
@@ -285,7 +288,7 @@ function ChainWorkspace({
         {view !== "detail" && (
         <label className="field">
           <span>Chọn chuỗi</span>
-          <select
+          <NativeSelect
             className="select"
             value={selected}
             onChange={(e) => {
@@ -300,7 +303,7 @@ function ChainWorkspace({
                 {item.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         )}
         {chain && <div className="chain-summary"><EntityThumb entityType="CHAIN" entityId={chain.id} kinds={["CHAIN_IMAGE"]} name={chain.name} /><p>Mã chuỗi: {chain.code ?? chain.id} · Chủ chuỗi: {name(chain.ownerOrganizationId)} · {chainTypeLabel(chain.chainType)}</p></div>}
@@ -431,7 +434,7 @@ function ChainWorkspace({
           {platformAdmin && (
             <label className="field">
               <span>Tổ chức quản lý</span>
-              <select
+              <NativeSelect
                 className="select"
                 value={adminOrg}
                 onChange={(e) => setAdminOrg(e.target.value)}
@@ -442,7 +445,7 @@ function ChainWorkspace({
                     {org.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
           )}
           {adminOrg && (

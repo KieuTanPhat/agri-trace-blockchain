@@ -1,4 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { useState } from "react";
 import { useWorkspaceCommand, useWorkspaceData } from "@/lib/workspace";
@@ -36,21 +40,21 @@ export default function NoticesPage() {
             }
           }}
         >
-          <label className="field">Tiêu đề<input className="input" required minLength={3} maxLength={200} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
-          <label className="field">Nội dung<textarea className="input" required minLength={3} maxLength={2000} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} /></label>
+          <label className="field">Tiêu đề<Input className="input" required minLength={3} maxLength={200} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
+          <label className="field">Nội dung<Textarea className="input" required minLength={3} maxLength={2000} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} /></label>
           <label className="field">Đối tượng
-            <select className="input" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })}>
+            <NativeSelect className="input" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })}>
               {Object.entries(noticeAudienceLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
+            </NativeSelect>
           </label>
           <label className="field">Mức độ
-            <select className="input" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })}>
+            <NativeSelect className="input" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })}>
               {Object.entries(noticeSeverityLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
+            </NativeSelect>
           </label>
-          <label className="field">Bắt đầu<input className="input" type="datetime-local" required value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} /></label>
-          <label className="field">Kết thúc<input className="input" type="datetime-local" required value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} /></label>
-          <button className="button" disabled={command.pending}>Đăng</button>
+          <label className="field">Bắt đầu<Input className="input" type="datetime-local" required value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} /></label>
+          <label className="field">Kết thúc<Input className="input" type="datetime-local" required value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} /></label>
+          <Button className="button" disabled={command.pending}>Đăng</Button>
         </form>
       </Section>
       <LoadState loading={state.loading} error={state.error} />

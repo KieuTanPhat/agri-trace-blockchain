@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -39,7 +40,7 @@ export default function AreaDetailPage() {
           <div><dt>Trạng thái</dt><dd>{farm.evidenceComplete ? "Đã hoàn tất hồ sơ" : "Chờ đủ ảnh/chứng từ"}</dd></div>
         </dl>
       </section>
-      {!farm.evidenceComplete && <section className="panel"><p className="notice">Bổ sung ảnh vùng, giấy đất, hợp đồng liên kết, chứng nhận chất lượng và kiểm định rồi hoàn tất hồ sơ.</p><CommandState command={complete}/><button className="button" disabled={complete.pending || complete.frozen} onClick={async () => { if (await complete.run(`/catalog/farms/${id}/complete`, { version: farm.version })) state.reload(); }}>Hoàn tất và kích hoạt vùng</button></section>}
+      {!farm.evidenceComplete && <section className="panel"><p className="notice">Bổ sung ảnh vùng, giấy đất, hợp đồng liên kết, chứng nhận chất lượng và kiểm định rồi hoàn tất hồ sơ.</p><CommandState command={complete}/><Button className="button" disabled={complete.pending || complete.frozen} onClick={async () => { if (await complete.run(`/catalog/farms/${id}/complete`, { version: farm.version })) state.reload(); }}>Hoàn tất và kích hoạt vùng</Button></section>}
       <section className="manage-section">
         <div className="manage-section-heading"><div><h2>Thửa đất</h2><p>Thửa đất thuộc vùng sản xuất này.</p></div><Link className="button secondary" href={`/enterprise/areas/plots/new?farmId=${id}`}>Thêm thửa đất</Link></div>
         {plots.length ? <ul className="manage-area-plots">{plots.map((plot) => <li key={plot.id}><strong>{plot.name}</strong><span>{plot.area ?? "—"} {plot.unit ?? ""} · {plot.location ?? "Chưa có địa chỉ"}</span></li>)}</ul> : <p className="manage-empty">Chưa có thửa đất.</p>}

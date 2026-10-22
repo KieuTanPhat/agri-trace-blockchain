@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -93,7 +95,7 @@ export default function SecurityPage() {
               <div className="manage-detail-actions">
                 <label className="field">
                   <span>Mật khẩu hiện tại (để xác nhận đăng ký)</span>
-                  <input
+                  <Input
                     className="input"
                     type="password"
                     autoComplete="current-password"
@@ -101,14 +103,14 @@ export default function SecurityPage() {
                     onChange={(event) => setPassword(event.target.value)}
                   />
                 </label>
-                <button
+                <Button
                   className="button"
                   type="button"
                   disabled={pending || !password}
                   onClick={() => void start()}
                 >
                   {pending ? "Đang tạo…" : "Bắt đầu đăng ký MFA"}
-                </button>
+                </Button>
               </div>
             )}
           {enrollment && status.status !== "ENABLED" && (

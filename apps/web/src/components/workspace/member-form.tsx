@@ -1,4 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -235,22 +239,22 @@ export function MemberForm({ id }: { id?: string }) {
         onClose={() => setReview(null)}
         actions={
           <>
-            <button
+            <Button
               type="button"
               className="button secondary"
               disabled={cmd.pending}
               onClick={() => setReview(null)}
             >
               Quay lại sửa
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="button"
               disabled={cmd.pending}
               onClick={() => void confirmCreate()}
             >
               {cmd.pending ? "Đang tạo…" : "Xác nhận tạo"}
-            </button>
+            </Button>
           </>
         }
       />
@@ -265,13 +269,13 @@ export function MemberForm({ id }: { id?: string }) {
         }
         onClose={() => router.push("/enterprise/members")}
         actions={
-          <button
+          <Button
             type="button"
             className="button"
             onClick={() => router.push("/enterprise/members")}
           >
             Về danh sách thành viên
-          </button>
+          </Button>
         }
       />
       {!created && (
@@ -309,7 +313,7 @@ export function MemberForm({ id }: { id?: string }) {
                             *
                           </span>
                         </span>
-                        <input
+                        <Input
                           className="input"
                           name="fullName"
                           required
@@ -328,7 +332,7 @@ export function MemberForm({ id }: { id?: string }) {
                             *
                           </span>
                         </span>
-                        <input
+                        <Input
                           className="input"
                           name="email"
                           type="email"
@@ -341,14 +345,14 @@ export function MemberForm({ id }: { id?: string }) {
                         <span className="member-field-label">
                           Cấp tài khoản
                         </span>
-                        <select className="input" name="tier" defaultValue="3">
+                        <NativeSelect className="input" name="tier" defaultValue="3">
                           {overview.data?.member.primary && (
                             <option value="2">
                               Cấp 2 — quản lý theo ủy quyền
                             </option>
                           )}
                           <option value="3">Cấp 3 — nhân viên</option>
-                        </select>
+                        </NativeSelect>
                       </label>
                     </>
                   )}
@@ -356,7 +360,7 @@ export function MemberForm({ id }: { id?: string }) {
                     <>
                       <label>
                         <span className="member-field-label">Họ tên</span>
-                        <input
+                        <Input
                           className="input"
                           value={member.fullName}
                           readOnly
@@ -367,7 +371,7 @@ export function MemberForm({ id }: { id?: string }) {
                         <span className="member-field-label">
                           Email đăng nhập (không sửa được)
                         </span>
-                        <input
+                        <Input
                           className="input"
                           value={member.email}
                           readOnly
@@ -379,7 +383,7 @@ export function MemberForm({ id }: { id?: string }) {
                   {id && (
                     <label>
                       <span className="member-field-label">Trạng thái</span>
-                      <select
+                      <NativeSelect
                         className="input"
                         name="status"
                         defaultValue={String(member?.accountStatus ?? "ACTIVE")}
@@ -389,7 +393,7 @@ export function MemberForm({ id }: { id?: string }) {
                         <option value="LOCKED">
                           Khóa tài khoản và thu hồi phiên
                         </option>
-                      </select>
+                      </NativeSelect>
                     </label>
                   )}
                   <label>
@@ -402,7 +406,7 @@ export function MemberForm({ id }: { id?: string }) {
                         *
                       </span>
                     </span>
-                    <input
+                    <Input
                       className="input"
                       name="jobTitle"
                       required
@@ -424,7 +428,7 @@ export function MemberForm({ id }: { id?: string }) {
                         *
                       </span>
                     </span>
-                    <input
+                    <Input
                       className="input"
                       name="phone"
                       type="tel"
@@ -438,7 +442,7 @@ export function MemberForm({ id }: { id?: string }) {
                   </label>
                   <label>
                     <span className="member-field-label">Cơ sở làm việc</span>
-                    <select
+                    <NativeSelect
                       className="input"
                       name="workSiteId"
                       defaultValue={member?.workSiteId ?? ""}
@@ -452,13 +456,13 @@ export function MemberForm({ id }: { id?: string }) {
                             {site.name}
                           </option>
                         ))}
-                    </select>
+                    </NativeSelect>
                   </label>
                   <label>
                     <span className="member-field-label">
                       Vùng sản xuất phụ trách
                     </span>
-                    <select
+                    <NativeSelect
                       className="input"
                       name="responsibleFarmId"
                       defaultValue={member?.responsibleFarmId ?? ""}
@@ -472,7 +476,7 @@ export function MemberForm({ id }: { id?: string }) {
                             {farm.name}
                           </option>
                         ))}
-                    </select>
+                    </NativeSelect>
                   </label>
                   <label>
                     <span className="member-field-label">
@@ -486,7 +490,7 @@ export function MemberForm({ id }: { id?: string }) {
                         </span>
                       )}
                     </span>
-                    <input
+                    <Input
                       className="input"
                       name="contactAddress"
                       required={!id}
@@ -501,7 +505,7 @@ export function MemberForm({ id }: { id?: string }) {
                     <span className="member-field-label">
                       Ghi chú thành viên
                     </span>
-                    <textarea
+                    <Textarea
                       className="input"
                       name="memberNote"
                       maxLength={1000}
@@ -523,7 +527,7 @@ export function MemberForm({ id }: { id?: string }) {
                   <div className="member-choice-grid">
                     {roles.data?.items.map((r) => (
                       <label className="permission-choice" key={String(r.id)}>
-                        <input
+                        <Input
                           type="checkbox"
                           checked={roleIds.includes(String(r.id))}
                           onChange={(e) => {
@@ -551,7 +555,7 @@ export function MemberForm({ id }: { id?: string }) {
                   <div className="member-choice-grid">
                     {chains.data?.map((c) => (
                       <label className="permission-choice" key={String(c.id)}>
-                        <input
+                        <Input
                           type="checkbox"
                           checked={chainIds.includes(String(c.id))}
                           onChange={(e) =>
@@ -577,7 +581,7 @@ export function MemberForm({ id }: { id?: string }) {
                       ...(catalog.data?.farms ?? []),
                     ].map((s) => (
                       <label className="permission-choice" key={String(s.id)}>
-                        <input
+                        <Input
                           type="checkbox"
                           checked={siteIds.includes(String(s.id))}
                           onChange={(e) =>
@@ -603,24 +607,24 @@ export function MemberForm({ id }: { id?: string }) {
                   />
                   {errorFor("files")}
                   <div className="member-form-actions">
-                    <button
+                    <Button
                       className="button"
                       type="submit"
                       disabled={cmd.pending}
                     >
                       {cmd.pending ? "Đang lưu…" : "Tạo tài khoản"}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </>
             )}
             {id && (
               <div className="member-form-actions">
-                <button className="button" type="submit" disabled={cmd.pending}>
+                <Button className="button" type="submit" disabled={cmd.pending}>
                   {cmd.pending
                     ? "Đang lưu…"
                     : "Cập nhật quyền và thu hồi phiên cũ"}
-                </button>
+                </Button>
               </div>
             )}
           </form>
@@ -695,7 +699,7 @@ export function SupervisorPanel({
           >
             <label>
               Người quản lý mới
-              <select
+              <NativeSelect
                 className="input"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
@@ -707,19 +711,19 @@ export function SupervisorPanel({
                     {m.jobTitle ? ` · ${m.jobTitle}` : ""}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
           </fieldset>
           <p className="notice">
             Người quản lý mới phải có đủ quyền và phạm vi của thành viên. Sau
             khi đổi, thành viên phải đăng nhập lại.
           </p>
-          <button
+          <Button
             className="button secondary"
             disabled={cmd.pending || (target || "") === (current?.id ?? "")}
           >
             {"Đổi người quản lý"}
-          </button>
+          </Button>
         </form>
       ) : (
         canChange && (

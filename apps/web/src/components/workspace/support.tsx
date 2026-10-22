@@ -1,4 +1,9 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
@@ -66,7 +71,7 @@ export function SupportList() {
           ["OPEN", "Đang mở"],
           ["DONE", "Đã xong"],
         ].map(([value, text]) => (
-          <button
+          <Button
             key={value}
             type="button"
             role="tab"
@@ -75,7 +80,7 @@ export function SupportList() {
             onClick={() => setStatus(value)}
           >
             {text}
-          </button>
+          </Button>
         ))}
       </div>
       <LoadState loading={state.loading} error={state.error} />
@@ -86,44 +91,44 @@ export function SupportList() {
         />
       ) : (
         <div className="manage-section manage-table-scroll">
-          <table className="manage-table support-table">
-            <thead>
-              <tr>
-                <th>Mã</th>
-                <th>Chủ đề</th>
-                <th>Loại</th>
-                <th>Ưu tiên</th>
-                <th>Trạng thái</th>
-                <th>Cập nhật</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="manage-table support-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Mã</TableHead>
+                <TableHead>Chủ đề</TableHead>
+                <TableHead>Loại</TableHead>
+                <TableHead>Ưu tiên</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead>Cập nhật</TableHead>
+                <TableHead>Thao tác</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((t) => (
-                <tr
+                <TableRow
                   key={String(t.id)}
                   className="clickable-row"
                   onClick={() => router.push(`/enterprise/support/${t.id}`)}
                 >
-                  <td data-label="Mã">
+                  <TableCell data-label="Mã">
                     <strong>{String(t.code)}</strong>
-                  </td>
-                  <td data-label="Chủ đề">
+                  </TableCell>
+                  <TableCell data-label="Chủ đề">
                     {String(t.subject)}
                     <small>
                       {((t.messages as Row[] | undefined) ?? []).length} tin nhắn
                     </small>
-                  </td>
-                  <td data-label="Loại">{label(ticketCategoryLabels, t.category)}</td>
-                  <td data-label="Ưu tiên">{label(priorityLabels, t.priority)}</td>
-                  <td data-label="Trạng thái">
+                  </TableCell>
+                  <TableCell data-label="Loại">{label(ticketCategoryLabels, t.category)}</TableCell>
+                  <TableCell data-label="Ưu tiên">{label(priorityLabels, t.priority)}</TableCell>
+                  <TableCell data-label="Trạng thái">
                     <StatusBadge
                       value={tone(t.status)}
                       label={label(ticketStatusLabels, t.status)}
                     />
-                  </td>
-                  <td data-label="Cập nhật">{dateTime(lastActivity(t))}</td>
-                  <td data-label="Thao tác">
+                  </TableCell>
+                  <TableCell data-label="Cập nhật">{dateTime(lastActivity(t))}</TableCell>
+                  <TableCell data-label="Thao tác">
                     <Link
                       className="text-link"
                       href={`/enterprise/support/${t.id}`}
@@ -131,11 +136,11 @@ export function SupportList() {
                     >
                       Xem chi tiết
                     </Link>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
@@ -191,7 +196,7 @@ export function SupportCreate() {
         <fieldset className="enterprise-fields" disabled={command.pending}>
           <label>
             Loại yêu cầu
-            <select
+            <NativeSelect
               className="input"
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -201,11 +206,11 @@ export function SupportCreate() {
                   {v}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <label>
             Mức ưu tiên
-            <select
+            <NativeSelect
               className="input"
               value={form.priority}
               onChange={(e) => setForm({ ...form, priority: e.target.value })}
@@ -215,11 +220,11 @@ export function SupportCreate() {
                   {v}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <label className="full-row">
             Chủ đề <span aria-hidden="true">*</span>
-            <input
+            <Input
               className="input"
               maxLength={200}
               value={form.subject}
@@ -234,7 +239,7 @@ export function SupportCreate() {
           </label>
           <label className="full-row">
             Nội dung <span aria-hidden="true">*</span>
-            <textarea
+            <Textarea
               className="input"
               rows={6}
               maxLength={4000}
@@ -254,9 +259,9 @@ export function SupportCreate() {
           <Link className="button secondary" href="/enterprise/support">
             Hủy
           </Link>
-          <button className="button" type="submit" disabled={command.pending}>
+          <Button className="button" type="submit" disabled={command.pending}>
             {command.pending ? "Đang gửi…" : "Gửi yêu cầu"}
-          </button>
+          </Button>
         </div>
       </form>
       <InfoDialog
@@ -272,20 +277,20 @@ export function SupportCreate() {
         onClose={() => router.push("/enterprise/support")}
         actions={
           <>
-            <button
+            <Button
               type="button"
               className="button secondary"
               onClick={() => router.push("/enterprise/support")}
             >
               Về danh sách
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="button"
               onClick={() => router.push(`/enterprise/support/${created?.id}`)}
             >
               Xem chi tiết
-            </button>
+            </Button>
           </>
         }
       />
@@ -384,7 +389,7 @@ export function SupportDetail({ id }: { id: string }) {
                 <CommandState command={command} />
                 <label>
                   Trả lời
-                  <textarea
+                  <Textarea
                     className="input"
                     rows={3}
                     maxLength={4000}
@@ -402,9 +407,9 @@ export function SupportDetail({ id }: { id: string }) {
                   )}
                 </label>
                 <div className="form-actions">
-                  <button className="button" disabled={command.pending}>
+                  <Button className="button" disabled={command.pending}>
                     {command.pending ? "Đang gửi…" : "Gửi trả lời"}
-                  </button>
+                  </Button>
                 </div>
               </form>
             ) : (

@@ -1,4 +1,7 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useState, type FormEvent } from "react";
 import {
   useWorkspaceData,
@@ -40,7 +43,7 @@ export default function NoticesPage() {
           >
             <label>
               Lô nguồn
-              <select className="input" name="lotId" required>
+              <NativeSelect className="input" name="lotId" required>
                 <option value="">Chọn lô do doanh nghiệp sản xuất</option>
                 {state.data?.lots
                   .filter((l) => l.farmOrgId === overview.data?.organization.id)
@@ -49,18 +52,18 @@ export default function NoticesPage() {
                       {String(l.lotCode)} · {String(l.productName)}
                     </option>
                   ))}
-              </select>
+              </NativeSelect>
             </label>
             <label>
               Loại thông báo
-              <select className="input" name="kind">
+              <NativeSelect className="input" name="kind">
                 <option value="WARNING">Cảnh báo truy xuất</option>
                 <option value="RECALL">Thu hồi toàn bộ lô nguồn</option>
-              </select>
+              </NativeSelect>
             </label>
             <label>
               Nội dung công khai
-              <textarea
+              <Textarea
                 className="input"
                 name="message"
                 required
@@ -78,11 +81,11 @@ export default function NoticesPage() {
               dung và mã lô trước khi phát hành.
             </p>
           </fieldset>
-          <button className="button" disabled={cmd.pending} type="submit">
+          <Button className="button" disabled={cmd.pending} type="submit">
             {cmd.pending
               ? "Đang ghi…"
               : "Phát hành thông báo"}
-          </button>
+          </Button>
         </form>
       )}
     </div>

@@ -1,4 +1,8 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import Link from "next/link";
 import Image from "next/image";
 import QRCode from "qrcode";
@@ -82,14 +86,14 @@ function QrCard({ lot, onPrint }: { lot: Row; onPrint(): void }) {
         </p>
       ) : null}
       <div className="workspace-actions">
-        <button
+        <Button
           type="button"
           className="button secondary"
           disabled={!!lot.blocked}
           onClick={onPrint}
         >
           In tem
-        </button>
+        </Button>
         <a className="text-link" download={`QR-${lot.lotCode}.png`} href={png}>
           Tải PNG
         </a>
@@ -188,16 +192,16 @@ export default function QrPage() {
           >
             <label>
               Mẫu tem
-              <select className="input" name="template" defaultValue="STANDARD">
+              <NativeSelect className="input" name="template" defaultValue="STANDARD">
                 <option value="STANDARD">
                   Tiêu chuẩn (có đơn vị sản xuất)
                 </option>
                 <option value="COMPACT">Nhỏ gọn</option>
-              </select>
+              </NativeSelect>
             </label>
             <label>
               Số tem
-              <input
+              <Input
                 className="input"
                 name="copies"
                 type="number"
@@ -210,7 +214,7 @@ export default function QrPage() {
             {reprint && (
               <label>
                 Lý do in lại (lô đã được in {history.data?.items.length} lần)
-                <textarea
+                <Textarea
                   className="input"
                   name="reason"
                   required
@@ -221,13 +225,13 @@ export default function QrPage() {
             )}
           </fieldset>
           <div className="workspace-actions">
-            <button
+            <Button
               className="button"
               disabled={cmd.pending || history.loading}
             >
               {"Ghi lịch sử và in"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="text-link"
               disabled={cmd.frozen}
@@ -237,7 +241,7 @@ export default function QrPage() {
               }}
             >
               Đóng
-            </button>
+            </Button>
           </div>
           {!!history.data?.items.length && (
             <details>
@@ -257,13 +261,13 @@ export default function QrPage() {
           {labels && (
             <p className="notice" role="status">
               Đã ghi lần in thứ {labels.sequence}. Nếu hộp thoại in không mở,{" "}
-              <button
+              <Button
                 type="button"
                 className="text-link"
                 onClick={() => window.print()}
               >
                 mở lại hộp thoại in
-              </button>
+              </Button>
               .
             </p>
           )}

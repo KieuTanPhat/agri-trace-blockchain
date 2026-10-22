@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { useWorkspaceData, labels, type Items } from "@/lib/workspace";
 import type { components } from "@/lib/generated/api";
@@ -72,18 +73,18 @@ export function PartnerMatches({
                     {item.registered ? "Trên AgriTrace" : "Hồ sơ ngoài hệ thống"}
                   </span>
                   {onView && item.registered && (
-                    <button type="button" className="button secondary small" onClick={() => onView(item)}>
+                    <Button type="button" className="button secondary small" onClick={() => onView(item)}>
                       Xem hồ sơ
-                    </button>
+                    </Button>
                   )}
                   {onPick && item.registered && (
-                    <button
+                    <Button
                       type="button"
                       className="button secondary small"
                       onClick={() => onPick(item)}
                     >
                       {pickLabel}
-                    </button>
+                    </Button>
                   )}
                 </li>
               ))}
