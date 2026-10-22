@@ -2779,5 +2779,312 @@
       "path": "apps/web/src/components/register-service-worker.tsx",
       "reason": "AST has no JSX/visible renderer; effect registers the baseline service worker and returns null. No design/navigation/tokens."
     }
+  ],
+  "provenance": [
+    {
+      "target": "apps/web/public/brand/agritrace-logo-on-dark.png",
+      "source": "public/brand/agritrace-logo-on-dark.png",
+      "sourceSha256": "cd8b2e70c341545179f2aef1cfbbb42c00ccbd32e662449a51fa20e1de542ca7",
+      "targetSha256": "cd8b2e70c341545179f2aef1cfbbb42c00ccbd32e662449a51fa20e1de542ca7"
+    },
+    {
+      "target": "apps/web/public/brand/agritrace-logo.png",
+      "source": "public/brand/agritrace-logo.png",
+      "sourceSha256": "320f075cc764c2d4eb8a56a84053e88b12f8a07fc7475fd8b3d7c046def67e06",
+      "targetSha256": "320f075cc764c2d4eb8a56a84053e88b12f8a07fc7475fd8b3d7c046def67e06"
+    },
+    {
+      "target": "apps/web/public/brand/agritrace-mark.png",
+      "source": "public/brand/agritrace-mark.png",
+      "sourceSha256": "8ec4341d907e107ce305b212519311a375cd3627fef1d1ade19aed552e67ce73",
+      "targetSha256": "8ec4341d907e107ce305b212519311a375cd3627fef1d1ade19aed552e67ce73"
+    },
+    {
+      "target": "apps/web/src/app/globals.css",
+      "source": "src/app/globals.css",
+      "sourceSha256": "2ac0b5eeab76aaf73983246eed8d3e595e16597687de955916253160377cef19",
+      "targetSha256": "e36a224e5d4edaf7e2064e6ceedc252ee7af27a3f4257ad5ed7b3fbef8e660ca"
+    },
+    {
+      "target": "apps/web/src/app/icon.png",
+      "source": "src/app/icon.png",
+      "sourceSha256": "8ec4341d907e107ce305b212519311a375cd3627fef1d1ade19aed552e67ce73",
+      "targetSha256": "8ec4341d907e107ce305b212519311a375cd3627fef1d1ade19aed552e67ce73"
+    },
+    {
+      "target": "apps/web/src/components/ledger/brand.tsx",
+      "source": "src/components/brand.tsx",
+      "sourceSha256": "50e7d809c810600b94a7bcfa4c0807b722b9b39b1d2d6889d7307cd04132eba8",
+      "targetSha256": "ac47e47233b2713d79653a69884074e0bfc2c0ea88ec04bef743a7ae03d26576"
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/data-table.tsx",
+      "source": "src/components/kit/data-table.tsx",
+      "sourceSha256": "e737c06419897f9fef1c20f377945170c6a6e0f906d5e0036042237b01c7cec1",
+      "targetSha256": "30337c3aee4e8b822c2168ae4f171a9a1843476ef825005bfc8831f6bdde092c"
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/filters.tsx",
+      "source": "src/components/kit/filters.tsx",
+      "sourceSha256": "5a8152cfe8eced5923e76e058335409c26e5af634a6dac71205147fd1daf0a11",
+      "targetSha256": "20e3d0e0b0b98879b0fc375241c6edb123b813a7d408597d9cc109d5b760f0bb"
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/form-fields.tsx",
+      "source": "src/components/kit/form-fields.tsx",
+      "sourceSha256": "f9b9ed8b85f79c05a76a0184eebb47e19b94bc4961d979a822112a9203c75b7b",
+      "targetSha256": "28326416256539c1c7af5c63ad0c37ed2d1d5fd5df3bd32bd104bc4249e76635"
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/page.tsx",
+      "source": "src/components/kit/page.tsx",
+      "sourceSha256": "5dc9719fc8159ffd3732aaad69974a645773200fe9a9a15cd913f467e829a798",
+      "targetSha256": "0a3ae949df9b38274a0c415bf528f91a3a4754f9f1b98be1c9e4fd199f9917be"
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/status.tsx",
+      "source": "src/components/kit/status.tsx",
+      "sourceSha256": "0f64d4f9094ab43aad3eb3663afc947dbc8b354e00be4cac2d63052e9676631b",
+      "targetSha256": "5bf2a8fd2120c1f1088687e6c8cf43e07edfe7f654968f0fd34de68aac8d10dd"
+    },
+    {
+      "target": "apps/web/src/components/ledger/locale.tsx",
+      "source": "src/components/locale.tsx",
+      "sourceSha256": "8bc4925e24a9258c66508c6e7c51129209bebe78d915715b450a4e645b90ab39",
+      "targetSha256": "2c538428e38b25a5844c36cde05918381e8a6e6d21b9fc712c84eb125795328f"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/alert.tsx",
+      "source": "src/components/ui/alert.tsx",
+      "sourceSha256": "d03dcae5cdb63c381c1144ca9a0c49ba0e46466967d7deb94662034042acb034",
+      "targetSha256": "d03dcae5cdb63c381c1144ca9a0c49ba0e46466967d7deb94662034042acb034"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/badge.tsx",
+      "source": "src/components/ui/badge.tsx",
+      "sourceSha256": "13a9380dfff853ee730c14a52df49f22aecd31f40f2998d7c1e7ec458b6e1650",
+      "targetSha256": "13a9380dfff853ee730c14a52df49f22aecd31f40f2998d7c1e7ec458b6e1650"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/button.tsx",
+      "source": "src/components/ui/button.tsx",
+      "sourceSha256": "79dd6f75f8136394442202d6b8b922fb269eaad0a5dba579397c9d5b41f893bb",
+      "targetSha256": "79dd6f75f8136394442202d6b8b922fb269eaad0a5dba579397c9d5b41f893bb"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/checkbox.tsx",
+      "source": "src/components/ui/checkbox.tsx",
+      "sourceSha256": "ba0ac64064e2d8fa7299d53e9e84b9a4772fef8dd4cf6170c56d3030a1d69941",
+      "targetSha256": "ba0ac64064e2d8fa7299d53e9e84b9a4772fef8dd4cf6170c56d3030a1d69941"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/command.tsx",
+      "source": "src/components/ui/command.tsx",
+      "sourceSha256": "8063fbe58e0c7ca013403cb58871b7c2ce104dbf3d8f7b4162d4e7107db9abfa",
+      "targetSha256": "c925ee91347b27aabbaf0e35018ea690f68d22f71fcbaa9f708d44dbf1607fb2"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/dialog.tsx",
+      "source": "src/components/ui/dialog.tsx",
+      "sourceSha256": "0d2e82ed5e7040abda714a0471aff54535e05bad6249da049cc0c3bf3ae024e5",
+      "targetSha256": "e53517d0a5de3ba647d22fdb5f4ecf5f8764400fc0e77dc9f9e16bd4b1589200"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/dropdown-menu.tsx",
+      "source": "src/components/ui/dropdown-menu.tsx",
+      "sourceSha256": "d954efb735f13734751207ad22cb0cddd7f6ec53c59d16675d103dae08cb61fb",
+      "targetSha256": "d954efb735f13734751207ad22cb0cddd7f6ec53c59d16675d103dae08cb61fb"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/input.tsx",
+      "source": "src/components/ui/input.tsx",
+      "sourceSha256": "0c9457181f6ddc80969bcf854e92c362903a55b6e889fbef3fd85343ecc4af5b",
+      "targetSha256": "0c9457181f6ddc80969bcf854e92c362903a55b6e889fbef3fd85343ecc4af5b"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/label.tsx",
+      "source": "src/components/ui/label.tsx",
+      "sourceSha256": "344bde38b8531615dbf8e14af3895517c24d8ef6ce56ddeda7e2e6fe4b5d0c00",
+      "targetSha256": "344bde38b8531615dbf8e14af3895517c24d8ef6ce56ddeda7e2e6fe4b5d0c00"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/popover.tsx",
+      "source": "src/components/ui/popover.tsx",
+      "sourceSha256": "3f99d3add6c9fa4f03721e81297ee10e1310785ee1d9d9d4c82a114d84ab0757",
+      "targetSha256": "3f99d3add6c9fa4f03721e81297ee10e1310785ee1d9d9d4c82a114d84ab0757"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/radio-group.tsx",
+      "source": "src/components/ui/radio-group.tsx",
+      "sourceSha256": "cfc4f99ee68be2fbbd70de3ffad82e1462d5e8e0bb0aecfd190a4f5115325862",
+      "targetSha256": "cfc4f99ee68be2fbbd70de3ffad82e1462d5e8e0bb0aecfd190a4f5115325862"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/scroll-area.tsx",
+      "source": "src/components/ui/scroll-area.tsx",
+      "sourceSha256": "8b73bb9be51300079c7f561bafbe43ee10f6f464cf39c8c1b25123cd4edb94dd",
+      "targetSha256": "8b73bb9be51300079c7f561bafbe43ee10f6f464cf39c8c1b25123cd4edb94dd"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/select.tsx",
+      "source": "src/components/ui/select.tsx",
+      "sourceSha256": "962830436bd0b7ee50e556f0747e277d6a86869ed27d167516346b15f26309d8",
+      "targetSha256": "962830436bd0b7ee50e556f0747e277d6a86869ed27d167516346b15f26309d8"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/separator.tsx",
+      "source": "src/components/ui/separator.tsx",
+      "sourceSha256": "ad7d5403fe337160e41dbf04147896e448ae3a747b8d06660d627d74d60021bc",
+      "targetSha256": "ad7d5403fe337160e41dbf04147896e448ae3a747b8d06660d627d74d60021bc"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/sheet.tsx",
+      "source": "src/components/ui/sheet.tsx",
+      "sourceSha256": "ea473d38a26a9b0b879e5a13139899ad45e9782e896b3fa205c7763a6c506876",
+      "targetSha256": "ea473d38a26a9b0b879e5a13139899ad45e9782e896b3fa205c7763a6c506876"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/skeleton.tsx",
+      "source": "src/components/ui/skeleton.tsx",
+      "sourceSha256": "f51ce0fcd31e5c31437382e80ea0af94b4fc3d64221d27091d36824546780a43",
+      "targetSha256": "f51ce0fcd31e5c31437382e80ea0af94b4fc3d64221d27091d36824546780a43"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/sonner.tsx",
+      "source": "src/components/ui/sonner.tsx",
+      "sourceSha256": "13ccc9b0fe4248e622f83a1d3b2f0566b72b5e04162d7d0c8db8945ecc71b55f",
+      "targetSha256": "13ccc9b0fe4248e622f83a1d3b2f0566b72b5e04162d7d0c8db8945ecc71b55f"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/switch.tsx",
+      "source": "src/components/ui/switch.tsx",
+      "sourceSha256": "743676f33f823ffa8008bbd5eb94cb68e227599447d60e132a202291a395f8e4",
+      "targetSha256": "743676f33f823ffa8008bbd5eb94cb68e227599447d60e132a202291a395f8e4"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/table.tsx",
+      "source": "src/components/ui/table.tsx",
+      "sourceSha256": "bd1a9fc83a5a2149e504038e274bb7e5a0351af59f6896df52ac4d5b439695ac",
+      "targetSha256": "bd1a9fc83a5a2149e504038e274bb7e5a0351af59f6896df52ac4d5b439695ac"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/tabs.tsx",
+      "source": "src/components/ui/tabs.tsx",
+      "sourceSha256": "e1df6e2f95ece373ca909c1d54b8ba8cf4c47dd425c1784bbb9a01c38dd0936b",
+      "targetSha256": "e1df6e2f95ece373ca909c1d54b8ba8cf4c47dd425c1784bbb9a01c38dd0936b"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/textarea.tsx",
+      "source": "src/components/ui/textarea.tsx",
+      "sourceSha256": "5cafcfeeee29534f449387a16b585f5923d2faab1a0cdc50a874416b175f59ce",
+      "targetSha256": "5cafcfeeee29534f449387a16b585f5923d2faab1a0cdc50a874416b175f59ce"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/tooltip.tsx",
+      "source": "src/components/ui/tooltip.tsx",
+      "sourceSha256": "611e4305879b2773eafe76bf3c5caa69d8e47367fd97887a71634a27828f4433",
+      "targetSha256": "611e4305879b2773eafe76bf3c5caa69d8e47367fd97887a71634a27828f4433"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/format.ts",
+      "source": "src/lib/format.ts",
+      "sourceSha256": "2f3bbac912b0b3aea7b866af5b7b53ca9d807d6f36cc8204a460ac48bb9fe088",
+      "targetSha256": "2f3bbac912b0b3aea7b866af5b7b53ca9d807d6f36cc8204a460ac48bb9fe088"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/i18n-en.ts",
+      "source": "src/lib/i18n-en.ts",
+      "sourceSha256": "948583446f3e1404ae3325cc93bdffaf71f7381167da92957cd91fda5b499d54",
+      "targetSha256": "948583446f3e1404ae3325cc93bdffaf71f7381167da92957cd91fda5b499d54"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/i18n.ts",
+      "source": "src/lib/i18n.ts",
+      "sourceSha256": "0cbd47445a174fd0fc06380a9a64ef3c8fbc2493afe14a018aa3a1760c7f7253",
+      "targetSha256": "0cbd47445a174fd0fc06380a9a64ef3c8fbc2493afe14a018aa3a1760c7f7253"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/labels.ts",
+      "source": "src/lib/labels.ts",
+      "sourceSha256": "22dcc55d3132cb6d9d8a6e6d37dd13e95362a4ed25cb6c4a0065c1b0a66e303f",
+      "targetSha256": "22dcc55d3132cb6d9d8a6e6d37dd13e95362a4ed25cb6c4a0065c1b0a66e303f"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/utils.ts",
+      "source": "src/lib/utils.ts",
+      "sourceSha256": "14300d758170c270c75b057f38fedb3793a5920ea872f0477e29fb131185e8a7",
+      "targetSha256": "14300d758170c270c75b057f38fedb3793a5920ea872f0477e29fb131185e8a7"
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/command-dialog.tsx",
+      "source": "src/components/kit/command-dialog.tsx",
+      "sourceSha256": "d837012ec5e5f478257a8c32b09da9128577c578636c63726449489e47882319",
+      "targetSha256": "e76e3804d6f3375f4dd4dd0dc38ba876b22b5bb691ca13ce04c7ef4e95b84c85"
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/grants-editor.tsx",
+      "source": "src/components/workspace/grants-editor.tsx",
+      "sourceSha256": "1d294bb7572cd4b86aa2908c7f5abc0fc6eaf34e876581af7852190bf93c037c",
+      "targetSha256": "e906e539ce6d260a111cfeb68a4b8fe6c4e2b33a48c1b97168aaabc3a2572124"
+    },
+    {
+      "target": "apps/web/src/app/layout.tsx",
+      "source": "src/app/layout.tsx",
+      "sourceSha256": "8a3e70d79d487c04046bd564d8bfc1242843c3cef43f0b7ece8ef5044413af2f",
+      "targetSha256": "48bbc9981c004fc396e9f990f721cc19bc71d9153abff0b5eec9b8aa4c5b679c",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/components/ledger/providers.tsx",
+      "source": "src/components/providers.tsx",
+      "sourceSha256": "6b4cd716c81408a0da423a6fe13d20ddeeac413e0ddf58890fe1147c0ca3ba27",
+      "targetSha256": "03afd89fc0b666354fd40d988d43c92e5ef75c32a51a5489d47e2ffb09868c6d",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/components/ledger/shell/app-shell.tsx",
+      "source": "src/components/shell/app-shell.tsx",
+      "sourceSha256": "7ff5a2e0f5b194ab8195cbe810888a70c81ed934b94da500e7ce95adec206201",
+      "targetSha256": "04593d1c051f06b22079f1d1b839d011eeb13350978eaa457f999c4d5040cf6d",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/components/ledger/shell/sidebar.tsx",
+      "source": "src/components/shell/sidebar.tsx",
+      "sourceSha256": "e05f140725d29a41ae1927cf3b77b02ca4d9f4df4bb440de9fa53b831bb8109a",
+      "targetSha256": "cb5debea396584f2e34ce588859558c353f9ccfe36ebdbc2a91673eec957159c",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/components/ledger/shell/command-palette.tsx",
+      "source": "src/components/shell/command-palette.tsx",
+      "sourceSha256": "9a49632b1db2e00cb37701b8f62b605577eab1429acf9929249767489544685d",
+      "targetSha256": "27f3c216802b06c719212282e3054c6db72e6f4bb099c4be24406e7764a092bd",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/ws-shell.tsx",
+      "source": "src/components/workspace/ws-shell.tsx",
+      "sourceSha256": "cd9932127717bff88cbf386b1f25d3e7b8d6c587fce150a5f091f225c4d99232",
+      "targetSha256": "8c2129b4c6813b6435a1109690ad34085dd887f9fa6cf1e6c8eecb9ecd0a8dc8",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/navigation.ts",
+      "source": "src/components/shell/nav.ts",
+      "sourceSha256": "3a3e844bc282720612f23a073d4b9490e9d313576912eacdff23a5ed07e2c89a",
+      "targetSha256": "3675ea7e9fc58d614cfabdbe3d94798b1c0ab8f610013a6d3bb72220c1def3bd",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    }
+  ],
+  "newLedgerComposition": [
+    {
+      "target": "apps/web/src/components/ledger/confirm-provider.tsx",
+      "basis": "Approved Ledger Dialog/Button primitives; no legacy confirmation renderer."
+    },
+    {
+      "target": "apps/web/src/components/ledger/shell/public-shell.tsx",
+      "basis": "New public hierarchy from Ledger kit/tokens/brand; preview has no public shell."
+    }
   ]
 }

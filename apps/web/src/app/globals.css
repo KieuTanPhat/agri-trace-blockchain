@@ -1,0 +1,176 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@source "./";
+@source "../components/ledger";
+@source "../features/ledger";
+
+/* Design system "Ledger" — xem docs/design-system.md */
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Ledger tokens */
+  --color-canvas: var(--canvas);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-brand: var(--brand);
+  --color-brand-weak: var(--brand-weak);
+  --color-brand-ink: var(--brand-ink);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-warn: var(--warn);
+  --color-warn-dot: var(--warn-dot);
+  --color-warn-bg: var(--warn-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-neutral: var(--neutral);
+  --color-neutral-bg: var(--neutral-bg);
+  --color-row-alt: var(--row-alt);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+}
+
+:root {
+  --radius: 6px;
+  --canvas: #f4f5f2;
+  --sunken: #eef0ec;
+  --line: #dadfd6;
+  --line-strong: #c3c7be;
+  --ink: #15171a;
+  --ink-2: #4a4f55;
+  --brand: #1e5b45;
+  --brand-weak: #e3eee8;
+  --brand-ink: #123b2c;
+  --ok: #1e6b3a;
+  --ok-bg: #e2f1e6;
+  --info: #1f4e8c;
+  --info-bg: #e6edf7;
+  --warn: #7a4f00;
+  --warn-dot: #b07a12;
+  --warn-bg: #fbf0d9;
+  --danger: #a3261e;
+  --danger-bg: #f8e3e0;
+  --neutral: #4a4f55;
+  --neutral-bg: #ecedea;
+  --row-alt: #f7f8f5;
+
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --secondary: var(--sunken);
+  --secondary-foreground: var(--ink);
+  --muted: var(--sunken);
+  --muted-foreground: var(--ink-2);
+  --accent: var(--sunken);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: #2f7a5e;
+}
+
+.dark {
+  --canvas: #111312;
+  --sunken: #1a1d1b;
+  --line: #2a2e2b;
+  --line-strong: #3a3f3b;
+  --ink: #e9ebe7;
+  --ink-2: #a6aca6;
+  --brand: #5fb38f;
+  --brand-weak: #1d3329;
+  --brand-ink: #a8dcc4;
+  --ok: #7cc79a;
+  --ok-bg: #18301f;
+  --info: #8db4ec;
+  --info-bg: #17253a;
+  --warn: #e7bf6b;
+  --warn-dot: #e7bf6b;
+  --warn-bg: #352812;
+  --danger: #f09a90;
+  --danger-bg: #3a1a17;
+  --neutral: #a6aca6;
+  --neutral-bg: #232724;
+  --row-alt: #161917;
+
+  --card: #161917;
+  --popover: #1a1d1b;
+  --primary-foreground: #0d1a14;
+  --ring: #5fb38f;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "tnum" 1;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .label-caps {
+    @apply text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-2;
+  }
+  .mono {
+    @apply font-mono text-[12px];
+  }
+}
+
+/* In tem QR: chỉ in khung tem đang mở */
+@media print {
+  body * { visibility: hidden; }
+  #label-print, #label-print * { visibility: visible; }
+  #label-print { position: absolute; inset: 0; max-height: none; overflow: visible; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
