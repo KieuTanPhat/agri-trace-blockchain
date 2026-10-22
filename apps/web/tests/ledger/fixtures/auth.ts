@@ -170,7 +170,10 @@ registerScenario("auth.registration", {
       request.method === "POST"
     ) {
       const input = body(request);
-      if (input.requestId !== request.idempotencyKey)
+      if (
+        input.requestId !== request.idempotencyKey ||
+        input.email !== "owner@example.invalid"
+      )
         throw new Error("Issuance key mismatch");
       state.values.set("registrationId", input.registrationId);
       return {
@@ -204,8 +207,17 @@ registerScenario("auth.registration", {
         input.requestId !== state.values.get("registrationId") ||
         input.email !== "owner@example.invalid" ||
         input.organizationName !== "Hộ sản xuất kiểm thử" ||
+        input.participationModel !== "SINGLE" ||
+        JSON.stringify(input.emailVerifications) !==
+          JSON.stringify([
+            {
+              verificationId: "33333333-3333-4333-8333-333333333333",
+              token: "fixture-proof",
+            },
+          ]) ||
         details.formVersion !== 2 ||
         details.legalForm !== "INDIVIDUAL_PRODUCER" ||
+        JSON.stringify(details.activities) !== JSON.stringify(["FARM"]) ||
         !details.declarationAccepted ||
         !details.termsAccepted ||
         !details.privacyAcknowledged ||

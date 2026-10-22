@@ -28,6 +28,8 @@ export default function LedgerScreen({ route }: LedgerScreenProps) {
     busy = useRef(false);
   const [needMfa, setNeedMfa] = useState(false),
     [error, setError] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
   const form = useForm({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "", mfaCode: "" },
@@ -49,7 +51,7 @@ export default function LedgerScreen({ route }: LedgerScreenProps) {
           noValidate
           className="mx-auto flex w-full max-w-[380px] flex-col gap-4"
           onSubmit={form.handleSubmit(async (values) => {
-            if (busy.current) return;
+            if (!hydrated || auth.isLoading || busy.current) return;
             busy.current = true;
             setError(null);
             try {
@@ -78,30 +80,39 @@ export default function LedgerScreen({ route }: LedgerScreenProps) {
               )}
             </p>
           </div>
-          <TextField
-            control={form.control}
-            name="email"
-            label="Email"
-            type="email"
-            autoComplete="username"
-          />
-          <TextField
-            control={form.control}
-            name="password"
-            label={t("Mật khẩu")}
-            type="password"
-            autoComplete="current-password"
-          />
-          {needMfa && (
+          <fieldset
+            disabled={
+              !hydrated || auth.isLoading || form.formState.isSubmitting
+            }
+            className="flex min-w-0 flex-col gap-4"
+          >
             <TextField
               control={form.control}
-              name="mfaCode"
-              label={t("Mã xác thực hai yếu tố")}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              hint={t("Tài khoản đã bật MFA — nhập mã 6 số hoặc mã khôi phục.")}
+              name="email"
+              label="Email"
+              type="email"
+              autoComplete="username"
             />
-          )}
+            <TextField
+              control={form.control}
+              name="password"
+              label={t("Mật khẩu")}
+              type="password"
+              autoComplete="current-password"
+            />
+            {needMfa && (
+              <TextField
+                control={form.control}
+                name="mfaCode"
+                label={t("Mã xác thực hai yếu tố")}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                hint={t(
+                  "Tài khoản đã bật MFA — nhập mã 6 số hoặc mã khôi phục.",
+                )}
+              />
+            )}
+          </fieldset>
           {error && (
             <div role="alert">
               <Callout tone="danger">{error}</Callout>
@@ -110,7 +121,9 @@ export default function LedgerScreen({ route }: LedgerScreenProps) {
           <Button
             type="submit"
             size="lg"
-            disabled={form.formState.isSubmitting}
+            disabled={
+              !hydrated || auth.isLoading || form.formState.isSubmitting
+            }
           >
             {form.formState.isSubmitting && (
               <Loader2 className="animate-spin" />

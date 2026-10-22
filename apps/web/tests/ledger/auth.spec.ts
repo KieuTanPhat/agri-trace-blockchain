@@ -173,3 +173,35 @@ test("registration submits only after verified OTP and retains the temporary-pas
     ),
   ).toBe(false);
 });
+test("registration offers six roles and excludes producer legal forms for a transporter", async ({
+  page,
+  api,
+}) => {
+  await api.useActor("anonymous");
+  await api.scenario("auth.registration");
+  await page.goto("/register");
+  await page.getByLabel("Vai trò đăng ký", { exact: true }).click();
+  await expect(page.getByRole("option")).toHaveCount(6);
+  for (const name of [
+    "Nhà sản xuất / Hợp tác xã",
+    "Nhà chế biến",
+    "Nhà vận chuyển",
+    "Nhà phân phối",
+    "Nhà bán lẻ",
+    "Doanh nghiệp có chuỗi cung ứng",
+  ])
+    await expect(page.getByRole("option", { name, exact: true })).toBeVisible();
+  await page
+    .getByRole("option", { name: "Nhà vận chuyển", exact: true })
+    .click();
+  await page.getByLabel("Loại chủ thể", { exact: true }).click();
+  await expect(
+    page.getByRole("option", { name: "Hộ nông dân sản xuất", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("option", { name: "Cá nhân sản xuất", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("option", { name: "Doanh nghiệp", exact: true }),
+  ).toBeVisible();
+});

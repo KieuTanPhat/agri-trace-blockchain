@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { request } from "./api-client";
 import { useAuth } from "./auth-store";
 import { getAuthorizationScope } from "./auth-scope";
-import { importantAction, useConfirm } from "./confirm";
+import { importantAction, useConfirm } from "./ledger/confirmation";
 import { PERMISSION_SYNC_EVENT } from "./permission-sync";
 import type { components } from "./generated/api";
 export type Row = Record<string, unknown>;
@@ -151,7 +151,7 @@ export function useWorkspaceData<T>(path: string | null) {
 /** Retain exact body and key after unknown outcomes. Credentials stay in memory. */
 export function useWorkspaceCommand() {
   const auth = useAuth();
-  const scope = getAuthorizationScope(auth.user);
+  const scope = getAuthorizationScope(auth.user&&{...auth.user,accessRevision:undefined});
   const pendingRequest = useRef<{
     scope: string;
     path: string;

@@ -4,6 +4,7 @@ import { request } from "@/lib/api-client";
 import { MemberForm } from "./member-form";
 
 vi.mock("@/lib/api-client", () => ({ request: vi.fn() }));
+vi.mock("@/lib/ledger/confirmation",()=>({importantAction:()=>null,useConfirm:()=>async()=>true}));
 vi.mock("@/lib/auth-store", () => ({
   useAuth: () => ({
     user: { id: "owner", organizationId: "org", role: { code: "FARM_STAFF" } },

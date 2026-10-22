@@ -46,9 +46,10 @@ it("reconciles an uncertain OTP send with its original body and key, without req
 it("requires a fresh OTP proof after requesting a new code following a rejected profile", async () => {
   let verifies = 0,
     registrations = 0;
+  const profiles: Record<string, unknown>[] = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: RequestInfo | URL) => {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       let data: unknown;
       if (url.endsWith("/request"))
@@ -67,24 +68,27 @@ it("requires a fresh OTP proof after requesting a new code following a rejected 
         };
       } else {
         registrations++;
+        profiles.push(JSON.parse(String(init?.body)));
         if (registrations === 1)
           return Response.json(
             {
               success: false,
               error: { code: "INVALID_PROFILE", message: "Invalid profile" },
             },
-            { status: 400 },
+            { status: 409 },
           );
         data = { enrollmentId: "enrollment", status: "PENDING_REVIEW" };
       }
       return Response.json({ success: true, data });
     }),
   );
-  const { result } = renderHook(() =>
+  let organizationName = "Original";
+  const { result, rerender } = renderHook(() =>
     useRegistrationProtocol({
       draft: {
         ...registrationDefaults,
         email: "owner@example.invalid",
+        organizationName,
         declaration: true,
         termsAccepted: true,
         privacyAcknowledged: true,
@@ -96,12 +100,21 @@ it("requires a fresh OTP proof after requesting a new code following a rejected 
   );
   await act(() => result.current.send());
   await act(() => result.current.verify("123456"));
+  expect(result.current.frozen).toBe(false);
+  organizationName = "Corrected";
+  rerender();
   await act(() => result.current.send());
   await act(() => result.current.verify("654321"));
   expect(verifies).toBe(2);
   expect(registrations).toBe(2);
+  expect(profiles.map((profile) => profile.organizationName)).toEqual([
+    "Original",
+    "Corrected",
+  ]);
 });
 it("freezes an unknown registration result and retries the original consented body", async () => {
+  localStorage.clear();
+  sessionStorage.clear();
   const sent: string[] = [],
     done = vi.fn();
   let verifies = 0;
@@ -164,6 +177,9 @@ it("freezes an unknown registration result and retries the original consented bo
   expect(sent).toHaveLength(2);
   expect(sent[1]).toBe(sent[0]);
   expect(JSON.parse(sent[1]).organizationName).toBe("Original");
+  expect(JSON.parse(sent[1]).hostingMode).toBe("MANAGED_ORG");
+  expect(localStorage.length).toBe(0);
+  expect(sessionStorage.length).toBe(0);
   expect(verifies).toBe(1);
   expect(done).toHaveBeenCalledTimes(1);
 });

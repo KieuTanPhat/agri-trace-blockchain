@@ -3019,7 +3019,7 @@
       "target": "apps/web/src/components/ledger/kit/command-dialog.tsx",
       "source": "src/components/kit/command-dialog.tsx",
       "sourceSha256": "d837012ec5e5f478257a8c32b09da9128577c578636c63726449489e47882319",
-      "targetSha256": "e76e3804d6f3375f4dd4dd0dc38ba876b22b5bb691ca13ce04c7ef4e95b84c85"
+      "targetSha256": "098ed181870f6af9d186b91f82d0a9ab3726102021b1a3c2f76d4245760b3209"
     },
     {
       "target": "apps/web/src/components/ledger/workspace/grants-editor.tsx",
@@ -3038,14 +3038,14 @@
       "target": "apps/web/src/components/ledger/providers.tsx",
       "source": "src/components/providers.tsx",
       "sourceSha256": "6b4cd716c81408a0da423a6fe13d20ddeeac413e0ddf58890fe1147c0ca3ba27",
-      "targetSha256": "2d3eb6e99b243273450cb8ff479433a2a4f10ddbd7d85fb95ffc1b0210ec2aba",
+      "targetSha256": "e5a2c438b7fa6cbe878b493e14b83a4137b6086aab01b2ac904d384c5bfca292",
       "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
     },
     {
       "target": "apps/web/src/components/ledger/shell/app-shell.tsx",
       "source": "src/components/shell/app-shell.tsx",
       "sourceSha256": "7ff5a2e0f5b194ab8195cbe810888a70c81ed934b94da500e7ce95adec206201",
-      "targetSha256": "04593d1c051f06b22079f1d1b839d011eeb13350978eaa457f999c4d5040cf6d",
+      "targetSha256": "ee487b62f3fc4cf54333f4d43482574d95ba2ca5ebfaace88b3b5417f79a8713",
       "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
     },
     {
@@ -3080,7 +3080,7 @@
       "target": "apps/web/src/features/ledger/screens/login/screen.tsx",
       "source": "src/app/login/page.tsx",
       "sourceSha256": "89311d1c0580ea9241286d00ec0ed7bfa0e94ed21278b773b2625967018ee395",
-      "targetSha256": "e44e796d693ce15764b2780d2f424225f3b550eb13761f53d73ebc17eb405afd",
+      "targetSha256": "4efcfe231f439d8948d88e3f167b3bd46f3a1c6a46ad3c93129486daf242c941",
       "adaptation": "Ledger auth presentation; baseline session/MFA/password policy and API, without preview accounts."
     },
     {
@@ -3115,6 +3115,14 @@
     {
       "target": "apps/web/src/features/ledger/screens/join-organization/screen.tsx",
       "basis": "New Ledger kit composition for baseline workflow absent from preview; no old presentation used."
+    },
+    {
+      "target": "apps/web/src/components/ledger/command-recovery.tsx",
+      "basis": "Ledger Callout/Button composition for baseline pending metadata, explicit journal inspection and exact retry; no old recovery renderer."
+    },
+    {
+      "target": "apps/web/src/components/ledger/auth-route-gate.tsx",
+      "basis": "New access boundary with Ledger states, identity-scoped private subtree and preserved forms during same-identity permission checks."
     }
   ]
 }

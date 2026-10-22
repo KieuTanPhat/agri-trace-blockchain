@@ -1,7 +1,8 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
-import LoginPage from "./page";
+import LedgerLoginScreen from '@/features/ledger/screens/login/screen';
+const LoginPage=()=> <LedgerLoginScreen route={{params:{},searchParams:Object.fromEntries(new URLSearchParams(window.location.search))}}/>;
 
 const { replace, authState, farmStaff } = vi.hoisted(() => {
   const farmStaff = () => ({ role: { code: "FARM_STAFF" }, organizationId: "org-1" });

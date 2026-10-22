@@ -20,7 +20,7 @@ vi.mock("@/lib/api-client", () => ({
   request: vi.fn(),
   retryPendingCommand: vi.fn(),
 }));
-vi.mock("@/lib/confirm", () => ({
+vi.mock("@/lib/ledger/confirmation", () => ({
   useConfirm: () => confirm,
   importantAction: () => null,
 }));
