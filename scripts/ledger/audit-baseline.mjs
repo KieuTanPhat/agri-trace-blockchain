@@ -47,13 +47,18 @@ export function extractContractMetadata(source,path) {
   const safeText=node=>node&&!/[<>]/.test(node.getText(file))?node.getText(file):undefined;
   const visit=node=>{
     if(ts.isImportDeclaration(node)&&ts.isStringLiteral(node.moduleSpecifier))dependencies.push(node.moduleSpecifier.text);
-    if(ts.isCallExpression(node)&&/^(?:request|ledgerRequest|apiRequest|publicRequest)$/.test(node.expression.getText(file))) {
+    if(ts.isCallExpression(node)&&/^(?:request|ledgerRequest|apiRequest|publicRequest|useWorkspaceData|(?:[\w.]+\.)?run)$/.test(node.expression.getText(file))) {
       const argument=node.arguments[0];
       const pathText=argument&&(ts.isStringLiteral(argument)?argument.text:safeText(argument));
-      if(pathText) {
-        let method='GET',payloadFields=[];
+      if(pathText&&/^['"`]?\//.test(pathText)) {
+        const command=/(?:^|\.)run$/.test(node.expression.getText(file));
+        let method=command?'POST':'GET',payloadFields=[];
+        if(command){
+          if(node.arguments[2]&&ts.isStringLiteral(node.arguments[2]))method=node.arguments[2].text;
+          if(node.arguments[1]&&ts.isObjectLiteralExpression(node.arguments[1]))payloadFields=node.arguments[1].properties.map(p=>p.name?.getText(file)).filter(Boolean).sort();
+        }
         const options=node.arguments[1];
-        if(options&&ts.isObjectLiteralExpression(options))for(const field of options.properties) {
+        if(!command&&options&&ts.isObjectLiteralExpression(options))for(const field of options.properties) {
           if(!ts.isPropertyAssignment(field))continue;
           const name=field.name.getText(file).replace(/["']/g,'');
           if(name==='method'&&ts.isStringLiteral(field.initializer))method=field.initializer.text;
@@ -65,6 +70,24 @@ export function extractContractMetadata(source,path) {
           }
         }
         requests.push({path:pathText,method,responseType:node.typeArguments?.[0]?.getText(file)??'unknown',payloadFields});
+      }
+    }
+    if((ts.isJsxSelfClosingElement(node)||ts.isJsxOpeningElement(node))&&node.tagName.getText(file)==='DataForm') {
+      const attributes=node.attributes.properties;
+      const value=name=>{
+        const attribute=attributes.find(p=>ts.isJsxAttribute(p)&&p.name.getText(file)===name);
+        return attribute?.initializer&&(ts.isJsxExpression(attribute.initializer)?attribute.initializer.expression:attribute.initializer);
+      };
+      const pathNode=value('path'),fields=value('fields');
+      const pathText=pathNode&&(ts.isStringLiteral(pathNode)?pathNode.text:safeText(pathNode));
+      if(pathText&&/^['"`]?\//.test(pathText)) {
+        const payloadFields=[];
+        if(fields&&ts.isArrayLiteralExpression(fields))for(const field of fields.elements)if(ts.isObjectLiteralExpression(field)) {
+          const name=field.properties.find(p=>p.name?.getText(file)==='name');
+          if(name&&ts.isPropertyAssignment(name)&&ts.isStringLiteral(name.initializer))payloadFields.push(name.initializer.text);
+        }
+        const methodNode=value('method');
+        requests.push({path:pathText,method:methodNode&&ts.isStringLiteral(methodNode)?methodNode.text:'POST',responseType:'unknown',payloadFields:payloadFields.sort()});
       }
     }
     ts.forEachChild(node,visit);
@@ -93,7 +116,7 @@ export function auditRouteContracts({repoRoot,routes}) {
       const key=path+':'+node.pos+':'+node.end;
       if(seen.has(key))return;seen.add(key);files.add(path);
       if(ts.isImportDeclaration(node))return;
-      if(ts.isCallExpression(node)&&/^(?:request|ledgerRequest|apiRequest|publicRequest)$/.test(node.expression.getText(file))) {
+      if((ts.isCallExpression(node)&&/^(?:request|ledgerRequest|apiRequest|publicRequest|useWorkspaceData|(?:[\w.]+\.)?run)$/.test(node.expression.getText(file)))||((ts.isJsxSelfClosingElement(node)||ts.isJsxOpeningElement(node))&&node.tagName.getText(file)==='DataForm')) {
         const metadata=extractContractMetadata(node.getText(file),path);
         for(const request of metadata.requests)requests.set(request.method+' '+request.path,{...request,source:path});
       }

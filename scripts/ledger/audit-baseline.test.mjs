@@ -6,6 +6,21 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 
 const hash = (s) => createHash('sha256').update(s).digest('hex');
+test('contract metadata resolves hook/command call sites and form endpoints instead of a transport parameter named path',async()=>{
+  const {extractContractMetadata}=await import('./audit-baseline.mjs');
+  const metadata=extractContractMetadata(`
+    function Page(){useWorkspaceData<Member[]>('/enterprise-workspace/members');
+      cmd.run('/platform/approvals',{operation,reason},'POST');
+      return <DataForm path="/catalog/products" fields={[{name:'sku',label:'FORBIDDEN_LABEL'}]} className="FORBIDDEN_CSS"/>}
+    function transport(path){return request(path)}
+  `,'page.tsx');
+  assert.deepEqual(metadata.requests,[
+    {path:'/enterprise-workspace/members',method:'GET',responseType:'Member[]',payloadFields:[]},
+    {path:'/platform/approvals',method:'POST',responseType:'unknown',payloadFields:['operation','reason']},
+    {path:'/catalog/products',method:'POST',responseType:'unknown',payloadFields:['sku']},
+  ]);
+  assert.equal(JSON.stringify(metadata).includes('FORBIDDEN'),false);
+});
 test('baseline contract audit returns endpoints and payload field names with no presentation source', async () => {
   const module=await import('./audit-baseline.mjs');
   assert.equal(typeof module.extractContractMetadata,'function','render-stripped contract audit is missing');
