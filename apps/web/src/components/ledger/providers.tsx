@@ -9,6 +9,7 @@ import { TooltipProvider } from "./ui/tooltip";
 import { Toaster } from "./ui/sonner";
 import { LocaleBoundary } from "./locale";
 import { LedgerConfirmProvider } from "./confirm-provider";
+import { LedgerAuthRouteGate } from "./auth-route-gate";
 
 function ScopeQueryProvider({ children }: { children: React.ReactNode }) {
   const [client] = useState(() => new QueryClient({ defaultOptions: { queries: {
@@ -24,5 +25,5 @@ function AuthorizationBoundary({ children }: { children: React.ReactNode }) {
   return <ScopeQueryProvider key={getAuthorizationScope(user)}>{children}</ScopeQueryProvider>;
 }
 export function LedgerProviders({ children }: { children: React.ReactNode }) {
-  return <AuthProvider><AuthorizationBoundary><TooltipProvider delayDuration={300}><LedgerConfirmProvider><LocaleBoundary>{children}</LocaleBoundary></LedgerConfirmProvider><Toaster position="bottom-right" /></TooltipProvider></AuthorizationBoundary></AuthProvider>;
+  return <AuthProvider><AuthorizationBoundary><TooltipProvider delayDuration={300}><LedgerConfirmProvider><LocaleBoundary><LedgerAuthRouteGate>{children}</LedgerAuthRouteGate></LocaleBoundary></LedgerConfirmProvider><Toaster position="bottom-right" /></TooltipProvider></AuthorizationBoundary></AuthProvider>;
 }

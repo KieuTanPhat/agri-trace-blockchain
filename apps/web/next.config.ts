@@ -10,6 +10,7 @@ const monorepoRoot = path.resolve(
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  agentRules: false,
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
   // npm run build enforces both ESLint and Oxlint before invoking Next 16.

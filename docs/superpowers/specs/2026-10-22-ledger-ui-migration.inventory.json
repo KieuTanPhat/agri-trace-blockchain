@@ -3038,7 +3038,7 @@
       "target": "apps/web/src/components/ledger/providers.tsx",
       "source": "src/components/providers.tsx",
       "sourceSha256": "6b4cd716c81408a0da423a6fe13d20ddeeac413e0ddf58890fe1147c0ca3ba27",
-      "targetSha256": "03afd89fc0b666354fd40d988d43c92e5ef75c32a51a5489d47e2ffb09868c6d",
+      "targetSha256": "2d3eb6e99b243273450cb8ff479433a2a4f10ddbd7d85fb95ffc1b0210ec2aba",
       "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
     },
     {
@@ -3075,6 +3075,20 @@
       "sourceSha256": "3a3e844bc282720612f23a073d4b9490e9d313576912eacdff23a5ed07e2c89a",
       "targetSha256": "3675ea7e9fc58d614cfabdbe3d94798b1c0ab8f610013a6d3bb72220c1def3bd",
       "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/login/screen.tsx",
+      "source": "src/app/login/page.tsx",
+      "sourceSha256": "89311d1c0580ea9241286d00ec0ed7bfa0e94ed21278b773b2625967018ee395",
+      "targetSha256": "e44e796d693ce15764b2780d2f424225f3b550eb13761f53d73ebc17eb405afd",
+      "adaptation": "Ledger auth presentation; baseline session/MFA/password policy and API, without preview accounts."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/account/password/screen.tsx",
+      "source": "src/components/shell/force-password.tsx",
+      "sourceSha256": "c271082e7d2ce6a5a1a9e69c9d259ef1dab73959ae6a84c9742013bbcd855628",
+      "targetSha256": "9eece8ba4c57f96884bfe6e753052107295be1b0bd8ec750f15264b3591f4fc6",
+      "adaptation": "Ledger auth presentation; baseline session/MFA/password policy and API, without preview accounts."
     }
   ],
   "newLedgerComposition": [
@@ -3085,6 +3099,22 @@
     {
       "target": "apps/web/src/components/ledger/shell/public-shell.tsx",
       "basis": "New public hierarchy from Ledger kit/tokens/brand; preview has no public shell."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/register/screen.tsx",
+      "basis": "New Ledger kit composition for baseline workflow absent from preview; no old presentation used."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/register/fields.tsx",
+      "basis": "New Ledger kit composition for baseline workflow absent from preview; no old presentation used."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/register/review.tsx",
+      "basis": "New Ledger kit composition for baseline workflow absent from preview; no old presentation used."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/join-organization/screen.tsx",
+      "basis": "New Ledger kit composition for baseline workflow absent from preview; no old presentation used."
     }
   ]
 }

@@ -8,6 +8,7 @@ import {getAuthorizationScope}from"@/lib/auth-scope";
 import {actorA,actorB}from"@/test/ledger-actors";
 import {LedgerProviders as Providers}from"./providers";
 import {setLocale}from"@/lib/ledger/i18n";
+vi.mock("next/navigation",()=>({usePathname:()=>"/login",useRouter:()=>({replace:vi.fn()})}));
 const clients=new Map<string,QueryClient>();
 function PrivateProbe(){
   const {user,privateAccessStatus}=useAuth();
@@ -49,4 +50,12 @@ it("locale change preserves the mounted draft and authenticated identity",async(
   expect(field).toHaveValue("original pending command");
   expect(readSession()?.user.id).toBe(actorA.user.id);
   expect(clients.get(actorA.user.id)).toBe(client);
+});
+it("logout_clears_scope after a private record has actually been rendered and cached",async()=>{
+ render(<Providers><PrivateProbe/></Providers>);await screen.findByText("PRIVATE_A_RECORD");
+ const previous=clients.get(actorA.user.id)!;
+ act(()=>clearSession());
+ await waitFor(()=>expect(screen.queryByText("PRIVATE_A_RECORD")).not.toBeInTheDocument());
+ await waitFor(()=>expect(previous.getQueryCache().getAll()).toHaveLength(0));
+ expect(readSession()).toBeNull();
 });

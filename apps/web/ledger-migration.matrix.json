@@ -37,8 +37,10 @@
           "retainedLogic": [
             "apps/web/src/app/account/password/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         },
         {
           "id": "POST /auth/change-password",
@@ -52,12 +54,18 @@
           "retainedLogic": [
             "apps/web/src/app/account/password/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/auth.spec.ts",
+        "src/lib/ledger/request.spec.ts",
+        "src/components/ledger/providers.spec.tsx"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
@@ -10094,8 +10102,10 @@
           "retainedLogic": [
             "apps/web/src/app/join-organization/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         },
         {
           "id": "POST /auth/member-invitations/accept",
@@ -10108,12 +10118,18 @@
           "retainedLogic": [
             "apps/web/src/app/join-organization/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/auth.spec.ts",
+        "src/lib/ledger/request.spec.ts",
+        "src/components/ledger/providers.spec.tsx"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
@@ -10146,8 +10162,10 @@
           "retainedLogic": [
             "apps/web/src/app/login/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         },
         {
           "id": "POST /auth/login",
@@ -10160,12 +10178,18 @@
           "retainedLogic": [
             "apps/web/src/lib/api-client.ts#login"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/auth.spec.ts",
+        "src/lib/ledger/request.spec.ts",
+        "src/components/ledger/providers.spec.tsx"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
@@ -12113,8 +12137,10 @@
           "retainedLogic": [
             "apps/web/src/app/register/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         },
         {
           "id": "GET /reference-data/addresses",
@@ -12125,8 +12151,10 @@
           "retainedLogic": [
             "apps/web/src/components/workspace/registration-form-page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         },
         {
           "id": "POST /auth/register",
@@ -12139,8 +12167,10 @@
           "retainedLogic": [
             "apps/web/src/lib/enterprise-onboarding.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         },
         {
           "id": "POST /auth/registration-documents",
@@ -12151,8 +12181,10 @@
           "retainedLogic": [
             "apps/web/src/components/workspace/registration-form-page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "src/features/ledger/screens/register/use-registration-protocol.spec.ts"
+          ],
+          "status": "verified"
         },
         {
           "id": "POST /auth/registration-email-availability",
@@ -12165,8 +12197,10 @@
           "retainedLogic": [
             "apps/web/src/lib/use-registration-email.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         },
         {
           "id": "POST /auth/registration-otp/request",
@@ -12179,8 +12213,10 @@
           "retainedLogic": [
             "apps/web/src/components/workspace/registration-email-otp.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         },
         {
           "id": "POST /auth/registration-otp/verify",
@@ -12193,12 +12229,18 @@
           "retainedLogic": [
             "apps/web/src/components/workspace/registration-email-otp.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/auth.spec.ts"
+          ],
+          "status": "verified"
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/auth.spec.ts",
+        "src/lib/ledger/request.spec.ts",
+        "src/components/ledger/providers.spec.tsx"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
