@@ -126,3 +126,12 @@ Dockerfile tạo `.next/standalone`, user `node`. Smoke dùng image/container c�
 config API thật, kiểm startup/login/public trace/assets/image và reverse proxy `/api`;
 không thay container triển khai. Fixture xanh không chứng minh API/DB/Worker/Fabric
 production hoặc camera phần cứng đã nghiệm thu.
+
+Khi smoke dùng cổng riêng, origin của browser (ví dụ `http://localhost:3190`)
+phải có trong `CORS_ORIGIN` của API dùng cho smoke. Auth kiểm tra origin ở các
+POST login/refresh; health HTTP 200 chưa chứng minh đăng nhập đã hoạt động.
+Có thể chạy API cách ly từ image và cấu hình local hiện có, bổ sung origin smoke,
+không chạy lại migration/seed hay Worker. Proxy `/api` tới API cách ly và các đường
+còn lại tới web candidate; kiểm đăng nhập bằng tài khoản local và public trace
+có dữ liệu thật. Giữ log/ảnh/receipt trong artifact local được ignore; dọn các
+container và network smoke sau kiểm tra, giữ nguyên ứng dụng local đang chạy.
