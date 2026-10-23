@@ -54,6 +54,14 @@ test('dynamic import cannot reach preview mock runtime',async(t)=>{
   assert.equal(typeof module.checkUiOrigin,'function','UI provenance behavior is missing');
   assert.ok(module.checkUiOrigin({...fx,phase:'final'}).errors.some(e=>e.code==='PREVIEW_RUNTIME_IMPORT'));
 });
+test('runtime cannot import test-only API fixtures after their move out of the client',async(t)=>{
+  const fx=makeUiOriginFixture();t.after(()=>rmSync(fx.repoRoot,{recursive:true,force:true}));
+  mkdirSync(join(fx.repoRoot,'apps/web/src/test'),{recursive:true});
+  writeFileSync(join(fx.repoRoot,'apps/web/src/test/domain-fixtures.ts'),'export const fixture=[];');
+  writeFileSync(join(fx.repoRoot,'apps/web/src/features/ledger/screens/sample/screen.tsx'),"export {fixture} from '@/test/domain-fixtures';");
+  const {checkUiOrigin}=await import('./check-ui-origin.mjs');
+  assert.ok(checkUiOrigin({...fx,phase:'final'}).errors.some(e=>e.code==='TEST_RUNTIME_IMPORT'));
+});
 test('migration phase targets the new namespace, not an unmigrated canonical ledger URL',async(t)=>{
   const fx=makeUiOriginFixture();t.after(()=>rmSync(fx.repoRoot,{recursive:true,force:true}));
   mkdirSync(join(fx.repoRoot,'apps/web/src/app/admin/ledger'),{recursive:true});

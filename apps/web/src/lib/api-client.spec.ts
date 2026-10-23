@@ -23,6 +23,24 @@ const auth = { accessToken: "old", tokenType: "Bearer" as const, user };
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status });
 
+it("always reads public trace from the API even if a retired development mock flag is present", async () => {
+  vi.resetModules();
+  vi.stubEnv("NEXT_PUBLIC_MOCK_API", "true");
+  const fetchMock = vi.fn().mockResolvedValue(json({ success: true, data: null }));
+  vi.stubGlobal("fetch", fetchMock);
+  try {
+    const { getPublicTrace } = await import("./api-client");
+    expect(await getPublicTrace("actual-token")).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/public/trace/actual-token"),
+      expect.any(Object),
+    );
+  } finally {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  }
+});
+
 it("uses only public image evidence for the public lot photograph", async () => {
   const fetchMock = vi.fn().mockResolvedValue(
     json({

@@ -5,6 +5,26 @@ const out = path.resolve(
   __dirname,
   "../../../../.superpowers/sdd/2026-10-22-ledger-ui-migration",
 );
+
+test("Ledger focus trap, Escape and small viewports work with reduced motion",async({page,api})=>{
+ await page.emulateMedia({reducedMotion:"reduce"});await api.useActor("platform-admin");await api.scenario("governance.registry");
+ await page.setViewportSize({width:320,height:844});await page.goto("/admin/inbox");
+ await expect(page.getByRole("heading",{level:1})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ const trigger=page.getByRole("button",{name:"Mở điều hướng",exact:true});await trigger.focus();await page.keyboard.press("Enter");
+ const dialog=page.getByRole("dialog");await expect(dialog).toBeVisible();
+ for(let i=0;i<4;i++){await page.keyboard.press(i%2?"Shift+Tab":"Tab");expect(await dialog.evaluate(el=>el.contains(document.activeElement))).toBe(true);}
+ await page.keyboard.press("Escape");await expect(dialog).toHaveCount(0);await expect(trigger).toBeFocused();
+ expect(await page.evaluate(()=>matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
+ await page.setViewportSize({width:768,height:900});await page.goto("/admin/approvals/new");
+ await expect(page.getByRole("dialog").getByRole("heading",{name:"Tạo đề xuất phê duyệt",exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test("Ledger login fits desktop and phone",async({page,api})=>{
+ await api.useActor("anonymous");await page.goto("/login");
+ for(const width of [1440,390]){await page.setViewportSize({width,height:900});await expect(page.getByRole("heading",{level:1})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:path.join(out,`task-18-login-${width}.png`),animations:"disabled"});}
+});
 test("Ledger governance presentation has no document overflow on desktop and mobile", async ({
   page,
   api,

@@ -1,11 +1,40 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 
 const hash = (s) => createHash('sha256').update(s).digest('hex');
+test('all 143 canonical URLs have a Ledger wrapper, screen and reconciled action evidence',()=>{
+  const root=new URL('../../',import.meta.url);
+  const read=p=>readFileSync(new URL(p,root),'utf8');
+  const inventory=JSON.parse(read('docs/superpowers/specs/2026-10-22-ledger-ui-migration.inventory.json'));
+  const matrix=JSON.parse(read('apps/web/ledger-migration.matrix.json'));
+  assert.equal(matrix.routes.length,143);
+  assert.equal(new Set(matrix.routes.map(r=>r.route)).size,143);
+  assert.deepEqual(matrix.routes.map(r=>r.route).sort(),inventory.routes.map(r=>r.route).sort());
+  for(const row of matrix.routes){
+    assert.equal(row.status,'verified',row.route);
+    const wrapper=read(row.sourceFile),screen=read(row.targetScreen);
+    assert.ok(wrapper.includes(row.targetScreen.replace('apps/web/src/','@/').replace(/\.tsx$/,'')),row.route+' screen import');
+    assert.match(wrapper,/resolveLedgerRouteInput/);
+    const imported=wrapper.match(/import\s+(\w+)\s+from\s+["']@\/features\/ledger\/screens\//)?.[1];
+    assert.ok(imported,row.route+' imported screen');
+    assert.ok(wrapper.includes('<'+imported+' route='),row.route+' forwarded route');
+    assert.match(screen,/export default function/);
+    for(const action of row.actions){
+      assert.equal(action.status,'verified',row.route+' '+action.id);
+      const tests=action.tests??[];
+      assert.ok(tests.length||action.verification?.method==='source-review',row.route+' '+action.id+' evidence');
+      for(const p of tests)assert.ok(existsSync(new URL('apps/web/'+p,root)),p);
+      for(const p of action.retainedLogic??[])assert.ok(existsSync(new URL(p,root)),p);
+    }
+  }
+  for(const entry of inventory.provenance??[]){
+    assert.equal(hash(readFileSync(new URL(entry.target,root))),entry.targetSha256,entry.target+' provenance hash');
+  }
+});
 test('contract metadata resolves hook/command call sites and form endpoints instead of a transport parameter named path',async()=>{
   const {extractContractMetadata}=await import('./audit-baseline.mjs');
   const metadata=extractContractMetadata(`

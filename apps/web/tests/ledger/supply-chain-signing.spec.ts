@@ -4,6 +4,18 @@ import {organizationId} from "./fixtures/enterprise-membership";
 import {keyPopMessage} from "../../src/lib/signing/canonical";
 import {createPublicKey,verify} from "node:crypto";
 import {resolve} from "node:path";
+
+test("shipment finalize requires every party's current consent and unchanged exact stock",async({page,api})=>{
+ await api.useActor("org-owner");await api.scenario("chains.signing");await page.goto(`/supply-chains/${chainId}/plans`);
+ await expect(page.getByRole("heading",{name:"Kế hoạch giao nhận & đồng thuận",exact:true})).toBeVisible();
+ await expect(page.getByRole("button",{name:"Chốt kế hoạch",exact:true})).toHaveCount(0);
+ await api.scenario("chains.stock-changed");await page.reload();
+ await expect(page.getByText(/Tồn kho đã thay đổi/)).toBeVisible();
+ await expect(page.getByRole("button",{name:"Chốt kế hoạch",exact:true})).toHaveCount(0);
+ await api.scenario("chains.stock-exact");await page.reload();
+ await expect(page.getByRole("button",{name:"Chốt kế hoạch",exact:true})).toBeVisible();
+ expect(api.requests().some(r=>r.method==="POST"&&r.path.endsWith("/finalize"))).toBe(false);
+});
 test("chain consumer creates a non-extractable key with real Ed25519 proof and preserves plan consent digest",async({page,api})=>{
  await api.useActor("org-owner");await api.scenario("chains.signing");await page.goto(`/supply-chains/${chainId}/signing`);await page.getByLabel("Nhãn khóa ký sổ cái",{exact:true}).fill("Khóa chuỗi tại thiết bị");await page.getByRole("button",{name:"Tạo khóa ký sổ cái",exact:true}).click();await expect(page.getByText("Chờ sổ cái nạp",{exact:true})).toBeVisible();
  const request=api.requests().find(r=>r.method==="POST"&&r.path===`/supply-chains/${chainId}/signing-keys`)!;const body=JSON.parse(request.body!);expect(Object.keys(body).sort()).toEqual(["keyRef","label","popSignature","publicKey"]);expect(request.idempotencyKey).toBeTruthy();const key=createPublicKey({key:Buffer.from(body.publicKey,"base64url"),format:"der",type:"spki"});expect(verify(null,keyPopMessage({bindingDigest,keyRef:body.keyRef,orgRef:organizationId,publicKey:body.publicKey}),key,Buffer.from(body.popSignature,"base64url"))).toBe(true);expect(verify(null,keyPopMessage({bindingDigest:"d".repeat(64),keyRef:body.keyRef,orgRef:organizationId,publicKey:body.publicKey}),key,Buffer.from(body.popSignature,"base64url"))).toBe(false);

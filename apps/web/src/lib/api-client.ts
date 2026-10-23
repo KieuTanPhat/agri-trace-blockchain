@@ -1,10 +1,3 @@
-import {
-  mockDashboard,
-  mockLots,
-  mockPublicTrace,
-  mockSendSensorReading,
-  mockSubmitCommand,
-} from "./mock-api";
 import { getAuthorizationScope } from "./auth-scope";
 import { commandRequest } from "./command-request";
 import {
@@ -48,9 +41,6 @@ const API_BASE_URL =
     : process.env.NEXT_PUBLIC_API_SAME_ORIGIN === "true"
       ? "/api"
       : PUBLIC_API_BASE_URL;
-const USE_MOCK_API =
-  process.env.NODE_ENV !== "production" &&
-  process.env.NEXT_PUBLIC_MOCK_API === "true";
 export const AUTH_STORAGE_KEY = "agritrace-auth"; // Legacy key, removed on startup.
 
 type ApiEnvelope<T> = { success: true; data: T };
@@ -210,25 +200,20 @@ export async function login(
 }
 
 export async function getDashboard(): Promise<Dashboard> {
-  if (USE_MOCK_API) return mockDashboard();
   return request("/dashboard");
 }
 
 export async function getLots(): Promise<LotTrace[]> {
-  if (USE_MOCK_API) return mockLots;
   return request("/lots");
 }
 
 export async function getLotById(lotId: string): Promise<LotTrace> {
-  if (USE_MOCK_API)
-    return mockLots.find((lot) => lot.lotId === lotId) ?? mockLots[0];
   return request(`/lots/${lotId}`);
 }
 
 export async function getPublicTrace(
   traceToken: string,
 ): Promise<PublicLotTrace | null> {
-  if (USE_MOCK_API) return mockPublicTrace(traceToken);
   try {
     return await request(
       `/public/trace/${encodeURIComponent(traceToken)}`,
@@ -245,7 +230,6 @@ export async function getPublicTrace(
 export async function getPublicLotPhoto(
   traceToken: string,
 ): Promise<string | null> {
-  if (USE_MOCK_API) return null;
   try {
     const token = encodeURIComponent(traceToken);
     const evidence = await request<{
@@ -309,7 +293,6 @@ export async function submitCommand(
   input: CommandInput = {},
   idempotencyKey = crypto.randomUUID(),
 ): Promise<{ message: string }> {
-  if (USE_MOCK_API) return mockSubmitCommand(lot.lotId, command);
 
   if (command === "createShipment") {
     await request("/shipments", {
@@ -402,7 +385,6 @@ export async function sendSensorReading(
   payload: SensorReadingRequest,
   idempotencyKey = crypto.randomUUID(),
 ): Promise<SensorReadingResponse> {
-  if (USE_MOCK_API) return mockSendSensorReading(payload);
   return request("/iot/readings", {
     headers: { "idempotency-key": idempotencyKey },
     method: "POST",

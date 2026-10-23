@@ -1,7 +1,7 @@
 import {cleanup,render} from "@testing-library/react";
 import {afterEach,expect,it,vi} from "vitest";
 import {PublicTraceContent} from "@/features/ledger/public/trace";
-import {mockLots,mockPublicTrace} from "@/lib/mock-api";
+import {mockLots,mockPublicTrace} from "@/test/domain-fixtures";
 import type {ProofStatus} from "@/lib/types";
 vi.mock("@/features/ledger/public/report",()=>({ConsumerReport:()=>null}));
 afterEach(cleanup);

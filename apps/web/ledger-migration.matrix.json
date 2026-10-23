@@ -22,7 +22,6 @@
         "apps/web/src/lib/auth-store.tsx",
         "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
         "apps/web/src/lib/iot-local-store.ts",
         "apps/web/src/lib/permission-sync.ts",
         "apps/web/src/lib/workspace.ts"
@@ -34,13 +33,14 @@
           "method": "NAVIGATE",
           "requestType": null,
           "responseType": "LedgerScreen",
-          "retainedLogic": [
-            "apps/web/src/app/account/password/page.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/account/password/page.tsx"
+          ]
         },
         {
           "id": "POST /auth/change-password",
@@ -51,13 +51,14 @@
             "newPassword"
           ],
           "responseType": "unknown",
-          "retainedLogic": [
-            "apps/web/src/app/account/password/page.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/account/password/page.tsx"
+          ]
         }
       ],
       "tests": [
@@ -67,8 +68,31 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/confirm.tsx",
+        "apps/web/src/lib/iot-local-store.ts",
+        "apps/web/src/lib/permission-sync.ts",
+        "apps/web/src/lib/workspace.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/account/password/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -99,9 +123,7 @@
           "method": "NAVIGATE",
           "requestType": null,
           "responseType": "LedgerScreen",
-          "retainedLogic": [
-            "apps/web/src/app/account/privacy/page.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "tests/ledger/platform-cases.spec.ts"
           ],
@@ -109,6 +131,9 @@
           "implementation": [
             "apps/web/src/features/ledger/screens/account/privacy/screen.tsx",
             "apps/web/src/lib/ledger/privacy-api.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/account/privacy/page.tsx"
           ]
         },
         {
@@ -201,7 +226,12 @@
       "implementation": [
         "apps/web/src/features/ledger/screens/account/privacy/screen.tsx",
         "apps/web/src/lib/ledger/privacy-api.ts"
-      ]
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/account/privacy/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
+      }
     },
     {
       "route": "/admin/approvals/[id]",
@@ -328,6 +358,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/approvals/[id]/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -503,6 +545,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/approvals/new/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -584,6 +638,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/approvals/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -731,6 +797,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/audit-log/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -827,7 +905,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/screens/admin/backup/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/billing/invoices",
@@ -994,7 +1079,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/billing",
@@ -1159,7 +1251,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/billing/revenue",
@@ -1255,7 +1354,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/screens/admin/billing/revenue/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/billing/subscriptions",
@@ -1382,7 +1488,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/cases/[id]",
@@ -1659,7 +1772,12 @@
       "implementation": [
         "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
         "apps/web/src/lib/ledger/cases-api.ts"
-      ]
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
+      }
     },
     {
       "route": "/admin/cases/new",
@@ -1788,7 +1906,12 @@
       "implementation": [
         "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
         "apps/web/src/lib/ledger/cases-api.ts"
-      ]
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
+      }
     },
     {
       "route": "/admin/cases",
@@ -1884,7 +2007,12 @@
       "implementation": [
         "apps/web/src/features/ledger/screens/admin/cases/screen.tsx",
         "apps/web/src/lib/ledger/cases-api.ts"
-      ]
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/cases/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
+      }
     },
     {
       "route": "/admin/chains",
@@ -1980,7 +2108,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/screens/admin/chains/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/compliance-assignments/[id]",
@@ -2109,6 +2244,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/compliance-assignments/[id]/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -2240,6 +2387,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/compliance-assignments/new/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -2344,6 +2503,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/compliance-assignments/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -2472,7 +2643,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/directory",
@@ -2568,7 +2746,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/screens/admin/directory/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/enterprises/[id]/connections/[connectionId]",
@@ -2674,6 +2859,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -2901,6 +3098,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -3032,6 +3241,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/enterprises/amendments/[id]/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -3113,6 +3334,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/enterprises/amendments/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -3194,6 +3427,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/enterprises/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -3276,6 +3521,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/inbox/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -3403,6 +3660,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/inspectors/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -3527,7 +3796,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/lots",
@@ -3693,7 +3969,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/monitoring",
@@ -3789,7 +4072,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/screens/admin/monitoring/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/notices",
@@ -3978,7 +4268,12 @@
       "implementation": [
         "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
         "apps/web/src/lib/ledger/coordination-api.ts"
-      ]
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
+      }
     },
     {
       "route": "/admin/operations",
@@ -4198,7 +4493,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/organizations/new",
@@ -4281,6 +4583,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/organizations/new/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -4362,6 +4676,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/organizations/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -4443,6 +4769,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -4474,9 +4812,7 @@
           "method": "NAVIGATE",
           "requestType": null,
           "responseType": "LedgerScreen",
-          "retainedLogic": [
-            "apps/web/src/app/admin/privacy/page.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "tests/ledger/platform-cases.spec.ts"
           ],
@@ -4484,6 +4820,9 @@
           "implementation": [
             "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
             "apps/web/src/lib/ledger/privacy-api.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/privacy/page.tsx"
           ]
         },
         {
@@ -4598,7 +4937,12 @@
       "implementation": [
         "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
         "apps/web/src/lib/ledger/privacy-api.ts"
-      ]
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
+      }
     },
     {
       "route": "/admin/products/[organizationId]",
@@ -4732,7 +5076,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/products",
@@ -4866,7 +5217,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/qr",
@@ -4993,7 +5351,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/recall",
@@ -5127,7 +5492,12 @@
       "implementation": [
         "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
         "apps/web/src/lib/ledger/coordination-api.ts"
-      ]
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
+      }
     },
     {
       "route": "/admin/reference-data",
@@ -5263,7 +5633,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/reports",
@@ -5397,7 +5774,12 @@
       "implementation": [
         "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
         "apps/web/src/lib/ledger/coordination-api.ts"
-      ]
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
+      }
     },
     {
       "route": "/admin/roles",
@@ -5455,6 +5837,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/roles/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -5551,7 +5945,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/screens/admin/security-alerts/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/security",
@@ -5735,6 +6136,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/security/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -5843,6 +6256,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/settings/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -5939,7 +6364,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/support/[id]",
@@ -6141,7 +6573,12 @@
       "implementation": [
         "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
         "apps/web/src/lib/ledger/support-api.ts"
-      ]
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
+      }
     },
     {
       "route": "/admin/support",
@@ -6237,7 +6674,12 @@
       "implementation": [
         "apps/web/src/features/ledger/screens/admin/support/screen.tsx",
         "apps/web/src/lib/ledger/support-api.ts"
-      ]
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/support/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
+      }
     },
     {
       "route": "/admin/trace-report",
@@ -6369,7 +6811,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
         "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/admin/users/[id]",
@@ -6544,6 +6993,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/users/[id]/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -6651,6 +7112,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/users/new/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -6732,6 +7205,18 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/users/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -6980,8 +7465,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/compliance/screen.tsx",
@@ -6992,7 +7483,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/compliance.tsx",
         "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/dashboard",
@@ -7076,8 +7572,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/dashboard/screen.tsx",
@@ -7088,7 +7590,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/dashboard.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/distribution/[id]/journal",
@@ -7200,8 +7709,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/distribution/[id]/journal/screen.tsx",
@@ -7213,7 +7728,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
         "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/distribution/[id]",
@@ -7776,8 +8296,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/distribution/[id]/screen.tsx",
@@ -7789,7 +8315,12 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
         "result": "Receipt overdraw blocked before POST; exact decimal received/rejected/quarantined and version. Typed fixture API only; no live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/distribution/new",
@@ -7995,8 +8526,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/distribution/new/screen.tsx",
@@ -8008,7 +8545,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
         "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/distribution",
@@ -8116,8 +8658,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/distribution/screen.tsx",
@@ -8129,7 +8677,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
         "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/areas/[id]",
@@ -8410,8 +8963,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -8423,7 +8982,13 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/areas.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/areas/new",
@@ -8587,8 +9152,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -8600,7 +9171,13 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/areas.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/areas",
@@ -8764,8 +9341,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -8777,7 +9360,13 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/areas.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/areas/plots/new",
@@ -8913,8 +9502,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -8926,7 +9521,13 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/areas.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/billing",
@@ -9072,8 +9673,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/billing/screen.tsx",
@@ -9084,7 +9691,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/billing.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/connections",
@@ -9228,8 +9842,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/connections/screen.tsx",
@@ -9240,7 +9860,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/connections.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/help",
@@ -9324,8 +9951,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/help/screen.tsx",
@@ -9336,7 +9969,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/inbox",
@@ -9509,8 +10149,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/inbox/screen.tsx",
@@ -9521,7 +10167,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/inbox.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/inventory",
@@ -10048,8 +10701,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/inventory/screen.tsx",
@@ -10061,7 +10720,12 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
         "result": "Internal transfer7.125/version9, unknown outcome reload and original idempotency header with one domain POST; mobile form smoke. Typed fixture API only; no live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/materials/[id]",
@@ -10399,8 +11063,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -10412,7 +11082,13 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/materials.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/materials/new",
@@ -10535,8 +11211,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -10548,7 +11230,13 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/materials.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/materials",
@@ -10713,8 +11401,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -10726,7 +11420,13 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/materials.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/members/[id]/edit",
@@ -11033,8 +11733,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/members/[id]/edit/screen.tsx",
@@ -11045,7 +11751,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/members/[id]",
@@ -11399,8 +12112,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/members/[id]/screen.tsx",
@@ -11411,7 +12130,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/members/invitations",
@@ -11553,8 +12279,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/members/invitations/screen.tsx",
@@ -11565,7 +12297,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/members/new",
@@ -11899,8 +12638,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/members/new/screen.tsx",
@@ -11911,7 +12656,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/members",
@@ -12024,8 +12776,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/members/screen.tsx",
@@ -12036,7 +12794,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/messages",
@@ -12242,8 +13007,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/messages/screen.tsx",
@@ -12254,7 +13025,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/messages.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/notices",
@@ -12396,8 +13174,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/notices/screen.tsx",
@@ -12408,7 +13192,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/onboarding",
@@ -12758,8 +13549,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/onboarding/screen.tsx",
@@ -12770,7 +13567,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/ownership",
@@ -12948,8 +13752,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/ownership/screen.tsx",
@@ -12960,7 +13770,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/ownership.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise",
@@ -13050,8 +13867,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/screen.tsx",
@@ -13062,7 +13885,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/home.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/partners/external/[id]",
@@ -13432,8 +14262,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/partners/external/[id]/screen.tsx",
@@ -13444,7 +14280,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/partners/new",
@@ -13724,8 +14567,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/partners/new/screen.tsx",
@@ -13736,7 +14585,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/partners",
@@ -14079,8 +14935,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/partners/screen.tsx",
@@ -14091,7 +14953,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/processing/[id]",
@@ -14234,8 +15103,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/processing/[id]/screen.tsx",
@@ -14246,7 +15121,12 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/processing.tsx",
         "result": "Current version4 completion, server output lots and private lineage; stale409 never reports completed, missing PROCESSOR denied by unchanged route gate. Typed fixture API only; no live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/processing/conversions",
@@ -14413,8 +15293,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/processing/conversions/screen.tsx",
@@ -14425,7 +15311,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/processing.tsx",
         "result": "Task16 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/processing/new",
@@ -14600,8 +15491,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/processing/new/screen.tsx",
@@ -14612,7 +15509,12 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/processing.tsx",
         "result": "Owned output selector, exact input/output/loss decimal strings, packaging/packageCount, no asserted client baseQuantity; invalid balance422 retains draft. Typed fixture API only; no live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/processing",
@@ -14717,8 +15619,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/processing/screen.tsx",
@@ -14729,7 +15637,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/processing.tsx",
         "result": "Task16 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/products/[id]/edit",
@@ -15081,8 +15994,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -15094,7 +16013,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
         "result": "Task10 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/catalog-csv.ts"
+      ]
     },
     {
       "route": "/enterprise/products/[id]",
@@ -15442,8 +16368,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -15455,7 +16387,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
         "result": "Task10 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/catalog-csv.ts"
+      ]
     },
     {
       "route": "/enterprise/products/import",
@@ -15575,8 +16514,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -15588,7 +16533,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
         "result": "Task10 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/catalog-csv.ts"
+      ]
     },
     {
       "route": "/enterprise/products/new",
@@ -15760,8 +16712,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -15773,7 +16731,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
         "result": "Task10 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/catalog-csv.ts"
+      ]
     },
     {
       "route": "/enterprise/products",
@@ -15917,8 +16882,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -15930,7 +16901,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
         "result": "Task10 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/catalog-csv.ts"
+      ]
     },
     {
       "route": "/enterprise/profile",
@@ -16296,8 +17274,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/profile/screen.tsx",
@@ -16308,7 +17292,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/qr",
@@ -16447,8 +17438,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/qr/screen.tsx",
@@ -16460,7 +17457,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/qr.tsx",
         "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/reports/adjust",
@@ -16572,8 +17574,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/reports/adjust/screen.tsx",
@@ -16585,7 +17593,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
         "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/reports",
@@ -16721,8 +17734,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/reports/screen.tsx",
@@ -16734,7 +17753,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
         "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/roles/[id]",
@@ -16905,8 +17929,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/roles/[id]/screen.tsx",
@@ -16917,7 +17947,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/roles/new",
@@ -17059,8 +18096,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/roles/new/screen.tsx",
@@ -17071,7 +18114,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/roles",
@@ -17215,8 +18265,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/roles/screen.tsx",
@@ -17227,7 +18283,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/service/contract",
@@ -17345,8 +18408,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/service/contract/screen.tsx",
@@ -17357,7 +18426,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/service",
@@ -17503,8 +18579,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/service/screen.tsx",
@@ -17515,7 +18597,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/service/payment",
@@ -17634,8 +18723,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/service/payment/screen.tsx",
@@ -17646,7 +18741,14 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/settings",
@@ -17701,8 +18803,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/settings/screen.tsx",
@@ -17713,7 +18821,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/settings.tsx",
         "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/signing",
@@ -17909,8 +19024,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/signing/screen.tsx",
@@ -17922,7 +19043,17 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/chain-signing.tsx",
         "result": "Task13 endpoint/DTO/authorization and canonical consumer review; real frontend Ed25519/IndexedDB browser workflow and baseline signer units. Fixture API only, no live ledger acceptance. Task15 regression: baseline DistributionKey.status is authoritative; REVOKED displays revoked and cannot be revoked again."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/use-pending-commands.ts",
+        "apps/web/src/lib/signing/signer.ts",
+        "apps/web/src/lib/signing/key-store.ts",
+        "apps/web/src/lib/signing/canonical.ts",
+        "apps/web/src/lib/distribution-signer.ts"
+      ]
     },
     {
       "route": "/enterprise/sites/[id]",
@@ -18316,8 +19447,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -18329,7 +19466,13 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/sites.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/sites/new",
@@ -18522,8 +19665,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -18535,7 +19684,13 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/sites.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/sites",
@@ -18699,8 +19854,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -18712,7 +19873,13 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/sites.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/support/[id]",
@@ -18851,8 +20018,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/support/[id]/screen.tsx",
@@ -18863,7 +20036,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/support/new",
@@ -19002,8 +20182,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/support/new/screen.tsx",
@@ -19014,7 +20200,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/support",
@@ -19153,8 +20346,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/enterprise/support/screen.tsx",
@@ -19165,7 +20364,14 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
         "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/vehicles/[id]",
@@ -19386,8 +20592,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -19399,7 +20611,13 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/sites.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/vehicles/new",
@@ -19562,8 +20780,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -19575,7 +20799,13 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/sites.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/enterprise/vehicles",
@@ -19683,8 +20913,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "excludedInventoryActions": [],
       "implementation": [
@@ -19696,7 +20932,13 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/sites.tsx",
         "result": "Task11 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/iot-simulator",
@@ -19727,7 +20969,9 @@
             "apps/web/src/lib/command-request.ts",
             "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
+          "tests": [
+            "tests/ledger/iot.spec.ts"
+          ],
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/iot-simulator/page.tsx",
@@ -19738,9 +20982,9 @@
             "apps/web/src/lib/ledger/ops-api.ts"
           ],
           "verification": {
-            "method": "source-review",
-            "implementation": "apps/web/src/features/ledger/workspace/iot.tsx",
-            "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/iot-simulator/screen.tsx",
+            "result": "Real browser through baseline command journal: immutable unknown reading retry; 422 settles only after positive NOT_FOUND status inspection. Old unit mock bypassed the journal."
           }
         },
         {
@@ -19754,7 +20998,9 @@
             "apps/web/src/lib/command-request.ts",
             "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
+          "tests": [
+            "tests/ledger/iot.spec.ts"
+          ],
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/iot-simulator/page.tsx",
@@ -19765,9 +21011,9 @@
             "apps/web/src/lib/ledger/ops-api.ts"
           ],
           "verification": {
-            "method": "source-review",
-            "implementation": "apps/web/src/features/ledger/workspace/iot.tsx",
-            "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/iot-simulator/screen.tsx",
+            "result": "Real browser through baseline command journal: immutable unknown reading retry; 422 settles only after positive NOT_FOUND status inspection. Old unit mock bypassed the journal."
           }
         },
         {
@@ -19783,7 +21029,9 @@
             "apps/web/src/lib/command-request.ts",
             "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
+          "tests": [
+            "tests/ledger/iot.spec.ts"
+          ],
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/iot-simulator/page.tsx",
@@ -19794,17 +21042,25 @@
             "apps/web/src/lib/ledger/ops-api.ts"
           ],
           "verification": {
-            "method": "source-review",
-            "implementation": "apps/web/src/features/ledger/workspace/iot.tsx",
-            "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/iot-simulator/screen.tsx",
+            "result": "Real browser through baseline command journal: immutable unknown reading retry; 422 settles only after positive NOT_FOUND status inspection. Old unit mock bypassed the journal."
           }
         }
       ],
-      "tests": [],
+      "tests": [
+        "tests/ledger/iot.spec.ts"
+      ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/iot-simulator/screen.tsx",
@@ -19812,10 +21068,15 @@
         "apps/web/src/lib/ledger/ops-api.ts"
       ],
       "verification": {
-        "method": "source-review",
-        "implementation": "apps/web/src/features/ledger/workspace/iot.tsx",
-        "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/iot-simulator/screen.tsx",
+        "result": "Real browser through baseline command journal: immutable unknown reading retry; 422 settles only after positive NOT_FOUND status inspection. Old unit mock bypassed the journal."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/join-organization",
@@ -19846,13 +21107,14 @@
           "method": "NAVIGATE",
           "requestType": null,
           "responseType": "LedgerScreen",
-          "retainedLogic": [
-            "apps/web/src/app/join-organization/page.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/join-organization/page.tsx"
+          ]
         },
         {
           "id": "POST /auth/member-invitations/accept",
@@ -19862,13 +21124,14 @@
             "$attempt.current"
           ],
           "responseType": "unknown",
-          "retainedLogic": [
-            "apps/web/src/app/join-organization/page.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/join-organization/page.tsx"
+          ]
         }
       ],
       "tests": [
@@ -19878,8 +21141,29 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/iot-local-store.ts",
+        "apps/web/src/lib/permission-sync.ts",
+        "apps/web/src/lib/workspace.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/join-organization/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -19896,7 +21180,6 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/management-routes.ts",
         "apps/web/src/lib/permissions.ts"
       ],
       "actions": [
@@ -19906,13 +21189,14 @@
           "method": "NAVIGATE",
           "requestType": null,
           "responseType": "LedgerScreen",
-          "retainedLogic": [
-            "apps/web/src/app/login/page.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/login/page.tsx"
+          ]
         },
         {
           "id": "POST /auth/login",
@@ -19928,7 +21212,10 @@
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/lib/api-client.ts#login"
+          ]
         }
       ],
       "tests": [
@@ -19938,8 +21225,24 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/management-routes.ts",
+        "apps/web/src/lib/permissions.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/login/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -20510,8 +21813,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/lots/[lotId]/screen.tsx",
@@ -20523,7 +21832,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
         "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/lots",
@@ -20745,8 +22059,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/lots/screen.tsx",
@@ -20758,7 +22078,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
         "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/",
@@ -20802,8 +22127,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/home/screen.tsx",
@@ -20813,7 +22144,8 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/public/home.tsx",
         "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
-      }
+      },
+      "baselineLogicSources": []
     },
     {
       "route": "/privacy",
@@ -20857,8 +22189,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/privacy/screen.tsx",
@@ -20868,7 +22206,8 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/public/legal.tsx",
         "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
-      }
+      },
+      "baselineLogicSources": []
     },
     {
       "route": "/production-cycles/[id]/harvest/new",
@@ -21259,8 +22598,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/production-cycles/[id]/harvest/new/screen.tsx",
@@ -21271,7 +22616,12 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/cycles.tsx",
         "result": "Harvest exact12.125/version/evidence/assignment and stale409 retains entered values. Typed fixture API only; no live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/production-cycles/[id]/harvest",
@@ -21656,8 +23006,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/production-cycles/[id]/harvest/screen.tsx",
@@ -21668,7 +23024,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/cycles.tsx",
         "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/production-cycles/[id]/journal/new",
@@ -22053,8 +23414,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/production-cycles/[id]/journal/new/screen.tsx",
@@ -22065,7 +23432,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/cycles.tsx",
         "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/production-cycles/[id]/journal",
@@ -22450,8 +23822,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/production-cycles/[id]/journal/screen.tsx",
@@ -22462,7 +23840,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/cycles.tsx",
         "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/production-cycles/[id]",
@@ -22851,8 +24234,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/production-cycles/[id]/screen.tsx",
@@ -22863,7 +24252,12 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/cycles.tsx",
         "result": "Server subject read-only denial suppresses write controls. Typed fixture API only; no live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/production-cycles/[id]/plant",
@@ -23248,8 +24642,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/production-cycles/[id]/plant/screen.tsx",
@@ -23260,7 +24660,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/cycles.tsx",
         "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/production-cycles/drafts/[id]",
@@ -23582,8 +24987,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/production-cycles/drafts/[id]/screen.tsx",
@@ -23594,7 +25005,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/cycles.tsx",
         "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/production-cycles/new",
@@ -23872,8 +25288,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/production-cycles/new/screen.tsx",
@@ -23884,7 +25306,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/cycles.tsx",
         "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/production-cycles",
@@ -24175,8 +25602,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/production-cycles/screen.tsx",
@@ -24187,7 +25620,12 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/cycles.tsx",
         "result": "Task14 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ]
     },
     {
       "route": "/register",
@@ -24221,13 +25659,14 @@
           "method": "NAVIGATE",
           "requestType": null,
           "responseType": "LedgerScreen",
-          "retainedLogic": [
-            "apps/web/src/app/register/page.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/register/page.tsx"
+          ]
         },
         {
           "id": "GET /reference-data/addresses",
@@ -24235,13 +25674,14 @@
           "method": "GET",
           "requestType": [],
           "responseType": "AddressProvince[]",
-          "retainedLogic": [
-            "apps/web/src/components/workspace/registration-form-page.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/registration-form-page.tsx"
+          ]
         },
         {
           "id": "POST /auth/register",
@@ -24257,7 +25697,10 @@
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/lib/enterprise-onboarding.ts"
+          ]
         },
         {
           "id": "POST /auth/registration-documents",
@@ -24265,13 +25708,14 @@
           "method": "POST",
           "requestType": [],
           "responseType": "S[\"RegistrationDocumentViewDto\"]",
-          "retainedLogic": [
-            "apps/web/src/components/workspace/registration-form-page.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "src/features/ledger/screens/register/use-registration-protocol.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/registration-form-page.tsx"
+          ]
         },
         {
           "id": "POST /auth/registration-email-availability",
@@ -24287,7 +25731,10 @@
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/lib/use-registration-email.ts"
+          ]
         },
         {
           "id": "POST /auth/registration-otp/request",
@@ -24297,13 +25744,14 @@
             "$originalSend.current"
           ],
           "responseType": "S[\"RegistrationOtpReceipt\"]",
-          "retainedLogic": [
-            "apps/web/src/components/workspace/registration-email-otp.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/registration-email-otp.tsx"
+          ]
         },
         {
           "id": "POST /auth/registration-otp/verify",
@@ -24313,13 +25761,14 @@
             "$originalVerify.current"
           ],
           "responseType": "S[\"RegistrationOtpVerifiedView\"]",
-          "retainedLogic": [
-            "apps/web/src/components/workspace/registration-email-otp.tsx"
-          ],
+          "retainedLogic": [],
           "tests": [
             "tests/ledger/auth.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/registration-email-otp.tsx"
+          ]
         }
       ],
       "tests": [
@@ -24329,8 +25778,32 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
+        "apps/web/src/lib/iot-local-store.ts",
+        "apps/web/src/lib/permission-sync.ts",
+        "apps/web/src/lib/registration-form.ts",
+        "apps/web/src/lib/use-registration-email.ts",
+        "apps/web/src/lib/workspace.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/register/screen.tsx",
+        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
       }
     },
     {
@@ -24385,8 +25858,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/scan/screen.tsx",
@@ -24396,7 +25875,11 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/public/scan.tsx",
         "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/trace-input.ts",
+        "apps/web/src/lib/ledger/use-camera-scanner.ts"
+      ]
     },
     {
       "route": "/supply-chains/[id]/business",
@@ -25556,8 +27039,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/supply-chains/[id]/business/screen.tsx",
@@ -25570,7 +27059,17 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/chains.tsx",
         "result": "Task13 endpoint/DTO/authorization and canonical consumer review; real frontend Ed25519/IndexedDB browser workflow and baseline signer units. Fixture API only, no live ledger acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/use-pending-commands.ts",
+        "apps/web/src/lib/signing/signer.ts",
+        "apps/web/src/lib/signing/key-store.ts",
+        "apps/web/src/lib/signing/canonical.ts",
+        "apps/web/src/lib/distribution-signer.ts"
+      ]
     },
     {
       "route": "/supply-chains/[id]/ledger",
@@ -26730,8 +28229,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/supply-chains/[id]/ledger/screen.tsx",
@@ -26744,7 +28249,17 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/chains.tsx",
         "result": "Task13 endpoint/DTO/authorization and canonical consumer review; real frontend Ed25519/IndexedDB browser workflow and baseline signer units. Fixture API only, no live ledger acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/use-pending-commands.ts",
+        "apps/web/src/lib/signing/signer.ts",
+        "apps/web/src/lib/signing/key-store.ts",
+        "apps/web/src/lib/signing/canonical.ts",
+        "apps/web/src/lib/distribution-signer.ts"
+      ]
     },
     {
       "route": "/supply-chains/[id]/members",
@@ -27904,8 +29419,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/supply-chains/[id]/members/screen.tsx",
@@ -27918,7 +29439,17 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/chains.tsx",
         "result": "Task13 endpoint/DTO/authorization and canonical consumer review; real frontend Ed25519/IndexedDB browser workflow and baseline signer units. Fixture API only, no live ledger acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/use-pending-commands.ts",
+        "apps/web/src/lib/signing/signer.ts",
+        "apps/web/src/lib/signing/key-store.ts",
+        "apps/web/src/lib/signing/canonical.ts",
+        "apps/web/src/lib/distribution-signer.ts"
+      ]
     },
     {
       "route": "/supply-chains/[id]",
@@ -29078,8 +30609,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/supply-chains/[id]/screen.tsx",
@@ -29092,7 +30629,17 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/chains.tsx",
         "result": "Task13 endpoint/DTO/authorization and canonical consumer review; real frontend Ed25519/IndexedDB browser workflow and baseline signer units. Fixture API only, no live ledger acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/use-pending-commands.ts",
+        "apps/web/src/lib/signing/signer.ts",
+        "apps/web/src/lib/signing/key-store.ts",
+        "apps/web/src/lib/signing/canonical.ts",
+        "apps/web/src/lib/distribution-signer.ts"
+      ]
     },
     {
       "route": "/supply-chains/[id]/plans",
@@ -30252,8 +31799,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/supply-chains/[id]/plans/screen.tsx",
@@ -30266,7 +31819,17 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/chains.tsx",
         "result": "Task13 endpoint/DTO/authorization and canonical consumer review; real frontend Ed25519/IndexedDB browser workflow and baseline signer units. Fixture API only, no live ledger acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/use-pending-commands.ts",
+        "apps/web/src/lib/signing/signer.ts",
+        "apps/web/src/lib/signing/key-store.ts",
+        "apps/web/src/lib/signing/canonical.ts",
+        "apps/web/src/lib/distribution-signer.ts"
+      ]
     },
     {
       "route": "/supply-chains/[id]/roles",
@@ -31426,8 +32989,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/supply-chains/[id]/roles/screen.tsx",
@@ -31440,7 +33009,17 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/chains.tsx",
         "result": "Task13 endpoint/DTO/authorization and canonical consumer review; real frontend Ed25519/IndexedDB browser workflow and baseline signer units. Fixture API only, no live ledger acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/use-pending-commands.ts",
+        "apps/web/src/lib/signing/signer.ts",
+        "apps/web/src/lib/signing/key-store.ts",
+        "apps/web/src/lib/signing/canonical.ts",
+        "apps/web/src/lib/distribution-signer.ts"
+      ]
     },
     {
       "route": "/supply-chains/[id]/signing",
@@ -32602,8 +34181,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/supply-chains/[id]/signing/screen.tsx",
@@ -32616,7 +34201,17 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/workspace/chains.tsx",
         "result": "Task13 endpoint/DTO/authorization and canonical consumer review; real frontend Ed25519/IndexedDB browser workflow and baseline signer units. Fixture API only, no live ledger acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/use-pending-commands.ts",
+        "apps/web/src/lib/signing/signer.ts",
+        "apps/web/src/lib/signing/key-store.ts",
+        "apps/web/src/lib/signing/canonical.ts",
+        "apps/web/src/lib/distribution-signer.ts"
+      ]
     },
     {
       "route": "/supply-chains/new",
@@ -32819,8 +34414,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/supply-chains/new/screen.tsx",
@@ -32833,7 +34434,17 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/chains.tsx",
         "result": "Task13 endpoint/DTO/authorization and canonical consumer review; real frontend Ed25519/IndexedDB browser workflow and baseline signer units. Fixture API only, no live ledger acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/use-pending-commands.ts",
+        "apps/web/src/lib/signing/signer.ts",
+        "apps/web/src/lib/signing/key-store.ts",
+        "apps/web/src/lib/signing/canonical.ts",
+        "apps/web/src/lib/distribution-signer.ts"
+      ]
     },
     {
       "route": "/supply-chains",
@@ -33993,8 +35604,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/supply-chains/screen.tsx",
@@ -34007,7 +35624,17 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/workspace/chains.tsx",
         "result": "Task13 endpoint/DTO/authorization and canonical consumer review; real frontend Ed25519/IndexedDB browser workflow and baseline signer units. Fixture API only, no live ledger acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/use-pending-commands.ts",
+        "apps/web/src/lib/signing/signer.ts",
+        "apps/web/src/lib/signing/key-store.ts",
+        "apps/web/src/lib/signing/canonical.ts",
+        "apps/web/src/lib/distribution-signer.ts"
+      ]
     },
     {
       "route": "/terms",
@@ -34051,8 +35678,14 @@
       "tests": [],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/terms/screen.tsx",
@@ -34062,7 +35695,8 @@
         "method": "source-review",
         "implementation": "apps/web/src/features/ledger/public/legal.tsx",
         "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
-      }
+      },
+      "baselineLogicSources": []
     },
     {
       "route": "/trace/[lotId]",
@@ -34204,8 +35838,14 @@
       ],
       "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "source-review",
+        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
+        "boundary": [
+          "apps/web/src/components/ledger/auth-route-gate.tsx",
+          "apps/web/src/lib/permissions.ts",
+          "apps/web/src/lib/enterprise-access.ts"
+        ],
+        "note": "API authority retained; browser role/scope tests are representative."
       },
       "implementation": [
         "apps/web/src/features/ledger/screens/trace/[lotId]/screen.tsx",
@@ -34215,7 +35855,10 @@
         "method": "test",
         "implementation": "apps/web/src/features/ledger/public/trace.tsx",
         "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts"
+      ]
     }
   ]
 }

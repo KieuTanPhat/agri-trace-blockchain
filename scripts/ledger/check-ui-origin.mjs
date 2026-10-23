@@ -51,11 +51,14 @@ export function checkUiOrigin({repoRoot,inventoryPath,phase='migration'}) {
     if(phase==='final'&&legacy.has(path)&&!isCanonical(path)&&!(path==='apps/web/src/app/globals.css'&&approvedReplacement))fail('LEGACY_UI_REMAINS',path,'Legacy presentation path must be removed');
     for(const id of imports(content,path,ts)) {
       const modulePath=id.startsWith('@/')?'src/'+id.slice(2):id;
+      const target=resolveImport(path,id);
+      if(target?.startsWith('apps/web/src/test/')&&!/\.(?:spec|test)\./.test(path)&&!path.startsWith('apps/web/src/test/')) {
+        fail('TEST_RUNTIME_IMPORT',path,`Test-only module imported into runtime: ${id}`);continue;
+      }
       const excluded=inventory.uiSource.excludedFromRuntime??[];
       if(excluded.some(p=>p.endsWith('/')?modulePath.startsWith(p):modulePath===p||modulePath===p.replace(/\.(tsx?|jsx?)$/,''))||/(?:^|\/)(?:preview-panel|mock)(?:\/|$|\.)/.test(modulePath)) {
         fail('PREVIEW_RUNTIME_IMPORT',path,`Forbidden runtime module: ${id}`);continue;
       }
-      const target=resolveImport(path,id);
       if(!target)continue;
       if(target.startsWith('../')){fail('OUTSIDE_RUNTIME_IMPORT',path,'Import escapes repository');continue;}
       if(legacy.has(target)&&!isCanonical(target))fail('LEGACY_UI_IMPORT',path,`Imports baseline presentation: ${target}`);

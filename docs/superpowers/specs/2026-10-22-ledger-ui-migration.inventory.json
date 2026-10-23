@@ -2803,7 +2803,10 @@
       "target": "apps/web/src/app/globals.css",
       "source": "src/app/globals.css",
       "sourceSha256": "2ac0b5eeab76aaf73983246eed8d3e595e16597687de955916253160377cef19",
-      "targetSha256": "e36a224e5d4edaf7e2064e6ceedc252ee7af27a3f4257ad5ed7b3fbef8e660ca"
+      "targetSha256": "7f1866ab984cedc7954831b6571c9a801be67e6143a355a0547814da4b99403a",
+      "adaptations": [
+        "Task18: same shadcn@4.22.1 stylesheet vendored locally to remove the unused CLI dependency; no visual rule change"
+      ]
     },
     {
       "target": "apps/web/src/app/icon.png",
@@ -4159,6 +4162,18 @@
     {
       "target": "apps/web/src/features/ledger/screens/trace/[lotId]/screen.tsx",
       "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/public/offline.html",
+      "basis": "Task18 Ledger offline presentation and vector icon composition with approved preview branding; no old UI asset fallback"
+    },
+    {
+      "target": "apps/web/public/icon.svg",
+      "basis": "Task18 Ledger offline presentation and vector icon composition with approved preview branding; no old UI asset fallback"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/tailwind.css",
+      "basis": "Exact CSS from approved preview dependency shadcn@4.22.1; upstream SHA256 4c371f7a1ff5d219ae2f7ff28bd256b4346fd546fe46fbae22092e57db2f0fae; CLI omitted"
     }
   ]
 }
