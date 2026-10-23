@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "engines": {
-    "node": ">=18"
+    "node": ">=24.22.1 <25",
+    "npm": "12.1.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -24,7 +25,7 @@
     "reflect-metadata": "0.2.2"
   },
   "devDependencies": {
-    "@types/node": "22.20.5",
+    "@types/node": "24.13.4",
     "@vitest/coverage-v8": "4.1.12",
     "typescript": "5.9.3",
     "vitest": "4.1.12"

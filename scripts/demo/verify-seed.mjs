@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
+import { parseArgs } from "node:util";
+import { verificationInitialization } from "./verification-initialization.mjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../apps/api/dist/generated/prisma/client.js";
 const local = new URL("../../.codex/seed-current/", import.meta.url);
+const { values } = parseArgs({ options: { fresh: { type: "boolean" } } });
+const initialization = await verificationInitialization(local, values.fresh);
 assert.equal(
   process.env.AGRITRACE_LOCAL_SEED_TARGET,
   "agri-trace-demo-local/agri_trace",
@@ -373,16 +377,17 @@ try {
     database: "agri_trace",
     container: "agri-trace-demo-local-postgres-1",
     volume: "agri-trace-demo-local_postgres-data",
-    newDatabasesCreated: 0,
+    newDatabasesCreated: initialization.newDatabasesCreated,
     fabricEnabled: false,
     counts,
     states,
     tests,
-    backup: JSON.parse(await readFile(new URL("backup.json", local), "utf8")),
+    initialization: initialization.initialization,
+    backup: initialization.backup,
     limits: [
       "No real Fabric acceptance; Fabric is disabled.",
       "Stock photographs illustrate fictional entities; demo legal documents have no legal validity.",
-      "Original full-data restore was not rehearsed on a second DB; backup schema and reference data were restored into this same DB.",
+      ...initialization.limits,
     ],
   };
   await writeFile(

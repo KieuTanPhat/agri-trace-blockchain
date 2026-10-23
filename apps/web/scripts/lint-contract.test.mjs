@@ -32,20 +32,39 @@ const normalize = (rule) => {
   const [level, ...options] = Array.isArray(rule) ? rule : [rule];
   return [levels[level] ?? level, ...options];
 };
+const jsxReferenceRules = new Set([
+  "react/jsx-uses-react",
+  "react/jsx-uses-vars",
+]);
+const usesOxlint = (name) =>
+  name !== "react/no-deprecated" &&
+  ["@next/next/", "react/", "jsx-a11y/", "import/"].some((prefix) =>
+    name.startsWith(prefix),
+  );
 const eslintRules = Object.fromEntries(
   Object.entries(policy.rules).filter(
-    ([name]) => !name.startsWith("@next/next/"),
+    ([name]) => !usesOxlint(name) && !jsxReferenceRules.has(name),
   ),
 );
-const nextRules = Object.fromEntries(
+const oxlintRules = Object.fromEntries(
   Object.entries(policy.rules)
-    .filter(([name]) => name.startsWith("@next/next/"))
-    .map(([name, config]) => [name.replace("@next/next/", "nextjs/"), config]),
+    .filter(([name]) => usesOxlint(name) && !jsxReferenceRules.has(name))
+    .map(([name, rule]) => [name.replace("@next/next/", "nextjs/"), rule]),
+);
+const nextRules = Object.fromEntries(
+  Object.entries(oxlintRules).filter(([name]) => name.startsWith("nextjs/")),
 );
 
 test("original TypeScript (71) and JavaScript (67) policies retain severity and options", async () => {
   assert.equal(Object.keys(policy.rules).length, 71);
-  assert.equal(Object.keys(eslintRules).length, 50);
+  assert.equal(Object.keys(eslintRules).length, 27);
+  assert.equal(Object.keys(oxlintRules).length, 42);
+  assert.equal(
+    Object.keys(eslintRules).length +
+      Object.keys(oxlintRules).length +
+      jsxReferenceRules.size,
+    71,
+  );
   assert.equal(Object.keys(nextRules).length, 21);
   assert.deepEqual(policy.typescriptOnlyRules, [
     "no-var",
@@ -85,13 +104,13 @@ test("original TypeScript (71) and JavaScript (67) policies retain severity and 
       ),
       file,
     );
-    assert.equal(Object.keys(config.rules).length, isTypescript ? 50 : 46);
+    assert.equal(Object.keys(config.rules).length, isTypescript ? 27 : 23);
     assert.equal(config.settings.react.version, "detect");
   }
   const config = readJson(oxlintConfig);
-  assert.deepEqual(config.plugins, ["nextjs"]);
+  assert.deepEqual(config.plugins, ["nextjs", "react", "jsx-a11y", "import"]);
   assert.deepEqual(config.categories, { correctness: "off" });
-  assert.deepEqual(config.rules, nextRules);
+  assert.deepEqual(config.rules, oxlintRules);
 });
 
 test("TypeScript-only core rules do not silently change the JavaScript policy", async () => {
@@ -340,10 +359,11 @@ const eslintCases = [
   ],
 ];
 
-test("ESLint fixtures cover every reporting rule", () => {
+test("fixtures cover every reporting rule delegated by the lint policy", () => {
   assert.deepEqual(
     eslintCases.map(([name]) => name).sort(),
-    Object.keys(eslintRules)
+    Object.keys(policy.rules)
+      .filter((name) => !name.startsWith("@next/next/"))
       .filter(
         (name) =>
           !["react/jsx-uses-react", "react/jsx-uses-vars"].includes(name),
@@ -353,7 +373,20 @@ test("ESLint fixtures cover every reporting rule", () => {
 });
 
 for (const [name, source] of eslintCases) {
-  test(`ESLint rejects ${name} at its original level`, async () => {
+  test(`${usesOxlint(name) ? "Oxlint" : "ESLint"} rejects ${name} at its original level`, async () => {
+    if (usesOxlint(name)) {
+      const diagnostics = lintNext("src/__lint_contract__.tsx", source);
+      const rule = name.slice(name.indexOf("/") + 1);
+      const diagnostic = diagnostics.find(({ code }) =>
+        code.endsWith(`(${rule})`),
+      );
+      assert.ok(diagnostic, JSON.stringify(diagnostics));
+      assert.equal(
+        levels[diagnostic.severity],
+        normalize(policy.rules[name])[0],
+      );
+      return;
+    }
     const [result] = await eslint.lintText(source, {
       filePath: path.join(webRoot, "src/__lint_contract__.tsx"),
     });
@@ -521,7 +554,7 @@ function lintNext(filename, source) {
     `${result.stdout}\n${result.stderr}`,
   );
   const report = JSON.parse(result.stdout);
-  assert.equal(report.number_of_rules, 21);
+  assert.equal(report.number_of_rules, Object.keys(oxlintRules).length);
   assert.equal(report.number_of_files, 1);
   const hasErrors = report.diagnostics.some(
     ({ severity }) => severity === "error",

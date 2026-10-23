@@ -1,11 +1,9 @@
 import { readFileSync } from "node:fs";
 import typescriptParser from "@typescript-eslint/parser";
 import typescriptPlugin from "@typescript-eslint/eslint-plugin";
-import importPlugin from "eslint-plugin-import";
-import accessibilityPlugin from "eslint-plugin-jsx-a11y";
-import reactPlugin from "eslint-plugin-react";
 import hooksPlugin from "eslint-plugin-react-hooks";
 import globals from "globals";
+import reactCompat from "./scripts/eslint-react-compat.mjs";
 
 const policy = JSON.parse(
   readFileSync(new URL("./scripts/lint-policy.json", import.meta.url), "utf8"),
@@ -23,19 +21,21 @@ export default [
     },
     plugins: {
       "@typescript-eslint": typescriptPlugin,
-      import: importPlugin,
-      "jsx-a11y": accessibilityPlugin,
-      react: reactPlugin,
       "react-hooks": hooksPlugin,
+      react: reactCompat,
     },
     settings: { react: { version: "detect" } },
     // Next/typescript also applied these rules to JS. Preserve that baseline;
     // the four TypeScript-only core rules are enabled by the override below.
-    // The mandatory Oxlint invocation implements the Next.js rules.
+    // The mandatory Oxlint invocation implements Next, React, accessibility
+    // and import rules. The TypeScript parser tracks JSX-only references.
     rules: Object.fromEntries(
       Object.entries(policy.rules).filter(
         ([name]) =>
-          !name.startsWith("@next/next/") &&
+          (name === "react/no-deprecated" ||
+            !["@next/next/", "react/", "jsx-a11y/", "import/"].some((prefix) =>
+              name.startsWith(prefix),
+            )) &&
           !policy.typescriptOnlyRules.includes(name),
       ),
     ),

@@ -1,6 +1,6 @@
 # Giao diện AgriTrace
 
-Web dùng Next.js 16.4.2, React 19.3.0 và Tailwind 4. Chạy bằng Node 22.22.3,
+Web dùng Next.js 16.4.2, React 19.3.0 và Tailwind 4. Chạy bằng Node 24.22.1,
 npm 12.1.0 theo README. `scripts/run-next.mjs` chạy Next native SWC/Turbopack;
 production build và start từ chối các cờ mock. API client không có fallback dữ liệu mẫu.
 

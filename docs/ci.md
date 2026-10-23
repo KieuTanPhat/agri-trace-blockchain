@@ -2,15 +2,17 @@
 
 CI chạy trên PR vào `main`, push lên `main`, merge queue và thao tác
 `workflow_dispatch`. Push lên nhánh làm việc được kiểm tra qua PR để tránh
-chạy lặp cùng thay đổi bằng cả push và PR. Runner cố định `ubuntu-24.04`;
+chạy lặp cùng thay đổi bằng cả push và PR. Node lấy từ `.node-version` (24.22.1), npm cố định 12.1.0.
+PostgreSQL local, service CI, Fabric smoke và rehearsal cùng dùng image 18 đã pin digest.
+Runner cố định `ubuntu-24.04`;
 actions được cố định bằng SHA và cập nhật qua Dependabot.
 
 ## Các điều kiện merge
 
 | Check bắt buộc | Kiểm tra |
 | --- | --- |
-| `Application gate` | API/Web trên Node 22.22.3, 24.15.0, 26.0.0; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |
-| `Blockchain gate` | Gateway/chaincode trên ba phiên bản Node; coverage chaincode; cài/audit/check chaincode độc lập; Worker contract; API → outbox → Worker → Fabric → proof. |
+| `Application gate` | API/Web trên Node 24.22.1; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |
+| `Blockchain gate` | Gateway/chaincode trên Node 24.22.1; coverage chaincode; cài/audit/check chaincode độc lập; Worker contract; API → outbox → Worker → Fabric → proof. |
 | `Dependency gate` | Audit hai lockfile và dependency đã cài; kiểm peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. |
 
 Mỗi workflow tạo gate cho mọi PR, kể cả PR chỉ sửa tài liệu. Việc chọn job
@@ -28,7 +30,7 @@ API/Web/Fabric bị bỏ qua. Chỉ PR được tối ưu bằng chọn đườn
 chọn job và gate chạy trong job `changes` của Application CI, trước các job
 có điều kiện; không phụ thuộc việc API có được chọn hay không.
 
-Job `changes` còn dùng Node 22.22.3 để chạy `agents:check` và `test:agents` bằng
+Job `changes` còn dùng Node 24.22.1 để chạy `agents:check` và `test:agents` bằng
 CLI Node, không cài dependency. Các bước này luôn chạy, kể cả PR chỉ đổi bộ agent;
 lỗi metadata/config/reference, bản skill Claude lệch nguồn hoặc Git ignore sai
 làm `changes` thất bại và chặn `Application gate`. Không thêm required check mới.
@@ -108,7 +110,7 @@ Tài nguyên mang nhãn Compose của đúng lần chạy, job từ chối tài 
 GitHub runner và không đọc secret, database, identity hay volume của VPS. Kết quả nằm ở artifact
 `production-rehearsal-<SHA>` (14 ngày). Fabric thật không nằm ở đây mà ở `fabric-smoke` và
 `hybrid-fabric`. Bài kiểm tra PostgreSQL cho provisioning production
-(`deploy/ci/bootstrap-production.test.mjs`) chạy trong job `API` trên ba phiên bản Node.
+(`deploy/ci/bootstrap-production.test.mjs`) chạy trong job `API` trên Node 24.22.1.
 Job `changes` còn chạy `deploy/ci/migrations-immutable.mjs`: PR sửa, xóa hoặc đổi tên migration
 đã có sẽ lỗi, chỉ được thêm migration mới.
 
@@ -227,11 +229,16 @@ JavaScript của cấu hình `next/core-web-vitals` và `next/typescript` theo b
 `1156c04`, gồm mức warning/error
 và tùy chọn. Tùy chọn mặc định của hai rule ESLint được ghi rõ để giữ hành vi:
 
-- ESLint chạy 50 rule cho TypeScript, 46 cho JavaScript, gồm React, TypeScript,
-  hooks, accessibility và import bằng
-  cùng các plugin; giữ việc đánh dấu import/component được dùng trong JSX.
-- Oxlint chạy 21 rule Next.js bằng plugin native; tắt nhóm correctness mặc
-  định vì các rule ESLint đã kiểm riêng. Không bỏ rule Next.js hoặc hạ mức lỗi.
+- ESLint 10 chạy 27 rule cho TypeScript, 23 cho JavaScript: TypeScript, hooks và
+  `react/no-deprecated`. Rule deprecation dùng adapter MIT từ
+  `eslint-plugin-react@7.37.5`; 79 fixture đối chiếu giữ chẩn đoán của rule gốc,
+  cùng một fixture chặn nhận nhầm comment thường thành khai báo React.
+- Oxlint chạy 42 rule Next.js, React, accessibility và import bằng plugin native;
+  tắt nhóm correctness mặc định. Parser TypeScript giữ việc đánh dấu import/
+  component chỉ được dùng trong JSX (hai rule tham chiếu JSX trong baseline).
+  Tổng policy vẫn là 71 rule TypeScript và 67 rule JavaScript, giữ severity/options.
+- Các plugin React/accessibility/import cũ chưa khai báo hỗ trợ ESLint 10 nên
+  không còn là dependency. Không dùng `legacy-peer-deps` hoặc ép peer để nâng cấp.
 - `npm run lint --workspace apps/web` bắt buộc cả hai engine thành công.
   API và Web dùng `--max-warnings 0` trong lint: warning cũng chặn lint/check,
   giữ nguyên rule và severity để diagnostic vẫn rõ. Build Web chạy lint;
@@ -243,7 +250,7 @@ và tùy chọn. Tùy chọn mặc định của hai rule ESLint được ghi r�
   kiểm `npm ls --all`, cố tình vi phạm từng rule có diagnostic, kiểm mẫu hợp lệ
   và thực sự gọi build với lỗi từ từng engine để xác nhận compiler chưa được chạy. File canary
   có tên ngẫu nhiên và được xóa sau test; fixture nằm trong thư mục tạm riêng.
-  Hợp đồng chạy trong `npm run check`, trên cả ba phiên bản Node trong CI.
+  Hợp đồng chạy trong `npm run check`, trên Node 24.22.1 trong CI.
 
 Liên kết tra cứu `/scan` trên trang đăng nhập đã chuyển sang `next/link` sau
 khi rule `no-html-link-for-pages` phát hiện điều hướng nội bộ bằng thẻ `a`.
@@ -283,7 +290,7 @@ Compose project và mạng thử nghiệm sau khi hoàn tất.
 Đối chiếu với [AGT-002](https://github.com/KieuTanPhat/agri-trace-blockchain/issues/14),
 [AGT-003](https://github.com/KieuTanPhat/agri-trace-blockchain/issues/15) và
 [AGT-004](https://github.com/KieuTanPhat/agri-trace-blockchain/issues/16).
-Mỗi kết quả phải gắn đúng SHA và môi trường. Kiểm tra local trên Node 22
-không thay bằng chứng matrix 24/26, PostgreSQL 18 trong CI, production
+Mỗi kết quả phải gắn đúng SHA và môi trường. Kiểm tra dependency local trên Node 24
+không thay bằng chứng PostgreSQL 18 trong CI, production
 containers hoặc Fabric thật. Không suy ra nghiệm thu toàn bộ các issue
 từ việc thêm workflow; advisory high/critical mới vẫn là điều kiện chặn merge.

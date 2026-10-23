@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.7
-FROM node:22.22.3-alpine AS dependencies
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS dependencies
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc .node-version ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY blockchain/chaincode/package.json blockchain/chaincode/package.json
@@ -16,11 +16,11 @@ RUN npm run build --workspace blockchain/gateway \
     && npm run prisma:generate --workspace apps/api \
     && npm run build --workspace apps/api
 
-FROM node:22.22.3-alpine AS runtime
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc .node-version ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY blockchain/chaincode/package.json blockchain/chaincode/package.json

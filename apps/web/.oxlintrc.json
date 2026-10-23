@@ -1,6 +1,11 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
-  "plugins": ["nextjs"],
+  "plugins": [
+    "nextjs",
+    "react",
+    "jsx-a11y",
+    "import"
+  ],
   "categories": {
     "correctness": "off"
   },
@@ -25,6 +30,37 @@
     "nextjs/no-document-import-in-page": "error",
     "nextjs/no-duplicate-head": "error",
     "nextjs/no-head-import-in-document": "error",
-    "nextjs/no-script-component-in-head": "error"
+    "nextjs/no-script-component-in-head": "error",
+    "import/no-anonymous-default-export": "warn",
+    "jsx-a11y/alt-text": [
+      "warn",
+      {
+        "elements": [
+          "img"
+        ],
+        "img": [
+          "Image"
+        ]
+      }
+    ],
+    "jsx-a11y/aria-props": "warn",
+    "jsx-a11y/aria-proptypes": "warn",
+    "jsx-a11y/aria-unsupported-elements": "warn",
+    "jsx-a11y/role-has-required-aria-props": "warn",
+    "jsx-a11y/role-supports-aria-props": "warn",
+    "react/display-name": "error",
+    "react/jsx-key": "error",
+    "react/jsx-no-comment-textnodes": "error",
+    "react/jsx-no-duplicate-props": "error",
+    "react/jsx-no-undef": "error",
+    "react/no-children-prop": "error",
+    "react/no-danger-with-children": "error",
+    "react/no-direct-mutation-state": "error",
+    "react/no-find-dom-node": "error",
+    "react/no-is-mounted": "error",
+    "react/no-render-return-value": "error",
+    "react/no-string-refs": "error",
+    "react/no-unescaped-entities": "error",
+    "react/require-render-return": "error"
   }
 }

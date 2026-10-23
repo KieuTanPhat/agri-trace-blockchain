@@ -65,10 +65,11 @@ mẫu môi trường của nó không còn trong repo. Application CI kiểm ứ
 
 ## Cài đặt
 
-Yêu cầu Node.js 22.22.3+ (hoặc 24.15+) và npm 12.1.0. npm cũ có thể bỏ qua
+Yêu cầu Node.js 24.22.1 (xem `.node-version`) và npm 12.1.0. npm cũ có thể bỏ qua
 `overrides` của dependency trong workspace. Từ thư mục gốc:
 
 ```bash
+node --version # v24.22.1; dùng phiên bản trong .node-version
 npm install --global npm@12.1.0
 npm ci
 ```
@@ -134,7 +135,11 @@ chạy:
 docker compose --env-file .env.docker up --build
 ```
 
-Compose khởi động PostgreSQL, API, Dedicated Worker và Web. Stack local mở ghi
+PostgreSQL 18 dùng volume tại `/var/lib/postgresql`. Volume đã khởi tạo bằng
+PostgreSQL 16 cần quy trình chuyển dữ liệu hoặc tạo mới có ủy quyền; thay tag image
+không tự nâng định dạng dữ liệu. Xem [runbook database](docs/database-migration-runbook.md).
+
+Compose khởi động PostgreSQL 18, API, Dedicated Worker và Web. Stack local mở ghi
 nghiệp vụ qua `HYBRID_WRITES_MODE=OPEN` (mặc định trong `docker-compose.yml`);
 đặt `CLOSED` trong `.env.docker` để thử chế độ bảo trì. Production không dùng
 file này: controller giữ ghi đóng đến khi bản phát hành được xác minh. API vẫn hoạt động khi

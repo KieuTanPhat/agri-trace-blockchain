@@ -184,7 +184,7 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
                   [tr("Hạn sử dụng"), l.expiryDate && fmtDate(l.expiryDate)],
                   [tr("Vụ sản xuất"), l.productionCycle?.cycleCode],
                   [tr("Tổ chức sản xuất"), l.farmOrg.name],
-                  [tr("Mã truy xuất"), l.traceToken && <span className="font-mono text-[12px]">{l.traceToken}</span>],
+                  [tr("Mã truy xuất"), l.traceToken && <span key="trace-token" className="font-mono text-[12px]">{l.traceToken}</span>],
                 ]
                   .filter(([, v]) => v)
                   .map(([k, v]) => (
