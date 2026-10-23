@@ -1,6 +1,3 @@
-"use client";
-import { SupportList } from "@/components/workspace/support";
-
-export default function EnterpriseSupportPage() {
-  return <SupportList />;
-}
+import Screen from "@/features/ledger/screens/enterprise/support/screen";
+import {resolveLedgerRouteInput,type LedgerPageInput} from "@/lib/ledger/route-input";
+export default async function Page(props:LedgerPageInput){return <Screen route={await resolveLedgerRouteInput(props)}/>;}

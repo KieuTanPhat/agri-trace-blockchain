@@ -1,8 +1,2 @@
-import { EnterpriseServiceProvider } from "@/components/workspace/service-context";
-export default function ServiceLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return <EnterpriseServiceProvider>{children}</EnterpriseServiceProvider>;
-}
+import {LedgerServiceDraftProvider} from "@/components/ledger/workspace/service-draft";
+export default function Layout({children}:{children:React.ReactNode}){return <LedgerServiceDraftProvider>{children}</LedgerServiceDraftProvider>;}

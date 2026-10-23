@@ -1,8 +1,3 @@
-"use client";
-import { useParams } from "next/navigation";
-import { SupportDetail } from "@/components/workspace/support";
-
-export default function SupportRequestPage() {
-  const params = useParams<{ id: string }>();
-  return <SupportDetail id={params.id} />;
-}
+import Screen from "@/features/ledger/screens/enterprise/support/[id]/screen";
+import {resolveLedgerRouteInput,type LedgerPageInput} from "@/lib/ledger/route-input";
+export default async function Page(props:LedgerPageInput){return <Screen route={await resolveLedgerRouteInput(props)}/>;}

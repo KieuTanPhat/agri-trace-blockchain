@@ -3369,6 +3369,36 @@
       "source": "src/app/(workspace)/w/sites/page.tsx",
       "sourceSha256": "c268460273383adb9d91b56292ec438d4d40cd3a238da55840bb5e2787891917",
       "targetSha256": "d1b4873a3ff74826c8c78ba9033c1d66f79b925d35d9baf695d484e6392428b4"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/partners.tsx",
+      "source": "src/app/(workspace)/w/partners/page.tsx",
+      "sourceSha256": "9cc1b4b6a367e8fa897e1fda54042c64e50aa8756ef5e44ae6bdbc63b89f73ee",
+      "targetSha256": "e640e5d09ddc6476cbe7996849cc7a56ba809f461c6c7e35b1b2c50b483cc1cc"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/messages.tsx",
+      "source": "src/app/(workspace)/w/messages/page.tsx",
+      "sourceSha256": "d0139d133497e2cfb90caa2792628988a500cff7eefe3c2e39ed838f1a4352fc",
+      "targetSha256": "294bcc7d5ab106fd76e64ca117e94b3e59fffa0eedc258dbd7eb0699cbb85568"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/support.tsx",
+      "source": "src/app/(workspace)/w/support/page.tsx",
+      "sourceSha256": "a401167240b2de8cb314d7e36b73b30294f60d1066539eaeaf653fdb0ea376de",
+      "targetSha256": "13f6e08b0acb915b9549667f5527172c0f1c81a6dbd46b6f7e1e1d52567862ba"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/billing.tsx",
+      "source": "src/app/(workspace)/w/billing/page.tsx",
+      "sourceSha256": "8d8af688803067dd38ae95455a057882ee26c22a61b4a6b639948a9435e8ae8c",
+      "targetSha256": "c8a5338ca35cac5a2ebd2082a4898dca82e207535a04a5e980c4a31eb98fdbcf"
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/partner-profile.tsx",
+      "source": "src/components/workspace/partner-profile.tsx",
+      "sourceSha256": "9d09d2af886f0b8408416008884d545ff58b2f25608c107473cb39a03534f462",
+      "targetSha256": "9d3e9e33fbd747d8cf281bcb6c1b49a34d492a7eb7f90cfd1c2aac00778f6877"
     }
   ],
   "newLedgerComposition": [
@@ -3763,6 +3793,86 @@
     {
       "target": "apps/web/src/features/ledger/screens/enterprise/vehicles/screen.tsx",
       "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/service-draft.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/app/enterprise/service/layout.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/service.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/connections.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/coordination.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/billing/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/connections/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/help/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/messages/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/notices/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/onboarding/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/partners/external/[id]/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/partners/new/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/partners/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/service/contract/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/service/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/service/payment/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/support/[id]/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/support/new/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/support/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
     }
   ]
 }

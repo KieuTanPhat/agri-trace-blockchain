@@ -8316,24 +8316,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/billing/screen.tsx",
       "exampleUrl": "/enterprise/billing",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.billing",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -8343,10 +8336,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/billing/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/billing/page.tsx",
+            "apps/web/src/app/enterprise/billing/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/billing.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/billing.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-billing",
@@ -8355,10 +8365,27 @@
           "requestType": [],
           "responseType": "Billing",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/billing/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/billing/page.tsx",
+            "apps/web/src/app/enterprise/billing/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/billing.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/billing.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-billing/renewals",
@@ -8369,10 +8396,27 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/billing/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/billing/page.tsx",
+            "apps/web/src/app/enterprise/billing/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/billing.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/billing.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST `/enterprise-billing/invoices/${r.id}/payment-simulation`",
@@ -8383,17 +8427,44 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/billing/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/billing/page.tsx",
+            "apps/web/src/app/enterprise/billing/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/billing.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/billing.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/billing/screen.tsx",
+        "apps/web/src/features/ledger/workspace/billing.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/billing.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -8403,21 +8474,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/connections/screen.tsx",
       "exampleUrl": "/enterprise/connections",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.connections",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
-        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/enterprise-onboarding.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts"
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -8427,10 +8494,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/connections/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/connections/page.tsx",
+            "apps/web/src/app/enterprise/connections/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/connections.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/connections.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-enrollments/mine",
@@ -8439,10 +8523,27 @@
           "requestType": [],
           "responseType": "Enrollment",
           "retainedLogic": [
-            "apps/web/src/lib/enterprise-onboarding.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/connections/page.tsx",
+            "apps/web/src/lib/enterprise-onboarding.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/connections.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/connections.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /supply-chains",
@@ -8451,10 +8552,27 @@
           "requestType": [],
           "responseType": "typeof chains",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/connections/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/connections/page.tsx",
+            "apps/web/src/app/enterprise/connections/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/connections.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/connections.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-connections",
@@ -8465,17 +8583,44 @@
           ],
           "responseType": "Connection",
           "retainedLogic": [
-            "apps/web/src/lib/enterprise-onboarding.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/connections/page.tsx",
+            "apps/web/src/lib/enterprise-onboarding.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/connections.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/connections.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/connections/screen.tsx",
+        "apps/web/src/features/ledger/workspace/connections.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/connections.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -8485,21 +8630,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/help/screen.tsx",
       "exampleUrl": "/enterprise/help",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.help",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -8509,10 +8650,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/help/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/help/page.tsx",
+            "apps/web/src/app/enterprise/help/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -8521,17 +8679,44 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/help/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/help/page.tsx",
+            "apps/web/src/app/enterprise/help/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/help/screen.tsx",
+        "apps/web/src/features/ledger/workspace/coordination.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -10821,23 +11006,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/messages/screen.tsx",
       "exampleUrl": "/enterprise/messages",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.messages",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/task-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -10847,10 +11026,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/messages/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/messages/page.tsx",
+            "apps/web/src/app/enterprise/messages/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/messages.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/messages.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-messages",
@@ -10859,10 +11055,27 @@
           "requestType": [],
           "responseType": "ThreadList",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/messages/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/messages/page.tsx",
+            "apps/web/src/app/enterprise/messages/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/messages.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/messages.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-messages",
@@ -10874,10 +11087,27 @@
           ],
           "responseType": "{ record: { id: string } }",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/messages/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/messages/page.tsx",
+            "apps/web/src/app/enterprise/messages/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/messages.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/messages.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST `/enterprise-messages/${selected}/read`",
@@ -10888,10 +11118,27 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/messages/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/messages/page.tsx",
+            "apps/web/src/app/enterprise/messages/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/messages.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/messages.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST `/enterprise-messages/${selected}/replies`",
@@ -10902,17 +11149,72 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/messages/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/messages/page.tsx",
+            "apps/web/src/app/enterprise/messages/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/messages.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/messages.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-messages/:id",
+          "method": "GET",
+          "endpoint": "/enterprise-messages/:id",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/messages/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/messages.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/messages.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/messages/screen.tsx",
+        "apps/web/src/features/ledger/workspace/messages.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/messages.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -10922,22 +11224,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/notices/screen.tsx",
       "exampleUrl": "/enterprise/notices",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.notices",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -10947,10 +11244,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/notices/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/notices/page.tsx",
+            "apps/web/src/app/enterprise/notices/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /distribution/reports",
@@ -10959,10 +11273,27 @@
           "requestType": [],
           "responseType": "{ lots: Row[] }",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/notices/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/notices/page.tsx",
+            "apps/web/src/app/enterprise/notices/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -10971,10 +11302,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/notices/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/notices/page.tsx",
+            "apps/web/src/app/enterprise/notices/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /distribution/notices",
@@ -10983,17 +11331,44 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/notices/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/notices/page.tsx",
+            "apps/web/src/app/enterprise/notices/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/notices/screen.tsx",
+        "apps/web/src/features/ledger/workspace/coordination.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -11003,25 +11378,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/onboarding/screen.tsx",
       "exampleUrl": "/enterprise/onboarding",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.onboarding",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
-        "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/enterprise-onboarding.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/registration-form.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -11031,10 +11398,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/onboarding/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/onboarding/page.tsx",
+            "apps/web/src/app/enterprise/onboarding/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-enrollments/mine",
@@ -11043,10 +11427,27 @@
           "requestType": [],
           "responseType": "components[\"schemas\"][\"EnterpriseEnrollmentViewDto\"]",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/onboarding/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/onboarding/page.tsx",
+            "apps/web/src/app/enterprise/onboarding/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-workspace/profile",
@@ -11055,10 +11456,27 @@
           "requestType": [],
           "responseType": "RecordOf<OwnProfileWorkspace>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/onboarding/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /reference-data/addresses",
@@ -11067,10 +11485,27 @@
           "requestType": [],
           "responseType": "AddressProvince[]",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/onboarding/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET `/enterprise-registration-documents/${id}`",
@@ -11079,10 +11514,27 @@
           "requestType": [],
           "responseType": "S[\"RegistrationDocumentContentDto\"]",
           "retainedLogic": [
-            "apps/web/src/components/workspace/registration-profile-details.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/onboarding/page.tsx",
+            "apps/web/src/components/workspace/registration-profile-details.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${new URLSearchParams({ entityType: \"PROFILE\", entityId: organizationId })}`",
@@ -11091,10 +11543,27 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/onboarding/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${scope}`",
@@ -11103,10 +11572,27 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/onboarding/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-workspace/evidence",
@@ -11117,10 +11603,27 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/onboarding/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-workspace/profile/amendments",
@@ -11129,10 +11632,27 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/onboarding/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-workspace/profile/contact",
@@ -11141,10 +11661,27 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/onboarding/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/profile/amendments/${selected.id}/withdraw`",
@@ -11156,17 +11693,44 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/onboarding/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/onboarding/screen.tsx",
+        "apps/web/src/features/ledger/workspace/coordination.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/coordination.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -11466,24 +12030,19 @@
       "sourceFile": "apps/web/src/app/enterprise/partners/external/[id]/page.tsx",
       "task": 12,
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/partners/external/[id]/screen.tsx",
-      "exampleUrl": "/enterprise/partners/external/11111111-1111-4111-8111-111111111111",
+      "exampleUrl": "/enterprise/partners/external/88888888-8888-4888-8888-888888888888",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.partners.external.id",
+      "scenarioId": "",
       "readyHeading": "Đối tác",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -11493,10 +12052,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx",
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -11505,10 +12081,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-workspace/partners/external",
@@ -11517,10 +12110,27 @@
           "requestType": [],
           "responseType": "Items<ExternalPartner>",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx",
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${scope}`",
@@ -11529,10 +12139,27 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence/${id}/content`",
@@ -11541,10 +12168,27 @@
           "requestType": [],
           "responseType": "{ fileName: string; mediaType: string; contentBase64: string; sha256: string }",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-workspace/evidence",
@@ -11555,17 +12199,212 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-workspace/partners",
+          "method": "GET",
+          "endpoint": "/enterprise-workspace/partners",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-workspace/partners/search?q=:query",
+          "method": "GET",
+          "endpoint": "/enterprise-workspace/partners/search?q=:query",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-workspace/partners/directory/:organizationId",
+          "method": "GET",
+          "endpoint": "/enterprise-workspace/partners/directory/:organizationId",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/partners",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/partners",
+          "requestType": "EnterprisePartnerInput",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/partners/:id",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/partners/:id",
+          "requestType": "EnterprisePartnerDecision",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/partners/external",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/partners/external",
+          "requestType": "EnterpriseExternalPartnerInput",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/external/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/partners/external/[id]/screen.tsx",
+        "apps/web/src/features/ledger/workspace/partners.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -11575,23 +12414,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/partners/new/screen.tsx",
       "exampleUrl": "/enterprise/partners/new",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.partners.new",
+      "scenarioId": "",
       "readyHeading": "Đối tác",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -11601,10 +12434,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/partners/new/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/new/page.tsx",
+            "apps/web/src/app/enterprise/partners/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-workspace/evidence",
@@ -11613,17 +12463,240 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/new/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-workspace/partners",
+          "method": "GET",
+          "endpoint": "/enterprise-workspace/partners",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-workspace/partners/external",
+          "method": "GET",
+          "endpoint": "/enterprise-workspace/partners/external",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-workspace/partners/search?q=:query",
+          "method": "GET",
+          "endpoint": "/enterprise-workspace/partners/search?q=:query",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-workspace/partners/directory/:organizationId",
+          "method": "GET",
+          "endpoint": "/enterprise-workspace/partners/directory/:organizationId",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/partners",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/partners",
+          "requestType": "EnterprisePartnerInput",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/partners/:id",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/partners/:id",
+          "requestType": "EnterprisePartnerDecision",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/partners/external",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/partners/external",
+          "requestType": "EnterpriseExternalPartnerInput",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/partners/new/screen.tsx",
+        "apps/web/src/features/ledger/workspace/partners.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -11633,23 +12706,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/partners/screen.tsx",
       "exampleUrl": "/enterprise/partners",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.partners",
+      "scenarioId": "coordination.partners",
       "readyHeading": "Đối tác",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -11659,10 +12726,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/partners/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/page.tsx",
+            "apps/web/src/app/enterprise/partners/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -11671,10 +12755,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/resources.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/page.tsx",
+            "apps/web/src/components/workspace/resources.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${scope}`",
@@ -11683,10 +12784,27 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/entity-thumb.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/page.tsx",
+            "apps/web/src/components/workspace/entity-thumb.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence/${photo.id}/content`",
@@ -11695,10 +12813,27 @@
           "requestType": [],
           "responseType": "{ mediaType: string; contentBase64: string }",
           "retainedLogic": [
-            "apps/web/src/components/workspace/entity-thumb.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/page.tsx",
+            "apps/web/src/components/workspace/entity-thumb.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-workspace/partners",
@@ -11709,17 +12844,214 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/partner-invite-dialog.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/page.tsx",
+            "apps/web/src/components/workspace/partner-invite-dialog.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-workspace/partners",
+          "method": "GET",
+          "endpoint": "/enterprise-workspace/partners",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-workspace/partners/external",
+          "method": "GET",
+          "endpoint": "/enterprise-workspace/partners/external",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-workspace/partners/search?q=:query",
+          "method": "GET",
+          "endpoint": "/enterprise-workspace/partners/search?q=:query",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-workspace/partners/directory/:organizationId",
+          "method": "GET",
+          "endpoint": "/enterprise-workspace/partners/directory/:organizationId",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/partners/:id",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/partners/:id",
+          "requestType": "EnterprisePartnerDecision",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/partners/external",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/partners/external",
+          "requestType": "EnterpriseExternalPartnerInput",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/partners/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/partners.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-coordination.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/partners/screen.tsx",
+        "apps/web/src/features/ledger/workspace/partners.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/partners.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -14392,22 +15724,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/service/contract/screen.tsx",
       "exampleUrl": "/enterprise/service/contract",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.service.contract",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "coordination.service",
+      "readyHeading": "Chọn dịch vụ",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -14417,10 +15744,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/service/contract/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/service/contract/page.tsx",
+            "apps/web/src/app/enterprise/service/contract/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/service.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-service",
@@ -14429,10 +15773,27 @@
           "requestType": [],
           "responseType": "components[\"schemas\"][\"ServiceWorkspaceView\"]",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/service/contract/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/service/contract/page.tsx",
+            "apps/web/src/app/enterprise/service/contract/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/service.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-service/orders",
@@ -14444,17 +15805,46 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/service/contract/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/service/contract/page.tsx",
+            "apps/web/src/app/enterprise/service/contract/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/service.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-coordination.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/service/contract/screen.tsx",
+        "apps/web/src/features/ledger/workspace/service.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -14464,21 +15854,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/service/screen.tsx",
       "exampleUrl": "/enterprise/service",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.service",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "coordination.service",
+      "readyHeading": "Chọn dịch vụ",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -14488,10 +15874,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/service/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/service/page.tsx",
+            "apps/web/src/app/enterprise/service/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/service.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-enrollments/mine",
@@ -14500,10 +15903,27 @@
           "requestType": [],
           "responseType": "S[\"EnterpriseEnrollmentViewDto\"]",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/service/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/service/page.tsx",
+            "apps/web/src/app/enterprise/service/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/service.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-service",
@@ -14512,10 +15932,27 @@
           "requestType": [],
           "responseType": "S[\"ServiceWorkspaceView\"]",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/service/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/service/page.tsx",
+            "apps/web/src/app/enterprise/service/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/service.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-service/preview",
@@ -14526,17 +15963,46 @@
           ],
           "responseType": "S[\"ServicePreviewView\"]",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/service/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/service/page.tsx",
+            "apps/web/src/app/enterprise/service/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/service.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-coordination.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/service/screen.tsx",
+        "apps/web/src/features/ledger/workspace/service.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -14546,22 +16012,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/service/payment/screen.tsx",
       "exampleUrl": "/enterprise/service/payment",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.service.payment",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "coordination.service",
+      "readyHeading": "Chọn dịch vụ",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -14571,10 +16032,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/service/payment/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/service/payment/page.tsx",
+            "apps/web/src/app/enterprise/service/payment/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/service.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "GET /enterprise-service",
@@ -14583,10 +16061,27 @@
           "requestType": [],
           "responseType": "components[\"schemas\"][\"ServiceWorkspaceView\"]",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/service/payment/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/service/payment/page.tsx",
+            "apps/web/src/app/enterprise/service/payment/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/service.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         },
         {
           "id": "POST /enterprise-service/payment-simulation",
@@ -14599,17 +16094,46 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/service/payment/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/service/payment/page.tsx",
+            "apps/web/src/app/enterprise/service/payment/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/service.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-coordination.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/service/payment/screen.tsx",
+        "apps/web/src/features/ledger/workspace/service.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/service.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -15571,26 +17095,19 @@
       "sourceFile": "apps/web/src/app/enterprise/support/[id]/page.tsx",
       "task": 12,
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/support/[id]/screen.tsx",
-      "exampleUrl": "/enterprise/support/11111111-1111-4111-8111-111111111111",
+      "exampleUrl": "/enterprise/support/88888888-8888-4888-8888-888888888888",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.support.id",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -15600,17 +17117,128 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/support/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/[id]/page.tsx",
+            "apps/web/src/app/enterprise/support/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-support/tickets",
+          "method": "GET",
+          "endpoint": "/enterprise-support/tickets",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-support/tickets",
+          "method": "POST",
+          "endpoint": "/enterprise-support/tickets",
+          "requestType": "TicketCreateInput",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-support/tickets/:id/reply",
+          "method": "POST",
+          "endpoint": "/enterprise-support/tickets/:id/reply",
+          "requestType": "TicketReplyInput",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/support/[id]/screen.tsx",
+        "apps/web/src/features/ledger/workspace/support.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -15620,23 +17248,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/support/new/screen.tsx",
       "exampleUrl": "/enterprise/support/new",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.support.new",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -15646,17 +17268,128 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/support/new/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/new/page.tsx",
+            "apps/web/src/app/enterprise/support/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-support/tickets",
+          "method": "GET",
+          "endpoint": "/enterprise-support/tickets",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-support/tickets",
+          "method": "POST",
+          "endpoint": "/enterprise-support/tickets",
+          "requestType": "TicketCreateInput",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-support/tickets/:id/reply",
+          "method": "POST",
+          "endpoint": "/enterprise-support/tickets/:id/reply",
+          "requestType": "TicketReplyInput",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/support/new/screen.tsx",
+        "apps/web/src/features/ledger/workspace/support.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
@@ -15666,23 +17399,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/support/screen.tsx",
       "exampleUrl": "/enterprise/support",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task12.enterprise.support",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/enterprise-onboarding.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -15692,17 +17419,128 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/support/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/page.tsx",
+            "apps/web/src/app/enterprise/support/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "GET /enterprise-support/tickets",
+          "method": "GET",
+          "endpoint": "/enterprise-support/tickets",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-support/tickets",
+          "method": "POST",
+          "endpoint": "/enterprise-support/tickets",
+          "requestType": "TicketCreateInput",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
+        },
+        {
+          "id": "POST /enterprise-support/tickets/:id/reply",
+          "method": "POST",
+          "endpoint": "/enterprise-support/tickets/:id/reply",
+          "requestType": "TicketReplyInput",
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/enterprise-onboarding.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/support/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/support.tsx",
+            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/support/screen.tsx",
+        "apps/web/src/features/ledger/workspace/support.tsx",
+        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/support.tsx",
+        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
       }
     },
     {
