@@ -1,5 +1,3 @@
-"use client";
-import ChainManagement from "@/components/workspace/chains";
-export default function Page() {
-  return <ChainManagement />;
-}
+import Screen from "@/features/ledger/screens/supply-chains/screen";
+import {resolveLedgerRouteInput,type LedgerPageInput} from "@/lib/ledger/route-input";
+export default async function Page(props:LedgerPageInput){return <Screen route={await resolveLedgerRouteInput(props)}/>;}
