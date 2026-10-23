@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import ScanPage from "./page";
+import ScanPage from "@/features/ledger/public/scan";
+vi.mock("@/components/ledger/shell/public-shell",()=>({LedgerPublicShell:({children}:{children:React.ReactNode})=><>{children}</>}));
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));

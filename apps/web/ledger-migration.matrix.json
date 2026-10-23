@@ -20767,16 +20767,14 @@
       "targetScreen": "apps/web/src/features/ledger/screens/home/screen.tsx",
       "exampleUrl": "/",
       "actorKey": "anonymous",
-      "scenarioId": "routes.task17.landing",
+      "scenarioId": "public.trace",
       "readyHeading": "AgriTrace",
       "roles": [
         "PUBLIC"
       ],
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
-      "retainedLogic": [
-        "apps/web/src/lib/site-contact.ts"
-      ],
+      "retainedLogic": [],
       "actions": [
         {
           "id": "view",
@@ -20784,18 +20782,37 @@
           "method": "NAVIGATE",
           "requestType": null,
           "responseType": "LedgerScreen",
-          "retainedLogic": [
+          "retainedLogic": [],
+          "tests": [],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/page.tsx",
             "apps/web/src/app/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/public/home.tsx"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/public/home.tsx",
+            "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/home/screen.tsx",
+        "apps/web/src/features/ledger/public/home.tsx"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/public/home.tsx",
+        "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
       }
     },
     {
@@ -20805,7 +20822,7 @@
       "targetScreen": "apps/web/src/features/ledger/screens/privacy/screen.tsx",
       "exampleUrl": "/privacy",
       "actorKey": "anonymous",
-      "scenarioId": "routes.task17.privacy",
+      "scenarioId": "public.trace",
       "readyHeading": "Quyền riêng tư",
       "roles": [
         "PUBLIC"
@@ -20820,18 +20837,37 @@
           "method": "NAVIGATE",
           "requestType": null,
           "responseType": "LedgerScreen",
-          "retainedLogic": [
+          "retainedLogic": [],
+          "tests": [],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/privacy/page.tsx",
             "apps/web/src/app/privacy/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/public/legal.tsx"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/public/legal.tsx",
+            "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/privacy/screen.tsx",
+        "apps/web/src/features/ledger/public/legal.tsx"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/public/legal.tsx",
+        "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
       }
     },
     {
@@ -24304,7 +24340,7 @@
       "targetScreen": "apps/web/src/features/ledger/screens/scan/screen.tsx",
       "exampleUrl": "/scan",
       "actorKey": "anonymous",
-      "scenarioId": "routes.task17.scan",
+      "scenarioId": "public.trace",
       "readyHeading": "Quét mã truy xuất",
       "roles": [
         "PUBLIC"
@@ -24312,7 +24348,8 @@
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
-        "apps/web/src/lib/trace-input.ts"
+        "apps/web/src/lib/trace-input.ts",
+        "apps/web/src/lib/ledger/use-camera-scanner.ts"
       ],
       "actions": [
         {
@@ -24322,17 +24359,43 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/trace-input.ts",
+            "apps/web/src/lib/ledger/use-camera-scanner.ts"
+          ],
+          "tests": [
+            "tests/ledger/public-trace.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/scan/page.tsx",
             "apps/web/src/app/scan/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/public/scan.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/public/scan.tsx",
+            "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/public-trace.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/scan/screen.tsx",
+        "apps/web/src/features/ledger/public/scan.tsx"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/public/scan.tsx",
+        "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
       }
     },
     {
@@ -33953,7 +34016,7 @@
       "targetScreen": "apps/web/src/features/ledger/screens/terms/screen.tsx",
       "exampleUrl": "/terms",
       "actorKey": "anonymous",
-      "scenarioId": "routes.task17.terms",
+      "scenarioId": "public.trace",
       "readyHeading": "Điều khoản",
       "roles": [
         "PUBLIC"
@@ -33968,18 +34031,37 @@
           "method": "NAVIGATE",
           "requestType": null,
           "responseType": "LedgerScreen",
-          "retainedLogic": [
+          "retainedLogic": [],
+          "tests": [],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/terms/page.tsx",
             "apps/web/src/app/terms/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/public/legal.tsx"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/public/legal.tsx",
+            "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/terms/screen.tsx",
+        "apps/web/src/features/ledger/public/legal.tsx"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/public/legal.tsx",
+        "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
       }
     },
     {
@@ -33989,7 +34071,7 @@
       "targetScreen": "apps/web/src/features/ledger/screens/trace/[lotId]/screen.tsx",
       "exampleUrl": "/trace/fixture-public-token",
       "actorKey": "anonymous",
-      "scenarioId": "routes.task17.trace.lotId",
+      "scenarioId": "public.trace",
       "readyHeading": "AgriTrace",
       "roles": [
         "PUBLIC"
@@ -33997,18 +34079,7 @@
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
-        "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/command-recovery.ts",
-        "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/display-labels.ts",
-        "apps/web/src/lib/format-date.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/mock-api.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/qr-code.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/api-client.ts"
       ],
       "actions": [
         {
@@ -34018,10 +34089,25 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "tests": [
+            "tests/ledger/public-trace.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/trace/[lotId]/page.tsx",
             "apps/web/src/app/trace/[lotId]/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/public/trace.tsx",
+            "apps/web/src/features/ledger/public/report.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/public/trace.tsx",
+            "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
+          }
         },
         {
           "id": "GET `/public/trace/${encodeURIComponent(traceToken)}`",
@@ -34032,8 +34118,23 @@
           "retainedLogic": [
             "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/public-trace.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/trace/[lotId]/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/public/trace.tsx",
+            "apps/web/src/features/ledger/public/report.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/public/trace.tsx",
+            "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
+          }
         },
         {
           "id": "GET `/trace/${token}/evidence`",
@@ -34044,8 +34145,23 @@
           "retainedLogic": [
             "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/public-trace.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/trace/[lotId]/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/public/trace.tsx",
+            "apps/web/src/features/ledger/public/report.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/public/trace.tsx",
+            "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
+          }
         },
         {
           "id": "POST `/public/trace/${encodeURIComponent(traceToken)}/reports`",
@@ -34062,17 +34178,43 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "tests": [
+            "tests/ledger/public-trace.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/trace/[lotId]/page.tsx",
             "apps/web/src/components/site/consumer-report-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/public/trace.tsx",
+            "apps/web/src/features/ledger/public/report.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/public/trace.tsx",
+            "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/public-trace.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/trace/[lotId]/screen.tsx",
+        "apps/web/src/features/ledger/public/trace.tsx"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/public/trace.tsx",
+        "result": "Task17 new Ledger public composition; retained API/token/camera and legal content only. Browser proof/warnings/private report exact retry and scanner consent/invalid input/missing trace; fixtures are not live acceptance."
       }
     }
   ]

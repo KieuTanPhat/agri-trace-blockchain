@@ -4099,6 +4099,66 @@
     {
       "target": "apps/web/src/features/ledger/screens/enterprise/processing/screen.tsx",
       "basis": "Task16 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/public/home.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/public/legal.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/public/scan.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/public/trace.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/public/report.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/components/ledger/camera-scanner.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/app/error.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/app/not-found.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/app/global-error.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/app/loading.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/home/screen.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/privacy/screen.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/scan/screen.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/terms/screen.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/trace/[lotId]/screen.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
     }
   ]
 }
