@@ -5,6 +5,7 @@ import type {
   LedgerRouteInput,
 } from "@/lib/ledger/route-input";
 import { LedgerAppShell } from "./shell/app-shell";
+import { LedgerSystemNotices } from "./system-notices";
 const RouteContext = createContext<LedgerRouteInput | null>(null);
 export function LedgerRouteScreen({
   route,
@@ -14,6 +15,7 @@ export function LedgerRouteScreen({
   return (
     <RouteContext.Provider value={route}>
       <LedgerAppShell>
+        <LedgerSystemNotices />
         <div
           data-testid={`ledger-screen-${name}`}
           className="flex min-w-0 flex-1 flex-col"

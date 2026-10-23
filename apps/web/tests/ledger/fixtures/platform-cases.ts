@@ -642,3 +642,308 @@ registerScenario("support.actions", {
     return { data: { record: { id: caseId } } };
   },
 });
+
+export const consumerReport = {
+  id: caseId,
+  lotId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  lotCode: "LOT-17",
+  productName: "Sản phẩm kiểm thử",
+  organizationName: "Doanh nghiệp được giao",
+  category: "SAFETY",
+  description: "CONSUMER_REPORT_IN_SCOPE",
+  contactEmail: "consumer@example.invalid",
+  contactPhone: null,
+  hasContact: true,
+  status: "NEW",
+  triageNote: null,
+  triagedAt: null,
+  caseId: null,
+  version: 2,
+  createdAt: privacyRecord.createdAt,
+  sameSourceReports: 1,
+};
+registerScenario("reports.new", {
+  handle(request) {
+    if (
+      request.method === "GET" &&
+      (request.path === "/platform-admin/consumer-reports?status=NEW" ||
+        request.path === "/platform-admin/consumer-reports")
+    )
+      return { data: { items: [consumerReport] } };
+  },
+});
+export const recallSnapshot: S["RecallPreviewDto"] = {
+  generatedAt: privacyRecord.createdAt,
+  readOnly: true,
+  rootLotId: caseId,
+  truncated: true,
+  limitations: ["Giới hạn fixture: cần đối soát bổ sung"],
+  lots: [
+    {
+      id: caseId,
+      lotCode: "LOT-RECALL-17",
+      parentLotId: null,
+      farmOrganizationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      state: "AVAILABLE",
+      unit: "kg",
+      initialQuantity: "9007199254740993.123456",
+      availableQuantity: "5.125",
+    },
+  ],
+  holdings: [],
+  movements: [],
+};
+registerScenario("recall.snapshot", {
+  handle(request) {
+    if (
+      request.method === "GET" &&
+      request.path === "/platform-recall/" + caseId
+    )
+      return { data: recallSnapshot };
+  },
+});
+export const systemNotice = {
+  id: caseId,
+  title: "NOTICE_IN_SCOPE",
+  body: "Thông báo theo đối tượng",
+  audience: "ALL",
+  severity: "INFO",
+  startsAt: "2026-10-22T00:00:00.000Z",
+  endsAt: "2026-10-25T00:00:00.000Z",
+  status: "PUBLISHED",
+  active: true,
+  version: 5,
+  createdAt: privacyRecord.createdAt,
+  createdBy: "55555555-5555-4555-8555-555555555555",
+  withdrawnAt: null,
+  withdrawnBy: null,
+};
+registerScenario("notices.current", {
+  handle(request) {
+    if (request.method === "GET" && request.path === "/platform-admin/notices")
+      return { data: { items: [systemNotice] } };
+  },
+});
+
+registerScenario("notices.active", {
+  handle(request, state) {
+    if (request.method === "GET" && request.path === "/system-notices/active")
+      return {
+        data: {
+          items: [
+            {
+              id: caseId,
+              title: "ACTIVE_SESSION_NOTICE",
+              body: "Banner đã lọc theo phiên",
+              severity: "INFO",
+              endsAt: systemNotice.endsAt,
+            },
+          ],
+        },
+      };
+    return readScenario("notices.current").handle(request, state);
+  },
+});
+
+for (const scenario of ["reports.actions", "reports.unknown"])
+  registerScenario(scenario, {
+    handle(request, state) {
+      const u = new URL(request.path, "http://fixture.invalid");
+      if (
+        request.method === "GET" &&
+        u.pathname === "/platform-admin/consumer-reports"
+      ) {
+        if (
+          [...u.searchParams.keys()].some((k) => k !== "status") ||
+          (u.searchParams.has("status") &&
+            u.searchParams.get("status") !== "NEW")
+        )
+          throw new Error("Unexpected report query");
+        const r = state.values.get("report") ?? consumerReport;
+        return {
+          data: {
+            items:
+              u.searchParams.has("status") && state.values.has("report")
+                ? []
+                : [r],
+          },
+        };
+      }
+      if (
+        request.method === "POST" &&
+        request.path ===
+          "/platform-admin/consumer-reports/" + caseId + "/triage"
+      ) {
+        const b = JSON.parse(request.body ?? "{}");
+        if (
+          !request.idempotencyKey ||
+          b.version !== 2 ||
+          b.note !== "Đã đối chiếu phản ánh đầy đủ" ||
+          b.severity !== "MEDIUM" ||
+          !["ESCALATE", "DISMISS", "DUPLICATE"].includes(b.decision) ||
+          Object.keys(b).sort().join() !== "decision,note,severity,version"
+        )
+          throw new Error("Incorrect report triage DTO");
+        if (scenario === "reports.unknown" && !state.values.has("lost")) {
+          state.values.set("lost", true);
+          return {
+            status: 503,
+            error: { code: "UNAVAILABLE", message: "Chưa rõ kết quả" },
+          };
+        }
+        const id =
+          b.decision === "ESCALATE"
+            ? "22222222-2222-4222-8222-222222222222"
+            : null;
+        state.values.set("report", {
+          ...consumerReport,
+          status:
+            b.decision === "DISMISS"
+              ? "DISMISSED"
+              : b.decision === "ESCALATE"
+                ? "ESCALATED"
+                : "DUPLICATE",
+          caseId: id,
+          version: 3,
+          triageNote: b.note,
+        });
+        return { data: { record: { id: caseId, caseId: id } } };
+      }
+    },
+  });
+for (const scenario of ["notices.publish", "notices.withdraw"])
+  registerScenario(scenario, {
+    handle(request, state) {
+      const current =
+        state.values.get("notice") ??
+        (scenario === "notices.withdraw" ? systemNotice : null);
+      if (
+        request.method === "GET" &&
+        request.path === "/platform-admin/notices"
+      )
+        return { data: { items: current ? [current] : [] } };
+      if (request.method === "GET" && request.path === "/system-notices/active")
+        return {
+          data: {
+            items: current && !state.values.has("withdrawn") ? [current] : [],
+          },
+        };
+      if (
+        request.method === "POST" &&
+        request.path === "/platform-admin/notices"
+      ) {
+        const b = JSON.parse(request.body ?? "{}");
+        if (
+          !request.idempotencyKey ||
+          b.title !== "NOTICE_CREATED" ||
+          b.body !== "Thông báo được đăng từ Ledger" ||
+          b.audience !== "ALL" ||
+          b.severity !== "INFO" ||
+          !Number.isFinite(Date.parse(b.startsAt)) ||
+          Date.parse(b.endsAt) <= Date.parse(b.startsAt) ||
+          Object.keys(b).sort().join() !==
+            "audience,body,endsAt,severity,startsAt,title"
+        )
+          throw new Error("Incorrect notice publish DTO");
+        state.values.set("notice", { ...systemNotice, ...b });
+        return { data: { record: { id: caseId } } };
+      }
+      if (
+        request.method === "POST" &&
+        request.path === "/platform-admin/notices/" + caseId + "/withdraw"
+      ) {
+        const b = JSON.parse(request.body ?? "{}");
+        if (
+          !request.idempotencyKey ||
+          b.version !== 5 ||
+          b.reason !== "Đã kết thúc thông báo hệ thống" ||
+          Object.keys(b).length !== 2
+        )
+          throw new Error("Incorrect notice withdrawal DTO");
+        state.values.set("notice", {
+          ...systemNotice,
+          status: "WITHDRAWN",
+          active: false,
+          version: 6,
+        });
+        state.values.set("withdrawn", true);
+        return { data: { record: { id: caseId } } };
+      }
+    },
+  });
+
+registerScenario("privacy.self-unknown", {
+  handle(request, state) {
+    if (request.method === "POST" && request.path === "/privacy-requests") {
+      const b = JSON.parse(request.body ?? "{}");
+      if (
+        !request.idempotencyKey ||
+        b.requestType !== "ACCESS" ||
+        b.message !== "PRIVATE_SELF_REQUEST_123" ||
+        Object.keys(b).length !== 2
+      )
+        throw new Error("Wrong self private request");
+      if (!state.values.has("lost")) {
+        state.values.set("lost", true);
+        return {
+          status: 503,
+          error: { code: "UNAVAILABLE", message: "Chưa rõ kết quả" },
+        };
+      }
+      return { data: privacyTicket(privacyRecord) };
+    }
+    return readScenario("privacy.self").handle(request, state);
+  },
+});
+registerScenario("privacy.late-subject", {
+  handle(request, state) {
+    const second = "22222222-2222-4222-8222-222222222222";
+    if (request.method === "GET" && request.path === "/privacy-requests") {
+      const a = state.actor === "org-staff";
+      return {
+        data: {
+          items: [{ ...privacyTicket(privacyRecord), id: a ? caseId : second }],
+          nextCursor: a ? caseId : null,
+        },
+      };
+    }
+    if (
+      request.method === "GET" &&
+      request.path === "/privacy-requests/" + caseId
+    )
+      return {
+        data: { ...privacyRecord, message: "PRIVATE_SUBJECT_A_CONTENT" },
+        delayMs: 1800,
+      };
+    if (
+      request.method === "GET" &&
+      request.path === "/privacy-requests/" + second
+    )
+      return {
+        data: {
+          ...privacyRecord,
+          id: second,
+          message: "PRIVATE_SUBJECT_B_CONTENT",
+        },
+      };
+    if (
+      request.method === "GET" &&
+      request.path === "/privacy-requests?cursor=" + caseId
+    ) {
+      if (!state.values.has("challenged")) {
+        state.values.set("challenged", true);
+        return {
+          status: 401,
+          error: { code: "UNAUTHORIZED", message: "Phiên cần xác minh" },
+        };
+      }
+      return {
+        status: 404,
+        error: {
+          code: "NOT_FOUND",
+          message: "Hồ sơ không thuộc chủ thể hiện tại",
+        },
+      };
+    }
+  },
+});

@@ -5,6 +5,15 @@ import { GOVERNANCE_EN } from "./i18n-en-governance";
  */
 export const EN: Record<string, string> = {
   ...GOVERNANCE_EN,
+  "Không tìm thấy yêu cầu hỗ trợ": "Support ticket not found",
+  "Tối thiểu 2 ký tự": "At least 2 characters",
+  "Loại yêu cầu": "Request type",
+  "Xem hồ sơ sự cố": "View incident case",
+  "Tạo bản diễn tập": "Generate recall preview",
+  "Nhập mã định danh lô để tạo snapshot": "Enter a lot ID to create a snapshot",
+  "Tải snapshot JSON": "Download JSON snapshot",
+  "Tối thiểu 3 ký tự": "At least 3 characters",
+  "Thông tin hồ sơ": "Case information",
   "Không nhập mật khẩu, OTP hoặc khóa ký": "Do not enter passwords, OTPs or signing keys",
   "Nội dung yêu cầu": "Request details",
   "Gửi yêu cầu quyền dữ liệu": "Submit a data rights request",

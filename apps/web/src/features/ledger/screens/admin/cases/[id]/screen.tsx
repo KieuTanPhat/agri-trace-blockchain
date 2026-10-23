@@ -313,7 +313,7 @@ function Detail({ id }: { id: string }) {
                   {c.lot ? (
                     <Link
                       className="font-mono text-brand hover:underline"
-                      href={`/admin/lots/${c.lot.id}`}
+                      href="/admin/lots"
                     >
                       {c.lot.lotCode}
                     </Link>

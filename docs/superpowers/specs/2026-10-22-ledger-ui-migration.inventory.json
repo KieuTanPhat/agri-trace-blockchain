@@ -2995,7 +2995,7 @@
       "target": "apps/web/src/lib/ledger/i18n-en.ts",
       "source": "src/lib/i18n-en.ts",
       "sourceSha256": "948583446f3e1404ae3325cc93bdffaf71f7381167da92957cd91fda5b499d54",
-      "targetSha256": "cff3b480df9d036e37c5b1b79c8c70d417e77a30a5f71e051ee82466418cf8dd"
+      "targetSha256": "f8842696c9206b95d53e125bebc2a0b49c20a18c2c2bf021472b420555054db6"
     },
     {
       "target": "apps/web/src/lib/ledger/i18n.ts",
@@ -3199,7 +3199,7 @@
       "target": "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
       "source": "src/app/(console)/cases/[id]/page.tsx",
       "sourceSha256": "eaa86f45bdd078525abcc59379cf4a44cb07369528038ee7d7687ade4d72e4a4",
-      "targetSha256": "a884525c2bd467c3f1a87980ed411d7a33e1fcbc3e14d43b49057aa330bcd322",
+      "targetSha256": "a3f96533a38a9c715d3654011020c70ca78801e11618218a711dfc7ae729a35d",
       "adaptation": "Task7 frozen Ledger case presentation; baseline DTOs, canonical routes, scoped queries, platform roles and memory-only recovery. New route uses preview creation dialog fields in a Ledger page."
     },
     {
@@ -3222,6 +3222,27 @@
       "sourceSha256": "9fcc18b8b2ba75a6e0533d65952f749496df4abce7d7e94f093d22675dfa38e3",
       "targetSha256": "b896d7598b20e73c4866d9e0bdcc49a6449ef1037bfbba2fec9c5f006986cde6",
       "adaptation": "Task7 frozen Ledger support inbox/thread presentation; canonical baseline deep links, actual server status queries and DTOs, private pending reply locks. Removed preview KEEP state because the baseline server defaults external replies to WAITING_CUSTOMER; internal replies omit status."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+      "source": "src/app/(console)/reports/page.tsx",
+      "sourceSha256": "5949eeef76de0620c10ccb3099ab691f2ddce9971aae67642cb293230c499938",
+      "targetSha256": "edc23e3598a6fe5711595c86aee3c2f7ba5ebabdb3e38dfdca50e8557d4e10fa",
+      "adaptation": "Task7 frozen Ledger presentation with canonical baseline URLs, generated request DTOs, server scope, version and original-command recovery; no preview API/auth/permission runtime."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+      "source": "src/app/(console)/recall/page.tsx",
+      "sourceSha256": "f995d0ebda72fc1aa7fcae69a0d14c3dcf0f9741f943841ac85c45c573e1f94a",
+      "targetSha256": "36146350e48d9ea9c85c5ceded9a5c53b7bd621499fdb9d9d35f5869172962da",
+      "adaptation": "Task7 frozen Ledger presentation with canonical baseline URLs, generated request DTOs, server scope, version and original-command recovery; no preview API/auth/permission runtime."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+      "source": "src/app/(console)/notices/page.tsx",
+      "sourceSha256": "ba2213a286cf25476aca3b31a88fe9d148d560ed931b9eec1f8d5587ed95a44e",
+      "targetSha256": "74f65bd7392706c1784f4b923fe0c4eb4754c47ab09b8af7a401409385a85dd8",
+      "adaptation": "Task7 frozen Ledger presentation with canonical baseline URLs, generated request DTOs, server scope, version and original-command recovery; no preview API/auth/permission runtime."
     }
   ],
   "newLedgerComposition": [
@@ -3416,6 +3437,14 @@
     {
       "target": "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
       "basis": "Task7 support route and typed baseline DTO/service response adapter; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/coordination-api.ts",
+      "basis": "Task7 baseline DTO/service views or system-notices active/dismissal logic rendered only with approved Ledger kit; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/components/ledger/system-notices.tsx",
+      "basis": "Task7 baseline DTO/service views or system-notices active/dismissal logic rendered only with approved Ledger kit; no legacy presentation input."
     }
   ]
 }

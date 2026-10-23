@@ -285,6 +285,8 @@ export function defaultAuthResponse(
   request: CapturedRequest,
   state: FixtureState,
 ): FixtureResponse | undefined {
+  if (request.path === "/system-notices/active" && request.method === "GET")
+    return state.session ? { data: { items: [] } } : undefined;
   if (request.path === "/auth/refresh" && request.method === "POST")
     return state.session
       ? { data: state.session }

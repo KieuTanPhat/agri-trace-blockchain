@@ -87,15 +87,10 @@
       "scope": "authenticated subject only; server binds sender identity",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -110,7 +105,11 @@
           "tests": [
             "tests/ledger/platform-cases.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "implementation": [
+            "apps/web/src/features/ledger/screens/account/privacy/screen.tsx",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ]
         },
         {
           "id": "list",
@@ -128,7 +127,11 @@
           "tests": [
             "tests/ledger/platform-cases.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "implementation": [
+            "apps/web/src/features/ledger/screens/account/privacy/screen.tsx",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ]
         },
         {
           "id": "detail",
@@ -146,7 +149,11 @@
           "tests": [
             "tests/ledger/platform-cases.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "implementation": [
+            "apps/web/src/features/ledger/screens/account/privacy/screen.tsx",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ]
         },
         {
           "id": "create",
@@ -164,7 +171,11 @@
           "tests": [
             "tests/ledger/platform-cases.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "implementation": [
+            "apps/web/src/features/ledger/screens/account/privacy/screen.tsx",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ]
         }
       ],
       "tests": [
@@ -174,7 +185,23 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline platform-privacy.ts controller/service + permissions.ts; explicit auditor denial, separate self-service endpoints and strict browser fixtures."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/iot-local-store.ts",
+        "apps/web/src/lib/permission-sync.ts",
+        "apps/web/src/lib/platform-governance.ts",
+        "apps/web/src/lib/workspace.ts"
+      ],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/account/privacy/screen.tsx",
+        "apps/web/src/lib/ledger/privacy-api.ts"
+      ]
     },
     {
       "route": "/admin/approvals/[id]",
@@ -1099,16 +1126,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1128,6 +1149,10 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
           ]
         },
         {
@@ -1147,6 +1172,10 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
           ]
         },
         {
@@ -1166,16 +1195,17 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
           ]
         },
         {
           "id": "POST `/platform-cases/${row.id}/assign`",
           "endpoint": "`/platform-cases/${row.id}/assign`",
           "method": "POST",
-          "requestType": [
-            "ownerOrganizationId",
-            "responseDueAt"
-          ],
+          "requestType": "components.schemas.AssignCaseDto",
           "responseType": "unknown",
           "retainedLogic": [
             "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
@@ -1188,16 +1218,21 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
+          ],
+          "baselineRequestFields": [
+            "ownerOrganizationId",
+            "responseDueAt"
           ]
         },
         {
           "id": "POST `/platform-cases/${row.id}/classify`",
           "endpoint": "`/platform-cases/${row.id}/classify`",
           "method": "POST",
-          "requestType": [
-            "category",
-            "severity"
-          ],
+          "requestType": "components.schemas.ClassifyCaseDto",
           "responseType": "unknown",
           "retainedLogic": [
             "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
@@ -1210,15 +1245,21 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
+          ],
+          "baselineRequestFields": [
+            "category",
+            "severity"
           ]
         },
         {
           "id": "POST `/platform-cases/${row.id}/close`",
           "endpoint": "`/platform-cases/${row.id}/close`",
           "method": "POST",
-          "requestType": [
-            "reason"
-          ],
+          "requestType": "components.schemas.CloseCaseDto",
           "responseType": "unknown",
           "retainedLogic": [
             "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
@@ -1231,13 +1272,20 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
+          ],
+          "baselineRequestFields": [
+            "reason"
           ]
         },
         {
           "id": "POST `/platform-cases/${row.id}/escalate`",
           "endpoint": "`/platform-cases/${row.id}/escalate`",
           "method": "POST",
-          "requestType": [],
+          "requestType": "components.schemas.EscalateCaseDto",
           "responseType": "unknown",
           "retainedLogic": [
             "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
@@ -1250,15 +1298,18 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/[id]/page.tsx"
-          ]
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
+          ],
+          "baselineRequestFields": []
         },
         {
           "id": "POST `/platform-cases/${row.id}/link-lot`",
           "endpoint": "`/platform-cases/${row.id}/link-lot`",
           "method": "POST",
-          "requestType": [
-            "lotId"
-          ],
+          "requestType": "components.schemas.LinkCaseLotDto",
           "responseType": "unknown",
           "retainedLogic": [
             "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
@@ -1271,16 +1322,20 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
+          ],
+          "baselineRequestFields": [
+            "lotId"
           ]
         },
         {
           "id": "POST `/platform-cases/${row.id}/notes`",
           "endpoint": "`/platform-cases/${row.id}/notes`",
           "method": "POST",
-          "requestType": [
-            "note",
-            "visibility"
-          ],
+          "requestType": "components.schemas.CaseNoteDto",
           "responseType": "unknown",
           "retainedLogic": [
             "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
@@ -1293,6 +1348,14 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
+          ],
+          "baselineRequestFields": [
+            "note",
+            "visibility"
           ]
         }
       ],
@@ -1303,7 +1366,24 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; case-manager writes and auditor read-only browser contract coverage."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/confirm.tsx",
+        "apps/web/src/lib/iot-local-store.ts",
+        "apps/web/src/lib/permission-sync.ts",
+        "apps/web/src/lib/platform-governance.ts",
+        "apps/web/src/lib/workspace.ts"
+      ],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+        "apps/web/src/lib/ledger/cases-api.ts"
+      ]
     },
     {
       "route": "/admin/cases/new",
@@ -1322,16 +1402,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1351,6 +1425,10 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
           ]
         },
         {
@@ -1370,22 +1448,17 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
           ]
         },
         {
           "id": "POST /platform-cases",
           "endpoint": "/platform-cases",
           "method": "POST",
-          "requestType": [
-            "category",
-            "description",
-            "lotId",
-            "ownerOrganizationId",
-            "responseDueAt",
-            "severity",
-            "source",
-            "title"
-          ],
+          "requestType": "components.schemas.CreateCaseDto",
           "responseType": "unknown",
           "retainedLogic": [
             "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
@@ -1398,6 +1471,20 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
+          ],
+          "baselineRequestFields": [
+            "category",
+            "description",
+            "lotId",
+            "ownerOrganizationId",
+            "responseDueAt",
+            "severity",
+            "source",
+            "title"
           ]
         }
       ],
@@ -1408,7 +1495,24 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; case-manager writes and auditor read-only browser contract coverage."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/confirm.tsx",
+        "apps/web/src/lib/iot-local-store.ts",
+        "apps/web/src/lib/permission-sync.ts",
+        "apps/web/src/lib/platform-governance.ts",
+        "apps/web/src/lib/workspace.ts"
+      ],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
+        "apps/web/src/lib/ledger/cases-api.ts"
+      ]
     },
     {
       "route": "/admin/cases",
@@ -1428,15 +1532,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1456,6 +1555,10 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
           ]
         },
         {
@@ -1475,6 +1578,10 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/cases/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/cases/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts"
           ]
         }
       ],
@@ -1485,7 +1592,23 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; case-manager writes and auditor read-only browser contract coverage."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/iot-local-store.ts",
+        "apps/web/src/lib/permission-sync.ts",
+        "apps/web/src/lib/platform-governance.ts",
+        "apps/web/src/lib/workspace.ts"
+      ],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/admin/cases/screen.tsx",
+        "apps/web/src/lib/ledger/cases-api.ts"
+      ]
     },
     {
       "route": "/admin/chains",
@@ -3088,14 +3211,170 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
       "exampleUrl": "/admin/notices",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task7.admin.notices",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "notices.current",
+      "readyHeading": "Thông báo hệ thống",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management route authority and server-filtered records; no preview permission engine",
       "retainedLogic": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "actions": [
+        {
+          "id": "view",
+          "endpoint": "/admin/notices",
+          "method": "NAVIGATE",
+          "requestType": null,
+          "responseType": "LedgerScreen",
+          "retainedLogic": [
+            "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/notices/page.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "result": "Strict Task7 contract fixtures verify real endpoints, command DTOs/version/key or read-only snapshot behavior; source reconciliation retains all baseline obligations."
+          },
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts"
+          ]
+        },
+        {
+          "id": "GET /platform-admin/notices",
+          "endpoint": "/platform-admin/notices",
+          "method": "GET",
+          "requestType": [],
+          "responseType": "SystemNoticesService noticeView[]",
+          "retainedLogic": [
+            "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/notices/page.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "result": "Strict Task7 contract fixtures verify real endpoints, command DTOs/version/key or read-only snapshot behavior; source reconciliation retains all baseline obligations."
+          },
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts"
+          ]
+        },
+        {
+          "id": "POST /platform-admin/notices",
+          "endpoint": "/platform-admin/notices",
+          "method": "POST",
+          "requestType": "components.schemas.NoticeInput",
+          "responseType": "unknown",
+          "retainedLogic": [
+            "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/notices/page.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "result": "Strict Task7 contract fixtures verify real endpoints, command DTOs/version/key or read-only snapshot behavior; source reconciliation retains all baseline obligations."
+          },
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts"
+          ]
+        },
+        {
+          "id": "POST `/platform-admin/notices/${r.id}/withdraw`",
+          "endpoint": "`/platform-admin/notices/${r.id}/withdraw`",
+          "method": "POST",
+          "requestType": "components.schemas.VersionReasonInput",
+          "responseType": "unknown",
+          "retainedLogic": [
+            "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/notices/page.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "result": "Strict Task7 contract fixtures verify real endpoints, command DTOs/version/key or read-only snapshot behavior; source reconciliation retains all baseline obligations."
+          },
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts"
+          ]
+        },
+        {
+          "id": "active-banner-session-dismissal",
+          "endpoint": "/system-notices/active",
+          "method": "GET",
+          "requestType": null,
+          "responseType": "SystemNoticesService noticeView[]",
+          "retainedLogic": [
+            "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/components/ledger/system-notices.tsx"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/components/system-notices.tsx"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+            "result": "Strict Task7 contract fixtures verify real endpoints, command DTOs/version/key or read-only snapshot behavior; source reconciliation retains all baseline obligations."
+          }
+        }
+      ],
+      "tests": [
+        "tests/ledger/platform-cases.spec.ts"
+      ],
+      "status": "verified",
+      "authorization": {
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts + baseline platform-admin/platform-recall controller and service; frontend retains its narrower report/notice access."
+      },
+      "baselineLogicSources": [
         "apps/web/src/lib/api-client.ts",
         "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
@@ -3109,68 +3388,10 @@
         "apps/web/src/lib/status-labels.ts",
         "apps/web/src/lib/workspace.ts"
       ],
-      "actions": [
-        {
-          "id": "view",
-          "endpoint": "/admin/notices",
-          "method": "NAVIGATE",
-          "requestType": null,
-          "responseType": "LedgerScreen",
-          "retainedLogic": [
-            "apps/web/src/app/admin/notices/page.tsx"
-          ],
-          "tests": [],
-          "status": "pending"
-        },
-        {
-          "id": "GET /platform-admin/notices",
-          "endpoint": "/platform-admin/notices",
-          "method": "GET",
-          "requestType": [],
-          "responseType": "Items",
-          "retainedLogic": [
-            "apps/web/src/app/admin/notices/page.tsx"
-          ],
-          "tests": [],
-          "status": "pending"
-        },
-        {
-          "id": "POST /platform-admin/notices",
-          "endpoint": "/platform-admin/notices",
-          "method": "POST",
-          "requestType": [
-            "endsAt",
-            "startsAt"
-          ],
-          "responseType": "unknown",
-          "retainedLogic": [
-            "apps/web/src/app/admin/notices/page.tsx"
-          ],
-          "tests": [],
-          "status": "pending"
-        },
-        {
-          "id": "POST `/platform-admin/notices/${r.id}/withdraw`",
-          "endpoint": "`/platform-admin/notices/${r.id}/withdraw`",
-          "method": "POST",
-          "requestType": [
-            "reason",
-            "version"
-          ],
-          "responseType": "unknown",
-          "retainedLogic": [
-            "apps/web/src/app/admin/notices/page.tsx"
-          ],
-          "tests": [],
-          "status": "pending"
-        }
-      ],
-      "tests": [],
-      "status": "pending",
-      "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
-      }
+      "implementation": [
+        "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+        "apps/web/src/lib/ledger/coordination-api.ts"
+      ]
     },
     {
       "route": "/admin/operations",
@@ -3541,15 +3762,10 @@
       "scope": "platform privacy officers; server-filtered private records",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -3564,7 +3780,11 @@
           "tests": [
             "tests/ledger/platform-cases.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ]
         },
         {
           "id": "list",
@@ -3582,7 +3802,11 @@
           "tests": [
             "tests/ledger/platform-cases.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ]
         },
         {
           "id": "detail",
@@ -3600,7 +3824,11 @@
           "tests": [
             "tests/ledger/platform-cases.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ]
         },
         {
           "id": "breach",
@@ -3618,7 +3846,11 @@
           "tests": [
             "tests/ledger/platform-cases.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ]
         },
         {
           "id": "review",
@@ -3636,7 +3868,11 @@
           "tests": [
             "tests/ledger/platform-cases.spec.ts"
           ],
-          "status": "verified"
+          "status": "verified",
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ]
         }
       ],
       "tests": [
@@ -3646,7 +3882,23 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline platform-privacy.ts controller/service + permissions.ts; explicit auditor denial, separate self-service endpoints and strict browser fixtures."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/iot-local-store.ts",
+        "apps/web/src/lib/permission-sync.ts",
+        "apps/web/src/lib/platform-governance.ts",
+        "apps/web/src/lib/workspace.ts"
+      ],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
+        "apps/web/src/lib/ledger/privacy-api.ts"
+      ]
     },
     {
       "route": "/admin/products/[organizationId]",
@@ -3869,16 +4121,119 @@
       "sourceFile": "apps/web/src/app/admin/recall/page.tsx",
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
-      "exampleUrl": "/admin/recall",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task7.admin.recall",
-      "readyHeading": "Tổng quan nền tảng",
+      "exampleUrl": "/admin/recall?lotId=11111111-1111-4111-8111-111111111111",
+      "actorKey": "case-manager",
+      "scenarioId": "recall.snapshot",
+      "readyHeading": "Diễn tập thu hồi",
       "roles": [
-        "SYSTEM_ADMIN"
+        "SYSTEM_ADMIN",
+        "PLATFORM_OPERATOR",
+        "PLATFORM_CASE_MANAGER",
+        "AUDITOR"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management route authority and server-filtered records; no preview permission engine",
       "retainedLogic": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "actions": [
+        {
+          "id": "view",
+          "endpoint": "/admin/recall",
+          "method": "NAVIGATE",
+          "requestType": null,
+          "responseType": "LedgerScreen",
+          "retainedLogic": [
+            "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/recall/page.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+            "result": "Strict Task7 contract fixtures verify real endpoints, command DTOs/version/key or read-only snapshot behavior; source reconciliation retains all baseline obligations."
+          },
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts"
+          ]
+        },
+        {
+          "id": "GET `/platform-recall/${encodeURIComponent(lotId.trim())}`",
+          "endpoint": "`/platform-recall/${encodeURIComponent(lotId.trim())}`",
+          "method": "GET",
+          "requestType": [],
+          "responseType": "components.schemas.RecallPreviewDto",
+          "retainedLogic": [
+            "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/recall/page.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+            "result": "Strict Task7 contract fixtures verify real endpoints, command DTOs/version/key or read-only snapshot behavior; source reconciliation retains all baseline obligations."
+          },
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts"
+          ]
+        },
+        {
+          "id": "snapshot-json-export",
+          "endpoint": "/platform-recall/:lotId",
+          "method": "GET",
+          "requestType": null,
+          "responseType": "components.schemas.RecallPreviewDto",
+          "retainedLogic": [
+            "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/recall/screen.tsx"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+            "result": "Strict Task7 contract fixtures verify real endpoints, command DTOs/version/key or read-only snapshot behavior; source reconciliation retains all baseline obligations."
+          },
+          "baselineLogicSources": [
+            "apps/web/src/lib/platform-governance.ts"
+          ]
+        }
+      ],
+      "tests": [
+        "tests/ledger/platform-cases.spec.ts"
+      ],
+      "status": "verified",
+      "authorization": {
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts + baseline platform-admin/platform-recall controller and service; frontend retains its narrower report/notice access."
+      },
+      "baselineLogicSources": [
         "apps/web/src/lib/api-client.ts",
         "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
@@ -3890,38 +4245,10 @@
         "apps/web/src/lib/platform-governance.ts",
         "apps/web/src/lib/workspace.ts"
       ],
-      "actions": [
-        {
-          "id": "view",
-          "endpoint": "/admin/recall",
-          "method": "NAVIGATE",
-          "requestType": null,
-          "responseType": "LedgerScreen",
-          "retainedLogic": [
-            "apps/web/src/app/admin/recall/page.tsx"
-          ],
-          "tests": [],
-          "status": "pending"
-        },
-        {
-          "id": "GET `/platform-recall/${encodeURIComponent(lotId.trim())}`",
-          "endpoint": "`/platform-recall/${encodeURIComponent(lotId.trim())}`",
-          "method": "GET",
-          "requestType": [],
-          "responseType": "Preview",
-          "retainedLogic": [
-            "apps/web/src/app/admin/recall/page.tsx"
-          ],
-          "tests": [],
-          "status": "pending"
-        }
-      ],
-      "tests": [],
-      "status": "pending",
-      "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
-      }
+      "implementation": [
+        "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+        "apps/web/src/lib/ledger/coordination-api.ts"
+      ]
     },
     {
       "route": "/admin/reference-data",
@@ -4006,15 +4333,117 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
       "exampleUrl": "/admin/reports",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task7.admin.reports",
-      "readyHeading": "Tổng quan nền tảng",
+      "actorKey": "case-manager",
+      "scenarioId": "reports.new",
+      "readyHeading": "Báo cáo người tiêu dùng",
       "roles": [
-        "SYSTEM_ADMIN"
+        "SYSTEM_ADMIN",
+        "PLATFORM_CASE_MANAGER"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management route authority and server-filtered records; no preview permission engine",
       "retainedLogic": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
+      "actions": [
+        {
+          "id": "view",
+          "endpoint": "/admin/reports",
+          "method": "NAVIGATE",
+          "requestType": null,
+          "responseType": "LedgerScreen",
+          "retainedLogic": [
+            "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/reports/page.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+            "result": "Strict Task7 contract fixtures verify real endpoints, command DTOs/version/key or read-only snapshot behavior; source reconciliation retains all baseline obligations."
+          },
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts"
+          ]
+        },
+        {
+          "id": "GET `/platform-admin/consumer-reports${status ? `?status=${status}` : \"\"}`",
+          "endpoint": "`/platform-admin/consumer-reports${status ? `?status=${status}` : \"\"}`",
+          "method": "GET",
+          "requestType": [],
+          "responseType": "SupportService consumerReportView[]",
+          "retainedLogic": [
+            "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/reports/page.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+            "result": "Strict Task7 contract fixtures verify real endpoints, command DTOs/version/key or read-only snapshot behavior; source reconciliation retains all baseline obligations."
+          },
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts"
+          ]
+        },
+        {
+          "id": "POST `/platform-admin/consumer-reports/${row.id}/triage`",
+          "endpoint": "`/platform-admin/consumer-reports/${row.id}/triage`",
+          "method": "POST",
+          "requestType": "components.schemas.ReportTriageInput",
+          "responseType": "unknown",
+          "retainedLogic": [
+            "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/reports/page.tsx"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+            "result": "Strict Task7 contract fixtures verify real endpoints, command DTOs/version/key or read-only snapshot behavior; source reconciliation retains all baseline obligations."
+          },
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+            "apps/web/src/lib/ledger/coordination-api.ts"
+          ]
+        }
+      ],
+      "tests": [
+        "tests/ledger/platform-cases.spec.ts"
+      ],
+      "status": "verified",
+      "authorization": {
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts + baseline platform-admin/platform-recall controller and service; frontend retains its narrower report/notice access."
+      },
+      "baselineLogicSources": [
         "apps/web/src/lib/api-client.ts",
         "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
@@ -4027,55 +4456,10 @@
         "apps/web/src/lib/platform-admin.ts",
         "apps/web/src/lib/workspace.ts"
       ],
-      "actions": [
-        {
-          "id": "view",
-          "endpoint": "/admin/reports",
-          "method": "NAVIGATE",
-          "requestType": null,
-          "responseType": "LedgerScreen",
-          "retainedLogic": [
-            "apps/web/src/app/admin/reports/page.tsx"
-          ],
-          "tests": [],
-          "status": "pending"
-        },
-        {
-          "id": "GET `/platform-admin/consumer-reports${status ? `?status=${status}` : \"\"}`",
-          "endpoint": "`/platform-admin/consumer-reports${status ? `?status=${status}` : \"\"}`",
-          "method": "GET",
-          "requestType": [],
-          "responseType": "Items",
-          "retainedLogic": [
-            "apps/web/src/app/admin/reports/page.tsx"
-          ],
-          "tests": [],
-          "status": "pending"
-        },
-        {
-          "id": "POST `/platform-admin/consumer-reports/${row.id}/triage`",
-          "endpoint": "`/platform-admin/consumer-reports/${row.id}/triage`",
-          "method": "POST",
-          "requestType": [
-            "decision",
-            "note",
-            "severity",
-            "version"
-          ],
-          "responseType": "unknown",
-          "retainedLogic": [
-            "apps/web/src/app/admin/reports/page.tsx"
-          ],
-          "tests": [],
-          "status": "pending"
-        }
-      ],
-      "tests": [],
-      "status": "pending",
-      "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
-      }
+      "implementation": [
+        "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+        "apps/web/src/lib/ledger/coordination-api.ts"
+      ]
     },
     {
       "route": "/admin/roles",
@@ -4561,16 +4945,10 @@
       "scope": "baseline management route scope; auditor server reads do not grant an otherwise denied frontend route",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -4590,6 +4968,10 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/support/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts"
           ]
         },
         {
@@ -4609,6 +4991,10 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/support/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts"
           ]
         },
         {
@@ -4628,16 +5014,17 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/support/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts"
           ]
         },
         {
           "id": "POST `/platform-admin/tickets/${id}/assign`",
           "endpoint": "`/platform-admin/tickets/${id}/assign`",
           "method": "POST",
-          "requestType": [
-            "assigneeId",
-            "version"
-          ],
+          "requestType": "components.schemas.TicketAssignInput",
           "responseType": "unknown",
           "retainedLogic": [
             "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
@@ -4650,16 +5037,21 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/support/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts"
+          ],
+          "baselineRequestFields": [
+            "assigneeId",
+            "version"
           ]
         },
         {
           "id": "POST `/platform-admin/tickets/${id}/close`",
           "endpoint": "`/platform-admin/tickets/${id}/close`",
           "method": "POST",
-          "requestType": [
-            "reason",
-            "version"
-          ],
+          "requestType": "components.schemas.TicketCloseInput",
           "responseType": "unknown",
           "retainedLogic": [
             "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
@@ -4672,18 +5064,21 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/support/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts"
+          ],
+          "baselineRequestFields": [
+            "reason",
+            "version"
           ]
         },
         {
           "id": "POST `/platform-admin/tickets/${id}/reply`",
           "endpoint": "`/platform-admin/tickets/${id}/reply`",
           "method": "POST",
-          "requestType": [
-            "body",
-            "internal",
-            "status",
-            "version"
-          ],
+          "requestType": "components.schemas.TicketReplyInput",
           "responseType": "unknown",
           "retainedLogic": [
             "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
@@ -4696,6 +5091,16 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/support/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts"
+          ],
+          "baselineRequestFields": [
+            "body",
+            "internal",
+            "status",
+            "version"
           ]
         }
       ],
@@ -4706,7 +5111,24 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline permissions.ts, platform-admin.controller CASE_STAFF and SupportService.ticketView; closed-record and command boundary browser tests."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/confirm.tsx",
+        "apps/web/src/lib/iot-local-store.ts",
+        "apps/web/src/lib/permission-sync.ts",
+        "apps/web/src/lib/platform-admin.ts",
+        "apps/web/src/lib/workspace.ts"
+      ],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+        "apps/web/src/lib/ledger/support-api.ts"
+      ]
     },
     {
       "route": "/admin/support",
@@ -4725,16 +5147,10 @@
       "scope": "baseline management route scope; auditor server reads do not grant an otherwise denied frontend route",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -4754,6 +5170,10 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/support/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/support/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts"
           ]
         },
         {
@@ -4773,6 +5193,10 @@
           "status": "verified",
           "baselineLogicSources": [
             "apps/web/src/app/admin/support/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/support/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts"
           ]
         }
       ],
@@ -4783,7 +5207,24 @@
       "authorization": {
         "status": "verified",
         "source": "Baseline permissions.ts, platform-admin.controller CASE_STAFF and SupportService.ticketView; closed-record and command boundary browser tests."
-      }
+      },
+      "baselineLogicSources": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/iot-local-store.ts",
+        "apps/web/src/lib/permission-sync.ts",
+        "apps/web/src/lib/platform-admin.ts",
+        "apps/web/src/lib/status-labels.ts",
+        "apps/web/src/lib/workspace.ts"
+      ],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/admin/support/screen.tsx",
+        "apps/web/src/lib/ledger/support-api.ts"
+      ]
     },
     {
       "route": "/admin/trace-report",
