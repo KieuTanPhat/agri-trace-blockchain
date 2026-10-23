@@ -36,7 +36,7 @@ jobs:
         run: node scripts/ci/changes.mjs
 
   verify:
-    name: ${{ matrix.package }} / Node ${{ matrix.node }}
+    name: ${{ matrix.package }} / Node 24
     needs: changes
     if: needs.changes.outputs.blockchain == 'true'
     runs-on: ubuntu-24.04
@@ -44,7 +44,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['22.22.3', '24.15.0', '26.0.0']
         package: [blockchain/chaincode, blockchain/gateway]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,7 +51,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: ${{ matrix.node }}
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm install --global npm@12.1.0
@@ -73,7 +72,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22.22.3'
+          node-version-file: .node-version
           package-manager-cache: false
       - run: npm install --global npm@12.1.0
       - name: Install, audit and check standalone chaincode in isolation
@@ -106,7 +105,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22.22.3'
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm install --global npm@12.1.0
@@ -176,7 +175,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {persist-credentials: false}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with: {node-version: '22.22.3', cache: npm, cache-dependency-path: package-lock.json}
+        with: {node-version-file: .node-version, cache: npm, cache-dependency-path: package-lock.json}
       - run: npm install --global npm@12.1.0
       - run: npm ci --no-audit --no-fund
       - name: Check that the export acceptance fails closed

@@ -1,4 +1,5 @@
-// Local operator seed. Run only through seed-current.ps1 after its backup/target checks.
+// Local operator seed. Run only after seed-current.ps1 backup/target checks,
+// or explicitly authorized fresh-cluster checks (see database migration runbook).
 import assert from "node:assert/strict";
 import {
   createHash,

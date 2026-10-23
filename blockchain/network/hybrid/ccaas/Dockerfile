@@ -1,5 +1,5 @@
 # Chaincode-as-a-service image: one container per organization peer.
-FROM node:22.22.3-alpine@sha256:e58326d0d441090181ac150dc2078d3e2cf6a0d42e809aebba3ef5880935ffdd
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --global npm@12.1.0 && npm ci --omit=dev --no-audit --no-fund

@@ -33,7 +33,7 @@ export function PartnerProfileDialog({ organizationId, onClose }: { organization
             </div>
             <dl className="grid grid-cols-[minmax(0,130px)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
               {[
-                [tr("Mã số thuế"), d.taxCode && <span className="font-mono">{d.taxCode}</span>],
+                [tr("Mã số thuế"), d.taxCode && <span key="tax-code" className="font-mono">{d.taxCode}</span>],
                 [tr("Người đại diện"), d.representative],
                 [tr("Địa chỉ"), [d.address, d.ward, d.province].filter(Boolean).join(", ")],
                 [tr("Điện thoại"), d.phone],

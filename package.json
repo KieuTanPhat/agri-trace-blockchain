@@ -3,8 +3,8 @@
   "private": true,
   "packageManager": "npm@12.1.0",
   "engines": {
-    "node": "^22.22.3 || ^24.15.0 || >=26.0.0",
-    "npm": ">=12.1.0"
+    "node": ">=24.22.1 <25",
+    "npm": "12.1.0"
   },
   "overrides": {
     "postcss": "8.5.28",
@@ -48,7 +48,7 @@
     "test:e2e": "npm run test:e2e --workspace apps/api",
     "test:hybrid:browser": "node scripts/ci/hybrid-browser.mjs",
     "test:enterprise:peer": "node scripts/ci/enterprise-peer.mjs",
-    "test:ci": "node --test scripts/ci/ci.test.mjs deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs && node --import tsx --test blockchain/network/hybrid/acceptance/export-check.test.mts",
+    "test:ci": "node --test scripts/ci/ci.test.mjs scripts/demo/verification-initialization.test.mjs deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs && node --import tsx --test blockchain/network/hybrid/acceptance/export-check.test.mts",
     "test:worker-contract": "npm run build --workspace blockchain/gateway && npm run prisma:generate --workspace apps/api && npm run build --workspace apps/api && npm run build --workspace blockchain/chaincode && node --test scripts/ci/worker-contract.test.mjs",
     "check": "npm run agents:check && npm run test:agents && npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
   },

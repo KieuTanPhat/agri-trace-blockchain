@@ -56,7 +56,7 @@ try {
       );
     assert.equal(broken.length, 0, `Broken image on ${path}`);
     if (path.startsWith("/trace/")) {
-      const photo = page.locator(".trace-product-photo");
+      const photo = page.locator('img[src*="/evidence/"]');
       assert.ok((await photo.getAttribute("src"))?.includes("/evidence/"));
       assert.ok(await photo.evaluate((image) => image.naturalWidth >= 500));
     }

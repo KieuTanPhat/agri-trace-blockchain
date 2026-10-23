@@ -65,7 +65,7 @@
     "@swc/helpers": "0.5.17",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.0",
-    "@types/node": "^24.0.0",
+    "@types/node": "24.13.4",
     "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^7.0.0",
@@ -79,5 +79,9 @@
     "typescript": "^6.0.2",
     "unplugin-swc": "^1.6.0",
     "vitest": "^4.1.12"
+  },
+  "engines": {
+    "node": ">=24.22.1 <25",
+    "npm": "12.1.0"
   }
 }

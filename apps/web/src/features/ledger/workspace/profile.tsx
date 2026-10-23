@@ -190,7 +190,7 @@ function ProfileFacts({ p }: { p: EnterpriseProfile }) {
   const prod = p.legalData.production;
   const rows: [string, React.ReactNode][] = [
     [tr("Loại hình"), LEGAL_FORM_LABEL[p.legalForm] ?? p.legalForm],
-    [tr("Mã số thuế"), p.legalData.businessId && <span className="font-mono">{p.legalData.businessId}</span>],
+    [tr("Mã số thuế"), p.legalData.businessId && <span key="business-id" className="font-mono">{p.legalData.businessId}</span>],
     [tr("Số đăng ký kinh doanh"), p.legalData.registrationNumber],
     [tr("Người đại diện"), [p.representative, p.legalData.representativeTitle].filter(Boolean).join(" · ")],
     [tr("Địa chỉ"), [p.address, p.ward, p.province].filter(Boolean).join(", ")],
