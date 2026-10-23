@@ -90,6 +90,10 @@ async function signOut(page) {
 }
 
 async function requestResult(page, pattern, work) {
+  // A previous write's toast can cover this action on the phone viewport and
+  // pauses while the pointer rests on it: move away and let it close.
+  await page.mouse.move(0, 0);
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout });
   const response = page.waitForResponse(
     (value) =>
       value.request().method() === "POST" &&

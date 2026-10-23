@@ -15,6 +15,10 @@ const command = async (page, route, click) => {
   const reply = page.waitForResponse(response => new URL(response.url()).pathname === `/api${route}` && response.request().method() === 'POST', { timeout });
   // A failed click must surface as the error; the pending wait then ends with the browser.
   reply.catch(() => undefined);
+  // The previous write's toast can cover this action on a phone-width layout,
+  // and it pauses while the pointer rests on it: move away and let it close.
+  await page.mouse.move(0, 0);
+  await page.locator('[data-sonner-toast]').first().waitFor({ state: 'detached', timeout });
   await click();
   // Every write asks once in the shared confirmation dialog; steps that
   // already answered it leave nothing to click here.
