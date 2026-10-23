@@ -1027,11 +1027,13 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
       "exampleUrl": "/admin/cases/11111111-1111-4111-8111-111111111111",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task7.admin.cases.id",
-      "readyHeading": "Tổng quan nền tảng",
+      "actorKey": "case-manager",
+      "scenarioId": "cases.detail",
+      "readyHeading": "#17 Hồ sơ cần xác minh nguồn hàng",
       "roles": [
-        "SYSTEM_ADMIN"
+        "SYSTEM_ADMIN",
+        "PLATFORM_CASE_MANAGER",
+        "AUDITOR"
       ],
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
@@ -1056,10 +1058,17 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ]
         },
         {
           "id": "GET /platform-cases/organization-options",
@@ -1068,10 +1077,17 @@
           "requestType": [],
           "responseType": "{ id: string; name: string; type: string }[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ]
         },
         {
           "id": "GET `/platform-cases/${id}`",
@@ -1080,10 +1096,17 @@
           "requestType": [],
           "responseType": "PlatformCaseDetail",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-cases/${row.id}/assign`",
@@ -1095,10 +1118,17 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-cases/${row.id}/classify`",
@@ -1110,10 +1140,17 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-cases/${row.id}/close`",
@@ -1124,10 +1161,17 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-cases/${row.id}/escalate`",
@@ -1136,10 +1180,17 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-cases/${row.id}/link-lot`",
@@ -1150,10 +1201,17 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-cases/${row.id}/notes`",
@@ -1165,17 +1223,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/[id]/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-cases.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; case-manager writes and auditor read-only browser contract coverage."
       }
     },
     {
@@ -1184,11 +1251,12 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
       "exampleUrl": "/admin/cases/new",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task7.admin.cases.new",
-      "readyHeading": "Tổng quan nền tảng",
+      "actorKey": "case-manager",
+      "scenarioId": "cases.create",
+      "readyHeading": "Tạo hồ sơ sự cố",
       "roles": [
-        "SYSTEM_ADMIN"
+        "SYSTEM_ADMIN",
+        "PLATFORM_CASE_MANAGER"
       ],
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
@@ -1213,10 +1281,17 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/new/page.tsx"
+          ]
         },
         {
           "id": "GET /platform-cases/organization-options",
@@ -1225,10 +1300,17 @@
           "requestType": [],
           "responseType": "{ id: string; name: string; type: string }[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/new/page.tsx"
+          ]
         },
         {
           "id": "POST /platform-cases",
@@ -1246,17 +1328,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/new/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-cases.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; case-manager writes and auditor read-only browser contract coverage."
       }
     },
     {
@@ -1265,11 +1356,13 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/cases/screen.tsx",
       "exampleUrl": "/admin/cases",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task7.admin.cases",
-      "readyHeading": "Tổng quan nền tảng",
+      "actorKey": "case-manager",
+      "scenarioId": "cases.assigned",
+      "readyHeading": "Hồ sơ sự cố",
       "roles": [
-        "SYSTEM_ADMIN"
+        "SYSTEM_ADMIN",
+        "PLATFORM_CASE_MANAGER",
+        "AUDITOR"
       ],
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
@@ -1293,10 +1386,17 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/page.tsx"
+          ]
         },
         {
           "id": "GET `/platform-cases${params.size ? `?${params}` : \"\"}`",
@@ -1305,17 +1405,26 @@
           "requestType": [],
           "responseType": "PlatformCasePage",
           "retainedLogic": [
-            "apps/web/src/app/admin/cases/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/cases/screen.tsx",
+            "apps/web/src/lib/ledger/cases-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/cases/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-cases.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; case-manager writes and auditor read-only browser contract coverage."
       }
     },
     {

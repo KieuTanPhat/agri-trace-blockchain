@@ -16,6 +16,7 @@ const reads: Record<string, string> = {
   "assignment.read": "/admin/compliance-assignments",
   "inspectors.read": "/admin/inspectors",
   "roles.read": "/admin/roles",
+  "cases.read": "/admin/cases",
   "settings.read": "/admin/settings",
 };
 const administrator = new Set([
@@ -53,6 +54,8 @@ export function useLedgerSession() {
     (permission: string) => {
       if (!auth.user || auth.privateAccessStatus !== "ready") return false;
       const role = auth.user.role.code;
+      if (permission === "cases.write")
+        return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
       if (reads[permission])
         return canAccessManagementRoute(
           reads[permission],

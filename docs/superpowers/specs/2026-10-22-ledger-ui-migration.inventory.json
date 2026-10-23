@@ -3187,6 +3187,27 @@
       "sourceSha256": "140241081ef7fc6280d403847699735d697ea1cac4f798ca38ff5d2213002bbf",
       "targetSha256": "347b0aada5b0ded21ff18bc650caeac7686702a48af6e091dc8092dd83466222",
       "adaptation": "Approved Ledger detail presented within the baseline organizations query URL; real baseline aggregate, commands and authority."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/cases/screen.tsx",
+      "source": "src/app/(console)/cases/page.tsx",
+      "sourceSha256": "7d456ca90fc0b8b975f8b09e924606fff4196f7287d3d12f9db3f68bec6d2914",
+      "targetSha256": "4780feef1ef1d02ff15ee8f6a857cf9583c10bdd206a6496b19a1d176e7b1567",
+      "adaptation": "Task7 frozen Ledger case presentation; baseline DTOs, canonical routes, scoped queries, platform roles and memory-only recovery. New route uses preview creation dialog fields in a Ledger page."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+      "source": "src/app/(console)/cases/[id]/page.tsx",
+      "sourceSha256": "eaa86f45bdd078525abcc59379cf4a44cb07369528038ee7d7687ade4d72e4a4",
+      "targetSha256": "a884525c2bd467c3f1a87980ed411d7a33e1fcbc3e14d43b49057aa330bcd322",
+      "adaptation": "Task7 frozen Ledger case presentation; baseline DTOs, canonical routes, scoped queries, platform roles and memory-only recovery. New route uses preview creation dialog fields in a Ledger page."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
+      "source": "src/app/(console)/cases/page.tsx",
+      "sourceSha256": "7d456ca90fc0b8b975f8b09e924606fff4196f7287d3d12f9db3f68bec6d2914",
+      "targetSha256": "6803145b732b8bed0edb1ff404e5c23a7131bd0e88bb4ed5cb53ac6530f502c6",
+      "adaptation": "Task7 frozen Ledger case presentation; baseline DTOs, canonical routes, scoped queries, platform roles and memory-only recovery. New route uses preview creation dialog fields in a Ledger page."
     }
   ],
   "newLedgerComposition": [
@@ -3345,6 +3366,14 @@
     {
       "target": "apps/web/src/lib/ledger/data.ts",
       "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/cases-api.ts",
+      "basis": "Task7: baseline case DTO/transport/validation adapter; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/cases/schemas.ts",
+      "basis": "Task7: baseline case DTO/transport/validation adapter; no legacy presentation input."
     }
   ]
 }
