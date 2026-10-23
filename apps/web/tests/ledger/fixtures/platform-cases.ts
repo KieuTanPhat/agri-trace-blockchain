@@ -211,3 +211,224 @@ for (const scenario of ["cases.actions", "cases.unknown-note"])
       return { data: record };
     },
   });
+
+export const privacyRecord: S["PrivacyDetailDto"] = {
+  id: caseId,
+  kind: "REQUEST",
+  requestType: "ACCESS",
+  status: "OPEN",
+  reporting: "UNASSESSED",
+  message: "IN_SCOPE_PRIVACY_RECORD",
+  createdAt: "2026-10-22T00:00:00.000Z",
+  detectedAt: null,
+  deadlineAt: null,
+  reportedAt: null,
+  overdue: false,
+  version: 4,
+  events: [],
+};
+for (const id of ["privacy.scoped", "privacy.self"])
+  registerScenario(id, {
+    handle(request) {
+      const root =
+        id === "privacy.self" ? "/privacy-requests" : "/platform-privacy";
+      if (request.method === "GET" && request.path === root)
+        return {
+          data: {
+            items: [privacyTicket(privacyRecord)],
+            nextCursor: null,
+          } satisfies S["PrivacyPageDto"],
+        };
+      if (request.method === "GET" && request.path === root + "/" + caseId)
+        return { data: privacyRecord };
+    },
+  });
+
+for (const id of ["privacy.review", "privacy.unknown-review", "privacy.create"])
+  registerScenario(id, {
+    handle(request, state) {
+      const root =
+        id === "privacy.create" ? "/privacy-requests" : "/platform-privacy";
+      const ticket: S["PrivacyTicketDto"] = {
+        id: caseId,
+        kind: "REQUEST",
+        requestType: "ACCESS",
+        status: "OPEN",
+        reporting: "UNASSESSED",
+        createdAt: privacyRecord.createdAt,
+        detectedAt: null,
+        deadlineAt: null,
+        reportedAt: null,
+        overdue: false,
+        version: 4,
+      };
+      if (request.method === "GET" && request.path === root)
+        return {
+          data: {
+            items: [
+              ticket,
+              {
+                ...ticket,
+                id: "22222222-2222-4222-8222-222222222222",
+                requestType: "CORRECTION",
+              },
+            ],
+            nextCursor: null,
+          } satisfies S["PrivacyPageDto"],
+        };
+      if (request.method === "GET" && request.path === root + "/" + caseId)
+        return { data: state.values.get("record") ?? privacyRecord };
+      if (
+        request.method === "POST" &&
+        request.path === root + "/" + caseId + "/review"
+      ) {
+        const body = JSON.parse(request.body ?? "{}");
+        if (
+          !request.idempotencyKey ||
+          JSON.stringify(Object.keys(body).sort()) !==
+            JSON.stringify(
+              ["version", "status", "note", "visibility"].sort(),
+            ) ||
+          body.version !== 4 ||
+          body.note !== "PRIVATE_REVIEW_NOTE_789" ||
+          body.status !== "IN_REVIEW" ||
+          body.visibility !== "INTERNAL"
+        )
+          throw new Error("Wrong privacy review command");
+        if (id === "privacy.unknown-review" && !state.values.has("lost")) {
+          state.values.set("lost", true);
+          return {
+            status: 503,
+            error: { code: "UNAVAILABLE", message: "Chưa nhận được kết quả" },
+          };
+        }
+        state.values.set("record", {
+          ...privacyRecord,
+          status: "IN_REVIEW",
+          version: 5,
+          events: [
+            {
+              id: "33333333-3333-4333-8333-333333333333",
+              action: "UPDATED",
+              createdAt: privacyRecord.createdAt,
+              note: body.note,
+              notificationReference: null,
+              visibility: body.visibility,
+            },
+          ],
+        });
+        return { data: ticket };
+      }
+      if (
+        id === "privacy.create" &&
+        request.method === "POST" &&
+        request.path === root
+      ) {
+        const body = JSON.parse(request.body ?? "{}");
+        if (
+          !request.idempotencyKey ||
+          body.requestType !== "DELETION" ||
+          body.message !== "Tôi yêu cầu xóa dữ liệu cá nhân" ||
+          Object.keys(body).length !== 2
+        )
+          throw new Error("Wrong self privacy command");
+        return { data: ticket };
+      }
+    },
+  });
+
+registerScenario("privacy.breach", {
+  handle(request, state) {
+    const ticket: S["PrivacyTicketDto"] = {
+      id: caseId,
+      kind: "BREACH",
+      requestType: "INCIDENT",
+      status: "OPEN",
+      reporting: "UNASSESSED",
+      createdAt: privacyRecord.createdAt,
+      detectedAt: "2026-10-22T00:00:00.000Z",
+      deadlineAt: "2026-10-25T00:00:00.000Z",
+      reportedAt: null,
+      overdue: false,
+      version: 4,
+    };
+    if (request.method === "GET" && request.path === "/platform-privacy")
+      return {
+        data: {
+          items: state.values.get("created") ? [ticket] : [],
+          nextCursor: null,
+        },
+      };
+    if (
+      request.method === "GET" &&
+      request.path === "/platform-privacy/" + caseId
+    )
+      return { data: { ...ticket, message: "PRIVATE_BREACH_456", events: [] } };
+    if (
+      request.method === "POST" &&
+      request.path === "/platform-privacy/breaches"
+    ) {
+      const body = JSON.parse(request.body ?? "{}");
+      if (
+        !request.idempotencyKey ||
+        request.mfaCode !== "123456" ||
+        body.message !== "PRIVATE_BREACH_456" ||
+        !Number.isFinite(Date.parse(body.detectedAt)) ||
+        Object.keys(body).sort().join() !== "detectedAt,message"
+      )
+        throw new Error("Invalid breach DTO or optional MFA");
+      state.values.set("created", true);
+      return { data: ticket };
+    }
+  },
+});
+registerScenario("privacy.pagination", {
+  handle(request) {
+    if (request.method !== "GET") return;
+    const u = new URL(request.path, "http://fixture.invalid");
+    if (u.pathname === "/platform-privacy") {
+      if (
+        [...u.searchParams.keys()].some((k) => k !== "cursor") ||
+        (u.searchParams.has("cursor") &&
+          u.searchParams.get("cursor") !== caseId)
+      )
+        throw new Error("Wrong privacy cursor");
+      const second = u.searchParams.has("cursor");
+      const { message, events, ...ticket } = privacyRecord;
+      void message;
+      void events;
+      return {
+        data: {
+          items: [
+            second
+              ? {
+                  ...ticket,
+                  id: "22222222-2222-4222-8222-222222222222",
+                  requestType: "CORRECTION",
+                }
+              : ticket,
+          ],
+          nextCursor: second ? null : caseId,
+        },
+      };
+    }
+    if (u.pathname === "/platform-privacy/" + caseId)
+      return { data: privacyRecord };
+    if (u.pathname === "/platform-privacy/22222222-2222-4222-8222-222222222222")
+      return {
+        data: {
+          ...privacyRecord,
+          id: "22222222-2222-4222-8222-222222222222",
+          message: "SECOND_PRIVACY_RECORD",
+          requestType: "CORRECTION",
+        },
+      };
+  },
+});
+
+function privacyTicket(record: S["PrivacyDetailDto"]): S["PrivacyTicketDto"] {
+  const { message, events, ...ticket } = record;
+  void message;
+  void events;
+  return ticket;
+}

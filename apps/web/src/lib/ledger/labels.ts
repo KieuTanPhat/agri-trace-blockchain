@@ -80,6 +80,7 @@ const table: Record<string, Record<string, Entry>> = {
     DUPLICATE: ["Trùng", "neutral"],
   },
   privacy: {
+    OPEN: ["Mới", "info"],
     NEW: ["Mới", "info"],
     IN_REVIEW: ["Đang xem xét", "brand"],
     RESPONDED: ["Đã phản hồi", "ok"],

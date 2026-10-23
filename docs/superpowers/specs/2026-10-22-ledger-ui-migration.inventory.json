@@ -2995,7 +2995,7 @@
       "target": "apps/web/src/lib/ledger/i18n-en.ts",
       "source": "src/lib/i18n-en.ts",
       "sourceSha256": "948583446f3e1404ae3325cc93bdffaf71f7381167da92957cd91fda5b499d54",
-      "targetSha256": "490e19fa07313c14c3c7869f78aa47f694cba2e0954a2483002fd2bfbbeb3c86"
+      "targetSha256": "cff3b480df9d036e37c5b1b79c8c70d417e77a30a5f71e051ee82466418cf8dd"
     },
     {
       "target": "apps/web/src/lib/ledger/i18n.ts",
@@ -3007,7 +3007,7 @@
       "target": "apps/web/src/lib/ledger/labels.ts",
       "source": "src/lib/labels.ts",
       "sourceSha256": "22dcc55d3132cb6d9d8a6e6d37dd13e95362a4ed25cb6c4a0065c1b0a66e303f",
-      "targetSha256": "22dcc55d3132cb6d9d8a6e6d37dd13e95362a4ed25cb6c4a0065c1b0a66e303f"
+      "targetSha256": "d066060f79bc94bf204b39a844f3924f84a03ca5d9d9a5d50786dd4b21c6fbfd"
     },
     {
       "target": "apps/web/src/lib/ledger/utils.ts",
@@ -3019,7 +3019,7 @@
       "target": "apps/web/src/components/ledger/kit/command-dialog.tsx",
       "source": "src/components/kit/command-dialog.tsx",
       "sourceSha256": "d837012ec5e5f478257a8c32b09da9128577c578636c63726449489e47882319",
-      "targetSha256": "a47c285aadd85f0e8fb6616cad711da7467fd2ea467bd3f689c0571583dc3cd1"
+      "targetSha256": "10a90bda94a4377d6e8b7abb1bfa04b6d69284fa8f1d69cbf554a6bb52ea3af5"
     },
     {
       "target": "apps/web/src/components/ledger/workspace/grants-editor.tsx",
@@ -3208,6 +3208,13 @@
       "sourceSha256": "7d456ca90fc0b8b975f8b09e924606fff4196f7287d3d12f9db3f68bec6d2914",
       "targetSha256": "6803145b732b8bed0edb1ff404e5c23a7131bd0e88bb4ed5cb53ac6530f502c6",
       "adaptation": "Task7 frozen Ledger case presentation; baseline DTOs, canonical routes, scoped queries, platform roles and memory-only recovery. New route uses preview creation dialog fields in a Ledger page."
+    },
+    {
+      "target": "apps/web/src/features/ledger/privacy/workspace.tsx",
+      "source": "src/app/(console)/privacy/page.tsx",
+      "sourceSha256": "f13aae359fcdc2a663942fb54cc8d910fc77a1b79d6bc7779559a976bf0ef957",
+      "targetSha256": "a8738f84f9115745ecf1c41cde9ff3a88fa29895cac29fa40e5211ded7760bae",
+      "adaptation": "Task7 frozen Ledger privacy inbox/detail/breach presentation; baseline rights enums, authenticated subject scope, optional MFA and memory-only commands. Self-service creation is newly composed from Ledger fields."
     }
   ],
   "newLedgerComposition": [
@@ -3374,6 +3381,22 @@
     {
       "target": "apps/web/src/features/ledger/screens/admin/cases/schemas.ts",
       "basis": "Task7: baseline case DTO/transport/validation adapter; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/privacy/schemas.ts",
+      "basis": "Task7 Ledger privacy route/DTO/date glue; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
+      "basis": "Task7 Ledger privacy route/DTO/date glue; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/account/privacy/screen.tsx",
+      "basis": "Task7 Ledger privacy route/DTO/date glue; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/privacy-api.ts",
+      "basis": "Task7 Ledger privacy route/DTO/date glue; no legacy presentation input."
     }
   ]
 }

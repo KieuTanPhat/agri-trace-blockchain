@@ -58,6 +58,7 @@ export interface CommandDialogProps<S extends z.ZodType<FieldValues>> {
   invalidate?: QueryKey[];
   success?: string | ((result: unknown) => string);
   onDone?: (result: unknown) => void;
+  onLockChange?: (locked: boolean) => void;
   version?: number;
   wide?: boolean;
   /** Hiển thị trong trang (panel quyết định) thay vì dialog. */

@@ -77,12 +77,14 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/account/privacy/screen.tsx",
       "exampleUrl": "/account/privacy",
-      "actorKey": "org-owner",
-      "scenarioId": "routes.task7.account.privacy",
-      "readyHeading": "Quyền riêng tư",
-      "roles": [],
+      "actorKey": "org-staff",
+      "scenarioId": "privacy.self",
+      "readyHeading": "Quyền dữ liệu của tôi",
+      "roles": [
+        "authenticated subject (all baseline roles)"
+      ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "authenticated subject only; server binds sender identity",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
         "apps/web/src/lib/auth-coordination.ts",
@@ -105,15 +107,73 @@
           "retainedLogic": [
             "apps/web/src/app/account/privacy/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified"
+        },
+        {
+          "id": "list",
+          "endpoint": "/privacy-requests",
+          "method": "GET",
+          "requestType": null,
+          "responseType": "PrivacyPageDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/privacy-workspace.tsx"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified"
+        },
+        {
+          "id": "detail",
+          "endpoint": "/privacy-requests/:id",
+          "method": "GET",
+          "requestType": null,
+          "responseType": "PrivacyDetailDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/privacy-workspace.tsx"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified"
+        },
+        {
+          "id": "create",
+          "endpoint": "/privacy-requests",
+          "method": "POST",
+          "requestType": "CreatePrivacyRequestDto",
+          "responseType": "PrivacyTicketDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/privacy-workspace.tsx"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified"
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-cases.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline platform-privacy.ts controller/service + permissions.ts; explicit auditor denial, separate self-service endpoints and strict browser fixtures."
       }
     },
     {
@@ -3470,14 +3530,15 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
       "exampleUrl": "/admin/privacy",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task7.admin.privacy",
-      "readyHeading": "Quyền riêng tư",
+      "actorKey": "privacy-officer",
+      "scenarioId": "privacy.scoped",
+      "readyHeading": "Quyền dữ liệu cá nhân",
       "roles": [
-        "SYSTEM_ADMIN"
+        "SYSTEM_ADMIN",
+        "PLATFORM_PRIVACY_OFFICER"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "platform privacy officers; server-filtered private records",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
         "apps/web/src/lib/auth-coordination.ts",
@@ -3500,15 +3561,91 @@
           "retainedLogic": [
             "apps/web/src/app/admin/privacy/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified"
+        },
+        {
+          "id": "list",
+          "endpoint": "/platform-privacy",
+          "method": "GET",
+          "requestType": null,
+          "responseType": "PrivacyPageDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/privacy-workspace.tsx"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified"
+        },
+        {
+          "id": "detail",
+          "endpoint": "/platform-privacy/:id",
+          "method": "GET",
+          "requestType": null,
+          "responseType": "PrivacyDetailDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/privacy-workspace.tsx"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified"
+        },
+        {
+          "id": "breach",
+          "endpoint": "/platform-privacy/breaches",
+          "method": "POST",
+          "requestType": "CreatePrivacyBreachDto",
+          "responseType": "PrivacyTicketDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/privacy-workspace.tsx"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified"
+        },
+        {
+          "id": "review",
+          "endpoint": "/platform-privacy/:id/review",
+          "method": "POST",
+          "requestType": "UpdatePrivacyTicketDto",
+          "responseType": "PrivacyTicketDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/ledger/privacy-api.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/privacy-workspace.tsx"
+          ],
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified"
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-cases.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline platform-privacy.ts controller/service + permissions.ts; explicit auditor denial, separate self-service endpoints and strict browser fixtures."
       }
     },
     {

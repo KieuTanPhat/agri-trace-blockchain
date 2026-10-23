@@ -5,6 +5,13 @@ import { GOVERNANCE_EN } from "./i18n-en-governance";
  */
 export const EN: Record<string, string> = {
   ...GOVERNANCE_EN,
+  "Không nhập mật khẩu, OTP hoặc khóa ký": "Do not enter passwords, OTPs or signing keys",
+  "Nội dung yêu cầu": "Request details",
+  "Gửi yêu cầu quyền dữ liệu": "Submit a data rights request",
+  "Mã MFA (khi được yêu cầu)": "MFA code (when required)",
+  "Rút lại đồng ý": "Withdraw consent",
+  "Hạn chế xử lý": "Restrict processing",
+  "Quyền dữ liệu của tôi": "My data rights",
   " · miễn phí": " · free",
   " · mô phỏng": " · simulated",
   " · mở: {p0}": " · open: {p0}",
