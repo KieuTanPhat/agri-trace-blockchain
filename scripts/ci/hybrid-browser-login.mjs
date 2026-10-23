@@ -59,8 +59,8 @@ export async function loginToDashboard(page, origin, user, password, options = {
     }
     assert.equal(response.status(), 201, 'POST /api/auth/login must return 201');
     diagnostics.phase = 'destination';
-    const destination = options.destination ?? '/dashboard';
-    await page.waitForURL(url => url.pathname === destination, { timeout });
+    const destinations = [options.destination ?? '/dashboard'].flat();
+    await page.waitForURL(url => destinations.includes(url.pathname), { timeout });
     await page.context().tracing.stop();
     return diagnostics;
   } catch (error) {

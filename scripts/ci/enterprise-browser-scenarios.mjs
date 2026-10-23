@@ -24,6 +24,11 @@ const command = async (page, route, click) => {
   assert.equal(envelope.success, true);
   return envelope.data;
 };
+/** Ledger selects are Radix listboxes: open the trigger and pick the option by its label. */
+async function choose(page, trigger, option) {
+  await trigger.click();
+  await page.getByRole('option', { name: option, exact: true }).click();
+}
 async function bothLayouts(page) {
   for (const viewport of [{ width: 1365, height: 900 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
@@ -53,7 +58,8 @@ export async function runEnterpriseBrowserScenarios(options) {
   const login = async (page, user, label) => {
     const result = await loginToDashboard(page, options.origin, user, options.operator.password,
       { evidenceDir: options.diagnosticsDir, privateDir: options.privateDir, label,
-        destination: label === 'enterprise-admin' ? '/admin' : '/enterprise/onboarding' });
+        // An enterprise owner lands on its workspace home; activation decides what it may open there.
+        destination: label === 'enterprise-admin' ? '/admin' : ['/dashboard', '/enterprise'] });
     options.loginResults.push(result);
   };
   try {
@@ -72,39 +78,45 @@ export async function runEnterpriseBrowserScenarios(options) {
       const email = `${randomUUID()}@example.test`, organizationName = `UI enterprise ${randomUUID()}`;
       options.secrets.push(email);
       await owner.goto(`${options.origin}/register`, { waitUntil: 'networkidle' });
+      // The address catalog is public reference data; pick the same province and ward by name.
+      const catalog = await (await ownerContext.request.get(`${options.origin}/api/reference-data/addresses`)).json();
+      const province = (catalog.data ?? catalog).find(item => item.code === '01');
+      const ward = province?.wards.find(item => item.code === '00004');
+      assert.ok(province && ward, 'Registration address fixture must exist in the catalog');
       // Step 1: role and organization.
-      await owner.getByRole('radio', { name: /^Nhà sản xuất \/ Hợp tác xã/ }).check();
-      await owner.locator('#reg-organizationName').fill(organizationName);
-      await owner.locator('#reg-businessId').fill(Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join(''));
-      await owner.locator('#reg-registrationNumber').fill('UI-REG-' + randomUUID().slice(0, 8));
-      await owner.locator('#reg-provinceCode').selectOption('01');
-      await owner.locator('#reg-wardCode').selectOption('00004');
-      await owner.locator('#reg-address').fill('123 Địa chỉ đăng ký cách ly');
-      await owner.getByLabel('Tải giấy đăng ký của tổ chức', { exact: true }).setInputFiles({
+      await choose(owner, owner.locator('#registrationRole'), 'Nhà sản xuất / Hợp tác xã');
+      await owner.locator('#organizationName').fill(organizationName);
+      await owner.locator('#businessId').fill(Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join(''));
+      await owner.locator('#registrationNumber').fill('UI-REG-' + randomUUID().slice(0, 8));
+      await owner.locator('#upload-LEGAL_REGISTRATION').setInputFiles({
         name: 'registration.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n% isolated registration fixture\n%%EOF\n'),
       });
+      await choose(owner, owner.locator('#provinceCode'), province.name);
+      await choose(owner, owner.locator('#wardCode'), ward.name);
+      await owner.locator('#address').fill('123 Địa chỉ đăng ký cách ly');
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
       // Step 2: representative and login email; no password is chosen here.
       const contactEmail = `contact-${randomUUID()}@example.test`;
       options.secrets.push(contactEmail);
-      await owner.locator('#reg-representative').fill('Đại diện demo');
-      await owner.locator('#reg-representativeTitle').fill('Giám đốc');
-      await owner.locator('#reg-phone').fill('0900000123');
-      await owner.locator('#reg-contactEmail').fill(contactEmail);
-      await owner.locator('#reg-fullName').fill('Đại diện demo');
-      await owner.locator('#reg-email').fill(email);
+      await owner.locator('#representative').fill('Đại diện demo');
+      await owner.locator('#representativeTitle').fill('Giám đốc');
+      await owner.locator('#phone').fill('0900000123');
+      await owner.locator('#contactEmail').fill(contactEmail);
+      await owner.locator('#fullName').fill('Đại diện demo');
+      await owner.locator('#email').fill(email);
       assert.equal(await owner.locator('input[type="password"]').count(), 0, 'Registration must not ask for a password');
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
       // Step 3: production details.
-      await owner.locator('#reg-productGroups').fill('Rau');
+      await owner.locator('#productGroups').fill('Rau');
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
       // Step 4: service and hosting mode.
-      await owner.locator('#reg-hostingMode').selectOption(mode);
+      await choose(owner, owner.locator('#hostingMode'),
+        mode === 'MANAGED_ORG' ? 'AgriTrace quản lý peer' : 'Tự vận hành peer trên VPS');
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
       // Step 5: review and consents.
-      await owner.getByRole('checkbox', { name: /^Tôi xác nhận thông tin chính xác/ }).check();
-      await owner.getByRole('checkbox', { name: /^Tôi đồng ý với/ }).check();
-      await owner.getByRole('checkbox', { name: /^Tôi đã đọc/ }).check();
+      await owner.getByRole('checkbox', { name: 'Xác nhận thông tin chính xác', exact: true }).check();
+      await owner.getByRole('checkbox', { name: 'Đồng ý điều khoản sử dụng', exact: true }).check();
+      await owner.getByRole('checkbox', { name: 'Đã đọc chính sách quyền riêng tư', exact: true }).check();
       await bothLayouts(owner);
       let enrollmentId, originalDigest;
       let registrations = 0;
@@ -128,17 +140,19 @@ export async function runEnterpriseBrowserScenarios(options) {
         owner.getByRole('button', { name: 'Gửi hồ sơ xét duyệt', exact: true }).click());
       const otp = await options.operator.readOtp(otpReceipt.verificationId);
       options.secrets.push(otp);
-      await owner.getByRole('dialog').getByLabel('Mã OTP', { exact: true }).fill(otp);
+      const otpDialog = owner.getByRole('dialog', { name: 'Xác thực email đăng nhập', exact: true });
+      await otpDialog.getByLabel('Mã OTP', { exact: true }).fill(otp);
       await command(owner, '/auth/registration-otp/verify', () =>
-        owner.getByRole('dialog').getByRole('button', { name: 'Xác nhận và gửi hồ sơ', exact: true }).click());
+        otpDialog.getByRole('button', { name: 'Xác thực và gửi hồ sơ', exact: true }).click());
       // Next.js keeps an empty route announcer alert; wait for the real one.
       await owner.getByRole('alert').filter({ hasText: /\S/ }).first().waitFor({ state: 'visible', timeout });
       step('registration-recovery');
-      assert.equal(await owner.getByRole('checkbox', { name: /^Tôi xác nhận thông tin chính xác/ }).isDisabled(), true);
+      // The modal OTP dialog hides the form from the accessibility tree; read the control itself.
+      assert.equal(await owner.locator('#declaration').isDisabled(), true);
       await noPasswordStorage(owner, otp);
-      // Resending reuses the original request (same body and request ID).
-      await owner.getByRole('button', { name: 'Gửi hồ sơ xét duyệt', exact: true }).click();
-      await owner.getByRole('heading', { name: 'Cảm ơn bạn đã đăng ký AgriTrace', exact: true }).waitFor({ timeout });
+      // Reconciling reuses the original request (same body and request ID).
+      await otpDialog.getByRole('button', { name: 'Đối soát', exact: true }).click();
+      await owner.getByRole('heading', { name: 'Đã gửi hồ sơ xét duyệt', exact: true }).waitFor({ timeout });
       assert.equal(registrations, 2);
       await owner.unroute('**/api/auth/register', registerRoute);
       const pending = await options.operator.assertPending(enrollmentId);
@@ -153,17 +167,22 @@ export async function runEnterpriseBrowserScenarios(options) {
       options.loginResults.push(await loginToDashboard(owner, options.origin, { email }, temporary,
         { evidenceDir: options.diagnosticsDir, privateDir: options.privateDir, label: `enterprise-${mode}-first`,
           destination: '/account/password' }));
-      await owner.getByLabel(/^Mật khẩu hiện tại/).fill(temporary);
-      await owner.getByLabel(/^Mật khẩu mới/).fill(options.operator.password);
-      await owner.getByLabel(/^Nhập lại mật khẩu mới/).fill(options.operator.password);
+      await owner.getByLabel(/^Mật khẩu (tạm|hiện tại)$/).fill(temporary);
+      await owner.getByLabel('Mật khẩu mới', { exact: true }).fill(options.operator.password);
+      await owner.getByLabel('Nhập lại mật khẩu mới', { exact: true }).fill(options.operator.password);
       await owner.getByRole('button', { name: 'Đổi mật khẩu', exact: true }).click();
-      await owner.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true }).click();
+      await owner.getByRole('dialog', { name: 'Xác nhận đổi mật khẩu', exact: true })
+        .getByRole('button', { name: 'Đổi mật khẩu', exact: true }).click();
       await owner.waitForURL(url => url.pathname === '/login', { timeout });
       step('owner-login');
       await login(owner, { email }, `enterprise-${mode}`);
       await owner.goto(`${options.origin}/enterprise/onboarding`, { waitUntil: 'domcontentloaded' });
-      await owner.getByText('Chờ xét duyệt', { exact: true }).waitFor({ timeout });
-      assert.equal(await owner.getByRole('heading', { name: 'Kết nối một chuỗi', exact: true }).count(), 0);
+      await owner.getByRole('heading', { name: 'Hồ sơ đăng ký', exact: true }).waitFor({ timeout });
+      await owner.getByText('PENDING_REVIEW', { exact: true }).waitFor({ timeout });
+      // Before approval the owner has no connection workspace.
+      await owner.goto(`${options.origin}/enterprise/connections`, { waitUntil: 'domcontentloaded' });
+      await owner.getByRole('alert').filter({ hasText: /\S/ }).first().waitFor({ timeout });
+      assert.equal(await owner.getByRole('heading', { name: 'Kết nối doanh nghiệp', exact: true }).count(), 0);
       await bothLayouts(owner);
       await until(() => authorization, 'owner authentication');
       const denied = await ownerContext.request.post(`${options.origin}/api/supply-chains`, {
@@ -172,85 +191,86 @@ export async function runEnterpriseBrowserScenarios(options) {
       activePage = admin;
       step('admin-enrollment-review');
       await admin.goto(`${options.origin}/admin/enterprises/${enrollmentId}`, { waitUntil: 'domcontentloaded' });
-      await admin.getByLabel('Ghi chú xét duyệt', { exact: true }).fill('Đã kiểm hồ sơ doanh nghiệp demo cách ly');
+      const decision = admin.getByRole('complementary', { name: 'Quyết định', exact: true });
+      await decision.getByLabel('Ghi chú gửi doanh nghiệp', { exact: true }).fill('Đã kiểm hồ sơ doanh nghiệp demo cách ly');
       await bothLayouts(admin);
-      await admin.getByRole('button', { name: 'Phê duyệt', exact: true }).click();
-      await command(admin, `/enterprise-enrollments/${enrollmentId}/review`, () => admin.getByRole('button', { name: 'Xác nhận phê duyệt', exact: true }).click());
+      await command(admin, `/enterprise-enrollments/${enrollmentId}/review`, () =>
+        decision.getByRole('button', { name: 'Ghi quyết định', exact: true }).click());
       assert.equal(await options.operator.db.organizationCapability.count({ where: { organizationId: pending.organizationId } }), 0);
       // Each requested capability is approved on its own before activation.
       step('admin-capability-review');
-      const capabilityNote = '[aria-label^="Căn cứ duyệt năng lực"]';
-      await admin.locator(capabilityNote).first().waitFor({ timeout });
-      for (let pendingCapabilities = await admin.locator(capabilityNote).count(); pendingCapabilities > 0;
-        pendingCapabilities = await admin.locator(capabilityNote).count()) {
-        await admin.locator(capabilityNote).first().fill('Đã đối chiếu năng lực trong kiểm thử cách ly');
+      const reviewCapability = admin.getByRole('button', { name: 'Xét năng lực', exact: true });
+      await reviewCapability.first().waitFor({ timeout });
+      for (let pendingCapabilities = await reviewCapability.count(); pendingCapabilities > 0;
+        pendingCapabilities = await reviewCapability.count()) {
+        await reviewCapability.first().click();
+        const dialog = admin.getByRole('dialog', { name: /^Xét năng lực / });
+        await dialog.getByLabel('Ghi chú gửi doanh nghiệp', { exact: true }).fill('Đã đối chiếu năng lực trong kiểm thử cách ly');
         const reviewed = admin.waitForResponse(response => /^\/api\/capability-requests\/[^/]+\/review$/.test(new URL(response.url()).pathname) &&
           response.request().method() === 'POST', { timeout });
-        await admin.getByRole('button', { name: 'Duyệt năng lực', exact: true }).first().click();
-        await admin.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true })
-          .click({ timeout: 3000 }).catch(() => undefined);
+        await dialog.getByRole('button', { name: 'Ghi quyết định', exact: true }).click();
         assert.equal((await reviewed).status(), 201, 'Capability review must be accepted');
-        await admin.waitForFunction(([selector, before]) => document.querySelectorAll(selector).length < before,
-          [capabilityNote, pendingCapabilities], { timeout });
+        await until(async () => await reviewCapability.count() < pendingCapabilities, 'capability decision recorded');
       }
       // A paying producer chooses a plan, accepts the contract and pays its
       // first invoice before the platform may activate it.
       activePage = owner;
       step('owner-service-purchase');
       await owner.goto(`${options.origin}/enterprise/service`, { waitUntil: 'domcontentloaded' });
-      await owner.locator('select[name="hostingMode"]').selectOption(mode);
+      await choose(owner, owner.getByRole('combobox', { name: 'Hình thức vận hành', exact: true }),
+        mode === 'MANAGED_ORG' ? 'AgriTrace quản lý peer' : 'Tự vận hành peer');
+      await owner.getByLabel('Địa chỉ hóa đơn', { exact: true }).fill('123 Địa chỉ hóa đơn cách ly');
       const previewed = owner.waitForResponse(response => new URL(response.url()).pathname === '/api/enterprise-service/preview' &&
         response.request().method() === 'POST', { timeout });
-      await owner.getByRole('button', { name: 'Xem trước hợp đồng', exact: true }).click();
+      await owner.getByRole('button', { name: 'Xem hợp đồng', exact: true }).click();
       assert.ok([200, 201].includes((await previewed).status()), 'Service preview must succeed');
       await owner.waitForURL(url => url.pathname === '/enterprise/service/contract', { timeout });
-      await owner.getByRole('checkbox', { name: /^Tôi đã đọc và đồng ý dùng hợp đồng thử nghiệm/ }).check();
+      await owner.getByRole('checkbox', { name: /^Tôi đã đọc và đồng ý nội dung hợp đồng/ }).check();
       await command(owner, '/enterprise-service/orders', () =>
-        owner.getByRole('button', { name: 'Xác nhận và đến thanh toán', exact: true }).click());
+        owner.getByRole('button', { name: 'Xác nhận hợp đồng', exact: true }).click());
       await owner.waitForURL(url => url.pathname === '/enterprise/service/payment', { timeout });
       await command(owner, '/enterprise-service/payment-simulation', () =>
-        owner.getByRole('button', { name: 'Mô phỏng thanh toán thành công', exact: true }).click());
+        owner.getByRole('button', { name: 'Thanh toán mô phỏng', exact: true }).click());
       activePage = admin;
       step('admin-service-activation');
       await admin.goto(`${options.origin}/admin/enterprises/${enrollmentId}`, { waitUntil: 'domcontentloaded' });
-      await admin.getByLabel('Căn cứ kích hoạt (tối thiểu 10 ký tự)', { exact: true }).fill('Kích hoạt doanh nghiệp trong kiểm thử cách ly');
-      await command(admin, `/enterprise-enrollments/${enrollmentId}/activate`, async () => {
-        await admin.getByRole('button', { name: 'Cấp quyền sử dụng sau xét duyệt', exact: true }).click();
-        await admin.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true }).click();
-      });
+      await decision.getByLabel('Lý do kích hoạt thủ công', { exact: true }).fill('Kích hoạt doanh nghiệp trong kiểm thử cách ly');
+      await command(admin, `/enterprise-enrollments/${enrollmentId}/activate`, () =>
+        decision.getByRole('button', { name: 'Kích hoạt dịch vụ', exact: true }).click());
       activePage = owner;
       step('owner-create-chain');
       await owner.goto(`${options.origin}/supply-chains/new`, { waitUntil: 'domcontentloaded' });
-      await owner.getByLabel(/^Tên chuỗi/).fill(`Enterprise chain ${randomUUID()}`);
-      await owner.getByLabel(/^Loại chuỗi/).selectOption('CROP');
-      // The supply model is required: the owner performs production.
-      await owner.getByRole('checkbox', { name: /— Sản xuất$/ }).first().check();
-      const chain = await command(owner, '/supply-chains', async () => {
-        await owner.getByRole('button', { name: 'Tạo chuỗi truy xuất', exact: true }).click();
-        await owner.getByRole('dialog').getByRole('button', { name: 'Xác nhận tạo', exact: true }).click();
-      });
+      const create = owner.getByRole('dialog', { name: 'Tạo chuỗi cung ứng', exact: true });
+      await create.getByLabel('Tên chuỗi', { exact: true }).fill(`Enterprise chain ${randomUUID()}`);
+      await choose(owner, create.getByRole('combobox', { name: 'Loại chuỗi', exact: true }), 'Trồng trọt');
+      // Without invited partners the supply model is the owner's approved production stage.
+      await create.getByText('Khâu của doanh nghiệp bạn: Sản xuất', { exact: true }).waitFor({ timeout });
+      const chain = await command(owner, '/supply-chains', () =>
+        create.getByRole('button', { name: 'Tạo chuỗi', exact: true }).click());
       assert.equal(chain.ownerOrganizationId, pending.organizationId);
       step('owner-connection-request');
       await owner.goto(`${options.origin}/enterprise/connections`, { waitUntil: 'domcontentloaded' });
-      await owner.getByLabel(/^Chuỗi của doanh nghiệp/).selectOption(chain.id);
+      await choose(owner, owner.getByRole('combobox', { name: 'Chuỗi', exact: true }), chain.name);
       if (mode === 'SELF_MANAGED_ORG') {
         const peer = options.operator.publicPeer;
-        await owner.getByLabel('Địa chỉ peer (IP hoặc DNS)', { exact: true }).fill(peer.peerHost);
-        await owner.getByLabel('Cổng peer', { exact: true }).fill(String(peer.peerPort));
-        await owner.getByLabel('Tên máy trong chứng thư TLS', { exact: true }).fill(peer.peerServerName);
-        await owner.getByLabel('MSP của doanh nghiệp', { exact: true }).fill(peer.mspId);
-        await owner.getByLabel('Chứng thư TLS CA công khai (PEM)', { exact: true }).fill(peer.tlsCaPem);
-      } else assert.equal(await owner.locator('[name="peerHost"]').count(), 0);
+        await owner.getByLabel('Peer host', { exact: true }).fill(peer.peerHost);
+        await owner.getByLabel('Peer port', { exact: true }).fill(String(peer.peerPort));
+        await owner.getByLabel('TLS server name', { exact: true }).fill(peer.peerServerName);
+        await owner.getByLabel('MSP ID', { exact: true }).fill(peer.mspId);
+        await owner.getByLabel('Chứng thư TLS công khai (PEM)', { exact: true }).fill(peer.tlsCaPem);
+      } else assert.equal(await owner.getByLabel('Peer host', { exact: true }).count(), 0);
       await bothLayouts(owner);
-      const connection = await command(owner, '/enterprise-connections', () => owner.getByRole('button', { name: 'Gửi yêu cầu kết nối', exact: true }).click());
-      await owner.getByText('Các chuỗi hiện có đã có yêu cầu kết nối.', { exact: false }).waitFor({ timeout });
-      assert.equal(await owner.getByRole('button', { name: 'Gửi yêu cầu kết nối', exact: true }).count(), 0);
+      const connection = await command(owner, '/enterprise-connections', () => owner.getByRole('button', { name: 'Yêu cầu kết nối', exact: true }).click());
+      await owner.getByText('Chưa có chuỗi đủ điều kiện để gửi yêu cầu kết nối mới.', { exact: true }).waitFor({ timeout });
+      assert.equal(await owner.getByRole('button', { name: 'Yêu cầu kết nối', exact: true }).count(), 0);
       activePage = admin;
       step('admin-connection-review');
       await admin.goto(`${options.origin}/admin/enterprises/${enrollmentId}/connections/${connection.id}`, { waitUntil: 'domcontentloaded' });
-      await admin.getByLabel('Ghi chú xét duyệt', { exact: true }).fill('Đã đối chiếu thông tin peer công khai');
-      await admin.getByRole('button', { name: 'Phê duyệt', exact: true }).click();
-      await command(admin, `/enterprise-connections/${connection.id}/review`, () => admin.getByRole('button', { name: 'Xác nhận phê duyệt', exact: true }).click());
+      await admin.getByRole('button', { name: 'Xét kết nối', exact: true }).click();
+      const review = admin.getByRole('dialog', { name: 'Xét kết nối peer', exact: true });
+      await review.getByLabel('Ghi chú', { exact: true }).fill('Đã đối chiếu thông tin peer công khai');
+      await command(admin, `/enterprise-connections/${connection.id}/review`, () =>
+        review.getByRole('button', { name: 'Ghi quyết định', exact: true }).click());
       const approved = await options.operator.db.enterpriseConnection.findUniqueOrThrow({ where: { id: connection.id } });
       assert.equal(approved.status, 'APPROVED', 'Admin review alone must never report CONNECTED');
       assert.equal(approved.txId, null);
@@ -267,9 +287,8 @@ export async function runEnterpriseBrowserScenarios(options) {
       const proof = await options.operator.verifyProbe(connection.id);
       activePage = owner;
       step('owner-connected');
-      await owner.getByRole('button', { name: 'Cập nhật trạng thái', exact: true }).click();
-      await owner.getByRole('status').filter({ hasText: 'Đã kiểm chứng kết nối' }).waitFor({ timeout });
-      await owner.getByText('Mã giao dịch kiểm chứng', { exact: true }).click();
+      await owner.reload({ waitUntil: 'domcontentloaded' });
+      await owner.getByText('Đã kiểm chứng kết nối', { exact: true }).waitFor({ timeout });
       await owner.getByText(proof.txId, { exact: true }).waitFor({ timeout });
       await bothLayouts(owner);
       await noPasswordStorage(owner, options.operator.password);
