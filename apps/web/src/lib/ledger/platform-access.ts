@@ -17,6 +17,7 @@ const reads: Record<string, string> = {
   "inspectors.read": "/admin/inspectors",
   "roles.read": "/admin/roles",
   "privacy.read": "/admin/privacy",
+  "tickets.read": "/admin/support",
   "cases.read": "/admin/cases",
   "settings.read": "/admin/settings",
 };
@@ -57,6 +58,8 @@ export function useLedgerSession() {
       const role = auth.user.role.code;
       if (permission === "privacy.write")
         return role === "SYSTEM_ADMIN" || role === "PLATFORM_PRIVACY_OFFICER";
+      if (permission === "tickets.write")
+        return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
       if (permission === "cases.write")
         return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
       if (reads[permission])

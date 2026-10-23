@@ -1,5 +1,5 @@
 import type { components } from "../../../src/lib/generated/api";
-import { registerScenario } from "./scenarios";
+import { registerScenario, readScenario } from "./scenarios";
 type S = components["schemas"];
 export const caseId = "11111111-1111-4111-8111-111111111111";
 export const assignedCase: S["PlatformCaseDto"] = {
@@ -432,3 +432,213 @@ function privacyTicket(record: S["PrivacyDetailDto"]): S["PrivacyTicketDto"] {
   void events;
   return ticket;
 }
+
+export const supportTicket = {
+  id: caseId,
+  code: "SUP-17",
+  organizationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  organizationName: "Doanh nghiệp được giao",
+  category: "TECHNICAL",
+  priority: "NORMAL",
+  subject: "SUPPORT_IN_SCOPE_RECORD",
+  status: "OPEN",
+  assigneeId: null,
+  assigneeName: null,
+  dueAt: "2026-10-24T00:00:00.000Z",
+  overdue: false,
+  resolution: null,
+  closedAt: null,
+  version: 7,
+  createdAt: privacyRecord.createdAt,
+  updatedAt: privacyRecord.createdAt,
+  messages: [
+    {
+      id: "33333333-3333-4333-8333-333333333333",
+      authorSide: "ENTERPRISE",
+      authorName: "Người gửi",
+      body: "Đề nghị kiểm tra kết nối",
+      internal: false,
+      createdAt: privacyRecord.createdAt,
+    },
+  ],
+};
+for (const scenario of ["support.open", "support.closed"])
+  registerScenario(scenario, {
+    handle(request, state) {
+      if (
+        request.method === "GET" &&
+        request.path === "/platform-admin/tickets"
+      )
+        return {
+          data: {
+            items: [
+              state.values.get("ticket") ?? {
+                ...supportTicket,
+                status: scenario === "support.closed" ? "CLOSED" : "OPEN",
+              },
+            ],
+          },
+        };
+      if (
+        request.method === "GET" &&
+        request.path === "/platform-admin/support-staff"
+      )
+        return {
+          data: {
+            items: [
+              {
+                id: "55555555-5555-4555-8555-555555555555",
+                fullName: "Người phụ trách",
+                email: "staff@example.invalid",
+                role: "PLATFORM_CASE_MANAGER",
+              },
+            ],
+          },
+        };
+      if (
+        request.method === "POST" &&
+        request.path === "/platform-admin/tickets/" + caseId + "/reply"
+      ) {
+        const body = JSON.parse(request.body ?? "{}");
+        if (
+          !request.idempotencyKey ||
+          body.version !== 7 ||
+          body.body !== "Nội dung phản hồi cần xử lý" ||
+          body.internal !== false ||
+          body.status !== "WAITING_CUSTOMER"
+        )
+          throw new Error("Wrong baseline ticket reply");
+        state.values.set("ticket", {
+          ...supportTicket,
+          status: "WAITING_CUSTOMER",
+          version: 8,
+          messages: [
+            ...supportTicket.messages,
+            {
+              ...supportTicket.messages[0],
+              id: "44444444-4444-4444-8444-444444444444",
+              authorSide: "PLATFORM",
+              body: body.body,
+            },
+          ],
+        });
+        return { data: { record: { id: caseId } } };
+      }
+    },
+  });
+
+registerScenario("support.unknown", {
+  async handle(request, state) {
+    if (
+      request.method === "POST" &&
+      request.path.endsWith("/reply") &&
+      !state.values.has("lost")
+    ) {
+      state.values.set("lost", true);
+      return {
+        status: 503,
+        error: { code: "UNAVAILABLE", message: "Chưa nhận được kết quả" },
+      };
+    }
+    return readScenario("support.open").handle(request, state);
+  },
+});
+
+registerScenario("support.actions", {
+  handle(request, state) {
+    const u = new URL(request.path, "http://fixture.invalid");
+    if (request.method === "GET" && u.pathname === "/platform-admin/tickets") {
+      if (
+        [...u.searchParams.keys()].some((k) => k !== "status") ||
+        (u.searchParams.has("status") &&
+          u.searchParams.get("status") !== "CLOSED")
+      )
+        throw new Error("Wrong ticket filter");
+      return {
+        data: {
+          items: [
+            u.searchParams.has("status")
+              ? { ...supportTicket, status: "CLOSED" }
+              : (state.values.get("ticket") ?? supportTicket),
+          ],
+        },
+      };
+    }
+    if (
+      request.method === "GET" &&
+      request.path === "/platform-admin/support-staff"
+    )
+      return {
+        data: {
+          items: [
+            {
+              id: "55555555-5555-4555-8555-555555555555",
+              fullName: "Người phụ trách",
+              email: "staff@example.invalid",
+              role: "PLATFORM_CASE_MANAGER",
+            },
+          ],
+        },
+      };
+    if (
+      request.method !== "POST" ||
+      !u.pathname.startsWith("/platform-admin/tickets/" + caseId + "/")
+    )
+      return;
+    const b = JSON.parse(request.body ?? "{}");
+    if (!request.idempotencyKey || b.version !== 7)
+      throw new Error("Wrong ticket command identity/version");
+    const a = u.pathname.split("/").at(-1);
+    if (a === "assign") {
+      if (
+        b.assigneeId !== "55555555-5555-4555-8555-555555555555" ||
+        b.priority !== "NORMAL" ||
+        Object.keys(b).length !== 3
+      )
+        throw new Error("Wrong assignment DTO");
+      state.values.set("ticket", {
+        ...supportTicket,
+        assigneeId: b.assigneeId,
+        assigneeName: "Người phụ trách",
+        status: "IN_PROGRESS",
+        version: 8,
+      });
+    } else if (a === "reply") {
+      if (
+        b.internal !== true ||
+        "status" in b ||
+        b.body !== "Ghi chú nền tảng riêng tư" ||
+        Object.keys(b).length !== 3
+      )
+        throw new Error("Internal note leaked a state transition");
+      state.values.set("ticket", {
+        ...supportTicket,
+        version: 8,
+        messages: [
+          ...supportTicket.messages,
+          {
+            ...supportTicket.messages[0],
+            id: "44444444-4444-4444-8444-444444444444",
+            authorSide: "PLATFORM",
+            body: b.body,
+            internal: true,
+          },
+        ],
+      });
+    } else if (a === "close") {
+      if (
+        b.reason !== "Đã hoàn thành xử lý hỗ trợ" ||
+        Object.keys(b).length !== 2
+      )
+        throw new Error("Wrong close DTO");
+      state.values.set("ticket", {
+        ...supportTicket,
+        status: "CLOSED",
+        version: 8,
+        resolution: b.reason,
+        closedAt: privacyRecord.createdAt,
+      });
+    } else throw new Error("Unknown ticket action");
+    return { data: { record: { id: caseId } } };
+  },
+});

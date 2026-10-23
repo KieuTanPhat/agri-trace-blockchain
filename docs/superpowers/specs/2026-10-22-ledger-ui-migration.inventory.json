@@ -3215,6 +3215,13 @@
       "sourceSha256": "f13aae359fcdc2a663942fb54cc8d910fc77a1b79d6bc7779559a976bf0ef957",
       "targetSha256": "a8738f84f9115745ecf1c41cde9ff3a88fa29895cac29fa40e5211ded7760bae",
       "adaptation": "Task7 frozen Ledger privacy inbox/detail/breach presentation; baseline rights enums, authenticated subject scope, optional MFA and memory-only commands. Self-service creation is newly composed from Ledger fields."
+    },
+    {
+      "target": "apps/web/src/features/ledger/support/workspace.tsx",
+      "source": "src/app/(console)/tickets/page.tsx",
+      "sourceSha256": "9fcc18b8b2ba75a6e0533d65952f749496df4abce7d7e94f093d22675dfa38e3",
+      "targetSha256": "b896d7598b20e73c4866d9e0bdcc49a6449ef1037bfbba2fec9c5f006986cde6",
+      "adaptation": "Task7 frozen Ledger support inbox/thread presentation; canonical baseline deep links, actual server status queries and DTOs, private pending reply locks. Removed preview KEEP state because the baseline server defaults external replies to WAITING_CUSTOMER; internal replies omit status."
     }
   ],
   "newLedgerComposition": [
@@ -3397,6 +3404,18 @@
     {
       "target": "apps/web/src/lib/ledger/privacy-api.ts",
       "basis": "Task7 Ledger privacy route/DTO/date glue; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/support-api.ts",
+      "basis": "Task7 support route and typed baseline DTO/service response adapter; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/support/screen.tsx",
+      "basis": "Task7 support route and typed baseline DTO/service response adapter; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+      "basis": "Task7 support route and typed baseline DTO/service response adapter; no legacy presentation input."
     }
   ]
 }

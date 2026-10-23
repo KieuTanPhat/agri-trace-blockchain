@@ -4550,14 +4550,15 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
       "exampleUrl": "/admin/support/11111111-1111-4111-8111-111111111111",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task7.admin.support.id",
-      "readyHeading": "Tổng quan nền tảng",
+      "actorKey": "case-manager",
+      "scenarioId": "support.open",
+      "readyHeading": "Yêu cầu hỗ trợ",
       "roles": [
-        "SYSTEM_ADMIN"
+        "SYSTEM_ADMIN",
+        "PLATFORM_CASE_MANAGER"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "baseline management route scope; auditor server reads do not grant an otherwise denied frontend route",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
         "apps/web/src/lib/auth-coordination.ts",
@@ -4579,10 +4580,17 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/support/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/support/[id]/page.tsx"
+          ]
         },
         {
           "id": "GET /platform-admin/support-staff",
@@ -4591,10 +4599,17 @@
           "requestType": [],
           "responseType": "Items",
           "retainedLogic": [
-            "apps/web/src/app/admin/support/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/support/[id]/page.tsx"
+          ]
         },
         {
           "id": "GET /platform-admin/tickets",
@@ -4603,10 +4618,17 @@
           "requestType": [],
           "responseType": "Items",
           "retainedLogic": [
-            "apps/web/src/app/admin/support/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/support/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-admin/tickets/${id}/assign`",
@@ -4618,10 +4640,17 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/support/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/support/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-admin/tickets/${id}/close`",
@@ -4633,10 +4662,17 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/support/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/support/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-admin/tickets/${id}/reply`",
@@ -4650,17 +4686,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/support/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/support/[id]/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-cases.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline permissions.ts, platform-admin.controller CASE_STAFF and SupportService.ticketView; closed-record and command boundary browser tests."
       }
     },
     {
@@ -4669,14 +4714,15 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/support/screen.tsx",
       "exampleUrl": "/admin/support",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task7.admin.support",
-      "readyHeading": "Tổng quan nền tảng",
+      "actorKey": "case-manager",
+      "scenarioId": "support.open",
+      "readyHeading": "Yêu cầu hỗ trợ",
       "roles": [
-        "SYSTEM_ADMIN"
+        "SYSTEM_ADMIN",
+        "PLATFORM_CASE_MANAGER"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "baseline management route scope; auditor server reads do not grant an otherwise denied frontend route",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
         "apps/web/src/lib/auth-coordination.ts",
@@ -4698,10 +4744,17 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/support/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/support/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/support/page.tsx"
+          ]
         },
         {
           "id": "GET `/platform-admin/tickets${status ? `?status=${status}` : \"\"}`",
@@ -4710,17 +4763,26 @@
           "requestType": [],
           "responseType": "Items",
           "retainedLogic": [
-            "apps/web/src/app/admin/support/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/support/screen.tsx",
+            "apps/web/src/lib/ledger/support-api.ts",
+            "apps/web/src/lib/api-client.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-cases.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/support/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-cases.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline permissions.ts, platform-admin.controller CASE_STAFF and SupportService.ticketView; closed-record and command boundary browser tests."
       }
     },
     {

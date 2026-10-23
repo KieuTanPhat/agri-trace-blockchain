@@ -487,3 +487,192 @@ test("privacy displays the actual baseline OPEN status with its Ledger label", a
   ).toBeVisible();
   await expect(page.getByText("Mới", { exact: true }).first()).toBeVisible();
 });
+
+test("support list links to the canonical deep detail route", async ({
+  page,
+  api,
+}) => {
+  await api.useActor("case-manager");
+  await api.scenario("support.open");
+  await page.goto("/admin/support");
+  await expect(page.getByTestId("ledger-support-workspace")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /SUPPORT_IN_SCOPE_RECORD/ }),
+  ).toHaveAttribute(
+    "href",
+    "/admin/support/11111111-1111-4111-8111-111111111111",
+  );
+});
+test("support deep link replies using baseline body, version and command key", async ({
+  page,
+  api,
+}) => {
+  await api.useActor("case-manager");
+  await api.scenario("support.open");
+  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
+  await expect(page.getByTestId("ledger-support-workspace")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "SUPPORT_IN_SCOPE_RECORD", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Nội dung", { exact: true })
+    .fill("Nội dung phản hồi cần xử lý");
+  await page.getByRole("button", { name: "Gửi", exact: true }).click();
+  await expect(
+    page
+      .locator("ol")
+      .getByText("Nội dung phản hồi cần xử lý", { exact: true }),
+  ).toBeVisible();
+});
+test("closed support record is loaded without reply or assignment controls", async ({
+  page,
+  api,
+}) => {
+  await api.useActor("case-manager");
+  await api.scenario("support.closed");
+  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
+  await expect(page.getByTestId("ledger-support-workspace")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "SUPPORT_IN_SCOPE_RECORD", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Nội dung", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Gán / đổi ưu tiên", exact: true }),
+  ).toHaveCount(0);
+});
+
+test("pending support reply locks filters and keeps the original body and key", async ({
+  page,
+  api,
+}) => {
+  await api.useActor("case-manager");
+  await api.scenario("support.unknown");
+  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
+  const field = page.getByLabel("Nội dung", { exact: true });
+  await field.fill("Nội dung phản hồi cần xử lý");
+  await page.getByRole("button", { name: "Gửi", exact: true }).click();
+  await expect(page.getByTestId("ledger-command-pending")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Đã đóng", exact: true }),
+  ).toBeDisabled();
+  await expect(field).toBeDisabled();
+  await page.getByRole("button", { name: "Đối soát", exact: true }).click();
+  await expect(
+    page
+      .locator("ol")
+      .getByText("Nội dung phản hồi cần xử lý", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByTestId("ledger-command-pending")).toHaveCount(0);
+  const posts = api
+    .requests()
+    .filter((r) => r.method === "POST" && r.path.endsWith("/reply"));
+  expect(posts).toHaveLength(2);
+  expect(posts[1]!.body).toBe(posts[0]!.body);
+  expect(posts[1]!.idempotencyKey).toBe(posts[0]!.idempotencyKey);
+});
+
+test("support assignment uses the active platform staff UUID and version", async ({
+  page,
+  api,
+}) => {
+  await api.useActor("case-manager");
+  await api.scenario("support.actions");
+  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
+  await page
+    .getByRole("button", { name: "Gán / đổi ưu tiên", exact: true })
+    .click();
+  const d = page.getByRole("dialog");
+  await d
+    .getByRole("combobox", { name: "Người phụ trách", exact: true })
+    .click();
+  await page
+    .getByRole("option", { name: /Người phụ trách · PLATFORM_CASE_MANAGER/ })
+    .click();
+  await d.getByRole("button", { name: "Gán", exact: true }).click();
+  await expect(d).toHaveCount(0);
+  await expect(
+    page.getByText("Người phụ trách", { exact: true }),
+  ).toBeVisible();
+});
+test("internal support note omits the selected external status", async ({
+  page,
+  api,
+}) => {
+  await api.useActor("case-manager");
+  await api.scenario("support.actions");
+  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
+  await page
+    .getByLabel("Nội dung", { exact: true })
+    .fill("Ghi chú nền tảng riêng tư");
+  await page
+    .getByRole("radio", { name: "Ghi chú nội bộ", exact: true })
+    .check();
+  await page
+    .getByRole("combobox", { name: "Chuyển trạng thái", exact: true })
+    .click();
+  await page
+    .getByRole("option", { name: "Đã giải quyết", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Gửi", exact: true }).click();
+  await expect(
+    page.locator("ol").getByText("Ghi chú nền tảng riêng tư", { exact: true }),
+  ).toBeVisible();
+});
+test("support closing sends its reason then removes write controls", async ({
+  page,
+  api,
+}) => {
+  await api.useActor("case-manager");
+  await api.scenario("support.actions");
+  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
+  await page.getByRole("button", { name: "Đóng yêu cầu", exact: true }).click();
+  const d = page.getByRole("dialog");
+  await d
+    .getByLabel("Kết quả xử lý", { exact: true })
+    .fill("Đã hoàn thành xử lý hỗ trợ");
+  await d.getByRole("button", { name: "Đóng yêu cầu", exact: true }).click();
+  await expect(d).toHaveCount(0);
+  await expect(page.getByLabel("Nội dung", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Đã hoàn thành xử lý hỗ trợ/)).toBeVisible();
+});
+test("support status filter reaches the baseline query", async ({
+  page,
+  api,
+}) => {
+  await api.useActor("case-manager");
+  await api.scenario("support.actions");
+  await page.goto("/admin/support");
+  await expect(
+    page.getByRole("heading", { name: "SUPPORT_IN_SCOPE_RECORD", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Đã đóng", exact: true }).click();
+  await expect
+    .poll(() =>
+      api
+        .requests()
+        .some((r) => r.path === "/platform-admin/tickets?status=CLOSED"),
+    )
+    .toBe(true);
+  await expect(
+    page
+      .locator('section[aria-label="Yêu cầu SUP-17"]')
+      .getByText("Đã đóng", { exact: true })
+      .first(),
+  ).toBeVisible();
+  await expect(page.getByLabel("Nội dung", { exact: true })).toHaveCount(0);
+});
+test("missing support deep link does not fall back to another ticket", async ({
+  page,
+  api,
+}) => {
+  await api.useActor("case-manager");
+  await api.scenario("support.open");
+  await page.goto("/admin/support/99999999-9999-4999-8999-999999999999");
+  await expect(
+    page.getByText("Không tìm thấy yêu cầu hỗ trợ", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "SUPPORT_IN_SCOPE_RECORD", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("Nội dung", { exact: true })).toHaveCount(0);
+});
