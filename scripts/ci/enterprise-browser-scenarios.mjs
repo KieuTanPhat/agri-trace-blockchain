@@ -177,8 +177,9 @@ export async function runEnterpriseBrowserScenarios(options) {
       step('owner-login');
       await login(owner, { email }, `enterprise-${mode}`);
       await owner.goto(`${options.origin}/enterprise/onboarding`, { waitUntil: 'domcontentloaded' });
-      await owner.getByRole('heading', { name: 'Hồ sơ đăng ký', exact: true }).waitFor({ timeout });
-      await owner.getByText('PENDING_REVIEW', { exact: true }).waitFor({ timeout });
+      // The page header and the embedded profile section share this title.
+      await owner.getByRole('heading', { name: 'Hồ sơ đăng ký', exact: true }).first().waitFor({ timeout });
+      await owner.getByText('PENDING_REVIEW', { exact: true }).first().waitFor({ timeout });
       // Before approval the owner has no connection workspace.
       await owner.goto(`${options.origin}/enterprise/connections`, { waitUntil: 'domcontentloaded' });
       await owner.getByRole('alert').filter({ hasText: /\S/ }).first().waitFor({ timeout });
@@ -288,7 +289,7 @@ export async function runEnterpriseBrowserScenarios(options) {
       activePage = owner;
       step('owner-connected');
       await owner.reload({ waitUntil: 'domcontentloaded' });
-      await owner.getByText('Đã kiểm chứng kết nối', { exact: true }).waitFor({ timeout });
+      await owner.getByText('Đã kiểm chứng kết nối', { exact: true }).first().waitFor({ timeout });
       await owner.getByText(proof.txId, { exact: true }).waitFor({ timeout });
       await bothLayouts(owner);
       await noPasswordStorage(owner, options.operator.password);
