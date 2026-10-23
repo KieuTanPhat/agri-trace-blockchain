@@ -138,12 +138,25 @@ function Detail() {
     queryFn: () => api.approvals.get(id),
   });
   const cancel = useDialog();
+  const accounts = useQuery({
+    queryKey: ["users"],
+    queryFn: api.users.list,
+    enabled: can("approval.cancel"),
+  });
   if (q.error)
     return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   if (!q.data) return <LoadingRows rows={8} className="p-8" />;
   const a = q.data;
   const pending = a.effectiveStatus === "PENDING";
   const isProposer = a.proposer.id === user?.id;
+  const canCancel =
+    a.status === "PENDING" &&
+    can("approval.cancel") &&
+    (isProposer ||
+      Date.parse(a.expiresAt) <= Date.now() ||
+      accounts.data?.some(
+        (u) => u.id === a.proposer.id && u.accountStatus !== "ACTIVE",
+      ));
   const due = fmtDue(a.expiresAt);
   const invalidate = [["approval", id], ["approvals"], ["inbox"]];
 
@@ -170,7 +183,7 @@ function Detail() {
           </>
         }
         actions={
-          pending && can("approval.cancel") ? (
+          canCancel ? (
             <Button
               variant="outline"
               size="sm"

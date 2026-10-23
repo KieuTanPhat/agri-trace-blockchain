@@ -2833,7 +2833,7 @@
       "target": "apps/web/src/components/ledger/kit/form-fields.tsx",
       "source": "src/components/kit/form-fields.tsx",
       "sourceSha256": "f9b9ed8b85f79c05a76a0184eebb47e19b94bc4961d979a822112a9203c75b7b",
-      "targetSha256": "28326416256539c1c7af5c63ad0c37ed2d1d5fd5df3bd32bd104bc4249e76635"
+      "targetSha256": "34fd715a4f040e0aaaf2893e92ac53f5b066de181c95e6abb5cf6c73348dbeb3"
     },
     {
       "target": "apps/web/src/components/ledger/kit/page.tsx",
@@ -2995,7 +2995,7 @@
       "target": "apps/web/src/lib/ledger/i18n-en.ts",
       "source": "src/lib/i18n-en.ts",
       "sourceSha256": "948583446f3e1404ae3325cc93bdffaf71f7381167da92957cd91fda5b499d54",
-      "targetSha256": "948583446f3e1404ae3325cc93bdffaf71f7381167da92957cd91fda5b499d54"
+      "targetSha256": "490e19fa07313c14c3c7869f78aa47f694cba2e0954a2483002fd2bfbbeb3c86"
     },
     {
       "target": "apps/web/src/lib/ledger/i18n.ts",
@@ -3019,7 +3019,7 @@
       "target": "apps/web/src/components/ledger/kit/command-dialog.tsx",
       "source": "src/components/kit/command-dialog.tsx",
       "sourceSha256": "d837012ec5e5f478257a8c32b09da9128577c578636c63726449489e47882319",
-      "targetSha256": "b4d3a9222ae6d6960d47c61960b3d7b90bb084dffe54b69eb8abe8be33882430"
+      "targetSha256": "a47c285aadd85f0e8fb6616cad711da7467fd2ea467bd3f689c0571583dc3cd1"
     },
     {
       "target": "apps/web/src/components/ledger/workspace/grants-editor.tsx",
@@ -3094,21 +3094,21 @@
       "target": "apps/web/src/features/ledger/screens/admin/approvals/[id]/screen.tsx",
       "source": "src/app/(console)/approvals/[id]/page.tsx",
       "sourceSha256": "3fc3d3583cdf28ffb753b5dcb6d9b73df3815be01e0c49c795eeed51b04e78fa",
-      "targetSha256": "04178b551374a7441b90f27a3f1f54060f286df12bfa072de2584695dd43408f",
+      "targetSha256": "e5af492a648bc624b59e7820a85d36b29cf1702d517bd3a6d903df17696bd08c",
       "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
     },
     {
       "target": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
       "source": "src/app/(console)/enterprises/[id]/page.tsx",
       "sourceSha256": "78453590a6cd12810be6cf510315669daf0de4d8b398042269f10aa2db0e91bd",
-      "targetSha256": "8f3c4030f56f5846162b01e486e66906d2d5e8d7104099e799ea4ab96b047632",
+      "targetSha256": "cddd4efe20a1bd671a911341570de13809c46c921306bf0e2504955fc22be030",
       "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
     },
     {
       "target": "apps/web/src/features/ledger/screens/admin/enterprises/screen.tsx",
       "source": "src/app/(console)/enterprises/page.tsx",
       "sourceSha256": "327e7a1010427bd86ee3221503d03d4d36dfdd8e86983a6f4cc33672c1421c99",
-      "targetSha256": "7f79973830e1a3e08ca12cb42d47202b34c72bc3cb99f29e7a62f8f8536de2f0",
+      "targetSha256": "d8538146ce3d8f14b5fdefbaeeda07bbb741d71f3869f3d73ae290188717023d",
       "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
     },
     {
@@ -3124,6 +3124,69 @@
       "sourceSha256": "b38cb5afbd6fc5f0aa48d95446a52abfe22e8b780003bb12ba42fd21c139878b",
       "targetSha256": "b38cb5afbd6fc5f0aa48d95446a52abfe22e8b780003bb12ba42fd21c139878b",
       "adaptation": "Ledger presentation/display only; baseline route policy and business timing remain authoritative."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/inbox/screen.tsx",
+      "source": "src/app/(console)/inbox/page.tsx",
+      "sourceSha256": "1028feb71e5ac144e752c80cdc19edabfcfe8ed246f473e6f7dd324b2d56e5be",
+      "targetSha256": "438ba03014abef93ee7a5e7fb4ab15214426db0c71dd90f9158a7b3178b286c0",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/screen.tsx",
+      "source": "src/app/(console)/overview/page.tsx",
+      "sourceSha256": "832abac6a76b56cdf78e849555482d5661c960ee605ff93a90021332c5a2b891",
+      "targetSha256": "2b65170849357c0bdd62ee9e7a609286a8541329a8cd9fe47723077ebfe2ca10",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/approvals/screen.tsx",
+      "source": "src/app/(console)/approvals/page.tsx",
+      "sourceSha256": "1bb03ff50c71519077b78894e5e6b2867af921de4e81fac654e8660aa673443b",
+      "targetSha256": "e7b5290a863bac8219484e6da1b1d9baf74111d72c10423490cbabf08bd96503",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/audit-log/screen.tsx",
+      "source": "src/app/(console)/audit/page.tsx",
+      "sourceSha256": "776b8b33ffa78fe3e2133aff7300eb7d584b6d47deb48e270dddb47dab6d55a9",
+      "targetSha256": "e5fb86653f9604cfb5c55b2b6f19e9c926c31ea413cbf69b49000be8172ca744",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/amendments/[id]/screen.tsx",
+      "source": "src/app/(console)/enterprises/amendments/[id]/page.tsx",
+      "sourceSha256": "dbf2e2234ddc2e4cbd4fda55deb39772c5fed723c388b587cad69c1c26bbb584",
+      "targetSha256": "80bd404f61e532fd0791657572a951e155cbc26719f8f12e1213b4c84238750d",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/amendments/screen.tsx",
+      "source": "src/app/(console)/enterprises/amendments/page.tsx",
+      "sourceSha256": "b0aec13f5560eb02231f344cd5ffd13558b1f422484a89bf9683dd02eefbb3ce",
+      "targetSha256": "f3491957479b3b2f845a58d6300fbd0abdb387a5985eac908c7f09f0eadd171f",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/organizations/screen.tsx",
+      "source": "src/app/(console)/organizations/page.tsx",
+      "sourceSha256": "1e3ded6963684aece993e843cac1eba9b9db8b5a4033d9cf910a7aa527835467",
+      "targetSha256": "cb7c68b4b5f1fa81667b0e7005dc70e988310dbd4c8a8ea87d7530735b85fe7e",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/users/screen.tsx",
+      "source": "src/app/(console)/users/page.tsx",
+      "sourceSha256": "ddb657065753723d516b6b62ff628a53681b4fc2b299c2f4470e9159d857645d",
+      "targetSha256": "5cef94a4d96b8b6bac1aad8935e5154264cf490dc1cc8cab147d54d1b5124e11",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/organizations/organization-detail.tsx",
+      "source": "src/app/(console)/organizations/[id]/page.tsx",
+      "sourceSha256": "140241081ef7fc6280d403847699735d697ea1cac4f798ca38ff5d2213002bbf",
+      "targetSha256": "347b0aada5b0ded21ff18bc650caeac7686702a48af6e091dc8092dd83466222",
+      "adaptation": "Approved Ledger detail presented within the baseline organizations query URL; real baseline aggregate, commands and authority."
     }
   ],
   "newLedgerComposition": [
@@ -3170,6 +3233,118 @@
     {
       "target": "apps/web/src/features/ledger/screens/admin/enterprises/profile-details.tsx",
       "basis": "New Ledger kit composition for canonical baseline route/data/private-file behavior missing from the preview; no legacy UI source."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/approvals/new/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/compliance-assignments/new/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/compliance-assignments/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/compliance-assignments/views.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/compliance-assignments/[id]/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/connection-detail.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/enrollment-products.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/inspectors/inspectors-view.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/inspectors/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/organizations/auditor-organizations.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/organizations/create-organization.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/organizations/new/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/roles/roles-view.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/roles/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/security/mfa-view.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/security/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/settings/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/settings/settings-view.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/users/new/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/users/[id]/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/platform-api.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/platform-access.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/platform-role-labels.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/platform-routes.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/platform-approval-input.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/i18n-en-governance.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/data.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
     }
   ]
 }

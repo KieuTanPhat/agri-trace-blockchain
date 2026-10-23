@@ -234,10 +234,8 @@ function Enrollments() {
           />
         </div>
         <p className="text-[12px] text-ink-2">
-          {tr("Nguồn:")}{" "}
-          <span className="font-mono">GET /enterprise-enrollments</span>{" "}
           {tr(
-            "trả toàn bộ danh sách; lọc và tìm kiếm thực hiện phía trình duyệt vì Backend chưa có tham số lọc/phân trang cho endpoint này.",
+            "Dùng bộ lọc giai đoạn và ô tìm kiếm để thu hẹp danh sách hồ sơ.",
           )}
         </p>
       </PageBody>

@@ -13,6 +13,10 @@ const reads: Record<string, string> = {
   "audit.read": "/admin/audit-log",
   "security.read": "/admin/security",
   "statistics.read": "/admin/statistics",
+  "assignment.read": "/admin/compliance-assignments",
+  "inspectors.read": "/admin/inspectors",
+  "roles.read": "/admin/roles",
+  "settings.read": "/admin/settings",
 };
 const administrator = new Set([
   "capability.review",
@@ -28,6 +32,23 @@ const administrator = new Set([
 /** The preview supplies presentation names; baseline role/route policy supplies authority. */
 export function useLedgerSession() {
   const auth = useAuth();
+  const canRoute = useCallback(
+    (href: string) => {
+      if (
+        !auth.user ||
+        auth.privateAccessStatus !== "ready" ||
+        !href.startsWith("/admin") ||
+        href.startsWith("//")
+      )
+        return false;
+      return canAccessManagementRoute(
+        href.split(/[?#]/)[0],
+        auth.user.role.code,
+        auth.user.productionAccess,
+      );
+    },
+    [auth.user, auth.privateAccessStatus],
+  );
   const can = useCallback(
     (permission: string) => {
       if (!auth.user || auth.privateAccessStatus !== "ready") return false;
@@ -42,5 +63,5 @@ export function useLedgerSession() {
     },
     [auth.user, auth.privateAccessStatus],
   );
-  return { ...auth, can };
+  return { ...auth, can, canRoute };
 }

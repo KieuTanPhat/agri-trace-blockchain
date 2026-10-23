@@ -4,6 +4,7 @@ export type CapturedRequest = Readonly<{
   path: string;
   body: string | null;
   idempotencyKey: string | null;
+  mfaCode: string | null;
 }>;
 export type FixtureResponse = {
   status?: number;

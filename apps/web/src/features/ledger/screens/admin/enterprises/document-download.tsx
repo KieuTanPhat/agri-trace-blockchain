@@ -11,6 +11,48 @@ export function RegistrationDocumentDownload({
 }: {
   document: S["RegistrationDocumentViewDto"];
 }) {
+  return (
+    <PrivateDocumentDownload
+      fileName={document.fileName}
+      load={() =>
+        ledgerRequest<S["RegistrationDocumentContentDto"]>(
+          `/enterprise-registration-documents/${encodeURIComponent(document.id)}`,
+        )
+      }
+    />
+  );
+}
+export function AmendmentEvidenceDownload({
+  amendmentId,
+  document,
+}: {
+  amendmentId: string;
+  document: S["ProfileAmendmentEvidenceDto"];
+}) {
+  return (
+    <PrivateDocumentDownload
+      fileName={document.fileName}
+      load={async () =>
+        (
+          await ledgerRequest<S["ProfileEvidenceContentRecordDto"]>(
+            `/enterprise-profile-amendments/${encodeURIComponent(amendmentId)}/evidence/${encodeURIComponent(document.id)}`,
+          )
+        ).record
+      }
+    />
+  );
+}
+function PrivateDocumentDownload({
+  fileName,
+  load,
+}: {
+  fileName: string;
+  load: () => Promise<{
+    contentBase64: string;
+    fileName: string;
+    mediaType: string;
+  }>;
+}) {
   const [pending, setPending] = useState(false),
     [error, setError] = useState(""),
     busy = useRef(false);
@@ -20,7 +62,7 @@ export function RegistrationDocumentDownload({
         variant="link"
         type="button"
         className="h-auto justify-start truncate p-0 text-left text-[13px] font-normal"
-        aria-label={`${t("Tải tệp")} ${document.fileName}`}
+        aria-label={`${t("Tải tệp")} ${fileName}`}
         disabled={pending}
         onClick={async () => {
           if (busy.current) return;
@@ -29,11 +71,7 @@ export function RegistrationDocumentDownload({
           setError("");
           let url: string | undefined;
           try {
-            const data = await ledgerRequest<
-              S["RegistrationDocumentContentDto"]
-            >(
-              `/enterprise-registration-documents/${encodeURIComponent(document.id)}`,
-            );
+            const data = await load();
             const bytes = Uint8Array.from(atob(data.contentBase64), (char) =>
               char.charCodeAt(0),
             );
@@ -55,7 +93,7 @@ export function RegistrationDocumentDownload({
           }
         }}
       >
-        {pending ? t("Đang tải…") : document.fileName}
+        {pending ? t("Đang tải…") : fileName}
       </Button>
       {error && (
         <span role="alert" className="text-[12px] text-danger">

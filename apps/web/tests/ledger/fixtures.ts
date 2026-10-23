@@ -42,6 +42,7 @@ export const test = base.extend<{ api: LedgerApiFixture }>({
         path: url.pathname.replace(/^\/api(?=\/|$)/, "") + url.search,
         body: request.postData(),
         idempotencyKey: request.headers()["idempotency-key"] ?? null,
+        mfaCode: request.headers()["x-mfa-code"] ?? null,
       };
       state.requests.push(captured);
       const response =

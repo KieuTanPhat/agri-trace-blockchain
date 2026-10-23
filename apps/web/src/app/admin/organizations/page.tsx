@@ -1,4 +1,8 @@
-import AdminOrganizations from "@/components/workspace/admin-organizations";
-export default function Page() {
-  return <AdminOrganizations />;
+import LedgerScreen from "@/features/ledger/screens/admin/organizations/screen";
+import {
+  resolveLedgerRouteInput,
+  type LedgerPageInput,
+} from "@/lib/ledger/route-input";
+export default async function Page(input: LedgerPageInput) {
+  return <LedgerScreen route={await resolveLedgerRouteInput(input)} />;
 }

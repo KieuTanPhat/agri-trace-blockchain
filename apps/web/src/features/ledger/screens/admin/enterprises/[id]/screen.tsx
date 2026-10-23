@@ -1,5 +1,6 @@
 "use client";
 import { RegistrationDocumentDownload } from "../document-download";
+import { EnrollmentProducts } from "../enrollment-products";
 import { ProfileDetails } from "../profile-details";
 
 import Link from "next/link";
@@ -140,13 +141,20 @@ function EnrollmentDetail() {
     queryFn: () => api.enterprises.organization(q.data!.organizationId),
     enabled: !!q.data && can("directory.read"),
   });
+  const inbox = useQuery({
+    queryKey: ["inbox"],
+    queryFn: api.workbench.inbox,
+    enabled: can("inbox.read"),
+  });
 
   if (q.error)
     return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   if (!q.data) return <LoadingRows rows={10} className="p-8" />;
   const e = q.data;
   const due = fmtDue(
-    new Date(Date.parse(e.createdAt) + 48 * 3_600_000).toISOString(),
+    inbox.data?.items.find(
+      (item) => item.kind === "ENROLLMENT" && item.id === e.id,
+    )?.dueAt ?? null,
   );
   const invalidate = [
     ["enrollment", id],
@@ -184,13 +192,20 @@ function EnrollmentDetail() {
           </>
         }
         actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link
-              href={`/admin/organizations?organizationId=${e.organizationId}`}
-            >
-              {tr("Hồ sơ tổ chức")}
-            </Link>
-          </Button>
+          <>
+            <Button variant="outline" size="sm" asChild>
+              <Link
+                href={`/admin/organizations?organizationId=${e.organizationId}`}
+              >
+                {tr("Hồ sơ tổ chức")}
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/admin/products/${e.organizationId}`}>
+                {tr("Sản phẩm của tổ chức")}
+              </Link>
+            </Button>
+          </>
         }
       />
       <PageBody wide>
@@ -261,6 +276,7 @@ function EnrollmentDetail() {
             {e.connections.length > 0 && (
               <Connections e={e} invalidate={invalidate} />
             )}
+            <EnrollmentProducts organizationId={e.organizationId} />
           </div>
 
           <aside
@@ -352,7 +368,7 @@ function Capabilities({
 }) {
   const { can } = useSession();
   const dialog = useDialog<CapabilityRequest>();
-  const separate = e.status === "APPROVED";
+  const separate = e.status !== "REJECTED";
   const pending = e.capabilityRequests.filter(
     (c) => c.status === "PENDING",
   ).length;
@@ -362,21 +378,23 @@ function Capabilities({
       id="capabilities"
       title={tr("Năng lực đề nghị")}
       aside={
-        e.status === "PENDING_REVIEW"
-          ? tr("Phê duyệt hồ sơ sẽ duyệt cùng {p0} năng lực đang chờ", {
-              p0: pending,
-            })
-          : separate && pending
-            ? tr(
-                "Năng lực xin thêm sau khi hồ sơ đã duyệt — xét riêng từng năng lực",
-              )
-            : undefined
+        separate && pending
+          ? tr(
+              "Xét riêng {p0} năng lực đang chờ; duyệt hồ sơ không thay thế quyết định năng lực",
+              { p0: pending },
+            )
+          : undefined
       }
     >
       <ul className="divide-y divide-line/70">
         {e.capabilityRequests.map((c) => {
-          const exp = c.details.foodSafetyCertificateExpiry as
-            string | undefined;
+          const exp = (
+            c.details.processing &&
+            typeof c.details.processing === "object" &&
+            "foodSafetyCertificateExpiry" in c.details.processing
+              ? c.details.processing.foodSafetyCertificateExpiry
+              : c.details.foodSafetyCertificateExpiry
+          ) as string | undefined;
           const expDue = exp ? fmtDue(exp) : null;
           const soon =
             exp && !expDue!.overdue && Date.parse(exp) - now < 30 * 86_400_000;
@@ -385,7 +403,7 @@ function Capabilities({
               key={c.id}
               className="flex flex-wrap items-start gap-x-6 gap-y-2 px-4 py-3 sm:px-5"
             >
-              <div className="flex w-[150px] shrink-0 flex-col gap-1">
+              <div className="flex w-full shrink-0 flex-col gap-1 sm:w-[150px]">
                 <Code>{c.code}</Code>
                 <span className="text-[12px] text-ink-2">
                   {CAPABILITY_LABEL[c.code]}
@@ -404,15 +422,19 @@ function Capabilities({
                     </dt>
                     <dd
                       className={cn(
-                        k.endsWith("ExpiresAt") &&
+                        /(?:ExpiresAt|Expiry)$/.test(k) &&
                           expDue?.overdue &&
                           "font-medium text-danger",
-                        k.endsWith("ExpiresAt") &&
+                        /(?:ExpiresAt|Expiry)$/.test(k) &&
                           soon &&
                           "font-medium text-warn",
                       )}
                     >
-                      {k.endsWith("ExpiresAt") ? fmtDate(String(v)) : String(v)}
+                      {/(?:ExpiresAt|Expiry)$/.test(k)
+                        ? fmtDate(String(v))
+                        : typeof v === "object"
+                          ? JSON.stringify(v)
+                          : String(v)}
                     </dd>
                   </div>
                 ))}
@@ -512,7 +534,7 @@ function Capabilities({
   );
 }
 
-function Connections({
+export function Connections({
   e,
   invalidate,
 }: {
@@ -560,7 +582,7 @@ function Connections({
           title={tr("Xét kết nối peer")}
           endpoint="POST /enterprise-connections/:id/review"
           description={tr(
-            "Khi PLATFORM_APPROVALS_MODE=ENFORCED, chấp nhận phải đi qua đề xuất CONNECTION_APPROVE và người duyệt thứ hai (API trả 409).",
+            "Chấp nhận kết nối có thể cần gửi đề xuất để một quản trị viên khác phê duyệt.",
           )}
           schema={reviewSchema}
           defaultValues={{ decision: "APPROVE", note: "" }}
@@ -654,7 +676,7 @@ function DecisionPanel({
                     value: "APPROVE",
                     label: tr("Phê duyệt"),
                     help: tr(
-                      "Duyệt hồ sơ và mọi năng lực đang chờ; chuyển sang bước chọn gói.",
+                      "Duyệt hồ sơ doanh nghiệp. Năng lực và kích hoạt dịch vụ được xét riêng.",
                     ),
                   },
                   {
@@ -697,7 +719,14 @@ function DecisionPanel({
   if (e.serviceActivatedAt || e.onboardingStage === "ACTIVE_LEGACY") {
     return (
       <Callout tone="ok" title={tr("Dịch vụ đang hoạt động")}>
-        {tr("Kích hoạt")} {fmtDateTime(e.serviceActivatedAt)}.<br />
+        {e.serviceActivatedAt ? (
+          <>
+            {tr("Kích hoạt")} {fmtDateTime(e.serviceActivatedAt)}.
+          </>
+        ) : (
+          tr("Đã hoạt động theo chính sách hiện hành.")
+        )}
+        <br />
         <span className="text-ink-2">{e.serviceActivationReason}</span>
       </Callout>
     );
@@ -735,12 +764,14 @@ function ActivatePanel({
       label: tr("Có ít nhất một năng lực được duyệt"),
     },
     {
-      ok: !e.payingParticipant || subscriptionActive,
-      label: e.payingParticipant
-        ? orgLoaded
-          ? tr("Có gói dịch vụ ACTIVE (tổ chức trả phí)")
-          : tr("Đang kiểm tra gói dịch vụ…")
-        : tr("Tổ chức miễn phí — không cần gói"),
+      ok: !caps.length || !e.payingParticipant || subscriptionActive,
+      label: !caps.length
+        ? tr("Hồ sơ không có yêu cầu năng lực — không cần gói")
+        : e.payingParticipant
+          ? orgLoaded
+            ? tr("Có gói dịch vụ ACTIVE (tổ chức trả phí)")
+            : tr("Đang kiểm tra gói dịch vụ…")
+          : tr("Tổ chức miễn phí — không cần gói"),
     },
   ];
   const ready = checks.every((c) => c.ok);

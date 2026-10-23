@@ -178,9 +178,11 @@ function Body<S extends z.ZodType<FieldValues>>({
     if (
       !original.current &&
       (stepUp || asProposal) &&
-      !/^\d{6}$/.test(mfa.replace(/\s/g, ""))
+      !/^(?:\d{6}|[A-HJ-NP-Z2-9]{10})$/.test(
+        mfa.replace(/[\s-]/g, "").toUpperCase(),
+      )
     ) {
-      setMfaError(tr("Nhập mã 6 số từ ứng dụng xác thực"));
+      setMfaError(tr("Nhập mã 6 số từ ứng dụng hoặc mã khôi phục chưa dùng"));
       return;
     }
     inFlight.current = true;
@@ -315,9 +317,9 @@ function Body<S extends z.ZodType<FieldValues>>({
           <Input
             ref={mfaRef}
             id="mfa-code"
-            inputMode="numeric"
+            inputMode="text"
             autoComplete="one-time-code"
-            maxLength={7}
+            maxLength={20}
             value={mfa}
             disabled={busy || frozen}
             onChange={(e) => setMfa(e.target.value)}

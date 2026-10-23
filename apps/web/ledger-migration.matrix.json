@@ -123,8 +123,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/approvals/[id]/screen.tsx",
       "exampleUrl": "/admin/approvals/11111111-1111-4111-8111-111111111111",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.approvals.id",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Cấp năng lực tổ chức",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -132,16 +132,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -151,10 +145,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/[id]/page.tsx"
+          ]
         },
         {
           "id": "GET `/platform-approvals/${id}`",
@@ -163,10 +167,21 @@
           "requestType": [],
           "responseType": "Approval",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-approvals/${approval.id}/cancel`",
@@ -175,10 +190,21 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-approvals/${approval.id}/decision`",
@@ -187,17 +213,34 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/[id]/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -207,8 +250,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/approvals/new/screen.tsx",
       "exampleUrl": "/admin/approvals/new",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.approvals.new",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Tạo đề xuất phê duyệt",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -216,17 +259,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
-        "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
         "apps/web/src/lib/permissions.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -236,10 +272,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/new/page.tsx"
+          ]
         },
         {
           "id": "GET /enterprise-enrollments",
@@ -248,10 +294,21 @@
           "requestType": [],
           "responseType": "Enrollment[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/new/page.tsx"
+          ]
         },
         {
           "id": "GET /organizations",
@@ -260,10 +317,21 @@
           "requestType": [],
           "responseType": "Org[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/new/page.tsx"
+          ]
         },
         {
           "id": "GET /users",
@@ -272,10 +340,21 @@
           "requestType": [],
           "responseType": "{ id: string; fullName: string; email: string; role: { code: string } }[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/new/page.tsx"
+          ]
         },
         {
           "id": "GET `/organizations/${organizationId}/scoped-users`",
@@ -284,10 +363,21 @@
           "requestType": [],
           "responseType": "{ id: string; fullName: string }[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/new/page.tsx"
+          ]
         },
         {
           "id": "POST /platform-approvals",
@@ -298,17 +388,34 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/new/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -318,8 +425,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/approvals/screen.tsx",
       "exampleUrl": "/admin/approvals",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.approvals",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Phê duyệt hai bước",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -327,15 +434,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -345,10 +447,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/page.tsx"
+          ]
         },
         {
           "id": "GET `/platform-approvals${status ? `?status=${status}` : \"\"}`",
@@ -357,17 +469,34 @@
           "requestType": [],
           "responseType": "Approval[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/approvals/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/approvals/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/approvals/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -377,24 +506,20 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/audit-log/screen.tsx",
       "exampleUrl": "/admin/audit-log",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.audit-log",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Nhật ký kiểm toán nền tảng",
       "roles": [
-        "SYSTEM_ADMIN"
+        "SYSTEM_ADMIN",
+        "AUDITOR"
       ],
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -404,10 +529,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/audit-log/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/audit-log/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/audit-log/page.tsx"
+          ]
         },
         {
           "id": "GET /platform-audit/actions",
@@ -416,10 +551,20 @@
           "requestType": [],
           "responseType": "string[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/audit-log/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/audit-log/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/audit-log/page.tsx"
+          ]
         },
         {
           "id": "GET /platform-audit/verify",
@@ -428,10 +573,20 @@
           "requestType": [],
           "responseType": "AuditVerification",
           "retainedLogic": [
-            "apps/web/src/app/admin/audit-log/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/audit-log/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/audit-log/page.tsx"
+          ]
         },
         {
           "id": "GET `/platform-audit/export${query(applied)}`",
@@ -440,10 +595,20 @@
           "requestType": [],
           "responseType": "AuditExport",
           "retainedLogic": [
-            "apps/web/src/app/admin/audit-log/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/audit-log/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/audit-log/page.tsx"
+          ]
         },
         {
           "id": "GET `/platform-audit${query(filter, cursor)}`",
@@ -452,17 +617,33 @@
           "requestType": [],
           "responseType": "AuditPage",
           "retainedLogic": [
-            "apps/web/src/app/admin/audit-log/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/audit-log/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/audit-log/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -1204,8 +1385,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/compliance-assignments/[id]/screen.tsx",
       "exampleUrl": "/admin/compliance-assignments/11111111-1111-4111-8111-111111111111",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.compliance-assignments.id",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Chi tiết phân công kiểm định",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -1213,16 +1394,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1232,10 +1407,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/compliance-assignments/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/[id]/page.tsx"
+          ]
         },
         {
           "id": "GET /compliance/assignments",
@@ -1244,10 +1429,21 @@
           "requestType": [],
           "responseType": "Assignment[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/compliance-assignments/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/[id]/page.tsx"
+          ]
         },
         {
           "id": "GET /users",
@@ -1256,10 +1452,21 @@
           "requestType": [],
           "responseType": "Account[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/compliance-assignments/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/compliance/assignments/${assignment.id}/revoke`",
@@ -1270,17 +1477,34 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/compliance-assignments/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/[id]/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -1290,8 +1514,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/compliance-assignments/new/screen.tsx",
       "exampleUrl": "/admin/compliance-assignments/new",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.compliance-assignments.new",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Phân công kiểm định mới",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -1299,15 +1523,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1317,10 +1536,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/compliance-assignments/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/new/page.tsx"
+          ]
         },
         {
           "id": "GET /catalog",
@@ -1329,10 +1558,21 @@
           "requestType": [],
           "responseType": "Catalog",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/compliance-assignments/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/new/page.tsx"
+          ]
         },
         {
           "id": "GET /users",
@@ -1341,10 +1581,21 @@
           "requestType": [],
           "responseType": "Account[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/compliance-assignments/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/new/page.tsx"
+          ]
         },
         {
           "id": "POST /compliance/assignments",
@@ -1357,17 +1608,34 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/compliance-assignments/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/new/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -1377,8 +1645,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/compliance-assignments/screen.tsx",
       "exampleUrl": "/admin/compliance-assignments",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.compliance-assignments",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Phân công kiểm định",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -1386,15 +1654,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1404,10 +1667,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/compliance-assignments/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/page.tsx"
+          ]
         },
         {
           "id": "GET /compliance/assignments",
@@ -1416,10 +1689,21 @@
           "requestType": [],
           "responseType": "Assignment[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/compliance-assignments/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/page.tsx"
+          ]
         },
         {
           "id": "GET /users",
@@ -1428,17 +1712,34 @@
           "requestType": [],
           "responseType": "Account[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/compliance-assignments/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -1583,10 +1884,10 @@
       "sourceFile": "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx",
       "task": 6,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
-      "exampleUrl": "/admin/enterprises/11111111-1111-4111-8111-111111111111/connections/11111111-1111-4111-8111-111111111111",
+      "exampleUrl": "/admin/enterprises/11111111-1111-4111-8111-111111111111/connections/88888888-8888-4888-8888-888888888888",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.enterprises.id.connections.connectionId",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Xét kết nối blockchain",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -1594,16 +1895,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/enterprise-onboarding.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1613,10 +1908,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx"
+          ]
         },
         {
           "id": "GET `/enterprise-enrollments/${id}`",
@@ -1625,10 +1930,21 @@
           "requestType": [],
           "responseType": "Enrollment",
           "retainedLogic": [
-            "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx"
+          ]
         },
         {
           "id": "POST `/${kind}/${id}/review`",
@@ -1639,17 +1955,34 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/enterprise-onboarding.ts"
+            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/lib/enterprise-onboarding.ts"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -1659,8 +1992,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
       "exampleUrl": "/admin/enterprises/11111111-1111-4111-8111-111111111111",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.enterprises.id",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "HTX Hồ sơ kiểm thử",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -1668,19 +2001,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/enterprise-onboarding.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/registration-form.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1690,10 +2014,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/enterprises/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/enterprises/[id]/page.tsx"
+          ]
         },
         {
           "id": "GET /catalog",
@@ -1702,10 +2036,21 @@
           "requestType": [],
           "responseType": "Catalog",
           "retainedLogic": [
-            "apps/web/src/components/workspace/admin-products.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/admin-products.tsx"
+          ]
         },
         {
           "id": "GET /organizations",
@@ -1714,10 +2059,21 @@
           "requestType": [],
           "responseType": "AdminOrganization[]",
           "retainedLogic": [
-            "apps/web/src/components/workspace/admin-products.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/admin-products.tsx"
+          ]
         },
         {
           "id": "GET `/enterprise-enrollments/${id}`",
@@ -1726,10 +2082,21 @@
           "requestType": [],
           "responseType": "Enrollment",
           "retainedLogic": [
-            "apps/web/src/components/workspace/platform-enrollment.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/platform-enrollment.tsx"
+          ]
         },
         {
           "id": "GET `/enterprise-registration-documents/${id}`",
@@ -1738,10 +2105,21 @@
           "requestType": [],
           "responseType": "S[\"RegistrationDocumentContentDto\"]",
           "retainedLogic": [
-            "apps/web/src/components/workspace/registration-profile-details.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/registration-profile-details.tsx"
+          ]
         },
         {
           "id": "POST `/${kind}/${id}/review`",
@@ -1752,10 +2130,21 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/enterprise-onboarding.ts"
+            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/lib/enterprise-onboarding.ts"
+          ]
         },
         {
           "id": "POST `/capability-requests/${request.id}/review`",
@@ -1768,10 +2157,21 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/capability-review.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/capability-review.tsx"
+          ]
         },
         {
           "id": "POST `/enterprise-enrollments/${row.id}/activate`",
@@ -1782,17 +2182,34 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/platform-enrollment.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/platform-enrollment.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -1802,8 +2219,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/amendments/[id]/screen.tsx",
       "exampleUrl": "/admin/enterprises/amendments/11111111-1111-4111-8111-111111111111",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.enterprises.amendments.id",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Điều chỉnh hồ sơ · HTX Hồ sơ kiểm thử",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -1811,16 +2228,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1830,10 +2241,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/enterprises/amendments/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/amendments/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/enterprises/amendments/[id]/page.tsx"
+          ]
         },
         {
           "id": "GET `/enterprise-profile-amendments/${id}/evidence/${evidenceId}`",
@@ -1842,10 +2263,21 @@
           "requestType": [],
           "responseType": "RecordOf<ProfileEvidenceContent>",
           "retainedLogic": [
-            "apps/web/src/app/admin/enterprises/amendments/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/amendments/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/enterprises/amendments/[id]/page.tsx"
+          ]
         },
         {
           "id": "GET `/enterprise-profile-amendments/${id}`",
@@ -1854,10 +2286,21 @@
           "requestType": [],
           "responseType": "RecordOf<ProfileAmendmentDetail>",
           "retainedLogic": [
-            "apps/web/src/app/admin/enterprises/amendments/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/amendments/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/enterprises/amendments/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/enterprise-profile-amendments/${id}/review`",
@@ -1870,17 +2313,34 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/enterprises/amendments/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/amendments/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/enterprises/amendments/[id]/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -1890,8 +2350,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/amendments/screen.tsx",
       "exampleUrl": "/admin/enterprises/amendments",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.enterprises.amendments",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Điều chỉnh hồ sơ doanh nghiệp",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -1899,15 +2359,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1917,10 +2372,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/enterprises/amendments/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/amendments/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/enterprises/amendments/page.tsx"
+          ]
         },
         {
           "id": "GET /enterprise-profile-amendments",
@@ -1929,17 +2394,34 @@
           "requestType": [],
           "responseType": "Items<ProfileAmendmentListItem>",
           "retainedLogic": [
-            "apps/web/src/app/admin/enterprises/amendments/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/amendments/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/enterprises/amendments/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -1949,8 +2431,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/screen.tsx",
       "exampleUrl": "/admin/enterprises",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.enterprises",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Hồ sơ đăng ký doanh nghiệp",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -1958,16 +2440,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/enterprise-onboarding.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1977,10 +2453,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/enterprises/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/enterprises/page.tsx"
+          ]
         },
         {
           "id": "GET /enterprise-enrollments",
@@ -1989,17 +2475,34 @@
           "requestType": [],
           "responseType": "Enrollment[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/enterprises/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/enterprises/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/enterprises/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -2009,25 +2512,20 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/inbox/screen.tsx",
       "exampleUrl": "/admin/inbox",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.inbox",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Hàng đợi quyết định",
       "roles": [
-        "SYSTEM_ADMIN"
+        "SYSTEM_ADMIN",
+        "PLATFORM_CASE_MANAGER"
       ],
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -2037,10 +2535,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/inbox/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/inbox/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/inbox/page.tsx"
+          ]
         },
         {
           "id": "GET /platform-admin/inbox",
@@ -2049,17 +2557,34 @@
           "requestType": [],
           "responseType": "RecordOf<Inbox>",
           "retainedLogic": [
-            "apps/web/src/app/admin/inbox/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/inbox/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/inbox/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -2069,8 +2594,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/inspectors/screen.tsx",
       "exampleUrl": "/admin/inspectors",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.inspectors",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Người kiểm định",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -2078,16 +2603,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
-        "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
         "apps/web/src/lib/permissions.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -2097,10 +2616,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/inspectors/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/inspectors/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/inspectors/page.tsx"
+          ]
         },
         {
           "id": "GET /compliance/assignments",
@@ -2109,10 +2638,21 @@
           "requestType": [],
           "responseType": "Assignment[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/inspectors/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/page.tsx"
+          ]
         },
         {
           "id": "GET /organizations",
@@ -2121,10 +2661,21 @@
           "requestType": [],
           "responseType": "Organization[]",
           "retainedLogic": [
-            "apps/web/src/components/workspace/admin-organizations.tsx"
+            "apps/web/src/features/ledger/screens/admin/inspectors/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/admin-organizations.tsx"
+          ]
         },
         {
           "id": "GET /users",
@@ -2133,17 +2684,34 @@
           "requestType": [],
           "responseType": "Account[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/compliance-assignments/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/inspectors/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/compliance-assignments/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -2549,8 +3117,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/organizations/new/screen.tsx",
       "exampleUrl": "/admin/organizations/new",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.organizations.new",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Tạo tổ chức kiểm định",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -2558,13 +3126,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -2574,10 +3139,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/organizations/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/organizations/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/organizations/new/page.tsx"
+          ]
         },
         {
           "id": "POST /organizations",
@@ -2588,17 +3163,34 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/organizations/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/organizations/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/organizations/new/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -2608,8 +3200,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/organizations/screen.tsx",
       "exampleUrl": "/admin/organizations",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.organizations",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Danh bạ tổ chức",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -2617,15 +3209,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -2635,10 +3222,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/organizations/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/organizations/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/organizations/page.tsx"
+          ]
         },
         {
           "id": "GET /organizations",
@@ -2647,17 +3244,34 @@
           "requestType": [],
           "responseType": "Organization[]",
           "retainedLogic": [
-            "apps/web/src/components/workspace/admin-organizations.tsx"
+            "apps/web/src/features/ledger/screens/admin/organizations/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/admin-organizations.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -2667,7 +3281,7 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/screen.tsx",
       "exampleUrl": "/admin",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin",
+      "scenarioId": "governance.registry",
       "readyHeading": "Tổng quan nền tảng",
       "roles": [
         "SYSTEM_ADMIN"
@@ -2676,15 +3290,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -2694,10 +3303,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/page.tsx"
+          ]
         },
         {
           "id": "GET /platform-admin/dashboard",
@@ -2706,17 +3325,34 @@
           "requestType": [],
           "responseType": "RecordOf<Dashboard>",
           "retainedLogic": [
-            "apps/web/src/app/admin/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -3202,14 +3838,20 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/roles/screen.tsx",
       "exampleUrl": "/admin/roles",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.roles",
-      "readyHeading": "Nhóm quyền",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Vai trò nền tảng",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
-      "retainedLogic": [],
+      "retainedLogic": [
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/auth-store.tsx",
+        "apps/web/src/lib/permissions.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
+      ],
       "actions": [
         {
           "id": "view",
@@ -3218,17 +3860,33 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/roles/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/roles/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/roles/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -3297,25 +3955,22 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/security/screen.tsx",
       "exampleUrl": "/admin/security",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.security",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Xác thực hai yếu tố",
       "roles": [
-        "SYSTEM_ADMIN"
+        "SYSTEM_ADMIN",
+        "PLATFORM_OPERATOR",
+        "PLATFORM_CASE_MANAGER",
+        "PLATFORM_PRIVACY_OFFICER"
       ],
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -3325,10 +3980,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/security/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/security/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/security/page.tsx"
+          ]
         },
         {
           "id": "GET /auth/mfa",
@@ -3337,10 +4002,21 @@
           "requestType": [],
           "responseType": "MfaStatus",
           "retainedLogic": [
-            "apps/web/src/app/admin/security/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/security/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/security/page.tsx"
+          ]
         },
         {
           "id": "POST /auth/mfa/disable",
@@ -3351,10 +4027,21 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/security/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/security/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/security/page.tsx"
+          ]
         },
         {
           "id": "POST /auth/mfa/enroll",
@@ -3365,10 +4052,21 @@
           ],
           "responseType": "Enrollment",
           "retainedLogic": [
-            "apps/web/src/app/admin/security/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/security/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/security/page.tsx"
+          ]
         },
         {
           "id": "POST /auth/mfa/recovery-codes",
@@ -3379,10 +4077,21 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/security/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/security/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/security/page.tsx"
+          ]
         },
         {
           "id": "POST /auth/mfa/verify",
@@ -3393,17 +4102,34 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/security/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/security/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/security/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -3413,8 +4139,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/settings/screen.tsx",
       "exampleUrl": "/admin/settings",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.settings",
-      "readyHeading": "Cài đặt",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Tham số hệ thống",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -3422,16 +4148,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -3441,10 +4161,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/settings/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/settings/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/settings/page.tsx"
+          ]
         },
         {
           "id": "GET /platform-admin/settings",
@@ -3453,10 +4183,21 @@
           "requestType": [],
           "responseType": "Items<Setting>",
           "retainedLogic": [
-            "apps/web/src/app/admin/settings/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/settings/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/settings/page.tsx"
+          ]
         },
         {
           "id": "POST `/platform-admin/settings/${encodeURIComponent(r.key)}`",
@@ -3469,17 +4210,34 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/settings/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/settings/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/settings/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -3796,10 +4554,10 @@
       "sourceFile": "apps/web/src/app/admin/users/[id]/page.tsx",
       "task": 6,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/users/[id]/screen.tsx",
-      "exampleUrl": "/admin/users/11111111-1111-4111-8111-111111111111",
+      "exampleUrl": "/admin/users/55555555-5555-4555-8555-555555555555",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.users.id",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Người vận hành kiểm thử",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -3807,17 +4565,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -3827,10 +4578,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/users/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/users/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/users/[id]/page.tsx"
+          ]
         },
         {
           "id": "GET /users",
@@ -3839,10 +4600,21 @@
           "requestType": [],
           "responseType": "Account[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/users/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/users/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/users/[id]/page.tsx"
+          ]
         },
         {
           "id": "PATCH `/users/${account.id}/status`",
@@ -3851,10 +4623,21 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/users/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/users/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/users/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/users/${account.id}/reset-password`",
@@ -3865,10 +4648,21 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/users/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/users/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/users/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/users/${account.id}/revoke-sessions`",
@@ -3877,10 +4671,21 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/users/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/users/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/users/[id]/page.tsx"
+          ]
         },
         {
           "id": "POST `/users/${account.id}/unlock`",
@@ -3889,17 +4694,34 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/users/[id]/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/users/[id]/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/users/[id]/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -3909,8 +4731,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/users/new/screen.tsx",
       "exampleUrl": "/admin/users/new",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.users.new",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Tạo tài khoản",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -3918,16 +4740,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
-        "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
         "apps/web/src/lib/permissions.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -3937,10 +4753,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/users/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/users/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/users/new/page.tsx"
+          ]
         },
         {
           "id": "GET /organizations",
@@ -3949,10 +4775,21 @@
           "requestType": [],
           "responseType": "AuditorOrg[]",
           "retainedLogic": [
-            "apps/web/src/app/admin/users/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/users/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/users/new/page.tsx"
+          ]
         },
         {
           "id": "POST /users",
@@ -3964,17 +4801,34 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/users/new/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/users/new/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/users/new/page.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
@@ -3984,8 +4838,8 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/users/screen.tsx",
       "exampleUrl": "/admin/users",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task6.admin.users",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "governance.registry",
+      "readyHeading": "Tài khoản nền tảng",
       "roles": [
         "SYSTEM_ADMIN"
       ],
@@ -3993,16 +4847,10 @@
       "scope": "current authorization scope; server filtered",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
-        "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
         "apps/web/src/lib/permissions.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -4012,10 +4860,20 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/users/page.tsx"
+            "apps/web/src/features/ledger/screens/admin/users/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance-routes.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/users/page.tsx"
+          ]
         },
         {
           "id": "GET /users",
@@ -4024,17 +4882,34 @@
           "requestType": [],
           "responseType": "Account[]",
           "retainedLogic": [
-            "apps/web/src/components/workspace/admin-users.tsx"
+            "apps/web/src/features/ledger/screens/admin/users/screen.tsx",
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-store.tsx",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-governance.spec.ts",
+            "tests/ledger/platform-governance-workflows.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/admin-users.tsx"
+          ]
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-governance.spec.ts",
+        "tests/ledger/platform-governance-routes.spec.ts",
+        "tests/ledger/platform-governance-workflows.spec.ts",
+        "tests/ledger/platform-governance-visual.spec.ts",
+        "src/lib/ledger/platform-approval-input.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
       }
     },
     {
