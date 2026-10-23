@@ -1,6 +1,6 @@
 # AgriTrace Ledger UI Migration — Design Spec
 
-Ngày chốt: 22/10/2026. Đây là bản ghi các yêu cầu người dùng đã thống nhất; không phải yêu cầu triển khai trong chat đã viết tài liệu.
+Ngày chốt yêu cầu: 22/10/2026. Điều chỉnh quy trình kiểm thử ngày 23/10/2026 theo yêu cầu người dùng để tăng tốc; giữ nguyên phạm vi UI và nghiệp vụ. Khi chỉ được yêu cầu sửa kế hoạch thì không tự triển khai code.
 
 ## 1. Mục tiêu và các quyết định đã chốt
 
@@ -15,11 +15,11 @@ Người dùng đã chọn **Next.js 16**, **toàn bộ web**, **không sửa pr
 | Nguồn | Đường dẫn / ref | Vai trò |
 |---|---|---|
 | Repository điều phối | `C:/Users/kieup/Desktop/agri-trace-blockchain` | Chứa plan/spec này; không dùng checkout hiện tại làm baseline |
-| Nhánh nghiệp vụ | `origin/feature/admin-console-processor` | Fetch ở thời điểm thực thi rồi ghi SHA |
-| SHA đã khảo sát | `e1415e91eaaa96aab7b12f9cb972b109296b5720` | Có 143 page route; không phải lời hứa remote sẽ đứng yên |
+| Nhánh nghiệp vụ | `origin/feature/admin-console-processor` | Task 1 đã fetch và chốt SHA `e1415e91eaaa96aab7b12f9cb972b109296b5720`; không đổi baseline khi tiếp tục |
+| SHA baseline đã chốt | `e1415e91eaaa96aab7b12f9cb972b109296b5720` | Có 143 page route; remote thay đổi sau snapshot không tự đổi phạm vi đợt này |
 | Checkout hiện tại khi lập plan | `feature/enterprise-registration-plans` tại `61fcbb3` | Có UI Studio Admin khác; giữ nguyên, không đưa vào migration |
 | UI/UX được chọn | `C:/Users/kieup/Desktop/Fe-clone-Agritrace/agritrace-admin-preview` | Preview của Claude, design system tên nội bộ “Ledger” |
-| Nhánh / workspace đích | `refactor/ledger-ui-migration` / `C:/Users/kieup/Desktop/agri-trace-ledger-ui` | Tạo khi bắt đầu thực thi bằng skill worktree |
+| Nhánh / workspace đang dùng | `refactor/ledger-ui-migration` / `C:/Users/kieup/.codex/worktrees/ledger-ui-migration/agri-trace-blockchain` | Đã tạo; tiếp tục ledger hiện có, không tạo lại |
 
 Không nhầm nguồn UI với `C:/Users/kieup/Desktop/FE-Clone_Agritrace` (dấu gạch dưới), `agritrace-ui-preview`, hoặc `agri-trace-admin-ui`. Không dùng các project đó làm tham chiếu thiết kế.
 
@@ -32,17 +32,17 @@ Danh mục file cụ thể, route, task sở hữu và hash nguồn nằm tại 
 ## 3. Global Constraints
 
 - Thay toàn bộ web; không bỏ bất kỳ chức năng hoặc URL hiện hành nào của baseline.
-- Nguồn nghiệp vụ duy nhất: origin/feature/admin-console-processor sau fetch; SHA đã khảo sát: e1415e91eaaa96aab7b12f9cb972b109296b5720.
+- Nguồn nghiệp vụ duy nhất: origin/feature/admin-console-processor sau fetch đã chốt tại Task 1: e1415e91eaaa96aab7b12f9cb972b109296b5720. Không đổi baseline giữa đợt triển khai.
 - Nguồn UI/UX duy nhất: C:/Users/kieup/Desktop/Fe-clone-Agritrace/agritrace-admin-preview, chỉ đọc.
 - Không sử dụng lại bố cục, cấu trúc trình bày, component giao diện, CSS, design token, navigation hoặc ảnh chụp của UI cũ, kể cả đổi tên file hay đổi màu.
-- Nhánh mới: refactor/ledger-ui-migration; worktree dự kiến: C:/Users/kieup/Desktop/agri-trace-ledger-ui; một writer cho mỗi checkout.
+- Nhánh đang dùng: refactor/ledger-ui-migration; worktree: C:/Users/kieup/.codex/worktrees/ledger-ui-migration/agri-trace-blockchain; một writer Native, giữ nguyên các task và thay đổi đang làm.
 - Không merge/cherry-pick nhánh feature/enterprise-registration-plans hoặc commit giao diện 61fcbb3 vào nhánh mới.
 - Next.js 16.4.2; React và React DOM 19.3.0; Tailwind CSS 4; giữ Node/npm theo engines của repository.
 - Backend NestJS, database, migration, API contract, Worker và chaincode giữ nguyên theo baseline.
 - Runtime thật dùng API thật; không nhập mock server, mock quyền, tài khoản demo hay dữ liệu giả từ preview.
 - Giữ auth/session, organization scope, allowedCommands, version, idempotency, recovery và chữ ký của baseline.
 - UI thiếu trong preview được xây mới trên nhánh đích bằng hệ Ledger; không dùng UI cũ làm fallback.
-- Native đã được người dùng chọn: một implementer tuần tự, TDD theo task, một reviewer độc lập toàn nhánh cuối cùng.
+- Native: một implementer tuần tự; TDD cho logic mới/đổi có rủi ro về quyền, dữ liệu, recovery và chữ ký; một reviewer độc lập toàn nhánh ở cuối. Quyết định giảm test ngày 23/10/2026 thay yêu cầu TDD máy móc từng bước/task trước đó.
 - Chỉ tạo commit local đúng phạm vi; không tự push, mở PR, merge hoặc deploy.
 - Không đọc/in secret; không commit memory, launch config, .codegraph, .claude, .codex, .superpowers scratch hoặc evidence local.
 
@@ -73,7 +73,7 @@ Kiểm tra provenance tự động ngăn import/copy nguyên bản hoặc phụ 
 
 ## 6. Coverage và hợp đồng bàn giao giữa task
 
-Ma trận thực thi phải có `route, sourceFile, targetScreen, task, exampleUrl, actorKey, scenarioId, readyHeading, actions, role/capability/scope, endpoint/method, request/response type, retainedLogic, tests, status`. Mỗi route có URL deep link đã điền ID/token fixture hợp lệ, actor/scenario và heading xác nhận screen đã tải. Baseline 143 route đã được chia chủ sở hữu trong inventory; không được kết luận đủ chỉ bằng số route hoặc HTTP 200.
+Ma trận giữ toàn bộ `route, sourceFile, targetScreen, task, exampleUrl, actions, role/capability/scope, endpoint/method, request/response type, retainedLogic, tests, status` và đường dẫn implementation/bằng chứng xác minh. Mọi route/action đều phải đối chiếu, không được bỏ chức năng để giảm test. `tests` có thể rỗng cho phần trình bày thuần túy đã source-review/visual; dùng `verification` ghi phương pháp, đường dẫn nguồn/implementation và kết quả thay vì ghi test không thực sự kiểm nhánh đó. Chỉ các route chọn kiểm browser mới cần `actorKey, scenarioId, readyHeading` và fixture hợp lệ; giữ metadata/test đã có, không bắt tạo 143 fixture hoặc browser heading tests. Dynamic URL vẫn cần ví dụ canonical đúng ID/token/query. Không kết luận đủ chỉ bằng số route hoặc HTTP 200.
 
 Inventory UI ghi hash cả page layout, bộ component và asset của preview. Kiểm hash khi thực thi; nếu preview đã đổi, đối chiếu đúng các file đổi và ghi delta trước khi đóng snapshot local. `legacyUi` là danh sách ứng viên từ metadata: hạ tầng React không tạo UI được xác nhận bằng AST có thể chuyển sang `retainedHeadless`, kèm lý do; không được miễn trừ renderer, CSS, navigation hay design token. Component trùng mã upstream chỉ được lấy từ path/hash preview đã đóng băng, có provenance và không giữ import/path UI cũ.
 
@@ -81,24 +81,27 @@ Inventory UI ghi hash cả page layout, bộ component và asset của preview. 
 
 Quyền sở hữu component đích dùng chung theo thứ tự thực thi: Task 9 tạo evidence-panel/evidence-pick/revision-history/image-gallery để phục vụ hồ sơ và các domain sau; Task 12 tạo partner-profile; Task 15 tạo lineage-panel trước Task 16 chế biến. Task tiêu thụ dùng lại component Ledger mới này, không port lặp và không lấy component từ UI cũ.
 
-Nếu SHA sau fetch khác SHA khảo sát: tạo lại inventory bằng metadata/AST đã lọc render, cập nhật các khác biệt hợp đồng và task bị ảnh hưởng trong ledger. Không lấy thiếu sót của inventory cũ làm lý do bỏ tính năng.
+Task 1 đã xử lý việc fetch, so SHA và đóng inventory/snapshot. Không lặp bước đó khi tiếp tục; nếu phát hiện nghĩa vụ baseline bị thiếu thì bổ sung matrix bằng metadata/AST đã lọc render và ghi task bị ảnh hưởng. Việc chuyển sang baseline mới cần yêu cầu riêng, không lấy thay đổi remote làm lý do reset các task đã làm.
 
 Mỗi domain chỉ là một đợt chuyển đổi, không phải một sản phẩm độc lập. Shared UI, auth, adapter và quyền dùng chung nên triển khai Native tuần tự; không chia nhiều writer vào cùng checkout.
 
 ## 7. Kiểm thử và điều kiện hoàn tất
 
-- TDD cho hành vi mới/rủi ro: quan sát RED đúng lý do, thay đổi tối thiểu, GREEN, commit. Không viết test chỉ để lặp lại màu/class hoặc làm đẹp số lượng test.
-- Smoke/contract browser dùng interception có type, chặn mọi API request ngoài fixture; **không** xem đó là bằng chứng API/Fabric thật.
-- Dùng harness backend/DB/Fabric cách ly hiện có của repo cho live workflow. Chỉ một heavy job local mỗi lúc. Không dùng stack demo hoặc tài khoản production để ghi kiểm thử.
-- Kiểm 320, 390, 768, 1440 px; sáng/tối; VI/EN; keyboard/focus/Escape/reduced-motion; tên/hash dài; lỗi/mạng chậm/empty; toàn bộ route và deep link.
-- Giữ nguyên các test và assertions nghiệp vụ; chỉ đổi selector/render assertions cần cho Ledger. Không skip test, nới authorization, ép kiểu hoặc đổi backend để làm xanh.
-- Chạy `npm run check --workspace apps/web`, các browser tests mới, harness nghiệp vụ hiện có và Docker standalone. Nêu rõ checks chưa chạy hoặc prerequisite thiếu; không gọi mock/skip là nghiệm thu runtime.
-- Final gate phải không còn legacy renderer/CSS đang được giữ hoặc import, không có fallback UI cũ, không có dữ liệu mock runtime, và không đổi các đường dẫn protected trong inventory.
-- Giữ warnings thu hồi/hết hạn/toàn vẹn độc lập với proof; `VERIFIED` không có nghĩa được chứng nhận chất lượng. Camera không tự bật; input QR chỉ điều hướng trace hợp lệ cùng origin.
-- Signer dùng cơ chế khóa và ký baseline; không xuất private key hoặc fallback sang unsigned khi chữ ký không tạo được.
+Chính sách dưới đây thay quy trình test chi tiết cũ theo yêu cầu người dùng ngày 23/10/2026; xem mục 4 và 7 của [plan](../plans/2026-10-22-ledger-ui-migration.md) để có lệnh và tiêu chí thực thi.
+
+- TDD chỉ cho logic mới/đổi về quyền/scope, riêng tư, validation/payload, version/idempotency/recovery, chữ ký, quantity/custody và QR điều hướng. Tái dùng test hiện có; không buộc RED→GREEN cho copy UI, CSS, labels, wrappers hoặc bảng đọc không đổi hành vi.
+- Chọn khoảng 1–3 workflow browser có giá trị mỗi domain, thêm khi còn rủi ro khác chưa được bảo vệ; không bắt test riêng cho từng route/action hay tích Descartes role/viewport/theme/locale. Source-review/matrix vẫn phải bao phủ toàn bộ chức năng.
+- Test hiện có giữ assertions nghiệp vụ; chỉ sửa selector/render khi cần cho Ledger. Không thêm skip, nới quyền, sửa expected sai hoặc đổi backend để xanh. Không xóa các test đã hoàn thành chỉ để giảm số lượng.
+- Browser interception có type, đúng contract và chặn API ngoài fixture/page errors; fixture không vào runtime. Không xem đó là evidence API/Fabric thật.
+- Sau mỗi task: một typecheck và subset test dependency bị ảnh hưởng; không chạy lại full Vitest/browser/lint/build/Docker hoặc check lần hai chỉ để đánh dấu task xong.
+- Tại Task 18 chạy một lần web check, lint source, toàn bộ Ledger contract browser, provenance/scope/runtime gates và Docker standalone smoke cách ly. Chỉ chạy lại gate bị ảnh hưởng sau sửa lỗi; không chạy root monorepo check cho port UI.
+- Harness live/backend/DB/Fabric chỉ cần khi đổi đường gọi auth/command/signature/invariant chưa có kiểm chứng thích hợp hoặc phát hiện bất nhất. Không chạy toàn harness cho thay đổi trình bày; ghi rõ phần không áp dụng và phần còn thiếu evidence cần thiết, không dùng mock/skip thay runtime. Không dùng production hoặc demo stack để ghi thử.
+- Visual theo màn/layout đại diện, ưu tiên 1440/390 px, spot-check 320/768 khi layout cần; mẫu sáng-VI/tối-EN và một flow keyboard/focus/Escape/reduced-motion. Không chụp lại mọi trang hoặc mọi tổ hợp; dùng evidence cũ còn đúng code.
+- Final gate: không còn legacy renderer/CSS/import/fallback, không có mock runtime, không đổi protected paths; đủ 143 URL và mọi action baseline có implementation cùng bằng chứng phù hợp. Một reviewer agritrace-reviewer độc lập kiểm toàn nhánh ở cuối.
+- Giữ recall/expiry/integrity warnings độc lập với proof; VERIFIED không phải chứng nhận chất lượng. Camera chỉ bật khi có consent; QR chỉ điều hướng trace hợp lệ cùng origin. Signer giữ key/signature baseline, không xuất private key hoặc fallback unsigned.
 
 ## 8. Kết thúc và giới hạn quyền
 
-Người dùng đã chọn Native nhưng chat hiện tại chỉ viết kế hoạch. Khi được yêu cầu thực thi ở chat mới, dùng `superpowers:executing-plans`; kiểm ledger trước để tránh làm lại task đã commit. Một reviewer fresh-context dùng role `agritrace-reviewer` ở cuối; nếu client không có role này, dùng agent thường với hướng dẫn reviewer repo và nói rõ fallback.
+Người dùng đã chọn Native; Tasks 1–6 đã hoàn thành và Task 7 đang làm. Khi được yêu cầu triển khai tiếp, kiểm Git và ledger hiện có trước, giữ thay đổi đang làm, không làm lại task đã commit. Dùng các skill Superpowers còn khả dụng theo plan; chính sách giảm test mới được ưu tiên, không dừng để cài plugin nếu thiếu. Khi chỉ sửa kế hoạch thì không tự tiếp tục implementation. Một reviewer fresh-context dùng role `agritrace-reviewer` ở cuối; nếu client không có role này, dùng agent thường với hướng dẫn reviewer repo và nói rõ fallback.
 
 Chưa được yêu cầu push, tạo PR, merge, deploy, sửa nguồn preview hoặc dọn/xóa worktree khác. Giữ nhánh và worktree đích để người dùng xem. Artifacts/ledger/ảnh/log là local và phải được ignore; plan/spec/inventory là tài liệu kỹ thuật có thể commit trên nhánh đích.
