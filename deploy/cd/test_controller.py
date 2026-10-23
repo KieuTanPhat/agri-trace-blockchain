@@ -23,7 +23,7 @@ class DomainDelivery(unittest.TestCase):
         self.base = Path(temporary.name)
         env = self.base / ".env"
         env.write_text("PUBLIC_ORIGIN=https://agritrace.dev\n"
-                       "CORS_ORIGINS=https://agritrace.dev,https://www.agritrace.dev\n")
+                       "CORS_ORIGINS=https://agritrace.dev,https://www.agritrace.dev,https://nongtrace.site\n")
         (self.base / "accounts.json").write_text("[]")
         self.controller = build(Controller, hosted_config(self.base, env))
         self.record = {"id": "prod-" + SHA_B, "directory": str(self.base / "new"),
@@ -36,7 +36,7 @@ class DomainDelivery(unittest.TestCase):
         command = self.controller.dc(self.record, "config")
         values = self.environment(self.record)
         self.assertEqual(values["PUBLIC_ORIGIN"], "https://agritrace.dev")
-        self.assertEqual(values["CORS_ORIGINS"], "https://agritrace.dev,https://www.agritrace.dev")
+        self.assertEqual(values["CORS_ORIGINS"], "https://agritrace.dev,https://www.agritrace.dev,https://nongtrace.site")
         self.assertEqual((values["API_IMAGE"], values["WEB_IMAGE"]), ("api:new", "web:new"))
         self.assertEqual((values["DEPLOY_ENV"], values["UPSTREAM_PREFIX"]), ("production", "prod"))
         self.assertEqual(values["INGRESS_NETWORK"], "agritrace-prod-ingress")
@@ -258,21 +258,31 @@ class DomainDelivery(unittest.TestCase):
         with patch.object(module.time, "monotonic", side_effect=[0, 1, 181]), \
                 patch.object(module.time, "sleep"), \
                 patch.object(module.urllib.request, "urlopen", side_effect=[self.response(), OSError("TLS failure")]) as request:
-            with self.assertRaisesRegex(PolicyError, "apex and www"):
+            with self.assertRaisesRegex(PolicyError, "all configured origins"):
                 self.controller.start(self.record)
         self.assertEqual(self.controller.phase, "public-https-readiness")
         self.assertEqual([call.args[0] for call in request.call_args_list],
                          ["https://agritrace.dev/login", "https://www.agritrace.dev/login"])
 
-    def test_both_https_routes_must_succeed_before_returning_ready(self):
+    def test_all_https_routes_must_succeed_before_returning_ready(self):
         self.controller.run = MagicMock(return_value=b"")
         with patch.object(module.time, "monotonic", side_effect=[0, 1, 2]), \
                 patch.object(module.time, "sleep") as sleep, \
                 patch.object(module.urllib.request, "urlopen",
-                             side_effect=[self.response(), OSError("not yet ready"), self.response(), self.response()]) as request:
+                             side_effect=[self.response(), OSError("not yet ready"), self.response(), self.response(), self.response()]) as request:
             self.controller.start(self.record)
-        self.assertEqual(request.call_count, 4)
+        self.assertEqual(request.call_count, 5)
         sleep.assert_called_once_with(5)
+
+    def test_business_tls_failure_blocks_release(self):
+        self.controller.run = MagicMock(return_value=b"")
+        with patch.object(module.time, "monotonic", side_effect=[0, 1, 181]), \
+                patch.object(module.time, "sleep"), \
+                patch.object(module.urllib.request, "urlopen", side_effect=[self.response(), self.response(), OSError("TLS failure")]) as request:
+            with self.assertRaisesRegex(PolicyError, "all configured origins"):
+                self.controller.start(self.record)
+        self.assertEqual(request.call_args_list[-1].args[0], "https://nongtrace.site/login")
+        self.assertEqual(self.controller.phase, "public-https-readiness")
 
     def test_application_start_never_touches_the_shared_edge_proxy(self):
         self.controller.run = MagicMock(return_value=b"")
@@ -425,7 +435,7 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.base = Path(self.temp.name)
         (self.base / "cd").mkdir()
         env = self.base / ".env"
-        env.write_text("PUBLIC_ORIGIN=https://agritrace.dev\nCORS_ORIGINS=https://agritrace.dev,https://www.agritrace.dev\n")
+        env.write_text("PUBLIC_ORIGIN=https://agritrace.dev\nCORS_ORIGINS=https://agritrace.dev,https://www.agritrace.dev,https://nongtrace.site\n")
         self.controller = build(Rehearsal, hosted_config(self.base, env))
         self.old = {"id": "prod-" + "a" * 40, "sha": "a" * 40, "directory": str(self.base / "old"), "verified": True,
                     "manifest": {"chaincode": "c" * 64, "api": "api:old", "web": "web:old", "files": {}, "migrations": {"20260101_init": "a" * 64}}}

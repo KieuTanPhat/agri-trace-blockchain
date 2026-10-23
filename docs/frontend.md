@@ -108,6 +108,37 @@ giữ request ID/body khi thử lại kết quả chưa rõ, chỉ gửi contact
 payload riêng vào localStorage. Service worker chỉ lưu trang giải thích offline, không
 cache trang nghiệp vụ/tài khoản/API. Camera thật/PWA cần thiết bị và HTTPS theo AGT-028.
 
+## Tách domain khách hàng và doanh nghiệp
+
+Build web với `NEXT_PUBLIC_BUSINESS_ORIGIN=https://nongtrace.site` và
+`NEXT_PUBLIC_CUSTOMER_ORIGIN=https://agritrace.dev`. Hai biến phải cùng có giá trị,
+là origin HTTPS khác nhau, không chứa path/query/credentials. Để trống cả hai
+giữ chế độ một hostname cho development/rehearsal. Dockerfile nhận hai build arg
+cùng tên; publisher production truyền hai origin này, chưa có thao tác deploy.
+
+`src/proxy.ts` chuyển GET/HEAD của login/register/join-organization và các trang
+quản lý trên domain khách hàng sang domain doanh nghiệp, giữ path/query. Root
+doanh nghiệp vào `/login`; `/scan` và `/trace/...` quay về domain khách hàng.
+API, assets và trang pháp lý giữ origin hiện tại. API browser dùng `/api` khi
+tách domain; cookie/token không chuyển giữa hai domain. Host lạ không được dùng
+để tạo đích redirect. `next` sau đăng nhập vẫn qua kiểm quyền và chống open redirect.
+
+Nút đăng nhập/đăng ký ở trang khách hàng đi thẳng sang doanh nghiệp; link quay
+về trang khách hàng và QR tạo từ màn lô/in tem dùng customer origin. Giữ
+`PUBLIC_TRACE_BASE_URL=https://agritrace.dev/trace` của API để QR/API đã phát hành
+và QR mới cùng dùng domain khách hàng. Không đổi token hoặc dữ liệu lô.
+
+Kiểm local hai hostname bằng cặp `http://nongtrace.localhost:<port>` và
+`http://agritrace.localhost:<port>`, reverse proxy cả hai tới cùng web candidate
+và `/api` tới API local có `CORS_ORIGIN` chứa đủ hai origin. Không dùng tài khoản
+production; không cần sửa hosts/DNS thật.
+
+Trước cutover production, hoàn tất các command đang chưa rõ kết quả trên origin
+cũ bằng body/key gốc. Session, bản nháp/recovery và khóa ký IndexedDB là dữ liệu
+theo origin, không tự chuyển sang domain mới. Khóa riêng không extractable không
+được xuất/chuyển qua URL; người ký cần đăng ký khóa thiết bị trên origin mới theo
+quyền hiện hành trước khi sử dụng. Domain mới yêu cầu đăng nhập lại.
+
 ## Kiểm tra
 
 `npm run check --workspace apps/web` gồm typecheck, Vitest, lint-contract, image-optimizer

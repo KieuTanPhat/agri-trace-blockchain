@@ -32,7 +32,7 @@ def health():
     deadline = time.monotonic() + 180
     while time.monotonic() < deadline:
         try:
-            for origin in ("https://agritrace.dev", "https://www.agritrace.dev"):
+            for origin in ("https://agritrace.dev", "https://www.agritrace.dev", "https://nongtrace.site"):
                 with urllib.request.urlopen(origin + "/api/health", timeout=10) as response:
                     if response.status != 200:
                         raise RuntimeError("Production health failed after Edge change")

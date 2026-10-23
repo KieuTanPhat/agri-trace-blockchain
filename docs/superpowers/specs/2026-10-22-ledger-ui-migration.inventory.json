@@ -3112,8 +3112,11 @@
       "target": "apps/web/src/features/ledger/screens/login/screen.tsx",
       "source": "src/app/login/page.tsx",
       "sourceSha256": "89311d1c0580ea9241286d00ec0ed7bfa0e94ed21278b773b2625967018ee395",
-      "targetSha256": "4efcfe231f439d8948d88e3f167b3bd46f3a1c6a46ad3c93129486daf242c941",
-      "adaptation": "Ledger auth presentation; baseline session/MFA/password policy and API, without preview accounts."
+      "targetSha256": "73dff5db72be5557d128120599d349ad186abaa2b2953a9682f622ddd322608b",
+      "adaptation": "Ledger auth presentation; baseline session/MFA/password policy and API, without preview accounts.",
+      "adaptations": [
+        "Approved domain split: business auth/workspace at nongtrace.site; customer/scan/QR remain at agritrace.dev. Presentation unchanged."
+      ]
     },
     {
       "target": "apps/web/src/features/ledger/screens/account/password/screen.tsx",
@@ -3461,7 +3464,10 @@
       "target": "apps/web/src/features/ledger/workspace/lots.tsx",
       "source": "src/app/(workspace)/w/lots/page.tsx",
       "sourceSha256": "8dea3ffe34ce1a70f522fd011b9630991432d928f8b9215e6d24f7708aa97aba",
-      "targetSha256": "cf2fc82c77d9104136317f73a87892ad8417f1098d1942897ca1628b3b56496b"
+      "targetSha256": "98ddc6d16efdf8987dc4280592db0617c4cf1198c428ed20f1797731104a1e9f",
+      "adaptations": [
+        "Approved domain split: business auth/workspace at nongtrace.site; customer/scan/QR remain at agritrace.dev. Presentation unchanged."
+      ]
     },
     {
       "target": "apps/web/src/features/ledger/workspace/inventory.tsx",
@@ -3482,7 +3488,10 @@
       "target": "apps/web/src/features/ledger/workspace/qr.tsx",
       "source": "src/app/(workspace)/w/qr/page.tsx",
       "sourceSha256": "71b081dfb056cdf50dcf348fd3b439ed18385989f9ed8c1d3415aa70f16208f4",
-      "targetSha256": "0315173765a88648766b14b38ba6c4554befa07e402656194c53bcbd2a28ea11"
+      "targetSha256": "b0e9907b4f8b67208fa7fb1bb56539e43e94e0a4ce60455a59281e6586925940",
+      "adaptations": [
+        "Approved domain split: business auth/workspace at nongtrace.site; customer/scan/QR remain at agritrace.dev. Presentation unchanged."
+      ]
     },
     {
       "target": "apps/web/src/components/ledger/workspace/lineage-panel.tsx",

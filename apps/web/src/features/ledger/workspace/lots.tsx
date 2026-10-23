@@ -1,4 +1,6 @@
 "use client";
+import { publicTraceUrl } from "@/lib/site-origins";
+
 
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -354,4 +356,4 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
   );
 }
 
-function LotQr({token}:{token:string}){const path=getTracePath(token),url=path?`${typeof window==="undefined"?"":window.location.origin}${path}`:"",matrix=useMemo(()=>url?createQrMatrix(url):[],[url]),d=createQrSvgPath(matrix),n=matrix.length+8;const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n} ${n}"><rect width="100%" height="100%" fill="white"/><path d="${d}" transform="translate(4 4)" fill="black"/></svg>`;if(!path)return null;return <section className="flex flex-col items-start gap-2"><h3 className="text-sm font-semibold">{tr("Mã QR truy xuất")}</h3><svg role="img" aria-label={tr("Mã QR truy xuất")} viewBox={`0 0 ${n} ${n}`} className="size-36 bg-white"><path fill="black" d={d} transform="translate(4 4)"/></svg><a href={path} className="break-all text-sm text-brand underline">{url}</a><Button size="sm" variant="outline" onClick={()=>{const blob=new Blob([svg],{type:"image/svg+xml"}),local=URL.createObjectURL(blob),a=document.createElement("a");a.href=local;a.download="agritrace-qr.svg";a.click();setTimeout(()=>URL.revokeObjectURL(local),1000);}}>{tr("Tải QR")}</Button></section>;}
+function LotQr({token}:{token:string}){const path=getTracePath(token),url=path?publicTraceUrl(token,typeof window==="undefined"?"":window.location.origin):"",matrix=useMemo(()=>url?createQrMatrix(url):[],[url]),d=createQrSvgPath(matrix),n=matrix.length+8;const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n} ${n}"><rect width="100%" height="100%" fill="white"/><path d="${d}" transform="translate(4 4)" fill="black"/></svg>`;if(!path)return null;return <section className="flex flex-col items-start gap-2"><h3 className="text-sm font-semibold">{tr("Mã QR truy xuất")}</h3><svg role="img" aria-label={tr("Mã QR truy xuất")} viewBox={`0 0 ${n} ${n}`} className="size-36 bg-white"><path fill="black" d={d} transform="translate(4 4)"/></svg><a href={url} className="break-all text-sm text-brand underline">{url}</a><Button size="sm" variant="outline" onClick={()=>{const blob=new Blob([svg],{type:"image/svg+xml"}),local=URL.createObjectURL(blob),a=document.createElement("a");a.href=local;a.download="agritrace-qr.svg";a.click();setTimeout(()=>URL.revokeObjectURL(local),1000);}}>{tr("Tải QR")}</Button></section>;}

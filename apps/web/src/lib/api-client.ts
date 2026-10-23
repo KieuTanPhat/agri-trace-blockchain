@@ -38,7 +38,7 @@ const PUBLIC_API_BASE_URL =
 const API_BASE_URL =
   typeof window === "undefined"
     ? (process.env.API_INTERNAL_BASE_URL ?? PUBLIC_API_BASE_URL)
-    : process.env.NEXT_PUBLIC_API_SAME_ORIGIN === "true"
+    : process.env.NEXT_PUBLIC_API_SAME_ORIGIN === "true" || !!process.env.NEXT_PUBLIC_BUSINESS_ORIGIN
       ? "/api"
       : PUBLIC_API_BASE_URL;
 export const AUTH_STORAGE_KEY = "agritrace-auth"; // Legacy key, removed on startup.

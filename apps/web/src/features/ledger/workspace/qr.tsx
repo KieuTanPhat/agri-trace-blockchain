@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {useLedgerQuery as useQuery} from "@/lib/ledger/data";
+import { publicTraceUrl } from "@/lib/site-origins";
 import QRCode from "qrcode";
 import { z } from "zod";
 import { Printer } from "lucide-react";
@@ -19,7 +20,7 @@ import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } fr
 import { Badge } from "@/components/ledger/kit/status";
 
 type Printed = Awaited<ReturnType<typeof distApi.printLabels>>;
-const traceUrl = (token: string) => `${typeof window === "undefined" ? "" : window.location.origin}/trace/${encodeURIComponent(token)}`;
+const traceUrl = (token: string) => publicTraceUrl(token, typeof window === "undefined" ? "" : window.location.origin);
 
 export default function QrLabelsPage() {
   const { can } = useWorkspaceAccess();

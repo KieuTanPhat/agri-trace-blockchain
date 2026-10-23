@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
+import { customerHref } from "@/lib/site-origins";
 import { useAuth } from "@/lib/auth-store";
 import { getLedgerError } from "@/lib/ledger/errors";
 import { ledgerLoginDestination } from "@/lib/ledger/session-navigation";
@@ -136,7 +137,7 @@ export default function LedgerScreen({ route }: LedgerScreenProps) {
             )}
           </p>
         </form>
-        <Link href="/scan" className="text-[12px] text-brand hover:underline">
+        <Link href={customerHref("/scan")} className="text-[12px] text-brand hover:underline">
           {t("Tra cứu nguồn gốc bằng QR")}
         </Link>
       </div>
@@ -153,7 +154,7 @@ export default function LedgerScreen({ route }: LedgerScreenProps) {
               <Link href="/register">{t("Đăng ký doanh nghiệp")}</Link>
             </Button>
             <Button asChild variant="ghost">
-              <Link href="/">{t("Tìm hiểu AgriTrace")}</Link>
+              <Link href={customerHref("/")}>{t("Tìm hiểu AgriTrace")}</Link>
             </Button>
           </div>
         </div>

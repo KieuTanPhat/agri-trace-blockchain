@@ -352,7 +352,7 @@ class Controller:
                     return
                 except Exception:
                     time.sleep(5)
-            require(False, "Public HTTPS routes did not become ready for apex and www")
+            require(False, "Public HTTPS routes did not become ready for all configured origins")
 
     def stop(self, record):
         self.run("stop-writers", self.dc(record, "stop", "api", "worker"), timeout=200)

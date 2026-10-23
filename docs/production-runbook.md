@@ -23,6 +23,19 @@ runbook của controller cũ đã bị gỡ khỏi source; lịch sử nằm tro
 
 Edge chuyển HTTP trên địa chỉ IP sang HTTPS `agritrace.dev` bằng 308, giữ nguyên
 path/query. Không phục vụ form đăng nhập qua HTTP. Kiểm route này sau reload.
+
+Cấu hình tách domain đã chuẩn bị: `nongtrace.site` phục vụ login/register và
+khu vực quản lý; `agritrace.dev` giữ trang khách hàng/scan/trace. Khi rollout được
+ủy quyền, `CORS_ORIGINS` của application phải chứa `https://nongtrace.site` cùng
+các origin khách hàng hiện có; API vẫn đi qua `/api` trên từng hostname. Giữ
+`PUBLIC_ORIGIN=https://agritrace.dev` và public trace base trên `agritrace.dev`.
+Publisher truyền cặp build arg BUSINESS/CUSTOMER của frontend; xem frontend guide
+về xử lý command chưa rõ kết quả và khóa ký theo origin trước cutover. Kiểm health
+cả ba origin trong Edge helper và login/refresh/logout thực trên domain mới.
+Policy `https_origins` giữ allowlist cụ thể của production gồm ba origin này;
+controller đang cài phải được cập nhật bằng quy trình digest đã review trước
+cutover, cùng file môi trường private. Không đổi `PUBLIC_ORIGIN` sang domain doanh nghiệp.
+Thay đổi này chưa tự cấp quyền reload Edge, cập nhật DNS, publish image hay deploy.
 `deploy/edge/admin.py` có ba thao tác: `prepare` (kiểm file môi trường Edge đã duyệt và hai
 volume chứng chỉ có sẵn, cập nhật compose/Caddyfile, validate), `start` và `reload`. Hai volume
 Caddy mang tên lịch sử `agri-trace-uat_caddy-data` và `agri-trace-uat_caddy-config` đang giữ chứng
