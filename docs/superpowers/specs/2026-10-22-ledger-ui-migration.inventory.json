@@ -3447,6 +3447,12 @@
       "source": "src/components/workspace/lineage-panel.tsx",
       "sourceSha256": "c73604ff230f082a5497e1a00552ed2c3c71dca76791534462b603410ac14d17",
       "targetSha256": "b722cbb72affdb40bb00a57fd56ff11b9da4044d54fe18dde86de3dd4334818d"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/processing.tsx",
+      "source": "src/app/(workspace)/w/processing/page.tsx",
+      "sourceSha256": "9202873cd72e1ef4f2a26d47d754a65f98b37204dab4aa470eebc0e6a338c8fb",
+      "targetSha256": "9c9df9edf473ae0d28e17770e579e2edb72e60c31378a3359b7c62087ef7f84e"
     }
   ],
   "newLedgerComposition": [
@@ -4077,6 +4083,22 @@
     {
       "target": "apps/web/src/features/ledger/screens/lots/screen.tsx",
       "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/processing/[id]/screen.tsx",
+      "basis": "Task16 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/processing/conversions/screen.tsx",
+      "basis": "Task16 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/processing/new/screen.tsx",
+      "basis": "Task16 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/processing/screen.tsx",
+      "basis": "Task16 Ledger canonical wrapper composition."
     }
   ]
 }
