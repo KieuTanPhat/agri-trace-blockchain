@@ -36,6 +36,21 @@ describe("TraceEvent validation", () => {
     );
   });
 
+  it("accepts persisted legacy CYCLE evidence events without changing their tuple", () => {
+    const input = validInput({
+      entityType: "CYCLE",
+      eventType: "EVIDENCE_ATTACHED",
+    });
+    expect(parseTraceEventInput(JSON.stringify(input))).toEqual(input);
+  });
+
+  it("requires cycle context for persisted legacy CYCLE events", () => {
+    const input = validInput({ entityType: "CYCLE", cycleId: undefined });
+    expect(() => parseTraceEventInput(JSON.stringify(input))).toThrow(
+      "requires cycleId",
+    );
+  });
+
   it("supports every event currently emitted by the API", () => {
     expect(EVENT_TYPES).toEqual(expect.arrayContaining(apiEventTypes));
   });

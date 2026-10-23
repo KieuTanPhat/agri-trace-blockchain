@@ -348,11 +348,16 @@ Chủ dự án đã cho phép dùng production và VPS doanh nghiệp để nghi
 [quy trình production hai máy](production-runbook.md#nghiệm-thu-peer-doanh-nghiệp-trên-vps-thứ-hai).
 Các lệnh pilot ở dưới chỉ dành cho demo cách ly, không thay quy trình đó.
 
-Doanh nghiệp mở `/register`, chọn hoạt động chính và chế độ peer. Đăng ký tạo
-account, tổ chức và receipt atomically, chưa cấp quyền nghiệp vụ. Đại diện đăng
-nhập vào `/enterprise`; SYSTEM_ADMIN xét duyệt ở `/admin/enterprises`. Duyệt hồ
-sơ cấp capability hoạt động, ORG_ADMIN và CREATE_CHAIN; các write vẫn cần quyền
-đúng scope. Đại diện tạo chuỗi rồi gửi yêu cầu kết nối. Chế độ managed không nhận
+Doanh nghiệp mở `/register`, hoàn thiện hồ sơ và xác thực OTP email trước khi
+gửi. Đăng ký tạo account, tổ chức và receipt atomically, chưa cấp quyền nghiệp
+vụ. Đại diện theo dõi ở `/enterprise/onboarding`; SYSTEM_ADMIN xét duyệt ở
+`/admin/enterprises`. Hồ sơ mới được duyệt nhận email để chọn gói/mô hình peer,
+xem hợp đồng và hoàn tất thanh toán mô phỏng local ở `/enterprise/service`.
+Settlement cấp capability hoạt động, ORG_ADMIN và CREATE_CHAIN trong cùng
+transaction với journal/email outbox; hồ sơ lịch sử giữ chính sách cũ. Chưa có
+cổng thanh toán thật hoặc nghiệm thu hợp đồng thương mại. Các write vẫn cần
+quyền đúng scope. Đại diện tạo chuỗi rồi gửi yêu cầu tại `/enterprise/connections`.
+Chế độ managed không nhận
 cấu hình peer từ doanh nghiệp. Chế độ self chỉ nhận endpoint, tên TLS, MSP và CA
 công khai. Không gửi SSH credentials, CA/admin/signing private key lên web.
 
@@ -506,3 +511,20 @@ tra cùng host, không đóng acceptance TLS/WAN hoặc cấu hình VPS tối th
 
 Tài liệu Fabric gốc: [Fabric CA identity attributes](https://hyperledger-fabric-ca.readthedocs.io/en/latest/users-guide.html#attribute-based-access-control)
 và [chaincode as an external service](https://hyperledger-fabric.readthedocs.io/en/release-2.5/cc_service.html).
+
+## Hạn chứng thư và rủi ro thu hồi nhầm (chỉ đọc trên bảng vận hành)
+
+Trang `/admin/operations`, tab "Chứng thư & khóa ký", chỉ cảnh báo; không có nút thu
+hồi hay thay chứng thư. Quy trình xử lý thuộc operator:
+
+- Cảnh báo ≤ 30/14/7 ngày dựa trên lần kiểm tra gần nhất của Worker; một kết nối
+  Worker không kiểm tra được (`stale`/`unknownExpiry`) cần kiểm tra thủ công, đừng
+  suy ra là còn hạn.
+- **Không thu hồi chứng thư admin của kênh (channel/MSP admin) theo cảnh báo hạn.**
+  Thu hồi nhầm có thể khóa mọi thay đổi cấu hình kênh và cần khôi phục ngoài hệ
+  thống. Trước khi thu hồi hoặc thay: xác định rõ định danh (Worker relayer hay admin
+  kênh), có chứng thư thay thế đã được duyệt và kiểm chứng trên kênh cách ly, rồi
+  mới thu hồi bản cũ; giữ nguyên lịch sử thu hồi.
+- Thu hồi khóa ký (`SIGNING_KEY_REVOKE`) đi qua job điều khiển sổ cái; theo dõi job
+  lỗi ở tab "Tác vụ điều khiển sổ cái" và không tạo yêu cầu mới thay cho kết quả
+  chưa rõ.

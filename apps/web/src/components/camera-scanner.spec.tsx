@@ -7,7 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { CameraScanner } from "./camera-scanner";
+import { CameraScanner } from "./ledger/camera-scanner";
 
 const { decode } = vi.hoisted(() => ({ decode: vi.fn() }));
 vi.mock("jsqr", () => ({ default: decode }));

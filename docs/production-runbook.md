@@ -23,6 +23,19 @@ runbook của controller cũ đã bị gỡ khỏi source; lịch sử nằm tro
 
 Edge chuyển HTTP trên địa chỉ IP sang HTTPS `agritrace.dev` bằng 308, giữ nguyên
 path/query. Không phục vụ form đăng nhập qua HTTP. Kiểm route này sau reload.
+
+Cấu hình tách domain đã chuẩn bị: `nongtrace.site` phục vụ login/register và
+khu vực quản lý; `agritrace.dev` giữ trang khách hàng/scan/trace. Khi rollout được
+ủy quyền, `CORS_ORIGINS` của application phải chứa `https://nongtrace.site` cùng
+các origin khách hàng hiện có; API vẫn đi qua `/api` trên từng hostname. Giữ
+`PUBLIC_ORIGIN=https://agritrace.dev` và public trace base trên `agritrace.dev`.
+Publisher truyền cặp build arg BUSINESS/CUSTOMER của frontend; xem frontend guide
+về xử lý command chưa rõ kết quả và khóa ký theo origin trước cutover. Kiểm health
+cả ba origin trong Edge helper và login/refresh/logout thực trên domain mới.
+Policy `https_origins` giữ allowlist cụ thể của production gồm ba origin này;
+controller đang cài phải được cập nhật bằng quy trình digest đã review trước
+cutover, cùng file môi trường private. Không đổi `PUBLIC_ORIGIN` sang domain doanh nghiệp.
+Thay đổi này chưa tự cấp quyền reload Edge, cập nhật DNS, publish image hay deploy.
 `deploy/edge/admin.py` có ba thao tác: `prepare` (kiểm file môi trường Edge đã duyệt và hai
 volume chứng chỉ có sẵn, cập nhật compose/Caddyfile, validate), `start` và `reload`. Hai volume
 Caddy mang tên lịch sử `agri-trace-uat_caddy-data` và `agri-trace-uat_caddy-config` đang giữ chứng
@@ -123,6 +136,37 @@ sudo python3 deploy/cd/install-target.py restore-controller --environment produc
 Chỉ merge PR đổi controller sau khi bước cập nhật hoàn tất; bản đang chạy vẫn tiếp tục phục vụ trong lúc cập nhật.
 
 ## Recovery, tài nguyên và bàn giao
+
+### Xoay khóa mã hóa nền tảng
+
+`PLATFORM_SECRET_KEY` tách khỏi JWT/Fabric keys. Compose truyền biến này cho API;
+operator cấu hình riêng trước khi dùng MFA/hộp thư riêng tư. Không thay giá trị
+trực tiếp khi còn ciphertext dùng khóa cũ.
+
+Sau backup đã xác minh và dừng API/Worker, chạy từ `apps/api` bằng user operator.
+Hai file khóa phải là đường dẫn tuyệt đối, file thường private (0600 trên Linux),
+không nằm trong Git. Khóa không được truyền bằng nội dung trên command line.
+
+```bash
+node dist/operator/rotate-platform-secret.js --old-key-file /private/platform-old.key --new-key-file /private/platform-new.key
+```
+
+Mặc định chỉ kiểm giải mã, round trip và báo số lượng. Để áp, thêm cả ba cờ
+`--apply --services-stopped --invalidate-recovery-codes`. Công cụ khóa audit,
+kiểm tất cả seed MFA/nội dung riêng tư trước khi ghi, mã hóa lại cùng transaction,
+giữ nguyên AAD/metadata/lịch sử và append audit chỉ chứa số lượng. HMAC mã khôi
+phục không thể chuyển sang khóa khác nên bị thu hồi; người dùng cấp lại ở
+`/admin/security` với TOTP hợp lệ, kể cả khi mode REQUIRED. Endpoint
+`POST /auth/mfa/recovery-codes` tiêu thụ factor một lần, thay toàn bộ HMAC và trả
+mã mới đúng một lần; không lưu secret vào journal/audit và không tắt MFA.
+Không sửa TOTP seed/trạng thái của người dùng khi xoay khóa.
+
+Sau commit, cấu hình API dùng khóa mới, kiểm MFA/đọc hồ sơ riêng tư trên môi
+trường cách ly rồi mới khởi động dịch vụ. Giữ cả hai khóa và backup đến khi đã
+đối soát. Nếu kết quả COMMIT chưa rõ, giữ dịch vụ dừng, dùng chế độ chỉ kiểm với
+từng cặp khóa để xác định khóa đang giải mã được; không tự đổi lại env hoặc
+restore riêng database sau khi ledger đã có ghi. Không chạy công cụ này tự động
+trong CD hoặc qua route quản trị.
 
 ### Nâng giao thức chữ ký c1 lên c2
 

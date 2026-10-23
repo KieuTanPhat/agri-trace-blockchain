@@ -28,6 +28,7 @@ export const SIGNING_PROTOCOL = "agritrace-signing/1";
 export const SIGNATURE_REQUIRED_EVENT_TYPES: readonly string[] = [
   "HANDOVER_OFFERED",
   "HANDOVER_CONFIRMED",
+  "DISTRIBUTION_SIGNED_C2",
 ];
 
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");

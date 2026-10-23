@@ -1,5 +1,6 @@
 .git
 .codex
+screenshots
 .claude
 .agents
 AGENTS.md
@@ -33,5 +34,7 @@ blockchain/network/identities
 artifacts
 .tools
 graphify-out
+.superpowers
+.codegraph
 docs-analysis
 tools

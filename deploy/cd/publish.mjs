@@ -52,7 +52,9 @@ async function main() {
       const args=['build',...Object.entries(componentLabels).flatMap(([k,v])=>['--label',`${k}=${v}`]),'-t',tag,'-f',
         component==='chaincode'?'blockchain/network/hybrid/ccaas/Dockerfile':`apps/${component}/Dockerfile`];
       if(component==='web')args.push('--build-arg',`NEXT_PUBLIC_API_BASE_URL=${target.origin}/api`,
-        '--build-arg','NEXT_PUBLIC_API_SAME_ORIGIN=true','--build-arg',`NEXT_PUBLIC_TRACE_BASE_URL=${target.origin}/trace`,'--build-arg','NEXT_PUBLIC_MOCK_API=false');
+        '--build-arg','NEXT_PUBLIC_API_SAME_ORIGIN=true','--build-arg',`NEXT_PUBLIC_TRACE_BASE_URL=${target.origin}/trace`,'--build-arg','NEXT_PUBLIC_MOCK_API=false',
+        '--build-arg','NEXT_PUBLIC_BUSINESS_ORIGIN=https://nongtrace.site',
+        '--build-arg',`NEXT_PUBLIC_CUSTOMER_ORIGIN=${target.origin}`);
       execFileSync('docker',[...args,component==='chaincode'?'blockchain/chaincode':'.'],{stdio:'inherit'});
     }
     requireImage(JSON.parse(execFileSync('docker',['inspect',tag],{encoding:'utf8'}))[0],componentLabels);

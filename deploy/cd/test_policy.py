@@ -112,9 +112,10 @@ class Policies(unittest.TestCase):
             with self.subTest(origin=origin):
                 self.assertFalse(valid_public_origin(origin))
 
-    def test_https_readiness_requires_both_domain_names(self):
+    def test_https_readiness_requires_customer_alias_and_business_origin(self):
         for origin in ("https://agritrace.dev", "https://www.agritrace.dev"):
-            self.assertEqual(https_origins(origin), ["https://agritrace.dev", "https://www.agritrace.dev"])
+            self.assertEqual(https_origins(origin), ["https://agritrace.dev", "https://www.agritrace.dev", "https://nongtrace.site"])
+        self.assertEqual(https_origins("https://other.example"), ["https://other.example", "https://www.other.example"])
         self.assertEqual(https_origins("http://13.140.170.166"), [])
         with self.assertRaises(PolicyError):
             https_origins("https://agritrace.dev/path")

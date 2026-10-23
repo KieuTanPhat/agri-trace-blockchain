@@ -103,6 +103,28 @@ async function grant(
   });
 }
 
+async function grantWorkspaceProductionRole(
+  tx: Prisma.TransactionClient,
+  actor: CommandActor,
+) {
+  const role = await tx.enterpriseRole.create({
+    data: {
+      organizationId: actor.organizationId!,
+      name: `CI production ${randomUUID()}`,
+      permissions: ['profile.read', 'production.read', 'production.write'],
+    },
+  });
+  await tx.enterpriseMemberRole.create({
+    data: {
+      userId: actor.sub!,
+      organizationId: actor.organizationId!,
+      roleId: role.id,
+      chainIds: [chainId],
+      siteIds: [farmId],
+    },
+  });
+}
+
 // Successful test writes roll back as well. This leaves immutable synthetic
 // history intact between scenarios without bypassing any database protection.
 async function isolated(run: (tx: Prisma.TransactionClient) => Promise<void>) {
@@ -170,7 +192,7 @@ async function acceptedPlan(db: Prisma.TransactionClient) {
   const { lot, input } = await freshPlan(db);
   const event = await trace.createInTransaction(db, {
     entityType: 'HARVEST',
-    entityId: lot.harvestId,
+    entityId: lot.harvestId!,
     cycleId,
     lotId: lot.id,
     eventType: 'HARVEST_RECORDED',
@@ -268,10 +290,10 @@ describe('Release A scoped command policy on PostgreSQL', () => {
     expect(plans).toHaveLength(1);
     const plan = plans[0];
     chainId = plan.chainId;
-    cycleId = plan.lot.harvest.cycleId;
+    cycleId = plan.lot.harvest!.cycleId;
     lotId = plan.lotId;
     shipmentId = plan.shipmentId!;
-    farmId = plan.lot.harvest.cycle.farmId;
+    farmId = plan.lot.harvest!.cycle.farmId;
     productId = plan.lot.productId;
     otherChainId = (
       await db.supplyChain.findFirstOrThrow({
@@ -1446,7 +1468,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         const fresh = await freshPlan(tx);
         const event = await trace.createInTransaction(tx, {
           entityType: 'HARVEST',
-          entityId: fresh.lot.harvestId,
+          entityId: fresh.lot.harvestId!,
           cycleId,
           lotId: fresh.lot.id,
           eventType: 'HARVEST_RECORDED',
@@ -1738,7 +1760,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       const { lot, input } = await freshPlan(tx);
       const harvest = await trace.createInTransaction(tx, {
         entityType: 'HARVEST',
-        entityId: lot.harvestId,
+        entityId: lot.harvestId!,
         cycleId,
         lotId: lot.id,
         eventType: 'HARVEST_RECORDED',
@@ -1994,7 +2016,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       async (tx) => {
         const event = await trace.createInTransaction(tx, {
           entityType: 'HARVEST',
-          entityId: lot.harvestId,
+          entityId: lot.harvestId!,
           cycleId,
           lotId: lot.id,
           eventType: 'HARVEST_RECORDED',
@@ -2280,7 +2302,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         async (tx) => {
           const event = await trace.createInTransaction(tx, {
             entityType: 'HARVEST',
-            entityId: lot.harvestId,
+            entityId: lot.harvestId!,
             cycleId,
             lotId: lot.id,
             eventType: 'HARVEST_RECORDED',
@@ -2767,6 +2789,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
             role: 'TRANSPORTER',
           };
           await grant(tx, actor, 'FARM_STAFF');
+          await grantWorkspaceProductionRole(tx, actor);
           return actor;
         },
         { timeout: 20000 },
@@ -2821,6 +2844,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         });
         const actor = { ...producer, sub: user.id };
         const permission = await grant(tx, actor, 'FARM_STAFF');
+        await grantWorkspaceProductionRole(tx, actor);
         return { actor, permission };
       });
       const session = await authenticated(scoped.actor);

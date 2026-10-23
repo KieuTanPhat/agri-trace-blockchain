@@ -110,7 +110,10 @@ def https_origins(origin):
     if not origin.startswith("https://"):
         return []
     hostname = urlsplit(origin).hostname.removeprefix("www.")
-    return [f"https://{hostname}", f"https://www.{hostname}"]
+    origins = [f"https://{hostname}", f"https://www.{hostname}"]
+    if hostname == "agritrace.dev":
+        origins.append("https://nongtrace.site")
+    return origins
 
 
 def allowed_file(name):

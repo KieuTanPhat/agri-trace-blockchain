@@ -9,7 +9,7 @@ export const hostingLabels: Record<string, string> = {
 };
 export const statusLabels: Record<string, string> = {
   PENDING_REVIEW: "Chờ xét duyệt",
-  APPROVED: "Đã duyệt — chờ cấu hình mạng",
+  APPROVED: "Hồ sơ đã được duyệt",
   REJECTED: "Cần xử lý hồ sơ",
   CHECKING: "Đang kiểm chứng trên Fabric",
   UNKNOWN: "Đang đối soát kết quả giao dịch",
@@ -42,8 +42,6 @@ export const registerEnterprise = (input: Registration) =>
   );
 export const getEnrollment = () =>
   request<Enrollment>("/enterprise-enrollments/mine");
-export const listEnrollments = () =>
-  request<Enrollment[]>("/enterprise-enrollments");
 export const connectEnterprise = (
   input: components["schemas"]["EnterpriseConnectionDto"],
   key: string,
