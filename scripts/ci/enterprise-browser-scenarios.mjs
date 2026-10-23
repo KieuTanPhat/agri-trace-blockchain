@@ -13,6 +13,8 @@ const until = async (check, description, limit = timeout) => {
 };
 const command = async (page, route, click) => {
   const reply = page.waitForResponse(response => new URL(response.url()).pathname === `/api${route}` && response.request().method() === 'POST', { timeout });
+  // A failed click must surface as the error; the pending wait then ends with the browser.
+  reply.catch(() => undefined);
   await click();
   // Every write asks once in the shared confirmation dialog; steps that
   // already answered it leave nothing to click here.
@@ -299,9 +301,11 @@ export async function runEnterpriseBrowserScenarios(options) {
     return { passed: results.length, failed: 0, skipped: 0, browser: 'Chromium desktop/mobile viewport; not physical iOS acceptance', flows: results };
   } catch (error) {
     const alerts = await activePage?.getByRole('alert').allTextContents().catch(() => []) ?? [];
+    const main = await activePage?.locator('main').first().innerText({ timeout: 2000 }).catch(() => '') ?? '';
     console.error(JSON.stringify({ suite: 'enterprise-browser', mode: activeMode, phase,
       path: activePage ? new URL(activePage.url()).pathname : undefined,
-      alerts: alerts.map(value => redactDiagnostic(value, options.secrets)) }));
+      alerts: alerts.map(value => redactDiagnostic(value, options.secrets)),
+      main: redactDiagnostic(main.replace(/\s+/g, ' ').slice(0, 1200), options.secrets) }));
     throw error;
   } finally {
     for (const value of contexts) await value.close();
