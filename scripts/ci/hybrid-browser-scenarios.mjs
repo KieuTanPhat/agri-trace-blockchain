@@ -995,7 +995,7 @@ export async function runHybridBrowserScenarios(options) {
       // account menu. Neither may survive for the next signed-in account.
       await session.pages.farm.keyboard.press("Escape");
       await signingReview(session.pages.farm, "Đề nghị bàn giao").waitFor({ state: "hidden", timeout });
-      await session.pages.farm.keyboard.press("Escape");
+      await session.pages.farm.goto(`${options.origin}/lots`, { waitUntil: "domcontentloaded" });
       await signOut(session.pages.farm);
       await login(
         session.pages.farm,
