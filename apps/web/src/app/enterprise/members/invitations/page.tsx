@@ -1,4 +1,3 @@
-"use client";
-import {useWorkspaceData,useWorkspaceCommand,type Items,type MemberInvitation} from '@/lib/workspace';
-import { CommandState, LoadState, PageHeader } from "@/components/manage";
-export default function Invitations(){const state=useWorkspaceData<Items<MemberInvitation>>('/enterprise-workspace/member-invitations'),cmd=useWorkspaceCommand();async function revoke(id:string){if(await cmd.run(`/enterprise-workspace/member-invitations/${id}/revoke`,{}))state.reload();}return <div className="manage-console"><PageHeader actionKind="create" backLabel="Quay lại danh sách" title="Lời mời thành viên" description="Token chỉ nằm trong liên kết người mời giữ. Thu hồi lời mời khi gửi nhầm hoặc không còn nhu cầu." back="/enterprise/members"/><LoadState {...state}/><CommandState command={cmd}/>{state.data?.items.map(r=><article className="panel" key={r.id}><h2>{r.fullName} · {r.email}</h2><p>Cấp {r.tier} · {r.status} · hết hạn {new Date(r.expiresAt).toLocaleString('vi-VN')}</p>{r.status==='PENDING'&&<button className="button secondary" disabled={cmd.pending} onClick={()=>void revoke(r.id)}>{'Thu hồi lời mời'}</button>}</article>)}</div>;}
+import LedgerScreen from "@/features/ledger/screens/enterprise/members/invitations/screen";
+import { resolveLedgerRouteInput, type LedgerPageInput } from "@/lib/ledger/route-input";
+export default async function Page(props: LedgerPageInput) { return <LedgerScreen route={await resolveLedgerRouteInput(props)} />; }

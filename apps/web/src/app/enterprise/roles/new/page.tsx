@@ -1,5 +1,3 @@
-"use client";
-import { RoleForm } from "@/components/workspace/role-form";
-export default function NewRolePage() {
-  return <RoleForm />;
-}
+import LedgerScreen from "@/features/ledger/screens/enterprise/roles/new/screen";
+import { resolveLedgerRouteInput, type LedgerPageInput } from "@/lib/ledger/route-input";
+export default async function Page(props: LedgerPageInput) { return <LedgerScreen route={await resolveLedgerRouteInput(props)} />; }

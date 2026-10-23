@@ -6878,24 +6878,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/dashboard/screen.tsx",
       "exampleUrl": "/dashboard",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.dashboard",
-      "readyHeading": "Tổng quan",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/display-labels.ts",
-        "apps/web/src/lib/format-date.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/mock-api.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/permissions.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -6905,10 +6898,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/dashboard/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/dashboard/page.tsx",
+            "apps/web/src/app/dashboard/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/dashboard.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/dashboard.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /dashboard",
@@ -6917,17 +6927,44 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/dashboard/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/dashboard.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/dashboard.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/dashboard/screen.tsx",
+        "apps/web/src/features/ledger/workspace/dashboard.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/dashboard.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -8112,25 +8149,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/inbox/screen.tsx",
       "exampleUrl": "/enterprise/inbox",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.inbox",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/inbox.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/task-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -8140,10 +8169,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/inbox/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inbox/page.tsx",
+            "apps/web/src/app/enterprise/inbox/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inbox.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inbox.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /distribution/tasks",
@@ -8152,10 +8198,27 @@
           "requestType": [],
           "responseType": "InboxTasks",
           "retainedLogic": [
-            "apps/web/src/components/workspace/inbox-workspace.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inbox/page.tsx",
+            "apps/web/src/components/workspace/inbox-workspace.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inbox.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inbox.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -8164,10 +8227,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/inbox-workspace.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inbox/page.tsx",
+            "apps/web/src/components/workspace/inbox-workspace.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inbox.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inbox.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace/ownership-transfers",
@@ -8176,10 +8256,27 @@
           "requestType": [],
           "responseType": "{ items: Row[] }",
           "retainedLogic": [
-            "apps/web/src/components/workspace/inbox-workspace.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inbox/page.tsx",
+            "apps/web/src/components/workspace/inbox-workspace.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inbox.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inbox.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "POST `/enterprise-cases/${record.id}/${action === \"ACKNOWLEDGE\" ? \"acknowledge\" : \"respond\"}`",
@@ -8190,17 +8287,44 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/inbox-workspace.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inbox/page.tsx",
+            "apps/web/src/components/workspace/inbox-workspace.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inbox.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inbox.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/inbox/screen.tsx",
+        "apps/web/src/features/ledger/workspace/inbox.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/inbox.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -8640,22 +8764,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/members/[id]/edit/screen.tsx",
       "exampleUrl": "/enterprise/members/11111111-1111-4111-8111-111111111111/edit",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.members.id.edit",
+      "scenarioId": "membership.baseline",
       "readyHeading": "Thành viên",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -8665,10 +8784,29 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/edit/page.tsx",
             "apps/web/src/app/enterprise/members/[id]/edit/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /catalog",
@@ -8677,10 +8815,29 @@
           "requestType": [],
           "responseType": "Catalog",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/edit/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -8689,10 +8846,29 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/edit/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /enterprise-workspace/members",
@@ -8701,10 +8877,29 @@
           "requestType": [],
           "responseType": "Items<EnterpriseMember>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/edit/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /enterprise-workspace/roles",
@@ -8713,10 +8908,29 @@
           "requestType": [],
           "responseType": "Items<EnterpriseRole>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/edit/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /enterprise-workspace/sites",
@@ -8725,10 +8939,29 @@
           "requestType": [],
           "responseType": "Items<EnterpriseSite>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/edit/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /supply-chains",
@@ -8737,10 +8970,29 @@
           "requestType": [],
           "responseType": "components[\"schemas\"][\"ChainRecordDto\"][]",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/edit/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "POST /enterprise-workspace/evidence",
@@ -8749,10 +9001,29 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/edit/page.tsx",
             "apps/web/src/components/workspace/evidence-panel.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/members/${id}`",
@@ -8761,17 +9032,48 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/edit/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-membership.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/members/[id]/edit/screen.tsx",
+        "apps/web/src/features/ledger/workspace/members.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -8781,23 +9083,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/members/[id]/screen.tsx",
       "exampleUrl": "/enterprise/members/11111111-1111-4111-8111-111111111111",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.members.id",
-      "readyHeading": "Thành viên",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -8807,10 +9103,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/members/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/page.tsx",
+            "apps/web/src/app/enterprise/members/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /catalog",
@@ -8819,10 +9132,27 @@
           "requestType": [],
           "responseType": "Catalog",
           "retainedLogic": [
-            "apps/web/src/components/workspace/member-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/page.tsx",
+            "apps/web/src/components/workspace/member-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -8831,10 +9161,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/image-gallery.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/page.tsx",
+            "apps/web/src/components/workspace/image-gallery.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace/members",
@@ -8843,10 +9190,27 @@
           "requestType": [],
           "responseType": "Items<EnterpriseMember>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/member-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/page.tsx",
+            "apps/web/src/components/workspace/member-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace/sites",
@@ -8855,10 +9219,27 @@
           "requestType": [],
           "responseType": "Items<EnterpriseSite>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/member-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/page.tsx",
+            "apps/web/src/components/workspace/member-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /supply-chains",
@@ -8867,10 +9248,27 @@
           "requestType": [],
           "responseType": "components[\"schemas\"][\"ChainRecordDto\"][]",
           "retainedLogic": [
-            "apps/web/src/components/workspace/member-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/page.tsx",
+            "apps/web/src/components/workspace/member-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${scope}`",
@@ -8879,10 +9277,27 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/image-gallery.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/page.tsx",
+            "apps/web/src/components/workspace/image-gallery.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence/${row.id}/content`",
@@ -8891,10 +9306,27 @@
           "requestType": [],
           "responseType": "{ fileName: string; mediaType: string; contentBase64: string }",
           "retainedLogic": [
-            "apps/web/src/components/workspace/image-gallery.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/page.tsx",
+            "apps/web/src/components/workspace/image-gallery.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/evidence/${file.id}/withdraw`",
@@ -8905,10 +9337,27 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/image-gallery.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/page.tsx",
+            "apps/web/src/components/workspace/image-gallery.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/members/${member.id}/supervisor`",
@@ -8920,10 +9369,27 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/member-form.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/page.tsx",
+            "apps/web/src/components/workspace/member-form.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/members/${member.id}`",
@@ -8936,17 +9402,44 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/member-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/[id]/page.tsx",
+            "apps/web/src/components/workspace/member-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/members/[id]/screen.tsx",
+        "apps/web/src/features/ledger/workspace/members.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -8956,22 +9449,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/members/invitations/screen.tsx",
       "exampleUrl": "/enterprise/members/invitations",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.members.invitations",
-      "readyHeading": "Thành viên",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -8981,10 +9469,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/members/invitations/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/invitations/page.tsx",
+            "apps/web/src/app/enterprise/members/invitations/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace/member-invitations",
@@ -8993,10 +9498,27 @@
           "requestType": [],
           "responseType": "Items<MemberInvitation>",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/members/invitations/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/invitations/page.tsx",
+            "apps/web/src/app/enterprise/members/invitations/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/member-invitations/${id}/revoke`",
@@ -9005,17 +9527,73 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/members/invitations/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/invitations/page.tsx",
+            "apps/web/src/app/enterprise/members/invitations/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/member-invitations",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/member-invitations",
+          "requestType": "MemberInvitationInput",
+          "responseType": "WorkspaceRecordDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/invitations/page.tsx",
+            "apps/web/src/app/enterprise/members/invitations/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/members/invitations/screen.tsx",
+        "apps/web/src/features/ledger/workspace/members.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -9025,22 +9603,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/members/new/screen.tsx",
       "exampleUrl": "/enterprise/members/new",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.members.new",
+      "scenarioId": "membership.baseline",
       "readyHeading": "Thành viên",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -9050,10 +9623,29 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/new/page.tsx",
             "apps/web/src/app/enterprise/members/new/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /catalog",
@@ -9062,10 +9654,29 @@
           "requestType": [],
           "responseType": "Catalog",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/new/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -9074,10 +9685,29 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/new/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /enterprise-workspace/members",
@@ -9086,10 +9716,29 @@
           "requestType": [],
           "responseType": "Items<EnterpriseMember>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/new/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /enterprise-workspace/roles",
@@ -9098,10 +9747,29 @@
           "requestType": [],
           "responseType": "Items<EnterpriseRole>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/new/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /enterprise-workspace/sites",
@@ -9110,10 +9778,29 @@
           "requestType": [],
           "responseType": "Items<EnterpriseSite>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/new/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /supply-chains",
@@ -9122,10 +9809,29 @@
           "requestType": [],
           "responseType": "components[\"schemas\"][\"ChainRecordDto\"][]",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/new/page.tsx",
             "apps/web/src/components/workspace/member-form.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "POST /enterprise-workspace/evidence",
@@ -9134,10 +9840,27 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/new/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/members/${id}`",
@@ -9146,17 +9869,77 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/member-form.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/new/page.tsx",
+            "apps/web/src/components/workspace/member-form.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/members",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/members",
+          "requestType": "EnterpriseMemberInput",
+          "responseType": "WorkspaceRecordDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/new/page.tsx",
+            "apps/web/src/app/enterprise/members/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "status": "verified",
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-membership.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/members/new/screen.tsx",
+        "apps/web/src/features/ledger/workspace/members.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -9166,22 +9949,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/members/screen.tsx",
       "exampleUrl": "/enterprise/members",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.members",
-      "readyHeading": "Thành viên",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -9191,10 +9969,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/members/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/page.tsx",
+            "apps/web/src/app/enterprise/members/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -9203,10 +9998,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/members/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/page.tsx",
+            "apps/web/src/app/enterprise/members/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace/members",
@@ -9215,17 +10027,44 @@
           "requestType": [],
           "responseType": "Items<EnterpriseMember>",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/members/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/members/page.tsx",
+            "apps/web/src/app/enterprise/members/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/members.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/members/screen.tsx",
+        "apps/web/src/features/ledger/workspace/members.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -9590,22 +10429,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/ownership/screen.tsx",
       "exampleUrl": "/enterprise/ownership",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.ownership",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -9615,10 +10449,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/ownership/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/ownership/page.tsx",
+            "apps/web/src/app/enterprise/ownership/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/ownership.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/ownership.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -9627,10 +10478,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/ownership/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/ownership/page.tsx",
+            "apps/web/src/app/enterprise/ownership/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/ownership.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/ownership.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace/ownership-transfers",
@@ -9639,10 +10507,27 @@
           "requestType": [],
           "responseType": "{ items: Row[] }",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/ownership/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/ownership/page.tsx",
+            "apps/web/src/app/enterprise/ownership/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/ownership.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/ownership.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "POST /enterprise-workspace/ownership-transfers",
@@ -9655,10 +10540,27 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/ownership/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/ownership/page.tsx",
+            "apps/web/src/app/enterprise/ownership/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/ownership.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/ownership.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/ownership-transfers/${action.row.id}/${action.kind}`",
@@ -9670,17 +10572,44 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/ownership/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/ownership/page.tsx",
+            "apps/web/src/app/enterprise/ownership/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/ownership.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/ownership.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/ownership/screen.tsx",
+        "apps/web/src/features/ledger/workspace/ownership.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/ownership.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -9690,21 +10619,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/screen.tsx",
       "exampleUrl": "/enterprise",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise",
-      "readyHeading": "Tổng quan doanh nghiệp",
+      "scenarioId": "membership.identity",
+      "readyHeading": "DOANH_NGHIEP_A",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -9714,10 +10639,29 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/page.tsx",
             "apps/web/src/app/enterprise/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/home.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/home.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -9726,17 +10670,48 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/page.tsx",
             "apps/web/src/app/enterprise/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/home.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/home.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-membership.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/screen.tsx",
+        "apps/web/src/features/ledger/workspace/home.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/home.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -10920,24 +11895,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/profile/screen.tsx",
       "exampleUrl": "/enterprise/profile",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.profile",
+      "scenarioId": "membership.baseline",
       "readyHeading": "Hồ sơ doanh nghiệp",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/registration-form.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -10947,10 +11915,29 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/profile/page.tsx",
             "apps/web/src/app/enterprise/profile/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/profile.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -10959,10 +11946,29 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/profile/page.tsx",
             "apps/web/src/app/enterprise/profile/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/profile.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /enterprise-workspace/profile",
@@ -10971,10 +11977,29 @@
           "requestType": [],
           "responseType": "RecordOf<OwnProfileWorkspace>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/profile/page.tsx",
             "apps/web/src/components/workspace/profile-amendments.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/profile.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET /reference-data/addresses",
@@ -10983,10 +12008,27 @@
           "requestType": [],
           "responseType": "AddressProvince[]",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/profile/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/profile.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${new URLSearchParams({ entityType: \"PROFILE\", entityId: organizationId })}`",
@@ -10995,10 +12037,29 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/profile/page.tsx",
             "apps/web/src/components/workspace/profile-amendments.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/profile.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${scope}`",
@@ -11007,10 +12068,29 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/profile/page.tsx",
             "apps/web/src/components/workspace/profile-amendments.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/profile.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence/${photo.id}/content`",
@@ -11019,10 +12099,29 @@
           "requestType": [],
           "responseType": "{ mediaType: string; contentBase64: string }",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/profile/page.tsx",
             "apps/web/src/components/workspace/entity-thumb.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/profile.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "POST /enterprise-workspace/evidence",
@@ -11033,10 +12132,27 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/profile/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/profile.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "POST /enterprise-workspace/profile/amendments",
@@ -11045,10 +12161,27 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/profile/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/profile.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "POST /enterprise-workspace/profile/contact",
@@ -11057,10 +12190,29 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/enterprise-membership.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/profile/page.tsx",
             "apps/web/src/components/workspace/profile-amendments.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/profile.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+            "result": "Representative Task9 strict browser contract passed; real DTO, version, key or scope checked."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/profile/amendments/${selected.id}/withdraw`",
@@ -11072,17 +12224,46 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/profile-amendments.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/profile/page.tsx",
+            "apps/web/src/components/workspace/profile-amendments.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/profile.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-membership.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/profile/screen.tsx",
+        "apps/web/src/features/ledger/workspace/profile.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/profile.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -11317,24 +12498,19 @@
       "sourceFile": "apps/web/src/app/enterprise/roles/[id]/page.tsx",
       "task": 9,
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/roles/[id]/screen.tsx",
-      "exampleUrl": "/enterprise/roles/11111111-1111-4111-8111-111111111111",
+      "exampleUrl": "/enterprise/roles/22222222-2222-4222-8222-222222222222",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.roles.id",
-      "readyHeading": "Nhóm quyền",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -11344,10 +12520,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/roles/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/[id]/page.tsx",
+            "apps/web/src/app/enterprise/roles/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -11356,10 +12549,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/role-form.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/[id]/page.tsx",
+            "apps/web/src/components/workspace/role-form.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace/role-templates",
@@ -11368,10 +12578,27 @@
           "requestType": [],
           "responseType": "Items<EnterpriseRoleTemplate>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/role-form.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/[id]/page.tsx",
+            "apps/web/src/components/workspace/role-form.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace/roles",
@@ -11380,17 +12607,73 @@
           "requestType": [],
           "responseType": "Items<EnterpriseRole>",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/roles/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/[id]/page.tsx",
+            "apps/web/src/app/enterprise/roles/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/roles/:id",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/roles/:id",
+          "requestType": "EnterpriseRoleInput",
+          "responseType": "WorkspaceRecordDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/[id]/page.tsx",
+            "apps/web/src/app/enterprise/roles/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/roles/[id]/screen.tsx",
+        "apps/web/src/features/ledger/workspace/roles.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -11400,22 +12683,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/roles/new/screen.tsx",
       "exampleUrl": "/enterprise/roles/new",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.roles.new",
-      "readyHeading": "Nhóm quyền",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -11425,10 +12703,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/roles/new/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/new/page.tsx",
+            "apps/web/src/app/enterprise/roles/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -11437,10 +12732,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/role-form.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/new/page.tsx",
+            "apps/web/src/components/workspace/role-form.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace/role-templates",
@@ -11449,17 +12761,73 @@
           "requestType": [],
           "responseType": "Items<EnterpriseRoleTemplate>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/role-form.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/new/page.tsx",
+            "apps/web/src/components/workspace/role-form.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/roles",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/roles",
+          "requestType": "EnterpriseRoleInput",
+          "responseType": "WorkspaceRecordDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/new/page.tsx",
+            "apps/web/src/app/enterprise/roles/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/roles/new/screen.tsx",
+        "apps/web/src/features/ledger/workspace/roles.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -11469,22 +12837,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/roles/screen.tsx",
       "exampleUrl": "/enterprise/roles",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.roles",
-      "readyHeading": "Nhóm quyền",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -11494,10 +12857,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/roles/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/page.tsx",
+            "apps/web/src/app/enterprise/roles/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -11506,10 +12886,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/roles/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/page.tsx",
+            "apps/web/src/app/enterprise/roles/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "GET /enterprise-workspace/roles",
@@ -11518,10 +12915,27 @@
           "requestType": [],
           "responseType": "Items<EnterpriseRole>",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/roles/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/page.tsx",
+            "apps/web/src/app/enterprise/roles/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/roles/${role.id}/delete`",
@@ -11532,17 +12946,44 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/roles/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/roles/page.tsx",
+            "apps/web/src/app/enterprise/roles/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/roles.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/roles/screen.tsx",
+        "apps/web/src/features/ledger/workspace/roles.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/roles.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {
@@ -11779,14 +13220,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/settings/screen.tsx",
       "exampleUrl": "/enterprise/settings",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task9.enterprise.settings",
-      "readyHeading": "Cài đặt",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline enterprise-access and server workspace scope; tier2 delegation and tier3 write denial, original command versions and keys.",
       "retainedLogic": [
-        "apps/web/src/lib/appearance.ts",
-        "apps/web/src/lib/typography.ts"
+        "apps/web/src/lib/api-client.ts",
+        "apps/web/src/lib/enterprise-access.ts",
+        "apps/web/src/lib/auth-scope.ts",
+        "apps/web/src/lib/command-request.ts",
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -11796,17 +13240,44 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/settings/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/settings/page.tsx",
+            "apps/web/src/app/enterprise/settings/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/settings.tsx",
+            "apps/web/src/lib/ledger/workspace-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/settings.tsx",
+            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/settings/screen.tsx",
+        "apps/web/src/features/ledger/workspace/settings.tsx",
+        "apps/web/src/lib/ledger/workspace-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/settings.tsx",
+        "result": "Task9 endpoint/DTO and canonical consumer reconciliation; representative browser workflows and shared evidence lifecycle unit tests, without live API/Fabric claim."
       }
     },
     {

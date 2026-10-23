@@ -1,5 +1,3 @@
-"use client";
-import { MemberForm } from "@/components/workspace/member-form";
-export default function Page() {
-  return <MemberForm />;
-}
+import LedgerScreen from "@/features/ledger/screens/enterprise/members/new/screen";
+import { resolveLedgerRouteInput, type LedgerPageInput } from "@/lib/ledger/route-input";
+export default async function Page(props: LedgerPageInput) { return <LedgerScreen route={await resolveLedgerRouteInput(props)} />; }

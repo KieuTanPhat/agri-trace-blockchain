@@ -3297,6 +3297,54 @@
       "source": "src/app/(console)/billing/invoices/page.tsx",
       "sourceSha256": "e17df58d487642eb9f0965a4c44faf6631df66b4de3d791183057e31ff8fdc41",
       "targetSha256": "f5720a7d82591bf2a974583361c435736ed7f066b37380dca403b809901002d3"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/members.tsx",
+      "source": "src/app/(workspace)/w/members/page.tsx",
+      "sourceSha256": "63ca7768696333bb411bd23d8b8be41e0435f671071215b6db9101305c46ee78",
+      "targetSha256": "0c4a4c2e5e3d7fdda23b7021eda903a9a410ef15531b6ba02c942817da4a9060"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/roles.tsx",
+      "source": "src/app/(workspace)/w/roles/page.tsx",
+      "sourceSha256": "88dae16f14a40f283b12bba8e03e495c1862642ee019a4d61c77549092dd06a5",
+      "targetSha256": "e011e120054f4cc2560156b698a3a5e52aa64fdcd89da3305f08eed996546e82"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/ownership.tsx",
+      "source": "src/app/(workspace)/w/ownership/page.tsx",
+      "sourceSha256": "d01aafb1fa1ec0e32145c7d9d1efc013eaee681731b6a838e2e8f7e0f9295b6f",
+      "targetSha256": "b06a47f4cb6326cea8625071ad75f97edd0451ae0fc4c1bd5b6b7b7fe99446f5"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/profile.tsx",
+      "source": "src/app/(workspace)/w/profile/page.tsx",
+      "sourceSha256": "2f7ac14b6cfc4af090069cf8eba188c22352ac66b418d12d3aa0a9140539b604",
+      "targetSha256": "1f841971f5b9e3cf5de58cc6347c0dac18bdf136957b39506d09443cca1ef9b0"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/home.tsx",
+      "source": "src/app/(workspace)/w/page.tsx",
+      "sourceSha256": "38f616697f450ddfe4bab94beafcaf3906bffc8a58f9b9c1a63a9c91ea6d7f7f",
+      "targetSha256": "9dda0ecdeb0d939bdcf9320279bca007be0b5c47c084402880ea3975db00c913"
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/evidence-panel.tsx",
+      "source": "src/components/workspace/evidence-panel.tsx",
+      "sourceSha256": "24e5e41322158f05cc933b3c673d26fc2a7e772647dc9855c008537bc8fb7c3a",
+      "targetSha256": "2d06380a80ce3ade7b5c00b8306dff52fc55e9f25de3a761f2f58894887b0eb6"
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/evidence-pick.tsx",
+      "source": "src/components/workspace/evidence-pick.tsx",
+      "sourceSha256": "beaedbfc171c50a239c5247a2495ae7cdfbccafdcfdda47b4a4e9f8ee9714344",
+      "targetSha256": "b237df301465c4858c943aa0473315fe460e0d830d2398a81e072c90b26f5c28"
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/revision-history.tsx",
+      "source": "src/components/workspace/revision-history.tsx",
+      "sourceSha256": "ed4f4f15231cf0e746de76e4988b0f9d6538a078b1ea04f162ade028a6be59f1",
+      "targetSha256": "f51d26dafe9b0fff7232d4083a5344c8ce45c5d658c0a2f84b79f41fef512e82"
     }
   ],
   "newLedgerComposition": [
@@ -3547,6 +3595,78 @@
     {
       "target": "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx",
       "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/image-gallery.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/dashboard/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/inbox/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/members/[id]/edit/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/members/[id]/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/members/invitations/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/members/new/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/members/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/ownership/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/profile/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/roles/[id]/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/roles/new/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/roles/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/settings/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/dashboard.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/settings.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/inbox.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
     }
   ]
 }

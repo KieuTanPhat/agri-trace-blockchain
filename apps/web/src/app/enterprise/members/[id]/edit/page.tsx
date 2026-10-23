@@ -1,7 +1,3 @@
-"use client";
-import { useParams } from "next/navigation";
-import { MemberForm } from "@/components/workspace/member-form";
-export default function Page() {
-  const params = useParams<{ id: string }>();
-  return <MemberForm id={params.id} />;
-}
+import LedgerScreen from "@/features/ledger/screens/enterprise/members/[id]/edit/screen";
+import { resolveLedgerRouteInput, type LedgerPageInput } from "@/lib/ledger/route-input";
+export default async function Page(props: LedgerPageInput) { return <LedgerScreen route={await resolveLedgerRouteInput(props)} />; }
