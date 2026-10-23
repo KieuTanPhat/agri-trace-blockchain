@@ -1,0 +1,18 @@
+import type {StockLot,TransferDetail} from "../../../src/lib/ledger/dist-types";
+import {registerScenario,readScenario} from "./scenarios";
+import "./enterprise-resources";
+import {organizationId,siteId,chainId} from "./enterprise-membership";
+export const inventoryLotId="66666666-6666-4666-8666-666666666666",destinationSite="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",transferId="cccccccc-cccc-4ccc-8ccc-cccccccccccc",revokedKey="dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+export const stockLot:StockLot={lotId:inventoryLotId,version:9,chainName:"Chuỗi Ledger",chainId,farmOrgId:organizationId,lotCode:"LO-KHO-01",productName:"Xoài Ledger",unit:"kg",held:"100.000",reserved:"0.000",quarantined:"0.000",available:"100.000",unreserved:"100.000",initialQuantity:"100.000",globalAvailable:null,unallocated:"0.000",internalInTransit:"0.000",blocked:false,notices:[],siteHoldings:[{siteId,siteName:"Kho xuất",quantity:"100.000",reserved:"0.000",quarantined:"0.000",available:"100.000"}],state:"HARVESTED",expiryDate:null,traceToken:"trace-token",originType:"HARVEST"};
+const transfer:TransferDetail={id:transferId,version:6,chainId,senderId:destinationSite,carrierId:destinationSite,receiverId:organizationId,senderSiteId:siteId,carrierSiteId:siteId,receiverSiteId:siteId,senderName:"Bên giao",carrierName:"Bên vận chuyển",receiverName:"Bên nhận",origin:"Kho giao",destination:"Kho nhận",vehicleId:null,plannedPickupAt:"2026-10-20T00:00:00Z",plannedDeliveryAt:null,note:null,status:"IN_TRANSIT",handoverMode:"STANDARD",attestationEpoch:0,receiptDigest:null,lines:[{id:inventoryLotId,lotId:inventoryLotId,lotCode:"LO-KHO-01",productName:"Xoài Ledger",quantity:"20.125",unit:"kg"}],attestations:[],allowedActions:["ACTUAL_RECEIPT"],receipt:null,remainders:[],returns:[],observations:[]};
+for(const name of ["inventory.baseline","inventory.unknown"])registerScenario(name,{handle(r,state){const p=new URL("http://fixture"+r.path).pathname;
+if(p==="/enterprise-access")return {data:{stage:"ACTIVE",capabilities:["FARM","RETAILER"],owner:true,primary:true,tier:1,permissions:["profile.read","trace.read","distribution.read","distribution.write","distribution.sign","reports.read","inventory.manage","quantity.adjust","quarantine.manage","roles.manage","qr.manage","sites.read","evidence.read"]}};
+if(p==="/distribution/reports")return {data:{lots:[stockLot],transfers:[]}};
+if(p==="/enterprise-workspace/sites")return {data:{items:[{id:siteId,name:"Kho xuất",organizationId,status:"ACTIVE",kind:"WAREHOUSE"},{id:destinationSite,name:"Kho nhận",organizationId,status:"ACTIVE",kind:"WAREHOUSE"}]}};
+if(p==="/distribution/transfers"&&r.method==="GET")return {data:{items:[transfer]}};if(p===`/distribution/transfers/${transferId}`&&r.method==="GET")return {data:{record:{...transfer,allowedActions:state.values.has("received")?[]:transfer.allowedActions}}};
+if(p===`/distribution/transfers/${transferId}/receipt`&&r.method==="POST"){state.values.set("received",true);return {data:{record:{id:transferId,version:7}}};}
+if(p==="/distribution/keys"&&r.method==="GET")return {data:{items:[{id:revokedKey,label:"Khóa đã bị thu hồi",publicKey:"public",status:"REVOKED",createdAt:"2026-10-20T00:00:00Z"}]}};
+if(p==="/distribution/site-transfers"&&r.method==="POST"){if(name==="inventory.unknown")return {status:503,error:{code:"NETWORK_ERROR",message:"Chưa nhận kết quả chuyển kho"}};return {data:{record:{id:transferId,version:0}}};}
+if(p==="/command-requests/status")return {data:{status:"COMMITTED",responseStatus:201,result:{record:{id:transferId,version:0}}}};
+return readScenario("resources.baseline").handle(r,state);
+}});

@@ -1,0 +1,1 @@
+export type LineageLot={lotId:string;lotCode:string;productName:string;organizationId:string;organizationName:string;originType:string;currentState:string|null;availableQuantity:string|null;unit:string;level:number;runCode:string;usedQuantity?:string;usedUnit?:string;kind?:string};

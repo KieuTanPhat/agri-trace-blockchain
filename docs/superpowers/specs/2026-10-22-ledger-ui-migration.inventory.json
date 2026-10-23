@@ -3417,6 +3417,36 @@
       "source": "src/lib/workspace/ops-labels.ts",
       "sourceSha256": "d997eb51a44fb6fbc485d50b3391e1643443183aa5a4272a31ce95cb02655d62",
       "targetSha256": "2d4fc8ddac55eaea5b31db31724fc1c7404806fd2a288708aa49ab2550e4c8f0"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/lots.tsx",
+      "source": "src/app/(workspace)/w/lots/page.tsx",
+      "sourceSha256": "8dea3ffe34ce1a70f522fd011b9630991432d928f8b9215e6d24f7708aa97aba",
+      "targetSha256": "cf2fc82c77d9104136317f73a87892ad8417f1098d1942897ca1628b3b56496b"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/inventory.tsx",
+      "source": "src/app/(workspace)/w/inventory/page.tsx",
+      "sourceSha256": "b96cffd269a90c080a71872d0afd4d1d31c1010bdc8e473c62d5b6c81bc7560c",
+      "targetSha256": "fe568ea8693b5142936aa422abeeaef1d50e96eeb46d69eba9f5dfcbced411c6"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/distribution.tsx",
+      "source": "src/app/(workspace)/w/distribution/page.tsx",
+      "sourceSha256": "d99bb7593eaf0a2863a6d74f97575e8a55a5d8eb294a68593c0a5d0df294c130",
+      "targetSha256": "168e37388a2c29762bd1b62a76fe840ec84b92d887328b507732c5a0f51212e4"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/qr.tsx",
+      "source": "src/app/(workspace)/w/qr/page.tsx",
+      "sourceSha256": "71b081dfb056cdf50dcf348fd3b439ed18385989f9ed8c1d3415aa70f16208f4",
+      "targetSha256": "0315173765a88648766b14b38ba6c4554befa07e402656194c53bcbd2a28ea11"
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/lineage-panel.tsx",
+      "source": "src/components/workspace/lineage-panel.tsx",
+      "sourceSha256": "c73604ff230f082a5497e1a00552ed2c3c71dca76791534462b603410ac14d17",
+      "targetSha256": "b722cbb72affdb40bb00a57fd56ff11b9da4044d54fe18dde86de3dd4334818d"
     }
   ],
   "newLedgerComposition": [
@@ -3991,6 +4021,62 @@
     {
       "target": "apps/web/src/features/ledger/screens/production-cycles/screen.tsx",
       "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+      "basis": "Task15: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/distribution-signing.tsx",
+      "basis": "Task15: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/lot-handovers.tsx",
+      "basis": "Task15: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/harvest-recovery.tsx",
+      "basis": "Task15: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/distribution/[id]/journal/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/distribution/[id]/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/distribution/new/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/distribution/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/inventory/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/qr/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/reports/adjust/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/reports/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/lots/[lotId]/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/lots/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
     }
   ]
 }

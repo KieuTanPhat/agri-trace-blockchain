@@ -7095,24 +7095,17 @@
       "sourceFile": "apps/web/src/app/distribution/[id]/journal/page.tsx",
       "task": 15,
       "targetScreen": "apps/web/src/features/ledger/screens/distribution/[id]/journal/screen.tsx",
-      "exampleUrl": "/distribution/11111111-1111-4111-8111-111111111111/journal",
+      "exampleUrl": "/distribution/88888888-8888-4888-8888-888888888888/journal",
       "actorKey": "org-owner",
       "scenarioId": "routes.task15.distribution.id.journal",
       "readyHeading": "Phân phối",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Pinned baseline subject and organization authority, current permission revision, exact versions and idempotent command engine; server owns quantity and state transitions.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -7122,10 +7115,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/distribution/[id]/journal/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/journal/page.tsx",
+            "apps/web/src/app/distribution/[id]/journal/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/distribution/transfers/${id}`",
@@ -7134,10 +7143,26 @@
           "requestType": [],
           "responseType": "{ record: Row }",
           "retainedLogic": [
-            "apps/web/src/app/distribution/[id]/journal/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/journal/page.tsx",
+            "apps/web/src/app/distribution/[id]/journal/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/distribution/transfers/${id}/journal`",
@@ -7150,17 +7175,44 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/distribution/[id]/journal/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/journal/page.tsx",
+            "apps/web/src/app/distribution/[id]/journal/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/distribution/[id]/journal/screen.tsx",
+        "apps/web/src/features/ledger/workspace/distribution.tsx",
+        "apps/web/src/lib/ledger/dist-api.ts",
+        "apps/web/src/lib/ledger/lot-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+        "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
       }
     },
     {
@@ -7168,30 +7220,17 @@
       "sourceFile": "apps/web/src/app/distribution/[id]/page.tsx",
       "task": 15,
       "targetScreen": "apps/web/src/features/ledger/screens/distribution/[id]/screen.tsx",
-      "exampleUrl": "/distribution/11111111-1111-4111-8111-111111111111",
+      "exampleUrl": "/distribution/88888888-8888-4888-8888-888888888888",
       "actorKey": "org-owner",
       "scenarioId": "routes.task15.distribution.id",
       "readyHeading": "Phân phối",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Pinned baseline subject and organization authority, current permission revision, exact versions and idempotent command engine; server owns quantity and state transitions.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/distribution-c2.ts",
-        "apps/web/src/lib/distribution-signer.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/signing/canonical.ts",
-        "apps/web/src/lib/signing/key-store.ts",
-        "apps/web/src/lib/signing/signer.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -7201,10 +7240,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/distribution/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/app/distribution/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /distribution/keys",
@@ -7213,10 +7268,26 @@
           "requestType": [],
           "responseType": "{items: Row[]}",
           "retainedLogic": [
-            "apps/web/src/components/workspace/receipt-returns.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/components/workspace/receipt-returns.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -7225,10 +7296,26 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/distribution/transfers/${id}/challenge`",
@@ -7237,10 +7324,26 @@
           "requestType": [],
           "responseType": "Challenge",
           "retainedLogic": [
-            "apps/web/src/app/distribution/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/app/distribution/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/distribution/transfers/${id}`",
@@ -7249,10 +7352,26 @@
           "requestType": [],
           "responseType": "{ record: Row }",
           "retainedLogic": [
-            "apps/web/src/app/distribution/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/app/distribution/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${scope}`",
@@ -7261,10 +7380,26 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence/${id}/content`",
@@ -7273,10 +7408,26 @@
           "requestType": [],
           "responseType": "{ fileName: string; mediaType: string; contentBase64: string; sha256: string }",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/supply-chains/${t.chainId}/signing-keys`",
@@ -7285,10 +7436,26 @@
           "requestType": [],
           "responseType": "{chainRef:string;bindingDigest:string;keys:Row[]}",
           "retainedLogic": [
-            "apps/web/src/lib/distribution-c2.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/lib/distribution-c2.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST /enterprise-workspace/evidence",
@@ -7299,10 +7466,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/distribution/transfers/${id}/c2/submit`",
@@ -7311,10 +7494,26 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/distribution/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/app/distribution/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/distribution/transfers/${id}/cancel`",
@@ -7325,10 +7524,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/distribution/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/app/distribution/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/distribution/transfers/${id}/consent-renewal`",
@@ -7339,10 +7554,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/distribution/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/app/distribution/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/distribution/transfers/${id}/sign`",
@@ -7357,10 +7588,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/distribution/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/app/distribution/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/distribution/transfers/${t.id}/c2/prepare`",
@@ -7373,10 +7620,26 @@
           ],
           "responseType": "{items:PreparedIntent[]}",
           "retainedLogic": [
-            "apps/web/src/lib/distribution-c2.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/lib/distribution-c2.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/distribution/transfers/${t.id}/c2/submit`",
@@ -7385,10 +7648,26 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/receipt-returns.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/components/workspace/receipt-returns.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/distribution/transfers/${t.id}/receipt`",
@@ -7401,10 +7680,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/receipt-returns.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/components/workspace/receipt-returns.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/distribution/transfers/${t.id}/returns/${r.id}/sign`",
@@ -7418,10 +7713,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/receipt-returns.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/components/workspace/receipt-returns.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/distribution/transfers/${t.id}/returns`",
@@ -7434,17 +7745,44 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/receipt-returns.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/[id]/page.tsx",
+            "apps/web/src/components/workspace/receipt-returns.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/distribution/[id]/screen.tsx",
+        "apps/web/src/features/ledger/workspace/distribution.tsx",
+        "apps/web/src/lib/ledger/dist-api.ts",
+        "apps/web/src/lib/ledger/lot-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+        "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
       }
     },
     {
@@ -7458,18 +7796,11 @@
       "readyHeading": "Phân phối",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Pinned baseline subject and organization authority, current permission revision, exact versions and idempotent command engine; server owns quantity and state transitions.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -7479,10 +7810,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/distribution/new/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/new/page.tsx",
+            "apps/web/src/app/distribution/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /distribution/options",
@@ -7491,10 +7838,26 @@
           "requestType": [],
           "responseType": "{ items: Row[]; vehicles: Row[] }",
           "retainedLogic": [
-            "apps/web/src/app/distribution/new/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/new/page.tsx",
+            "apps/web/src/app/distribution/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /distribution/reports",
@@ -7503,10 +7866,26 @@
           "requestType": [],
           "responseType": "{ lots: Row[] }",
           "retainedLogic": [
-            "apps/web/src/app/distribution/new/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/new/page.tsx",
+            "apps/web/src/app/distribution/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -7515,10 +7894,26 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/app/distribution/new/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/new/page.tsx",
+            "apps/web/src/app/distribution/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /enterprise-workspace/partners",
@@ -7527,10 +7922,26 @@
           "requestType": [],
           "responseType": "{ items: Row[] }",
           "retainedLogic": [
-            "apps/web/src/app/distribution/new/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/new/page.tsx",
+            "apps/web/src/app/distribution/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST /distribution/transfers",
@@ -7553,17 +7964,44 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/distribution/new/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/new/page.tsx",
+            "apps/web/src/app/distribution/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/distribution/new/screen.tsx",
+        "apps/web/src/features/ledger/workspace/distribution.tsx",
+        "apps/web/src/lib/ledger/dist-api.ts",
+        "apps/web/src/lib/ledger/lot-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+        "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
       }
     },
     {
@@ -7577,18 +8015,11 @@
       "readyHeading": "Phân phối",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Pinned baseline subject and organization authority, current permission revision, exact versions and idempotent command engine; server owns quantity and state transitions.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -7598,10 +8029,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/distribution/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/page.tsx",
+            "apps/web/src/app/distribution/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /distribution/transfers",
@@ -7610,10 +8057,26 @@
           "requestType": [],
           "responseType": "{ items: Row[] }",
           "retainedLogic": [
-            "apps/web/src/app/distribution/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/page.tsx",
+            "apps/web/src/app/distribution/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -7622,17 +8085,44 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/app/distribution/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/distribution/page.tsx",
+            "apps/web/src/app/distribution/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/distribution/screen.tsx",
+        "apps/web/src/features/ledger/workspace/distribution.tsx",
+        "apps/web/src/lib/ledger/dist-api.ts",
+        "apps/web/src/lib/ledger/lot-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/distribution.tsx",
+        "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
       }
     },
     {
@@ -9038,19 +9528,11 @@
       "readyHeading": "Tổng quan doanh nghiệp",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Pinned baseline subject and organization authority, current permission revision, exact versions and idempotent command engine; server owns quantity and state transitions.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -9060,10 +9542,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/inventory/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx",
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /distribution/reports",
@@ -9072,10 +9570,26 @@
           "requestType": [],
           "responseType": "{ lots: Row[] }",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/inventory/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx",
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -9084,10 +9598,26 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /enterprise-workspace/sites",
@@ -9096,10 +9626,26 @@
           "requestType": [],
           "responseType": "Items<EnterpriseSite>",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/inventory/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx",
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${scope}`",
@@ -9108,10 +9654,26 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence/${id}/content`",
@@ -9120,10 +9682,26 @@
           "requestType": [],
           "responseType": "{ fileName: string; mediaType: string; contentBase64: string; sha256: string }",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST /enterprise-workspace/evidence",
@@ -9134,17 +9712,341 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "GET /distribution/site-transfers",
+          "method": "GET",
+          "endpoint": "/distribution/site-transfers",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "GET /distribution/quarantine-cases",
+          "method": "GET",
+          "endpoint": "/distribution/quarantine-cases",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "POST /distribution/allocations",
+          "method": "POST",
+          "endpoint": "/distribution/allocations",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "POST /distribution/site-transfers",
+          "method": "POST",
+          "endpoint": "/distribution/site-transfers",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "POST /distribution/quarantine",
+          "method": "POST",
+          "endpoint": "/distribution/quarantine",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "POST /distribution/quantities",
+          "method": "POST",
+          "endpoint": "/distribution/quantities",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "POST /distribution/notices",
+          "method": "POST",
+          "endpoint": "/distribution/notices",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "POST /distribution/site-transfers/:id/dispatch",
+          "method": "POST",
+          "endpoint": "/distribution/site-transfers/:id/dispatch",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "POST /distribution/site-transfers/:id/receive",
+          "method": "POST",
+          "endpoint": "/distribution/site-transfers/:id/receive",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "POST /distribution/site-transfers/:id/resolve",
+          "method": "POST",
+          "endpoint": "/distribution/site-transfers/:id/resolve",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "POST /distribution/site-transfers/:id/cancel",
+          "method": "POST",
+          "endpoint": "/distribution/site-transfers/:id/cancel",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/inventory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/inventory/screen.tsx",
+        "apps/web/src/features/ledger/workspace/inventory.tsx",
+        "apps/web/src/lib/ledger/dist-api.ts",
+        "apps/web/src/lib/ledger/lot-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/inventory.tsx",
+        "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
       }
     },
     {
@@ -15131,18 +16033,11 @@
       "readyHeading": "Tem truy xuất",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Pinned baseline subject and organization authority, current permission revision, exact versions and idempotent command engine; server owns quantity and state transitions.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -15152,10 +16047,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/qr/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/qr/page.tsx",
+            "apps/web/src/app/enterprise/qr/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/qr.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/qr.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /distribution/qr",
@@ -15164,10 +16075,26 @@
           "requestType": [],
           "responseType": "{ lots: Row[] }",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/qr/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/qr/page.tsx",
+            "apps/web/src/app/enterprise/qr/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/qr.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/qr.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST /distribution/qr/prints",
@@ -15180,17 +16107,71 @@
           ],
           "responseType": "{ record: Label }",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/qr/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/qr/page.tsx",
+            "apps/web/src/app/enterprise/qr/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/qr.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/qr.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "GET /distribution/qr/prints/:lotId",
+          "method": "GET",
+          "endpoint": "/distribution/qr/prints/:lotId",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/qr/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/qr.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/qr.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/qr/screen.tsx",
+        "apps/web/src/features/ledger/workspace/qr.tsx",
+        "apps/web/src/lib/ledger/dist-api.ts",
+        "apps/web/src/lib/ledger/lot-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/qr.tsx",
+        "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
       }
     },
     {
@@ -15204,18 +16185,11 @@
       "readyHeading": "Tổng quan doanh nghiệp",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Pinned baseline subject and organization authority, current permission revision, exact versions and idempotent command engine; server owns quantity and state transitions.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -15225,10 +16199,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/reports/adjust/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/reports/adjust/page.tsx",
+            "apps/web/src/app/enterprise/reports/adjust/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /distribution/reports",
@@ -15237,10 +16227,26 @@
           "requestType": [],
           "responseType": "{ lots: Row[] }",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/reports/adjust/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/reports/adjust/page.tsx",
+            "apps/web/src/app/enterprise/reports/adjust/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST /distribution/quantities",
@@ -15253,17 +16259,44 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/reports/adjust/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/reports/adjust/page.tsx",
+            "apps/web/src/app/enterprise/reports/adjust/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/reports/adjust/screen.tsx",
+        "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+        "apps/web/src/lib/ledger/dist-api.ts",
+        "apps/web/src/lib/ledger/lot-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+        "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
       }
     },
     {
@@ -15277,18 +16310,11 @@
       "readyHeading": "Tổng quan doanh nghiệp",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Pinned baseline subject and organization authority, current permission revision, exact versions and idempotent command engine; server owns quantity and state transitions.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -15298,10 +16324,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/reports/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/reports/page.tsx",
+            "apps/web/src/app/enterprise/reports/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -15310,10 +16352,26 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/reports/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/reports/page.tsx",
+            "apps/web/src/app/enterprise/reports/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /enterprise-workspace/sites",
@@ -15322,10 +16380,26 @@
           "requestType": [],
           "responseType": "{items:Row[]}",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/reports/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/reports/page.tsx",
+            "apps/web/src/app/enterprise/reports/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/distribution/reports?${query}`",
@@ -15334,17 +16408,44 @@
           "requestType": [],
           "responseType": "{ lots: Row[]; transfers: Row[];hasNext:boolean }",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/reports/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/reports/page.tsx",
+            "apps/web/src/app/enterprise/reports/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/reports/screen.tsx",
+        "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+        "apps/web/src/lib/ledger/dist-api.ts",
+        "apps/web/src/lib/ledger/lot-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+        "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
       }
     },
     {
@@ -18556,32 +19657,17 @@
       "sourceFile": "apps/web/src/app/lots/[lotId]/page.tsx",
       "task": 15,
       "targetScreen": "apps/web/src/features/ledger/screens/lots/[lotId]/screen.tsx",
-      "exampleUrl": "/lots/fixture-public-token",
+      "exampleUrl": "/lots/66666666-6666-4666-8666-666666666666",
       "actorKey": "org-owner",
       "scenarioId": "routes.task15.lots.lotId",
       "readyHeading": "Lô hàng",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Pinned baseline subject and organization authority, current permission revision, exact versions and idempotent command engine; server owns quantity and state transitions.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/display-labels.ts",
-        "apps/web/src/lib/format-date.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/mock-api.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/qr-code.ts",
-        "apps/web/src/lib/signing/canonical.ts",
-        "apps/web/src/lib/signing/key-store.ts",
-        "apps/web/src/lib/signing/signer.ts",
-        "apps/web/src/lib/use-pending-commands.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -18591,10 +19677,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/lots/[lotId]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/app/lots/[lotId]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /chain-permissions",
@@ -18603,10 +19705,26 @@
           "requestType": [],
           "responseType": "AccessContext",
           "retainedLogic": [
-            "apps/web/src/components/handover-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/components/handover-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -18615,10 +19733,26 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /lots",
@@ -18627,10 +19761,26 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /organizations",
@@ -18639,10 +19789,26 @@
           "requestType": [],
           "responseType": "Array<{ id: string; name: string; type: Organization[\"type\"] }>",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${scope}`",
@@ -18651,10 +19817,26 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence/${id}/content`",
@@ -18663,10 +19845,26 @@
           "requestType": [],
           "responseType": "{ fileName: string; mediaType: string; contentBase64: string; sha256: string }",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/lots/${lotId}`",
@@ -18675,10 +19873,26 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/shipments/${shipmentId}/handovers`",
@@ -18687,10 +19901,26 @@
           "requestType": [],
           "responseType": "Handover[]",
           "retainedLogic": [
-            "apps/web/src/components/handover-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/components/handover-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/supply-chains/${chainId}/signing-keys`",
@@ -18699,10 +19929,26 @@
           "requestType": [],
           "responseType": "SigningContext",
           "retainedLogic": [
-            "apps/web/src/components/handover-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/components/handover-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST /enterprise-workspace/evidence",
@@ -18713,10 +19959,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST /shipments",
@@ -18731,10 +19993,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/handovers/${id}/${action}`",
@@ -18745,10 +20023,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/handover-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/components/handover-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/lots/${lot.lotId}/${action}`",
@@ -18760,10 +20054,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/shipments/${lot.shipment.shipmentId}/${action}`",
@@ -18774,10 +20084,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/signing-intents/${id}/submit`",
@@ -18788,17 +20114,125 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/handover-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx",
+            "apps/web/src/components/handover-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "GET /processing-runs/lineage/:lotId",
+          "method": "GET",
+          "endpoint": "/processing-runs/lineage/:lotId",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "POST /shipments/:shipmentId/handover-offers/intent",
+          "method": "POST",
+          "endpoint": "/shipments/:shipmentId/handover-offers/intent",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
+        },
+        {
+          "id": "POST /handovers/:id/confirmation/intent",
+          "method": "POST",
+          "endpoint": "/handovers/:id/confirmation/intent",
+          "requestType": null,
+          "responseType": null,
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/[lotId]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/lots/[lotId]/screen.tsx",
+        "apps/web/src/features/ledger/workspace/lots.tsx",
+        "apps/web/src/lib/ledger/dist-api.ts",
+        "apps/web/src/lib/ledger/lot-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+        "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
       }
     },
     {
@@ -18812,22 +20246,11 @@
       "readyHeading": "Lô hàng",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Pinned baseline subject and organization authority, current permission revision, exact versions and idempotent command engine; server owns quantity and state transitions.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/display-labels.ts",
-        "apps/web/src/lib/format-date.ts",
-        "apps/web/src/lib/harvest-recovery.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/mock-api.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/qr-code.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -18837,10 +20260,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/lots/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/page.tsx",
+            "apps/web/src/app/lots/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /lots",
@@ -18849,10 +20288,26 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET /production-cycles",
@@ -18861,10 +20316,26 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${scope}`",
@@ -18873,10 +20344,26 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/entity-thumb.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/page.tsx",
+            "apps/web/src/components/workspace/entity-thumb.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence/${photo.id}/content`",
@@ -18885,10 +20372,26 @@
           "requestType": [],
           "responseType": "{ mediaType: string; contentBase64: string }",
           "retainedLogic": [
-            "apps/web/src/components/workspace/entity-thumb.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/page.tsx",
+            "apps/web/src/components/workspace/entity-thumb.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "GET `/production-cycles/${cycleId}/harvest-request-status`",
@@ -18897,10 +20400,26 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         },
         {
           "id": "POST `/production-cycles/${cycleId}/harvests`",
@@ -18911,17 +20430,44 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/lots/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/lots.tsx",
+            "apps/web/src/lib/ledger/dist-api.ts",
+            "apps/web/src/lib/ledger/lot-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+            "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "implementation": [
+        "apps/web/src/features/ledger/screens/lots/screen.tsx",
+        "apps/web/src/features/ledger/workspace/lots.tsx",
+        "apps/web/src/lib/ledger/dist-api.ts",
+        "apps/web/src/lib/ledger/lot-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/lots.tsx",
+        "result": "Task15 canonical route and complete action/DTO/policy reconciliation; representative browser workflows recorded in local ledger. Source review does not imply live API/Fabric acceptance."
       }
     },
     {
