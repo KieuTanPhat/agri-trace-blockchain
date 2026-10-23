@@ -44,23 +44,49 @@ async function login(page, origin, user, password) {
   options.results?.push(result);
 }
 
+/** The chain route opens its detail sheet; its section link marks the current view. */
 async function selectChain(page, options, section) {
   await page.goto(`${options.origin}/supply-chains/${options.fixture.chainId}/${section}`, {
     waitUntil: "domcontentloaded",
   });
-  const select = page.getByLabel("Chọn chuỗi");
-  await select.waitFor({ state: "visible", timeout });
-  await until(
-    async () =>
-      (await select
-        .locator(`option[value="${options.fixture.chainId}"]`)
-        .count()) === 1,
-    "current chain selection",
-  );
-  // Detail routes already select their chain. Re-selecting the same value fires
-  // onChange and clears members without changing the effect's selected key.
-  if ((await select.inputValue()) !== options.fixture.chainId)
-    await select.selectOption(options.fixture.chainId);
+  const sheet = page.getByRole("dialog", { name: options.fixture.chainName, exact: true });
+  await sheet
+    .locator(`a[href="/supply-chains/${options.fixture.chainId}/${section}"][aria-current="page"]`)
+    .waitFor({ state: "visible", timeout });
+  return sheet;
+}
+
+/** Reconcile one journaled command from the shell banner. Detail sheets are modal,
+ * so the banner is used from a list route where nothing covers it. */
+function recoveryQueue(page) {
+  return page.getByTestId("ledger-recovery-panel");
+}
+
+function recoveryItem(page, operation) {
+  return recoveryQueue(page)
+    .locator("li")
+    .filter({ hasText: new RegExp(`^${operation}`) });
+}
+
+function handoverPanel(page) {
+  return page.locator("section").filter({
+    has: page.locator(":scope > h3", { hasText: /^Bàn giao hai bên$/ }),
+  });
+}
+
+function signingReview(page, title) {
+  return page.getByRole("dialog", { name: title, exact: true });
+}
+
+async function signOut(page) {
+  await page.getByRole("button", { name: "Tài khoản", exact: true }).filter({ visible: true }).first().click();
+  await page.getByRole("menuitem", { name: "Đăng xuất", exact: true }).click();
+  // Signing out asks once in the shared confirmation dialog.
+  await page
+    .getByRole("dialog", { name: "Đăng xuất", exact: true })
+    .getByRole("button", { name: "Đăng xuất", exact: true })
+    .click();
+  await page.waitForURL((url) => url.pathname === "/login", { timeout });
 }
 
 async function requestResult(page, pattern, work) {
@@ -97,67 +123,64 @@ async function openLot(page, options, lotId, { revoked = false } = {}) {
   await page.goto(`${options.origin}/lots/${lotId}`, {
     waitUntil: "domcontentloaded",
   });
-  const panel = page.getByRole("region", {
-    name: "Bàn giao hai bên",
-    exact: true,
-  });
+  const panel = handoverPanel(page);
   if (!revoked) return panel.waitFor({ state: "visible", timeout });
-  // Without a current grant the API hides the lot (404): the page settles on the
-  // not-found state and must never render the handover panel.
+  // Without a current grant the API hides the lot (404): the sheet settles on
+  // its load error and must never render the handover panel.
   await page
-    .getByText("Không tìm thấy lô hàng")
+    .getByText(/^(Không tải được dữ liệu|Vai hiện tại không có quyền xem mục này)$/)
     .waitFor({ state: "visible", timeout });
   assert.equal(await panel.count(), 0, "Revoked actor must not see the panel");
 }
 
 async function chooseKey(page, keyRef) {
-  const select = page.getByLabel("Khóa ký cho bàn giao");
+  const select = handoverPanel(page).getByLabel("Khóa ký trên thiết bị");
   await select.waitFor({ state: "visible", timeout });
   await until(() => select.isEnabled(), "signing queue ready");
+  await until(
+    async () => (await select.locator(`option[value="${keyRef}"]:not([disabled])`).count()) === 1,
+    "device key listed for the shipment",
+  );
   await select.selectOption(keyRef);
 }
 
 async function reviewOffer(page, options, shipment, keyRef, minutes) {
   await openLot(page, options, shipment.lotId);
   await chooseKey(page, keyRef);
+  const panel = handoverPanel(page);
   if (minutes !== undefined)
-    await page
+    await panel
       .getByLabel("Hiệu lực đề nghị (phút)", { exact: true })
       .fill(String(minutes));
   const prepared = await requestResult(page, /\/handover-offers\/intent$/, () =>
-    page.getByRole("button", { name: /^Đề nghị bàn giao:/ }).click(),
+    panel.getByRole("button", { name: "Chuẩn bị đề nghị bàn giao", exact: true }).click(),
   );
-  await page
-    .getByRole("region", { name: "Xem lại trước khi ký", exact: true })
-    .waitFor({ state: "visible", timeout });
+  await signingReview(page, "Đề nghị bàn giao").waitFor({ state: "visible", timeout });
   return prepared;
 }
 
 async function submitReviewed(page) {
   return requestResult(page, /\/signing-intents\/[^/]+\/submit$/, () =>
-    page.getByRole("button", { name: "Ký và gửi", exact: true }).click(),
+    page.getByRole("button", { name: "Ký và gửi bàn giao", exact: true }).click(),
   );
 }
 
 async function confirm(page, options, shipment, keyRef, internal = false) {
   await openLot(page, options, shipment.lotId);
   await chooseKey(page, keyRef);
-  await requestResult(page, /\/confirmation\/intent$/, () =>
-    page
-      .getByRole("button", {
-        name: internal ? "Xác nhận nhận hàng nội bộ" : "Xác nhận nhận hàng",
-        exact: true,
-      })
-      .click(),
-  );
+  const offer = handoverPanel(page)
+    .locator("article")
+    .filter({ has: page.getByRole("button", { name: "Xác nhận nhận hàng", exact: true }) });
   if (internal)
     assert.equal(
-      await page
-        .getByText(/hai ý định giao và nhận vẫn phải được ký riêng/)
-        .count(),
+      await offer.getByText("Bàn giao nội bộ", { exact: true }).count(),
       1,
       "Same-org review must identify internal confirmation",
     );
+  await requestResult(page, /\/confirmation\/intent$/, () =>
+    offer.getByRole("button", { name: "Xác nhận nhận hàng", exact: true }).click(),
+  );
+  await signingReview(page, "Xác nhận nhận hàng").waitFor({ state: "visible", timeout });
   return submitReviewed(page);
 }
 
@@ -286,7 +309,7 @@ async function createSession(options) {
 
 async function enrollKey(options, session, party, label, loseResponse = false) {
   const page = session.pages[party];
-  await selectChain(page, options, "signing");
+  const sheet = await selectChain(page, options, "signing");
   const pathname = `/supply-chains/${options.fixture.chainId}/signing-keys`;
   let original;
   if (loseResponse)
@@ -307,11 +330,11 @@ async function enrollKey(options, session, party, label, loseResponse = false) {
       original.committed = true;
       await route.abort("failed");
     });
-  const name = page.getByLabel("Tên khóa", { exact: true });
+  const name = sheet.getByLabel("Nhãn khóa ký sổ cái", { exact: true });
   await name.waitFor({ state: "visible", timeout });
   await name.fill(label);
-  const button = page.getByRole("button", {
-    name: "Tạo khóa ký trên thiết bị này",
+  const button = sheet.getByRole("button", {
+    name: "Tạo khóa ký sổ cái",
     exact: true,
   });
   await until(() => button.isEnabled(), "key enrollment queue ready");
@@ -332,16 +355,14 @@ async function enrollKey(options, session, party, label, loseResponse = false) {
     );
     await page.unroute(api(pathname));
     await page.reload({ waitUntil: "domcontentloaded" });
-    const queue = page.getByRole("region", {
-      name: "Yêu cầu cần đối soát",
-      exact: true,
-    });
-    await queue
-      .getByText("Đăng ký khóa ký của tổ chức", { exact: true })
+    // The reloaded sheet keeps the form locked while the original is unresolved.
+    await sheet
+      .getByText("Đối soát yêu cầu khóa đang chờ trước khi tạo khóa khác.", { exact: true })
       .waitFor({ state: "visible", timeout });
-    await queue
-      .getByRole("button", { name: "Kiểm tra và thử lại", exact: true })
-      .click();
+    await page.goto(`${options.origin}/supply-chains`, { waitUntil: "domcontentloaded" });
+    const pending = recoveryItem(page, "HYB_REGISTER_SIGNING_KEY");
+    await pending.waitFor({ state: "visible", timeout });
+    await pending.getByRole("button", { name: "Đối soát", exact: true }).click();
     await until(
       async () =>
         (await commandMetadata(page, pathname))?.status === "COMMITTED",
@@ -444,12 +465,15 @@ export async function prepareHybridBrowserExpiry(options) {
           "real signed offer expiry",
           90_000,
         );
-        await session.pages.transporter
-          .getByText(/Hết hạn:/)
+        // The panel reads the handover again after the real state change.
+        await session.pages.transporter.reload({ waitUntil: "domcontentloaded" });
+        await handoverPanel(session.pages.transporter)
+          .locator("article")
+          .getByText("EXPIRED", { exact: true })
           .waitFor({ state: "visible", timeout });
         assert.equal(
           await session.pages.transporter
-            .getByRole("button", { name: /^Xác nhận nhận hàng/ })
+            .getByRole("button", { name: "Xác nhận nhận hàng", exact: true })
             .count(),
           0,
           "Expired offer must not expose confirmation",
@@ -486,31 +510,39 @@ export async function prepareHybridBrowserExpiry(options) {
 
 async function planConsent(options, session) {
   const created = await options.createPlan();
-  for (const [party, label] of [
-    ["farm", "sản xuất"],
-    ["transporter", "vận chuyển"],
-    ["retailer", "bán lẻ"],
+  // Each plan card shows the digest every party consents to.
+  const card = (sheet) =>
+    sheet.locator("article").filter({ hasText: created.plan.current.payloadDigest });
+  for (const [party, role] of [
+    ["farm", "PRODUCER"],
+    ["transporter", "TRANSPORTER"],
+    ["retailer", "RETAILER"],
   ]) {
     const page = session.pages[party];
-    await selectChain(page, options, "plans");
+    const sheet = await selectChain(page, options, "plans");
     await requestResult(page, /\/shipment-plans\/[^/]+\/accept$/, async () => {
-      await page
-        .getByRole("button", { name: `Xác nhận vai trò ${label}`, exact: true })
+      await card(sheet)
+        .getByRole("button", { name: `Đồng ý ${role}`, exact: true })
         .click();
-      await page.getByRole("dialog").getByRole("button", { name: "Xác nhận", exact: true }).click();
+      await page
+        .getByRole("dialog", { name: "Xác nhận đồng thuận", exact: true })
+        .getByRole("button", { name: "Đồng ý nội dung hiện hành", exact: true })
+        .click();
     });
   }
-  await selectChain(session.pages.farm, options, "plans");
+  const plans = await selectChain(session.pages.farm, options, "plans");
   const finalized = await requestResult(
     session.pages.farm,
     /\/shipment-plans\/[^/]+\/finalize$/,
-    () =>
-      session.pages.farm
-        .getByRole("button", {
-          name: "Tạo chuyến theo kế hoạch đã xác nhận",
-          exact: true,
-        })
-        .click(),
+    async () => {
+      await card(plans)
+        .getByRole("button", { name: "Chốt kế hoạch", exact: true })
+        .click();
+      await session.pages.farm
+        .getByRole("dialog", { name: "Chốt kế hoạch", exact: true })
+        .getByRole("button", { name: "Xác nhận", exact: true })
+        .click();
+    },
   );
   const plan = await options.db.shipmentPlan.findUnique({
     where: { id: created.planId },
@@ -534,30 +566,34 @@ async function planConsent(options, session) {
 }
 
 async function invitation(options, session) {
-  await selectChain(session.pages.farm, options, "members");
-  const form = session.pages.farm
-    .locator("form")
-    .filter({
-      has: session.pages.farm.getByRole("button", {
-        name: "Mời đối tác",
-        exact: true,
-      }),
-    });
-  await form
-    .getByLabel("Tổ chức", { exact: false })
-    .selectOption(options.fixture.users.other.organizationId);
-  await requestResult(session.pages.farm, /\/memberships$/, () =>
-    form.getByRole("button", { name: "Mời đối tác", exact: true }).click(),
+  const farm = session.pages.farm;
+  const sheet = await selectChain(farm, options, "members");
+  const invite = sheet.getByRole("button", { name: "Mời thành viên", exact: true });
+  await until(() => invite.isEnabled(), "active partner can be invited");
+  await invite.click();
+  const form = farm.getByRole("dialog", { name: "Mời thành viên", exact: true });
+  await form.getByRole("combobox", { name: "Đối tác", exact: true }).click();
+  await farm
+    .getByRole("option", { name: options.fixture.users.other.organizationName, exact: true })
+    .click();
+  await requestResult(farm, /\/memberships$/, () =>
+    form.getByRole("button", { name: "Gửi lời mời", exact: true }).click(),
   );
-  await selectChain(session.pages.other, options, "members");
+  // An invited organization is not a member yet: it accepts from its chain list.
+  const other = session.pages.other;
+  await other.goto(`${options.origin}/supply-chains`, { waitUntil: "domcontentloaded" });
   await requestResult(
-    session.pages.other,
+    other,
     /\/memberships\/[^/]+\/accept$/,
     async () => {
-      await session.pages.other
-        .getByRole("button", { name: "Chấp nhận tham gia", exact: true })
+      await other
+        .getByRole("button", { name: "Chấp nhận lời mời", exact: true })
+        .filter({ visible: true })
+        .click({ timeout });
+      await other
+        .getByRole("dialog", { name: /^Tham gia chuỗi/ })
+        .getByRole("button", { name: "Chấp nhận", exact: true })
         .click();
-      await session.pages.other.getByRole("dialog").getByRole("button", { name: "Xác nhận", exact: true }).click();
     },
   );
   assert.equal(
@@ -607,7 +643,7 @@ async function lostResponseAndTabs(options, session, shipment) {
     original.committed = true;
     await route.abort("failed");
   });
-  await page.getByRole("button", { name: "Ký và gửi", exact: true }).click();
+  await page.getByRole("button", { name: "Ký và gửi bàn giao", exact: true }).click();
   await until(
     async () =>
       original?.committed &&
@@ -623,8 +659,13 @@ async function lostResponseAndTabs(options, session, shipment) {
   );
   await page.unroute(api(pathname));
   await page.reload({ waitUntil: "domcontentloaded" });
+  // The reloaded lot holds further signing until the original is reconciled.
+  await handoverPanel(page)
+    .getByText("Có yêu cầu chưa rõ kết quả. Đối soát trước khi ký tiếp.", { exact: true })
+    .waitFor({ state: "visible", timeout });
+  await page.goto(`${options.origin}/lots`, { waitUntil: "domcontentloaded" });
   const second = await session.contexts.farm.newPage();
-  await openLot(second, options, shipment.lotId);
+  await second.goto(`${options.origin}/lots`, { waitUntil: "domcontentloaded" });
   let release;
   let firstInspect;
   const held = new Promise((resolve) => {
@@ -660,20 +701,15 @@ async function lostResponseAndTabs(options, session, shipment) {
     },
   );
   try {
-    const queue = (view) =>
-      view.getByRole("region", { name: "Yêu cầu cần đối soát", exact: true });
+    const queue = (view) => recoveryItem(view, "SUBMIT_SIGNED_INTENT");
+    await queue(page).waitFor({ state: "visible", timeout });
+    await queue(second).waitFor({ state: "visible", timeout });
     await queue(page)
-      .getByText("Gửi chữ ký bàn giao", { exact: true })
-      .waitFor({ state: "visible", timeout });
-    await queue(second)
-      .getByText("Gửi chữ ký bàn giao", { exact: true })
-      .waitFor({ state: "visible", timeout });
-    await queue(page)
-      .getByRole("button", { name: "Kiểm tra và thử lại", exact: true })
+      .getByRole("button", { name: "Đối soát", exact: true })
       .click();
     await entered;
     await queue(second)
-      .getByRole("button", { name: "Kiểm tra và thử lại", exact: true })
+      .getByRole("button", { name: "Đối soát", exact: true })
       .click();
     release();
     await until(
@@ -846,17 +882,23 @@ export async function runHybridBrowserScenarios(options) {
         const page =
           session.pages[action === "reject" ? "transporter" : "farm"];
         await openLot(page, options, shipment.lotId);
+        const offer = handoverPanel(page).locator("article").filter({
+          has: page.getByRole("button", {
+            name: action === "reject" ? "Từ chối nhận" : "Hủy đề nghị",
+            exact: true,
+          }),
+        });
         if (action === "reject")
-          page.once("dialog", (dialog) =>
-            dialog.accept("Browser acceptance rejection"),
-          );
+          await offer
+            .getByLabel("Lý do từ chối", { exact: true })
+            .fill("Browser acceptance rejection");
         await requestResult(
           page,
           new RegExp(`/handovers/[^/]+/${action}$`),
           () =>
-            page
+            offer
               .getByRole("button", {
-                name: action === "reject" ? "Từ chối" : "Hủy đề nghị",
+                name: action === "reject" ? "Từ chối nhận" : "Hủy đề nghị",
                 exact: true,
               })
               .click(),
@@ -894,15 +936,20 @@ export async function runHybridBrowserScenarios(options) {
       );
       const shipment = await options.createShipment();
       await openLot(session.pages.farm, options, shipment.lotId);
-      const selector = session.pages.farm.getByLabel("Khóa ký cho bàn giao");
+      const panel = handoverPanel(session.pages.farm);
+      const selector = panel.getByLabel("Khóa ký trên thiết bị");
+      await until(
+        async () => (await selector.locator("option:not([value=''])").count()) >= 2,
+        "both active device keys listed",
+      );
       assert.equal(
         await selector.inputValue(),
         "",
         "Multiple active keys require explicit selection",
       );
       assert.equal(
-        await session.pages.farm
-          .getByRole("button", { name: /^Đề nghị bàn giao:/ })
+        await panel
+          .getByRole("button", { name: "Chuẩn bị đề nghị bàn giao", exact: true })
           .isEnabled(),
         false,
         "No implicit key choice",
@@ -918,9 +965,19 @@ export async function runHybridBrowserScenarios(options) {
         secondKey,
         "Prepared intent uses the explicitly selected key",
       );
-      await session.pages.farm
-        .getByRole("button", { name: "Không ký", exact: true })
-        .click();
+      // Declining to sign closes the review without submitting it.
+      await session.pages.farm.keyboard.press("Escape");
+      await signingReview(session.pages.farm, "Đề nghị bàn giao").waitFor({
+        state: "hidden",
+        timeout,
+      });
+      assert.equal(
+        await options.db.shipmentHandover.count({
+          where: { shipmentId: shipment.shipmentId },
+        }),
+        0,
+        "A declined review submits nothing",
+      );
     });
     await group("account-switch-drops-review-and-response-scope", async () => {
       const shipment = await options.createShipment();
@@ -930,18 +987,12 @@ export async function runHybridBrowserScenarios(options) {
         shipment,
         session.keys.farm,
       );
-      await session.pages.farm.locator('summary[aria-label^="Tài khoản:"]').filter({ visible: true }).first().click();
-      await session.pages.farm
-        .getByRole("button", { name: "Đăng xuất", exact: true })
-        .click();
-      // Signing out asks once in the shared confirmation dialog.
-      await session.pages.farm
-        .getByRole("dialog")
-        .getByRole("button", { name: "Xác nhận", exact: true })
-        .click();
-      await session.pages.farm.waitForURL((url) => url.pathname === "/login", {
-        timeout,
-      });
+      // The review and the lot sheet are modal: leave both before using the
+      // account menu. Neither may survive for the next signed-in account.
+      await session.pages.farm.keyboard.press("Escape");
+      await signingReview(session.pages.farm, "Đề nghị bàn giao").waitFor({ state: "hidden", timeout });
+      await session.pages.farm.keyboard.press("Escape");
+      await signOut(session.pages.farm);
       await login(
         session.pages.farm,
         options.origin,
@@ -953,31 +1004,19 @@ export async function runHybridBrowserScenarios(options) {
         { waitUntil: "domcontentloaded" },
       );
       assert.equal(
-        await session.pages.farm
-          .getByRole("region", { name: "Xem lại trước khi ký", exact: true })
-          .count(),
+        await signingReview(session.pages.farm, "Đề nghị bàn giao").count(),
         0,
         "An account switch discards the previous signing review",
       );
       assert.equal(
         await session.pages.farm
-          .getByRole("button", { name: "Ký và gửi", exact: true })
+          .getByRole("button", { name: "Ký và gửi bàn giao", exact: true })
           .count(),
         0,
         "Another account cannot submit the prior review",
       );
-      await session.pages.farm.locator('summary[aria-label^="Tài khoản:"]').filter({ visible: true }).first().click();
-      await session.pages.farm
-        .getByRole("button", { name: "Đăng xuất", exact: true })
-        .click();
-      // Signing out asks once in the shared confirmation dialog.
-      await session.pages.farm
-        .getByRole("dialog")
-        .getByRole("button", { name: "Xác nhận", exact: true })
-        .click();
-      await session.pages.farm.waitForURL((url) => url.pathname === "/login", {
-        timeout,
-      });
+      await session.pages.farm.goto(`${options.origin}/lots`, { waitUntil: "domcontentloaded" });
+      await signOut(session.pages.farm);
       await login(
         session.pages.farm,
         options.origin,
@@ -996,7 +1035,7 @@ export async function runHybridBrowserScenarios(options) {
       await openLot(session.pages.farm, options, flow.lotId, { revoked: true });
       assert.equal(
         await session.pages.farm
-          .getByRole("button", { name: /^Đề nghị bàn giao:|^Ký và gửi$/ })
+          .getByRole("button", { name: /^(Chuẩn bị đề nghị bàn giao|Ký và gửi bàn giao|Xác nhận nhận hàng)$/ })
           .count(),
         0,
         "Revocation removes signing actions",

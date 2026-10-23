@@ -41,13 +41,15 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
     const role = await db.role.upsert({ where: { code }, create: { code, name: code }, update: {} });
     const org = await db.organization.create({ data: { name: `${label} ${party}`, type } });
     const user = await db.user.create({ data: { email: `${randomUUID()}@example.test`, fullName: `${label} ${party}`, passwordHash: await hash(password, 10), roleId: role.id, organizationId: org.id } });
-    users[party] = { id: user.id, email: user.email, organizationId: org.id };
+    users[party] = { id: user.id, email: user.email, organizationId: org.id, organizationName: org.name };
     sessions[party] = randomUUID();
     await db.refreshSession.create({ data: { id: sessions[party], familyId: sessions[party], userId: user.id,
       tokenHash: randomBytes(32).toString('hex'), expiresAt: new Date(Date.now() + 3_600_000) } });
     for (const scoped of ['ORG_ADMIN', ...(type === 'FARM' ? ['CREATE_CHAIN'] : [])])
       await db.scopedRoleGrant.create({ data: { userId: user.id, organizationId: org.id, scope: 'ORGANIZATION', role: scoped } });
   }
+  // The chain owner invites only organizations it already partners with.
+  await db.enterprisePartner.create({ data: { inviterId: users.farm.organizationId, inviteeId: users.other.organizationId, status: 'ACTIVE' } });
   const farm = await db.farm.create({ data: { name: label, organizationId: users.farm.organizationId } });
   const product = await db.product.create({ data: { productName: label, defaultUnit: 'kg' } });
   // The owner membership constraint is deferred to commit: create the chain atomically.
