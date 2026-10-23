@@ -1,7 +1,3 @@
-"use client";
-import { useParams } from "next/navigation";
-import { ResourceEditor } from "@/components/workspace/resource-editor";
-export default function Page() {
-  const { id } = useParams<{ id: string }>();
-  return <ResourceEditor id={id} kind="products" />;
-}
+import Screen from "@/features/ledger/screens/enterprise/products/[id]/edit/screen";
+import {resolveLedgerRouteInput,type LedgerPageInput} from "@/lib/ledger/route-input";
+export default async function Page(props:LedgerPageInput){return <Screen route={await resolveLedgerRouteInput(props)}/>;}

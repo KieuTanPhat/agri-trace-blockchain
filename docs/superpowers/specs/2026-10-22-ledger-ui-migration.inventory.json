@@ -2821,7 +2821,7 @@
       "target": "apps/web/src/components/ledger/kit/data-table.tsx",
       "source": "src/components/kit/data-table.tsx",
       "sourceSha256": "e737c06419897f9fef1c20f377945170c6a6e0f906d5e0036042237b01c7cec1",
-      "targetSha256": "30337c3aee4e8b822c2168ae4f171a9a1843476ef825005bfc8831f6bdde092c"
+      "targetSha256": "fb29a72e1615ac736ee879be7f06822b4aa41d69b5eba8f6e67b0dc40b89466d"
     },
     {
       "target": "apps/web/src/components/ledger/kit/filters.tsx",
@@ -3345,6 +3345,12 @@
       "source": "src/components/workspace/revision-history.tsx",
       "sourceSha256": "ed4f4f15231cf0e746de76e4988b0f9d6538a078b1ea04f162ade028a6be59f1",
       "targetSha256": "f51d26dafe9b0fff7232d4083a5344c8ce45c5d658c0a2f84b79f41fef512e82"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/products.tsx",
+      "source": "src/app/(workspace)/w/products/page.tsx",
+      "sourceSha256": "819bb92b58801d7a86ecb4a1f050ef59010583508976ff4017662aa79b27a403",
+      "targetSha256": "766d60ad0d739001b03bd6b0ee751e84b9f3f755abda2cdf4900f61d0c520cd9"
     }
   ],
   "newLedgerComposition": [
@@ -3667,6 +3673,26 @@
     {
       "target": "apps/web/src/features/ledger/workspace/inbox.tsx",
       "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/products/[id]/edit/screen.tsx",
+      "basis": "Task10 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/products/[id]/screen.tsx",
+      "basis": "Task10 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/products/import/screen.tsx",
+      "basis": "Task10 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/products/new/screen.tsx",
+      "basis": "Task10 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/products/screen.tsx",
+      "basis": "Task10 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
     }
   ]
 }

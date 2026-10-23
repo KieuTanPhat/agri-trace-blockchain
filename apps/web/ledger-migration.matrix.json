@@ -11344,24 +11344,19 @@
       "sourceFile": "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
       "task": 10,
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/products/[id]/edit/screen.tsx",
-      "exampleUrl": "/enterprise/products/11111111-1111-4111-8111-111111111111/edit",
+      "exampleUrl": "/enterprise/products/66666666-6666-4666-8666-666666666666/edit",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task10.enterprise.products.id.edit",
+      "scenarioId": "products.baseline",
       "readyHeading": "Sản phẩm",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Existing enterprise-access permission/organization scope, server resource filtering, current version and original idempotency key.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/catalog-csv.ts"
       ],
       "actions": [
         {
@@ -11371,10 +11366,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -11383,10 +11395,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${scope}`",
@@ -11395,10 +11424,27 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence/${id}/content`",
@@ -11407,10 +11453,27 @@
           "requestType": [],
           "responseType": "{ fileName: string; mediaType: string; contentBase64: string; sha256: string }",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence/${row.id}/content`",
@@ -11419,10 +11482,27 @@
           "requestType": [],
           "responseType": "{ fileName: string; mediaType: string; contentBase64: string }",
           "retainedLogic": [
-            "apps/web/src/components/workspace/image-gallery.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
+            "apps/web/src/components/workspace/image-gallery.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/revisions/${type}/${id}`",
@@ -11431,10 +11511,27 @@
           "requestType": [],
           "responseType": "Items<EnterpriseRevision>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/resource-editor.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
+            "apps/web/src/components/workspace/resource-editor.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "POST /enterprise-workspace/evidence",
@@ -11445,10 +11542,27 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/${kind}/${id}${kind === \"sites\" || kind === \"vehicles\" ? \"/revisions\" : \"\"}`",
@@ -11460,10 +11574,27 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/resource-editor.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
+            "apps/web/src/components/workspace/resource-editor.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/evidence/${file.id}/withdraw`",
@@ -11474,17 +11605,103 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/image-gallery.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
+            "apps/web/src/components/workspace/image-gallery.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
+        },
+        {
+          "id": "POST /catalog/products/:id/complete",
+          "method": "POST",
+          "endpoint": "/catalog/products/:id/complete",
+          "requestType": "CompleteEvidenceDto",
+          "responseType": "WorkspaceRecordDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/products/:id/photo-order",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/products/:id/photo-order",
+          "requestType": "ProductPhotoOrderInput",
+          "responseType": "WorkspaceRecordDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/edit/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-products.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "excludedInventoryActions": [],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/products/[id]/edit/screen.tsx",
+        "apps/web/src/features/ledger/workspace/products.tsx",
+        "apps/web/src/lib/ledger/product-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+        "result": "Task10 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
       }
     },
     {
@@ -11492,26 +11709,19 @@
       "sourceFile": "apps/web/src/app/enterprise/products/[id]/page.tsx",
       "task": 10,
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/products/[id]/screen.tsx",
-      "exampleUrl": "/enterprise/products/11111111-1111-4111-8111-111111111111",
+      "exampleUrl": "/enterprise/products/66666666-6666-4666-8666-666666666666",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task10.enterprise.products.id",
-      "readyHeading": "Sản phẩm",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Existing enterprise-access permission/organization scope, server resource filtering, current version and original idempotency key.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/mock-api.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/catalog-csv.ts"
       ],
       "actions": [
         {
@@ -11521,10 +11731,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/products/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/page.tsx",
+            "apps/web/src/app/enterprise/products/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET /catalog",
@@ -11533,10 +11760,27 @@
           "requestType": [],
           "responseType": "Catalog",
           "retainedLogic": [
-            "apps/web/src/components/workspace/product-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/page.tsx",
+            "apps/web/src/components/workspace/product-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -11545,10 +11789,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/product-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/page.tsx",
+            "apps/web/src/components/workspace/product-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET /enterprise-workspace/members",
@@ -11557,10 +11818,27 @@
           "requestType": [],
           "responseType": "Items<EnterpriseMember>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/product-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/page.tsx",
+            "apps/web/src/components/workspace/product-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET /enterprise-workspace/sites",
@@ -11569,10 +11847,27 @@
           "requestType": [],
           "responseType": "Items<EnterpriseSite>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/product-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/page.tsx",
+            "apps/web/src/components/workspace/product-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET /lots",
@@ -11581,10 +11876,27 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/lib/api-client.ts"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/page.tsx",
+            "apps/web/src/lib/api-client.ts"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?entityType=PRODUCT&entityId=${id}`",
@@ -11593,10 +11905,27 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/product-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/page.tsx",
+            "apps/web/src/components/workspace/product-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/revisions/PRODUCT/${id}`",
@@ -11605,10 +11934,27 @@
           "requestType": [],
           "responseType": "Items<EnterpriseRevision>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/product-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/page.tsx",
+            "apps/web/src/components/workspace/product-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "POST `/enterprise-workspace/products/${id}`",
@@ -11622,17 +11968,101 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/product-detail.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/page.tsx",
+            "apps/web/src/components/workspace/product-detail.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
+        },
+        {
+          "id": "POST /catalog/products/:id/complete",
+          "method": "POST",
+          "endpoint": "/catalog/products/:id/complete",
+          "requestType": "CompleteEvidenceDto",
+          "responseType": "WorkspaceRecordDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
+        },
+        {
+          "id": "POST /enterprise-workspace/products/:id/photo-order",
+          "method": "POST",
+          "endpoint": "/enterprise-workspace/products/:id/photo-order",
+          "requestType": "ProductPhotoOrderInput",
+          "responseType": "WorkspaceRecordDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "excludedInventoryActions": [],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/products/[id]/screen.tsx",
+        "apps/web/src/features/ledger/workspace/products.tsx",
+        "apps/web/src/lib/ledger/product-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+        "result": "Task10 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
       }
     },
     {
@@ -11642,23 +12072,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/products/import/screen.tsx",
       "exampleUrl": "/enterprise/products/import",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task10.enterprise.products.import",
+      "scenarioId": "products.baseline",
       "readyHeading": "Sản phẩm",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Existing enterprise-access permission/organization scope, server resource filtering, current version and original idempotency key.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/catalog-csv.ts",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/catalog-csv.ts"
       ],
       "actions": [
         {
@@ -11668,10 +12092,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/products/import/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/import/page.tsx",
+            "apps/web/src/app/enterprise/products/import/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "POST /enterprise-workspace/products-import/apply",
@@ -11683,10 +12124,27 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/products/import/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/import/page.tsx",
+            "apps/web/src/app/enterprise/products/import/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "POST /enterprise-workspace/products-import/preview",
@@ -11697,17 +12155,47 @@
           ],
           "responseType": "{record:Preview}",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/products/import/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/import/page.tsx",
+            "apps/web/src/app/enterprise/products/import/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-products.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "excludedInventoryActions": [],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/products/import/screen.tsx",
+        "apps/web/src/features/ledger/workspace/products.tsx",
+        "apps/web/src/lib/ledger/product-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+        "result": "Task10 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
       }
     },
     {
@@ -11717,23 +12205,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/products/new/screen.tsx",
       "exampleUrl": "/enterprise/products/new",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task10.enterprise.products.new",
+      "scenarioId": "products.baseline",
       "readyHeading": "Sản phẩm",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Existing enterprise-access permission/organization scope, server resource filtering, current version and original idempotency key.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/catalog-csv.ts"
       ],
       "actions": [
         {
@@ -11743,10 +12225,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/products/new/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/new/page.tsx",
+            "apps/web/src/app/enterprise/products/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET /catalog",
@@ -11755,10 +12254,27 @@
           "requestType": [],
           "responseType": "Catalog",
           "retainedLogic": [
-            "apps/web/src/components/workspace/resources.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/new/page.tsx",
+            "apps/web/src/components/workspace/resources.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -11767,10 +12283,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/resources.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/new/page.tsx",
+            "apps/web/src/components/workspace/resources.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "POST /enterprise-workspace/evidence",
@@ -11779,17 +12312,75 @@
           "requestType": [],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/components/workspace/evidence-panel.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/new/page.tsx",
+            "apps/web/src/components/workspace/evidence-panel.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
+        },
+        {
+          "id": "POST /catalog/products",
+          "method": "POST",
+          "endpoint": "/catalog/products",
+          "requestType": "ProductDto",
+          "responseType": "WorkspaceRecordDto",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/new/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "status": "verified",
+          "tests": [],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-products.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "excludedInventoryActions": [],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/products/new/screen.tsx",
+        "apps/web/src/features/ledger/workspace/products.tsx",
+        "apps/web/src/lib/ledger/product-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+        "result": "Task10 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
       }
     },
     {
@@ -11799,23 +12390,17 @@
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/products/screen.tsx",
       "exampleUrl": "/enterprise/products",
       "actorKey": "org-owner",
-      "scenarioId": "routes.task10.enterprise.products",
+      "scenarioId": "products.baseline",
       "readyHeading": "Sản phẩm",
       "roles": [],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Existing enterprise-access permission/organization scope, server resource filtering, current version and original idempotency key.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
-        "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/catalog-csv.ts"
       ],
       "actions": [
         {
@@ -11825,10 +12410,27 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/enterprise/products/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/page.tsx",
+            "apps/web/src/app/enterprise/products/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET /enterprise-workspace",
@@ -11837,10 +12439,27 @@
           "requestType": [],
           "responseType": "Overview",
           "retainedLogic": [
-            "apps/web/src/components/workspace/resources.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/page.tsx",
+            "apps/web/src/components/workspace/resources.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence?${scope}`",
@@ -11849,10 +12468,27 @@
           "requestType": [],
           "responseType": "Items<TraceEvidence>",
           "retainedLogic": [
-            "apps/web/src/components/workspace/entity-thumb.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/page.tsx",
+            "apps/web/src/components/workspace/entity-thumb.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         },
         {
           "id": "GET `/enterprise-workspace/evidence/${photo.id}/content`",
@@ -11861,31 +12497,47 @@
           "requestType": [],
           "responseType": "{ mediaType: string; contentBase64: string }",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/enterprise-access.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts",
+            "apps/web/src/lib/catalog-csv.ts"
+          ],
+          "tests": [],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/enterprise/products/page.tsx",
             "apps/web/src/components/workspace/entity-thumb.tsx"
           ],
-          "tests": [],
-          "status": "pending"
-        },
-        {
-          "id": "POST /enterprise-workspace/partners",
-          "endpoint": "/enterprise-workspace/partners",
-          "method": "POST",
-          "requestType": [
-            "businessId"
+          "implementation": [
+            "apps/web/src/features/ledger/workspace/products.tsx",
+            "apps/web/src/lib/ledger/product-api.ts"
           ],
-          "responseType": "unknown",
-          "retainedLogic": [
-            "apps/web/src/components/workspace/partner-invite-dialog.tsx"
-          ],
-          "tests": [],
-          "status": "pending"
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+            "result": "Pinned non-rendering business metadata reconciled with the Ledger consumer and exact server endpoint; browser coverage recorded at representative route level only."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/enterprise-products.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
         "status": "pending-domain-verification",
         "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+      },
+      "excludedInventoryActions": [],
+      "implementation": [
+        "apps/web/src/features/ledger/screens/enterprise/products/screen.tsx",
+        "apps/web/src/features/ledger/workspace/products.tsx",
+        "apps/web/src/lib/ledger/product-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/workspace/products.tsx",
+        "result": "Task10 canonical consumer/DTO/controller reconciliation and representative browser contracts; fixture evidence only, no live API/Fabric claim."
       }
     },
     {

@@ -98,7 +98,7 @@ export function DataTable<R>({
                     key={c.key}
                     scope="col"
                     aria-sort={active ? (sort!.dir === 1 ? "ascending" : "descending") : undefined}
-                    className={cn("h-9 px-3 text-[12px] font-semibold whitespace-nowrap text-ink-2 first:pl-4 last:pr-4", c.hideBelow && hide[c.hideBelow], c.headClassName)}
+                    className={cn("relative h-9 px-3 text-[12px] font-semibold whitespace-nowrap text-ink-2 first:pl-4 last:pr-4", c.hideBelow && hide[c.hideBelow], c.headClassName)}
                   >
                     {c.sort ? (
                       <button
