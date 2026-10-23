@@ -740,23 +740,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/backup/screen.tsx",
       "exampleUrl": "/admin/backup",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.backup",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -766,10 +762,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/backup/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/backup/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/backup/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/backup/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET /platform-admin/backup",
@@ -778,17 +790,43 @@
           "requestType": [],
           "responseType": "RecordOf<Backup>",
           "retainedLogic": [
-            "apps/web/src/app/admin/backup/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/backup/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/backup/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/backup/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/backup/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/backup/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/screens/admin/backup/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -796,28 +834,21 @@
       "sourceFile": "apps/web/src/app/admin/billing/invoices/page.tsx",
       "task": 8,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
-      "exampleUrl": "/admin/billing/invoices",
+      "exampleUrl": "/admin/billing/invoices?id=11111111-1111-4111-8111-111111111111",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.billing.invoices",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "billing.unknown",
+      "readyHeading": "Hóa đơn",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -827,10 +858,28 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/billing/invoices/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET `/platform-billing/invoices${status ? `?status=${status}` : \"\"}`",
@@ -839,10 +888,28 @@
           "requestType": [],
           "responseType": "Items",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/billing/invoices/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "POST `/platform-billing/invoices/${r.id}/confirm-payment`",
@@ -855,10 +922,28 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/billing/invoices/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "POST `/platform-billing/invoices/${r.id}/void`",
@@ -870,17 +955,45 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/billing/invoices/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/billing/invoices/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-operations.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/billing/invoices/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -890,26 +1003,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
       "exampleUrl": "/admin/billing",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.billing",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "billing.allowed",
+      "readyHeading": "Bảng giá dịch vụ",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -919,10 +1025,28 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/billing/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET /platform-billing/plans",
@@ -931,10 +1055,28 @@
           "requestType": [],
           "responseType": "Items<Plan>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/billing/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "POST `/platform-billing/plan-versions/${v.id}/publish`",
@@ -945,10 +1087,26 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/billing/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/billing/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "POST `/platform-billing/plans/${plan.code}/versions`",
@@ -960,17 +1118,47 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/billing/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-operations.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/billing/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -979,25 +1167,20 @@
       "task": 8,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/billing/revenue/screen.tsx",
       "exampleUrl": "/admin/billing/revenue",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.billing.revenue",
-      "readyHeading": "Tổng quan nền tảng",
+      "actorKey": "auditor",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1007,10 +1190,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/billing/revenue/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/billing/revenue/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/revenue/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/revenue/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET `/platform-billing/revenue?months=${months}`",
@@ -1019,17 +1218,43 @@
           "requestType": [],
           "responseType": "Revenue",
           "retainedLogic": [
-            "apps/web/src/app/admin/billing/revenue/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/billing/revenue/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/revenue/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/revenue/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/billing/revenue/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/billing/revenue/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/screens/admin/billing/revenue/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -1038,27 +1263,20 @@
       "task": 8,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
       "exampleUrl": "/admin/billing/subscriptions",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.billing.subscriptions",
-      "readyHeading": "Tổng quan nền tảng",
+      "actorKey": "auditor",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1068,10 +1286,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/billing/subscriptions/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/billing/subscriptions/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET `/platform-billing/subscriptions${status ? `?status=${status}` : \"\"}`",
@@ -1080,10 +1314,26 @@
           "requestType": [],
           "responseType": "Items",
           "retainedLogic": [
-            "apps/web/src/app/admin/billing/subscriptions/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/billing/subscriptions/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "POST `/platform-billing/organizations/${r.organizationId}/renewal-invoices`",
@@ -1095,17 +1345,43 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/billing/subscriptions/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/billing/subscriptions/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/billing/subscriptions/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -1617,25 +1893,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/chains/screen.tsx",
       "exampleUrl": "/admin/chains",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.chains",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -1645,10 +1915,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/chains/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/chains/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/chains/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/chains/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET /platform-admin/chains",
@@ -1657,17 +1943,43 @@
           "requestType": [],
           "responseType": "Items",
           "retainedLogic": [
-            "apps/web/src/app/admin/chains/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/chains/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/chains/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/chains/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/chains/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/chains/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/screens/admin/chains/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -2041,26 +2353,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
       "exampleUrl": "/admin/directory/11111111-1111-4111-8111-111111111111",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.directory.id",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -2070,10 +2375,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/directory/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/directory/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET `/platform-admin/organizations/${id}`",
@@ -2082,10 +2403,26 @@
           "requestType": [],
           "responseType": "RecordOf<Org>",
           "retainedLogic": [
-            "apps/web/src/app/admin/directory/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/directory/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "PATCH `/organizations/${org.id}`",
@@ -2098,17 +2435,43 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/directory/[id]/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/directory/[id]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/directory/[id]/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -2118,25 +2481,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/directory/screen.tsx",
       "exampleUrl": "/admin/directory",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.directory",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -2146,10 +2503,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/directory/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/directory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/directory/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/directory/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET `/platform-admin/organizations${params ? \"?\" + params : \"\"}`",
@@ -2158,17 +2531,43 @@
           "requestType": [],
           "responseType": "Items",
           "retainedLogic": [
-            "apps/web/src/app/admin/directory/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/directory/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/directory/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/directory/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/directory/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/directory/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/screens/admin/directory/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -3013,26 +3412,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
       "exampleUrl": "/admin/ledger",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.ledger",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/display-labels.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -3042,10 +3434,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/ledger/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/ledger/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET /platform-admin/ledger",
@@ -3054,17 +3462,71 @@
           "requestType": [],
           "responseType": "RecordOf<Overview>",
           "retainedLogic": [
-            "apps/web/src/app/admin/ledger/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/ledger/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
+        },
+        {
+          "id": "ledger-transactions-status-search-detail",
+          "endpoint": "/platform-admin/ledger/transactions",
+          "method": "GET",
+          "requestType": "status?,q?",
+          "responseType": "AdminInsightsService.ledgerTransactions items",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/ledger/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "tests": [],
+          "status": "verified",
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/ledger/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -3072,29 +3534,21 @@
       "sourceFile": "apps/web/src/app/admin/lots/page.tsx",
       "task": 8,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
-      "exampleUrl": "/admin/lots",
+      "exampleUrl": "/admin/lots?q=LOT-17",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.lots",
-      "readyHeading": "Lô hàng",
+      "scenarioId": "operations.qr-control",
+      "readyHeading": "Tra cứu lô & QR",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/display-labels.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -3104,10 +3558,28 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/lots/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET `/platform-admin/lots/${lotId}/lineage`",
@@ -3116,10 +3588,28 @@
           "requestType": [],
           "responseType": "RecordOf<Lineage>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/lots/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "POST /platform-admin/qr-blocks",
@@ -3132,17 +3622,77 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/lots/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
+        },
+        {
+          "id": "lot-search",
+          "endpoint": "/platform-admin/lots",
+          "method": "GET",
+          "requestType": "components.schemas.LotSearchQuery",
+          "responseType": "AdminInsightsService.searchLots items",
+          "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/lots/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-operations.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/lots/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -3152,24 +3702,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/monitoring/screen.tsx",
       "exampleUrl": "/admin/monitoring",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.monitoring",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -3179,10 +3724,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/monitoring/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/monitoring/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/monitoring/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/monitoring/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET /platform-admin/monitoring",
@@ -3191,17 +3752,43 @@
           "requestType": [],
           "responseType": "RecordOf<Monitoring>",
           "retainedLogic": [
-            "apps/web/src/app/admin/monitoring/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/monitoring/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/monitoring/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/monitoring/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/monitoring/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/monitoring/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/screens/admin/monitoring/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -3399,25 +3986,20 @@
       "task": 8,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
       "exampleUrl": "/admin/operations",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.operations",
-      "readyHeading": "Tổng quan nền tảng",
+      "actorKey": "platform-operator",
+      "scenarioId": "operations.scoped",
+      "readyHeading": "Tình trạng hệ thống",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -3427,10 +4009,28 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/operations/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET /organizations",
@@ -3439,10 +4039,28 @@
           "requestType": [],
           "responseType": "(Named & { type: string })[]",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/operations/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET /supply-chains",
@@ -3451,10 +4069,28 @@
           "requestType": [],
           "responseType": "Named[]",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/operations/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET `/platform-operations/${section}${filterQuery(chainId, organizationId, status, cursor)}`",
@@ -3463,10 +4099,26 @@
           "requestType": [],
           "responseType": "Page",
           "retainedLogic": [
-            "apps/web/src/app/admin/operations/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/operations/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET `/platform-operations/credentials${query}`",
@@ -3475,10 +4127,28 @@
           "requestType": [],
           "responseType": "CredentialsOverview",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/operations/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET `/platform-operations/summary${query}`",
@@ -3487,17 +4157,47 @@
           "requestType": [],
           "responseType": "OperationsSummary",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/operations/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-operations.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/operations/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -3907,24 +4607,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
       "exampleUrl": "/admin/products/11111111-1111-4111-8111-111111111111",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.products.organizationId",
+      "scenarioId": "operations.products",
       "readyHeading": "Sản phẩm",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -3934,10 +4629,28 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/products/[organizationId]/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET /catalog",
@@ -3946,10 +4659,29 @@
           "requestType": [],
           "responseType": "Catalog",
           "retainedLogic": [
-            "apps/web/src/components/workspace/admin-products.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/admin-products.tsx",
+            "apps/web/src/app/admin/products/[organizationId]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET /organizations",
@@ -3958,17 +4690,48 @@
           "requestType": [],
           "responseType": "AdminOrganization[]",
           "retainedLogic": [
-            "apps/web/src/components/workspace/admin-products.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/admin-products.tsx",
+            "apps/web/src/app/admin/products/[organizationId]/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-operations.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/products/[organizationId]/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -3978,23 +4741,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
       "exampleUrl": "/admin/products",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.products",
+      "scenarioId": "operations.products",
       "readyHeading": "Sản phẩm",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -4004,10 +4763,28 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/products/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET /catalog",
@@ -4016,10 +4793,29 @@
           "requestType": [],
           "responseType": "Catalog",
           "retainedLogic": [
-            "apps/web/src/components/workspace/admin-products.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/admin-products.tsx",
+            "apps/web/src/app/admin/products/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET /organizations",
@@ -4028,17 +4824,48 @@
           "requestType": [],
           "responseType": "AdminOrganization[]",
           "retainedLogic": [
-            "apps/web/src/components/workspace/admin-products.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
-          "tests": [],
-          "status": "pending"
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/components/workspace/admin-products.tsx",
+            "apps/web/src/app/admin/products/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-operations.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/products/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -4048,25 +4875,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
       "exampleUrl": "/admin/qr",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.qr",
-      "readyHeading": "Tem truy xuất",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -4076,10 +4897,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/qr/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/qr/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET /platform-admin/qr",
@@ -4088,10 +4925,26 @@
           "requestType": [],
           "responseType": "RecordOf<Overview>",
           "retainedLogic": [
-            "apps/web/src/app/admin/qr/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/qr/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "POST `/platform-admin/qr-blocks/${r.id}/unblock`",
@@ -4103,17 +4956,43 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
-            "apps/web/src/app/admin/qr/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/qr/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/qr/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -4257,26 +5136,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
       "exampleUrl": "/admin/reference-data",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.reference-data",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "operations.reference",
+      "readyHeading": "Danh mục tham chiếu",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/confirm.tsx",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/status-labels.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -4286,10 +5158,28 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/reference-data/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET `/platform-admin/reference-items?category=${category}`",
@@ -4298,10 +5188,28 @@
           "requestType": [],
           "responseType": "Items<Item>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/reference-data/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "POST /platform-admin/reference-items",
@@ -4314,17 +5222,47 @@
           ],
           "responseType": "unknown",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/reference-data/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-operations.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/reference-data/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -4526,24 +5464,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/security-alerts/screen.tsx",
       "exampleUrl": "/admin/security-alerts",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.security-alerts",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-admin.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -4553,10 +5486,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/security-alerts/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/security-alerts/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/security-alerts/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/security-alerts/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET /platform-admin/security",
@@ -4565,17 +5514,43 @@
           "requestType": [],
           "responseType": "RecordOf<Alerts>",
           "retainedLogic": [
-            "apps/web/src/app/admin/security-alerts/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/security-alerts/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/security-alerts/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/security-alerts/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/security-alerts/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/security-alerts/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/screens/admin/security-alerts/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -4877,23 +5852,19 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx",
       "exampleUrl": "/admin/statistics",
       "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.statistics",
-      "readyHeading": "Tổng quan nền tảng",
+      "scenarioId": "",
+      "readyHeading": "",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -4903,10 +5874,26 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
-            "apps/web/src/app/admin/statistics/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/statistics/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         },
         {
           "id": "GET /platform-admin/statistics",
@@ -4915,17 +5902,43 @@
           "requestType": [],
           "responseType": "RecordOf<Stats>",
           "retainedLogic": [
-            "apps/web/src/app/admin/statistics/page.tsx"
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
           ],
           "tests": [],
-          "status": "pending"
+          "status": "verified",
+          "baselineLogicSources": [
+            "apps/web/src/app/admin/statistics/page.tsx"
+          ],
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "source-review",
+            "implementation": "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx",
+            "result": "Reconciled nonrendering baseline business metadata and API DTO/service with the new Ledger implementation; existing shared transport/scope/recovery retained. No per-route browser claim."
+          }
         }
       ],
       "tests": [],
-      "status": "pending",
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/statistics/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "source-review",
+        "implementation": "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {
@@ -5232,26 +6245,20 @@
       "task": 8,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
       "exampleUrl": "/admin/trace-report",
-      "actorKey": "platform-admin",
-      "scenarioId": "routes.task8.admin.trace-report",
-      "readyHeading": "Tổng quan nền tảng",
+      "actorKey": "auditor",
+      "scenarioId": "operations.report",
+      "readyHeading": "Báo cáo truy xuất",
       "roles": [
         "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
+      "scope": "Baseline management-route permission plus server-filtered records; no preview role engine or enterprise domain writes.",
       "retainedLogic": [
         "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-coordination.ts",
         "apps/web/src/lib/auth-scope.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/command-recovery.ts",
+        "apps/web/src/lib/permissions.ts",
         "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/display-labels.ts",
-        "apps/web/src/lib/iot-local-store.ts",
-        "apps/web/src/lib/permission-sync.ts",
-        "apps/web/src/lib/platform-governance.ts",
-        "apps/web/src/lib/workspace.ts"
+        "apps/web/src/lib/command-recovery.ts"
       ],
       "actions": [
         {
@@ -5261,10 +6268,28 @@
           "requestType": null,
           "responseType": "LedgerScreen",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/trace-report/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET /platform-admin/trace-report",
@@ -5273,10 +6298,28 @@
           "requestType": [],
           "responseType": "RecordOf<Report>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/trace-report/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         },
         {
           "id": "GET `/platform-admin/trace-report?${params}`",
@@ -5285,17 +6328,47 @@
           "requestType": [],
           "responseType": "RecordOf<Report>",
           "retainedLogic": [
+            "apps/web/src/lib/api-client.ts",
+            "apps/web/src/lib/auth-scope.ts",
+            "apps/web/src/lib/permissions.ts",
+            "apps/web/src/lib/command-request.ts",
+            "apps/web/src/lib/command-recovery.ts"
+          ],
+          "tests": [
+            "tests/ledger/platform-operations.spec.ts"
+          ],
+          "status": "verified",
+          "baselineLogicSources": [
             "apps/web/src/app/admin/trace-report/page.tsx"
           ],
-          "tests": [],
-          "status": "pending"
+          "implementation": [
+            "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
+            "apps/web/src/lib/ledger/operations-api.ts"
+          ],
+          "verification": {
+            "method": "test",
+            "implementation": "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
+            "result": "Task8 strict browser contract passed for this consumer; baseline query/body/version/key or read projection retained. No live API/Fabric claim."
+          }
         }
       ],
-      "tests": [],
-      "status": "pending",
+      "tests": [
+        "tests/ledger/platform-operations.spec.ts"
+      ],
+      "status": "verified",
       "authorization": {
-        "status": "pending-domain-verification",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority"
+        "status": "verified",
+        "source": "apps/web/src/lib/permissions.ts; apps/web/src/lib/ledger/platform-access.ts; baseline API Roles/command services"
+      },
+      "implementation": [
+        "apps/web/src/app/admin/trace-report/page.tsx",
+        "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
+        "apps/web/src/lib/ledger/operations-api.ts"
+      ],
+      "verification": {
+        "method": "test",
+        "implementation": "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
+        "result": "Canonical wrapper and all mapped baseline obligations reconciled; test coverage is representative under the amended plan, not one browser fixture per URL."
       }
     },
     {

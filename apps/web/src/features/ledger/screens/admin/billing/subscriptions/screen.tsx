@@ -1,0 +1,2 @@
+"use client";import{BillingPage}from"@/features/ledger/billing/overview";function Content(){return <BillingPage mode="subscriptions"/>;}
+import type{LedgerScreenProps}from"@/lib/ledger/route-input";import{LedgerRouteScreen}from"@/components/ledger/route-screen";import{useLocale}from"@/components/ledger/locale";export default function LedgerScreen({route}:LedgerScreenProps){useLocale();return <LedgerRouteScreen route={route} name="admin-billing-subscriptions"><Content/></LedgerRouteScreen>;}

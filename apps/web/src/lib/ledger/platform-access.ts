@@ -20,6 +20,18 @@ const reads: Record<string, string> = {
   "reports.read": "/admin/reports",
   "recall.read": "/admin/recall",
   "notices.read": "/admin/notices",
+  "operations.read": "/admin/operations",
+  "ledger.read": "/admin/ledger",
+  "traceReport.read": "/admin/trace-report",
+  "chains.read": "/admin/chains",
+  "lots.read": "/admin/lots",
+  "products.read": "/admin/products",
+  "qr.read": "/admin/qr",
+  "reference.read": "/admin/reference-data",
+  "billing.read": "/admin/billing",
+  "monitoring.read": "/admin/monitoring",
+  "backup.read": "/admin/backup",
+  "securityAlerts.read": "/admin/security-alerts",
   "tickets.read": "/admin/support",
   "cases.read": "/admin/cases",
   "settings.read": "/admin/settings",
@@ -64,6 +76,8 @@ export function useLedgerSession() {
       if (permission === "reports.triage")
         return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
       if (permission === "notices.write") return role === "SYSTEM_ADMIN";
+      if (permission === "reference.write" || permission === "qr.write")
+        return role === "SYSTEM_ADMIN";
       if (permission === "tickets.write")
         return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
       if (permission === "cases.write")

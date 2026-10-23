@@ -48,9 +48,9 @@ export const PLATFORM_NAV: LedgerNavGroup[] = [
     {
         get label() { return tr("Thương mại"); },
         items: [
-            { href: "/admin/billing", get label() { return tr("Doanh thu & thuê bao"); }, keywords: "revenue subscription" },
+            { href: "/admin/billing/subscriptions", get label() { return tr("Doanh thu & thuê bao"); }, keywords: "revenue subscription" },
             { href: "/admin/billing/invoices", get label() { return tr("Hóa đơn"); }, count: ["INVOICE_OVERDUE"], get keywords() { return tr("invoice thanh toán"); } },
-            { href: "/admin/billing/plans", get label() { return tr("Bảng giá"); }, get keywords() { return tr("plan gói"); } },
+            { href: "/admin/billing", get label() { return tr("Bảng giá"); }, get keywords() { return tr("plan gói"); } },
         ]
     },
     {

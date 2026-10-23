@@ -5,7 +5,7 @@ import { api } from "@/lib/ledger/platform-api";
 import { useLedgerQuery } from "@/lib/ledger/data";
 import { t } from "@/lib/ledger/i18n";
 import { DataTable } from "@/components/ledger/kit/data-table";
-import { FilterBar } from "@/components/ledger/kit/filters";
+import { FilterBar, FilterSelect } from "@/components/ledger/kit/filters";
 import {
   EmptyState,
   Field,
@@ -23,8 +23,10 @@ import {
 type Product = components["schemas"]["ProductRecordDto"];
 export function EnrollmentProducts({
   organizationId,
+  catalogScope = false,
 }: {
-  organizationId: string;
+  organizationId?: string;
+  catalogScope?: boolean;
 }) {
   const q = useLedgerQuery({
       queryKey: ["catalog"],
@@ -34,17 +36,19 @@ export function EnrollmentProducts({
       queryKey: ["organizations"],
       queryFn: api.enterprises.organizations,
     });
+  const [status, setStatus] = useState("");
   const [search, setSearch] = useState(""),
     [selected, setSelected] = useState<Product | null>(null);
   const rows = q.data?.products.filter(
     (p) =>
-      (p.organizationId === organizationId ||
+      (catalogScope ? (organizationId === "shared" ? !p.organizationId : p.organizationId === organizationId) : (!organizationId || p.organizationId === organizationId ||
         (!p.organizationId &&
           q.data.farms.some(
             (f) =>
               f.id === p.originFarmId && f.organizationId === organizationId,
-          ))) &&
-      `${p.productName} ${p.sku ?? ""} ${p.gtin ?? ""}`
+          )))) &&
+      (!status || p.status === status) &&
+      `${p.productName} ${p.sku ?? ""} ${p.gtin ?? ""} ${catalogScope ? p.variety ?? "" : ""}`
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
@@ -79,9 +83,9 @@ export function EnrollmentProducts({
           search={search}
           onSearch={setSearch}
           placeholder={t("Tìm sản phẩm, SKU hoặc GTIN")}
-          active={!!search}
-          onReset={() => setSearch("")}
-        />
+          active={!!search || !!status}
+          onReset={() => { setSearch(""); setStatus(""); }}
+        >{catalogScope && <FilterSelect label={t("Trạng thái")} value={status} onChange={setStatus} options={[{value:"ACTIVE",label:t("Đang hoạt động")},{value:"INACTIVE",label:t("Ngừng hoạt động")}]} />}</FilterBar>
       </div>
       <DataTable
         rows={rows}

@@ -3073,7 +3073,7 @@
       "target": "apps/web/src/lib/ledger/navigation.ts",
       "source": "src/components/shell/nav.ts",
       "sourceSha256": "3a3e844bc282720612f23a073d4b9490e9d313576912eacdff23a5ed07e2c89a",
-      "targetSha256": "3675ea7e9fc58d614cfabdbe3d94798b1c0ab8f610013a6d3bb72220c1def3bd",
+      "targetSha256": "6162b7246a181ed429724c4558e55b675bb097adb4f671a37ce1f601a5ed8540",
       "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
     },
     {
@@ -3171,7 +3171,7 @@
       "target": "apps/web/src/features/ledger/screens/admin/organizations/screen.tsx",
       "source": "src/app/(console)/organizations/page.tsx",
       "sourceSha256": "1e3ded6963684aece993e843cac1eba9b9db8b5a4033d9cf910a7aa527835467",
-      "targetSha256": "cb7c68b4b5f1fa81667b0e7005dc70e988310dbd4c8a8ea87d7530735b85fe7e",
+      "targetSha256": "e30736f9bf5a1b85136fe2c29383660773d636ad5d4ad6b93e6b13a1026592aa",
       "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
     },
     {
@@ -3243,6 +3243,60 @@
       "sourceSha256": "ba2213a286cf25476aca3b31a88fe9d148d560ed931b9eec1f8d5587ed95a44e",
       "targetSha256": "74f65bd7392706c1784f4b923fe0c4eb4754c47ab09b8af7a401409385a85dd8",
       "adaptation": "Task7 frozen Ledger presentation with canonical baseline URLs, generated request DTOs, server scope, version and original-command recovery; no preview API/auth/permission runtime."
+    },
+    {
+      "target": "apps/web/src/features/ledger/operations/workspace.tsx",
+      "source": "src/app/(console)/operations/page.tsx",
+      "sourceSha256": "eade067b1448e18b94fb4fcbba8412b26155d426a21732412ba51c9bda9bb83a",
+      "targetSha256": "9b95ed5c52ebff17f901233715a6a7649d228862f7116addd17d914f65f761dd"
+    },
+    {
+      "target": "apps/web/src/features/ledger/billing/overview.tsx",
+      "source": "src/app/(console)/billing/page.tsx",
+      "sourceSha256": "1db83643db956eb73afbc6e8000edf901c5b95c452903a908531afe232a89cb7",
+      "targetSha256": "53d7a7cdb5d61ae3ef799ca0ba27af44c13cab99a5cd67ced6fadc78ebee73c3"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
+      "source": "src/app/(console)/ledger/page.tsx",
+      "sourceSha256": "59ba9da60a39c73ff8d9fd6642094c834bdb1b6bcbb17cfd0f249b7b25b97021",
+      "targetSha256": "26cacb79b439be0b632aa26c55ab4561408c0b2ee7b2f2000680f31ce70b7dfc"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
+      "source": "src/app/(console)/trace-report/page.tsx",
+      "sourceSha256": "57cf359f931d026eef6969ae3d0c12b4c1b5f80f4e8537b347782669279a69ab",
+      "targetSha256": "90d735cf1c748e2dac50a5aa61a3a0133a21a20c2ee1161a4b9226dd5b14a135"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/chains/screen.tsx",
+      "source": "src/app/(console)/chains/page.tsx",
+      "sourceSha256": "b1a05c28bb6d161c7092b09dd923a51eff3a5b7456339d97221b3aaad6baaa79",
+      "targetSha256": "5d1e23bea4b03cef79038b15b39c895d0d8471566057dbaf2b5b2baf87ab7f70"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+      "source": "src/app/(console)/lots/page.tsx",
+      "sourceSha256": "a328a2012bbeb77992b3e3ac7f8c15f60f609a704f0561e1490121f5705d6684",
+      "targetSha256": "a6fd8db73271d53c0407e4db6ee826d2bfc12270ce9a597326d02f54e6c1855a"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
+      "source": "src/app/(console)/reference/page.tsx",
+      "sourceSha256": "18e7afb339f0df8e56e9ca590bcf59178c69374a9730b7f266ca562559c8337e",
+      "targetSha256": "dd549e536697a6481bdb32d7a487ffd24b48599d9aadc91793bf11c5703df22d"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+      "source": "src/app/(console)/billing/plans/page.tsx",
+      "sourceSha256": "475032a15fbcc7e9b32ea8654f35ad1b391d1d2f7c1db8a386adc3374cdb7223",
+      "targetSha256": "40ffa027a478f1f2ebf9b032bf61bbe705fc516ecbb1795d416a576e670dcc18"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+      "source": "src/app/(console)/billing/invoices/page.tsx",
+      "sourceSha256": "e17df58d487642eb9f0965a4c44faf6631df66b4de3d791183057e31ff8fdc41",
+      "targetSha256": "f5720a7d82591bf2a974583361c435736ed7f066b37380dca403b809901002d3"
     }
   ],
   "newLedgerComposition": [
@@ -3316,7 +3370,7 @@
     },
     {
       "target": "apps/web/src/features/ledger/screens/admin/enterprises/enrollment-products.tsx",
-      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+      "basis": "Existing Ledger-only product read view composed in Task6; Task8 adds baseline catalogScope/status/variety behavior, with its default enrollment scope retained."
     },
     {
       "target": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
@@ -3445,6 +3499,54 @@
     {
       "target": "apps/web/src/components/ledger/system-notices.tsx",
       "basis": "Task7 baseline DTO/service views or system-notices active/dismissal logic rendered only with approved Ledger kit; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/backup/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/billing/revenue/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/directory/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/monitoring/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/security-alerts/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
     }
   ]
 }

@@ -34,7 +34,7 @@ function PreviewScreen() {
   );
 }
 
-function Directory() {
+export function Directory({ detailBase = "/admin/organizations?organizationId=" }: { detailBase?: string } = {}) {
   const [auditors, setAuditors] = useState(false);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
@@ -238,7 +238,7 @@ function Directory() {
                 onRetry={() => query.refetch()}
                 columns={columns}
                 rowKey={(o) => o.id}
-                href={(o) => `/admin/organizations?organizationId=${o.id}`}
+                href={(o) => `${detailBase}${o.id}`}
                 empty={
                   <EmptyState title={tr("Không có tổ chức phù hợp")}>
                     {tr("Thử bỏ bớt điều kiện lọc.")}
