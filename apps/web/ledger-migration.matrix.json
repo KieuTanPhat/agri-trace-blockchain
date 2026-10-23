@@ -7462,7 +7462,9 @@
           }
         }
       ],
-      "tests": [],
+      "tests": [
+        "tests/ledger/compliance.spec.ts"
+      ],
       "status": "verified",
       "authorization": {
         "status": "source-review",
@@ -7488,6 +7490,9 @@
         "apps/web/src/lib/api-client.ts",
         "apps/web/src/lib/command-request.ts",
         "apps/web/src/lib/command-recovery.ts"
+      ],
+      "reviewFixes": [
+        "Require correction reason in form schema before command capture; no unknown local-validation loop."
       ]
     },
     {
@@ -10481,7 +10486,18 @@
           "id": "POST /distribution/site-transfers",
           "method": "POST",
           "endpoint": "/distribution/site-transfers",
-          "requestType": null,
+          "requestType": [
+            "lotId",
+            "fromSiteId",
+            "toSiteId",
+            "quantity",
+            "unit",
+            "version",
+            "reason",
+            "receiverUserId?",
+            "note?",
+            "dispatch?"
+          ],
           "responseType": null,
           "retainedLogic": [
             "apps/web/src/lib/api-client.ts",
@@ -10618,7 +10634,11 @@
           "id": "POST /distribution/site-transfers/:id/receive",
           "method": "POST",
           "endpoint": "/distribution/site-transfers/:id/receive",
-          "requestType": null,
+          "requestType": [
+            "receivedQuantity",
+            "version",
+            "note?"
+          ],
           "responseType": null,
           "retainedLogic": [
             "apps/web/src/lib/api-client.ts",
@@ -10725,6 +10745,9 @@
         "apps/web/src/lib/api-client.ts",
         "apps/web/src/lib/command-request.ts",
         "apps/web/src/lib/command-recovery.ts"
+      ],
+      "reviewFixes": [
+        "Restore scoped SITE_TRANSFER/QUARANTINE evidence, receiver assignment and transfer/receipt notes using Ledger kit."
       ]
     },
     {
@@ -12663,6 +12686,12 @@
         "apps/web/src/lib/auth-scope.ts",
         "apps/web/src/lib/command-request.ts",
         "apps/web/src/lib/command-recovery.ts"
+      ],
+      "reviewFixes": [
+        "Own hidden/inert private portal container and keep unavailable-state retry usable without dismissing drafts.",
+        "Mount admitted private portals inside the same hidden/inert DOM boundary; public and standalone kit portals retain body defaults.",
+        "Keep admitted hidden forms mounted during permission recheck; restore mobile menu focus on Escape.",
+        "Retain scoped display permissions only while admitted tree is hidden for recheck; avoid enterprise API for independent roles."
       ]
     },
     {
@@ -20777,7 +20806,9 @@
           }
         }
       ],
-      "tests": [],
+      "tests": [
+        "tests/ledger/enterprise-resources.spec.ts"
+      ],
       "status": "verified",
       "authorization": {
         "status": "source-review",
@@ -20805,6 +20836,9 @@
         "apps/web/src/lib/enterprise-access.ts",
         "apps/web/src/lib/command-request.ts",
         "apps/web/src/lib/command-recovery.ts"
+      ],
+      "reviewFixes": [
+        "Open canonical vehicle-create dialog and return to canonical list on cancel/success."
       ]
     },
     {
@@ -21076,6 +21110,10 @@
         "apps/web/src/lib/api-client.ts",
         "apps/web/src/lib/command-request.ts",
         "apps/web/src/lib/command-recovery.ts"
+      ],
+      "reviewFixes": [
+        "Optional SelectField change callback used for baseline sensor-unit synchronization.",
+        "Restore sensor units and memory-only exact request/response JSON clipboard export; confirm accepted reading only from server result."
       ]
     },
     {
@@ -25599,7 +25637,9 @@
           }
         }
       ],
-      "tests": [],
+      "tests": [
+        "tests/ledger/production-harvest.spec.ts"
+      ],
       "status": "verified",
       "authorization": {
         "status": "source-review",
@@ -25625,6 +25665,9 @@
         "apps/web/src/lib/api-client.ts",
         "apps/web/src/lib/command-request.ts",
         "apps/web/src/lib/command-recovery.ts"
+      ],
+      "reviewFixes": [
+        "Keep baseline independent reviewer scoped cycle reads, server write flags and separate enterprise evidence authority."
       ]
     },
     {

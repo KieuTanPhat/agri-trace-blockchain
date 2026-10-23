@@ -1,10 +1,11 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
 import { t } from "@/lib/ledger/i18n";
 import { ErrorState } from "./kit/page";
+import {LedgerPortalScope} from "./portal-scope";
 
 const PUBLIC = new Set([
   "/",
@@ -28,6 +29,7 @@ export function LedgerAuthRouteGate({
     user && { ...user, accessRevision: undefined },
   );
   const admitted = useRef<string | null>(null);
+  const [portalContainer,setPortalContainer]=useState<HTMLDivElement|null>(null);
   if (privateAccessStatus === "ready" && user) admitted.current = identity;
   const publicRoute =
     PUBLIC.has(path) || path === "/trace" || path.startsWith("/trace/");
@@ -57,13 +59,13 @@ export function LedgerAuthRouteGate({
     <>
       {!ready &&
         (privateAccessStatus === "unavailable" ? (
-          <ErrorState
+          <div className="pointer-events-auto" onPointerDownCapture={event=>event.stopPropagation()} onKeyDownCapture={event=>event.stopPropagation()}><ErrorState
             error={{
               status: 503,
               message: t("Chưa xác minh được quyền truy cập"),
             }}
             onRetry={() => window.dispatchEvent(new Event("focus"))}
-          />
+          /></div>
         ) : (
           <div
             role="status"
@@ -72,8 +74,8 @@ export function LedgerAuthRouteGate({
             {t("Đang kiểm tra phiên đăng nhập…")}
           </div>
         ))}
-      <div key={identity} hidden={!ready} inert={!ready}>
-        {admitted.current === identity ? children : null}
+      <div key={identity} hidden={!ready} inert={!ready} ref={setPortalContainer}>
+        <LedgerPortalScope value={portalContainer}>{admitted.current === identity ? children : null}</LedgerPortalScope>
       </div>
     </>
   );

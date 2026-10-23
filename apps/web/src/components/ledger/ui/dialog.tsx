@@ -1,5 +1,7 @@
 "use client"
 
+import {useLedgerPortalContainer} from "../portal-scope"
+
 import * as React from "react"
 import { cn } from "cn"
 import { XIcon } from "lucide-react"
@@ -22,7 +24,9 @@ function DialogTrigger({
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+  const container=useLedgerPortalContainer();
+  if(container===null)return null;
+  return <DialogPrimitive.Portal container={container} data-slot="dialog-portal" {...props} />
 }
 
 function DialogClose({

@@ -184,7 +184,7 @@ export default function SitesPage({view="list",resourceId,family="sites"}:{view?
         </CommandDialog>
       )}
       {view==="new" && family==="vehicles" && can("vehicles.manage") && (
-        <CommandDialog {...add.props} title={tr("Thêm phương tiện")} endpoint="POST /enterprise-workspace/vehicles" schema={vehicleSchema} defaultValues={{ kind: "", registration: "" }} submitLabel={tr("Thêm")} invalidate={[["ws-vehicles"]]} run={(v, cmd) => wapi.createVehicle(v, cmd)}>
+        <CommandDialog {...add.props} open onOpenChange={o=>{if(!o)router.push("/enterprise/vehicles");}} onDone={()=>router.push("/enterprise/vehicles")} title={tr("Thêm phương tiện")} endpoint="POST /enterprise-workspace/vehicles" schema={vehicleSchema} defaultValues={{ kind: "", registration: "" }} submitLabel={tr("Thêm")} invalidate={[["ws-vehicles"]]} run={(v, cmd) => wapi.createVehicle(v, cmd)}>
           {(f) => (
             <>
               <TextField control={f.control} name="registration" label={tr("Biển số")} />

@@ -39,6 +39,14 @@ nội dung riêng bị chặn; đổi subject/organization/revision loại dữ 
 lọc theo quyền/capability thực; API quyết định quyền cuối cùng. Tài khoản mật khẩu tạm
 hoặc quá hạn vào `/account/password`; không gọi enterprise API để vượt gate.
 
+Dialog/sheet/select/menu riêng tư dùng portal trong cùng vùng `hidden/inert` của
+trang đã được xác minh. Kiểm tra lại quyền cùng tài khoản giữ form trong bộ nhớ;
+chỉ cho tương tác lại sau khi xác minh. Lỗi kiểm tra quyền vẫn có nút thử lại, không
+tự hủy bản nháp. Quyền hiển thị lấy từ cache đúng scope để giữ cây giao diện ẩn;
+query và command vẫn dùng gate/transport/API hiện hành. Auditor và Compliance Reviewer
+đọc vụ/nhật ký/thu hoạch theo projection của API sản xuất, không gọi enterprise-access
+để cấp quyền doanh nghiệp hoặc hiện lệnh ghi.
+
 API client dùng API thật. `NEXT_PUBLIC_API_BASE_URL` là địa chỉ public;
 `NEXT_PUBLIC_API_SAME_ORIGIN=true` dùng `/api` trong browser. Reverse proxy môi trường
 phải chuyển `/api` tới NestJS và phần còn lại tới web; standalone Next không tự cung cấp
@@ -75,12 +83,16 @@ assignment/evidence/version/harvest recovery. Lot giữ `allowedCommands`, quant
 và cảnh báo recall/expiry/integrity độc lập proof. Phân phối cũ và distribution C2 có
 contract riêng; prepare/review/Ed25519 trên thiết bị/signed submit không gộp thành fake
 success. Khóa riêng không extractable, lưu IndexedDB, không gửi API. Kế hoạch giao nhận
-giữ revision/payload digest và đồng thuận từng bên.
+giữ revision/payload digest và đồng thuận từng bên. Phiếu chuyển kho giữ người nhận
+dự kiến, ghi chú khi tạo/nhận và chứng cứ SITE_TRANSFER; phiếu cách ly giữ chứng cứ
+QUARANTINE. Đọc/quản lý chứng cứ giữ quyền evidence.read/evidence.manage hiện hành.
 
 Chế biến giữ input/output decimal, packaging, conversions bất biến và version complete/cancel.
 Cân bằng UI chỉ là ước tính; API quyết định base quantity/tồn kho/output lot. Không hiện
 output thành công trước response. IoT dùng journal `INGEST_SENSOR_READING`, chặn bản đo
-mới cùng thiết bị khi yêu cầu cũ chưa rõ; đối soát đúng body/key gốc.
+mới cùng thiết bị khi yêu cầu cũ chưa rõ; đối soát đúng body/key gốc. Đổi loại cảm biến
+đồng bộ đơn vị °C/%; JSON yêu cầu/phản hồi và nút sao chép chỉ giữ snapshot bản ghi
+trong bộ nhớ trang, không thay body/key của yêu cầu đang chờ.
 
 ## Công khai, camera và PWA
 

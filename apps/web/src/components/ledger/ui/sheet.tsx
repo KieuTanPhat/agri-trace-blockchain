@@ -1,5 +1,7 @@
 "use client"
 
+import {useLedgerPortalContainer} from "../portal-scope"
+
 import * as React from "react"
 import { cn } from "cn"
 import { XIcon } from "lucide-react"
@@ -24,7 +26,9 @@ function SheetClose({
 function SheetPortal({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
+  const container=useLedgerPortalContainer();
+  if(container===null)return null;
+  return <SheetPrimitive.Portal container={container} data-slot="sheet-portal" {...props} />
 }
 
 function SheetOverlay({

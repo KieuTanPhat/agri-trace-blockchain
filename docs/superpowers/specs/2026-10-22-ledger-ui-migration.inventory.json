@@ -2836,7 +2836,11 @@
       "target": "apps/web/src/components/ledger/kit/form-fields.tsx",
       "source": "src/components/kit/form-fields.tsx",
       "sourceSha256": "f9b9ed8b85f79c05a76a0184eebb47e19b94bc4961d979a822112a9203c75b7b",
-      "targetSha256": "34fd715a4f040e0aaaf2893e92ac53f5b066de181c95e6abb5cf6c73348dbeb3"
+      "targetSha256": "327d086f41cfac5cff7ce2a39482c406205b975bc7f1163ad330df0771dab7e1",
+      "adaptations": [
+        "Task18 verified regression: form validation/route state, sensor unit or mobile focus restoration; approved Ledger presentation retained",
+        "Optional SelectField change callback used for baseline sensor-unit synchronization."
+      ]
     },
     {
       "target": "apps/web/src/components/ledger/kit/page.tsx",
@@ -2890,13 +2894,19 @@
       "target": "apps/web/src/components/ledger/ui/dialog.tsx",
       "source": "src/components/ui/dialog.tsx",
       "sourceSha256": "0d2e82ed5e7040abda714a0471aff54535e05bad6249da049cc0c3bf3ae024e5",
-      "targetSha256": "e53517d0a5de3ba647d22fdb5f4ecf5f8764400fc0e77dc9f9e16bd4b1589200"
+      "targetSha256": "667127b82c7477877207df27b4e76d6a9b6a636d06f0b744381aee2fd6c90350",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
     },
     {
       "target": "apps/web/src/components/ledger/ui/dropdown-menu.tsx",
       "source": "src/components/ui/dropdown-menu.tsx",
       "sourceSha256": "d954efb735f13734751207ad22cb0cddd7f6ec53c59d16675d103dae08cb61fb",
-      "targetSha256": "d954efb735f13734751207ad22cb0cddd7f6ec53c59d16675d103dae08cb61fb"
+      "targetSha256": "ca7d3cb5700f4156469cf3f95804ef3068b097b80e46032d7aa764434ff23c10",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
     },
     {
       "target": "apps/web/src/components/ledger/ui/input.tsx",
@@ -2914,7 +2924,10 @@
       "target": "apps/web/src/components/ledger/ui/popover.tsx",
       "source": "src/components/ui/popover.tsx",
       "sourceSha256": "3f99d3add6c9fa4f03721e81297ee10e1310785ee1d9d9d4c82a114d84ab0757",
-      "targetSha256": "3f99d3add6c9fa4f03721e81297ee10e1310785ee1d9d9d4c82a114d84ab0757"
+      "targetSha256": "5b7fe2cf745674db389aed6f1328891f1c7ed5c9814ec14befc96c2f918dfde1",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
     },
     {
       "target": "apps/web/src/components/ledger/ui/radio-group.tsx",
@@ -2932,7 +2945,10 @@
       "target": "apps/web/src/components/ledger/ui/select.tsx",
       "source": "src/components/ui/select.tsx",
       "sourceSha256": "962830436bd0b7ee50e556f0747e277d6a86869ed27d167516346b15f26309d8",
-      "targetSha256": "962830436bd0b7ee50e556f0747e277d6a86869ed27d167516346b15f26309d8"
+      "targetSha256": "095a1dcf6d37d32ce93c2a9f30eed4b27a9570e619356335dfa0f960abb41d65",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
     },
     {
       "target": "apps/web/src/components/ledger/ui/separator.tsx",
@@ -2944,7 +2960,10 @@
       "target": "apps/web/src/components/ledger/ui/sheet.tsx",
       "source": "src/components/ui/sheet.tsx",
       "sourceSha256": "ea473d38a26a9b0b879e5a13139899ad45e9782e896b3fa205c7763a6c506876",
-      "targetSha256": "ea473d38a26a9b0b879e5a13139899ad45e9782e896b3fa205c7763a6c506876"
+      "targetSha256": "bef20e54309433c0583ce2ba300f64c45667a8e750bc5abf2c5f32722067f7c6",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
     },
     {
       "target": "apps/web/src/components/ledger/ui/skeleton.tsx",
@@ -2986,7 +3005,10 @@
       "target": "apps/web/src/components/ledger/ui/tooltip.tsx",
       "source": "src/components/ui/tooltip.tsx",
       "sourceSha256": "611e4305879b2773eafe76bf3c5caa69d8e47367fd97887a71634a27828f4433",
-      "targetSha256": "611e4305879b2773eafe76bf3c5caa69d8e47367fd97887a71634a27828f4433"
+      "targetSha256": "535cb9b03382ed6e9f7abe777a83fb0e03334a73fff54ac080126ffb5e9b922f",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
     },
     {
       "target": "apps/web/src/lib/ledger/format.ts",
@@ -3048,8 +3070,12 @@
       "target": "apps/web/src/components/ledger/shell/app-shell.tsx",
       "source": "src/components/shell/app-shell.tsx",
       "sourceSha256": "7ff5a2e0f5b194ab8195cbe810888a70c81ed934b94da500e7ce95adec206201",
-      "targetSha256": "ee487b62f3fc4cf54333f4d43482574d95ba2ca5ebfaace88b3b5417f79a8713",
-      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+      "targetSha256": "6f5b38ec683a38e1d6ee5d95949df6b0ab2e59056e7291ce4f29fdd2c89b18b5",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation.",
+      "adaptations": [
+        "Task18 verified regression: form validation/route state, sensor unit or mobile focus restoration; approved Ledger presentation retained",
+        "Keep admitted hidden forms mounted during permission recheck; restore mobile menu focus on Escape."
+      ]
     },
     {
       "target": "apps/web/src/components/ledger/shell/sidebar.tsx",
@@ -3076,8 +3102,11 @@
       "target": "apps/web/src/lib/ledger/navigation.ts",
       "source": "src/components/shell/nav.ts",
       "sourceSha256": "3a3e844bc282720612f23a073d4b9490e9d313576912eacdff23a5ed07e2c89a",
-      "targetSha256": "6162b7246a181ed429724c4558e55b675bb097adb4f671a37ce1f601a5ed8540",
-      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+      "targetSha256": "f32c53f61edee2e902a219fd726bc0384fdef40644376745d52cf2863fd16b3f",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation.",
+      "adaptations": [
+        "Map assigned incidents to existing /enterprise/inbox URL; no new route."
+      ]
     },
     {
       "target": "apps/web/src/features/ledger/screens/login/screen.tsx",
@@ -3371,7 +3400,11 @@
       "target": "apps/web/src/features/ledger/workspace/sites.tsx",
       "source": "src/app/(workspace)/w/sites/page.tsx",
       "sourceSha256": "c268460273383adb9d91b56292ec438d4d40cd3a238da55840bb5e2787891917",
-      "targetSha256": "d1b4873a3ff74826c8c78ba9033c1d66f79b925d35d9baf695d484e6392428b4"
+      "targetSha256": "3eaba5d72edd7f4129d2420d782cc020ebe2dfe9470de9ba5dd495e65cfd6e43",
+      "adaptations": [
+        "Task18 verified regression: form validation/route state, sensor unit or mobile focus restoration; approved Ledger presentation retained",
+        "Open canonical vehicle-create dialog and return to canonical list on cancel/success."
+      ]
     },
     {
       "target": "apps/web/src/features/ledger/workspace/partners.tsx",
@@ -3413,7 +3446,10 @@
       "target": "apps/web/src/features/ledger/workspace/cycles.tsx",
       "source": "src/app/(workspace)/w/cycles/page.tsx",
       "sourceSha256": "53a7916f8966c914defd3a8fedc9da9b2ea0c5f1e13a5eed4edc66e6cacbf5c6",
-      "targetSha256": "fe43534e0e71ae4e2e6918bdfa1975607719cf1bdcf8ab737ada78764f286d5a"
+      "targetSha256": "c33057114fb682d7f6d2fe5fd4bedba64f9c017cf4ebef69e4aee10e5d3f35dc",
+      "adaptations": [
+        "Keep baseline independent reviewer scoped cycle reads, server write flags and separate enterprise evidence authority."
+      ]
     },
     {
       "target": "apps/web/src/lib/ledger/ops-labels.ts",
@@ -3431,7 +3467,10 @@
       "target": "apps/web/src/features/ledger/workspace/inventory.tsx",
       "source": "src/app/(workspace)/w/inventory/page.tsx",
       "sourceSha256": "b96cffd269a90c080a71872d0afd4d1d31c1010bdc8e473c62d5b6c81bc7560c",
-      "targetSha256": "fe568ea8693b5142936aa422abeeaef1d50e96eeb46d69eba9f5dfcbced411c6"
+      "targetSha256": "15771ff9f5adac05c077c1d291efa12d6f05fb5a16ee226adb81706f9242d75e",
+      "adaptations": [
+        "Restore scoped SITE_TRANSFER/QUARANTINE evidence, receiver assignment and transfer/receipt notes using Ledger kit."
+      ]
     },
     {
       "target": "apps/web/src/features/ledger/workspace/distribution.tsx",
@@ -4174,6 +4213,18 @@
     {
       "target": "apps/web/src/components/ledger/ui/tailwind.css",
       "basis": "Exact CSS from approved preview dependency shadcn@4.22.1; upstream SHA256 4c371f7a1ff5d219ae2f7ff28bd256b4346fd546fe46fbae22092e57db2f0fae; CLI omitted"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/workspace-context.ts",
+      "basis": "Task18 independently reviewed baseline preservation fix: Retain scoped display permissions only while admitted tree is hidden for recheck; avoid enterprise API for independent roles."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/dist-types.ts",
+      "basis": "Task18 independently reviewed baseline preservation fix: Include optional server-returned warehouse recipient/note metadata in typed consumer view."
+    },
+    {
+      "target": "apps/web/src/components/ledger/portal-scope.tsx",
+      "basis": "Task18 independently reviewed baseline preservation fix: Mount admitted private portals inside the same hidden/inert DOM boundary; public and standalone kit portals retain body defaults."
     }
   ]
 }

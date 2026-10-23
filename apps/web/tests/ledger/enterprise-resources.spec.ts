@@ -3,6 +3,15 @@ import "./fixtures/enterprise-resources";
 import {siteId,memberId} from "./fixtures/enterprise-membership";
 import {farmId} from "./fixtures/enterprise-products";
 import {resolve} from "node:path";
+
+test("canonical vehicle creation opens, submits the baseline payload and returns to its list",async({page,api})=>{
+ await api.useActor("org-owner");await api.scenario("resources.vehicles");await page.goto("/enterprise/vehicles/new");
+ const dialog=page.getByRole("dialog");await expect(dialog.getByRole("heading",{name:"Thêm phương tiện",exact:true})).toBeVisible();
+ await dialog.getByLabel("Biển số",{exact:true}).fill("51C-12345");await dialog.getByLabel("Loại xe",{exact:true}).fill("Xe lạnh");
+ const response=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/enterprise-workspace/vehicles"&&r.request().method()==="POST");await dialog.getByRole("button",{name:"Thêm",exact:true}).click();
+ expect((await response).request().postDataJSON()).toEqual({registration:"51C-12345",kind:"Xe lạnh"});await expect(page).toHaveURL(/\/enterprise\/vehicles$/);
+ await page.goto("/enterprise/vehicles/new");await expect(dialog).toBeVisible();await page.keyboard.press("Escape");await expect(page).toHaveURL(/\/enterprise\/vehicles$/);
+});
 test("facility create and revision preserve assignment, numeric payload and current version",async({page,api})=>{
  await api.useActor("org-owner");await api.scenario("resources.baseline");await page.goto("/enterprise/sites/new");
  const dialog=page.getByRole("dialog").last();await dialog.getByLabel("Tên cơ sở",{exact:true}).fill("Kho mới Ledger");await dialog.getByLabel("Địa chỉ",{exact:true}).fill("Địa chỉ cơ sở đã kiểm tra");await dialog.getByLabel("Phường/xã",{exact:true}).fill("Phường Bến Lức");await dialog.getByLabel("Tỉnh/thành",{exact:true}).fill("Long An");await dialog.getByLabel("Diện tích (m²)",{exact:true}).fill("100.25");

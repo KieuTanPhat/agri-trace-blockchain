@@ -170,9 +170,11 @@ export function SelectField<T extends FieldValues>({
   className,
   options,
   placeholder = tr("Chọn…"),
+  onValueChange,
 }: Base<T> & {
   options: { value: string; label: string }[];
   placeholder?: string;
+  onValueChange?: (value: string) => void;
 }) {
   const id = useId();
   return (
@@ -187,7 +189,7 @@ export function SelectField<T extends FieldValues>({
           error={fieldState.error?.message}
           className={className}
         >
-          <Select value={field.value ?? ""} onValueChange={field.onChange}>
+          <Select value={field.value ?? ""} onValueChange={value=>{field.onChange(value);onValueChange?.(value);}}>
             <SelectTrigger
               id={id}
               aria-describedby={`${id}-msg`}

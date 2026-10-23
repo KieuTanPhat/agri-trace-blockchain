@@ -1,5 +1,7 @@
 "use client"
 
+import {useLedgerPortalContainer} from "../portal-scope"
+
 import * as React from "react"
 import { cn } from "cn"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
@@ -35,8 +37,10 @@ function TooltipContent({
   children,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+  const container=useLedgerPortalContainer();
+  if(container===null)return null;
   return (
-    <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Portal container={container}>
       <TooltipPrimitive.Content
         data-slot="tooltip-content"
         sideOffset={sideOffset}

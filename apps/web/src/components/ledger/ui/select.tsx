@@ -1,5 +1,7 @@
 "use client"
 
+import {useLedgerPortalContainer} from "../portal-scope"
+
 import * as React from "react"
 import { cn } from "cn"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
@@ -56,8 +58,10 @@ function SelectContent({
   align = "center",
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  const container=useLedgerPortalContainer();
+  if(container===null)return null;
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={container}>
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(

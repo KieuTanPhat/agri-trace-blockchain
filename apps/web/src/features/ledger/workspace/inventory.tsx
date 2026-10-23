@@ -19,6 +19,7 @@ import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/f
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
+import {EvidencePanel} from "@/components/ledger/workspace/evidence-panel";
 
 const SLIP_LABEL: Record<SiteTransferView["status"], string> = localized({ PENDING: "Chờ xuất", IN_TRANSIT: "Đang chuyển", RECEIVED: "Đã nhận", DISCREPANCY: "Chênh lệch", CANCELLED: "Đã hủy" });
 const SLIP_TONE: Record<SiteTransferView["status"], "info" | "brand" | "ok" | "warn" | "neutral"> = { PENDING: "info", IN_TRANSIT: "brand", RECEIVED: "ok", DISCREPANCY: "warn", CANCELLED: "neutral" };
@@ -103,6 +104,7 @@ function LotSheet({ lot, ownSites, onClose }: { lot: StockLot | null; ownSites: 
   const { user } = useSession();
   const { can, primary } = useWorkspaceAccess();
   const act = useDialog<LotAction>();
+  const members=useQuery({queryKey:["ws-members"],queryFn:wapi.members,enabled:can("inventory.manage")&&can("members.read")});
   if (!lot) return <Sheet open={false} />;
   const held = lot.siteHoldings.filter((s) => Number(s.quantity) > 0);
   const siteOpts = held.map((s) => ({ value: s.siteId, label: `${s.siteName} · ${tr("khả dụng")} ${fmtNumber(s.available)}` }));
@@ -165,16 +167,18 @@ function LotSheet({ lot, ownSites, onClose }: { lot: StockLot | null; ownSites: 
           </CommandDialog>
         )}
         {act.target === "TRANSFER" && (
-          <CommandDialog {...act.props} title={tr("Lập phiếu chuyển kho")} endpoint="POST /distribution/site-transfers" description={tr("Hàng rời cơ sở xuất khi xuất phiếu và chỉ vào cơ sở nhận khi xác nhận thực nhận; phần thiếu được trả về hoặc ghi hư hỏng.")} schema={z.object({ fromSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở xuất") }), toSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở nhận") }), quantity: qty, reason: reason(10), dispatch: z.enum(["no", "yes"]) }).refine((v) => v.fromSiteId !== v.toSiteId, { path: ["toSiteId"], error: () => tr("Cơ sở xuất và cơ sở nhận phải khác nhau") })} defaultValues={{ fromSiteId: held[0]?.siteId ?? "", toSiteId: "", quantity: "", reason: "", dispatch: "no" }} version={lot.version} submitLabel={tr("Lập phiếu")} invalidate={INVALIDATE} run={(v, cmd) => distApi.createSiteTransfer({ ...base, fromSiteId: v.fromSiteId, toSiteId: v.toSiteId, quantity: v.quantity, reason: v.reason, dispatch: v.dispatch === "yes" }, cmd)}>
+          <CommandDialog {...act.props} title={tr("Lập phiếu chuyển kho")} endpoint="POST /distribution/site-transfers" description={tr("Hàng rời cơ sở xuất khi xuất phiếu và chỉ vào cơ sở nhận khi xác nhận thực nhận; phần thiếu được trả về hoặc ghi hư hỏng.")} schema={z.object({ fromSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở xuất") }), toSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở nhận") }), quantity: qty, reason: reason(10), receiverUserId:z.union([z.literal("__none"),z.uuid()]), note:z.string().max(1000), dispatch: z.enum(["no", "yes"]) }).refine((v) => v.fromSiteId !== v.toSiteId, { path: ["toSiteId"], error: () => tr("Cơ sở xuất và cơ sở nhận phải khác nhau") })} defaultValues={{ fromSiteId: held[0]?.siteId ?? "", toSiteId: "", quantity: "", reason: "", receiverUserId:"__none",note:"", dispatch: "no" }} version={lot.version} submitLabel={tr("Lập phiếu")} invalidate={INVALIDATE} run={(v, cmd) => distApi.createSiteTransfer({ ...base, fromSiteId: v.fromSiteId, toSiteId: v.toSiteId, quantity: v.quantity, reason: v.reason, receiverUserId:v.receiverUserId==="__none"?undefined:v.receiverUserId,note:v.note||undefined,dispatch: v.dispatch === "yes" }, cmd)}>
             {(f) => (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <SelectField control={f.control} name="fromSiteId" label={tr("Cơ sở xuất")} options={siteOpts} />
                   <SelectField control={f.control} name="toSiteId" label={tr("Cơ sở nhận")} options={ownSites.map((s) => ({ value: s.id, label: s.name }))} />
                   <TextField control={f.control} name="quantity" label={tr("Số lượng ({p0})", { p0: lot.unit })} inputMode="decimal" />
+                  <SelectField control={f.control} name="receiverUserId" label={tr("Người nhận dự kiến (tùy chọn)")} options={[{value:"__none",label:tr("Không chỉ định")},...(members.data??[]).filter(m=>m.accountStatus==="ACTIVE").map(m=>({value:m.id,label:m.fullName}))]}/>
                   <SelectField control={f.control} name="dispatch" label={tr("Xuất hàng")} options={[{ value: "no", label: tr("Để chờ xuất") }, { value: "yes", label: tr("Xuất ngay") }]} />
                 </div>
                 <TextAreaField control={f.control} name="reason" label={tr("Lý do")} max={1000} />
+                <TextAreaField control={f.control} name="note" label={tr("Ghi chú chuyển kho (tùy chọn)")} max={1000}/>
               </>
             )}
           </CommandDialog>
@@ -227,9 +231,11 @@ function Slips() {
   const { can } = useWorkspaceAccess();
   const q = useQuery({ queryKey: ["dist-slips"], queryFn: distApi.siteTransfers, enabled: can("inventory.manage") });
   const act = useDialog<SlipAction>();
+  const evidence=useDialog<SiteTransferView>();
   if (!can("inventory.manage")) return <Callout tone="info">{tr("Cần quyền inventory.manage để xem phiếu chuyển kho.")}</Callout>;
   const t = act.target;
   const cols: Column<SiteTransferView>[] = [
+    {key:"evidence",header:tr("Chứng cứ"),cell:r=>can("evidence.read")?<Button size="xs" variant="outline" onClick={()=>evidence.open(r)}>{tr("Chứng cứ")}</Button>:null},
     { key: "code", header: tr("Phiếu"), cell: (r) => <span className="flex flex-col"><span className="font-mono text-[12px] font-medium">{r.code}</span><span className="text-[12px] text-ink-2">{r.lotCode} · {r.productName}</span></span> },
     { key: "route", header: tr("Từ → đến"), hideBelow: "md", cell: (r) => <span className="text-[12.5px]">{r.fromSiteName} → {r.toSiteName}</span> },
     { key: "qty", header: tr("Số lượng"), cell: (r) => <span className="font-mono text-[12.5px]">{fmtNumber(r.quantity)} {r.unit}{r.shortfall && Number(r.shortfall) > 0 ? ` (${tr("thiếu")} ${fmtNumber(r.shortfall)})` : ""}</span> },
@@ -249,6 +255,7 @@ function Slips() {
       <div className="overflow-hidden rounded-md border border-line bg-card">
         <DataTable rows={q.data} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} columns={cols} rowKey={(r) => r.id} empty={<EmptyState title={tr("Chưa có phiếu chuyển kho")}>{tr("Lập phiếu từ chi tiết lô ở tab Tồn theo lô.")}</EmptyState>} />
       </div>
+      {evidence.target&&<InventoryEvidence entityType="SITE_TRANSFER" entityId={evidence.target.id} code={evidence.target.code} onClose={evidence.close} details={[[tr("Người nhận dự kiến"),evidence.target.receiverName],[tr("Ghi chú chuyển kho"),evidence.target.note],[tr("Ghi chú nhận hàng"),evidence.target.receiptNote]]}/>}
       {t?.kind === "DISPATCH" && (
         <CommandDialog {...act.props} title={tr("Xuất hàng phiếu {p0}", { p0: t.slip.code })} endpoint="POST /distribution/site-transfers/:id/dispatch" description={tr("Trừ {p0} {p1} khỏi {p2}.", { p0: fmtNumber(t.slip.quantity), p1: t.slip.unit, p2: t.slip.fromSiteName ?? "" })} schema={z.object({})} defaultValues={{}} version={t.slip.version} submitLabel={tr("Xuất hàng")} invalidate={INVALIDATE} run={(_, cmd) => distApi.dispatchSiteTransfer(t.slip.id, { version: t.slip.version }, cmd)}>
           {() => null}
@@ -260,8 +267,8 @@ function Slips() {
         </CommandDialog>
       )}
       {t?.kind === "RECEIVE" && (
-        <CommandDialog {...act.props} title={tr("Xác nhận nhận phiếu {p0}", { p0: t.slip.code })} endpoint="POST /distribution/site-transfers/:id/receive" description={tr("Nhận ít hơn lượng chuyển thì phiếu chuyển sang Chênh lệch để xử lý phần thiếu.")} schema={z.object({ receivedQuantity: z.string().regex(DEC, { error: () => tr("Số không âm, tối đa 3 chữ số thập phân") }).refine((v) => Number(v) <= Number(t.slip.quantity), { error: () => tr("Lượng thực nhận vượt lượng chuyển") }) })} defaultValues={{ receivedQuantity: t.slip.quantity }} version={t.slip.version} submitLabel={tr("Xác nhận")} invalidate={INVALIDATE} run={(v, cmd) => distApi.receiveSiteTransfer(t.slip.id, { version: t.slip.version, receivedQuantity: v.receivedQuantity }, cmd)}>
-          {(f) => <TextField control={f.control} name="receivedQuantity" label={tr("Thực nhận ({p0})", { p0: t.slip.unit })} inputMode="decimal" />}
+        <CommandDialog {...act.props} title={tr("Xác nhận nhận phiếu {p0}", { p0: t.slip.code })} endpoint="POST /distribution/site-transfers/:id/receive" description={tr("Nhận ít hơn lượng chuyển thì phiếu chuyển sang Chênh lệch để xử lý phần thiếu.")} schema={z.object({ note:z.string().max(1000),receivedQuantity: z.string().regex(DEC, { error: () => tr("Số không âm, tối đa 3 chữ số thập phân") }).refine((v) => Number(v) <= Number(t.slip.quantity), { error: () => tr("Lượng thực nhận vượt lượng chuyển") }) })} defaultValues={{ receivedQuantity: t.slip.quantity,note:"" }} version={t.slip.version} submitLabel={tr("Xác nhận")} invalidate={INVALIDATE} run={(v, cmd) => distApi.receiveSiteTransfer(t.slip.id, { version: t.slip.version, receivedQuantity: v.receivedQuantity,note:v.note||undefined }, cmd)}>
+          {(f) => <><TextField control={f.control} name="receivedQuantity" label={tr("Thực nhận ({p0})", { p0: t.slip.unit })} inputMode="decimal" /><TextAreaField control={f.control} name="note" label={tr("Ghi chú nhận hàng (tùy chọn)")} max={1000}/></>}
         </CommandDialog>
       )}
       {t?.kind === "RESOLVE" && (
@@ -283,10 +290,12 @@ function Cases({ lots }: { lots: StockLot[] }) {
   const { can } = useWorkspaceAccess();
   const q = useQuery({ queryKey: ["dist-cases"], queryFn: distApi.quarantineCases, enabled: can("quarantine.manage") });
   const act = useDialog<CaseAction>();
+  const evidence=useDialog<QuarantineCaseView>();
   if (!can("quarantine.manage")) return <Callout tone="info">{tr("Cần quyền quarantine.manage để xem phiếu cách ly.")}</Callout>;
   const t = act.target;
   const lotOf = (c: QuarantineCaseView) => lots.find((l) => l.lotId === c.lotId);
   const cols: Column<QuarantineCaseView>[] = [
+    {key:"evidence",header:tr("Chứng cứ"),cell:r=>can("evidence.read")?<Button size="xs" variant="outline" onClick={()=>evidence.open(r)}>{tr("Chứng cứ")}</Button>:null},
     { key: "code", header: tr("Phiếu"), cell: (c) => <span className="flex flex-col"><span className="font-mono text-[12px] font-medium">{c.code}</span><span className="text-[12px] text-ink-2">{c.lotCode} · {c.siteName}</span></span> },
     { key: "cause", header: tr("Nguyên nhân"), hideBelow: "md", cell: (c) => <span className="flex flex-col text-[12.5px]"><span>{CAUSE_LABEL[c.cause]}</span><span className="text-ink-2">{c.reason}</span></span> },
     { key: "qty", header: tr("Còn cách ly / tổng"), cell: (c) => <span className="font-mono text-[12.5px]">{fmtNumber(c.openQuantity)} / {fmtNumber(c.quantity)} {c.unit}</span> },
@@ -306,6 +315,7 @@ function Cases({ lots }: { lots: StockLot[] }) {
       <div className="overflow-hidden rounded-md border border-line bg-card">
         <DataTable rows={q.data} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} columns={cols} rowKey={(c) => c.id} empty={<EmptyState title={tr("Chưa có phiếu cách ly")} />} />
       </div>
+      {evidence.target&&<InventoryEvidence entityType="QUARANTINE" entityId={evidence.target.id} code={evidence.target.code} onClose={evidence.close}/>}
       {t && lot && (
         <CommandDialog
           {...act.props}
@@ -335,3 +345,5 @@ function Cases({ lots }: { lots: StockLot[] }) {
     </>
   );
 }
+
+function InventoryEvidence({entityType,entityId,code,onClose,details=[]}:{details?:[string,string|null|undefined][];entityType:"SITE_TRANSFER"|"QUARANTINE";entityId:string;code:string;onClose:()=>void}){const{can}=useWorkspaceAccess();return <Sheet open onOpenChange={open=>{if(!open)onClose();}}><SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl"><SheetHeader><SheetTitle>{tr("Chứng cứ")} · {code}</SheetTitle><SheetDescription>{entityType==="SITE_TRANSFER"?tr("Phiếu chuyển kho"):tr("Phiếu cách ly")}</SheetDescription></SheetHeader><div className="flex flex-col gap-4 px-4 pb-6"><dl className="grid gap-2 text-sm">{details.filter(([,value])=>value).map(([label,value])=><div key={label}><dt className="text-ink-2">{label}</dt><dd>{value}</dd></div>)}</dl>{can("evidence.read")&&<EvidencePanel entityType={entityType} entityId={entityId} canManage={can("evidence.manage")}/>}</div></SheetContent></Sheet>;}

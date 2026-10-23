@@ -1,6 +1,6 @@
 "use client";
 import { LedgerRecoveryPanel } from "../command-recovery";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -74,6 +74,7 @@ export function LedgerAppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname(),
     router = useRouter(),
     confirm = useLedgerConfirm();
+  const navTrigger=useRef<HTMLButtonElement>(null);
   const [navOpen, setNavOpen] = useState(false),
     [palette, setPalette] = useState(false);
   const enterprise =
@@ -125,13 +126,8 @@ export function LedgerAppShell({ children }: { children: React.ReactNode }) {
         {t("Đang kiểm tra phiên đăng nhập…")}
       </div>
     );
-  if (!user.mustChangePassword && privateAccessStatus !== "ready")
-    return (
-      <ErrorState
-        error={{ status: 503, message: t("Chưa xác minh được quyền truy cập") }}
-        onRetry={() => window.dispatchEvent(new Event("focus"))}
-      />
-    );
+  // The outer auth gate hides/inerts an admitted tree during rechecks. Keep its
+  // mounted drafts while that gate waits for the same account's permission reply.
   const account = pathname.startsWith("/account/");
   if (!account && enterprise && access.isPending)
     return (
@@ -220,7 +216,7 @@ export function LedgerAppShell({ children }: { children: React.ReactNode }) {
         <SidebarNav groups={groups} />
       </aside>
       <Sheet open={navOpen} onOpenChange={setNavOpen}>
-        <SheetContent side="left" className="w-[280px] overflow-y-auto p-0">
+        <SheetContent side="left" className="w-[280px] overflow-y-auto p-0" onCloseAutoFocus={event=>{event.preventDefault();navTrigger.current?.focus();}}>
           <SheetTitle className="sr-only">{t("Điều hướng")}</SheetTitle>
           {brand}
           <SidebarNav groups={groups} onNavigate={() => setNavOpen(false)} />
@@ -232,6 +228,7 @@ export function LedgerAppShell({ children }: { children: React.ReactNode }) {
             variant="ghost"
             size="icon-sm"
             className="lg:hidden"
+            ref={navTrigger}
             aria-label={t("Mở điều hướng")}
             onClick={() => setNavOpen(true)}
           >

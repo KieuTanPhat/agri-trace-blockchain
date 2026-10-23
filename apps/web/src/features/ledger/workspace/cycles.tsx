@@ -117,15 +117,17 @@ type Options = ReturnType<typeof useOptions>;
 
 export default function CyclesPage({cycleId,view="list"}:{cycleId?:string;view?:string}) {
  const router=useRouter();
+  const {user}=useSession();
+  const independent=user?.role.code==="AUDITOR"||user?.role.code==="COMPLIANCE_REVIEWER";
   const { can } = useWorkspaceAccess();
   const [tab, setTab] = useState<"cycles" | "drafts">(view==="draft"?"drafts":"cycles");
   const [openId, setOpenId] = useState<string | null>(cycleId && view!=="draft"?cycleId:null);
-  const cycles = useQuery({ queryKey: ["ws-cycles"], queryFn: opsApi.cycles, enabled: can("production.read") });
+  const cycles = useQuery({ queryKey: ["ws-cycles"], queryFn: opsApi.cycles, enabled: independent||can("production.read") });
   const drafts = useQuery({ queryKey: ["ws-cycle-drafts"], queryFn: opsApi.drafts, enabled: can("production.read") });
   const options = useOptions();
   const add = useDialog<"cycle" | "draft">();
   const link = useDialog<CycleDraft>();
-  if (!can("production.read")) return <ErrorState error={new Error(tr("Bạn chưa có quyền production.read"))} />;
+  if (!independent&&!can("production.read")) return <ErrorState error={new Error(tr("Bạn chưa có quyền production.read"))} />;
   const write = can("production.write");
   const cols: Column<CycleList>[] = [
     { key: "code", header: tr("Vụ"), sort: (c) => c.cycleCode, cell: (c) => <span className="flex flex-col"><span className="font-medium">{c.name ?? c.cycleCode}</span><span className="font-mono text-[11px] text-ink-2">{c.cycleCode}</span></span> },
@@ -158,7 +160,7 @@ export default function CyclesPage({cycleId,view="list"}:{cycleId?:string;view?:
       />
       <PageBody>
         <div role="tablist" className="flex gap-1">
-          {(["cycles", "drafts"] as const).map((k) => (
+          {(independent?["cycles"] as const:["cycles", "drafts"] as const).map((k) => (
             <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)} className={cn("h-8 rounded-md border px-3 text-[12.5px] font-medium", tab === k ? "border-ink bg-ink text-canvas" : "border-line bg-card")}>
               {k === "cycles" ? tr("Vụ trong chuỗi") : tr("Vụ nháp")} <span className="font-mono text-[11px] opacity-70">{k === "cycles" ? cycles.data?.length ?? "" : drafts.data?.length ?? ""}</span>
             </button>
@@ -264,7 +266,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
   const routeProps=(d:{props:{open:boolean;onOpenChange:(o:boolean)=>void}},part:string)=>({...d.props,open:d.props.open||view===part,onOpenChange:(o:boolean)=>{d.props.onOpenChange(o);if(!o&&["plant","journal-new","harvest-new"].includes(view))router.push(`/production-cycles/${id}`);}});
   const invalidate = [["ws-cycle", id], ["ws-cycles"], ["ws-lots"]];
   const active = c && ["PLANTED", "GROWING"].includes(c.currentState);
-  const canEvidence=useWorkspaceAccess().can("evidence.manage");
+  const evidenceAccess=useWorkspaceAccess(),canEvidence=evidenceAccess.can("evidence.manage");
   const nowLocal = isoToLocal(new Date(now).toISOString());
   return (
     <Sheet open={!!id} onOpenChange={(o) => !o && onClose()}>
@@ -359,7 +361,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                 )}
               </section>
               <section className="flex flex-col gap-2"><h3 className="text-sm font-semibold">{tr("Cửa sổ cảm biến")}</h3>{c.harvestEvents.map(h=><Callout key={h.id} tone="info">{h.harvestCode} · {h.sensorWindow?`${fmtDateTime(h.sensorWindow.periodStart)} → ${fmtDateTime(h.sensorWindow.periodEnd)}`:tr("Chưa có cửa sổ")}</Callout>)}<p className="text-xs text-ink-2">{c.sensorReadings.length} {tr("bản ghi")} · {c.sensorDigests.length} {tr("digest")}</p></section>
-              <EvidencePanel entityType="CYCLE" entityId={c.id} canManage={!!c.canWriteProduction && canEvidence && c.currentState !== "CANCELLED"} title={tr("Ảnh vụ sản xuất")} />
+              {evidenceAccess.can("evidence.read")&&<EvidencePanel entityType="CYCLE" entityId={c.id} canManage={!!c.canWriteProduction && canEvidence && c.currentState !== "CANCELLED"} title={tr("Ảnh vụ sản xuất")} />}
             </div>
 
             {c.canWriteProduction && (plant.target || view==="plant") && c.currentState==="CREATED" && (

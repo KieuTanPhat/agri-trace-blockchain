@@ -1,6 +1,21 @@
 import { test, expect } from "./fixtures";
 import { resolve } from "node:path";
 import { memberId, roleId, siteId, chainId } from "./fixtures/enterprise-membership";
+import {registerScenario,readScenario} from "./fixtures/scenarios";
+registerScenario("membership.permission-unavailable",{handle(r,state){return r.path==="/chain-permissions"?{status:503,error:{code:"UNAVAILABLE",message:"Quyền tạm thời chưa kiểm tra được"}}:readScenario("membership.baseline").handle(r,state);}});
+
+test("same-account permission recheck hides the real member draft and restores it unchanged",async({page,api})=>{
+ await api.useActor("org-owner");await api.scenario("membership.baseline");await page.goto("/enterprise/members/new");
+ const name=page.getByRole("dialog").getByLabel("Họ tên",{exact:true});await name.fill("Bản nháp đang nhập");
+ let continueCheck!:()=>void;const held=new Promise<void>(resolve=>{continueCheck=resolve;});
+ await page.route("**/api/chain-permissions",async route=>{await held;await route.fallback();});
+ await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
+ await expect(name).toBeHidden();expect(api.requests().some(r=>r.method==="POST"&&r.path==="/enterprise-workspace/members")).toBe(false);
+ continueCheck();await expect(name).toBeVisible();await expect(name).toHaveValue("Bản nháp đang nhập");
+ await page.unroute("**/api/chain-permissions");await api.scenario("membership.permission-unavailable");
+ await page.evaluate(()=>window.dispatchEvent(new Event("focus")));await expect(page.getByText("Chưa xác minh được quyền truy cập",{exact:true}).first()).toBeVisible();await expect(name).toBeHidden();
+ await api.scenario("membership.baseline");await page.getByRole("button",{name:"Thử lại",exact:true}).click();await expect(name).toBeVisible();await expect(name).toHaveValue("Bản nháp đang nhập");
+});
 test("member creation preserves delegated scopes and attachments; edit retains email and version", async ({ page, api }) => {
   await api.useActor("org-owner"); await api.scenario("membership.baseline");
   await page.goto("/enterprise/members/new");

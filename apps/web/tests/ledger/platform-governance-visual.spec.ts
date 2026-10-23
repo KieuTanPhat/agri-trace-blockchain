@@ -23,6 +23,7 @@ test("Ledger focus trap, Escape and small viewports work with reduced motion",as
 
 test("Ledger login fits desktop and phone",async({page,api})=>{
  await api.useActor("anonymous");await page.goto("/login");
+ await expect(page.getByLabel("Email",{exact:true})).toBeEnabled();await page.evaluate(()=>document.fonts.ready);
  for(const width of [1440,390]){await page.setViewportSize({width,height:900});await expect(page.getByRole("heading",{level:1})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:path.join(out,`task-18-login-${width}.png`),animations:"disabled"});}
 });
 test("Ledger governance presentation has no document overflow on desktop and mobile", async ({

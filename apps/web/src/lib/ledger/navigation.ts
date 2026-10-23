@@ -105,7 +105,7 @@ export const WORKSPACE_NAV: LedgerNavGroup[] = [
     {
         get label() { return tr("Phối hợp"); },
         items: [
-            { href: "/enterprise/cases", get label() { return tr("Sự cố được giao"); }, badge: "cases" },
+            { href: "/enterprise/inbox", get label() { return tr("Sự cố được giao"); }, badge: "cases" },
             { href: "/enterprise/messages", get label() { return tr("Thông báo nội bộ"); }, badge: "messages" },
             { href: "/enterprise/support", get label() { return tr("Hỗ trợ từ nền tảng"); } },
             { href: "/enterprise/billing", get label() { return tr("Gói dịch vụ & hóa đơn"); } },

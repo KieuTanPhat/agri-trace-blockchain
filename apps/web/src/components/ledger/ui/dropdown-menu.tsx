@@ -1,5 +1,7 @@
 "use client"
 
+import {useLedgerPortalContainer} from "../portal-scope"
+
 import * as React from "react"
 import { cn } from "cn"
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
@@ -14,8 +16,10 @@ function DropdownMenu({
 function DropdownMenuPortal({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
+  const container=useLedgerPortalContainer();
+  if(container===null)return null;
   return (
-    <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
+    <DropdownMenuPrimitive.Portal container={container} data-slot="dropdown-menu-portal" {...props} />
   )
 }
 
@@ -36,7 +40,7 @@ function DropdownMenuContent({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPortal>
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
@@ -46,7 +50,7 @@ function DropdownMenuContent({
         )}
         {...props}
       />
-    </DropdownMenuPrimitive.Portal>
+    </DropdownMenuPortal>
   )
 }
 
