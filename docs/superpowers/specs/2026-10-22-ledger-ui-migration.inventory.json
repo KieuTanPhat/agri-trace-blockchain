@@ -3405,6 +3405,18 @@
       "source": "src/app/(workspace)/w/chains/page.tsx",
       "sourceSha256": "b5a079c1575b2407d3e00b6d21d9a0adbf805c6e985559cced2576f2d8d477e9",
       "targetSha256": "31cb9a74ff62689385b7d4a0c1e66a00b6fda8de9ca41844032cd4cc08041ebc"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/cycles.tsx",
+      "source": "src/app/(workspace)/w/cycles/page.tsx",
+      "sourceSha256": "53a7916f8966c914defd3a8fedc9da9b2ea0c5f1e13a5eed4edc66e6cacbf5c6",
+      "targetSha256": "fe43534e0e71ae4e2e6918bdfa1975607719cf1bdcf8ab737ada78764f286d5a"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/ops-labels.ts",
+      "source": "src/lib/workspace/ops-labels.ts",
+      "sourceSha256": "d997eb51a44fb6fbc485d50b3391e1643443183aa5a4272a31ce95cb02655d62",
+      "targetSha256": "2d4fc8ddac55eaea5b31db31724fc1c7404806fd2a288708aa49ab2550e4c8f0"
     }
   ],
   "newLedgerComposition": [
@@ -3927,6 +3939,58 @@
     {
       "target": "apps/web/src/features/ledger/screens/supply-chains/screen.tsx",
       "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/compliance.tsx",
+      "basis": "Task14: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/iot.tsx",
+      "basis": "Task14: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/compliance/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/iot-simulator/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/harvest/new/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/harvest/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/journal/new/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/journal/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/plant/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/drafts/[id]/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/new/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
     }
   ]
 }
