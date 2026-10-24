@@ -31,9 +31,11 @@ const labels: Record<AllowedCommand, string> = {
 export function ActionPanel({
   lot,
   onCompleted,
+  refreshing = false,
 }: {
   lot: LotTrace;
   onCompleted?: () => void;
+  refreshing?: boolean;
 }) {
   const fieldId = useId();
   const [pending, setPending] = useState(false);
@@ -44,14 +46,34 @@ export function ActionPanel({
   const attempt = useRef({ payload: "", key: "" });
   const busy = useRef(false);
   const [error, setError] = useState("");
+  const [errorStatus, setErrorStatus] = useState(0);
+  const [requiresPageReload, setRequiresPageReload] = useState(false);
   const [recoveryId, setRecoveryId] = useState("");
   const [canRestart, setCanRestart] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   function failed(cause: unknown) {
-    setRecoveryId(
+    setRequiresPageReload(
+      Boolean(
+        cause &&
+        typeof cause === "object" &&
+        "code" in cause &&
+        cause.code === "RECOVERY_REFRESH",
+      ),
+    );
+    setErrorStatus(
+      cause && typeof cause === "object" && "status" in cause
+        ? Number(cause.status)
+        : 0,
+    );
+    setRecoveryId((previous) =>
       cause && typeof cause === "object" && "recoveryId" in cause
         ? String(cause.recoveryId)
-        : "",
+        : cause &&
+            typeof cause === "object" &&
+            "canRestart" in cause &&
+            cause.canRestart
+          ? ""
+          : previous,
     );
     setCanRestart(
       Boolean(
@@ -68,7 +90,7 @@ export function ActionPanel({
     );
   }
   async function recover() {
-    if (busy.current || !recoveryId) return;
+    if (busy.current || !recoveryId || requiresPageReload) return;
     busy.current = true;
     setPending(true);
     setError("");
@@ -89,6 +111,10 @@ export function ActionPanel({
   }
 
   function open(command: AllowedCommand) {
+    if (recoveryId) {
+      dialog.current?.showModal();
+      return;
+    }
     setError("");
     setSelected(command);
     if (command === "createShipment")
@@ -105,7 +131,15 @@ export function ActionPanel({
 
   async function runCommand(event: FormEvent) {
     event.preventDefault();
-    if (!selected || busy.current) return;
+    if (!selected || busy.current || refreshing || recoveryId || canRestart)
+      return;
+    if (!lot.allowedCommands.includes(selected)) {
+      setErrorStatus(403);
+      setError(
+        "Thao tác không còn được máy chủ cho phép. Hãy kiểm tra lại lô.",
+      );
+      return;
+    }
     busy.current = true;
     setError("");
     const payload = JSON.stringify({
@@ -169,7 +203,7 @@ export function ActionPanel({
                   ? "button danger"
                   : "button"
               }
-              disabled={pending}
+              disabled={pending || refreshing}
               key={command}
               onClick={() => open(command)}
             >
@@ -179,6 +213,15 @@ export function ActionPanel({
             </button>
           ))}
         </div>
+      )}
+      {recoveryId && (
+        <button
+          className="button secondary"
+          disabled={pending || refreshing}
+          onClick={() => dialog.current?.showModal()}
+        >
+          Xem yêu cầu đang chờ
+        </button>
       )}
       <div role="status" aria-live="polite">
         {result && <div className="notice">{result}</div>}
@@ -213,198 +256,240 @@ export function ActionPanel({
             <dt>Phiên bản</dt>
             <dd>{lot.version ?? 0}</dd>
           </dl>
-          {selected === "createShipment" && (
-            <div className="form-grid">
-              <div className="field">
-                <label htmlFor={`${fieldId}-transporter`}>
-                  Đơn vị vận chuyển
-                </label>
-                <select
-                  id={`${fieldId}-transporter`}
-                  className="select"
-                  required
-                  value={input.transporterOrgId ?? ""}
-                  onChange={(event) =>
-                    setInput({ ...input, transporterOrgId: event.target.value })
-                  }
-                >
-                  <option value="">Chọn đơn vị</option>
-                  {organizations
-                    .filter((item) => item.type === "TRANSPORTER")
-                    .map((item) => (
-                      <option
-                        key={item.organizationId}
-                        value={item.organizationId}
-                      >
-                        {item.name}
-                      </option>
-                    ))}
-                </select>
+          <fieldset
+            disabled={pending || Boolean(recoveryId) || canRestart}
+            style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
+          >
+            {selected === "createShipment" && (
+              <div className="form-grid">
+                <div className="field">
+                  <label htmlFor={`${fieldId}-transporter`}>
+                    Đơn vị vận chuyển
+                  </label>
+                  <select
+                    id={`${fieldId}-transporter`}
+                    className="select"
+                    required
+                    value={input.transporterOrgId ?? ""}
+                    onChange={(event) =>
+                      setInput({
+                        ...input,
+                        transporterOrgId: event.target.value,
+                      })
+                    }
+                  >
+                    <option value="">Chọn đơn vị</option>
+                    {organizations
+                      .filter((item) => item.type === "TRANSPORTER")
+                      .map((item) => (
+                        <option
+                          key={item.organizationId}
+                          value={item.organizationId}
+                        >
+                          {item.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor={`${fieldId}-retailer`}>
+                    Điểm bán nhận hàng
+                  </label>
+                  <select
+                    id={`${fieldId}-retailer`}
+                    className="select"
+                    required
+                    value={input.retailerOrgId ?? ""}
+                    onChange={(event) =>
+                      setInput({ ...input, retailerOrgId: event.target.value })
+                    }
+                  >
+                    <option value="">Chọn điểm bán</option>
+                    {organizations
+                      .filter((item) => item.type === "RETAILER")
+                      .map((item) => (
+                        <option
+                          key={item.organizationId}
+                          value={item.organizationId}
+                        >
+                          {item.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor={`${fieldId}-origin`}>Điểm đi</label>
+                  <input
+                    id={`${fieldId}-origin`}
+                    className="input"
+                    required
+                    value={input.origin ?? ""}
+                    onChange={(event) =>
+                      setInput({ ...input, origin: event.target.value })
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor={`${fieldId}-destination`}>Điểm đến</label>
+                  <input
+                    id={`${fieldId}-destination`}
+                    className="input"
+                    required
+                    value={input.destination ?? ""}
+                    onChange={(event) =>
+                      setInput({ ...input, destination: event.target.value })
+                    }
+                  />
+                </div>
               </div>
-              <div className="field">
-                <label htmlFor={`${fieldId}-retailer`}>
-                  Điểm bán nhận hàng
-                </label>
-                <select
-                  id={`${fieldId}-retailer`}
-                  className="select"
-                  required
-                  value={input.retailerOrgId ?? ""}
-                  onChange={(event) =>
-                    setInput({ ...input, retailerOrgId: event.target.value })
-                  }
-                >
-                  <option value="">Chọn điểm bán</option>
-                  {organizations
-                    .filter((item) => item.type === "RETAILER")
-                    .map((item) => (
-                      <option
-                        key={item.organizationId}
-                        value={item.organizationId}
-                      >
-                        {item.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor={`${fieldId}-origin`}>Điểm đi</label>
-                <input
-                  id={`${fieldId}-origin`}
-                  className="input"
-                  required
-                  value={input.origin ?? ""}
-                  onChange={(event) =>
-                    setInput({ ...input, origin: event.target.value })
-                  }
+            )}
+            {selected === "reportDamage" && (
+              <>
+                <div className="field">
+                  <label htmlFor={`${fieldId}-quantity`}>
+                    Số lượng hư hỏng ({lot.unit})
+                  </label>
+                  <input
+                    id={`${fieldId}-quantity`}
+                    className="input"
+                    type="number"
+                    min="0.001"
+                    max={lot.availableQuantity}
+                    step="0.001"
+                    required
+                    value={input.quantity ?? ""}
+                    onChange={(event) =>
+                      setInput({
+                        ...input,
+                        quantity: Number(event.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <ReasonField
+                  value={input.reason}
+                  onChange={(reason) => setInput({ ...input, reason })}
                 />
+              </>
+            )}
+            {selected === "receiveRetail" && (
+              <div className="form-grid">
+                <div className="field">
+                  <label htmlFor={`${fieldId}-received`}>
+                    Số lượng nhận ({lot.unit})
+                  </label>
+                  <input
+                    id={`${fieldId}-received`}
+                    className="input"
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    max={lot.availableQuantity}
+                    required
+                    value={input.receivedQuantity ?? ""}
+                    onChange={(event) =>
+                      setInput({
+                        ...input,
+                        receivedQuantity: Number(event.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor={`${fieldId}-damaged`}>
+                    Số lượng hư hỏng ({lot.unit})
+                  </label>
+                  <input
+                    id={`${fieldId}-damaged`}
+                    className="input"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    max={lot.availableQuantity}
+                    value={input.damagedQuantity ?? 0}
+                    onChange={(event) =>
+                      setInput({
+                        ...input,
+                        damagedQuantity: Number(event.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor={`${fieldId}-note`}>Ghi chú</label>
+                  <input
+                    id={`${fieldId}-note`}
+                    className="input"
+                    value={input.note ?? ""}
+                    onChange={(event) =>
+                      setInput({ ...input, note: event.target.value })
+                    }
+                  />
+                </div>
               </div>
-              <div className="field">
-                <label htmlFor={`${fieldId}-destination`}>Điểm đến</label>
-                <input
-                  id={`${fieldId}-destination`}
-                  className="input"
-                  required
-                  value={input.destination ?? ""}
-                  onChange={(event) =>
-                    setInput({ ...input, destination: event.target.value })
-                  }
-                />
-              </div>
-            </div>
-          )}
-          {selected === "reportDamage" && (
-            <>
-              <div className="field">
-                <label htmlFor={`${fieldId}-quantity`}>
-                  Số lượng hư hỏng ({lot.unit})
-                </label>
-                <input
-                  id={`${fieldId}-quantity`}
-                  className="input"
-                  type="number"
-                  min="0.001"
-                  max={lot.availableQuantity}
-                  step="0.001"
-                  required
-                  value={input.quantity ?? ""}
-                  onChange={(event) =>
-                    setInput({ ...input, quantity: Number(event.target.value) })
-                  }
-                />
-              </div>
+            )}
+            {(selected === "rejectRetail" ||
+              selected === "recall" ||
+              selected === "expire") && (
               <ReasonField
                 value={input.reason}
                 onChange={(reason) => setInput({ ...input, reason })}
               />
-            </>
-          )}
-          {selected === "receiveRetail" && (
-            <div className="form-grid">
-              <div className="field">
-                <label htmlFor={`${fieldId}-received`}>
-                  Số lượng nhận ({lot.unit})
-                </label>
-                <input
-                  id={`${fieldId}-received`}
-                  className="input"
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  max={lot.availableQuantity}
-                  required
-                  value={input.receivedQuantity ?? ""}
-                  onChange={(event) =>
-                    setInput({
-                      ...input,
-                      receivedQuantity: Number(event.target.value),
-                    })
-                  }
-                />
-              </div>
-              <div className="field">
-                <label htmlFor={`${fieldId}-damaged`}>
-                  Số lượng hư hỏng ({lot.unit})
-                </label>
-                <input
-                  id={`${fieldId}-damaged`}
-                  className="input"
-                  type="number"
-                  min="0"
-                  step="0.001"
-                  max={lot.availableQuantity}
-                  value={input.damagedQuantity ?? 0}
-                  onChange={(event) =>
-                    setInput({
-                      ...input,
-                      damagedQuantity: Number(event.target.value),
-                    })
-                  }
-                />
-              </div>
-              <div className="field">
-                <label htmlFor={`${fieldId}-note`}>Ghi chú</label>
-                <input
-                  id={`${fieldId}-note`}
-                  className="input"
-                  value={input.note ?? ""}
-                  onChange={(event) =>
-                    setInput({ ...input, note: event.target.value })
-                  }
-                />
-              </div>
-            </div>
-          )}
-          {(selected === "rejectRetail" ||
-            selected === "recall" ||
-            selected === "expire") && (
-            <ReasonField
-              value={input.reason}
-              onChange={(reason) => setInput({ ...input, reason })}
-            />
-          )}
-          {selected === "markSold" && (
-            <p className="notice">
-              Xác nhận bán toàn bộ {lot.availableQuantity} {lot.unit}. Tồn sau
-              thao tác là 0.
-            </p>
-          )}
-          {selected === "recall" && (
-            <p className="notice">
-              Lô sẽ được ghi nhận thu hồi và dừng các thao tác tiếp theo. Chuyến
-              đang mở sẽ kết thúc ở trạng thái thất bại.
-            </p>
-          )}
+            )}
+            {selected === "markSold" && (
+              <p className="notice">
+                Xác nhận bán toàn bộ {lot.availableQuantity} {lot.unit}. Tồn sau
+                thao tác là 0.
+              </p>
+            )}
+            {selected === "recall" && (
+              <p className="notice">
+                Lô sẽ được ghi nhận thu hồi và dừng các thao tác tiếp theo.
+                Chuyến đang mở sẽ kết thúc ở trạng thái thất bại.
+              </p>
+            )}
+          </fieldset>
           {error && (
             <div className="notice error" role="alert">
+              {[403, 409, 422].includes(errorStatus) && (
+                <strong>{errorStatus}: </strong>
+              )}
               {error}
             </div>
+          )}
+          {recoveryId && !requiresPageReload && (
+            <p className="notice" role="status">
+              Chưa rõ kết quả yêu cầu trước. Kiểm tra lại trạng thái, số lượng
+              và dòng thời gian của lô; không tạo yêu cầu mới. Đối soát bên dưới
+              giữ nguyên nội dung và khóa của yêu cầu gốc.
+            </p>
           )}
           {recoveryId && (
             <button
               className="button secondary"
               type="button"
-              disabled={pending}
+              disabled={
+                pending || refreshing || (!requiresPageReload && !onCompleted)
+              }
+              onClick={() => {
+                if (requiresPageReload) {
+                  window.location.reload();
+                  return;
+                }
+                dialog.current?.close();
+                onCompleted?.();
+              }}
+            >
+              {requiresPageReload
+                ? "Tải lại trang để đồng bộ"
+                : "Tải lại lô để kiểm tra"}
+            </button>
+          )}
+          {recoveryId && (
+            <button
+              className="button secondary"
+              type="button"
+              disabled={pending || requiresPageReload}
               onClick={() => void recover()}
             >
               Kiểm tra và thử lại yêu cầu trước
@@ -433,7 +518,18 @@ export function ActionPanel({
             >
               Hủy
             </button>
-            <button className="button" type="submit" disabled={pending}>
+            <button
+              className="button"
+              type="submit"
+              disabled={
+                pending ||
+                refreshing ||
+                Boolean(recoveryId) ||
+                canRestart ||
+                !selected ||
+                !lot.allowedCommands.includes(selected)
+              }
+            >
               {pending ? (
                 <LoaderCircle size={18} className="spinner" />
               ) : (

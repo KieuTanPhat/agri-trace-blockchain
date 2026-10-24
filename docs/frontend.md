@@ -55,6 +55,17 @@ Trang truy xuất công khai ưu tiên điện thoại: cảnh báo thu hồi/h�
 
 Các trạng thái thu hồi/hết hạn vẫn hiển thị trước phần bằng chứng. Thao tác ghi dữ liệu theo `allowedCommands` từ API; kiểm toán viên chỉ đọc theo hợp đồng hiện hành. Service worker vẫn chỉ lưu trang giải thích offline, không lưu trang nghiệp vụ, tài khoản hoặc phản hồi API.
 
+Form lô/chuyến nằm ở `src/components/action-panel.tsx`, API ở
+`src/lib/api-client.ts`, chi tiết lô ở `src/app/lots/[lotId]/page.tsx`.
+Khi yêu cầu cần đối soát, form khóa nội dung và nút xác nhận; mở lại vẫn giữ
+yêu cầu trước. Nút kiểm tra/thử lại dùng body và Idempotency-Key đã lưu, không
+tạo khóa mới. Chỉ sau khi xác nhận từ chối mới cho chuẩn bị yêu cầu mới.
+Nút xem yêu cầu đang chờ vẫn có khi backend không còn cho phép command nào.
+Nếu yêu cầu đã được đối soát ở tab khác, giao diện yêu cầu tải lại trang để đồng
+bộ thay vì tiếp tục retry bằng trạng thái cũ.
+Sau thành công, chi tiết tải lại version, số lượng và dòng thời gian từ API;
+Pending là trạng thái bằng chứng chưa được xác minh trên chuỗi khối.
+
 Giả lập IoT gửi `/iot/readings` qua cùng sổ command recovery với các lệnh nghiệp vụ
 (`INGEST_SENSOR_READING`, một yêu cầu chờ cho mỗi thiết bị). Mất phản hồi, phản
 hồi không đọc được hoặc lỗi 5xx hiện "Chưa rõ kết quả"; "Gửi lại" chỉ gửi/đối

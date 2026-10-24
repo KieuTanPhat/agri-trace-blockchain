@@ -41,11 +41,13 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
   const [lots, setLots] = useState<LotTrace[]>([]);
   const [lot, setLot] = useState<LotTrace | null>(null);
   const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const requestRevision = useRef(0);
   const alive = useRef(true);
   const load = useCallback(() => {
     const revision = ++requestRevision.current;
     setError("");
+    setRefreshing(true);
     Promise.all([getLots(), getLotById(lotId)])
       .then(([items, detail]) => {
         if (!alive.current || requestRevision.current !== revision) return;
@@ -55,6 +57,10 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
       .catch((cause) => {
         if (alive.current && requestRevision.current === revision)
           setError(cause?.message ?? "Không tải được chi tiết lô.");
+      })
+      .finally(() => {
+        if (alive.current && requestRevision.current === revision)
+          setRefreshing(false);
       });
   }, [lotId]);
   useEffect(() => {
@@ -229,6 +235,12 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
                 </span>
               </div>
             </div>
+            {lot.proofStatus === "PENDING" && (
+              <p className="notice" role="status">
+                Bằng chứng đang chờ xác nhận trên chuỗi khối (Pending). Dữ liệu
+                nghiệp vụ đã ghi nhận không đồng nghĩa bằng chứng đã được xác minh.
+              </p>
+            )}
             {traceToken && (
               <Link className="button secondary" href={`/trace/${traceToken}`}>
                 <LinkIcon size={14} /> Xem trang tra cứu công khai
@@ -254,7 +266,7 @@ function LotWorkspace({ lotId, user }: { lotId: string; user: AuthUser }) {
         </div>
 
         <div className="grid">
-          <ActionPanel lot={lot} onCompleted={load} />
+          <ActionPanel lot={lot} onCompleted={load} refreshing={refreshing} />
           <div className="panel">
             <div className="panel-title">
               <div className="panel-title-left">

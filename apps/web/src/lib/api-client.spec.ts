@@ -40,6 +40,53 @@ afterEach(() => {
 });
 
 describe("public API", () => {
+  it("keeps receipt body, both versions and key after a lost response", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockRejectedValueOnce(new TypeError("network timeout"))
+      .mockResolvedValueOnce(
+        json({ success: true, data: { status: "NOT_FOUND" } }),
+      )
+      .mockResolvedValueOnce(json({ success: true, data: {} }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = await import("./api-client");
+    client.setSession(auth);
+    const lot = {
+      lotId: "11111111-1111-4111-8111-111111111111",
+      version: 7,
+      shipment: {
+        shipmentId: "22222222-2222-4222-8222-222222222222",
+        version: 11,
+      },
+    } as import("./types").LotTrace;
+    let recoveryId = "";
+    await client
+      .submitCommand(
+        lot,
+        "receiveRetail",
+        { receivedQuantity: 9.125, damagedQuantity: 0.875, note: "Biên nhận" },
+        "receipt-key",
+      )
+      .catch((error) => {
+        recoveryId = error.recoveryId;
+      });
+    expect(recoveryId).not.toBe("");
+    await client.retryPendingCommand(recoveryId);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const original = fetchMock.mock.calls[0][1]!;
+    const retry = fetchMock.mock.calls[2][1]!;
+    expect(JSON.parse(String(original.body))).toEqual({
+      version: 11,
+      lotVersion: 7,
+      receivedQuantity: 9.125,
+      damagedQuantity: 0.875,
+      note: "Biên nhận",
+    });
+    expect(retry.body).toBe(original.body);
+    expect(new Headers(retry.headers).get("idempotency-key")).toBe(
+      "receipt-key",
+    );
+  });
   it("does not claim a saved signed command under a permission revision changed while waiting for another tab", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()

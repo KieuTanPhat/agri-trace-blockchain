@@ -23,18 +23,17 @@ export type LoginResponse = Pick<
   Schemas["AuthSessionDto"],
   "accessToken" | "tokenType"
 > & { user: AuthUser };
-export type CommandInput = {
-  transporterOrgId?: string;
-  retailerOrgId?: string;
-  origin?: string;
-  destination?: string;
-  quantity?: number;
-  reason?: string;
-  evidenceRef?: string;
-  receivedQuantity?: number;
-  damagedQuantity?: number;
-  note?: string;
-};
+export type CommandInput = Partial<
+  Pick<
+    Schemas["CreateShipmentDto"],
+    "transporterOrgId" | "retailerOrgId" | "origin" | "destination"
+  > &
+    Pick<Schemas["DamageShipmentDto"], "quantity" | "reason" | "evidenceRef"> &
+    Pick<
+      Schemas["ReceiveShipmentDto"],
+      "receivedQuantity" | "damagedQuantity" | "note"
+    >
+>;
 export type ApiError = {
   status: number;
   code: string;
