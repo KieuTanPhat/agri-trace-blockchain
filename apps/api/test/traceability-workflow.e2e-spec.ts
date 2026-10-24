@@ -4,7 +4,14 @@ import { JwtService } from '@nestjs/jwt';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Test } from '@nestjs/testing';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { randomBytes, randomUUID } from 'node:crypto';
+import {
+  createHash,
+  generateKeyPairSync,
+  randomBytes,
+  randomUUID,
+  sign,
+} from 'node:crypto';
+import { canonicalize } from 'json-canonicalize';
 import request from 'supertest';
 import { vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
@@ -17,6 +24,7 @@ import { TraceService } from '../src/modules/trace/trace.service.js';
 import { LotHarvestService } from '../src/modules/lots/lot-harvest.service.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
+import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 import { provisionChain } from './support/chain-scope.js';
 import { seedCycleEvidence } from './support/cycle-evidence.js';
 
@@ -248,9 +256,9 @@ const prisma = new PrismaClient({
       role: 'FARM_STAFF',
     });
 
-    async function plantedCycle(quantity = 1) {
+    async function plantedCycle(quantity = 1, targetChainId = chainId) {
       const created = await post('/production-cycles', {
-        chainId,
+        chainId: targetChainId,
         farmId,
         productId,
         cycleCode: 'CYCLE-' + randomUUID(),
@@ -273,8 +281,8 @@ const prisma = new PrismaClient({
       });
       return { ...cycle, version: 1 };
     }
-    async function harvestedLot(quantity = 1) {
-      const cycle = await plantedCycle(quantity);
+    async function harvestedLot(quantity = 1, targetChainId = chainId) {
+      const cycle = await plantedCycle(quantity, targetChainId);
       const result = await post(`/production-cycles/${cycle.id}/harvests`, {
         quantity,
         unit: 'kg',
@@ -352,6 +360,271 @@ const prisma = new PrismaClient({
       ).expect(201);
       return fixture;
     }
+
+    it('uploads cycle photos through the bound PRODUCTION_CYCLE stream without duplicating evidence on replay', async () => {
+      const cycle = await plantedCycle();
+      const image = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=',
+        'base64',
+      );
+      const upload = (user: string, key = randomUUID()) =>
+        request(app.getHttpServer())
+          .post('/api/enterprise-workspace/evidence')
+          .set('Authorization', bearer(user))
+          .set('Idempotency-Key', key)
+          .field('entityType', 'CYCLE')
+          .field('entityId', cycle.id)
+          .field('kind', 'CARE_IMAGE')
+          .field('description', 'Cycle photo on an isolated simulated binding')
+          .attach('file', image, {
+            filename: 'cycle.png',
+            contentType: 'image/png',
+          });
+      const count = () =>
+        prisma.traceEvidence.count({ where: { entityId: cycle.id } });
+      const initialCount = await count();
+      expect([403, 404]).toContain((await upload('foreign')).status);
+      expect(await count()).toBe(initialCount);
+      expect(
+        await prisma.traceEvent.count({
+          where: { cycleId: cycle.id, eventType: 'EVIDENCE_ATTACHED' },
+        }),
+      ).toBe(0);
+
+      const key = randomUUID();
+      const uploaded = (await upload('farm', key).expect(201)).body.data.record;
+      const replay = (await upload('farm', key).expect(201)).body.data.record;
+      expect(replay).toEqual(uploaded);
+      expect(uploaded.sha256).toBe(
+        createHash('sha256').update(image).digest('hex'),
+      );
+      expect(await count()).toBe(initialCount + 1);
+      const events = await prisma.traceEvent.findMany({
+        where: { cycleId: cycle.id, eventType: 'EVIDENCE_ATTACHED' },
+        include: {
+          bindingContext: { include: { binding: true, permissions: true } },
+        },
+      });
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        entityType: 'PRODUCTION_CYCLE',
+        entityId: cycle.id,
+        actorUserId: users.farm,
+        businessData: { evidenceId: uploaded.id, sha256: uploaded.sha256 },
+        bindingContext: { binding: { chainId, network: 'simulated-ledger' } },
+      });
+      expect(privateTraceEvidenceMatches(events[0])).toBe(true);
+      expect(
+        await prisma.blockchainOutbox.count({
+          where: { eventId: events[0].id },
+        }),
+      ).toBe(1);
+    });
+
+    it('lets a PROCESSOR chain member sign a distribution slip with a bound LOT event and replay safely', async () => {
+      const processor = await prisma.organization.create({
+        data: { name: `Workflow processor ${randomUUID()}`, type: 'PROCESSOR' },
+      });
+      const role = await prisma.role.findUniqueOrThrow({
+        where: { code: 'PROCESSOR' },
+      });
+      users.processor = (
+        await prisma.user.create({
+          data: {
+            fullName: 'Workflow processor',
+            email: `processor-${randomUUID()}@example.test`,
+            roleId: role.id,
+            organizationId: processor.id,
+            passwordHash: 'not-a-login-fixture',
+          },
+        })
+      ).id;
+      sessionIds.processor = randomUUID();
+      await prisma.refreshSession.create({
+        data: {
+          id: sessionIds.processor,
+          familyId: sessionIds.processor,
+          userId: users.processor,
+          tokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 3_600_000),
+        },
+      });
+      const distributionChainId = await provisionChain(prisma, {
+        ownerOrganizationId: farmOrgId,
+        memberOrganizationIds: [processor.id, transporterOrgId],
+        grants: [
+          { userId: users.farm, organizationId: farmOrgId, role: 'FARM_STAFF' },
+          {
+            userId: users.processor,
+            organizationId: processor.id,
+            role: 'ORG_ADMIN',
+          },
+          {
+            userId: users.processor,
+            organizationId: processor.id,
+            role: 'PROCESSOR',
+          },
+          {
+            userId: users.transporter,
+            organizationId: transporterOrgId,
+            role: 'TRANSPORTER',
+          },
+        ],
+      });
+      for (const inviteeId of [processor.id, transporterOrgId])
+        await prisma.enterprisePartner.upsert({
+          where: { inviterId_inviteeId: { inviterId: farmOrgId, inviteeId } },
+          create: { inviterId: farmOrgId, inviteeId, status: 'ACTIVE' },
+          update: {},
+        });
+      const [senderSite, carrierSite, receiverSite] = await Promise.all(
+        [farmOrgId, transporterOrgId, processor.id].map((organizationId) =>
+          prisma.enterpriseSite.create({
+            data: {
+              organizationId,
+              name: 'Workflow depot',
+              kind: 'WAREHOUSE',
+              address: 'Isolated test depot',
+            },
+          }),
+        ),
+      );
+      const { lot } = await harvestedLot(1, distributionChainId);
+      await post('/distribution/allocations', {
+        lotId: lot.id,
+        siteId: senderSite.id,
+        quantity: '1.000',
+        unit: 'kg',
+        version: lot.version,
+        reason: 'Allocate source stock for processor signature regression',
+      }).expect(201);
+      const transfer = (
+        await post('/distribution/transfers', {
+          chainId: distributionChainId,
+          receiverId: processor.id,
+          carrierId: transporterOrgId,
+          senderSiteId: senderSite.id,
+          carrierSiteId: carrierSite.id,
+          receiverSiteId: receiverSite.id,
+          origin: 'Workflow farm depot',
+          destination: 'Workflow processor depot',
+          plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
+          lines: [{ lotId: lot.id, quantity: '0.500', unit: 'kg' }],
+        }).expect(201)
+      ).body.data.record;
+      const pair = generateKeyPairSync('ed25519');
+      const keyRef = randomUUID();
+      const publicKey = pair.publicKey
+        .export({ type: 'spki', format: 'der' })
+        .toString('base64url');
+      const keyBody = { id: keyRef, organizationId: processor.id, publicKey };
+      await post(
+        '/distribution/keys',
+        {
+          id: keyRef,
+          label: 'Isolated processor regression key',
+          publicKey,
+          popSignature: sign(
+            null,
+            Buffer.from(
+              `agritrace:distribution-key:1\0${canonicalize(keyBody)}`,
+            ),
+            pair.privateKey,
+          ).toString('base64url'),
+        },
+        'processor',
+      ).expect(201);
+      const challenge = (
+        await get(
+          `/distribution/transfers/${transfer.id}/challenge`,
+          'processor',
+        ).expect(200)
+      ).body.data;
+      const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
+      const body = {
+        snapshotDigest: challenge.snapshotDigest,
+        transferId: transfer.id,
+        phase: 'CONSENT',
+        organizationId: processor.id,
+        userId: users.processor,
+        keyRef,
+        version: String(transfer.version),
+        expiresAt,
+      };
+      const signature = sign(
+        null,
+        Buffer.from(`${challenge.domain}\0${canonicalize(body)}`),
+        pair.privateKey,
+      ).toString('base64url');
+      const input = {
+        version: transfer.version,
+        phase: 'CONSENT',
+        keyRef,
+        expiresAt,
+        signature,
+      };
+      const commandKey = randomUUID();
+      const path = `/distribution/transfers/${transfer.id}/sign`;
+      const signed = (
+        await post(path, input, 'processor', commandKey).expect(201)
+      ).body.data.record;
+      const replay = (
+        await post(path, input, 'processor', commandKey).expect(201)
+      ).body.data.record;
+      expect(replay).toEqual(signed);
+      expect(signed).toMatchObject({
+        status: 'PROPOSED',
+        version: transfer.version + 1,
+      });
+      expect(
+        await prisma.distributionAttestation.count({
+          where: { transferId: transfer.id },
+        }),
+      ).toBe(1);
+      const events = await prisma.traceEvent.findMany({
+        where: { lotId: lot.id, actorUserId: users.processor },
+        include: {
+          bindingContext: {
+            include: {
+              binding: true,
+              permissions: {
+                include: { permissionEpoch: { include: { permission: true } } },
+              },
+            },
+          },
+        },
+      });
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        entityType: 'LOT',
+        entityId: lot.id,
+        eventType: 'DISTRIBUTION_ATTESTED',
+        bindingContext: {
+          binding: {
+            chainId: distributionChainId,
+            network: 'simulated-ledger',
+          },
+        },
+      });
+      expect(
+        events[0].bindingContext?.permissions.map(
+          (p) => p.permissionEpoch.permission.role,
+        ),
+      ).toEqual(['PROCESSOR']);
+      expect(privateTraceEvidenceMatches(events[0])).toBe(true);
+      expect(
+        await prisma.blockchainOutbox.count({
+          where: { eventId: events[0].id },
+        }),
+      ).toBe(1);
+      const holding = await prisma.lotHolding.findUniqueOrThrow({
+        where: {
+          lotId_organizationId: { lotId: lot.id, organizationId: farmOrgId },
+        },
+      });
+      expect(holding.quantity.toFixed(3)).toBe('1.000');
+      expect(holding.reserved.toFixed(3)).toBe('0.500');
+    });
 
     it('keeps a linear hash chain when business timestamps are backdated or tied', async () => {
       const db = prisma as unknown as PrismaService;

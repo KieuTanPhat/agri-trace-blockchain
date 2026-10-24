@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 import { verificationInitialization } from "./verification-initialization.mjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../apps/api/dist/generated/prisma/client.js";
+import { SIMULATED_NETWORK } from "../../apps/api/dist/modules/ledger/simulated-ledger.js";
 const local = new URL("../../.codex/seed-current/", import.meta.url);
 const { values } = parseArgs({ options: { fresh: { type: "boolean" } } });
 const initialization = await verificationInitialization(local, values.fresh);
@@ -200,10 +201,20 @@ try {
     },
   );
   await check(
-    "No fabricated blockchain proof; complete SQL event/outbox chain",
+    "Simulated bindings, no fabricated proof; complete SQL event/outbox chain",
     async () => {
       assert.equal(counts.blockchainProof, 0);
-      assert.equal(await db.fabricNetworkBinding.count(), 0);
+      assert.ok((await db.fabricNetworkBinding.count()) > 0);
+      assert.equal(
+        await db.fabricNetworkBinding.count({
+          where: { network: { not: SIMULATED_NETWORK } },
+        }),
+        0,
+      );
+      assert.equal(
+        await db.traceEvent.count({ where: { bindingContext: null } }),
+        0,
+      );
       assert.equal(counts.traceEvent, counts.blockchainOutbox);
       assert.ok(counts.commandCommit > 100);
       assert.equal(
@@ -333,8 +344,8 @@ try {
         const r = await request(`/public/trace/${lot.traceToken}`);
         assert.equal(r.status, 200);
         const text = JSON.stringify(r.data);
-      assert.equal(r.data.quantityReconciled, true);
-      assert.equal(r.data.stateReconciled, true);
+        assert.equal(r.data.quantityReconciled, true);
+        assert.equal(r.data.stateReconciled, true);
         assert.ok(!text.includes("@example.test"));
         assert.ok(!/passwordHash|accessToken|privateKey/.test(text));
         assert.ok(!text.includes("HASH_MISMATCH"));
