@@ -14,7 +14,7 @@ _spec.loader.exec_module(targets)
 
 SHA = re.compile(r"^[a-f0-9]{40}$")
 DIGEST = re.compile(r"^[a-f0-9]{64}$")
-OPERATIONS = {"deploy", "upgrade", "forward", "rollback", "recover", "status", "backup"}
+OPERATIONS = {"deploy", "reinstall", "upgrade", "forward", "rollback", "recover", "status", "backup"}
 MAX_AUTH_HEADER = 16 * 1024
 CONTROLLER_FILES = ("controller.py", "policy.py", "targets.py", "verify-hosted.mjs", "session-auth.mjs", "entry")
 
@@ -64,11 +64,11 @@ def command(value):
     parts = value.split(" ")
     require(all(parts) and parts[0] in OPERATIONS, "Unsupported CD command")
     op = parts[0]
-    expected = {"status": 1, "recover": 1, "rollback": 2, "backup": 2, "deploy": 3, "forward": 3, "upgrade": 4}[op]
+    expected = {"status": 1, "recover": 1, "rollback": 2, "backup": 2, "deploy": 3, "reinstall": 3, "forward": 3, "upgrade": 4}[op]
     require(len(parts) == expected, "Invalid CD command arguments")
     if expected > 1:
         require(bool(SHA.fullmatch(parts[1])), "Invalid commit SHA")
-    if op in {"deploy", "upgrade", "forward"}:
+    if op in {"deploy", "reinstall", "upgrade", "forward"}:
         require(bool(DIGEST.fullmatch(parts[2])), "Invalid archive checksum")
     if op == "upgrade":
         require(bool(re.fullmatch(r"[1-9][0-9]{0,8}", parts[3])), "Invalid expected sequence")

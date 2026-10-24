@@ -95,7 +95,8 @@ class Policies(unittest.TestCase):
 
     def test_commands(self):
         self.assertEqual(command(f"upgrade {SHA} {'b' * 64} 1")[0], "upgrade")
-        for value in ("bash", "status; id", "status\nwhoami", "rollback ../../etc", f"deploy {SHA} {'b' * 64} ;id", f"upgrade {SHA} {'b' * 64} 0"):
+        self.assertEqual(command(f"reinstall {SHA} {'b' * 64}")[0], "reinstall")
+        for value in ("bash", "status; id", "status\nwhoami", "rollback ../../etc", f"deploy {SHA} {'b' * 64} ;id", f"upgrade {SHA} {'b' * 64} 0", f"reinstall {SHA}", f"reinstall {SHA} invalid"):
             with self.subTest(value=value), self.assertRaises(PolicyError):
                 command(value)
 

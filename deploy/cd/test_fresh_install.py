@@ -40,6 +40,44 @@ class FirstInstallation(unittest.TestCase):
         self.assertFalse((self.cd.storage / 'journal.json').exists())
         self.assertEqual(self.cd.switch.call_args.args[1]['previous'], None)
 
+    def test_explicit_reinstallation_requires_admission_and_skips_only_its_old_archive(self):
+        self.cd.admit_reinstallation = MagicMock()
+        result = self.cd.first_install(self.candidate, self.state, discard_previous=True)
+        self.cd.admit_reinstallation.assert_called_once_with(self.candidate, self.state)
+        self.cd.register_fresh_backup.assert_not_called()
+        self.assertEqual(result['previousDataRecovery'], 'unavailable')
+        self.assertIsNone(self.cd.switch.call_args.args[1]['previous'])
+
+    def test_normal_first_install_keeps_backup_requirement_even_with_reinstall_configuration(self):
+        self.cd.config['reinstall_ack'] = {'protocol': 'agritrace-destructive-reinstall/1'}
+        self.cd.admit_reinstallation = MagicMock()
+        self.cd.register_fresh_backup.side_effect = PolicyError('recovery archive missing')
+        with self.assertRaisesRegex(PolicyError, 'recovery archive'):
+            self.cd.first_install(self.candidate, self.state)
+        self.cd.admit_reinstallation.assert_not_called()
+        self.cd.migrate.assert_not_called()
+
+    def test_reinstallation_recovery_revalidates_same_authorization_without_old_archive(self):
+        self.cd.admit_reinstallation = MagicMock()
+        self.cd.verify.side_effect = PolicyError('unknown command outcome')
+        with self.assertRaisesRegex(PolicyError, 'unknown command'):
+            self.cd.first_install(self.candidate, self.state, discard_previous=True)
+        self.assertEqual(json.loads((self.cd.storage / 'journal.json').read_text())['dataPolicy'], 'discard-previous')
+        self.cd.verify.side_effect = None
+        self.cd.verify.return_value = {'result': 'passed', 'counts': {'trace_event': 12}}
+        result = self.cd.first_install(self.candidate, self.state, resume=True)
+        self.assertEqual(result['previousDataRecovery'], 'unavailable')
+        self.assertEqual(self.cd.admit_reinstallation.call_count, 2)
+        self.cd.register_fresh_backup.assert_not_called()
+
+    def test_reinstallation_command_cannot_reset_an_installed_release(self):
+        self.cd.state = MagicMock(return_value=dict(self.state, current=self.candidate['id']))
+        stream = MagicMock()
+        with self.assertRaisesRegex(PolicyError, 'operator-prepared empty target'):
+            self.cd.execute(['reinstall', self.candidate['sha'], 'b' * 64], stream)
+        stream.readline.assert_not_called()
+        self.cd.migrate.assert_not_called()
+
     def test_nonempty_database_is_never_reset_or_migrated(self):
         self.cd.run.side_effect = lambda label, *args, **kwargs: b'4\n' if label == 'fresh-empty-database' else b''
         with self.assertRaisesRegex(PolicyError, 'existing schema'):

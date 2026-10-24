@@ -160,6 +160,10 @@ Vận hành theo [runbook production](docs/production-runbook.md). Cài mới d�
 schema-3 controller, project `agritrace-prod`, PostgreSQL `agri_trace_prod` và mạng
 hosted mới sau encrypted backup + isolated restore. Dữ liệu trước đó đều là test,
 được giữ trong bản lưu; không backfill account/history/proof/QR vào production mới.
+Ngoại lệ cài lại được chủ dự án chọn ngày 24/10/2026 bỏ dataset cũ không backup,
+gom ba Org về VPS nền tảng và gỡ Fabric cũ trên VPS doanh nghiệp. Operation
+`reinstall` cần target rỗng và root receipt đúng SHA/manifest/generation; xem
+[quy trình cài lại](docs/production-runbook.md#cài-lại-có-chủ-đích-không-giữ-dữ-liệu-trước-đó).
 
 Migration A/B/C giữ byte nguyên vẹn; `20261017000000_hybrid_fresh_install` chỉ
 cleanup khi chưa có business history và từ chối trường hợp đã có dữ liệu. New

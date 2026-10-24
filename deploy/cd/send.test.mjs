@@ -49,6 +49,13 @@ test('transports an opaque long job credential and exact bundle without disclosi
   assert.ok(!result.stdout.includes(f.credential)&&!result.stderr.includes(f.credential));
   assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
 });
+test('reinstallation transports the exact authenticated bundle without requesting a backup',{skip:process.platform==='win32'},t=>{
+  const f=fixture(t);const result=f.run('reinstall',sha,f.archive);
+  assert.equal(result.status,0,result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout),{result:'passed',credentialBytes:1504,archiveBytes:21});
+  assert.ok(!result.stdout.includes(f.credential)&&!result.stderr.includes(f.credential));
+  assert.equal(existsSync(path.join(f.root,'agri-cd-ssh')),false);
+});
 test('missing registry username fails before SSH and removes temporary key',{skip:process.platform==='win32'},t=>{
   const f=fixture(t);delete f.env.REGISTRY_USERNAME;
   const result=f.run('deploy',sha,f.archive);

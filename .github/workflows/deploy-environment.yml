@@ -41,7 +41,7 @@ jobs:
           EXPECTED_SEQUENCE: ${{ inputs.expected_sequence }}
           CD_DEPLOY_ENABLED: ${{ vars.CD_DEPLOY_ENABLED }}
         run: |
-          case "$OPERATION" in publish|deploy|upgrade|forward|rollback|recover) ;; *) exit 1 ;; esac
+          case "$OPERATION" in publish|deploy|reinstall|upgrade|forward|rollback|recover) ;; *) exit 1 ;; esac
           if [[ "$CD_DEPLOY_ENABLED" != true && "$OPERATION" != publish ]]; then
             echo 'enabled=false' >> "$GITHUB_OUTPUT"
             echo 'Deployment is disabled; CI remains active.' >> "$GITHUB_STEP_SUMMARY"
@@ -64,7 +64,7 @@ jobs:
   publish:
     name: Publish immutable environment images
     needs: gate
-    if: needs.gate.outputs.current == 'true' && (needs.gate.outputs.operation == 'publish' || needs.gate.outputs.operation == 'deploy' || needs.gate.outputs.operation == 'upgrade' || needs.gate.outputs.operation == 'forward')
+    if: needs.gate.outputs.current == 'true' && (needs.gate.outputs.operation == 'publish' || needs.gate.outputs.operation == 'deploy' || needs.gate.outputs.operation == 'reinstall' || needs.gate.outputs.operation == 'upgrade' || needs.gate.outputs.operation == 'forward')
     environment: production
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -124,19 +124,19 @@ jobs:
         with: {persist-credentials: false}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: {node-version-file: .node-version}
-      - if: env.OPERATION == 'deploy' || env.OPERATION == 'upgrade' || env.OPERATION == 'forward'
+      - if: env.OPERATION == 'deploy' || env.OPERATION == 'reinstall' || env.OPERATION == 'upgrade' || env.OPERATION == 'forward'
         run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$RELEASE_PREFIX-bundle-$GITHUB_SHA" --dir "$RUNNER_TEMP/bundle"
       - name: Recheck branch HEAD immediately before delivery
-        if: env.OPERATION == 'deploy' || env.OPERATION == 'upgrade' || env.OPERATION == 'forward'
+        if: env.OPERATION == 'deploy' || env.OPERATION == 'reinstall' || env.OPERATION == 'upgrade' || env.OPERATION == 'forward'
         run: test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$CD_BRANCH" --jq .object.sha)" = "$GITHUB_SHA"
       - run: node deploy/cd/send.mjs "$OPERATION" "$TARGET_SHA" "$RUNNER_TEMP/bundle/$RELEASE_PREFIX-release.tar.gz"
       - if: always()
         run: node deploy/cd/send.mjs status
       - name: Retrieve encrypted recovery snapshot
-        if: always() && env.OPERATION != 'recover' && env.OPERATION != 'forward'
+        if: always() && env.OPERATION != 'recover' && env.OPERATION != 'forward' && env.OPERATION != 'reinstall'
         run: node deploy/cd/send.mjs backup "$TARGET_SHA"
       - name: Store encrypted off-VPS snapshot
-        if: always() && env.OPERATION != 'recover' && env.OPERATION != 'forward'
+        if: always() && env.OPERATION != 'recover' && env.OPERATION != 'forward' && env.OPERATION != 'reinstall'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ needs.gate.outputs.prefix }}-encrypted-backup-${{ needs.gate.outputs.target }}-${{ github.run_attempt }}
@@ -146,4 +146,8 @@ jobs:
       - if: always()
         run: |
           echo "Environment: $CD_ENVIRONMENT; operation: $OPERATION; source: $TARGET_SHA" >> "$GITHUB_STEP_SUMMARY"
-          echo 'Recovery requires the separately held private backup key.' >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$OPERATION" == reinstall ]]; then
+            echo 'Destructive reinstallation: previous production data was discarded without a recovery archive.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Recovery requires the separately held private backup key.' >> "$GITHUB_STEP_SUMMARY"
+          fi

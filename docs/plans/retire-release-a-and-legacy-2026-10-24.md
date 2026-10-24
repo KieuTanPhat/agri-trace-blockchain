@@ -7,6 +7,11 @@ Lập ngày 24/10/2026. Nhánh `chore/remove-legacy-ledger-writer`, tách từ
 
 - Dữ liệu cũ, kể cả trên production, không có giá trị. Chủ dự án tự làm sạch
   production sau khi code sạch. Code không giữ tương thích đọc dữ liệu cũ.
+- Quyết định triển khai bổ sung cùng ngày: chủ dự án giao agent cài mới trên VPS
+  nền tảng, chạy cả ba Org tại đó và gỡ dữ liệu Fabric cũ ở VPS doanh nghiệp.
+  Lần thay thế này không backup, không giữ dataset cũ và không có khả năng restore
+  dataset trước thay thế. Quyết định này thay phần tự làm sạch ở trên; không cấp
+  quyền xóa dịch vụ khác trên hai VPS. Quy trình deploy thông thường vẫn giữ backup.
 - Gỡ hẳn luồng ghi bản A (route chung, envelope 3.0.0 / hash 2.0.0) và giao thức
   chữ ký c1, gồm cả bộ đọc/xác minh lịch sử. Không còn cờ `FABRIC_LEGACY_WRITER`.
 - Xóa `docker-compose.app-fabric.yml` và `blockchain/network/network.ps1`
@@ -38,6 +43,7 @@ Lập ngày 24/10/2026. Nhánh `chore/remove-legacy-ledger-writer`, tách từ
 | Gateway | Bỏ `FabricBlockchainAdapter`, `loadConfig`, smoke |
 | CI | Bỏ `fabric-smoke`, `worker-contract`, `docker-compose.ci.yml`, `fabric-ports.mjs`, output `fabric`; rehearsal dùng `simulated-ledger` và kiểm B/C bằng chaincode |
 | Deploy | Controller không còn `FABRIC_LEGACY_WRITER`, manifest chỉ bắt buộc `docker-compose.app.yml` |
+| Cài lại có chủ đích | Operation `reinstall` chỉ nhận target rỗng do root operator chuẩn bị, acknowledgement đúng SHA/manifest/generation và receipt private xác nhận đã bỏ dữ liệu cũ; không xóa dữ liệu từ delivery key |
 | Local | Service `ledger-simulator` trong `docker-compose.yml` |
 | Database | Migration `20261213000000`..`05`: từ chối dữ liệu cũ, rồi thêm ràng buộc/bỏ cột và bảng; refresh session bắt buộc có family |
 

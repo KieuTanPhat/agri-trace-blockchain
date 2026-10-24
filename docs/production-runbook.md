@@ -81,6 +81,44 @@ khi CD đổi bản chạy. Không khôi phục DB riêng sau khi ledger đã co
 Luồng `forward` mở phiên smoke của đúng candidate sau migrate, đóng cờ phiên
 trong `finally`; smoke lỗi vẫn giữ journal và dừng writers để đối soát.
 
+## Cài lại có chủ đích, không giữ dữ liệu trước đó
+
+Quyết định ngày 24/10/2026 cho lần phát hành gỡ A/c1: chủ dự án cho phép bỏ dữ
+liệu AgriTrace/Fabric cũ không backup, cài mạng ba Org trên VPS nền tảng và gỡ
+Fabric cũ tại VPS doanh nghiệp. Ngoại lệ này chỉ áp dụng lần cài lại đã xác định;
+deploy, rollback và first-install thông thường vẫn cần archive theo runbook.
+
+Chuẩn bị release trên đúng main SHA, đủ ba CI push gates và immutable images
+trước khi dừng production. Root operator kiểm kê container/volume/network/bind
+mount và ownership trên cả hai host, khóa delivery/host, dừng writers rồi xóa
+đúng danh sách đã xác minh. Không prune toàn host, xóa lock đang giữ hoặc dùng
+artifact restore giả. Tài nguyên quan sát, quản trị VPS và dịch vụ khác nằm ngoài
+phạm vi này. Nếu thay cả trạng thái Edge, chuẩn bị volume/cấu hình/chứng chỉ HTTPS
+mới; không xóa volume có tên lịch sử khi Edge còn sử dụng chúng.
+
+Operator dựng network mới bằng bộ cài production, tạo DB volume trống, private
+configuration và deployment state mới (`current=null`, `previous=null`). Project
+vẫn là `agritrace-prod`; network instance/root và CA/MSP/ledger được tạo mới.
+Deployment state ghi `installation_generation` là 32 ký tự hex của lần cài này.
+
+Root config có `reinstall_ack` pin protocol `agritrace-destructive-reinstall/1`,
+`sha`, SHA-256 của JSON manifest canonical (`manifest_sha256`), `generation` và
+`receipt_sha256`. Receipt `/opt/agri-trace/cd/reinstall-receipt.json` thuộc root,
+mode 0600, không là symlink; nó chứa cùng protocol/SHA/manifest/generation và
+`removed_old_resources=true`, `backup=null`, `retained_previous_data=false`.
+Chỉ ghi receipt sau khi kiểm kê xác nhận việc bỏ tài nguyên cũ đã hoàn tất.
+`fresh_release_ack`, migration checksum review và mọi image/governance/mount/quota
+gate vẫn áp dụng. Không sửa state/receipt để biến một rollout lỗi thành cài mới.
+
+Dispatch Production CD với operation `reinstall`. Command chỉ cài trên target
+rỗng đã chuẩn bị; delivery identity không được xóa tài nguyên hay cài lại release
+đang hoạt động. Controller xác minh receipt trước migration, chạy bootstrap và
+smoke như first-install, rồi mới mở ghi. Workflow không yêu cầu archive trước
+thay thế cho operation này và ghi rõ không có khả năng khôi phục dữ liệu cũ.
+Nếu gián đoạn, giữ journal và `recover` đúng candidate/generation; không xóa lại
+network/DB mới hoặc chuyển candidate để vượt lỗi. Sau verified, `reinstall` lặp
+lại bị từ chối vì target đã có current release.
+
 ## Delivery và smoke trên VPS
 
 `Production CD` kiểm ba CI push thành công đúng main SHA, HEAD hiện hành, immutable

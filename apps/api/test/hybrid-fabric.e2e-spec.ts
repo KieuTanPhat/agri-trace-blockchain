@@ -125,6 +125,13 @@ interface World {
           `Bearer ${jwt.sign({ sub: w.users[who], sid: w.sessions[who] })}`,
         )
         .set('Idempotency-Key', randomUUID())
+        .on('response', (response) => {
+          if (response.status === 403)
+            console.error('Hybrid HTTP denial', {
+              path,
+              error: response.body?.error?.message ?? response.body?.message,
+            });
+        })
         .send(payload);
     };
     const get = (w: World, path: string, who: keyof World['users'] = 'farm') =>
