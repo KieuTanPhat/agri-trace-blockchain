@@ -35,28 +35,37 @@ const connections = [];
 const db = new pg.Client({ connectionString: input.databaseUrl });
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: input.databaseUrl }) });
 async function http(route, role, body, expected = body === undefined ? 200 : 201, key, options = {}) {
+  let payload = body === undefined ? undefined : JSON.stringify(body);
+  if (options.multipart) {
+    payload = new FormData();
+    for (const [name, value] of Object.entries(body)) payload.set(name, value);
+    payload.set('file', new Blob([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=', 'base64')],
+      { type: 'image/png' }), `${body.kind.toLowerCase()}.png`);
+  }
   const response = await fetch(input.origin + '/api' + route, {
     method: body === undefined ? 'GET' : 'POST', signal: AbortSignal.timeout(30_000),
     headers: { ...(role ? { Authorization: 'Bearer ' + tokens[role] } : {}),
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(body !== undefined && !options.multipart ? { 'Content-Type': 'application/json' } : {}),
       ...(key ? { 'Idempotency-Key': key } : {}), ...(options.cookie ? { Cookie: options.cookie } : {}) },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    ...(body === undefined ? {} : { body: payload }),
   });
   assert.equal(response.status, expected, `HTTP ${route} status ${response.status}`);
   const data = (await response.json()).data;
   if (options.session) options.session(readSessionCredential(response, data, options.previous, true));
   return data;
 }
-async function command(name, role, route, createBody, expected = 201) {
+async function command(name, role, route, createBody, expected = 201, options = {}) {
   // Save before sending. A timeout can never create another key or payload.
   let saved = state.commands[name];
   if (!saved) {
-    saved = state.commands[name] = { role, route, key: randomUUID(), body: createBody(), expected };
+    saved = state.commands[name] = { role, route, key: randomUUID(), body: createBody(), expected,
+      ...(options.multipart ? { multipart: true } : {}) };
     persist();
   }
   assert.equal(saved.role, role); assert.equal(saved.route, route); assert.equal(saved.expected, expected);
+  assert.equal(saved.multipart ?? false, options.multipart ?? false);
   if (Object.hasOwn(saved, 'result')) return saved.result;
-  const result = await http(route, role, saved.body, expected, saved.key);
+  const result = await http(route, role, saved.body, expected, saved.key, options);
   saved.result = result ?? null; persist(); return saved.result;
 }
 async function wait(predicate, label) {
@@ -128,8 +137,17 @@ try {
         WHERE p.binding_digest=$1 AND s.state <> 'ACTIVE'`, [profile.active_binding_digest])).rows[0].count) === 0, 'Permission synchronization');
       const cycle = await command('cycle', 'FARM_STAFF', '/production-cycles', () => ({ ...input.catalog, cycleCode: 'Smoke-' + input.sha.slice(0, 20), maxHarvestQuantity: 2, harvestUnit: 'kg' }));
       await command('plant', 'FARM_STAFF', `/production-cycles/${cycle.id}/plant`, () => ({ version: 0, plantedAt: new Date(Date.now() - 60_000).toISOString() }));
-      await command('care', 'FARM_STAFF', `/production-cycles/${cycle.id}/care`, () => ({ version: 1, careType: 'WATERING', eventTime: new Date().toISOString(), note: 'Technical acceptance' }));
-      const harvest = await command('harvest', 'FARM_STAFF', `/production-cycles/${cycle.id}/harvests`, () => ({ quantity: 2, unit: 'kg', harvestTime: new Date().toISOString() }));
+      const evidence = {};
+      for (const kind of ['CARE_IMAGE', 'HARVEST_IMAGE', 'LOT_IMAGE']) {
+        const upload = await command('evidence-' + kind, 'FARM_STAFF', '/enterprise-workspace/evidence',
+          () => ({ entityType: 'CYCLE', entityId: cycle.id, kind, description: 'Technical production acceptance ' + kind }), 201, { multipart: true });
+        evidence[kind] = upload.record.id;
+      }
+      const care = await command('care', 'FARM_STAFF', `/production-cycles/${cycle.id}/care`, () => ({ version: 1,
+        name: 'Technical watering record', evidenceRef: evidence.CARE_IMAGE, careType: 'WATERING', eventTime: new Date().toISOString(), note: 'Technical acceptance' }));
+      const harvest = await command('harvest', 'FARM_STAFF', `/production-cycles/${cycle.id}/harvests`, () => ({ version: care.version,
+        lotName: 'Technical production acceptance harvest', representativeUserId: accounts.FARM_STAFF.id,
+        evidenceRef: evidence.HARVEST_IMAGE, lotImageEvidenceRef: evidence.LOT_IMAGE, quantity: 2, unit: 'kg', harvestTime: new Date().toISOString() }));
       const plan = await command('plan', 'FARM_STAFF', `/supply-chains/${state.chainId}/shipment-plans`, () => ({ lotId: harvest.lot.id,
         transporterOrgId: accounts.TRANSPORTER.organizationId, retailerOrgId: accounts.RETAILER.organizationId,
         quantity: '2.000', unit: 'kg', origin: 'Technical farm', destination: 'Technical retailer' }));
