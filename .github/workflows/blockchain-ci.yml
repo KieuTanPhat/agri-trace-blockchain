@@ -25,7 +25,6 @@ jobs:
     timeout-minutes: 5
     outputs:
       blockchain: ${{ steps.changes.outputs.blockchain }}
-      fabric: ${{ steps.changes.outputs.fabric }}
       hybrid: ${{ steps.changes.outputs.hybrid }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,7 +35,7 @@ jobs:
         run: node scripts/ci/changes.mjs
 
   verify:
-    name: ${{ matrix.package }} / Node ${{ matrix.node }}
+    name: ${{ matrix.package }} / Node 24
     needs: changes
     if: needs.changes.outputs.blockchain == 'true'
     runs-on: ubuntu-24.04
@@ -44,7 +43,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['22.22.3', '24.15.0', '26.0.0']
         package: [blockchain/chaincode, blockchain/gateway]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,7 +50,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: ${{ matrix.node }}
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm install --global npm@12.1.0
@@ -73,7 +71,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22.22.3'
+          node-version-file: .node-version
           package-manager-cache: false
       - run: npm install --global npm@12.1.0
       - name: Install, audit and check standalone chaincode in isolation
@@ -88,86 +86,8 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-  fabric-smoke:
-    name: API Worker Fabric integration
-    needs: changes
-    if: needs.changes.outputs.fabric == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 40
-    env:
-      COMPOSE_PROJECT_NAME: agri-trace-fabric-ci
-      FABRIC_ENABLED: 'true'
-      FABRIC_PEER_ENDPOINT: peer0.org1.example.com:7051
-      FABRIC_WORKER_INTERVAL_MS: '1000'
-      RELAYER_MSP_DIR_HOST: ./blockchain/network/identities/relayer/msp
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: '22.22.3'
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - run: npm install --global npm@12.1.0
-      - run: npm ci --no-audit --no-fund
-      - name: Check compiled Worker output against the chaincode validator
-        run: npm run test:worker-contract
-      - name: Bootstrap pinned Fabric network
-        working-directory: blockchain/network
-        run: ./network.sh bootstrap
-      - name: Restrict pinned Fabric host bindings
-        # Restrict the pinned test-network host bindings before startup.
-        run: node deploy/fabric-ports.mjs --prepare
-      - name: Start private network and create channel
-        working-directory: blockchain/network
-        run: ./network.sh up
-      - name: Enroll technical relayer
-        working-directory: blockchain/network
-        run: ./network.sh enroll-relayer
-      - name: Deploy chaincode and verify Gateway submit/query
-        working-directory: blockchain/network
-        env:
-          FABRIC_PEER_ENDPOINT: localhost:7051
-        run: ./network.sh smoke
-      - name: Build Gateway exports and match Worker to the identity owner
-        run: |
-          # network.sh smoke installs its workspace; restore root tooling too.
-          npm ci --workspaces --include-workspace-root --no-audit --no-fund
-          npm run build --workspace blockchain/gateway
-          echo "CI_WORKER_UID=$(id -u)" >> "$GITHUB_ENV"
-          echo "CI_WORKER_GID=$(id -g)" >> "$GITHUB_ENV"
-      - name: Build API and Worker production images
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml build api worker
-      - name: Start production API while Worker is stopped
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --wait --wait-timeout 240 postgres api
-      - name: Verify API to outbox to Worker to Fabric to confirmed proof
-        run: node scripts/ci/fabric-integration.mjs
-      - name: Collect application and Fabric diagnostics
-        if: failure()
-        run: |
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml ps --all
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml logs --no-color --tail 200
-          docker logs peer0.org1.example.com 2>&1 | tail -n 300 || true
-          docker logs peer0.org2.example.com 2>&1 | tail -n 200 || true
-      - name: Upload integration evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: fabric-integration-${{ github.sha }}
-          path: artifacts/fabric-integration.json
-          if-no-files-found: warn
-          retention-days: 14
-      - name: Stop disposable application stack
-        if: always()
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down --volumes --remove-orphans
-      - name: Stop network
-        if: always()
-        working-directory: blockchain/network
-        run: ./network.sh down
-
   hybrid-fabric:
-    name: Hybrid A B C real Fabric and browser
+    name: Hybrid B C real Fabric and browser
     needs: changes
     if: needs.changes.outputs.hybrid == 'true'
     runs-on: ubuntu-24.04
@@ -176,7 +96,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {persist-credentials: false}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with: {node-version: '22.22.3', cache: npm, cache-dependency-path: package-lock.json}
+        with: {node-version-file: .node-version, cache: npm, cache-dependency-path: package-lock.json}
       - run: npm install --global npm@12.1.0
       - run: npm ci --no-audit --no-fund
       - name: Check that the export acceptance fails closed
@@ -203,7 +123,7 @@ jobs:
 
   gate:
     name: Blockchain gate
-    needs: [changes, verify, standalone-chaincode, fabric-smoke, hybrid-fabric]
+    needs: [changes, verify, standalone-chaincode, hybrid-fabric]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

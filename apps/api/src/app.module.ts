@@ -1,4 +1,10 @@
 import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { BillingModule } from './modules/billing/billing.module.js';
+import { ProcessingModule } from './modules/processing/processing.module.js';
+import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module.js';
+import { EnterpriseWorkspaceModule } from './modules/enterprise-workspace/enterprise-workspace.module.js';
+import { DistributionModule } from './modules/distribution/distribution.module.js';
+import { PlatformGovernanceModule } from './modules/platform-governance/platform-governance.module.js';
 import { EnterpriseOnboardingModule } from './modules/enterprise-onboarding/enterprise-onboarding.module.js';
 import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -35,7 +41,13 @@ import { SupplyChainsModule } from './modules/supply-chains/supply-chains.module
       },
     ]),
     AuthModule,
+    PlatformGovernanceModule,
+    BillingModule,
+    ProcessingModule,
+    PlatformAdminModule,
     EnterpriseOnboardingModule,
+    EnterpriseWorkspaceModule,
+    DistributionModule,
     UsersModule,
     CatalogModule,
     OrganizationsModule,
@@ -51,8 +63,11 @@ import { SupplyChainsModule } from './modules/supply-chains/supply-chains.module
     HealthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard },
-    { provide: APP_INTERCEPTOR, useClass: MaintenanceWriteInterceptor }],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: MaintenanceWriteInterceptor },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

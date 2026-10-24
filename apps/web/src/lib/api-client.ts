@@ -1,10 +1,3 @@
-import {
-  mockDashboard,
-  mockLots,
-  mockPublicTrace,
-  mockSendSensorReading,
-  mockSubmitCommand,
-} from "./mock-api";
 import { getAuthorizationScope } from "./auth-scope";
 import { commandRequest } from "./command-request";
 import {
@@ -45,12 +38,9 @@ const PUBLIC_API_BASE_URL =
 const API_BASE_URL =
   typeof window === "undefined"
     ? (process.env.API_INTERNAL_BASE_URL ?? PUBLIC_API_BASE_URL)
-    : process.env.NEXT_PUBLIC_API_SAME_ORIGIN === "true"
+    : process.env.NEXT_PUBLIC_API_SAME_ORIGIN === "true" || !!process.env.NEXT_PUBLIC_BUSINESS_ORIGIN
       ? "/api"
       : PUBLIC_API_BASE_URL;
-const USE_MOCK_API =
-  process.env.NODE_ENV !== "production" &&
-  process.env.NEXT_PUBLIC_MOCK_API === "true";
 export const AUTH_STORAGE_KEY = "agritrace-auth"; // Legacy key, removed on startup.
 
 type ApiEnvelope<T> = { success: true; data: T };
@@ -174,6 +164,7 @@ export async function restoreSession(retryBusy = true): Promise<LoginResponse> {
 export async function login(
   email: string,
   password: string,
+  mfaCode?: string,
 ): Promise<LoginResponse> {
   synchronizeBrowserSession();
   const intent = ++mutationIntent;
@@ -188,7 +179,12 @@ export async function login(
     const changeId = knownAuthChange?.id;
     const result = await request<LoginResponse>(
       "/auth/login",
-      { method: "POST", body: JSON.stringify({ email, password }) },
+      {
+        method: "POST",
+        body: JSON.stringify(
+          mfaCode ? { email, password, mfaCode } : { email, password },
+        ),
+      },
       false,
     );
     assertSessionVersion(version, changeId);
@@ -204,25 +200,20 @@ export async function login(
 }
 
 export async function getDashboard(): Promise<Dashboard> {
-  if (USE_MOCK_API) return mockDashboard();
   return request("/dashboard");
 }
 
 export async function getLots(): Promise<LotTrace[]> {
-  if (USE_MOCK_API) return mockLots;
   return request("/lots");
 }
 
 export async function getLotById(lotId: string): Promise<LotTrace> {
-  if (USE_MOCK_API)
-    return mockLots.find((lot) => lot.lotId === lotId) ?? mockLots[0];
   return request(`/lots/${lotId}`);
 }
 
 export async function getPublicTrace(
   traceToken: string,
 ): Promise<PublicLotTrace | null> {
-  if (USE_MOCK_API) return mockPublicTrace(traceToken);
   try {
     return await request(
       `/public/trace/${encodeURIComponent(traceToken)}`,
@@ -232,6 +223,31 @@ export async function getPublicTrace(
   } catch (error) {
     if (isApiError(error) && error.status === 404) return null;
     throw error;
+  }
+}
+
+/** Use only explicitly published, current lot evidence for the public photograph. */
+export async function getPublicLotPhoto(
+  traceToken: string,
+): Promise<string | null> {
+  try {
+    const token = encodeURIComponent(traceToken);
+    const evidence = await request<{
+      items: Array<{ id: string; mediaType: string }>;
+    }>(`/trace/${token}/evidence`, undefined, false);
+    const photo = evidence.items.find((item) =>
+      ["image/jpeg", "image/png", "image/webp"].includes(item.mediaType),
+    );
+    const publicBase =
+      process.env.NEXT_PUBLIC_API_SAME_ORIGIN === "true"
+        ? "/api"
+        : PUBLIC_API_BASE_URL;
+    return photo
+      ? `${publicBase}/trace/${token}/evidence/${encodeURIComponent(photo.id)}`
+      : null;
+  } catch {
+    // An unavailable photograph must not hide the lot's warnings and trace.
+    return null;
   }
 }
 
@@ -277,7 +293,6 @@ export async function submitCommand(
   input: CommandInput = {},
   idempotencyKey = crypto.randomUUID(),
 ): Promise<{ message: string }> {
-  if (USE_MOCK_API) return mockSubmitCommand(lot.lotId, command);
 
   if (command === "createShipment") {
     await request("/shipments", {
@@ -370,7 +385,6 @@ export async function sendSensorReading(
   payload: SensorReadingRequest,
   idempotencyKey = crypto.randomUUID(),
 ): Promise<SensorReadingResponse> {
-  if (USE_MOCK_API) return mockSendSensorReading(payload);
   return request("/iot/readings", {
     headers: { "idempotency-key": idempotencyKey },
     method: "POST",
@@ -608,7 +622,11 @@ async function rawRequest<T>(
       };
   };
   const headers = new Headers(init.headers);
-  if (init.body) headers.set("content-type", "application/json");
+  if (
+    init.body &&
+    !(typeof FormData !== "undefined" && init.body instanceof FormData)
+  )
+    headers.set("content-type", "application/json");
   if (token) headers.set("authorization", `Bearer ${token}`);
   if (!["GET", "HEAD", "OPTIONS"].includes(method))
     if (!headers.has("idempotency-key"))

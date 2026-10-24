@@ -22,6 +22,52 @@ const user = {
 const auth = { accessToken: "old", tokenType: "Bearer" as const, user };
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status });
+
+it("always reads public trace from the API even if a retired development mock flag is present", async () => {
+  vi.resetModules();
+  vi.stubEnv("NEXT_PUBLIC_MOCK_API", "true");
+  const fetchMock = vi.fn().mockResolvedValue(json({ success: true, data: null }));
+  vi.stubGlobal("fetch", fetchMock);
+  try {
+    const { getPublicTrace } = await import("./api-client");
+    expect(await getPublicTrace("actual-token")).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/public/trace/actual-token"),
+      expect.any(Object),
+    );
+  } finally {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("uses only public image evidence for the public lot photograph", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(
+    json({
+      success: true,
+      data: {
+        items: [
+          { id: "document", mediaType: "application/pdf" },
+          { id: "photo", mediaType: "image/jpeg" },
+        ],
+      },
+    }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  const { getPublicLotPhoto } = await import("./api-client");
+  expect(await getPublicLotPhoto("public-token")).toBe(
+    "http://api.test/api/trace/public-token/evidence/photo",
+  );
+  const [url, options] = fetchMock.mock.calls[0];
+  expect(url).toBe("http://api.test/api/trace/public-token/evidence");
+  expect(new Headers(options.headers).has("authorization")).toBe(false);
+});
+
+it("omits the photograph when public evidence is unavailable", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+  const { getPublicLotPhoto } = await import("./api-client");
+  expect(await getPublicLotPhoto("public-token")).toBeNull();
+});
 let restoreLocks: (() => void) | undefined;
 
 beforeEach(() => {
@@ -287,6 +333,8 @@ describe("public API", () => {
       },
       farmOrg: { organizationId: "farm-1", name: "Farm", type: "FARM" },
       allowedCommands: [],
+      originType: "HARVEST",
+      processing: null,
       proofStatus: "PENDING",
       timeline: [
         {

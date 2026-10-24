@@ -38,14 +38,7 @@ export async function validateSensorTime(
     throw new UnprocessableEntityException(
       'Thời gian cảm biến không hợp lệ hoặc ở tương lai',
     );
-  const known = await plantedTime(db, cycleId);
-  const reconciliation = known
-    ? null
-    : await db.cycleSensorReconciliation.findFirst({
-        where: { cycleId },
-        orderBy: { revision: 'desc' },
-      });
-  const plantedAt = known ?? reconciliation?.plantedAt;
+  const plantedAt = await plantedTime(db, cycleId);
   if (plantedAt && value < plantedAt)
     throw new UnprocessableEntityException(
       'Thời gian cảm biến trước khi trồng',
@@ -75,42 +68,18 @@ export async function prepareHarvestSensorWindow(
   db: Prisma.TransactionClient,
   cycleId: string,
   periodEnd: Date,
-  finalSensorDigestId?: string,
 ) {
-  const [previous, legacy, reconciliation, planted] = await Promise.all([
+  const [previous, plantedAt] = await Promise.all([
     db.harvestSensorWindow.findFirst({
       where: { cycleId },
       orderBy: { periodEnd: 'desc' },
     }),
-    db.harvestEvent.findMany({
-      where: { cycleId, sensorWindow: null },
-      orderBy: [{ harvestTime: 'desc' }, { id: 'desc' }],
-      select: { id: true, harvestTime: true },
-    }),
-    db.cycleSensorReconciliation.findFirst({
-      where: { cycleId },
-      orderBy: { revision: 'desc' },
-    }),
     plantedTime(db, cycleId),
   ]);
-  if (
-    legacy.length &&
-    (!reconciliation ||
-      reconciliation.throughHarvestId !== legacy[0].id ||
-      !reconciliation.cutoffEnd ||
-      legacy.some((item) => item.harvestTime > reconciliation.cutoffEnd!))
-  )
-    throw new ConflictException(
-      'LEGACY_UNVERIFIED: cần đối soát cutoff các harvest cũ trước khi thu hoạch tiếp',
-    );
-  const plantedAt = reconciliation?.plantedAt ?? planted;
   if (!plantedAt)
-    throw new ConflictException(
-      'LEGACY_UNVERIFIED: chưa có mốc CYCLE_PLANTED đáng tin cậy',
-    );
-  const periodStart =
-    previous?.periodEnd ?? reconciliation?.cutoffEnd ?? plantedAt;
-  const includeStart = !previous && !reconciliation?.cutoffEnd;
+    throw new ConflictException('Chu kỳ chưa có mốc CYCLE_PLANTED');
+  const periodStart = previous?.periodEnd ?? plantedAt;
+  const includeStart = !previous;
   if (
     !Number.isFinite(periodEnd.getTime()) ||
     periodEnd <= periodStart ||
@@ -131,41 +100,12 @@ export async function prepareHarvestSensorWindow(
     },
     orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
   });
-  if (finalSensorDigestId) {
-    const digest = await db.sensorDigest.findUnique({
-      where: { id: finalSensorDigestId },
-      include: { harvestEvent: { select: { id: true } } },
-    });
-    const expected = canonicalSha256({
-      schemaVersion: 'sensor-digest-1',
-      cycleId,
-      periodStart: periodStart.toISOString(),
-      periodEnd: periodEnd.toISOString(),
-      readings: readingSnapshot(readings),
-    });
-    if (
-      !digest ||
-      digest.cycleId !== cycleId ||
-      !digest.isFinal ||
-      digest.harvestEvent ||
-      !includeStart ||
-      digest.periodStart.getTime() !== periodStart.getTime() ||
-      digest.periodEnd.getTime() !== periodEnd.getTime() ||
-      digest.readingCount !== readings.length ||
-      digest.digestHash !== expected ||
-      !readings.length
-    )
-      throw new UnprocessableEntityException(
-        'Legacy digest không khớp snapshot/window hoặc đã được sử dụng',
-      );
-  }
   return {
     cycleId,
     periodStart,
     periodEnd,
     includeStart,
     readings,
-    reconciliationId: reconciliation?.id ?? null,
   };
 }
 
@@ -194,7 +134,8 @@ export async function finalizeHarvestSensorWindow(
         periodStart: window.periodStart.toISOString(),
         periodEnd: window.periodEnd.toISOString(),
         includeStart: window.includeStart,
-        reconciliationId: window.reconciliationId,
+        // Fixed by the harvest-sensor-1 layout; reconciliation is retired.
+        reconciliationId: null,
         readings: readingSnapshot(readings),
       })
     : null;
@@ -272,7 +213,7 @@ export function harvestSensorSnapshotMatches(
         periodStart: window.periodStart.toISOString(),
         periodEnd: window.periodEnd.toISOString(),
         includeStart: window.includeStart,
-        reconciliationId: window.reconciliationId,
+        reconciliationId: null,
         readings: readingSnapshot(readings),
       })
   );

@@ -7,7 +7,6 @@ import {
   ProductionCycleRecordDto,
   CareRecordRecordDto,
   SensorReadingRecordDto,
-  SensorDigestRecordDto,
   HarvestEventRecordDto,
   LotRecordDto,
   ShipmentRecordDto,
@@ -19,7 +18,6 @@ import {
   InspectionRecordDto,
   ComplianceAssignmentRecordDto,
   ComplianceAssignmentAuditRecordDto,
-  CycleSensorReconciliationRecordDto,
   TraceEventRecordDto,
   BlockchainProofRecordDto,
   BlockchainOutboxRecordDto,
@@ -96,8 +94,6 @@ export class CycleDetailDto extends ProductionCycleRecordDto {
   careRecords!: CareRecordRecordDto[];
   @ApiProperty({ type: [SensorReadingRecordDto] })
   sensorReadings!: SensorReadingRecordDto[];
-  @ApiProperty({ type: [SensorDigestRecordDto] })
-  sensorDigests!: SensorDigestRecordDto[];
   @ApiProperty({ type: [CertificateRecordDto] })
   certificates!: CertificateRecordDto[];
   @ApiProperty({ type: [HarvestDetailDto] }) harvestEvents!: HarvestDetailDto[];
@@ -108,11 +104,6 @@ export class CareResultDto {
 }
 export class SensorReadingResultDto extends SensorReadingRecordDto {
   @ApiProperty() late!: boolean;
-}
-export class ReconciliationResultDto {
-  @ApiProperty({ type: CycleSensorReconciliationRecordDto })
-  reconciliation!: CycleSensorReconciliationRecordDto;
-  @ApiProperty() cycleVersion!: number;
 }
 export class DeviceListDto extends IotDeviceRecordDto {
   @ApiProperty({ type: OrgDto }) organization!: OrgDto;
@@ -195,6 +186,12 @@ export class UserCreatedDto {
   accountStatus!: string;
 }
 export class UserListDto extends UserCreatedDto {
+  @ApiProperty({ type: Number }) version!: number;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  lockedUntil!:
+    | string
+    | null;
+  @ApiProperty({ type: Boolean }) mustChangePassword!: boolean;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
   @ApiProperty({ type: UserRoleDto }) role!: UserRoleDto;
@@ -205,7 +202,17 @@ export class UserStatusDto extends PickType(UserCreatedDto, [
   'email',
   'accountStatus',
 ] as const) {
+  @ApiProperty({ type: Number }) version!: number;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  lockedUntil!:
+    | string
+    | null;
+  @ApiProperty({ type: Boolean }) mustChangePassword!: boolean;
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
+}
+export class UserSessionsRevokedDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ type: Number }) sessionsRevoked!: number;
 }
 class TraceHistoryProofDto extends PickType(BlockchainProofRecordDto, [
   'eventId',

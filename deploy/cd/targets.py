@@ -6,7 +6,7 @@ TARGETS = {
     "production": {"branch": "main", "origin": "https://agritrace.dev", "prefix": "prod",
                    "project": "agritrace-prod", "ingress": "agritrace-prod-ingress"},
 }
-APP_FILES = {"docker-compose.app.yml", "docker-compose.app-fabric.yml"}
+APP_FILES = {"docker-compose.app.yml"}
 OPTIONAL_APP_FILES = {"docker-compose.app-hybrid.yml"}
 
 

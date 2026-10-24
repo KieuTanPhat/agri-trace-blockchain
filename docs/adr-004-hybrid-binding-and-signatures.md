@@ -134,3 +134,13 @@ Unit/contract test không thay nghiệm thu Fabric thật của đúng candidate
 - *Khóa tổ chức thật do AgriTrace sinh và giữ*: không là xác nhận độc lập. Khóa
   kỹ thuật của smoke được giữ riêng trong operator, chỉ chứng minh giao thức và
   không nâng external partner authority khỏi NotEvaluated.
+
+## Cập nhật 24/10/2026 — gỡ bản A và c1
+
+Phần tương thích ở trên ghi quyết định lúc đó. Từ nhánh
+`chore/remove-legacy-ledger-writer`, chủ dự án quyết định gỡ hẳn bản A và c1 vì
+dữ liệu cũ không còn giá trị: API, Worker, chaincode và Gateway chỉ còn B (4.0.0 /
+3.0.0) và C c2 (6.0.0 / 5.0.0); bộ đọc lịch sử A/c1 cũng bỏ. Migration
+`20261213000000_retire_release_a_and_c1` từ chối database còn A/c1 thay vì sửa lịch sử.
+Môi trường không có Fabric dùng binding giả lập (`simulated-ledger`), không có đường ghi riêng.
+Xem [kế hoạch](plans/retire-release-a-and-legacy-2026-10-24.md).

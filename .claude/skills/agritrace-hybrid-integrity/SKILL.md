@@ -21,8 +21,8 @@ lại toàn bộ vào task. Plan/review chỉ đọc; không gửi command hoặ
    Unknown outcome giữ original body/key/signature và đối soát; không thử key mới,
    xóa attempts, sửa hash/lịch sử hoặc downgrade signed handover để vượt lỗi.
 4. Khi triển khai, dùng kiểm tra hiện có trong [CI guide](../../../docs/ci.md):
-   unit/SQL tests theo caller, Gateway/chaincode checks và worker-contract nếu ảnh
-   hưởng delivery. DB/Fabric/browser chạy trên tài nguyên cách ly; chỉ một local
+   unit/SQL tests theo caller, Gateway/chaincode checks và binding delivery tests
+   nếu ảnh hưởng delivery. DB/Fabric/browser chạy trên tài nguyên cách ly; chỉ một local
    heavy job tại một thời điểm. Các bài thật cần đủ prerequisite trong runbook.
 5. Kiểm đúng những failure modes bị ảnh hưởng, như sai scope, stale version/epoch,
    replay, mất response, worker restart/stale lease, Fabric outage, tamper hoặc

@@ -12,6 +12,10 @@ import {
   authorizeCommand,
   type AuthorizedCommand,
 } from './command-authorization.js';
+import {
+  isAuditedCommand,
+  lockPlatformAudit,
+} from '../../modules/platform-governance/platform-audit.js';
 
 export interface CommandContext {
   recordId: string;
@@ -123,6 +127,11 @@ export async function commandTransaction<T>(
         throw new ConflictException(
           'Command đã có kết quả; cần replay hoặc đối soát',
         );
+      // Before authorizeCommand's actor/org share locks: see lockPlatformAudit.
+      if (
+        isAuditedCommand(context.input.operation, context.input.actor?.role)
+      )
+        await lockPlatformAudit(tx);
       const scope = await authorizeCommand(tx, context.input, true);
       if (
         scope !== context.authorizationScope ||

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -17,6 +17,21 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
   assert.equal(database.hostname, '127.0.0.1');
   assert.equal(database.pathname, '/hybrid');
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: env.DATABASE_URL }) });
+  async function seedCycleEvidence(cycleId, organizationId, actorId) {
+    const content = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=', 'base64');
+    const sha256 = createHash('sha256').update(content).digest('hex');
+    const refs = {};
+    for (const kind of ['CARE_IMAGE', 'HARVEST_IMAGE', 'LOT_IMAGE']) {
+      const row = await db.traceEvidence.create({
+        data: { organizationId, entityType: 'CYCLE', entityId: cycleId,
+          fileName: `${kind.toLowerCase()}.png`, mediaType: 'image/png', size: content.length,
+          sha256, content, description: 'Private browser fixture evidence', kind, actorId },
+        select: { id: true },
+      });
+      refs[kind] = row.id;
+    }
+    return refs;
+  }
   const jwt = new JwtService({ secret: env.JWT_SECRET });
   const password = randomBytes(24).toString('base64url');
   const sessions = {};
@@ -26,13 +41,15 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
     const role = await db.role.upsert({ where: { code }, create: { code, name: code }, update: {} });
     const org = await db.organization.create({ data: { name: `${label} ${party}`, type } });
     const user = await db.user.create({ data: { email: `${randomUUID()}@example.test`, fullName: `${label} ${party}`, passwordHash: await hash(password, 10), roleId: role.id, organizationId: org.id } });
-    users[party] = { id: user.id, email: user.email, organizationId: org.id };
+    users[party] = { id: user.id, email: user.email, organizationId: org.id, organizationName: org.name };
     sessions[party] = randomUUID();
     await db.refreshSession.create({ data: { id: sessions[party], familyId: sessions[party], userId: user.id,
       tokenHash: randomBytes(32).toString('hex'), expiresAt: new Date(Date.now() + 3_600_000) } });
     for (const scoped of ['ORG_ADMIN', ...(type === 'FARM' ? ['CREATE_CHAIN'] : [])])
       await db.scopedRoleGrant.create({ data: { userId: user.id, organizationId: org.id, scope: 'ORGANIZATION', role: scoped } });
   }
+  // The chain owner invites only organizations it already partners with.
+  await db.enterprisePartner.create({ data: { inviterId: users.farm.organizationId, inviteeId: users.other.organizationId, status: 'ACTIVE' } });
   const farm = await db.farm.create({ data: { name: label, organizationId: users.farm.organizationId } });
   const product = await db.product.create({ data: { productName: label, defaultUnit: 'kg' } });
   // The owner membership constraint is deferred to commit: create the chain atomically.
@@ -114,7 +131,12 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
     const cycle = await command('farm', '/production-cycles', { chainId: chain.id, farmId: farm.id, productId: product.id,
       cycleCode: `Browser-${randomUUID()}`, maxHarvestQuantity: 2, harvestUnit: 'kg' });
     await command('farm', `/production-cycles/${cycle.id}/plant`, { version: 0, plantedAt: new Date(Date.now() - 60_000).toISOString() });
-    const harvested = await command('farm', `/production-cycles/${cycle.id}/harvests`, { quantity: 2, unit: 'kg', harvestTime: new Date().toISOString() });
+    const evidence = await seedCycleEvidence(cycle.id, users.farm.organizationId, users.farm.id);
+    const harvested = await command('farm', `/production-cycles/${cycle.id}/harvests`, {
+      version: 1, lotName: 'Browser fixture harvest', representativeUserId: users.farm.id,
+      evidenceRef: evidence.HARVEST_IMAGE, lotImageEvidenceRef: evidence.LOT_IMAGE,
+      quantity: 2, unit: 'kg', harvestTime: new Date().toISOString(),
+    });
     const plan = await command('farm', `/supply-chains/${chain.id}/shipment-plans`, { lotId: harvested.lot.id,
       transporterOrgId: sameOrg ? users.farm.organizationId : users.transporter.organizationId,
       retailerOrgId: sameOrg ? users.farm.organizationId : users.retailer.organizationId,

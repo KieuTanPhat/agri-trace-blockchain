@@ -2,13 +2,6 @@ import { canonicalize } from "json-canonicalize";
 
 import { contractError } from "./errors";
 
-export const KEY_TYPES = {
-  event: "traceEvent",
-  proof: "traceProof",
-  entityHead: "entityHead",
-  entityEvent: "entityEvent"
-} as const;
-
 export function toLedgerBytes(value: unknown): Buffer {
   if (value === undefined || typeof value === "function" || typeof value === "symbol") {
     throw contractError("INVALID_INPUT", "Value cannot be canonicalized as JSON");

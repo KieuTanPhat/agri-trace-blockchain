@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.7
-FROM node:22.22.3-alpine AS dependencies
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS dependencies
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc .node-version ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY blockchain/chaincode/package.json blockchain/chaincode/package.json
@@ -15,18 +15,28 @@ ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api
 ARG NEXT_PUBLIC_API_SAME_ORIGIN=false
 ARG NEXT_PUBLIC_TRACE_BASE_URL=http://localhost:3000/trace
 ARG NEXT_PUBLIC_MOCK_API=false
+ARG NEXT_PUBLIC_USE_MOCK_API=false
+ARG NEXT_PUBLIC_API_MODE=api
+ARG NEXT_PUBLIC_BUSINESS_ORIGIN=
+ARG NEXT_PUBLIC_CUSTOMER_ORIGIN=
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_API_SAME_ORIGIN=$NEXT_PUBLIC_API_SAME_ORIGIN
 ENV NEXT_PUBLIC_TRACE_BASE_URL=$NEXT_PUBLIC_TRACE_BASE_URL
 ENV NEXT_PUBLIC_MOCK_API=$NEXT_PUBLIC_MOCK_API
+ENV NEXT_PUBLIC_USE_MOCK_API=$NEXT_PUBLIC_USE_MOCK_API
+ENV NEXT_PUBLIC_API_MODE=$NEXT_PUBLIC_API_MODE
+ENV NEXT_PUBLIC_BUSINESS_ORIGIN=$NEXT_PUBLIC_BUSINESS_ORIGIN
+ENV NEXT_PUBLIC_CUSTOMER_ORIGIN=$NEXT_PUBLIC_CUSTOMER_ORIGIN
 COPY apps/web apps/web
 RUN npm run build --workspace apps/web
 
-FROM node:22.22.3-alpine AS runtime
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS runtime
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 WORKDIR /app
+
+RUN npm install --global npm@12.1.0 && npm cache clean --force
 
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=build --chown=node:node /app/apps/web/public apps/web/public

@@ -421,12 +421,13 @@ async function main() {
   await check("AC-11", "a non-relayer identity cannot write binding events", async () => {
     expectChaincode(await failure(() => send(b, eventFor(bindB), "0", b.admin1)), "UNAUTHORIZED_RELAYER");
   });
-  await check("AC-11", "the release-A writer is blocked on strict-B channels (V3 downgrade)", async () => {
+  await check("AC-11", "the chaincode has no release-A writer entrypoint (V3 downgrade)", async () => {
     const legacy = JSON.stringify({
       envelopeVersion: "3.0.0", nonce: u(), eventId: u(), entityType: "PRODUCTION_CYCLE", entityId: u(), eventType: "PRODUCTION_CYCLE_CREATED",
       eventTime: new Date().toISOString(), dataHash: "cd".repeat(32), schemaVersion: "2.0.0", canonicalizationVersion: "RFC8785",
     });
-    expectChaincode(await failure(() => b.relayer.prepare("RecordTraceEvent", [legacy]).endorse()), "LEGACY_WRITES_DISABLED");
+    const fail = await failure(() => b.relayer.prepare("RecordTraceEvent", [legacy]).endorse());
+    if (!/does not exist|RecordTraceEvent/.test(fail.message)) throw new Error(fail.message.slice(0, 200));
   });
   await check("AC-11", "missing endorsement of the owner peer never commits VALID (hosted owner)", async () => {
     const fail = await failure(() => send(b, eventFor(bindB), "0", b.relayer, ["Org1MSP"]));

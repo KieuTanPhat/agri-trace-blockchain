@@ -5,6 +5,7 @@ import {
   ValidationPipe,
   type INestApplication,
 } from '@nestjs/common';
+import { newSessionIds } from './support/session.js';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -20,6 +21,13 @@ import {
   type Prisma,
   type ScopedRole,
 } from '../src/generated/prisma/client.js';
+import { bindCycle, simulateFixtureLedger } from './support/chain-scope.js';
+import {
+  requestLedgerGrant,
+  requestLedgerRevoke,
+} from '../src/modules/ledger/ledger-permissions.js';
+import { setBindingPaused } from '../src/modules/ledger/ledger-bindings.js';
+import { confirmSimulatedPermissions } from '../src/modules/ledger/simulated-ledger.js';
 import {
   authorizeCommand,
   type CommandActor,
@@ -47,6 +55,7 @@ import { TraceService } from '../src/modules/trace/trace.service.js';
 import { OrganizationAccessService } from '../src/modules/auth/organization-access.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
+import { EVENT_BINDING_CONTEXT_INCLUDE } from '../src/modules/trace/ledger-route.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { commandTransaction } from '../src/common/idempotency/command-transaction.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
@@ -65,7 +74,7 @@ const idem = new IdempotencyService(serviceDb);
 
 async function authenticated(actor: CommandActor) {
   const session = await db.refreshSession.create({
-    data: {
+    data: { ...newSessionIds(),
       userId: actor.sub!,
       tokenHash: randomUUID(),
       expiresAt: new Date(Date.now() + 3600000),
@@ -92,13 +101,41 @@ async function grant(
   role: ScopedRole,
   chain = chainId,
 ) {
-  return tx.scopedRoleGrant.create({
+  const created = await tx.scopedRoleGrant.create({
     data: {
       userId: actor.sub!,
       organizationId: actor.organizationId!,
       chainId: chain,
       scope: 'CHAIN',
       role,
+    },
+  });
+  // The API requests the ledger grant with the role grant; the simulated
+  // ledger then applies it as the Worker would after a Fabric commit.
+  await confirmSimulatedPermissions(tx, { guard: false });
+  await requestLedgerGrant(tx, created);
+  await confirmSimulatedPermissions(tx, { guard: false });
+  return created;
+}
+
+async function grantWorkspaceProductionRole(
+  tx: Prisma.TransactionClient,
+  actor: CommandActor,
+) {
+  const role = await tx.enterpriseRole.create({
+    data: {
+      organizationId: actor.organizationId!,
+      name: `CI production ${randomUUID()}`,
+      permissions: ['profile.read', 'production.read', 'production.write'],
+    },
+  });
+  await tx.enterpriseMemberRole.create({
+    data: {
+      userId: actor.sub!,
+      organizationId: actor.organizationId!,
+      roleId: role.id,
+      chainIds: [chainId],
+      siteIds: [farmId],
     },
   });
 }
@@ -170,7 +207,7 @@ async function acceptedPlan(db: Prisma.TransactionClient) {
   const { lot, input } = await freshPlan(db);
   const event = await trace.createInTransaction(db, {
     entityType: 'HARVEST',
-    entityId: lot.harvestId,
+    entityId: lot.harvestId!,
     cycleId,
     lotId: lot.id,
     eventType: 'HARVEST_RECORDED',
@@ -254,6 +291,10 @@ describe('Release A scoped command policy on PostgreSQL', () => {
   let scenarios: Awaited<ReturnType<typeof sqlScenarioFixtures>>;
   beforeAll(async () => {
     scenarios = await sqlScenarioFixtures();
+    await simulateFixtureLedger(db, [
+      scenarios.ids.chain_a,
+      scenarios.ids.chain_b,
+    ]);
     const plans = await db.shipmentPlan.findMany({
       where: { id: scenarios.ids.plan },
       include: {
@@ -268,10 +309,10 @@ describe('Release A scoped command policy on PostgreSQL', () => {
     expect(plans).toHaveLength(1);
     const plan = plans[0];
     chainId = plan.chainId;
-    cycleId = plan.lot.harvest.cycleId;
+    cycleId = plan.lot.harvest!.cycleId;
     lotId = plan.lotId;
     shipmentId = plan.shipmentId!;
-    farmId = plan.lot.harvest.cycle.farmId;
+    farmId = plan.lot.harvest!.cycle.farmId;
     productId = plan.lot.productId;
     otherChainId = (
       await db.supplyChain.findFirstOrThrow({
@@ -544,6 +585,8 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         where: { id: before.grant.id },
         data: { revokedAt: new Date(), revision: { increment: 1 } },
       });
+      // The API revokes the ledger grant together with the role grant.
+      await requestLedgerRevoke(tx, before.grant.id);
       await grant(tx, producer, 'FARM_STAFF');
       expect((await authority(tx)).scope).not.toBe(before.scope);
     }));
@@ -1311,6 +1354,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       );
       const event = await tx.traceEvent.findUniqueOrThrow({
         where: { id: result.eventId },
+        include: { bindingContext: EVENT_BINDING_CONTEXT_INCLUDE },
       });
       expect(event.actorUserId).toBe(producer.sub);
       expect(event.actorRole).toBe('CHAIN_MANAGER');
@@ -1446,7 +1490,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         const fresh = await freshPlan(tx);
         const event = await trace.createInTransaction(tx, {
           entityType: 'HARVEST',
-          entityId: fresh.lot.harvestId,
+          entityId: fresh.lot.harvestId!,
           cycleId,
           lotId: fresh.lot.id,
           eventType: 'HARVEST_RECORDED',
@@ -1582,49 +1626,6 @@ describe('Release A scoped command policy on PostgreSQL', () => {
     );
   });
 
-  it('requires fresh consent on a new revision for a legacy acceptance without snapshot', async () => {
-    const before = await staleConsentNeedsNewRevision(
-      async () => {},
-      async (tx, plan) => {
-        for (const [party, actor] of [
-          ['PRODUCER', producer],
-          ['TRANSPORTER', transporter],
-        ] as const)
-          await acceptShipmentPlan(
-            tx,
-            actor,
-            plan.id,
-            party,
-            0,
-            plan.current.payloadDigest,
-          );
-        // Simulate a consent written before the snapshot migration.
-        const grant = await tx.scopedRoleGrant.findFirstOrThrow({
-          where: {
-            userId: retailer.sub!,
-            scope: 'ORGANIZATION',
-            role: 'ORG_ADMIN',
-            revokedAt: null,
-          },
-        });
-        await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
-        await tx.shipmentPlanAcceptance.create({
-          data: {
-            planId: plan.id,
-            revision: 0,
-            party: 'RETAILER',
-            organizationId: retailer.organizationId!,
-            userId: retailer.sub!,
-            grantId: grant.id,
-            grantRevision: grant.revision,
-          },
-        });
-        await tx.$executeRaw`SET LOCAL session_replication_role = origin`;
-      },
-    );
-    expect(before.find((a) => a.party === 'RETAILER')!.membershipId).toBeNull();
-  });
-
   it('rolls back physical writes when trace/outbox creation fails', async () => {
     const { lot, plan } = await db.$transaction((tx) => acceptedPlan(tx), {
       timeout: 20000,
@@ -1738,7 +1739,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       const { lot, input } = await freshPlan(tx);
       const harvest = await trace.createInTransaction(tx, {
         entityType: 'HARVEST',
-        entityId: lot.harvestId,
+        entityId: lot.harvestId!,
         cycleId,
         lotId: lot.id,
         eventType: 'HARVEST_RECORDED',
@@ -1994,7 +1995,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       async (tx) => {
         const event = await trace.createInTransaction(tx, {
           entityType: 'HARVEST',
-          entityId: lot.harvestId,
+          entityId: lot.harvestId!,
           cycleId,
           lotId: lot.id,
           eventType: 'HARVEST_RECORDED',
@@ -2280,7 +2281,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         async (tx) => {
           const event = await trace.createInTransaction(tx, {
             entityType: 'HARVEST',
-            entityId: lot.harvestId,
+            entityId: lot.harvestId!,
             cycleId,
             lotId: lot.id,
             eventType: 'HARVEST_RECORDED',
@@ -2418,8 +2419,9 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       }).expect(400); // chainId is required by the contract
     });
 
-    it('rejects an unbound stream without domain, trace, outbox or positive journal writes when the legacy writer is disabled', async () => {
-      const previous = process.env.FABRIC_LEGACY_WRITER;
+    it('rejects a stream without an ACTIVE binding before any domain, trace, outbox or positive journal write', async () => {
+      const { activeBindingDigest: digest } =
+        await db.chainLedgerProfile.findUniqueOrThrow({ where: { chainId } });
       const cycleCode = randomUUID();
       const key = randomUUID();
       const counts = async () =>
@@ -2431,7 +2433,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         ]);
       const before = await counts();
       try {
-        process.env.FABRIC_LEGACY_WRITER = 'false';
+        await db.$transaction((tx) => setBindingPaused(tx, digest!, true));
         const body = {
           chainId,
           farmId,
@@ -2447,8 +2449,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
           0,
         );
       } finally {
-        if (previous === undefined) delete process.env.FABRIC_LEGACY_WRITER;
-        else process.env.FABRIC_LEGACY_WRITER = previous;
+        await db.$transaction((tx) => setBindingPaused(tx, digest!, false));
       }
     });
 
@@ -2496,6 +2497,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
             ],
           },
         },
+        include: { bindingContext: EVENT_BINDING_CONTEXT_INCLUDE },
       });
       expect(events.map((event) => event.eventType).sort()).toEqual(
         [
@@ -2522,6 +2524,24 @@ describe('Release A scoped command policy on PostgreSQL', () => {
     });
 
     it('filters direct IDs, proof, compliance, IoT and nested cycles across chains sharing one Farm/org', async () => {
+      // Another member of the same organization writes the hidden chain's
+      // events; the producer itself holds no grant on that chain.
+      const template = await db.user.findUniqueOrThrow({
+        where: { id: producer.sub! },
+      });
+      const writerUser = await db.user.create({
+        data: {
+          organizationId: producer.organizationId,
+          roleId: template.roleId,
+          email: `${randomUUID()}@example.test`,
+          fullName: 'Hidden chain writer',
+          passwordHash: 'unused-synthetic-hash',
+        },
+      });
+      const hiddenWriter = { ...producer, sub: writerUser.id };
+      await db.$transaction((tx) =>
+        grant(tx, hiddenWriter, 'FARM_STAFF', otherChainId),
+      );
       const hidden = await db.$transaction(
         async (tx) => {
           const cycle = await tx.productionCycle.create({
@@ -2533,6 +2553,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
               cycleCode: randomUUID(),
             },
           });
+          await bindCycle(tx, cycle.id, otherChainId);
           await tx.stageAssignment.create({
             data: {
               chainId: otherChainId,
@@ -2567,7 +2588,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
             cycleId: cycle.id,
             lotId: lot.id,
             eventType: 'HARVEST_RECORDED',
-            actor: producer,
+            actor: hiddenWriter,
             businessData: { quantity: '5', unit: 'kg' },
           });
           const device = await tx.iotDevice.create({
@@ -2653,6 +2674,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
               cycleCode: randomUUID(),
             },
           });
+          await bindCycle(tx, cycle.id, otherChainId);
           const device = await tx.iotDevice.create({
             data: {
               organizationId: transporter.organizationId!,
@@ -2767,6 +2789,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
             role: 'TRANSPORTER',
           };
           await grant(tx, actor, 'FARM_STAFF');
+          await grantWorkspaceProductionRole(tx, actor);
           return actor;
         },
         { timeout: 20000 },
@@ -2821,6 +2844,7 @@ describe('Release A scoped command policy on PostgreSQL', () => {
         });
         const actor = { ...producer, sub: user.id };
         const permission = await grant(tx, actor, 'FARM_STAFF');
+        await grantWorkspaceProductionRole(tx, actor);
         return { actor, permission };
       });
       const session = await authenticated(scoped.actor);
@@ -2923,47 +2947,6 @@ describe('Release A scoped command policy on PostgreSQL', () => {
           (row: { canReviewCompliance: boolean }) => !row.canReviewCompliance,
         ),
       ).toBe(true);
-    });
-
-    it('requires the independent scoped reviewer for sensor reconciliation instead of implicit platform authority', async () => {
-      const cycle = await post('/production-cycles', producerToken, {
-        chainId,
-        farmId,
-        productId,
-        cycleCode: randomUUID(),
-        maxHarvestQuantity: 5,
-        harvestUnit: 'kg',
-      }).expect(201);
-      const id = cycle.body.data.id;
-      const plantedAt = new Date(Date.now() - 1000).toISOString();
-      await post(`/production-cycles/${id}/plant`, producerToken, {
-        version: 0,
-        plantedAt,
-      }).expect(201);
-      await post(
-        `/production-cycles/${id}/sensor-reconciliations`,
-        producerToken,
-        { version: 1, plantedAt, reason: 'Scope test' },
-      ).expect(403);
-      const actor = await authenticated(reviewer);
-      const token = app
-        .get(JwtService)
-        .sign({ sub: reviewer.sub, sid: actor.sid });
-      const reconciled = await post(
-        `/production-cycles/${id}/sensor-reconciliations`,
-        token,
-        { version: 1, plantedAt, reason: 'Independent scoped review' },
-      ).expect(201);
-      expect(reconciled.body.data.reconciliation.recordedById).toBe(
-        reviewer.sub,
-      );
-      expect(
-        (
-          await db.traceEvent.findFirstOrThrow({
-            where: { cycleId: id, eventType: 'CORRECTION_RECORDED' },
-          })
-        ).actorRole,
-      ).toBe('COMPLIANCE_REVIEWER');
     });
   });
 });

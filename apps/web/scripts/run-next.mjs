@@ -1,20 +1,22 @@
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
-import path from "node:path";
 
 const require = createRequire(import.meta.url);
 const command = process.argv[2] ?? "dev";
-if (command === "build" && process.env.NEXT_PUBLIC_MOCK_API === "true")
-  throw new Error("Production builds require NEXT_PUBLIC_MOCK_API=false");
+export function assertProductionRuntime(command, env) {
+  if (command === "build" && (
+    env.NEXT_PUBLIC_MOCK_API === "true" ||
+    env.NEXT_PUBLIC_USE_MOCK_API === "true" ||
+    env.NEXT_PUBLIC_API_MODE === "mock"
+  )) throw new Error("Production builds require real API mode; mock flags are forbidden");
+}
+assertProductionRuntime(command, process.env);
 const nextBin = require.resolve("next/dist/bin/next");
-const wasmPackageJson = require.resolve("@next/swc-wasm-nodejs/package.json");
-const wasmDir = path.dirname(wasmPackageJson);
+const nativeEnv = { ...process.env };
+delete nativeEnv.NEXT_TEST_WASM_DIR;
 
 const child = spawn(process.execPath, [nextBin, command, ...process.argv.slice(3)], {
-  env: {
-    ...process.env,
-    NEXT_TEST_WASM_DIR: wasmDir
-  },
+  env: nativeEnv,
   stdio: "inherit",
   shell: false
 });

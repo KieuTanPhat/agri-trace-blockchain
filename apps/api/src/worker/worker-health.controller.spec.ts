@@ -7,7 +7,7 @@ function fixture(overrides: Partial<WorkerRuntimeState> = {}) {
   const now = new Date();
   const state: WorkerRuntimeState = { enabled: true, running: true, fabricEnabled: true,
     startedAt: now, lastCompletedAt: now, lastError: null,
-    lastSuccessfulSteps: { 'legacy-writer': now, 'ledger-control': now, 'binding-delivery': now }, ...overrides };
+    lastSuccessfulSteps: { 'ledger-control': now, 'binding-delivery': now }, ...overrides };
   const db = { $queryRaw: vi.fn().mockResolvedValue([{ value: 1 }]),
     blockchainOutbox: { count: vi.fn().mockResolvedValue(0) },
     ledgerControlJob: { count: vi.fn().mockResolvedValue(0) },

@@ -10,7 +10,6 @@ import {
 } from "../src/binding";
 import { GOVERNANCE_DIGEST } from "../src/governance";
 import { AgriTraceContract } from "../src/traceability-contract";
-import { validInput } from "./fixtures";
 import { FakeClientIdentity, FakeStub } from "./helpers/fake-context";
 import {
   ALL_ENTITIES,
@@ -93,7 +92,7 @@ describe("Registry governance", () => {
   it("fails closed on a channel without a reviewed governance descriptor", async () => {
     const net = new Network("agritrace");
     await expect(
-      net.propose("CHANNEL_BOOTSTRAP", { channelId: "agritrace", strictB: true, allowLegacyV3Writes: true }),
+      net.propose("CHANNEL_BOOTSTRAP", { channelId: "agritrace", strictB: true, allowLegacyV3Writes: false }),
     ).rejects.toThrow("GOVERNANCE_UNDEFINED");
   });
 
@@ -172,8 +171,6 @@ describe("RecordBindingEvent", () => {
     );
     expect(page.records).toHaveLength(1);
     expect(net.stub.events.at(-1)?.name).toBe("BindingEventRecorded");
-    // B events never use the release-A keys, so legacy readers cannot see them.
-    await expect(net.contract.GetProof(net.ctx("relayer"), u(1))).rejects.toThrow("NOT_FOUND");
   });
 
   it("rejects a dataHash that is not the commitment of the public body, even when only context is swapped", async () => {
@@ -288,27 +285,18 @@ describe("RecordBindingEvent", () => {
     ).rejects.toThrow("BINDING_MISMATCH");
   });
 
-  it("blocks the release-A writer on a strict-B channel (downgrade protection) but not on a legacy one", async () => {
-    const net = await readyNetwork();
-    await expect(net.contract.RecordTraceEvent(net.ctx("relayer"), JSON.stringify(validInput()))).rejects.toThrow(
-      "LEGACY_WRITES_DISABLED",
-    );
-    const legacy = new Network("hybrid-self");
-    await legacy.change(
-      "CHANNEL_BOOTSTRAP",
-      { channelId: "hybrid-self", strictB: true, allowLegacyV3Writes: true },
-      ["admin1", "admin3"],
-    );
-    await expect(legacy.contract.RecordTraceEvent(legacy.ctx("relayer"), JSON.stringify(validInput()))).resolves.toContain("SUBMITTED");
-    const plain = new Network("agritrace");
-    await expect(plain.contract.RecordTraceEvent(plain.ctx("relayer"), JSON.stringify(validInput()))).resolves.toContain("SUBMITTED");
+  it("refuses a channel bootstrap that claims release-A writes", async () => {
+    const net = new Network("hybrid-self");
+    await expect(
+      net.propose("CHANNEL_BOOTSTRAP", { channelId: "hybrid-self", strictB: true, allowLegacyV3Writes: true }),
+    ).rejects.toThrow("INVALID_INPUT");
   });
 
   it("reports health with governance digest, caller role and channel policy", async () => {
     const net = await readyNetwork();
     const health = JSON.parse(await net.contract.HealthCheck(net.ctx("relayer")));
     expect(health).toMatchObject({
-      supportedWriteVersions: ["3.0.0", "4.0.0", "6.0.0"],
+      supportedWriteVersions: ["4.0.0", "6.0.0"],
       governanceDigest: GOVERNANCE_DIGEST,
       callerRole: "relayer",
       channelPolicy: { strictB: true, allowLegacyV3Writes: false },

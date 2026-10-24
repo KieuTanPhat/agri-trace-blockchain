@@ -121,7 +121,7 @@ class Controller:
                   "WEB_MEMORY": "768m", "WEB_HEAP_MB": "512",
                   "FABRIC_DOCKER_NETWORK": self.fabric["network"],
                   "HYBRID_WRITES_MODE": self.fresh_write_mode(record),
-                  "HYBRID_CANARY_ACTOR_IDS": self.canary_actor_ids(record), "FABRIC_LEGACY_WRITER": "false"}
+                  "HYBRID_CANARY_ACTOR_IDS": self.canary_actor_ids(record)}
         resources = self.config.get("resource_profile", {})
         for name in ("POSTGRES", "API", "WORKER", "WEB"):
             if name in resources:
@@ -197,7 +197,7 @@ class Controller:
         mounts = services["postgres"].get("volumes", [])
         require(len(mounts) == 1 and mounts[0].get("source") == "postgres-data" and mounts[0].get("target") == "/var/lib/postgresql", "Database mount changed")
         api = services["api"]["environment"]
-        require(api["FABRIC_ENABLED"] == "false" and api["FABRIC_LEGACY_WRITER"] == "false" and
+        require(api["FABRIC_ENABLED"] == "false" and "FABRIC_LEGACY_WRITER" not in api and
                 api["HYBRID_WRITES_MODE"] == self.fresh_write_mode(record) and
                 api.get("HYBRID_CANARY_ACTOR_IDS", "") == self.canary_actor_ids(record) and
                 api["JWT_SECRET"] == self.environment["JWT_SECRET"] and
@@ -208,7 +208,7 @@ class Controller:
         for name in ("api", "web"):
             require(services[name]["networks"]["ingress"].get("aliases", []) == [self.prefix + "-" + name], "Ingress alias changed")
         worker = services["worker"]
-        require(worker["environment"]["FABRIC_ENABLED"] == "true" and worker["environment"]["FABRIC_LEGACY_WRITER"] == "false" and
+        require(worker["environment"]["FABRIC_ENABLED"] == "true" and "FABRIC_LEGACY_WRITER" not in worker["environment"] and
                 worker["user"] == f"{self.environment['WORKER_UID']}:{self.environment['WORKER_GID']}", "Hosted Worker identity boundary changed")
         self.enterprise_admission_preflight(api, worker)
         expected_mounts = {"/hosted-config": "HOSTED_WORKER_CONFIG_HOST", "/hosted-identities": "HOSTED_WORKER_IDENTITIES_HOST"}
@@ -352,7 +352,7 @@ class Controller:
                     return
                 except Exception:
                     time.sleep(5)
-            require(False, "Public HTTPS routes did not become ready for apex and www")
+            require(False, "Public HTTPS routes did not become ready for all configured origins")
 
     def stop(self, record):
         self.run("stop-writers", self.dc(record, "stop", "api", "worker"), timeout=200)
@@ -833,7 +833,9 @@ class Controller:
         require(self.config.get("enabled", True), "Deployment is disabled for this environment")
         require(not (self.storage / "runtime-toggle.json").exists(), "Administrator must finish the interrupted Fabric runtime switch")
         state = self.state()
-        require(state["current"] is not None or op == "deploy", "Production requires an installed verified release")
+        require(state["current"] is not None or op in {"deploy", "reinstall"}, "Production requires an installed verified release")
+        if op == "reinstall":
+            require(state["current"] is None, "Reinstallation requires an operator-prepared empty target; no existing release is reset")
         if op == "rollback":
             require(not (self.storage / "journal.json").exists(), "Recover interrupted rollout before rollback")
             target = self.prefix + "-" + parts[1]
@@ -904,12 +906,12 @@ class Controller:
                 return {"result": "unchanged", "release": release, "counts": evidence["counts"]}
             self.registry(record, auth)
             if state["current"] is None:
-                return self.first_install(record, state)
+                return self.first_install(record, state, discard_previous=op == "reinstall")
             if op == "forward":
                 return self.forward(record, state)
             return self.rollout(record, state, int(parts[3]) if op == "upgrade" else None)
 
-    def first_install(self, candidate, state, resume=False):
+    def first_install(self, candidate, state, resume=False, discard_previous=False):
         require(state["current"] is None or (resume and state["current"] == candidate["id"] and candidate.get("verified")),
                 "Initial installation requires a fresh uninitialized target or its interrupted promotion")
         filename = self.storage / "journal.json"
@@ -919,9 +921,14 @@ class Controller:
         else:
             require(not filename.exists(), "Initial installation needs recovery before retry")
             journal = {"previous": None, "candidate": candidate["id"], "stage": "fresh-database", "emptyDatabaseVerified": False}
+            if discard_previous:
+                journal["dataPolicy"] = "discard-previous"
         self.preflight(candidate)
         self.admit_fresh_release(candidate, state)
-        self.register_fresh_backup(candidate)
+        if journal.get("dataPolicy") == "discard-previous":
+            self.admit_reinstallation(candidate, state)
+        else:
+            self.register_fresh_backup(candidate)
         if not resume:
             self.migration_policy({}, candidate)
         atomic_json(filename, journal)
@@ -969,7 +976,38 @@ class Controller:
                 self.post_verify_open = False
             atomic_json(self.storage / "records" / candidate["id"] / "installation-journal.json", journal)
             filename.unlink()
-        return {"result": "fresh-installed", "release": candidate["id"], "counts": evidence["counts"]}
+        result = {"result": "fresh-installed", "release": candidate["id"], "counts": evidence["counts"]}
+        if journal.get("dataPolicy") == "discard-previous":
+            result["previousDataRecovery"] = "unavailable"
+        return result
+
+    def admit_reinstallation(self, candidate, state):
+        """Authorize only the exact empty generation prepared by a root operator.
+
+        This operation never deletes data. Routine deployments retain their
+        backup requirement; interrupted installation reuses this same receipt.
+        """
+        approval = self.config.get("reinstall_ack", {})
+        manifest_digest = policy.sha256(json.dumps(candidate["manifest"], sort_keys=True, separators=(",", ":")).encode())
+        generation = approval.get("generation", "")
+        require(approval.get("protocol") == "agritrace-destructive-reinstall/1" and
+                approval.get("sha") == candidate["sha"] and approval.get("manifest_sha256") == manifest_digest and
+                isinstance(generation, str) and re.fullmatch(r"[a-f0-9]{32}", generation) and
+                state.get("installation_generation") == generation,
+                "Reinstallation requires exact root-installed candidate and generation approval")
+        filename = self.storage / "reinstall-receipt.json"
+        require(filename.is_file() and not filename.is_symlink(), "Reinstallation removal receipt is missing")
+        metadata = filename.stat()
+        require(metadata.st_uid == os.getuid() and metadata.st_mode & 0o077 == 0,
+                "Reinstallation removal receipt must be private to the controller owner")
+        raw = filename.read_bytes()
+        require(policy.sha256(raw) == approval.get("receipt_sha256"), "Reinstallation removal receipt checksum differs")
+        receipt = json.loads(raw)
+        require(receipt.get("protocol") == approval["protocol"] and receipt.get("generation") == generation and
+                receipt.get("sha") == candidate["sha"] and receipt.get("manifest_sha256") == manifest_digest and
+                receipt.get("removed_old_resources") is True and receipt.get("backup", False) is None and
+                receipt.get("retained_previous_data", True) is False,
+                "Reinstallation requires completed removal with the explicit no-recovery policy")
 
     def register_fresh_backup(self, candidate):
         evidence = json.loads(Path(self.config["restore_evidence"]).read_text())

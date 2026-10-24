@@ -12,7 +12,6 @@ export default defineConfig({
   plugins: [swc.vite()],
   test: {
     globals: true,
-    setupFiles: ['test/support/ledger-route-env.ts'],
     root: './',
     include: ['**/*.e2e-spec.ts'],
     // Several suites assert global row counts; run files one at a time.

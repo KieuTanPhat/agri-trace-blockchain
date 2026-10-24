@@ -1,0 +1,34 @@
+import type { components } from "../generated/api";
+type S = components["schemas"];
+export type OutboxItem = S["OutboxItemDto"];
+export type HoldItem = S["HoldItemDto"];
+export type LedgerJobItem = S["JobItemDto"];
+export type BindingHealthItem = S["HealthItemDto"];
+export type MailItem = S["MailItemDto"];
+export type Paged<T> = { items: T[]; nextCursor: string | null };
+export type OpsFilters = { chainId?: string; organizationId?: string; status?: string; cursor?: string };
+export type Monitoring = { generatedAt: string; api: { uptimeSeconds: number; node: string; heapUsedMb: number; rssMb: number }; activeSessions: number; checks: { name: string; status: string; detail: string }[] };
+export type Backup = { available: boolean; note: string; receipt?: Record<string, unknown> };
+/** These views follow AdminInsightsService and BillingService; AdminRecordDto exposes only generic metadata. */
+export type LedgerTx = { eventId: string; txId: string | null; network: string; channelId: string; dataHash: string; status: string; attempts: number; recordedAt: string | null; createdAt: string; lastError: string | null; eventType: string; entityType: string; entityId: string; organizationName: string | null };
+export type LedgerOverview = {
+ routes: { digest: string; mode: string; network: string; channelId: string; chaincodeName: string; contractName: string; writerMspId: string; createdAt: string }[];
+ bindings: { digest: string; chainId: string; chainName: string | null; network: string; channelId: string; chaincodeName: string; writerMspId: string; writerRole: string; status: string; lastHealthyAt: string | null; lastErrorCode: string | null; certificateExpiresAt: string | null }[];
+ outbox: Record<string, number>; proofs: Record<string, number>; controlJobs: Record<string, number>; unresolvedHolds: number; oldestPendingAgeMinutes: number; lastConfirmed: { at: string | null; txId: string | null } | null; lastFailure: { at: string; status: string; error: string | null } | null; note: string;
+};
+export type TraceReport = { months: {month:string;harvestLots:number;processedLots:number}[]; eventsByType:{eventType:string;count:number}[]; proofs:Record<string,number>;totalEvents:number;proofCoveragePercent:number;csv:string|null;fileName:string|null };
+export type ChainItem = {id:string;name:string;code:string;chainType:string;ownerId:string;ownerName:string;state:string;members:number;invited:number;roles:string[];cycles:number;processingRuns:number;openTransfers:number;ledgerBound:boolean;createdAt:string};
+export type QrBlock = {id:string;lotId:string;lotCode?:string;productName?:string;organizationName?:string;reason:string;publicMessage:string;blockedAt:string;unblockedAt:string|null;unblockReason:string|null;version:number};
+export type LotSearchItem = {lotId:string;lotCode:string;productName:string;organizationId:string;organizationName:string;originType:string;runCode:string|null;chainId:string|null;currentState:string;initialQuantity:string;availableQuantity:string;unit:string;expiryDate:string|null;createdAt:string;traceToken:string|null;qrBlock:Pick<QrBlock,"id"|"version"|"reason"|"publicMessage"|"blockedAt">|null;scans:number;holders:{organizationId:string;organizationName:string;quantity:string}[]};
+export type LineageNode = {lotId:string;lotCode:string;productName:string;organizationName:string;currentState:string;level:number};
+export type QrOverview = {totalQr:number;blocked:QrBlock[];printsByOrganization:{organizationId:string;organizationName:string;prints:number;copies:number}[];scansByDay:{day:string;scans:number}[]};
+export type ReferenceCategory = S["ReferenceItemInput"]["category"];
+export type ReferenceItem = S["ReferenceItemInput"] & {id:string;version:number;createdAt:string;updatedAt:string};
+export type PlanVersion = Omit<S["PlanVersionDraftInput"],"note"> & {note:string|null} & {id:string;planCode:string;version:number;status:string;publishedAt:string|null;createdAt:string;activeSubscriptions?:number};
+export type Plan = {code:string;name:string;audience:string;description:string|null;status:string;versions:PlanVersion[]};
+export type Invoice = {id:string;number:string;organizationId:string;organizationName:string|null;subscriptionId:string|null;planVersionId:string|null;kind:string;lines:{label:string;amount:number}[];amount:number;currency:string;status:string;issuedAt:string;dueAt:string;paidAt:string|null;provider:string|null;providerReference:string|null;simulated:boolean;voidReason:string|null;overdue:boolean;version:number};
+export type Subscription = {id:string;organizationId:string;organizationName:string|null;planCode:string;planName:string;planVersion:PlanVersion;status:string;effectiveStatus:string;startsAt:string|null;endsAt:string|null;graceEndsAt:string|null;daysRemaining:number|null;cancelledAt:string|null;version:number};
+export type Revenue = {months:{month:string;paid:number;simulated:number;count:number}[];byPlan:{planCode:string;amount:number;count:number}[];paidTotal:number;simulatedTotal:number;outstandingTotal:number;overdueTotal:number;activeSubscriptions?:number;expiringIn30Days:number;note:string};
+export type Statistics = {months:{month:string;organizations:number;lots:number;processingRuns:number;tickets:number;scans:number;revenue:number;simulatedRevenue:number}[];totals:Record<string,number>};
+export type SecurityAlerts = { lockedAccounts:{id:string;email:string;fullName:string;lockedUntil:string|null;failedLoginCount:number}[];repeatedFailures:{id:string;email:string;failedLoginCount:number}[];adminsWithoutMfa:{id:string;email:string;role:string}[];deniedActions:SecurityAudit[];sensitiveActions:SecurityAudit[] };
+export type SecurityAudit = {sequence:number;occurredAt:string;action:string;actorRole:string;actorUserId:string;subjectType:string;reason:string|null;outcome:string};

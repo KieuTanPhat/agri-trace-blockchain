@@ -77,15 +77,11 @@ export function resolveLotCustodian(lot: CustodyContext): LotCustodian | null {
       (item) => item.organizationId === org,
     );
     if (!matchingParties.length) return null;
-    if (indicated) {
-      if (indicated.organizationId !== org) return null;
-      candidates.push(indicated);
-    } else if (matchingParties.length === 1) {
-      // Legacy evidence can name just the organization. It proves a stage only
-      // when that organization has exactly one role in this shipment. Otherwise
-      // retain independently established timing/stage evidence, if any.
-      candidates.push(matchingParties[0]);
-    }
+    // Evidence names the custodian and the shipment state it acted in; the
+    // state alone selects the role.
+    if (!indicated) continue;
+    if (indicated.organizationId !== org) return null;
+    candidates.push(indicated);
   }
   if (
     !candidates.length ||

@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcrypt';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
@@ -22,6 +22,39 @@ const jwt = new JwtService({ secret: 'auth-concurrency-tests-only-secret' });
 const persistence = prisma as unknown as PrismaService;
 const auth = new AuthService(persistence, jwt);
 const guard = new JwtAuthGuard(jwt, persistence);
+
+// Platform status changes carry the current optimistic version and a reason.
+async function setUserStatus(
+  userId: string,
+  accountStatus: 'ACTIVE' | 'INACTIVE' | 'LOCKED',
+) {
+  const { version, accountStatus: current } =
+    await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { version: true, accountStatus: true },
+    });
+  // Reactivating an already active account is a no-op (and is rejected).
+  if (current === accountStatus) return null;
+  return new UsersService(persistence).updateStatus(
+    { sub: null, role: 'SYSTEM_ADMIN' },
+    userId,
+    { accountStatus, version, reason: 'Kiểm thử đồng thời phiên đăng nhập' },
+  );
+}
+async function setOrganizationStatus(
+  organizationId: string,
+  status: 'ACTIVE' | 'INACTIVE',
+) {
+  const { version } = await prisma.organization.findUniqueOrThrow({
+    where: { id: organizationId },
+    select: { version: true },
+  });
+  return new OrganizationsService(persistence).update(
+    { sub: null, role: 'SYSTEM_ADMIN' },
+    organizationId,
+    { status, version, reason: 'Kiểm thử đồng thời phiên đăng nhập' },
+  );
+}
 
 function barrier() {
   let release!: () => void;
@@ -125,8 +158,9 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
 
   beforeEach(async () => {
     const role = await prisma.role.upsert({
-      where: { code: 'FARM_STAFF' },
-      create: { code: 'FARM_STAFF', name: 'Farm staff' },
+      // Platform account: administrators only change platform accounts' status.
+      where: { code: 'COMPLIANCE_REVIEWER' },
+      create: { code: 'COMPLIANCE_REVIEWER', name: 'Compliance reviewer' },
       update: {},
     });
     const organization = await prisma.organization.create({
@@ -148,7 +182,8 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
 
   afterEach(async () => {
     await prisma.user.deleteMany({ where: { organizationId } });
-    await prisma.organization.delete({ where: { id: organizationId } });
+    // Platform audit entries reference the organization and are append-only,
+    // so a touched organization is intentionally never deleted.
   });
 
   afterAll(async () => {
@@ -158,25 +193,36 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
   it('creates independent login families while business authority is held for reading', async () => {
     const entered = barrier();
     const resume = barrier();
-    const reading = prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT organization_id FROM organization WHERE organization_id=${organizationId}::uuid FOR SHARE`;
-      await tx.$queryRaw`SELECT user_id FROM app_user WHERE user_id=${userId}::uuid FOR SHARE`;
-      entered.release();
-      await resume.promise;
-    }, { timeout: 15_000 });
+    const reading = prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT organization_id FROM organization WHERE organization_id=${organizationId}::uuid FOR SHARE`;
+        await tx.$queryRaw`SELECT user_id FROM app_user WHERE user_id=${userId}::uuid FOR SHARE`;
+        entered.release();
+        await resume.promise;
+      },
+      { timeout: 15_000 },
+    );
     await entered.promise;
-    const logins = Promise.all(Array.from({ length: 10 }, () => auth.login({ email, password })));
+    const logins = Promise.all(
+      Array.from({ length: 10 }, () => auth.login({ email, password })),
+    );
     void logins.catch(() => {});
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const sessions = await Promise.race([
         logins,
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error('Login waited for a business reader')), 3_000);
+          timer = setTimeout(
+            () => reject(new Error('Login waited for a business reader')),
+            3_000,
+          );
         }),
       ]);
-      expect(new Set(sessions.map(session => session.sessionId)).size).toBe(10);
-      for (const session of sessions) await expect(accepts(session.accessToken)).resolves.toBe(true);
+      expect(new Set(sessions.map((session) => session.sessionId)).size).toBe(
+        10,
+      );
+      for (const session of sessions)
+        await expect(accepts(session.accessToken)).resolves.toBe(true);
     } finally {
       clearTimeout(timer);
       resume.release();
@@ -198,12 +244,8 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
         operation === 'logout'
           ? auth.logout({ refreshToken: original.refreshToken })
           : operation === 'lock account'
-            ? new UsersService(persistence).updateStatus(userId, {
-                accountStatus: 'LOCKED',
-              })
-            : new OrganizationsService(persistence).update(organizationId, {
-                status: 'INACTIVE',
-              });
+            ? setUserStatus(userId, 'LOCKED')
+            : setOrganizationStatus(organizationId, 'INACTIVE');
       try {
         await waitForBlockedWriter();
       } finally {
@@ -211,14 +253,9 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
       }
       const rotated = await rotating;
       await revoking;
-      if (operation === 'lock account')
-        await new UsersService(persistence).updateStatus(userId, {
-          accountStatus: 'ACTIVE',
-        });
+      if (operation === 'lock account') await setUserStatus(userId, 'ACTIVE');
       if (operation === 'disable organization')
-        await new OrganizationsService(persistence).update(organizationId, {
-          status: 'ACTIVE',
-        });
+        await setOrganizationStatus(organizationId, 'ACTIVE');
       expect(
         await prisma.refreshSession.count({
           where: { userId, revokedAt: null },
@@ -244,12 +281,8 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
       await gate.entered.promise;
       const disabling =
         operation === 'lock account'
-          ? new UsersService(persistence).updateStatus(userId, {
-              accountStatus: 'LOCKED',
-            })
-          : new OrganizationsService(persistence).update(organizationId, {
-              status: 'INACTIVE',
-            });
+          ? setUserStatus(userId, 'LOCKED')
+          : setOrganizationStatus(organizationId, 'INACTIVE');
       try {
         await waitForBlockedWriter();
       } finally {
@@ -257,12 +290,8 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
       }
       const session = await signingIn;
       await disabling;
-      await new UsersService(persistence).updateStatus(userId, {
-        accountStatus: 'ACTIVE',
-      });
-      await new OrganizationsService(persistence).update(organizationId, {
-        status: 'ACTIVE',
-      });
+      await setUserStatus(userId, 'ACTIVE');
+      await setOrganizationStatus(organizationId, 'ACTIVE');
       await expect(accepts(session.accessToken)).rejects.toMatchObject({
         status: 401,
       });
@@ -311,12 +340,8 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
       }
       await disabling;
       await rejected;
-      await new UsersService(persistence).updateStatus(userId, {
-        accountStatus: 'ACTIVE',
-      });
-      await new OrganizationsService(persistence).update(organizationId, {
-        status: 'ACTIVE',
-      });
+      await setUserStatus(userId, 'ACTIVE');
+      await setOrganizationStatus(organizationId, 'ACTIVE');
       await expect(accepts(original.accessToken)).rejects.toMatchObject({
         status: 401,
       });
@@ -369,25 +394,6 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
         where: { familyId: original.sessionId, revokedAt: null },
       }),
     ).toBe(0);
-    await expect(accepts(rotated.accessToken)).rejects.toMatchObject({
-      status: 401,
-    });
-  });
-
-  it('supports old API inserts without family_id and rotates/revokes legacy sessions', async () => {
-    const id = randomUUID();
-    const token = randomUUID();
-    const tokenHash = createHash('sha256').update(token).digest('hex');
-    await prisma.$executeRaw`INSERT INTO refresh_session (refresh_session_id, user_id, token_hash, expires_at)
-      VALUES (${id}::uuid, ${userId}::uuid, ${tokenHash}, now() + interval '1 day')`;
-    expect(
-      (await prisma.refreshSession.findUniqueOrThrow({ where: { id } }))
-        .familyId,
-    ).toBeNull();
-    const rotated = await auth.refresh({ refreshToken: token });
-    expect(rotated.sessionId).toBe(id);
-    await expect(accepts(rotated.accessToken)).resolves.toBe(true);
-    await auth.logout({ refreshToken: token });
     await expect(accepts(rotated.accessToken)).rejects.toMatchObject({
       status: 401,
     });

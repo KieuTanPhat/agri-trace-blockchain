@@ -1,6 +1,11 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import CompliancePage from "./page";
+import CompliancePage from "@/features/ledger/workspace/compliance";
+import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
+vi.mock("next/navigation",()=>({useRouter:()=>({push:vi.fn(),replace:vi.fn()})}));
+vi.mock("@/lib/ledger/data",async()=>({useLedgerQuery:(await import("@tanstack/react-query")).useQuery,useLedgerQueryClient:(await import("@tanstack/react-query")).useQueryClient}));
+vi.mock("@/lib/ledger/ops-api",()=>({opsApi:{cycles:()=>api.getProductionCycles(),certificates:()=>api.request("/certificates"),inspections:()=>api.request("/inspections")}}));
+function renderPage(){return render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><CompliancePage/></QueryClientProvider>);}
 import type { AuthUser, LotTrace, ProductionCycleOption } from "@/lib/types";
 import type { components } from "@/lib/generated/api";
 
@@ -21,6 +26,7 @@ const cycle = {
 } as ProductionCycleOption;
 beforeEach(() => {
   vi.resetAllMocks();
+  HTMLElement.prototype.scrollIntoView=vi.fn();
   user = {
     id: "reviewer",
     email: "reviewer@example.test",
@@ -42,25 +48,27 @@ beforeEach(() => {
 afterEach(() => cleanup());
 describe("Compliance forms use current server subject permissions", () => {
   it("offers independent scoped inspection with another authenticated global role", async () => {
-    render(<CompliancePage />);
+    renderPage();
     expect(
-      await screen.findByText("Ghi kiểm định", { selector: "h2,h3" }),
+      await screen.findByRole("button", {name:"Ghi kiểm định"}),
     ).toBeVisible();
     expect(
-      screen.queryByText("Nộp chứng nhận", { selector: "h2,h3" }),
+      screen.queryByRole("button", {name:"Nộp chứng nhận"}),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "LOT" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button",{name:"Ghi kiểm định"}));
+    fireEvent.keyDown(screen.getByRole("combobox",{name:"Lô hàng"}),{key:"ArrowDown"});
+    expect(await screen.findByRole("option", { name: "LOT" })).toBeInTheDocument();
   });
   it("offers certificate submission for scoped production without global FARM_STAFF", async () => {
     api.getProductionCycles.mockResolvedValue([
       { ...cycle, canWriteProduction: true, canReviewCompliance: false },
     ]);
-    render(<CompliancePage />);
+    renderPage();
     expect(
-      await screen.findByText("Nộp chứng nhận", { selector: "h2,h3" }),
+      await screen.findByRole("button", {name:"Nộp chứng nhận"}),
     ).toBeVisible();
     expect(
-      screen.queryByText("Ghi kiểm định", { selector: "h2,h3" }),
+      screen.queryByRole("button", {name:"Ghi kiểm định"}),
     ).not.toBeInTheDocument();
   });
   it("keeps a producer with an auditor capability from a scoped self-review form", async () => {
@@ -68,12 +76,12 @@ describe("Compliance forms use current server subject permissions", () => {
     api.getProductionCycles.mockResolvedValue([
       { ...cycle, canReviewCompliance: false },
     ]);
-    render(<CompliancePage />);
+    renderPage();
     await waitFor(() =>
       expect(screen.queryByRole("status")).not.toBeInTheDocument(),
     );
     expect(
-      screen.queryByText("Ghi kiểm định", { selector: "h2,h3" }),
+      screen.queryByRole("button", {name:"Ghi kiểm định"}),
     ).not.toBeInTheDocument();
   });
   it("does not offer review of a replacement when the reviewer submitted an ancestor", async () => {
@@ -98,10 +106,10 @@ describe("Compliance forms use current server subject permissions", () => {
     api.request.mockImplementation((path: string) =>
       Promise.resolve(path === "/certificates" ? [root, child] : []),
     );
-    render(<CompliancePage />);
-    await screen.findByText("Ghi kiểm định", { selector: "h2,h3" });
+    renderPage();
+    await screen.findByRole("button", {name:"Ghi kiểm định"});
     expect(
-      screen.queryByRole("option", { name: /Replacement/ }),
+      screen.queryByRole("button", {name:"Xét duyệt"}),
     ).not.toBeInTheDocument();
   });
 });

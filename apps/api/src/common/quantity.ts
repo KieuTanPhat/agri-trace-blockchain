@@ -59,8 +59,10 @@ export function reconcileQuantityMovements(
     afterQty: Prisma.Decimal;
   }>,
 ): boolean {
-  const harvests = movements.filter(
-    (movement) => movement.type === 'HARVEST_IN',
+  // A lot has exactly one origin inflow: a harvest or a processing output.
+  const INFLOWS = ['HARVEST_IN', 'PROCESSING_IN'];
+  const harvests = movements.filter((movement) =>
+    INFLOWS.includes(movement.type),
   );
   if (
     harvests.length !== 1 ||
@@ -82,11 +84,11 @@ export function reconcileQuantityMovements(
       return false;
   }
   const outflows = movements
-    .filter((movement) => movement.type !== 'HARVEST_IN')
+    .filter((movement) => !INFLOWS.includes(movement.type))
     .sort((a, b) => b.beforeQty.comparedTo(a.beforeQty));
   for (const movement of outflows) {
     if (
-      !['DAMAGE_OUT', 'SALE_OUT', 'EXPIRE_OUT', 'RECALL_OUT'].includes(
+      !['DAMAGE_OUT', 'SALE_OUT', 'EXPIRE_OUT', 'RECALL_OUT', 'PROCESSING_OUT'].includes(
         movement.type,
       ) ||
       !movement.delta.isNegative() ||

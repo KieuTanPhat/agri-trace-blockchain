@@ -2,16 +2,10 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { vi } from 'vitest';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { OrganizationAccessService } from '../auth/organization-access.service.js';
-import { calculateTraceEventHash } from '../trace/public.js';
 import { LotQueryService } from './lot-query.service.js';
 import type { PublicLot } from './lot-query.types.js';
 import { Prisma } from '../../generated/prisma/client.js';
-import {
-  fixtureRoute,
-  useFixtureRoute,
-} from '../../../test/support/ledger-route-fixture.js';
-
-beforeEach(useFixtureRoute);
+import { bindingEvent } from '../../../test/support/binding-event-fixture.js';
 
 function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
   const lotId = randomUUID();
@@ -71,14 +65,10 @@ function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
       schemaVersion: '2.0.0',
       canonicalizationVersion: 'RFC8785',
     };
-    const dataHash = calculateTraceEventHash(input);
+    const committed = bindingEvent(input, sequence + 1);
+    const dataHash = committed.dataHash;
     return {
-      ...input,
-      dataHash,
-      ledgerRoute: {
-        definitionDigest: fixtureRoute.digest,
-        definition: fixtureRoute,
-      },
+      ...committed,
       blockchainProof: {
         dataHash,
         transactionStatus: 'CONFIRMED',
@@ -92,6 +82,14 @@ function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
     };
   });
   const database = {
+    careRecord: { findMany: vi.fn().mockResolvedValue([]) },
+    distributionLine: { findMany: vi.fn().mockResolvedValue([]) },
+    distributionReceipt: { findMany: vi.fn().mockResolvedValue([]) },
+    distributionRemainder: { findMany: vi.fn().mockResolvedValue([]) },
+    $executeRaw: vi.fn().mockResolvedValue(1),
+    traceQrBlock: { findFirst: vi.fn().mockResolvedValue(null) },
+    traceNotice: { findMany: vi.fn().mockResolvedValue([]) },
+    organization: { findMany: vi.fn().mockResolvedValue([]) },
     traceQr: {
       findUnique: vi.fn().mockResolvedValue({
         lot: {

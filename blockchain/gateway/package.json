@@ -2,7 +2,7 @@
   "name": "@agri-trace/fabric-gateway",
   "version": "1.0.0",
   "private": true,
-  "description": "Fabric Gateway smoke client and Backend adapter reference",
+  "description": "Fabric Gateway connection, binding ledger client and registry operations",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,15 +13,15 @@
     }
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24.22.1 <25",
+    "npm": "12.1.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "runtime:load": "node -e \"require('./dist/index.js')\"",
-    "check": "npm run typecheck && npm test && npm run build && npm run runtime:load",
-    "smoke": "tsx src/smoke.ts"
+    "check": "npm run typecheck && npm test && npm run build && npm run runtime:load"
   },
   "dependencies": {
     "@grpc/grpc-js": "1.14.6",
@@ -29,9 +29,9 @@
     "json-canonicalize": "3.0.0"
   },
   "devDependencies": {
-    "@types/node": "22.18.1",
+    "@types/node": "24.13.4",
     "tsx": "4.20.5",
     "typescript": "5.9.2",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   }
 }

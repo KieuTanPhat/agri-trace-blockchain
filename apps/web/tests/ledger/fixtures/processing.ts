@@ -1,0 +1,22 @@
+import type {ProcessingRun,ProcessingMaterial,UnitConversion,LineageLot} from "../../../src/lib/ledger/proc-types";
+import {registerScenario,readScenario} from "./scenarios";
+import {organizationId,siteId,chainId} from "./enterprise-membership";
+import {product,productId} from "./enterprise-products";
+import "./inventory-distribution";
+export const runId="eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",rawLot="ffffffff-ffff-4fff-8fff-fffffffffff1",outputLot="ffffffff-ffff-4fff-8fff-fffffffffff2";
+const material:ProcessingMaterial={lotId:rawLot,lotCode:"NGUYEN-LIEU-01",productName:"Xoài nguyên liệu",sourceOrganization:"Nguồn Ledger",chainId,siteId,siteName:"Xưởng Ledger",available:"10.000",unit:"kg",currentState:"HARVESTED",expiryDate:null,blocked:false};
+const conversion:UnitConversion={id:runId,productId,productName:"Xoài Ledger",unit:"gói",baseUnit:"kg",factor:"0.500000",note:null,revokedAt:null,revokeReason:null};
+const run:ProcessingRun={id:runId,code:"CB-001",chainId,chainName:"Chuỗi Ledger",siteId,processType:"DRYING",baseUnit:"kg",recipe:"Công thức xưởng",note:null,status:"DRAFT",inputTotal:null,outputTotal:null,lossTotal:null,variancePercent:null,completedAt:null,cancelledAt:null,cancelReason:null,version:4,createdAt:"2026-10-23T00:00:00Z",inputs:[{lotId:rawLot,lotCode:"NGUYEN-LIEU-01",productName:"Xoài nguyên liệu",sourceOrganization:"Nguồn Ledger",quantity:"10.000",unit:"kg",currentState:"HARVESTED",availableQuantity:"10.000"}],outputs:[{id:outputLot,productId,productName:"Xoài Ledger",kind:"PRODUCT",quantity:"18.000",unit:"gói",baseQuantity:"9.000",lotName:"Thành phẩm Ledger",grade:"A",packaging:"Túi kín",packageCount:18,expiryDate:null,lotId:null,lotCode:null,traceToken:null}],losses:[{reason:"MOISTURE",quantity:"1.000",note:null}]};
+export const lineage:LineageLot={lotId:rawLot,lotCode:"NGUYEN-LIEU-01",productName:"Xoài nguyên liệu",organizationId:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",organizationName:"Nguồn Ledger",originType:"HARVEST",currentState:null,availableQuantity:null,unit:"kg",level:1,runCode:"CB-001",usedQuantity:"10.000",usedUnit:"kg"};
+for(const name of ["processing.baseline","processing.invalid","processing.stale","processing.no-capability"])registerScenario(name,{handle(r,state){const p=new URL("http://fixture"+r.path).pathname,completed=state.values.has("completed"),view:ProcessingRun=completed?{...run,status:"COMPLETED",version:5,inputTotal:"10.000",outputTotal:"9.000",lossTotal:"1.000",variancePercent:"0.000",completedAt:"2026-10-23T00:00:00Z",outputs:run.outputs.map(o=>({...o,lotId:outputLot,lotCode:"TP-001",traceToken:"processor-token"}))}:run;
+if(p==="/enterprise-access")return {data:{stage:"ACTIVE",capabilities:name==="processing.no-capability"?[]:["PROCESSOR"],owner:true,primary:true,tier:1,permissions:["processing.read","processing.write","catalog.read","catalog.manage","sites.read","trace.read","evidence.read","evidence.manage"]}};
+if(p==="/enterprise-workspace/sites")return {data:{items:[{id:siteId,name:"Xưởng Ledger",organizationId,status:"ACTIVE",kind:"PROCESSING"}]}};
+if(p==="/catalog")return {data:{products:[{...product,status:"ACTIVE",evidenceComplete:true},{...product,id:rawLot,organizationId:rawLot,productName:"Sản phẩm tổ chức khác",status:"ACTIVE"}],farms:[],plots:[]}};
+if(p==="/processing-runs/materials")return {data:{items:[material]}};if(p==="/processing-runs/unit-conversions")return {data:{items:[conversion]}};
+if(p===`/processing-runs/lineage/${outputLot}`)return {data:{lotId:outputLot,upstream:[lineage],downstream:[]}};
+if(p==="/processing-runs"&&r.method==="GET")return {data:{items:[view]}};
+if(p===`/processing-runs/${runId}`&&r.method==="GET")return {data:{record:view}};
+if(p==="/processing-runs"&&r.method==="POST"){if(name==="processing.invalid")return {status:422,error:{code:"VALIDATION_FAILED",message:"Đầu vào không bằng thành phẩm cộng hao hụt"}};return {data:{record:run}};}
+if(p===`/processing-runs/${runId}/complete`&&r.method==="POST"){if(name==="processing.stale")return {status:409,error:{code:"VERSION_CONFLICT",message:"Lệnh chế biến đã được xử lý hoặc đã thay đổi"}};state.values.set("completed",true);return {data:{record:{...view,status:"COMPLETED",version:5}}};}
+return readScenario("inventory.baseline").handle(r,state);
+}});

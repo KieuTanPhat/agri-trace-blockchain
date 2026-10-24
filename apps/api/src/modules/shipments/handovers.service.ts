@@ -1,3 +1,4 @@
+import { harvestOf } from '../lots/lot-origin.js';
 import {
   ConflictException,
   ForbiddenException,
@@ -474,7 +475,7 @@ export class HandoversService {
     });
     if (!shipment)
       throw new NotFoundException('Không tìm thấy chuyến vận chuyển');
-    const cycle = shipment.lot.harvest.cycle;
+    const cycle = harvestOf(shipment.lot).cycle;
     if (!cycle.chainId)
       throw new ConflictException('Chuyến hàng không thuộc chuỗi cung ứng');
     const origin = await db.cycleLedgerContext.findUnique({

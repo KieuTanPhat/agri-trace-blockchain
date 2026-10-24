@@ -29,25 +29,25 @@ test('enterprise approval recovery rejects a changed policy, package or definiti
     assert.throws(() => approvalPolicy({ ...spec, endorsementPolicy }));
 });
 
-test('Gateway changes run API, containers and real Fabric integration', () => {
-  assert.deepEqual(classifyChanges(['blockchain/gateway/src/adapter.ts']), {
-    api: true, web: false, containers: true, blockchain: true, fabric: true, hybrid: true,
+test('Gateway changes run API, containers and hybrid Fabric integration', () => {
+  assert.deepEqual(classifyChanges(['blockchain/gateway/src/connect.ts']), {
+    api: true, web: false, containers: true, blockchain: true, hybrid: true,
   });
 });
 
-test('API and Worker changes run real Fabric integration', () => {
+test('API and Worker changes run hybrid Fabric integration', () => {
   for (const file of ['apps/api/src/worker-main.ts', 'apps/api/prisma/schema.prisma']) {
     const selected = classifyChanges([file]);
     assert.equal(selected.api, true);
     assert.equal(selected.containers, true);
-    assert.equal(selected.fabric, true);
+    assert.equal(selected.hybrid, true);
   }
 });
 
 test('network and chaincode changes select blockchain integration', () => {
   for (const file of ['blockchain/network/network.sh', 'blockchain/chaincode/src/traceability-contract.ts']) {
     assert.equal(classifyChanges([file]).blockchain, true);
-    assert.equal(classifyChanges([file]).fabric, true);
+    assert.equal(classifyChanges([file]).hybrid, true);
   }
 });
 
@@ -59,7 +59,7 @@ test('manifests and CI changes select all checks', () => {
 
 test('Web changes select its checks and the production stack', () => {
   assert.deepEqual(classifyChanges(['apps/web/src/app/page.tsx']), {
-    api: false, web: true, containers: true, blockchain: false, fabric: false, hybrid: true,
+    api: false, web: true, containers: true, blockchain: false, hybrid: true,
   });
 });
 
@@ -70,9 +70,9 @@ test('edge routing, rehearsal scripts and the deployment template require all in
 });
 
 test('Compose overrides select production and Fabric integration', () => {
-  for (const file of ['docker-compose.yml', 'docker-compose.ci.yml']) {
+  for (const file of ['docker-compose.yml', 'docker-compose.app-hybrid.yml']) {
     assert.equal(classifyChanges([file]).containers, true);
-    assert.equal(classifyChanges([file]).fabric, true);
+    assert.equal(classifyChanges([file]).hybrid, true);
   }
 });
 
@@ -97,10 +97,10 @@ test('agent-only PRs use the always-run setup check without selecting runtime jo
 });
 
 for (const [source, destination, checks] of [
-  ['apps/api/src/worker.ts', 'docs/worker.md', ['api', 'containers', 'fabric']],
-  ['apps/web/src/view.tsx', 'apps/api/src/view.tsx', ['web', 'api', 'containers', 'fabric']],
-  ['blockchain/gateway/src/adapter.ts', 'docs/adapter.md', ['api', 'blockchain', 'containers', 'fabric']],
-  ['blockchain/chaincode/src/contract.ts', 'docs/contract.md', ['blockchain', 'fabric']],
+  ['apps/api/src/worker.ts', 'docs/worker.md', ['api', 'containers', 'hybrid']],
+  ['apps/web/src/view.tsx', 'apps/api/src/view.tsx', ['web', 'api', 'containers', 'hybrid']],
+  ['blockchain/gateway/src/connect.ts', 'docs/connect.md', ['api', 'blockchain', 'containers', 'hybrid']],
+  ['blockchain/chaincode/src/contract.ts', 'docs/contract.md', ['blockchain', 'hybrid']],
 ]) {
   test(`moving ${source} to ${destination} checks both paths in the actual Git diff`, t => {
     const directory = mkdtempSync(path.join(tmpdir(), 'agri-trace-ci-diff-'));
@@ -164,8 +164,8 @@ test('main pushes with a valid baseline still require every check for the deploy
 test('gate rejects failures, cancellation and unexpected skips for selected jobs', () => {
   for (const result of ['failure', 'cancelled', 'skipped']) {
     assert.ok(gateErrors('blockchain', {
-      changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true', hybrid: 'true' } },
-      verify: { result: 'success' }, 'standalone-chaincode': { result: 'success' }, 'hybrid-fabric': { result: 'success' }, 'fabric-smoke': { result },
+      changes: { result: 'success', outputs: { blockchain: 'true', hybrid: 'true' } },
+      verify: { result: 'success' }, 'standalone-chaincode': { result: 'success' }, 'hybrid-fabric': { result },
     }).length > 0);
   }
 });
@@ -173,13 +173,13 @@ test('gate rejects failures, cancellation and unexpected skips for selected jobs
 test('gate fails closed on failed detection, absent outputs and missing jobs', () => {
   assert.ok(gateErrors('application', { changes: { result: 'failure' } }).length > 0);
   assert.ok(gateErrors('application', { changes: { result: 'success', outputs: {} } }).length > 0);
-  assert.ok(gateErrors('blockchain', { changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true' } } }).length > 0);
+  assert.ok(gateErrors('blockchain', { changes: { result: 'success', outputs: { blockchain: 'true' } } }).length > 0);
 });
 
 test('blockchain gate requires the selected standalone check and permits documentation skips', () => {
   const needs = {
-    changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true', hybrid: 'true' } },
-    verify: { result: 'success' }, 'fabric-smoke': { result: 'success' },
+    changes: { result: 'success', outputs: { blockchain: 'true', hybrid: 'true' } },
+    verify: { result: 'success' },
     'standalone-chaincode': { result: 'success' }, 'hybrid-fabric': { result: 'success' },
   };
   assert.deepEqual(gateErrors('blockchain', needs), []);
@@ -187,8 +187,8 @@ test('blockchain gate requires the selected standalone check and permits documen
     assert.ok(gateErrors('blockchain', { ...needs, 'standalone-chaincode': { result } }).length > 0);
   }
   assert.deepEqual(gateErrors('blockchain', {
-    changes: { result: 'success', outputs: { blockchain: 'false', fabric: 'false', hybrid: 'false' } },
-    verify: { result: 'skipped' }, 'fabric-smoke': { result: 'skipped' },
+    changes: { result: 'success', outputs: { blockchain: 'false', hybrid: 'false' } },
+    verify: { result: 'skipped' },
     'standalone-chaincode': { result: 'skipped' }, 'hybrid-fabric': { result: 'skipped' },
   }), []);
 });

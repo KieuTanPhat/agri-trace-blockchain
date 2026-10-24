@@ -17,11 +17,30 @@ export class OrganizationRecordDto {
   @ApiProperty({ enum: Enums.OrganizationType }) type!: Enums.OrganizationType;
   @ApiProperty({ enum: Enums.OrganizationStatus })
   status!: Enums.OrganizationStatus;
+  @ApiProperty({ type: Number, required: false }) version?: number;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
   @ApiProperty({ type: String, format: 'date-time' }) updatedAt!: string;
 }
 
 export class FarmRecordDto {
+  @ApiProperty({ type: String, nullable: true }) internalCode!: string | null;
+  @ApiProperty({ type: String, nullable: true }) kind!: string | null;
+  @ApiProperty({ type: String, nullable: true }) region!: string | null;
+  @ApiProperty({ type: String, nullable: true }) address!: string | null;
+  @ApiProperty({ type: String, nullable: true }) areaM2!: string | null;
+  @ApiProperty({ type: String, nullable: true }) expectedOutput!: string | null;
+  @ApiProperty({ type: String, nullable: true }) outputUnit!: string | null;
+  @ApiProperty({ type: String, nullable: true }) representative!: string | null;
+  @ApiProperty({ type: String, nullable: true }) phone!: string | null;
+  @ApiProperty({ type: String, nullable: true }) email!: string | null;
+  @ApiProperty({ enum: ['PRIVATE','PUBLIC'] }) privacy!: string;
+  @ApiProperty({ type: String, nullable: true }) otherInfo!: string | null;
+  @ApiProperty({ type: String, nullable: true }) cropCode!: string | null;
+  @ApiProperty({ type: String, isArray: true, format: 'uuid' }) inputMaterialIds!: string[];
+  @ApiProperty({ type: String, isArray: true, format: 'uuid' }) seedMaterialIds!: string[];
+  @ApiProperty({ type: String, format: 'uuid', nullable: true }) linkedSiteId!: string | null;
+  @ApiProperty() evidenceComplete!: boolean;
+  @ApiProperty() version!: number;
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
   @ApiProperty({ type: String, format: 'uuid' }) organizationId!: string;
   @ApiProperty({ type: String }) name!: string;
@@ -51,6 +70,32 @@ export class PlotRecordDto {
 }
 
 export class ProductRecordDto {
+  @ApiProperty({ type: String, nullable: true }) category!: string | null;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true }) originFarmId!: string | null;
+  @ApiProperty({ type: String, nullable: true }) price!: string | null;
+  @ApiProperty({ type: String, nullable: true }) storageConditions!: string | null;
+  @ApiProperty({ type: String, nullable: true }) ingredients!: string | null;
+  @ApiProperty({ type: String, nullable: true }) usageInstructions!: string | null;
+  @ApiProperty({ type: String, nullable: true, required: false }) rawMaterials?: string | null;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, required: false }) manufacturingSiteId?: string | null;
+  @ApiProperty({ type: String, nullable: true, required: false }) exporter?: string | null;
+  @ApiProperty({ type: String, nullable: true, required: false }) importer?: string | null;
+  @ApiProperty({ type: String, nullable: true, required: false }) distributor?: string | null;
+  @ApiProperty({ type: String, nullable: true, required: false }) carrier?: string | null;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, required: false }) managerUserId?: string | null;
+  @ApiProperty() evidenceComplete!: boolean;
+  @ApiProperty({ type: String, required: false, nullable: true }) sku?:
+    string | null;
+  @ApiProperty({ type: String, required: false, nullable: true }) gtin?:
+    string | null;
+  @ApiProperty({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+    required: false,
+  })
+  organizationId?: string | null;
+  @ApiProperty({ type: Number, required: false }) version?: number;
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
   @ApiProperty({ type: String }) productName!: string;
   @ApiProperty({ type: String, nullable: true }) variety!: string | null;
@@ -63,8 +108,12 @@ export class ProductRecordDto {
 }
 
 export class ProductionCycleRecordDto {
+    @ApiProperty({ type: String, format: 'uuid', nullable: true }) seedMaterialId!: string | null;
+    @ApiProperty({ type: String, format: 'uuid', nullable: true }) responsibleUserId!: string | null;
+    @ApiProperty({ type: String, nullable: true }) cultivationMethod!: string | null;
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
-  @ApiProperty({ type: String, format: 'uuid', nullable: true }) chainId!: string | null;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true }) chainId!:
+    string | null;
   @ApiProperty({ type: String }) cycleCode!: string;
   @ApiProperty({ type: String, format: 'uuid' }) productId!: string;
   @ApiProperty({ type: String, format: 'uuid' }) farmId!: string;
@@ -91,6 +140,10 @@ export class ProductionCycleRecordDto {
 }
 
 export class CareRecordRecordDto {
+  @ApiProperty({type:String,nullable:true}) name!:string|null;
+  @ApiProperty({type:String,nullable:true}) journalCode!:string|null;
+  @ApiProperty({type:String,format:'uuid',nullable:true}) materialId!:string|null;
+  @ApiProperty({type:Number,nullable:true}) materialVersion!:number|null;
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
   @ApiProperty({ type: String, format: 'uuid' }) cycleId!: string;
   @ApiProperty({ type: String }) careType!: string;
@@ -111,7 +164,10 @@ export class CareRecordRecordDto {
   @ApiProperty({ type: Number, nullable: true }) withdrawalPeriod!:
     number | null;
   @ApiProperty({ type: String, nullable: true }) note!: string | null;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true, required: false }) performerUserId?: string | null;
+  @ApiProperty({ type: String, nullable: true, required: false }) cropCondition?: string | null;
   @ApiProperty({ type: String, nullable: true }) evidenceRef!: string | null;
+  @ApiProperty({ type: [String], format: 'uuid' }) evidenceIds!: string[];
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
 }
 
@@ -147,24 +203,13 @@ export class SensorReadingRecordDto {
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
 }
 
-export class SensorDigestRecordDto {
-  @ApiProperty({ type: String, format: 'uuid' }) id!: string;
-  @ApiProperty({ type: String, format: 'uuid' }) cycleId!: string;
-  @ApiProperty({ type: String, format: 'date-time' }) periodStart!: string;
-  @ApiProperty({ type: String, format: 'date-time' }) periodEnd!: string;
-  @ApiProperty({ type: Number }) readingCount!: number;
-  @ApiProperty({ type: String }) digestHash!: string;
-  @ApiProperty({ type: String }) schemaVersion!: string;
-  @ApiProperty({ type: String }) canonicalizationVersion!: string;
-  @ApiProperty({ type: Boolean }) isFinal!: boolean;
-  @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
-}
-
 export class HarvestEventRecordDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
+  @ApiProperty({ type: String, nullable: true }) harvestCode!: string | null;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true }) representativeUserId!: string | null;
+  @ApiProperty({ type: String, nullable: true }) representative!: string | null;
+  @ApiProperty({ type: [String], format: 'uuid' }) evidenceIds!: string[];
   @ApiProperty({ type: String, format: 'uuid' }) cycleId!: string;
-  @ApiProperty({ type: String, format: 'uuid', nullable: true })
-  finalSensorDigestId!: string | null;
   @ApiProperty({ type: String, format: 'date-time' }) harvestTime!: string;
   @ApiProperty({
     type: String,
@@ -574,20 +619,5 @@ export class HarvestSensorWindowRecordDto {
   @ApiProperty({ type: String, format: 'date-time' }) finalizedAt!: string;
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   sealedAt!: string | null;
-  @ApiProperty({ type: String, format: 'uuid', nullable: true })
-  reconciliationId!: string | null;
 }
 
-export class CycleSensorReconciliationRecordDto {
-  @ApiProperty({ type: String, format: 'uuid' }) id!: string;
-  @ApiProperty({ type: String, format: 'uuid' }) cycleId!: string;
-  @ApiProperty({ type: Number }) revision!: number;
-  @ApiProperty({ type: String, format: 'uuid', nullable: true })
-  throughHarvestId!: string | null;
-  @ApiProperty({ type: String, format: 'date-time' }) plantedAt!: string;
-  @ApiProperty({ type: String, format: 'date-time', nullable: true })
-  cutoffEnd!: string | null;
-  @ApiProperty({ type: String, format: 'uuid' }) recordedById!: string;
-  @ApiProperty({ type: String }) reason!: string;
-  @ApiProperty({ type: String, format: 'date-time' }) recordedAt!: string;
-}

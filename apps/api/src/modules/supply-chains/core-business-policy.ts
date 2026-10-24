@@ -21,8 +21,6 @@ const CYCLE_WRITES = [
   'CLOSE_PRODUCTION_CYCLE',
   'CANCEL_PRODUCTION_CYCLE',
   'RECORD_HARVEST',
-  'CREATE_SENSOR_DIGEST',
-  'RECONCILE_CYCLE_SENSOR',
   'INGEST_SENSOR_READING',
 ];
 const LOT_WRITES = [
@@ -145,10 +143,7 @@ export async function authorizeCoreBusinessCommand(
     role = target.role;
   } else if (CYCLE_WRITES.includes(operation)) {
     subject = { kind: 'cycle', id: id('cycleId' in data ? 'cycleId' : 'id') };
-    role =
-      operation === 'RECONCILE_CYCLE_SENSOR'
-        ? 'COMPLIANCE_REVIEWER'
-        : 'FARM_STAFF';
+    role = 'FARM_STAFF';
   } else if (LOT_WRITES.includes(operation)) {
     subject = { kind: 'lot', id: id('lotId') };
     role =
@@ -256,7 +251,7 @@ export async function authorizeCoreBusinessCommand(
   return authority;
 }
 
-/** Release A ingest authenticates an internal gateway, not an enterprise
+/** Device ingest authenticates an internal gateway, not an enterprise
  * signer. Its registered binding and current stage authority remain required. */
 export async function scopedDeviceAuthority(
   db: Prisma.TransactionClient,

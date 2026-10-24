@@ -89,11 +89,9 @@ Các endpoint hiện có:
 - Refresh rotation chỉ cho một request dùng token cũ thành công. Request đồng
   thời trong 5 giây trả 409 nhưng không hủy phiên vừa được cấp; dùng lại token
   cũ sau cửa sổ này trả 401 và thu hồi nhóm phiên vì nghi token bị lộ.
-- Migration `20261009103000_refresh_session_family` phải chạy trước khi bật
-  phiên bản API này. Migration chỉ thêm `family_id` nullable và index, phù hợp
-  policy migration; không backfill hoặc đổi constraint. API mới dùng ID của hàng
-  làm family khi field này NULL. Khả năng tương thích riêng của migration này
-  không cho phép rollback qua Hybrid schema floor. JWT cũ không có `sid` bị 401; người dùng
+- Mọi refresh session thuộc một family (`family_id` bắt buộc). Migration
+  `20261213000004_require_session_family` ghi rõ family của phiên cũ bằng chính ID
+  của nó rồi đặt `NOT NULL`; API cũ tạo phiên không có family không còn chạy được. JWT cũ không có `sid` bị 401; người dùng
   web cũ cần đăng nhập lại. Khi triển khai bản cookie mới, thu hồi các refresh
   session cũ từng lưu trong `localStorage` theo kế hoạch rollout.
 - Web giữ access JWT trong bộ nhớ. Login/logout/refresh dùng chung Web Lock
