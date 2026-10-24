@@ -1,7 +1,5 @@
 export const ENTITY_TYPES = [
   "PRODUCTION_CYCLE",
-  // Older persisted API events use CYCLE; keep them relayable without rewriting their hashes.
-  "CYCLE",
   "CARE",
   "SENSOR",
   "SENSOR_DIGEST",

@@ -359,7 +359,7 @@ export class ProductionCyclesService {
         });
         for (const row of draftEvidence)
           await this.trace.createInTransaction(tx, {
-            entityType: 'CYCLE',
+            entityType: 'PRODUCTION_CYCLE',
             entityId: cycle.id,
             cycleId: cycle.id,
             eventType: 'EVIDENCE_ATTACHED',

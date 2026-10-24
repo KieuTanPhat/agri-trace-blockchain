@@ -196,7 +196,7 @@ export class EnterpriseResourcesService {
      const total=await tx.traceEvidence.aggregate({where:{organizationId:actor.organizationId!},_sum:{size:true},_count:true});
      if(total._count>=1000 || (total._sum.size??0)+content.length>256*1024*1024) throw new ConflictException('Đã đạt giới hạn lưu chứng cứ của tổ chức');
      const row=await tx.traceEvidence.create({data:{organizationId:actor.organizationId!,entityType:input.entityType,entityId:input.entityId,...context,supersedesId:input.supersedesId,fileName:safeFileName(file.originalname),mediaType:media,size:content.length,sha256:createHash('sha256').update(content).digest('hex'),content:Uint8Array.from(content),description:input.description,kind,public:input.public??false,actorId:actor.sub!}});
-     if(['LOT','CYCLE'].includes(input.entityType)) await this.trace.createInTransaction(tx,{entityType:input.entityType,entityId:input.entityId,lotId:input.entityType==='LOT'?input.entityId:undefined,cycleId:input.entityType==='CYCLE'?input.entityId:undefined,eventType:'EVIDENCE_ATTACHED',actor,businessData:{evidenceId:row.id,sha256:row.sha256,supersedesId:row.supersedesId,kind:row.kind,public:row.public}});
+     if(['LOT','CYCLE'].includes(input.entityType)) await this.trace.createInTransaction(tx,{entityType:input.entityType==='CYCLE'?'PRODUCTION_CYCLE':'LOT',entityId:input.entityId,lotId:input.entityType==='LOT'?input.entityId:undefined,cycleId:input.entityType==='CYCLE'?input.entityId:undefined,eventType:'EVIDENCE_ATTACHED',actor,businessData:{evidenceId:row.id,sha256:row.sha256,supersedesId:row.supersedesId,kind:row.kind,public:row.public}});
      return {record:{id:row.id,sha256:row.sha256,size:row.size,mediaType:row.mediaType}};
    });
  }

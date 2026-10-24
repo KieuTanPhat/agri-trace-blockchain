@@ -666,7 +666,7 @@ async function evidence(key, type, id, kind, photoKey, suffix = "") {
   const result = await response.json();
   if (!response.ok)
     throw new Error(
-      `Evidence ${type}/${kind}: ${response.status} ${JSON.stringify(result.message).slice(0, 900)}`,
+      `Evidence ${type}/${kind}: ${response.status} ${JSON.stringify(result.message ?? result.error ?? result).slice(0, 900)}`,
     );
   command.result = result.data ?? result;
   command.complete = true;
