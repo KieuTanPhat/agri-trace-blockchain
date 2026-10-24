@@ -47,8 +47,10 @@ function validateCaddy(file) {
 }
 
 function checkEvents(minimum) {
-  const output = dc(['run', '--rm', '--no-deps', '-T', '-e', 'CI_CHAINCODE_DIST=/validator',
-    '-v', `${path.join(repository, 'blockchain/chaincode/dist')}:/validator:ro`, '--entrypoint', 'node', 'api', 'deploy/ci/check-events.mjs']);
+  // Mount inside /app so the compiled chaincode resolves its dependencies
+  // (json-canonicalize) from the image's node_modules.
+  const output = dc(['run', '--rm', '--no-deps', '-T', '-e', 'CI_CHAINCODE_DIST=/app/blockchain/chaincode/dist',
+    '-v', `${path.join(repository, 'blockchain/chaincode/dist')}:/app/blockchain/chaincode/dist:ro`, '--entrypoint', 'node', 'api', 'deploy/ci/check-events.mjs']);
   const result = JSON.parse(output.trim().split('\n').at(-1));
   assert.equal(result.result, 'passed');
   assert.ok(result.checked >= minimum, 'The event check must inspect the events the smoke created');

@@ -15,9 +15,8 @@ is still undergoing validation; the rules below are requirements to preserve.
   (id/version) và capability revision của bên đó. Finalize so lại snapshot dưới
   `lockContext` và trigger `fn_hybrid_plan_state`; suspend/revoke rồi rejoin
   membership hoặc revoke/regrant capability, dù cùng ORG_ADMIN grant, đều làm
-  consent cũ mất hiệu lực. Acceptance cũ không có snapshot (trước migration
-  `20261021000000_hybrid_acceptance_epoch`) không bao giờ finalize được: cần
-  revision mới và consent mới; không sửa acceptance lịch sử.
+  consent cũ mất hiệu lực. Snapshot là bắt buộc (`NOT NULL` từ migration
+  `20261213000003_require_plan_consent_snapshot`).
 - Idempotency-Key identifies the original normalized command body. Keep the
   original body and key for retries and inspection. A positive immutable journal
   can prove commit; PROCESSING/UNKNOWN without that proof cannot execute again,
@@ -51,8 +50,9 @@ is still undergoing validation; the rules below are requirements to preserve.
 - Historical migrations and archived events keep their original bytes/hash/txId/
   channel/proof/QR trust. Fresh production imports none of this business history.
   Cleanup refuses existing business data or historical route exemptions; it never
-  rewrites hashes. New streams require an ACTIVE binding at cycle creation and
-  cannot fall back to a technical legacy stream when binding metadata is missing.
+  rewrites hashes. Every event follows its cycle's ACTIVE binding; there is no
+  technical fallback stream (release A and c1 are retired). Environments
+  without Fabric use a simulated binding, never a separate write path.
 - Public and authenticated readers fail closed for unsupported versions or scope.
   Show recall/expiry/integrity/missing-sensor warnings alongside proof state.
 - API contains no signer private key. Web signer retains a non-extractable device
@@ -67,7 +67,7 @@ concurrency, restart, restore and direct ledger verification. See
 
 New registrations start by choosing one registration role: producer/cooperative,
 processor, transporter, distributor, retailer, or a supply-chain enterprise that
-registers all five capabilities (registered legal forms only). They require a
+registers at least two of these capabilities (registered legal forms only). They require a
 five-step v2 profile, catalog-bound province/ward codes and exactly one OTP proof
 for the owner login email; the contact email is not OTP-verified. Neither the
 login email nor the contact email may match any existing account email or
@@ -182,8 +182,8 @@ keys stay on the signing device. Revoked accounts, keys, memberships or links
 block unfinished transitions. Domain writes, trace/outbox and command journal
 remain atomic. Unknown outcomes retain their original body, signature and key.
 
-A source Lot cannot have both a legacy Shipment and distribution holdings.
-Historical shipments are not converted or rewritten automatically. Legacy Lot
+A source Lot cannot have both a single Shipment and distribution holdings.
+Shipments are not converted or rewritten automatically. Shipment-flow Lot
 actions are hidden for allocated Lots. Organization-level `quantity.adjust`
 records physical sale/damage quantities and immutable movements; it does not
 create orders, payments, valuation, accounting or warehouse optimization.
@@ -507,7 +507,7 @@ Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-proc
 - Lô chế biến có `origin_type = TRANSFORMATION`, `harvest_id` rỗng và
   `processing_run_id`. Chuỗi và binding sổ cái của sự kiện lấy theo
   `origin_cycle_id` của lệnh; các đầu vào không được thuộc binding khác nhau.
-  Luồng gắn với vụ (shipment cũ, kế hoạch giao hàng, chứng nhận vụ) không nhận lô
+  Luồng gắn với vụ (shipment, kế hoạch giao hàng, chứng nhận vụ) không nhận lô
   chế biến.
 - Trang QR công khai của lô chế biến hiện lô nguyên liệu, nhà sản xuất (ẩn tên
   vùng riêng tư) và tổng cân bằng; bằng chứng cảm biến là `NOT_APPLICABLE`.

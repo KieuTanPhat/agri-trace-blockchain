@@ -1286,7 +1286,25 @@ await step("delegation", async () => {
   return true;
 });
 
+// Local Fabric is off: the ledger-simulator service binds new chains and
+// confirms requested ledger grants. Wait for it before writing events.
+async function ledgerSettled(timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const [{ unbound, pending }] = await db.$queryRaw`
+      SELECT (SELECT count(*)::int FROM supply_chain c
+                LEFT JOIN chain_ledger_profile p ON p.chain_id = c.chain_id
+               WHERE p.active_binding_digest IS NULL) AS unbound,
+             (SELECT count(*)::int FROM ledger_permission_sync
+               WHERE state IN ('REQUESTED', 'REVOKE_REQUESTED')) AS pending`;
+    if (unbound === 0 && pending === 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  throw new Error("Simulated ledger did not settle; is ledger-simulator running?");
+}
+
 const production = await step("production", async () => {
+  await ledgerSettled();
   const cycles = [],
     lots = [];
   for (const farm of resources.farms) {
