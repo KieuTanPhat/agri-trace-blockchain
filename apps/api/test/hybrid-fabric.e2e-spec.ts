@@ -458,6 +458,9 @@ interface World {
           registrationDigest: 'a'.repeat(64),
           hostingMode: 'SELF_MANAGED_ORG',
           status: 'APPROVED',
+          // This ledger suite starts after service activation; the HTTP
+          // admission/activation lifecycle is covered by its own E2E suite.
+          serviceActivatedAt: new Date(),
         },
       });
       const port = 11051 + Number(process.env.AGRI_FABRIC_PORT_OFFSET ?? 0);
@@ -593,6 +596,7 @@ interface World {
             registrationDigest: 'b'.repeat(64),
             hostingMode: 'MANAGED_ORG',
             status: 'APPROVED',
+            serviceActivatedAt: new Date(),
           },
         });
         const id = randomUUID();
