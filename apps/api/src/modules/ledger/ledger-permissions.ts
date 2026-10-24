@@ -268,6 +268,12 @@ export async function reserveEventPermission(
 ): Promise<CapturedPermission> {
   if (!actor.sub)
     throw new ConflictException('Sự kiện ledger cần người thực hiện có quyền');
+  // Only chain roles carry ledger permissions; any other role (for example a
+  // base PROCESSOR account) is refused instead of reaching the query.
+  if (!ledgerEntityTypes(actor.role as ScopedRole))
+    throw new ConflictException(
+      `Vai trò ${actor.role} không có quyền ghi ledger trong chuỗi`,
+    );
   const permission = await tx.ledgerPermission.findUnique({
     where: {
       bindingDigest_userId_role: {
