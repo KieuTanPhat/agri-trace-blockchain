@@ -292,7 +292,7 @@ export class EnterpriseWorkspaceService {
           (a) => roles.find((r) => r.id === a.roleId)?.permissions ?? [],
         );
       const businessRoles = new Set<
-        'FARM_STAFF' | 'TRANSPORTER' | 'RETAILER' | 'DISTRIBUTOR'
+        'FARM_STAFF' | 'TRANSPORTER' | 'RETAILER' | 'DISTRIBUTOR' | 'PROCESSOR'
       >();
       if (
         perms.includes('production.write') &&
@@ -302,6 +302,7 @@ export class EnterpriseWorkspaceService {
       if (perms.some((p) => p.startsWith('distribution.')))
         for (const c of caps) {
           if (c.code === 'DISTRIBUTOR') businessRoles.add('DISTRIBUTOR');
+          if (c.code === 'PROCESSOR') businessRoles.add('PROCESSOR');
           if (c.code === 'TRANSPORTER') businessRoles.add('TRANSPORTER');
           if (c.code === 'RETAILER') businessRoles.add('RETAILER');
         }

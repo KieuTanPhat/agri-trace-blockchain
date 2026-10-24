@@ -6482,7 +6482,7 @@ export interface components {
             /** Format: uuid */
             chainId?: string;
             /** @enum {string} */
-            role: "ORG_ADMIN" | "DISTRIBUTOR" | "CREATE_CHAIN" | "CHAIN_MANAGER" | "FARM_STAFF" | "TRANSPORTER" | "RETAILER" | "AUDITOR" | "COMPLIANCE_REVIEWER";
+            role: "ORG_ADMIN" | "DISTRIBUTOR" | "PROCESSOR" | "CREATE_CHAIN" | "CHAIN_MANAGER" | "FARM_STAFF" | "TRANSPORTER" | "RETAILER" | "AUDITOR" | "COMPLIANCE_REVIEWER";
             /** Format: uuid */
             userId: string;
         };

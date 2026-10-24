@@ -47,7 +47,7 @@ export const MOVEMENT_LABEL: Record<string, string> = localized({
   PROCESSING_IN: "Nhập từ chế biến",
 });
 
-export const ROLE_LABEL_BUSINESS: Record<string, string> = localized({ FARM_STAFF: "Sản xuất", TRANSPORTER: "Vận chuyển", RETAILER: "Bán lẻ" });
+export const ROLE_LABEL_BUSINESS: Record<string, string> = localized({ FARM_STAFF: "Sản xuất", TRANSPORTER: "Vận chuyển", PROCESSOR: "Chế biến", RETAILER: "Bán lẻ" });
 
 /** Loại công việc chăm sóc — Backend lưu chuỗi tự do (≤ 100 ký tự); đây là danh sách gợi ý. */
 export const CARE_TYPES = ["Tưới nước", "Bón phân", "Phun thuốc", "Làm cỏ", "Theo dõi sâu bệnh", "Khác"];

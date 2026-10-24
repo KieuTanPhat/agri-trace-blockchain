@@ -171,10 +171,11 @@ trong CD hoặc qua route quản trị.
 ### Gỡ bản A, c1 và legacy nghiệp vụ
 
 Nhánh gỡ bản A/c1 (xem [kế hoạch](plans/retire-release-a-and-legacy-2026-10-24.md))
-thêm năm migration `20261213000000`..`20261213000004`. Bốn migration đầu **từ chối**
+thêm sáu migration `20261213000000`..`20261213000005`. Bốn migration đầu **từ chối**
 database còn dữ liệu A/c1, hồ sơ doanh nghiệp không cần kích hoạt, digest cảm biến theo vụ,
 đối soát mốc cảm biến hoặc consent kế hoạch thiếu snapshot; không tự xóa hay sửa lịch sử.
-Migration cuối ghi rõ family của refresh session cũ bằng chính ID của nó rồi đặt bắt buộc.
+Migration `...04` ghi rõ family của refresh session cũ bằng chính ID của nó rồi đặt bắt buộc;
+`...05` thêm vai trò chuỗi `PROCESSOR`.
 Trước release, chủ dự án làm sạch hoặc dựng lại database production theo quyết định
 riêng, có backup phối hợp hai host. Chaincode mới bỏ `RecordTraceEvent` và đọc A/c1 nên
 cần lifecycle review trên mạng hosted. Controller đã cài phải cập nhật theo quy trình

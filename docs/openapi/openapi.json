@@ -6171,6 +6171,7 @@
             "enum": [
               "ORG_ADMIN",
               "DISTRIBUTOR",
+              "PROCESSOR",
               "CREATE_CHAIN",
               "CHAIN_MANAGER",
               "FARM_STAFF",

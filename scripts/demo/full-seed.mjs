@@ -1080,6 +1080,7 @@ const chains = await step("chains", async () => {
       );
     for (const other of [
       key,
+      "processor",
       "carrier",
       "distributor",
       "retailer",
@@ -1090,11 +1091,13 @@ const chains = await step("chains", async () => {
           ? "AUDITOR"
           : other === key
             ? "FARM_STAFF"
-            : other === "carrier"
-              ? "TRANSPORTER"
-              : other === "distributor"
-                ? "DISTRIBUTOR"
-                : "RETAILER";
+            : other === "processor"
+              ? "PROCESSOR"
+              : other === "carrier"
+                ? "TRANSPORTER"
+                : other === "distributor"
+                  ? "DISTRIBUTOR"
+                  : "RETAILER";
       if (other === "auditor") {
         const m = await api(
           actors[key],

@@ -456,7 +456,11 @@ ENFORCED. Phê duyệt SYSTEM_ADMIN_CREATE cũ không có roleCode vẫn tạo S
 
 Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-processor-plan-2026-10-19.md).
 
-- Năng lực tổ chức thêm `PROCESSOR`. Đăng ký chọn mô hình `SINGLE` (đúng một
+- Năng lực tổ chức thêm `PROCESSOR`, kèm vai trò chuỗi `PROCESSOR` (migration
+  `20261213000005_processor_chain_role`, quyền ledger cho `LOT`) để nhà chế biến
+  ghi sự kiện phân phối/chế biến qua binding như các khâu khác. Vai trò không
+  thuộc chuỗi bị từ chối 409 khi ghi ledger.
+- Đăng ký chọn mô hình `SINGLE` (đúng một
   hoạt động) hoặc `SUPPLY_CHAIN_ENTERPRISE` (tổ chức có đăng ký, ít nhất hai năng
   lực). Mỗi hoạt động tạo một `capability_request`; admin duyệt/từ chối riêng.
   Đăng ký không cấp năng lực. Duyệt sau khi đã kích hoạt cấp năng lực ngay trong

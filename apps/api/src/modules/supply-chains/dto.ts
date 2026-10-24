@@ -81,6 +81,7 @@ export class GrantRoleDto {
     enum: [
       'ORG_ADMIN',
       'DISTRIBUTOR',
+      'PROCESSOR',
       'CREATE_CHAIN',
       'CHAIN_MANAGER',
       'FARM_STAFF',
@@ -93,6 +94,7 @@ export class GrantRoleDto {
   @IsIn([
     'ORG_ADMIN',
     'DISTRIBUTOR',
+    'PROCESSOR',
     'CREATE_CHAIN',
     'CHAIN_MANAGER',
     'FARM_STAFF',
@@ -104,6 +106,7 @@ export class GrantRoleDto {
   role!:
     | 'ORG_ADMIN'
     | 'DISTRIBUTOR'
+    | 'PROCESSOR'
     | 'CREATE_CHAIN'
     | 'CHAIN_MANAGER'
     | 'FARM_STAFF'

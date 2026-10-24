@@ -4,6 +4,7 @@ import {
   recordCredential,
   registerBinding,
 } from './ledger-bindings.js';
+import { ledgerEntityTypes, requestLedgerGrant } from './ledger-permissions.js';
 
 /** Development, test and CI rehearsal only: a binding that no Fabric network
  * ever confirmed. Events on it stay PENDING because no Worker delivers them.
@@ -109,6 +110,34 @@ export async function confirmSimulatedPermissions(
   return confirmed;
 }
 
+/** Request ledger grants for chain role grants written directly to the
+ * database (operator setup, demo seed) on simulated bindings, as the API does
+ * when it grants a role. */
+export async function requestMissingSimulatedGrants(
+  tx: Prisma.TransactionClient,
+) {
+  const grants = await tx.scopedRoleGrant.findMany({
+    where: {
+      scope: 'CHAIN',
+      revokedAt: null,
+      user: { accountStatus: 'ACTIVE' },
+      chain: {
+        ledgerProfile: {
+          activeBinding: { network: SIMULATED_NETWORK },
+        },
+      },
+    },
+  });
+  let requested = 0;
+  for (const grant of grants) {
+    if (!ledgerEntityTypes(grant.role)) continue;
+    if (await tx.ledgerPermissionEpoch.findUnique({ where: { grantId: grant.id } }))
+      continue;
+    if (await requestLedgerGrant(tx, grant)) requested += 1;
+  }
+  return requested;
+}
+
 /** Bind every chain without an active binding, then confirm grants. */
 export async function simulateLedger(tx: Prisma.TransactionClient) {
   await assertSimulationAllowed(tx);
@@ -122,8 +151,10 @@ export async function simulateLedger(tx: Prisma.TransactionClient) {
     select: { id: true },
   });
   for (const chain of chains) await simulateChainBinding(tx, chain.id);
+  const requestedGrants = await requestMissingSimulatedGrants(tx);
   return {
     boundChains: chains.length,
+    requestedGrants,
     confirmedPermissions: await confirmSimulatedPermissions(tx),
   };
 }

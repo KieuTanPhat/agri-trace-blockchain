@@ -8,6 +8,7 @@ import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 
 export const BUSINESS_CAPABILITIES = {
   DISTRIBUTOR: 'DISTRIBUTOR',
+  PROCESSOR: 'PROCESSOR',
   FARM_STAFF: 'FARM',
   TRANSPORTER: 'TRANSPORTER',
   RETAILER: 'RETAILER',

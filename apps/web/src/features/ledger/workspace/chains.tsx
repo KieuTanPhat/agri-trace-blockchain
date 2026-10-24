@@ -372,7 +372,7 @@ function Grants({ chainId,ownerOrganizationId }: { chainId: string;ownerOrganiza
   const name = (id: string) => users.data?.find((u) => u.id === id)?.fullName ?? id.slice(0, 8);
   const capability=useDialog();
   const {access}=useWorkspaceAccess();
-  const businessCapability:Record<string,string>={FARM_STAFF:"FARM",TRANSPORTER:"TRANSPORTER",DISTRIBUTOR:"DISTRIBUTOR",RETAILER:"RETAILER"};
+  const businessCapability:Record<string,string>={FARM_STAFF:"FARM",TRANSPORTER:"TRANSPORTER",PROCESSOR:"PROCESSOR",DISTRIBUTOR:"DISTRIBUTOR",RETAILER:"RETAILER"};
   const eligibleRoles=platformAdmin?[...SCOPED_ROLES]:CHAIN_ROLES.filter(r=>access?.capabilities.includes(businessCapability[r]));
   const rows = (grants.data ?? []).filter((g) => !g.revokedAt && (g.chainId === chainId || platformAdmin && !g.chainId));
   const invalidate = [["scoped-grants", org], ["chain-context"]];
@@ -393,7 +393,7 @@ function Grants({ chainId,ownerOrganizationId }: { chainId: string;ownerOrganiza
               <span className="min-w-0 flex-1">{name(g.userId)}</span>
               <Badge tone="brand" dot={false}>{GRANT_LABEL[g.role] ?? g.role}</Badge>
               <span className="font-mono text-[11.5px] text-ink-2">{fmtDate(g.createdAt)}</span>
-              {(platformAdmin || ["FARM_STAFF", "TRANSPORTER", "DISTRIBUTOR", "RETAILER"].includes(g.role)) && <Button size="xs" variant="outline" onClick={() => revoke.open(g)}>{tr("Thu hồi")}</Button>}
+              {(platformAdmin || ["FARM_STAFF", "TRANSPORTER", "PROCESSOR", "DISTRIBUTOR", "RETAILER"].includes(g.role)) && <Button size="xs" variant="outline" onClick={() => revoke.open(g)}>{tr("Thu hồi")}</Button>}
             </li>
           ))}
         </ul>

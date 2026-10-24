@@ -25,6 +25,9 @@ Lập ngày 24/10/2026. Nhánh `chore/remove-legacy-ledger-writer`, tách từ
 - Bỏ field gói cước cũ (`products/setup/annual`) và bảng giá tĩnh; danh mục gói chỉ trả
   `version` (phí, kỳ hạn, hạn mức). Báo giá đã lưu giữ nguyên các khóa của nó.
 - `family_id` của refresh session bắt buộc; không còn tương thích rollback về API cũ.
+- Lỗi sẵn có lộ ra khi bỏ A: ảnh vụ ghi event `CYCLE` không vai trò nào có quyền
+  (sửa sang `PRODUCTION_CYCLE`); nhà chế biến không có vai trò chuỗi nên ký phiếu
+  phân phối lỗi 500. Chủ dự án chọn thêm vai trò chuỗi `PROCESSOR` (quyền ledger `LOT`).
 
 ## Thay đổi
 
@@ -36,7 +39,7 @@ Lập ngày 24/10/2026. Nhánh `chore/remove-legacy-ledger-writer`, tách từ
 | CI | Bỏ `fabric-smoke`, `worker-contract`, `docker-compose.ci.yml`, `fabric-ports.mjs`, output `fabric`; rehearsal dùng `simulated-ledger` và kiểm B/C bằng chaincode |
 | Deploy | Controller không còn `FABRIC_LEGACY_WRITER`, manifest chỉ bắt buộc `docker-compose.app.yml` |
 | Local | Service `ledger-simulator` trong `docker-compose.yml` |
-| Database | Migration `20261213000000`..`04`: từ chối dữ liệu cũ, rồi thêm ràng buộc/bỏ cột và bảng; refresh session bắt buộc có family |
+| Database | Migration `20261213000000`..`05`: từ chối dữ liệu cũ, rồi thêm ràng buộc/bỏ cột và bảng; refresh session bắt buộc có family |
 
 ## Acceptance
 

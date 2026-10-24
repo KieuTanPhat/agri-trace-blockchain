@@ -30,7 +30,12 @@ const once = () => prisma.$transaction((tx) => simulateLedger(tx));
 try {
   do {
     const result = await once();
-    if (!watch || result.boundChains || result.confirmedPermissions)
+    if (
+      !watch ||
+      result.boundChains ||
+      result.requestedGrants ||
+      result.confirmedPermissions
+    )
       console.log(JSON.stringify(result));
     if (watch > 0) await new Promise((resolve) => setTimeout(resolve, watch));
   } while (watch > 0);
