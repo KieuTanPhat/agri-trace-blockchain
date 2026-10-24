@@ -33,6 +33,7 @@ function run(file, args, { input, timeout = 300_000, encoding = 'utf8', quiet = 
 const checkpoint = step => { evidence.steps.push(step); console.log(`✔ ${step}`); };
 let environmentFile;
 let rehearsalDir;
+let ingressCreated = false;
 const compose = (...args) => ['compose', '--project-name', project, '--project-directory', repository, '--env-file', environmentFile,
   '-f', 'docker-compose.app.yml', '-f', 'deploy/ci/docker-compose.rehearsal.yml', ...args];
 const dc = (args, options) => run('docker', compose(...args), options);
@@ -69,7 +70,8 @@ function fixtureFor() {
 
 async function main() {
   assert.equal(process.platform, 'linux', 'The rehearsal needs a Linux Docker runner');
-  assert.ok(existsSync(path.join(repository, 'blockchain/chaincode/dist/validation.js')), 'Build blockchain/chaincode before the rehearsal');
+  for (const module of ['binding', 'signing'])
+    assert.ok(existsSync(path.join(repository, `blockchain/chaincode/dist/${module}.js`)), 'Build blockchain/chaincode before the rehearsal');
   rehearsalDir = mkdtempSync(path.join(process.env.RUNNER_TEMP ?? os.tmpdir(), 'agritrace-rehearsal-'));
   environmentFile = path.join(rehearsalDir, 'rehearsal.env');
 
@@ -96,6 +98,7 @@ async function main() {
     PUBLIC_ORIGIN: origin, CORS_ORIGINS: origin, UPSTREAM_PREFIX: 'prod', DEPLOY_ENV: 'ci',
   }).map(([key, value]) => `${key}=${value}\n`).join(''), { mode: 0o600 });
   run('docker', ['network', 'create', '--label', `agritrace.ci-rehearsal=${project}`, ingress]);
+  ingressCreated = true;
 
   const labels = ['--label', `org.opencontainers.image.revision=${process.env.GITHUB_SHA ?? 'unknown'}`, '--label', `agritrace.ci-rehearsal=${project}`];
   run('docker', ['build', ...labels, '-t', apiImage, '-f', 'apps/api/Dockerfile', '.'], { timeout: 1_200_000 });
@@ -197,7 +200,7 @@ async function cleanup() {
     });
     attempt('compose-down', () => dc(['down', '--volumes', '--remove-orphans'], { quiet: true }));
   }
-  attempt('ingress-remove', () => {
+  if (ingressCreated) attempt('ingress-remove', () => {
     const label = run('docker', ['network', 'inspect', '--format', '{{index .Labels "agritrace.ci-rehearsal"}}', ingress], { quiet: true }).trim();
     assert.equal(label, project);
     run('docker', ['network', 'rm', ingress], { quiet: true });
