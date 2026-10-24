@@ -77,6 +77,7 @@ interface World {
     let app: INestApplication;
     let jwt: JwtService;
     let productId: string;
+    let serviceActivatorId: string;
     let delivery: BindingDeliveryService;
     let control: LedgerControlService;
     let pool: BindingConnectionPool;
@@ -366,6 +367,21 @@ interface World {
 
     beforeAll(async () => {
       process.env.ENTERPRISE_ONBOARDING_ENABLED = 'true';
+      const administratorRole = await prisma.role.upsert({
+        where: { code: 'SYSTEM_ADMIN' },
+        create: { code: 'SYSTEM_ADMIN', name: 'SYSTEM_ADMIN' },
+        update: {},
+      });
+      serviceActivatorId = (
+        await prisma.user.create({
+          data: {
+            fullName: 'Fabric fixture service administrator',
+            email: `fabric-service-admin-${randomUUID()}@example.test`,
+            roleId: administratorRole.id,
+            passwordHash: 'not-a-login-fixture',
+          },
+        })
+      ).id;
       productId = (
         await prisma.product.create({
           data: { productName: 'Hybrid B vegetables', defaultUnit: 'kg' },
@@ -461,6 +477,8 @@ interface World {
           // This ledger suite starts after service activation; the HTTP
           // admission/activation lifecycle is covered by its own E2E suite.
           serviceActivatedAt: new Date(),
+          serviceActivatedBy: serviceActivatorId,
+          serviceActivationReason: 'Approved for real Fabric integration acceptance',
         },
       });
       const port = 11051 + Number(process.env.AGRI_FABRIC_PORT_OFFSET ?? 0);
@@ -597,6 +615,8 @@ interface World {
             hostingMode: 'MANAGED_ORG',
             status: 'APPROVED',
             serviceActivatedAt: new Date(),
+            serviceActivatedBy: serviceActivatorId,
+            serviceActivationReason: 'Approved for real Fabric integration acceptance',
           },
         });
         const id = randomUUID();
