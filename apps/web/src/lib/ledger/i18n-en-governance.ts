@@ -184,8 +184,6 @@ export const GOVERNANCE_EN: Record<string, string> = {
     "Review {p0} pending capabilities separately; enrollment approval does not approve capabilities",
   "một quản trị viên khác phải ghi quyết định trước khi thay đổi có hiệu lực.":
     "another administrator must decide before the change takes effect.",
-  "Đã hoạt động theo chính sách hiện hành.":
-    "Active under the applicable policy.",
   "Đã lưu mã": "Codes saved",
   "Đăng ký MFA đang chờ. Nếu chưa nhận được khóa, bạn có thể bắt đầu lại bằng mật khẩu hiện tại; khóa cũ sẽ được thay thế.":
     "MFA enrollment is pending. If the key was not received, restart with your current password; the old key will be replaced.",

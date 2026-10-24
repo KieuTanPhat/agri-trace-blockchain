@@ -256,7 +256,10 @@ const prisma = new PrismaClient({
       (await get('/enterprise-service', token).expect(200)).body.data
         .catalog as {
         version: string;
-        plans: Array<{ code: string; setup: number; annual: number }>;
+        plans: Array<{
+          code: string;
+          version: { setupFee: number; annualFee: number };
+        }>;
       };
     const catalogVersion = async (token: string) =>
       (await serviceCatalog(token)).version;
@@ -811,7 +814,9 @@ const prisma = new PrismaClient({
       // Priced from the currently published TRACE_10 version, which an
       // administrator may have re-priced since the 10.5M seed.
       const plan = catalog.plans.find((p) => p.code === 'TRACE_10')!;
-      expect(preview.quotation.total).toBe(plan.setup + plan.annual);
+      expect(preview.quotation.total).toBe(
+        plan.version.setupFee + plan.version.annualFee,
+      );
       await post(
         '/enterprise-service/orders',
         {

@@ -132,7 +132,7 @@ export class EnterpriseEnrollmentViewDto {
   @ApiProperty({type:String,nullable:true}) serviceActivationReason!: string|null;
   @ApiProperty({
     description:
-      'PENDING_REVIEW, REJECTED, SELECT_SERVICE, AWAITING_PAYMENT, ACTIVE or ACTIVE_LEGACY',
+      'PENDING_REVIEW, REJECTED, SELECT_SERVICE, AWAITING_PAYMENT, AWAITING_ACTIVATION or ACTIVE',
   })
   onboardingStage!: string;
   @ApiPropertyOptional({

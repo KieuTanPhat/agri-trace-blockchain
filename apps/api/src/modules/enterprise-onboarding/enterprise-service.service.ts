@@ -52,15 +52,14 @@ export const orderView = (r: EnterpriseServiceOrder) => ({
 });
 export const serviceStage = (r: {
   status: string;
-  activationRequired: boolean;
   serviceActivatedAt?: Date | null;
   serviceOrder?: { status: string; hostingMode: string } | null;
 }) =>
   r.status !== 'APPROVED'
     ? r.status
-    : !r.activationRequired
-      ? 'ACTIVE_LEGACY'
-      : r.serviceActivatedAt ? 'ACTIVE' : 'AWAITING_ACTIVATION';
+    : r.serviceActivatedAt
+      ? 'ACTIVE'
+      : 'AWAITING_ACTIVATION';
 /** Paying participants are producers/cooperatives and supply-chain enterprises. */
 export async function payingEnrollment(
   db: Prisma.TransactionClient,
@@ -121,12 +120,12 @@ export async function previewService(
     planVersion: plan.version.version,
     limits: plan.version.limits,
     name: plan.name,
-    products: plan.products,
+    products: plan.version.limits.products,
     termMonths: plan.version.termMonths,
     currency: 'VND',
-    setup: plan.setup,
-    annual: plan.annual,
-    total: plan.setup + plan.annual,
+    setup: plan.version.setupFee,
+    annual: plan.version.annualFee,
+    total: plan.version.setupFee + plan.version.annualFee,
     qrIncluded: false,
     peerInfrastructureIncluded: false,
     tax: 'Chưa xác định — bản mô phỏng',
@@ -136,7 +135,7 @@ export async function previewService(
     `Phiên bản điều khoản: ${SERVICE_CATALOG_VERSION}`,
     `Doanh nghiệp/chủ thể: ${org.name}. Mã số thuế: ${org.businessId ?? 'Chưa khai báo'}.`,
     `Tên thanh toán: ${input.billingName}. Địa chỉ thanh toán: ${input.billingAddress}. Email thanh toán: ${input.billingEmail}.`,
-    `Dịch vụ: ${plan.name} (phiên bản giá ${plan.version.version}), kỳ hạn ${plan.version.termMonths} tháng; hạn mức ${plan.version.limits.products} sản phẩm, ${plan.version.limits.chains} chuỗi, ${plan.version.limits.members} thành viên, ${plan.version.limits.qrLabels} tem QR mỗi kỳ. Phí khởi tạo ${plan.setup.toLocaleString('vi-VN')} VND; duy trì ${plan.annual.toLocaleString('vi-VN')} VND; tổng tham khảo ${quotation.total.toLocaleString('vi-VN')} VND.`,
+    `Dịch vụ: ${plan.name} (phiên bản giá ${plan.version.version}), kỳ hạn ${plan.version.termMonths} tháng; hạn mức ${plan.version.limits.products} sản phẩm, ${plan.version.limits.chains} chuỗi, ${plan.version.limits.members} thành viên, ${plan.version.limits.qrLabels} tem QR mỗi kỳ. Phí khởi tạo ${quotation.setup.toLocaleString('vi-VN')} VND; duy trì ${quotation.annual.toLocaleString('vi-VN')} VND; tổng tham khảo ${quotation.total.toLocaleString('vi-VN')} VND.`,
     `Mô hình peer: ${input.hostingMode === 'SELF_MANAGED_ORG' ? 'Doanh nghiệp tự vận hành peer' : 'AgriTrace quản lý peer'}. Phí QR, máy chủ/peer và thuế chưa bao gồm; cần báo giá riêng trước sử dụng thương mại.`,
     'Phạm vi: hồ sơ sản phẩm, vùng sản xuất, nhật ký, lô hàng, phân phối và truy xuất QR. Không bao gồm kế toán hoặc quản trị bán hàng.',
     'Doanh nghiệp chịu trách nhiệm về tính chính xác của dữ liệu và quản lý quyền nhân viên. Chỉ chia sẻ dữ liệu theo phạm vi được cấp. Thông tin pháp lý và liên hệ không công khai qua QR.',
@@ -162,9 +161,10 @@ export class EnterpriseServiceService {
           include: { serviceOrder: true },
         })
       : null;
-    const stage = row ? serviceStage(row) : 'ACTIVE_LEGACY';
+    // Organizations provisioned by the platform operator have no enrollment.
+    const stage = row ? serviceStage(row) : 'OPERATOR_PROVISIONED';
     const owner = row?.ownerId === actor.sub;
-    if (!['ACTIVE', 'ACTIVE_LEGACY'].includes(stage))
+    if (!['ACTIVE', 'OPERATOR_PROVISIONED'].includes(stage))
       return {
         stage,
         owner,
@@ -263,10 +263,8 @@ export class EnterpriseServiceService {
       const row = await enrollmentOwner(tx, actor, true);
       if (row.status !== 'APPROVED')
         throw new ForbiddenException('Hồ sơ chưa được duyệt');
-      if (!row.activationRequired || row.serviceOrder)
-        throw new ConflictException(
-          'Hồ sơ đã có hợp đồng hoặc đã được kích hoạt trước luồng dịch vụ này',
-        );
+      if (row.serviceOrder)
+        throw new ConflictException('Hồ sơ đã có hợp đồng dịch vụ');
       if (
         !(await payingEnrollment(
           tx,

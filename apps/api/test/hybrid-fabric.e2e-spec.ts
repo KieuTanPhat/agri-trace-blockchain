@@ -217,6 +217,7 @@ interface World {
         data: { organizationId: orgs.farm.id, name: `${label} farm` },
       });
       const chainId = await provisionChain(prisma, {
+        simulatedLedger: false,
         name: `${label} chain`,
         ownerOrganizationId: orgs.farm.id,
         memberOrganizationIds: [orgs.transporter.id, orgs.retailer.id],

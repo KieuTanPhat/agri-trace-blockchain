@@ -6,7 +6,6 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { BlockchainWorkerService } from './blockchain-worker.service.js';
 import { BindingDeliveryService } from '../ledger/binding-delivery.service.js';
 import { LedgerControlService } from '../ledger/ledger-control.service.js';
 import { HandoverExpiryService } from '../shipments/handover-expiry.service.js';
@@ -41,7 +40,6 @@ export class BlockchainWorkerRunner
   };
 
   constructor(
-    private readonly worker: BlockchainWorkerService,
     private readonly config: ConfigService,
     @Optional() private readonly bindings?: BindingDeliveryService,
     @Optional() private readonly control?: LedgerControlService,
@@ -85,15 +83,10 @@ export class BlockchainWorkerRunner
   private async runLoop(): Promise<void> {
     const interval = this.positiveNumber('FABRIC_WORKER_INTERVAL_MS', 10_000);
     while (!this.abortController.signal.aborted) {
-      // Release A writer, release B binding delivery and the ledger control
-      // plane are independent: one failing never stalls the others.
+      // Binding delivery and the ledger control plane are independent: one
+      // failing never stalls the other.
       const steps: Array<[string, () => Promise<unknown>]> = [];
       const fabricEnabled = this.state.fabricEnabled;
-      if (
-        fabricEnabled &&
-        this.config.get<string>('FABRIC_LEGACY_WRITER') !== 'false'
-      )
-        steps.push(['legacy-writer', () => this.worker.processPending()]);
       if (fabricEnabled && this.control)
         steps.push(['ledger-control', () => this.control!.processAll()]);
       if (fabricEnabled && this.bindings)

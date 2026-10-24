@@ -30,8 +30,9 @@ Mạng pilot:
 | `hybrid-self` | Org1 + Org3 | `AND(Org1 peer, Org3 peer)` |
 
 Mỗi nhóm cộng tác có channel riêng nên lịch sử không liên quan không bao giờ
-chia sẻ. Channel pilot **không** chứa lịch sử legacy; chuỗi legacy tiếp tục dùng
-route bản A.
+chia sẻ. Mọi chuỗi ghi qua binding của nó; route bản A và giao thức c1 đã gỡ,
+chaincode không còn hàm `RecordTraceEvent`. Khởi tạo channel bắt buộc
+`allowLegacyV3Writes=false` (trường giữ trong định dạng policy đã lưu).
 
 ## 2. Dựng mạng
 
@@ -76,12 +77,18 @@ bash blockchain/network/hybrid/hybrid-network.sh rotate-relayer r2
 
 ## 3. Cấu hình API/Worker
 
-API vẫn chạy được không có Fabric. Worker chỉ nối tới binding khi được cấu hình:
+API vẫn chạy được không có Fabric, nhưng mọi vụ sản xuất mới cần chuỗi có binding
+`ACTIVE`. Local, test và CI rehearsal không chạy Fabric dùng binding giả lập:
+`LEDGER_SIMULATION=1 node apps/api/dist/operator/simulated-ledger.js [--watch <ms>]`
+(service `ledger-simulator` trong `docker-compose.yml`). Công cụ gắn binding
+`simulated-ledger` cho chuỗi chưa có binding, xác nhận quyền đã yêu cầu và từ chối
+database có binding thật; sự kiện đứng `PENDING`. Không bao giờ chạy trên production.
+
+Worker chỉ nối tới binding khi được cấu hình:
 
 | Biến | Ý nghĩa |
 | --- | --- |
 | `FABRIC_BINDINGS_CONFIG` | Đường dẫn file JSON `version: 1` liệt kê kết nối theo `bindingDigest` |
-| `FABRIC_LEGACY_WRITER` | `false` để Worker không chạy writer legacy bản A |
 
 File cấu hình chỉ chứa **chi tiết kết nối** (peer, TLS, đường dẫn cert/khóa
 của relayer/controller/admin). Channel, chaincode, contract, writer MSP lấy từ
@@ -271,9 +278,10 @@ npx tsx scripts/org-signer.ts sign --key org-key.pem --intent intent.json   # in
   `"agritrace:intent-signature:c2" 0x00 JCS({intentDigest, chainRef, eventId, entityType, entityId, eventType, bindingDigest, keyRef, payloadDigest})`;
   assertion dùng `agritrace:signature-assertion:c2`. Chữ ký không thể chuyển sang
   sự kiện, thực thể, chuỗi, binding, khóa hoặc payload khác.
-- Domain c1 (envelope `5.0.0`, hash `4.0.0`, không có `payloadDigest`) chỉ còn để
-  đọc/xác minh lịch sử. Parser ghi mới từ chối thông điệp c1 (`INVALID_INPUT`);
-  Worker không ghi lại attempt c1 mà chỉ đối soát.
+- Giao thức c1 (envelope `5.0.0`, hash `4.0.0`, không có `payloadDigest`) đã gỡ:
+  API và chaincode không đọc hay ghi c1; parser từ chối thông điệp c1
+  (`INVALID_INPUT`) và database từ chối `commitment_version = 'c1'`. Chỉ domain
+  proof-of-possession của khóa vẫn là `agritrace:signing-key-pop:c1` vì c2 dùng chung.
 - Chaincode kiểm: khóa `ACTIVE` trong registry, chữ ký Ed25519, assertion khớp
   commitment, intent chỉ dùng một lần, hash chain, quyền, fence. Sự kiện
   `HANDOVER_OFFERED/CONFIRMED` **không thể** ghi bằng đường không chữ ký.

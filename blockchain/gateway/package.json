@@ -2,7 +2,7 @@
   "name": "@agri-trace/fabric-gateway",
   "version": "1.0.0",
   "private": true,
-  "description": "Fabric Gateway smoke client and Backend adapter reference",
+  "description": "Fabric Gateway connection, binding ledger client and registry operations",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,8 +21,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "runtime:load": "node -e \"require('./dist/index.js')\"",
-    "check": "npm run typecheck && npm test && npm run build && npm run runtime:load",
-    "smoke": "tsx src/smoke.ts"
+    "check": "npm run typecheck && npm test && npm run build && npm run runtime:load"
   },
   "dependencies": {
     "@grpc/grpc-js": "1.14.6",

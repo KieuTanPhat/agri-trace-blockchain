@@ -2256,22 +2256,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/iot/cycles/{cycleId}/digests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["IotController_createSensorDigest"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/iot/device-readings": {
         parameters: {
             query?: never;
@@ -4000,22 +3984,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/production-cycles/{id}/sensor-reconciliations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["ProductionCyclesController_reconcileSensor"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/production-cycles/drafts": {
         parameters: {
             query?: never;
@@ -5569,13 +5537,6 @@ export interface components {
             seedMaterialId?: string;
             startDate?: string;
         };
-        CreateSensorDigestDto: {
-            isFinal?: boolean;
-            /** Format: date-time */
-            periodEnd: string;
-            /** Format: date-time */
-            periodStart: string;
-        };
         CreateShipmentDto: {
             destination: string;
             /** Format: date-time */
@@ -5695,7 +5656,6 @@ export interface components {
             responsibleUserId: string | null;
             /** Format: uuid */
             seedMaterialId: string | null;
-            sensorDigests: components["schemas"]["SensorDigestRecordDto"][];
             sensorReadings: components["schemas"]["SensorReadingRecordDto"][];
             /** Format: date-time */
             startDate: string | null;
@@ -5749,24 +5709,6 @@ export interface components {
             cycleCode: string;
             /** Format: uuid */
             id: string;
-        };
-        CycleSensorReconciliationRecordDto: {
-            /** Format: date-time */
-            cutoffEnd: string | null;
-            /** Format: uuid */
-            cycleId: string;
-            /** Format: uuid */
-            id: string;
-            /** Format: date-time */
-            plantedAt: string;
-            reason: string;
-            /** Format: date-time */
-            recordedAt: string;
-            /** Format: uuid */
-            recordedById: string;
-            revision: number;
-            /** Format: uuid */
-            throughHarvestId: string | null;
         };
         CycleSummaryDto: {
             /** @enum {string} */
@@ -6040,7 +5982,7 @@ export interface components {
             hostingMode: string;
             /** Format: uuid */
             id: string;
-            /** @description PENDING_REVIEW, REJECTED, SELECT_SERVICE, AWAITING_PAYMENT, ACTIVE or ACTIVE_LEGACY */
+            /** @description PENDING_REVIEW, REJECTED, SELECT_SERVICE, AWAITING_PAYMENT, AWAITING_ACTIVATION or ACTIVE */
             onboardingStage: string;
             /** Format: uuid */
             organizationId: string;
@@ -6587,8 +6529,6 @@ export interface components {
             /** Format: uuid */
             cycleId: string;
             evidenceIds: string[];
-            /** Format: uuid */
-            finalSensorDigestId: string | null;
             grade: string | null;
             harvestArea: string | null;
             harvestCode: string | null;
@@ -6612,8 +6552,6 @@ export interface components {
             /** Format: uuid */
             cycleId: string;
             evidenceIds: string[];
-            /** Format: uuid */
-            finalSensorDigestId: string | null;
             grade: string | null;
             harvestArea: string | null;
             harvestCode: string | null;
@@ -6690,8 +6628,6 @@ export interface components {
             /** Format: date-time */
             periodStart: string;
             readingCount: number;
-            /** Format: uuid */
-            reconciliationId: string | null;
             schemaVersion: string;
             /** Format: date-time */
             sealedAt: string | null;
@@ -6797,7 +6733,7 @@ export interface components {
         };
         InspectCommandRequestDto: {
             /** @enum {string} */
-            operation: "EW_PROFILE_CONTACT" | "EW_PROFILE_SUBMIT" | "EW_PROFILE_WITHDRAW" | "ENTERPRISE_PROFILE_REVIEW" | "PRIVACY_REQUEST_CREATE" | "PLATFORM_PRIVACY_BREACH_CREATE" | "PLATFORM_PRIVACY_UPDATE" | "EW_CREATE_MEMBER" | "EW_INVITE_MEMBER" | "EW_REVOKE_MEMBER_INVITATION" | "EW_OWNERSHIP_PROPOSE" | "EW_OWNERSHIP_ACCEPT" | "EW_OWNERSHIP_DECLINE" | "EW_OWNERSHIP_CANCEL" | "EW_QR_PRINT" | "EW_UPDATE_MEMBER" | "EW_CHANGE_MEMBER_SUPERVISOR" | "EW_CREATE_ROLE" | "EW_UPDATE_ROLE" | "EW_DELETE_ROLE" | "EW_INVITE_PARTNER" | "EW_CREATE_EXTERNAL_PARTNER" | "EW_RESOLVE_PARTNER" | "EW_CREATE_SITE" | "EW_COMPLETE_SITE" | "EW_UPDATE_SITE" | "EW_CREATE_VEHICLE" | "EW_UPDATE_VEHICLE" | "EW_CREATE_PRODUCT" | "EW_UPDATE_PRODUCT" | "EW_REVISE_SITE" | "EW_REVISE_VEHICLE" | "EW_CREATE_MATERIAL" | "EW_UPDATE_MATERIAL" | "EW_IMPORT_PRODUCTS" | "EW_UPLOAD_EVIDENCE" | "EW_WITHDRAW_EVIDENCE" | "EW_ORDER_PRODUCT_PHOTOS" | "EW_COMPLETE_MATERIAL" | "EW_ALLOCATE" | "EW_QUARANTINE" | "EW_CASE_ACK" | "EW_CASE_RESPOND" | "EW_MESSAGE_SEND" | "EW_MESSAGE_REPLY" | "EW_MESSAGE_READ" | "EW_SITE_TRANSFER_CREATE" | "EW_SITE_TRANSFER_DISPATCH" | "EW_SITE_TRANSFER_RECEIVE" | "EW_SITE_TRANSFER_RESOLVE" | "EW_SITE_TRANSFER_CANCEL" | "DIST_RECEIPT" | "DIST_RETURN" | "DIST_RETURN_SIGN" | "DIST_RENEW_CONSENT" | "DIST_C2_PREPARE" | "DIST_C2_SUBMIT" | "EW_CREATE_FARM" | "EW_COMPLETE_FARM" | "EW_COMPLETE_PRODUCT" | "EW_CREATE_PLOT" | "EW_REGISTER_DISTRIBUTION_KEY" | "EW_REVOKE_DISTRIBUTION_KEY" | "DIST_CREATE" | "DIST_SIGN" | "DIST_CANCEL" | "DIST_OBSERVE" | "EW_TRACE_NOTICE" | "EW_DISPOSITION" | "ENTERPRISE_REVIEW" | "ENTERPRISE_ACTIVATE" | "ENTERPRISE_CONNECT" | "ENTERPRISE_CONNECTION_REVIEW" | "CREATE_PRODUCTION_CYCLE" | "EW_CREATE_CYCLE_DRAFT" | "EW_LINK_CYCLE_DRAFT" | "PLANT_PRODUCTION_CYCLE" | "RECORD_CARE" | "RECORD_SENSOR" | "INGEST_SENSOR_READING" | "INGEST_SHIPMENT_TELEMETRY" | "CLOSE_PRODUCTION_CYCLE" | "CANCEL_PRODUCTION_CYCLE" | "RECORD_HARVEST" | "CREATE_SHIPMENT" | "START_SHIPMENT" | "ARRIVE_SHIPMENT" | "RECEIVE_SHIPMENT" | "REJECT_SHIPMENT" | "DAMAGE_SHIPMENT" | "DAMAGE_LOT" | "MARK_FOR_SALE" | "MARK_SOLD" | "RECALL_LOT" | "EXPIRE_LOT" | "CREATE_INSPECTION" | "CREATE_CERTIFICATE" | "REVIEW_CERTIFICATE" | "CREATE_SENSOR_DIGEST" | "RECONCILE_CYCLE_SENSOR" | "BIND_SHIPMENT_DEVICE" | "UNBIND_SHIPMENT_DEVICE" | "CREATE_SHIPMENT_TELEMETRY_DIGEST" | "HYB_CREATE_CHAIN" | "HYB_ACTIVATE_BUSINESS_PROFILE" | "HYB_SUSPEND_BUSINESS_PROFILE" | "HYB_INVITE_MEMBERSHIP" | "HYB_ACCEPT_MEMBERSHIP" | "HYB_CHANGE_MEMBERSHIP" | "HYB_GRANT_ROLE" | "HYB_REVOKE_ROLE" | "HYB_SET_CAPABILITY" | "SCOPE_CREATE_SHIPMENT_PLAN" | "SCOPE_REVISE_SHIPMENT_PLAN" | "SCOPE_ACCEPT_SHIPMENT_PLAN" | "SCOPE_CANCEL_SHIPMENT_PLAN" | "SCOPE_FINALIZE_SHIPMENT_PLAN" | "PREPARE_HANDOVER_OFFER" | "PREPARE_HANDOVER_CONFIRM" | "SUBMIT_SIGNED_INTENT" | "REJECT_HANDOVER" | "CANCEL_HANDOVER" | "HYB_REGISTER_SIGNING_KEY" | "HYB_REVOKE_SIGNING_KEY";
+            operation: "EW_PROFILE_CONTACT" | "EW_PROFILE_SUBMIT" | "EW_PROFILE_WITHDRAW" | "ENTERPRISE_PROFILE_REVIEW" | "PRIVACY_REQUEST_CREATE" | "PLATFORM_PRIVACY_BREACH_CREATE" | "PLATFORM_PRIVACY_UPDATE" | "EW_CREATE_MEMBER" | "EW_INVITE_MEMBER" | "EW_REVOKE_MEMBER_INVITATION" | "EW_OWNERSHIP_PROPOSE" | "EW_OWNERSHIP_ACCEPT" | "EW_OWNERSHIP_DECLINE" | "EW_OWNERSHIP_CANCEL" | "EW_QR_PRINT" | "EW_UPDATE_MEMBER" | "EW_CHANGE_MEMBER_SUPERVISOR" | "EW_CREATE_ROLE" | "EW_UPDATE_ROLE" | "EW_DELETE_ROLE" | "EW_INVITE_PARTNER" | "EW_CREATE_EXTERNAL_PARTNER" | "EW_RESOLVE_PARTNER" | "EW_CREATE_SITE" | "EW_COMPLETE_SITE" | "EW_UPDATE_SITE" | "EW_CREATE_VEHICLE" | "EW_UPDATE_VEHICLE" | "EW_CREATE_PRODUCT" | "EW_UPDATE_PRODUCT" | "EW_REVISE_SITE" | "EW_REVISE_VEHICLE" | "EW_CREATE_MATERIAL" | "EW_UPDATE_MATERIAL" | "EW_IMPORT_PRODUCTS" | "EW_UPLOAD_EVIDENCE" | "EW_WITHDRAW_EVIDENCE" | "EW_ORDER_PRODUCT_PHOTOS" | "EW_COMPLETE_MATERIAL" | "EW_ALLOCATE" | "EW_QUARANTINE" | "EW_CASE_ACK" | "EW_CASE_RESPOND" | "EW_MESSAGE_SEND" | "EW_MESSAGE_REPLY" | "EW_MESSAGE_READ" | "EW_SITE_TRANSFER_CREATE" | "EW_SITE_TRANSFER_DISPATCH" | "EW_SITE_TRANSFER_RECEIVE" | "EW_SITE_TRANSFER_RESOLVE" | "EW_SITE_TRANSFER_CANCEL" | "DIST_RECEIPT" | "DIST_RETURN" | "DIST_RETURN_SIGN" | "DIST_RENEW_CONSENT" | "DIST_C2_PREPARE" | "DIST_C2_SUBMIT" | "EW_CREATE_FARM" | "EW_COMPLETE_FARM" | "EW_COMPLETE_PRODUCT" | "EW_CREATE_PLOT" | "EW_REGISTER_DISTRIBUTION_KEY" | "EW_REVOKE_DISTRIBUTION_KEY" | "DIST_CREATE" | "DIST_SIGN" | "DIST_CANCEL" | "DIST_OBSERVE" | "EW_TRACE_NOTICE" | "EW_DISPOSITION" | "ENTERPRISE_REVIEW" | "ENTERPRISE_ACTIVATE" | "ENTERPRISE_CONNECT" | "ENTERPRISE_CONNECTION_REVIEW" | "CREATE_PRODUCTION_CYCLE" | "EW_CREATE_CYCLE_DRAFT" | "EW_LINK_CYCLE_DRAFT" | "PLANT_PRODUCTION_CYCLE" | "RECORD_CARE" | "RECORD_SENSOR" | "INGEST_SENSOR_READING" | "INGEST_SHIPMENT_TELEMETRY" | "CLOSE_PRODUCTION_CYCLE" | "CANCEL_PRODUCTION_CYCLE" | "RECORD_HARVEST" | "CREATE_SHIPMENT" | "START_SHIPMENT" | "ARRIVE_SHIPMENT" | "RECEIVE_SHIPMENT" | "REJECT_SHIPMENT" | "DAMAGE_SHIPMENT" | "DAMAGE_LOT" | "MARK_FOR_SALE" | "MARK_SOLD" | "RECALL_LOT" | "EXPIRE_LOT" | "CREATE_INSPECTION" | "CREATE_CERTIFICATE" | "REVIEW_CERTIFICATE" | "BIND_SHIPMENT_DEVICE" | "UNBIND_SHIPMENT_DEVICE" | "CREATE_SHIPMENT_TELEMETRY_DIGEST" | "HYB_CREATE_CHAIN" | "HYB_ACTIVATE_BUSINESS_PROFILE" | "HYB_SUSPEND_BUSINESS_PROFILE" | "HYB_INVITE_MEMBERSHIP" | "HYB_ACCEPT_MEMBERSHIP" | "HYB_CHANGE_MEMBERSHIP" | "HYB_GRANT_ROLE" | "HYB_REVOKE_ROLE" | "HYB_SET_CAPABILITY" | "SCOPE_CREATE_SHIPMENT_PLAN" | "SCOPE_REVISE_SHIPMENT_PLAN" | "SCOPE_ACCEPT_SHIPMENT_PLAN" | "SCOPE_CANCEL_SHIPMENT_PLAN" | "SCOPE_FINALIZE_SHIPMENT_PLAN" | "PREPARE_HANDOVER_OFFER" | "PREPARE_HANDOVER_CONFIRM" | "SUBMIT_SIGNED_INTENT" | "REJECT_HANDOVER" | "CANCEL_HANDOVER" | "HYB_REGISTER_SIGNING_KEY" | "HYB_REVOKE_SIGNING_KEY";
             /** @description Payload gốc của command, gồm resource IDs như controller chuẩn hóa */
             payload: {
                 [key: string]: unknown;
@@ -7042,10 +6978,10 @@ export interface components {
             pendingControlJobs: number;
             permissions: components["schemas"]["LedgerPermissionCountsDto"];
             /**
-             * @description RELEASE_A: chuỗi chưa có binding, giữ route cũ
+             * @description UNBOUND: chuỗi chưa có binding nên chưa ghi được sự kiện
              * @enum {string}
              */
-            profile: "RELEASE_A" | "SERVICE" | "MANAGED_ORG" | "SELF_MANAGED_ORG";
+            profile: "UNBOUND" | "SERVICE" | "MANAGED_ORG" | "SELF_MANAGED_ORG";
             worker: components["schemas"]["LedgerWorkerObservationDto"];
         };
         LedgerWorkerObservationDto: {
@@ -8519,18 +8455,6 @@ export interface components {
             receivedQuantity: number;
             version: number;
         };
-        ReconcileCycleSensorDto: {
-            /** Format: date-time */
-            plantedAt: string;
-            reason: string;
-            /** Format: uuid */
-            throughHarvestId?: string;
-            version: number;
-        };
-        ReconciliationResultDto: {
-            cycleVersion: number;
-            reconciliation: components["schemas"]["CycleSensorReconciliationRecordDto"];
-        };
         RecordHarvestDto: {
             additionalEvidenceRefs?: [
             ] | [
@@ -8551,8 +8475,6 @@ export interface components {
             /** Format: uuid */
             evidenceRef: string;
             expiryDate?: string;
-            /** Format: uuid */
-            finalSensorDigestId?: string;
             grade?: string;
             harvestArea?: string;
             harvestMethod?: string;
@@ -8936,23 +8858,6 @@ export interface components {
             /** Format: uuid */
             id: string;
         };
-        SensorDigestRecordDto: {
-            canonicalizationVersion: string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: uuid */
-            cycleId: string;
-            digestHash: string;
-            /** Format: uuid */
-            id: string;
-            isFinal: boolean;
-            /** Format: date-time */
-            periodEnd: string;
-            /** Format: date-time */
-            periodStart: string;
-            readingCount: number;
-            schemaVersion: string;
-        };
         SensorEvidenceDto: {
             digestHash: string | null;
             /** Format: date-time */
@@ -8967,7 +8872,7 @@ export interface components {
              * @description NOT_APPLICABLE for lots created by processing
              * @enum {string}
              */
-            status: "FINALIZED" | "NO_DATA" | "LEGACY_UNVERIFIED" | "INTEGRITY_WARNING" | "NOT_APPLICABLE";
+            status: "FINALIZED" | "NO_DATA" | "INTEGRITY_WARNING" | "NOT_APPLICABLE";
         };
         SensorReadingDto: {
             /** Format: uuid */
@@ -9078,12 +8983,25 @@ export interface components {
             method: "LOCAL_DEMO";
             version: number;
         };
+        ServicePlanLimitsView: {
+            chains: number;
+            members: number;
+            products: number;
+            qrLabels: number;
+        };
+        ServicePlanVersionView: {
+            annualFee: number;
+            /** Format: uuid */
+            id: string;
+            limits: components["schemas"]["ServicePlanLimitsView"];
+            setupFee: number;
+            termMonths: number;
+            version: number;
+        };
         ServicePlanView: {
-            annual: number;
             code: string;
             name: string;
-            products: number;
-            setup: number;
+            version: components["schemas"]["ServicePlanVersionView"];
         };
         ServicePreviewView: {
             contractDigest: string;
@@ -28941,130 +28859,6 @@ export interface operations {
             };
         };
     };
-    IotController_createSensorDigest: {
-        parameters: {
-            query?: never;
-            header: {
-                "idempotency-key": string;
-            };
-            path: {
-                cycleId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateSensorDigestDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["SensorDigestRecordDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
     IotController_ingestForDevice: {
         parameters: {
             query?: never;
@@ -43365,130 +43159,6 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["SensorReadingResultDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    ProductionCyclesController_reconcileSensor: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReconcileCycleSensorDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["ReconciliationResultDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;

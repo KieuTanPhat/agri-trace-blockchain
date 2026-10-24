@@ -360,7 +360,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                   <EmptyState title={tr("Chưa thu hoạch")} />
                 )}
               </section>
-              <section className="flex flex-col gap-2"><h3 className="text-sm font-semibold">{tr("Cửa sổ cảm biến")}</h3>{c.harvestEvents.map(h=><Callout key={h.id} tone="info">{h.harvestCode} · {h.sensorWindow?`${fmtDateTime(h.sensorWindow.periodStart)} → ${fmtDateTime(h.sensorWindow.periodEnd)}`:tr("Chưa có cửa sổ")}</Callout>)}<p className="text-xs text-ink-2">{c.sensorReadings.length} {tr("bản ghi")} · {c.sensorDigests.length} {tr("digest")}</p></section>
+              <section className="flex flex-col gap-2"><h3 className="text-sm font-semibold">{tr("Cửa sổ cảm biến")}</h3>{c.harvestEvents.map(h=><Callout key={h.id} tone="info">{h.harvestCode} · {h.sensorWindow?`${fmtDateTime(h.sensorWindow.periodStart)} → ${fmtDateTime(h.sensorWindow.periodEnd)}`:tr("Chưa có cửa sổ")}</Callout>)}<p className="text-xs text-ink-2">{c.sensorReadings.length} {tr("bản ghi")}</p></section>
               {evidenceAccess.can("evidence.read")&&<EvidencePanel entityType="CYCLE" entityId={c.id} canManage={!!c.canWriteProduction && canEvidence && c.currentState !== "CANCELLED"} title={tr("Ảnh vụ sản xuất")} />}
             </div>
 

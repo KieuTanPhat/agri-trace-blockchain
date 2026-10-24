@@ -13,7 +13,7 @@ TARGET = dict(targets.TARGETS["production"], environment="production", project="
 
 
 def bundle(directory, extra=None, mutate=None):
-    files = {"docker-compose.app.yml": b"services: {}", "docker-compose.app-fabric.yml": b"services: {}",
+    files = {"docker-compose.app.yml": b"services: {}",
              "blockchain/chaincode/src/index.ts": b"export {}",
              "blockchain/chaincode/dist/index.js": b"module.exports={}", "apps/api/prisma/migrations/20260101000000_init/migration.sql": b"CREATE TABLE x (id INT);"}
     hashes = {name: sha256(data) for name, data in files.items()}

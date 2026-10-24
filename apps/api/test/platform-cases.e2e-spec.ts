@@ -10,6 +10,7 @@ import { ApiResponseInterceptor } from '../src/common/api/api-response.intercept
 import { GlobalExceptionFilter } from '../src/common/exception/global-exception.filter.js';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { newSessionIds } from './support/session.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -39,7 +40,7 @@ async function actorWith(code: string, orgId: string | null): Promise<Actor> {
     },
   });
   const session = await prisma.refreshSession.create({
-    data: {
+    data: { ...newSessionIds(),
       userId: user.id,
       tokenHash: randomUUID(),
       expiresAt: new Date(Date.now() + 3_600_000),

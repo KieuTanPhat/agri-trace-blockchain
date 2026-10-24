@@ -4,6 +4,7 @@ import {
   ValidationPipe,
   type INestApplication,
 } from '@nestjs/common';
+import { newSessionIds } from './support/session.js';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -77,7 +78,7 @@ describe('Chain management with real PostgreSQL authorization and command journa
         },
       });
       const session = await prisma.refreshSession.create({
-        data: {
+        data: { ...newSessionIds(),
           userId: user.id,
           tokenHash: randomUUID(),
           expiresAt: new Date(Date.now() + 3600000),

@@ -56,7 +56,6 @@ export class WorkerHealthController {
       issues.push('LEDGER_PROCESSING_DISABLED');
     if (runtime.fabricEnabled) {
       const steps = ['ledger-control', 'binding-delivery'];
-      if (this.config?.get<string>('FABRIC_LEGACY_WRITER') !== 'false') steps.push('legacy-writer');
       if (steps.some(step => !fresh(runtime.lastSuccessfulSteps[step]))) issues.push('LEDGER_HEARTBEAT_STALE');
     }
     const bindings = data.bindings.map(binding => {

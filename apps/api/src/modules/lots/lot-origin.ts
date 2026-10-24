@@ -16,7 +16,7 @@ export function lotChainId(lot: OriginLike): string | undefined {
   return lot.harvest?.cycle.chainId ?? lot.processingRun?.chainId ?? undefined;
 }
 
-/** Flows bound to a production cycle (legacy shipments, shipment plans, cycle
+/** Flows bound to a production cycle (shipments, shipment plans, cycle
  * certificates) do not accept lots created by processing. */
 export function harvestOf<H>(lot: { harvest: H | null }): H {
   if (!lot.harvest)

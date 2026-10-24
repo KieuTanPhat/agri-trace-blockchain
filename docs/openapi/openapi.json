@@ -2724,26 +2724,6 @@
         ],
         "type": "object"
       },
-      "CreateSensorDigestDto": {
-        "properties": {
-          "isFinal": {
-            "type": "boolean"
-          },
-          "periodEnd": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "periodStart": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "periodStart",
-          "periodEnd"
-        ],
-        "type": "object"
-      },
       "CreateShipmentDto": {
         "properties": {
           "destination": {
@@ -3115,12 +3095,6 @@
             "nullable": true,
             "type": "string"
           },
-          "sensorDigests": {
-            "items": {
-              "$ref": "#/components/schemas/SensorDigestRecordDto"
-            },
-            "type": "array"
-          },
           "sensorReadings": {
             "items": {
               "$ref": "#/components/schemas/SensorReadingRecordDto"
@@ -3165,7 +3139,6 @@
           "plot",
           "careRecords",
           "sensorReadings",
-          "sensorDigests",
           "certificates",
           "harvestEvents"
         ],
@@ -3332,58 +3305,6 @@
           "id",
           "cycleCode",
           "currentState"
-        ],
-        "type": "object"
-      },
-      "CycleSensorReconciliationRecordDto": {
-        "properties": {
-          "cutoffEnd": {
-            "format": "date-time",
-            "nullable": true,
-            "type": "string"
-          },
-          "cycleId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "plantedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "reason": {
-            "type": "string"
-          },
-          "recordedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "recordedById": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "revision": {
-            "type": "number"
-          },
-          "throughHarvestId": {
-            "format": "uuid",
-            "nullable": true,
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "cycleId",
-          "revision",
-          "throughHarvestId",
-          "plantedAt",
-          "cutoffEnd",
-          "recordedById",
-          "reason",
-          "recordedAt"
         ],
         "type": "object"
       },
@@ -4343,7 +4264,7 @@
             "type": "string"
           },
           "onboardingStage": {
-            "description": "PENDING_REVIEW, REJECTED, SELECT_SERVICE, AWAITING_PAYMENT, ACTIVE or ACTIVE_LEGACY",
+            "description": "PENDING_REVIEW, REJECTED, SELECT_SERVICE, AWAITING_PAYMENT, AWAITING_ACTIVATION or ACTIVE",
             "type": "string"
           },
           "organizationId": {
@@ -6401,11 +6322,6 @@
             },
             "type": "array"
           },
-          "finalSensorDigestId": {
-            "format": "uuid",
-            "nullable": true,
-            "type": "string"
-          },
           "grade": {
             "nullable": true,
             "type": "string"
@@ -6472,7 +6388,6 @@
           "representative",
           "evidenceIds",
           "cycleId",
-          "finalSensorDigestId",
           "harvestTime",
           "quantity",
           "unit",
@@ -6501,11 +6416,6 @@
               "type": "string"
             },
             "type": "array"
-          },
-          "finalSensorDigestId": {
-            "format": "uuid",
-            "nullable": true,
-            "type": "string"
           },
           "grade": {
             "nullable": true,
@@ -6555,7 +6465,6 @@
           "representative",
           "evidenceIds",
           "cycleId",
-          "finalSensorDigestId",
           "harvestTime",
           "quantity",
           "unit",
@@ -6758,11 +6667,6 @@
           "readingCount": {
             "type": "number"
           },
-          "reconciliationId": {
-            "format": "uuid",
-            "nullable": true,
-            "type": "string"
-          },
           "schemaVersion": {
             "type": "string"
           },
@@ -6787,8 +6691,7 @@
           "digestHash",
           "schemaVersion",
           "finalizedAt",
-          "sealedAt",
-          "reconciliationId"
+          "sealedAt"
         ],
         "type": "object"
       },
@@ -7234,8 +7137,6 @@
               "CREATE_INSPECTION",
               "CREATE_CERTIFICATE",
               "REVIEW_CERTIFICATE",
-              "CREATE_SENSOR_DIGEST",
-              "RECONCILE_CYCLE_SENSOR",
               "BIND_SHIPMENT_DEVICE",
               "UNBIND_SHIPMENT_DEVICE",
               "CREATE_SHIPMENT_TELEMETRY_DIGEST",
@@ -8173,9 +8074,9 @@
             "$ref": "#/components/schemas/LedgerPermissionCountsDto"
           },
           "profile": {
-            "description": "RELEASE_A: chuỗi chưa có binding, giữ route cũ",
+            "description": "UNBOUND: chuỗi chưa có binding nên chưa ghi được sự kiện",
             "enum": [
-              "RELEASE_A",
+              "UNBOUND",
               "SERVICE",
               "MANAGED_ORG",
               "SELF_MANAGED_ORG"
@@ -13601,48 +13502,6 @@
         ],
         "type": "object"
       },
-      "ReconcileCycleSensorDto": {
-        "properties": {
-          "plantedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "reason": {
-            "maxLength": 1000,
-            "minLength": 1,
-            "type": "string"
-          },
-          "throughHarvestId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "version": {
-            "minimum": 0,
-            "type": "number"
-          }
-        },
-        "required": [
-          "version",
-          "plantedAt",
-          "reason"
-        ],
-        "type": "object"
-      },
-      "ReconciliationResultDto": {
-        "properties": {
-          "cycleVersion": {
-            "type": "number"
-          },
-          "reconciliation": {
-            "$ref": "#/components/schemas/CycleSensorReconciliationRecordDto"
-          }
-        },
-        "required": [
-          "reconciliation",
-          "cycleVersion"
-        ],
-        "type": "object"
-      },
       "RecordHarvestDto": {
         "properties": {
           "additionalEvidenceRefs": {
@@ -13658,10 +13517,6 @@
             "type": "string"
           },
           "expiryDate": {
-            "type": "string"
-          },
-          "finalSensorDigestId": {
-            "format": "uuid",
             "type": "string"
           },
           "grade": {
@@ -14882,58 +14737,6 @@
         ],
         "type": "object"
       },
-      "SensorDigestRecordDto": {
-        "properties": {
-          "canonicalizationVersion": {
-            "type": "string"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "cycleId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "digestHash": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "isFinal": {
-            "type": "boolean"
-          },
-          "periodEnd": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "periodStart": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "readingCount": {
-            "type": "number"
-          },
-          "schemaVersion": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "cycleId",
-          "periodStart",
-          "periodEnd",
-          "readingCount",
-          "digestHash",
-          "schemaVersion",
-          "canonicalizationVersion",
-          "isFinal",
-          "createdAt"
-        ],
-        "type": "object"
-      },
       "SensorEvidenceDto": {
         "properties": {
           "digestHash": {
@@ -14966,7 +14769,6 @@
             "enum": [
               "FINALIZED",
               "NO_DATA",
-              "LEGACY_UNVERIFIED",
               "INTEGRITY_WARNING",
               "NOT_APPLICABLE"
             ],
@@ -15336,30 +15138,77 @@
         ],
         "type": "object"
       },
-      "ServicePlanView": {
+      "ServicePlanLimitsView": {
         "properties": {
-          "annual": {
+          "chains": {
             "type": "number"
           },
+          "members": {
+            "type": "number"
+          },
+          "products": {
+            "type": "number"
+          },
+          "qrLabels": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "products",
+          "chains",
+          "members",
+          "qrLabels"
+        ],
+        "type": "object"
+      },
+      "ServicePlanVersionView": {
+        "properties": {
+          "annualFee": {
+            "type": "number"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/ServicePlanLimitsView"
+          },
+          "setupFee": {
+            "type": "number"
+          },
+          "termMonths": {
+            "type": "number"
+          },
+          "version": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "setupFee",
+          "annualFee",
+          "termMonths",
+          "limits"
+        ],
+        "type": "object"
+      },
+      "ServicePlanView": {
+        "properties": {
           "code": {
             "type": "string"
           },
           "name": {
             "type": "string"
           },
-          "products": {
-            "type": "number"
-          },
-          "setup": {
-            "type": "number"
+          "version": {
+            "$ref": "#/components/schemas/ServicePlanVersionView"
           }
         },
         "required": [
           "code",
           "name",
-          "products",
-          "setup",
-          "annual"
+          "version"
         ],
         "type": "object"
       },
@@ -44255,183 +44104,6 @@
         ]
       }
     },
-    "/api/iot/cycles/{cycleId}/digests": {
-      "post": {
-        "operationId": "IotController_createSensorDigest",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "cycleId",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "idempotency-key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateSensorDigestDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/SensorDigestRecordDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "iot"
-        ]
-      }
-    },
     "/api/iot/device-readings": {
       "post": {
         "operationId": "IotController_ingestForDevice",
@@ -64640,183 +64312,6 @@
                   "properties": {
                     "data": {
                       "$ref": "#/components/schemas/SensorReadingResultDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "production-cycles"
-        ]
-      }
-    },
-    "/api/production-cycles/{id}/sensor-reconciliations": {
-      "post": {
-        "operationId": "ProductionCyclesController_reconcileSensor",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReconcileCycleSensorDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/ReconciliationResultDto"
                     },
                     "requestId": {
                       "type": "string"

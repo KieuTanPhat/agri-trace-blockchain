@@ -92,13 +92,4 @@ describe('AuthService refresh token rotation', () => {
       data: { revokedAt: expect.any(Date) },
     });
   });
-
-  it('uses a legacy session ID as its family without a backfill', async () => {
-    const { service, tx } = fixture({ familyId: null });
-    const result = await service.refresh({ refreshToken: 'legacy-token' });
-    expect(result.sessionId).toBe(id);
-    expect(tx.refreshSession.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ familyId: id }),
-    });
-  });
 });

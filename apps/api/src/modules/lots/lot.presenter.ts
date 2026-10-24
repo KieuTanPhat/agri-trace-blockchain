@@ -122,8 +122,7 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
       actor,
     ),
     proofStatus:
-      evidence.sensorEvidence.status === 'INTEGRITY_WARNING' ||
-      evidence.sensorEvidence.status === 'LEGACY_UNVERIFIED'
+      evidence.sensorEvidence.status === 'INTEGRITY_WARNING'
         ? 'INTEGRITY_WARNING'
         : aggregateLotProofStatus(traceEvents),
     timeline: traceEvents.map((event) => ({
@@ -208,8 +207,7 @@ export function toPublicLotDto(
         },
     allowedCommands: [],
     proofStatus:
-      evidence.sensorEvidence.status === 'INTEGRITY_WARNING' ||
-      evidence.sensorEvidence.status === 'LEGACY_UNVERIFIED'
+      evidence.sensorEvidence.status === 'INTEGRITY_WARNING'
         ? 'INTEGRITY_WARNING'
         : aggregateLotProofStatus(traceEvents),
     timeline: traceEvents.map((event) => ({

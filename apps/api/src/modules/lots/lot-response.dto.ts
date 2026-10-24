@@ -47,7 +47,7 @@ export class CycleSummaryDto {
 }
 export class SensorEvidenceDto {
   @ApiProperty({
-    enum: ['FINALIZED', 'NO_DATA', 'LEGACY_UNVERIFIED', 'INTEGRITY_WARNING', 'NOT_APPLICABLE'],
+    enum: ['FINALIZED', 'NO_DATA', 'INTEGRITY_WARNING', 'NOT_APPLICABLE'],
     description: 'NOT_APPLICABLE for lots created by processing',
   })
   status!: string;

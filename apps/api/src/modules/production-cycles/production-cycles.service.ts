@@ -15,7 +15,6 @@ import {
   commandTransaction,
   lockAggregate,
   effectiveCommandActor,
-  commandContext,
 } from '../../common/idempotency/command-transaction.js';
 import { quantity } from '../../common/quantity.js';
 import { businessTimestamp } from '../../common/timestamp.js';
@@ -44,7 +43,6 @@ import type {
   PlantCycleDto,
   SensorReadingDto,
   VersionedCommandDto,
-  ReconcileCycleSensorDto,
   CreateProductionCycleDraftDto,
   LinkProductionCycleDraftDto,
 } from './dto.js';
@@ -95,7 +93,6 @@ export class ProductionCyclesService {
         plot: true,
         careRecords: { orderBy: { eventTime: 'asc' } },
         sensorReadings: { orderBy: { recordedAt: 'desc' }, take: 100 },
-        sensorDigests: { orderBy: { periodEnd: 'desc' } },
         certificates: true,
         harvestEvents: {
           where: { lot: { is: scopedLotReadWhere(actor) } },
@@ -278,22 +275,19 @@ export class ProductionCyclesService {
         throw new UnprocessableEntityException(
           'Dữ liệu nông trại/sản phẩm/thửa đất không còn hợp lệ',
         );
-      // A stream keeps its birth binding for life. Hosted-only production must
-      // reject an unbound stream before any domain or trace/outbox write.
-      if (process.env.FABRIC_LEGACY_WRITER === 'false')
-        await tx.$queryRaw`SELECT chain_id FROM chain_ledger_profile WHERE chain_id = ${input.chainId}::uuid FOR SHARE`;
+      // A stream keeps its birth binding for life: reject an unbound stream
+      // before any domain or trace/outbox write.
+      await tx.$queryRaw`SELECT chain_id FROM chain_ledger_profile WHERE chain_id = ${input.chainId}::uuid FOR SHARE`;
       const bindingDigest = await activeChainBindingDigest(tx, input.chainId);
-      if (process.env.FABRIC_LEGACY_WRITER === 'false' && !bindingDigest)
+      if (!bindingDigest)
         throw new ConflictException(
           'Chuỗi cần binding Fabric hoạt động trước khi tạo vụ sản xuất',
         );
-      if (process.env.FABRIC_LEGACY_WRITER === 'false' && bindingDigest) {
-        const states = await tx.$queryRaw<
-          Array<{ status: string }>
-        >`SELECT status::text AS status FROM fabric_binding_state WHERE binding_digest = ${bindingDigest} FOR SHARE`;
-        if (states[0]?.status !== 'ACTIVE')
-          throw new ConflictException('Binding Fabric chưa hoạt động');
-      }
+      const states = await tx.$queryRaw<
+        Array<{ status: string }>
+      >`SELECT status::text AS status FROM fabric_binding_state WHERE binding_digest = ${bindingDigest} FOR SHARE`;
+      if (states[0]?.status !== 'ACTIVE')
+        throw new ConflictException('Binding Fabric chưa hoạt động');
       const cycle = await tx.productionCycle.create({
         data: {
           ...(fromDraft ? { id: fromDraft.id } : {}),
@@ -322,12 +316,11 @@ export class ProductionCyclesService {
           note: input.note,
         },
       });
-      // Release B: a cycle created while its chain has an ACTIVE binding is a
-      // B stream for life (route, commitment and permissions follow the binding).
-      if (bindingDigest)
-        await tx.cycleLedgerContext.create({
-          data: { cycleId: cycle.id, chainId: input.chainId, bindingDigest },
-        });
+      // The cycle stays on this binding for life (route, commitment and
+      // permissions follow the binding).
+      await tx.cycleLedgerContext.create({
+        data: { cycleId: cycle.id, chainId: input.chainId, bindingDigest },
+      });
       await tx.stageAssignment.create({
         data: {
           chainId: input.chainId,
@@ -402,17 +395,10 @@ export class ProductionCyclesService {
     await this.access.assertProductionCycleAccess(actor, id);
     return commandTransaction(this.prisma, async (tx) => {
       await lockAggregate(tx, 'cycle', id);
-      const plantedAt =
-        (await plantedTime(tx, id)) ??
-        (
-          await tx.cycleSensorReconciliation.findFirst({
-            where: { cycleId: id },
-            orderBy: { revision: 'desc' },
-          })
-        )?.plantedAt;
+      const plantedAt = await plantedTime(tx, id);
       if (!plantedAt)
         throw new ConflictException(
-          'Cần đối soát mốc trồng trước khi ghi chăm sóc',
+          'Chu kỳ cần mốc trồng trước khi ghi chăm sóc',
         );
       const eventTime = businessTimestamp(
         input.eventTime,
@@ -570,102 +556,6 @@ export class ProductionCyclesService {
       });
       const late = await markLateReading(tx, reading);
       return { ...reading, late };
-    });
-  }
-
-  async reconcileSensorHistory(
-    id: string,
-    input: ReconcileCycleSensorDto,
-    actor: Actor,
-  ) {
-    const reviewer =
-      commandContext.getStore()?.input.businessActor?.role ===
-      'COMPLIANCE_REVIEWER';
-    actor = effectiveCommandActor(actor);
-    if ((!reviewer && actor.role !== 'SYSTEM_ADMIN') || !actor.sub)
-      throw new ForbiddenException(
-        'Không có quyền ghi đối soát sensor hiện hành',
-      );
-    return commandTransaction(this.prisma, async (tx) => {
-      await lockAggregate(tx, 'cycle', id);
-      const cycle = await tx.productionCycle.findUnique({ where: { id } });
-      if (!cycle) throw new NotFoundException('Không tìm thấy vụ sản xuất');
-      if (
-        cycle.version !== input.version ||
-        !['PLANTED', 'GROWING'].includes(cycle.currentState)
-      )
-        throw new ConflictException('Version/trạng thái chu kỳ đã thay đổi');
-      if (await tx.harvestSensorWindow.count({ where: { cycleId: id } }))
-        throw new ConflictException(
-          'Không thay đổi mốc legacy sau khi đã finalize window mới',
-        );
-      const legacy = await tx.harvestEvent.findMany({
-        where: { cycleId: id },
-        orderBy: [{ harvestTime: 'desc' }, { id: 'desc' }],
-        include: { finalSensorDigest: true },
-      });
-      const last = legacy[0];
-      if ((input.throughHarvestId ?? null) !== (last?.id ?? null))
-        throw new ConflictException(
-          'Cần đối soát đến đúng harvest legacy cuối cùng',
-        );
-      const start = businessTimestamp(input.plantedAt, 'Mốc trồng đối soát');
-      const known = await plantedTime(tx, id);
-      if (
-        !Number.isFinite(start.getTime()) ||
-        start.getTime() > Date.now() ||
-        (last && start >= last.harvestTime) ||
-        (known && start.getTime() !== known.getTime()) ||
-        legacy.some(
-          (harvest) =>
-            harvest.harvestTime < start ||
-            harvest.harvestTime.getTime() > Date.now(),
-        ) ||
-        !input.reason.trim()
-      )
-        throw new UnprocessableEntityException(
-          'Mốc trồng/cutoff/lý do đối soát không hợp lệ',
-        );
-      const previous = await tx.cycleSensorReconciliation.aggregate({
-        where: { cycleId: id },
-        _max: { revision: true },
-      });
-      const record = await tx.cycleSensorReconciliation.create({
-        data: {
-          cycleId: id,
-          revision: (previous._max.revision ?? 0) + 1,
-          throughHarvestId: last?.id,
-          plantedAt: start,
-          cutoffEnd: last?.harvestTime,
-          recordedById: actor.sub!,
-          reason: input.reason.trim(),
-        },
-      });
-      await this.trace.createInTransaction(tx, {
-        entityType: 'PRODUCTION_CYCLE',
-        entityId: id,
-        cycleId: id,
-        eventType: 'CORRECTION_RECORDED',
-        actor,
-        businessData: {
-          reconciliationId: record.id,
-          revision: record.revision,
-          plantedAt: start.toISOString(),
-          cutoffEnd: record.cutoffEnd?.toISOString() ?? null,
-          throughHarvestId: record.throughHarvestId,
-          reason: record.reason,
-          legacySources: legacy.map((harvest) => ({
-            harvestId: harvest.id,
-            finalSensorDigestId: harvest.finalSensorDigestId,
-            digestHash: harvest.finalSensorDigest?.digestHash ?? null,
-          })),
-        },
-      });
-      await tx.productionCycle.update({
-        where: { id },
-        data: { version: { increment: 1 } },
-      });
-      return { reconciliation: record, cycleVersion: cycle.version + 1 };
     });
   }
 

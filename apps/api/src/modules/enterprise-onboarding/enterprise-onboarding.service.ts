@@ -337,7 +337,6 @@ export async function registerEnterprise(
           registrationDigest: digest,
           businessId: normalized.businessId,
           hostingMode: input.hostingMode,
-          activationRequired: true,
         },
       });
       // Encrypted like OTP mail; the Worker clears the ciphertext once sent.
@@ -518,7 +517,6 @@ export async function authorizeEnterpriseCommand(
     enrollment: enrollment.id,
     grant: serviceCommand ? null : (grant?.id ?? null),
     revision: serviceCommand ? null : (grant?.revision ?? null),
-    activationRequired: enrollment.activationRequired,
   });
 }
 
@@ -752,17 +750,9 @@ export class EnterpriseOnboardingService {
         subjectId: id,
         organizationId: row.organizationId,
         reason: input.note,
-        details: {
-          version: input.version,
-          // Legacy enrollments that need no activation receive their business
-          // capabilities and ORG_ADMIN/CREATE_CHAIN grants in this same step.
-          businessAuthorityGranted:
-            input.decision === 'APPROVE' && !row.activationRequired,
-        },
+        // Business capabilities and grants follow service activation.
+        details: { version: input.version },
       });
-      if (input.decision === 'APPROVE') {
-        if (!row.activationRequired) await grantEnterpriseBusiness(tx, row);
-      }
       const profile = await tx.enterpriseProfile.findUnique({
         where: { organizationId: row.organizationId },
       });
@@ -809,10 +799,7 @@ export class EnterpriseOnboardingService {
         where: { ownerId: actor.sub! },
         include: { serviceOrder: true },
       });
-      if (
-        enrollment.activationRequired &&
-        !enrollment.serviceActivatedAt
-      )
+      if (!enrollment.serviceActivatedAt)
         throw new ForbiddenException(
           'Dịch vụ cần được admin kích hoạt trước khi cấu hình peer',
         );
@@ -978,8 +965,7 @@ export async function reviewCapabilityTx(
   if (changed.count !== 1)
     throw new ConflictException('Yêu cầu đã được xử lý; tải lại trạng thái');
   const active =
-    enrollment.status === 'APPROVED' &&
-    (!enrollment.activationRequired || !!enrollment.serviceActivatedAt);
+    enrollment.status === 'APPROVED' && !!enrollment.serviceActivatedAt;
   let granted = false;
   if (input.decision === 'APPROVE' && active) {
     const key = {

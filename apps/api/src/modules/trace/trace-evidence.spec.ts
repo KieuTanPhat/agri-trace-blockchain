@@ -64,7 +64,8 @@ const base = {
   canonicalizationVersion: 'RFC8785',
 };
 
-function releaseA(): EvidenceEvent {
+/** A retired release-A shape: plain V2 hash, no binding commitment. */
+function retiredReleaseA(): EvidenceEvent {
   const event = {
     ...base,
     businessData: { note: 'plain' },
@@ -76,7 +77,7 @@ function releaseA(): EvidenceEvent {
 const permissions = [{ permissionRef: u(5), epoch: 1, ordinal: 1n }];
 const bindingContext = (
   privateDigest: string,
-  version: 'b1' | 'c1' | 'c2',
+  version: 'b1' | 'c2',
 ) => ({
   bindingDigest: BINDING,
   privateBodyDigest: privateDigest,
@@ -127,11 +128,10 @@ function releaseC(
     payload: IntentPayload;
     signature: string;
   }) => void = () => undefined,
-  c2 = false,
 ) {
   const payload: IntentPayload = { handoverId: u(40), quantity: '100.000' };
   const intent: IntentBody = {
-    protocol: c2 ? 'agritrace-intent/2' : 'agritrace-intent/1',
+    protocol: 'agritrace-intent/2',
     intentId: u(30),
     chainRef: CHAIN_REF,
     bindingDigest: BINDING,
@@ -143,12 +143,9 @@ function releaseC(
     eventId: base.id,
     eventType: base.eventType,
     expectedVersion: '3',
-    payloadDigest: payloadDigest(
-      payload,
-      c2 ? 'agritrace-intent/2' : 'agritrace-intent/1',
-    ),
+    payloadDigest: payloadDigest(payload),
     notAfter: '2026-10-14T00:00:00.000Z',
-    policyVersion: c2 ? '2' : '1',
+    policyVersion: '2',
   };
   const signature = signer.signIntent(intent);
   const parts = { intent, payload, signature };
@@ -158,7 +155,7 @@ function releaseC(
     keyRef: u(20),
     intentDigest: intentDigest(parts.intent),
     signature: parts.signature,
-    ...(c2 ? { payloadDigest: parts.intent.payloadDigest } : {}),
+    payloadDigest: parts.intent.payloadDigest,
   };
   const event = {
     ...base,
@@ -182,75 +179,47 @@ function releaseC(
     algorithm: 'Ed25519',
     key: { publicKey: signer.publicKey, organizationId: u(10) },
   };
-  const content = c2
-    ? {
-        payloadDigest: parts.intent.payloadDigest,
-        metadataDigest: signedMetadataDigest(event),
-        assertionDigest: sidecar.assertionDigest,
-      }
-    : null;
-  const digest = content
-    ? signedPrivateBodyDigest(content)
-    : privateBodyDigest(event);
+  const content = {
+    payloadDigest: parts.intent.payloadDigest,
+    metadataDigest: signedMetadataDigest(event),
+    assertionDigest: sidecar.assertionDigest,
+  };
+  const digest = signedPrivateBodyDigest(content);
   return {
     ...event,
-    schemaVersion: c2 ? '5.0.0' : '4.0.0',
+    schemaVersion: '5.0.0',
     dataHash: signedBindingEventCommitment(publicContext(), digest, {
       ...sidecar,
       ...content,
     }),
     bindingContext: {
-      ...bindingContext(digest, c2 ? 'c2' : 'c1'),
+      ...bindingContext(digest, 'c2'),
       event: { actorSignature: sidecar },
     },
   } as EvidenceEvent;
 }
 
 describe('Version-dispatched trace evidence', () => {
-  it('verifies release A (2.0.0) and B (3.0.0) events unchanged', () => {
-    expect(privateTraceEvidenceMatches(releaseA())).toBe(true);
+  it('verifies B (3.0.0) events and rejects the retired release-A shape', () => {
     expect(privateTraceEvidenceMatches(releaseB())).toBe(true);
+    expect(privateTraceEvidenceMatches(retiredReleaseA())).toBe(false);
   });
 
   it('fails closed on unknown versions and on non-fingerprint actor evidence', () => {
     expect(
-      privateTraceEvidenceMatches({ ...releaseA(), schemaVersion: '9.0.0' }),
+      privateTraceEvidenceMatches({ ...releaseB(), schemaVersion: '9.0.0' }),
     ).toBe(false);
-    // A real signature is never accepted through the legacy fingerprint field.
-    const forged = { ...releaseA(), actorAuthProof: 'signature'.repeat(10) };
+    // A real signature is never accepted through the fingerprint field.
+    const forged = { ...releaseB(), actorAuthProof: 'signature'.repeat(10) };
     expect(privateTraceEvidenceMatches(forged)).toBe(false);
   });
 
   it('verifies a signed release-C event end to end', () => {
     expect(privateTraceEvidenceMatches(releaseC())).toBe(true);
-    expect(privateTraceEvidenceMatches(releaseC(undefined, true))).toBe(true);
-  });
-
-  it('rejects a relayer changing business content and recomputing both hashes with the original signature', () => {
-    const event = releaseC();
-    const tampered = {
-      ...event,
-      businessData: {
-        ...(event.businessData as Record<string, unknown>),
-        quantity: '999.000',
-      },
-    };
-    const digest = privateBodyDigest(tampered);
-    const stored = event.bindingContext!.event!.actorSignature!;
-    tampered.bindingContext = {
-      ...event.bindingContext!,
-      privateBodyDigest: digest,
-    };
-    tampered.dataHash = signedBindingEventCommitment(
-      publicContext(),
-      digest,
-      stored,
-    );
-    expect(privateTraceEvidenceMatches(tampered)).toBe(false);
   });
 
   it('rejects substituted c2 business content even when a relayer recomputes every commitment', () => {
-    const event = releaseC(undefined, true);
+    const event = releaseC();
     const tampered = {
       ...event,
       businessData: {

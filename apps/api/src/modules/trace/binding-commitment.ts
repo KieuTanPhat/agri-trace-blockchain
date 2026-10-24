@@ -3,8 +3,7 @@ import { canonicalize } from 'json-canonicalize';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import { calculateTraceEventHash, type TraceHashInput } from './trace-hash.js';
 
-/** Release B commitments (hybrid design B0). Release A events keep envelope
- * 3.0.0 / hash 2.0.0 untouched; these versions apply to B streams only. */
+/** Release B commitments (hybrid design B0). */
 export const BINDING_PROTOCOL = 'agritrace-fabric-binding/1';
 export const B_ENVELOPE_VERSION = '4.0.0';
 export const B_SCHEMA_VERSION = '3.0.0';
@@ -93,7 +92,7 @@ export type BindingEventContext = {
   permissions: PermissionRef[];
 };
 
-/** Digest of the private body: exactly the release-A V2 canonical shape, so
+/** Digest of the private body: the V2 canonical shape (hash 2.0.0), so
  * API, Worker and operators recompute it from the stored private row. */
 export function privateBodyDigest(event: TraceHashInput): string {
   return calculateTraceEventHash({

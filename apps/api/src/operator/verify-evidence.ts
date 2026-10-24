@@ -1,6 +1,6 @@
 /**
  * Re-verifies every stored trace event from the database alone: pinned route,
- * stored proof, version-dispatched private hash (release A, B and the release-C
+ * stored proof, version-dispatched private hash (release B and the release-C
  * organization signatures) and sensor evidence. Use it after a restore:
  *
  *   DATABASE_URL=<restored copy> node dist/operator/verify-evidence.js [--chain <uuid>]

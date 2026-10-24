@@ -3,7 +3,6 @@ import { ProductionCycleRecordDto } from '../../common/api/record.dto.js';
 import {
   CycleListDto,
   CycleDetailDto,
-  ReconciliationResultDto,
   CareResultDto,
   SensorReadingResultDto,
 } from '../../common/api/response.dto.js';
@@ -33,7 +32,6 @@ import {
   PlantCycleDto,
   SensorReadingDto,
   VersionedCommandDto,
-  ReconcileCycleSensorDto,
   CreateProductionCycleDraftDto,
   LinkProductionCycleDraftDto,
   ProductionCycleDraftListDto,
@@ -162,21 +160,6 @@ export class ProductionCyclesController {
   ) {
     return this.run('PLANT_PRODUCTION_CYCLE', key, req, { id, ...dto }, () =>
       this.service.plant(id, dto, req.user),
-    );
-  }
-  @ApiDataResponse(ReconciliationResultDto, 201)
-  @Roles('SYSTEM_ADMIN')
-  @CommandPolicy('COMPLIANCE_REVIEWER')
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @Post(':id/sensor-reconciliations')
-  reconcileSensor(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ReconcileCycleSensorDto,
-    @IdempotencyKey() key: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return this.run('RECONCILE_CYCLE_SENSOR', key, req, { id, ...dto }, () =>
-      this.service.reconcileSensorHistory(id, dto, req.user),
     );
   }
   @ApiDataResponse(CareResultDto, 201)

@@ -114,8 +114,7 @@ export async function enterpriseAuthority(
     user.organization?.status !== 'ACTIVE' ||
     (user.organization.enterpriseEnrollment &&
       (user.organization.enterpriseEnrollment.status !== 'APPROVED' ||
-        (user.organization.enterpriseEnrollment.activationRequired &&
-          !user.organization.enterpriseEnrollment.serviceActivatedAt)))
+        !user.organization.enterpriseEnrollment.serviceActivatedAt))
   )
     throw new ForbiddenException(
       'Doanh nghiệp chưa được duyệt hoặc tài khoản đã bị thu hồi',

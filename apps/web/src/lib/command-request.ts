@@ -161,7 +161,7 @@ export function commandRequest(
     return result("HYB_ACTIVATE_BUSINESS_PROFILE", { chainId: activation[1] });
   let m = match(
     path,
-    `/production-cycles/(${uuid})/(plant|care|sensor-readings|close|cancel|harvests|sensor-reconciliations)`,
+    `/production-cycles/(${uuid})/(plant|care|sensor-readings|close|cancel|harvests)`,
   );
   if (m && method === "POST") {
     const operations: Record<string, Operation> = {
@@ -171,7 +171,6 @@ export function commandRequest(
       close: "CLOSE_PRODUCTION_CYCLE",
       cancel: "CANCEL_PRODUCTION_CYCLE",
       harvests: "RECORD_HARVEST",
-      "sensor-reconciliations": "RECONCILE_CYCLE_SENSOR",
     };
     return result(
       operations[m[2]],
@@ -260,9 +259,6 @@ export function commandRequest(
       { shipmentId: m[1] },
       String(data.deviceId ?? ""),
     );
-  m = match(path, `/iot/cycles/(${uuid})/digests`);
-  if (m && method === "POST")
-    return result("CREATE_SENSOR_DIGEST", { cycleId: m[1] });
   m = match(
     path,
     `/iot/shipments/(${uuid})/(devices|telemetry-digests)(?:/(${uuid})/unbind)?`,

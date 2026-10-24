@@ -40,8 +40,7 @@ const PARTY = {
 } as const;
 
 /** A consent stays valid only for the exact grant, chain membership epoch and
- * party capability revision it was given under. A NULL snapshot is legacy
- * consent (before G01) and never finalizes; revise and accept again. */
+ * party capability revision it was given under. */
 function consentEpochChanged(
   consent: ShipmentPlanAcceptance,
   current: Awaited<ReturnType<typeof authorizePlanAcceptance>>,
@@ -49,7 +48,6 @@ function consentEpochChanged(
   return (
     consent.grantId !== current.grant.id ||
     consent.grantRevision !== current.grant.revision ||
-    consent.membershipId === null ||
     consent.membershipId !== current.membership.id ||
     consent.membershipVersion !== current.membership.version ||
     consent.capabilityRevision !== current.capability.revision

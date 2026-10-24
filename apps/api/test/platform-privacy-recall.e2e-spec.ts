@@ -25,6 +25,7 @@ import { AuthService } from '../src/modules/auth/auth.service.js';
 import { lockPlatformAudit } from '../src/modules/platform-governance/platform-audit.js';
 import { rotatePlatformSecrets } from '../src/modules/platform-governance/platform-secret-rotation.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { newSessionIds } from './support/session.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -104,7 +105,7 @@ async function actor(code: string): Promise<Actor> {
   });
   fixtureUserIds.push(user.id);
   const session = await prisma.refreshSession.create({
-    data: {
+    data: { ...newSessionIds(),
       userId: user.id,
       tokenHash: randomUUID(),
       expiresAt: new Date(Date.now() + 3_600_000),

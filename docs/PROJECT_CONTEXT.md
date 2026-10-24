@@ -8,9 +8,9 @@ current AGT issues and the approved Hybrid plan define acceptance and ownership.
 
 The model is `ProductionCycle → HarvestEvent → Lot → Shipment`. A cycle supports
 multiple harvests; each harvest creates its own Lot, QR, quantity movement, sensor
-window, trace event and outbox in one transaction. A Lot uses either its legacy
-single Shipment or the new organization holdings and multi-line distribution
-transfers, never both. Each distribution line keeps its original source Lot;
+window, trace event and outbox in one transaction. A Lot uses either a single
+Shipment (signed handover, transport IoT and shipment plan) or the organization
+holdings and multi-line distribution transfers, never both. Each distribution line keeps its original source Lot;
 splitting quantities does not create mixed or transformed Lots. Both paths retain
 an append-only quantity/custody history. Corrections append new evidence;
 existing hashed or signed data must not be edited.
@@ -60,15 +60,17 @@ scope, B immutable Fabric binding/permission registry and C independent Ed25519
 handover signatures. Baseline migrations number 17; the 14 migrations from main
 are unchanged. Repairs append migrations rather than changing these inputs.
 
-- A uses envelope 3.0.0 / private hash 2.0.0.
+- A (envelope 3.0.0 / private hash 2.0.0) and c1 are retired: source, chaincode
+  and Gateway no longer write or read them, and migration
+  `20261213000000_retire_release_a_and_c1` refuses a database that still holds
+  them. Every event needs an ACTIVE chain binding.
 - B uses envelope 4.0.0 / private hash 3.0.0 and an immutable logical binding.
 - New C writes use c2 envelope 6.0.0 / private hash 5.0.0 and intent protocol 2.
   The organization signature binds the business payload digest; ledger validation
   reconstructs the private commitment from payload, metadata and assertion
   digests. API/SQL/Worker require actual business content to equal the signed
-  payload. Historical c1 (5.0.0 / 4.0.0) remains readable with stricter content
-  checks and unchanged hashes; new c1 writes are disabled. This source change
-  does not establish deployment acceptance on the production VPS.
+  payload. This source change does not establish deployment acceptance on the
+  production VPS.
   Custody on a DUAL_SIGNED shipment
   changes only after matching offer and confirmation. C does not silently fall
   back when signer, registry, peer or orderer is unavailable.

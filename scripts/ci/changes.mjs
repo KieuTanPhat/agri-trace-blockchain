@@ -19,21 +19,21 @@ const sharedFiles = new Set([
 ]);
 
 export function classifyChanges(files, force = false) {
-  const result = { api: force, web: force, containers: force, blockchain: force, fabric: force, hybrid: force };
+  const result = { api: force, web: force, containers: force, blockchain: force, hybrid: force };
   for (const file of files) {
     if (file.startsWith('docs/openapi/') || file === 'apps/web/src/lib/generated/api.d.ts') {
-      result.api = result.web = result.containers = result.fabric = result.hybrid = true;
+      result.api = result.web = result.containers = result.hybrid = true;
     }
     if (sharedFiles.has(file) || file.startsWith('.github/') || file.startsWith('scripts/ci/') || file.startsWith('deploy/')) {
       for (const key of Object.keys(result)) result[key] = true;
     }
     if (file.startsWith('apps/api/') || file.startsWith('blockchain/gateway/')) {
-      result.api = result.containers = result.fabric = result.hybrid = true;
+      result.api = result.containers = result.hybrid = true;
     }
     if (file.startsWith('apps/web/')) result.web = result.containers = result.hybrid = true;
-    if (file.startsWith('blockchain/')) result.blockchain = result.fabric = result.hybrid = true;
+    if (file.startsWith('blockchain/')) result.blockchain = result.hybrid = true;
     if (/^docker-compose(?:\.[^/]+)?\.ya?ml$/.test(file)) {
-      result.containers = result.fabric = result.hybrid = true;
+      result.containers = result.hybrid = true;
     }
   }
   return result;

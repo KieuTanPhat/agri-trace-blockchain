@@ -168,24 +168,18 @@ từng cặp khóa để xác định khóa đang giải mã được; không t�
 restore riêng database sau khi ledger đã có ghi. Không chạy công cụ này tự động
 trong CD hoặc qua route quản trị.
 
-### Nâng giao thức chữ ký c1 lên c2
+### Gỡ bản A, c1 và legacy nghiệp vụ
 
-Bản sửa ràng buộc nội dung dùng intent protocol 2, envelope 6.0.0 / private hash
-5.0.0. Review migration append-only `20261019000000_signed_content_commitment`
-và checksum theo quy trình hiện hành. Giữ writers đóng khi nâng chaincode, API,
-Worker và Web; kiểm HealthCheck có write version 6.0.0 trước khi mở lại. Worker
-từ chối writer chỉ hỗ trợ c1. Khóa Ed25519/PoP và binding không đổi.
-
-Trước rollout, kiểm kê intent c1 PENDING, outbox c1 và delivery attempts. Intent
-chưa gửi cần chuẩn bị lại; command đã gửi/kết quả chưa rõ phải giữ original key,
-đối soát proof/attempt/fence. Worker có thể xác nhận proof c1 đã commit và khớp
-toàn bộ bằng chứng; c1 chưa commit sau đối soát dừng ở dead letter, cần rà soát.
-Không rehash, sửa payload/chữ ký lịch sử hoặc tự gửi lại bằng event/key mới.
-Kiểm bằng chứng lịch sử không còn khớp nội dung và xử lý theo quy trình reconcile.
-
-Smoke bản mới phải gồm đổi quantity nhưng giữ chữ ký, tính lại commitment, thử
-ghi c1 và ghi B không chữ ký cho handover: tất cả phải bị từ chối. Một bàn giao
-offer/confirm đúng phải có proof c2 trùng payloadDigest/metadataDigest và VALID.
+Nhánh gỡ bản A/c1 (xem [kế hoạch](plans/retire-release-a-and-legacy-2026-10-24.md))
+thêm năm migration `20261213000000`..`20261213000004`. Bốn migration đầu **từ chối**
+database còn dữ liệu A/c1, hồ sơ doanh nghiệp không cần kích hoạt, digest cảm biến theo vụ,
+đối soát mốc cảm biến hoặc consent kế hoạch thiếu snapshot; không tự xóa hay sửa lịch sử.
+Migration cuối ghi rõ family của refresh session cũ bằng chính ID của nó rồi đặt bắt buộc.
+Trước release, chủ dự án làm sạch hoặc dựng lại database production theo quyết định
+riêng, có backup phối hợp hai host. Chaincode mới bỏ `RecordTraceEvent` và đọc A/c1 nên
+cần lifecycle review trên mạng hosted. Controller đã cài phải cập nhật theo quy trình
+digest trước release đầu tiên: controller mới không còn yêu cầu `FABRIC_LEGACY_WRITER`
+và `docker-compose.app-fabric.yml`.
 
 ### Recovery thông thường
 

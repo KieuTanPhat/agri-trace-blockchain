@@ -43,20 +43,23 @@ Các file cấu hình ở gốc được chia theo nơi sử dụng:
 
 | Nhóm file | Mục đích |
 | --- | --- |
-| `docker-compose.yml`, `.env.docker.example` | Chạy ứng dụng local |
-| `docker-compose.ci.yml` | Nối Worker với Fabric cách ly trong CI |
+| `docker-compose.yml`, `.env.docker.example` | Chạy ứng dụng local, kèm service `ledger-simulator` gắn binding giả lập vì local không chạy Fabric |
 | `docker-compose.app.yml`, `.env.deploy.example` | Ứng dụng production dùng image đã pin qua CD |
 | `docker-compose.app-hybrid.yml` | Overlay kết nối mạng hosted của production (config schema 3) |
-| `docker-compose.app-fabric.yml` | Overlay signer/network cũ; controller không còn ghép nó, nhưng vẫn là file bắt buộc trong manifest app delivery |
 | `deploy/ci/`, `deploy/cd/`, `deploy/edge/` | Rehearsal production trong CI; controller, installer và đóng gói CD; Edge (Caddy) dùng chung |
 | `package.json`, `package-lock.json`, các file `.git*` và `.dockerignore` | Lệnh, dependency lock và cấu hình công cụ |
 
 Controller chỉ nhận config schema 3, manifest format 2 và release `prod-*`; nó ghép
-`docker-compose.app.yml` và `docker-compose.app-hybrid.yml`, không ghép
-`docker-compose.app-fabric.yml`. Giữ `docker-compose.app-fabric.yml` theo quyết định của chủ dự án:
-`deploy/cd/targets.py` và `policy.validate_manifest` vẫn yêu cầu file trong bundle.
-`hybrid-floor.json` chỉ cho rollback tới image verified tương thích migration; việc giữ overlay
-không cho phép rollback DB mới về app cũ hoặc tái dùng mạng test cũ.
+`docker-compose.app.yml` và `docker-compose.app-hybrid.yml`. Overlay signer/network cũ
+`docker-compose.app-fabric.yml` đã bỏ cùng luồng ghi bản A; manifest app delivery chỉ
+bắt buộc `docker-compose.app.yml`. Controller đã cài trên VPS phải được cập nhật theo quy
+trình digest trước release đầu tiên không còn file này. `hybrid-floor.json` chỉ cho
+rollback tới image verified tương thích migration.
+
+Mọi sự kiện truy xuất đi qua binding Fabric của chuỗi (bản B, bản C có chữ ký c2).
+Luồng ghi bản A (route chung, envelope 3.0.0) và giao thức chữ ký c1 đã gỡ khỏi
+API, Worker, chaincode và Gateway; migration `20261213000000_retire_release_a_and_c1`
+từ chối database còn dữ liệu A/c1. Xem [kế hoạch gỡ](docs/plans/retire-release-a-and-legacy-2026-10-24.md).
 
 Môi trường UAT cũ (schema 2, project `agri-trace-uat`) đã retire: stack, bootstrap và
 mẫu môi trường của nó không còn trong repo. Application CI kiểm ứng dụng bằng

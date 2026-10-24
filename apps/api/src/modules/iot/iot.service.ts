@@ -31,7 +31,6 @@ import {
   markLateReading,
 } from './harvest-sensor-window.js';
 import type {
-  CreateSensorDigestDto,
   CreateTelemetryDigestDto,
   BindShipmentDeviceDto,
   CreateIotDeviceDto,
@@ -199,89 +198,6 @@ export class IotService {
       });
       const late = await markLateReading(tx, created);
       return { status: 'accepted', readingId: created.id, late };
-    });
-  }
-
-  async createSensorDigest(
-    cycleId: string,
-    input: CreateSensorDigestDto,
-    actor: Actor,
-  ) {
-    actor = effectiveCommandActor(actor);
-    await this.assertCycleOwner(cycleId, actor);
-    return commandTransaction(this.prisma, async (tx) => {
-      await lockAggregate(tx, 'cycle', cycleId);
-      const periodStart = businessTimestamp(
-        input.periodStart,
-        'Đầu khoảng cảm biến',
-      );
-      const periodEnd = businessTimestamp(
-        input.periodEnd,
-        'Cuối khoảng cảm biến',
-      );
-      this.assertPeriod(periodStart, periodEnd);
-      const readings = await tx.sensorReading.findMany({
-        where: { cycleId, recordedAt: { gte: periodStart, lte: periodEnd } },
-        orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
-      });
-      if (!readings.length)
-        throw new UnprocessableEntityException(
-          'Không có dữ liệu cảm biến trong khoảng đã chọn',
-        );
-      const digestHash = canonicalSha256({
-        schemaVersion: 'sensor-digest-1',
-        cycleId,
-        periodStart: periodStart.toISOString(),
-        periodEnd: periodEnd.toISOString(),
-        readings: readings.map((reading) => ({
-          id: reading.id,
-          deviceId: reading.deviceId,
-          sensorType: reading.sensorType,
-          value: reading.value.toString(),
-          unit: reading.unit,
-          recordedAt: reading.recordedAt.toISOString(),
-        })),
-      });
-      if (
-        await tx.sensorDigest.findFirst({
-          where: { cycleId, periodStart, periodEnd },
-        })
-      )
-        throw new ConflictException(
-          'Digest cho khoảng thời gian này đã tồn tại',
-        );
-      if (
-        input.isFinal &&
-        (await tx.sensorDigest.findFirst({ where: { cycleId, isFinal: true } }))
-      )
-        throw new ConflictException('Chu kỳ đã có digest cuối cùng');
-      const digest = await tx.sensorDigest.create({
-        data: {
-          cycleId,
-          periodStart,
-          periodEnd,
-          readingCount: readings.length,
-          digestHash,
-          isFinal: input.isFinal ?? false,
-        },
-      });
-      await this.trace.createInTransaction(tx, {
-        entityType: 'SENSOR_DIGEST',
-        entityId: digest.id,
-        cycleId,
-        eventType: input.isFinal
-          ? 'SENSOR_DIGEST_FINALIZED'
-          : 'SENSOR_DIGEST_CREATED',
-        actor,
-        businessData: {
-          digestHash,
-          periodStart: periodStart.toISOString(),
-          periodEnd: periodEnd.toISOString(),
-          readingCount: readings.length,
-          isFinal: input.isFinal ?? false,
-        },
-      });
-      return digest;
     });
   }
 

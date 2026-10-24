@@ -20,7 +20,6 @@ export function clearStoredIotReadings(scope: string): void {
 
 export function readStoredIotReadings(scope: string): StoredIotReading[] {
   if (typeof window === "undefined" || scope === "null") return [];
-  // Legacy v2 readings have no owner and cannot be assigned to a logged-in user.
   try {
     const raw = window.localStorage.getItem(
       `${IOT_READING_STORAGE_KEY}:${scope}`,

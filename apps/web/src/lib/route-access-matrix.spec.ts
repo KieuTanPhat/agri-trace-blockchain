@@ -172,7 +172,7 @@ const accesses: Record<string, EnterpriseAccess> = {
     capabilities: ["TRANSPORTER"],
   },
   readOnlyManager: {
-    stage: "ACTIVE_LEGACY",
+    stage: "OPERATOR_PROVISIONED",
     owner: false,
     primary: false,
     tier: 2,

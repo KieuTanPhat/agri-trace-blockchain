@@ -150,10 +150,6 @@ export async function publishedCatalog(db: Db, audience?: string) {
       audience: p.audience,
       description: p.description,
       version: planVersionView(p.versions[0]),
-      // Legacy catalog fields kept for existing consumers.
-      products: normalizeLimits(p.versions[0].limits).products,
-      setup: Number(p.versions[0].setupFee),
-      annual: Number(p.versions[0].annualFee),
     }));
 }
 

@@ -12,7 +12,7 @@ export function canUseEnterpriseRoute(
 ): boolean {
   const within = (prefix: string) =>
     path === prefix || path.startsWith(prefix + "/");
-  const active = ["ACTIVE", "ACTIVE_LEGACY"].includes(access.stage);
+  const active = ["ACTIVE", "OPERATOR_PROVISIONED"].includes(access.stage);
   if (within("/enterprise/service") || within("/enterprise/onboarding"))
     return access.owner;
   if (!active) return false;

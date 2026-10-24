@@ -716,16 +716,10 @@ function DecisionPanel({
     );
   }
 
-  if (e.serviceActivatedAt || e.onboardingStage === "ACTIVE_LEGACY") {
+  if (e.serviceActivatedAt) {
     return (
       <Callout tone="ok" title={tr("Dịch vụ đang hoạt động")}>
-        {e.serviceActivatedAt ? (
-          <>
-            {tr("Kích hoạt")} {fmtDateTime(e.serviceActivatedAt)}.
-          </>
-        ) : (
-          tr("Đã hoạt động theo chính sách hiện hành.")
-        )}
+        {tr("Kích hoạt")} {fmtDateTime(e.serviceActivatedAt)}.
         <br />
         <span className="text-ink-2">{e.serviceActivationReason}</span>
       </Callout>

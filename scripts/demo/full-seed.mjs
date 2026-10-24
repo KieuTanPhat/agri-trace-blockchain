@@ -394,7 +394,6 @@ const bootstrap = await step("bootstrap", async () => {
             businessId: `DEMO-2026-${String(i + 1).padStart(4, "0")}`,
             hostingMode: i % 2 ? "SELF_MANAGED_ORG" : "MANAGED_ORG",
             status: "APPROVED",
-            activationRequired: true,
             serviceActivatedAt: now,
             serviceActivatedBy: result.users.admin.id,
             serviceActivationReason:
@@ -539,7 +538,6 @@ const bootstrap = await step("bootstrap", async () => {
             registrationDigest: digest(org.id),
             businessId: `DEMO-${key}`,
             status,
-            activationRequired: true,
             ...(key === "rejected"
               ? {
                   reviewedBy: result.users.admin.id,
@@ -2141,7 +2139,6 @@ await step("onboarding-profiles", async () => {
           businessId: `DEMO-${stage}`,
           hostingMode: "MANAGED_ORG",
           status: "APPROVED",
-          activationRequired: true,
           reviewedBy: actors.admin.id,
           reviewNote:
             "Hồ sơ demo đã duyệt, đang ở bước dịch vụ; chưa có quyền nghiệp vụ.",

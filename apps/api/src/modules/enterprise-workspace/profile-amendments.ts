@@ -147,7 +147,7 @@ export class ProfileAmendmentsService {
    await tx.organization.update({where:{id:org.id},data:{name:String(name),version:{increment:1}}});
    // Rejected initial registrations use a new reviewable snapshot; initial evidence remains immutable.
    if(org.enterpriseEnrollment?.status==='REJECTED')await tx.enterpriseEnrollment.update({where:{id:org.enterpriseEnrollment.id},data:{status:'PENDING_REVIEW',reviewedBy:null,reviewNote:null,version:{increment:1}}});
-   const enabled=!org.enterpriseEnrollment || (org.enterpriseEnrollment.status==='APPROVED'&&(!org.enterpriseEnrollment.activationRequired||!!org.enterpriseEnrollment.serviceActivatedAt));
+   const enabled=!org.enterpriseEnrollment || (org.enterpriseEnrollment.status==='APPROVED'&&!!org.enterpriseEnrollment.serviceActivatedAt);
    if(enabled){
     for(const cap of await tx.organizationCapability.findMany({where:{organizationId:org.id,revokedAt:null}}))if(!(p.activities as string[]).includes(cap.code))await tx.organizationCapability.update({where:{organizationId_code:{organizationId:org.id,code:cap.code}},data:{revokedAt:new Date(),revision:{increment:1}}});
     for(const code of p.activities as OrganizationType[]){const old=await tx.organizationCapability.findUnique({where:{organizationId_code:{organizationId:org.id,code}}});if(!old)await tx.organizationCapability.create({data:{organizationId:org.id,code}});else if(old.revokedAt)await tx.organizationCapability.update({where:{organizationId_code:{organizationId:org.id,code}},data:{revokedAt:null,revision:{increment:1}}});}

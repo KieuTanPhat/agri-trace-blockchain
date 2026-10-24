@@ -5,12 +5,10 @@ services:
       HYBRID_WRITES_MODE: ${HYBRID_WRITES_MODE:-CLOSED}
       # Only the controller's smoke session sets these technical account IDs (CANARY).
       HYBRID_CANARY_ACTOR_IDS: ${HYBRID_CANARY_ACTOR_IDS:-}
-      FABRIC_LEGACY_WRITER: "false"
       ENTERPRISE_ONBOARDING_ENABLED: ${ENTERPRISE_ONBOARDING_ENABLED:-false}
   worker:
     environment:
       FABRIC_ENABLED: "true"
-      FABRIC_LEGACY_WRITER: "false"
       FABRIC_BINDINGS_CONFIG: /hosted-config/bindings.json
       FABRIC_WORKER_INTERVAL_MS: "2000"
       ENTERPRISE_ONBOARDING_ENABLED: ${ENTERPRISE_ONBOARDING_ENABLED:-false}

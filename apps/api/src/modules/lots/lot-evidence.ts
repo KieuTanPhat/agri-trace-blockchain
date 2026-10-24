@@ -33,9 +33,7 @@ export function lotEvidence(
     );
   const sensorStatus = processed
     ? 'NOT_APPLICABLE'
-    : !window
-    ? 'LEGACY_UNVERIFIED'
-    : !validSensor
+    : !window || !validSensor
       ? 'INTEGRITY_WARNING'
       : window.status === 'NO_DATA'
         ? 'NO_DATA'
@@ -54,7 +52,6 @@ export function lotEvidence(
   if (!quantityReconciled) warnings.push('QUANTITY_MISMATCH');
   if (!stateReconciled) warnings.push('STATE_MISMATCH');
   if (sensorStatus === 'NO_DATA') warnings.push('NO_DATA');
-  if (sensorStatus === 'LEGACY_UNVERIFIED') warnings.push('LEGACY_UNVERIFIED');
   if (sensorStatus === 'INTEGRITY_WARNING')
     warnings.push('SENSOR_INTEGRITY_WARNING');
   if ((lot.harvest?._count.lateReadings ?? 0) > 0) warnings.push('LATE_READINGS');

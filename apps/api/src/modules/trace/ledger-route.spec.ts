@@ -1,18 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { fixtureRoute } from '../../../test/support/ledger-route-fixture.js';
 import {
-  fixtureRoute,
-  useFixtureRoute,
-} from '../../../test/support/ledger-route-fixture.js';
-import { FabricAdapterProvider } from '../blockchain-adapter/fabric-adapter.provider.js';
-import {
-  configuredWriteRoute,
   ledgerRouteDigest,
   routeProofMatches,
   verifiedEventRoute,
 } from './ledger-route.js';
-
-beforeEach(() => useFixtureRoute());
-afterEach(() => vi.unstubAllEnvs());
 
 describe('Immutable logical ledger routes', () => {
   const event = {
@@ -22,9 +14,7 @@ describe('Immutable logical ledger routes', () => {
       definition: fixtureRoute,
     },
   };
-  it('checks proofs against their own route after current channel configuration changes', () => {
-    vi.stubEnv('FABRIC_CHANNEL_NAME', 'another-channel');
-    vi.stubEnv('FABRIC_NETWORK_NAME', 'another-network');
+  it('checks proofs against the destination fixed by their own route', () => {
     expect(
       routeProofMatches(event, {
         network: fixtureRoute.network,
@@ -52,14 +42,21 @@ describe('Immutable logical ledger routes', () => {
     ).toBeNull();
     expect(verifiedEventRoute({ dataHash: event.dataHash })).toBeNull();
   });
-  it('accepts only a WRITE route with a complete writer authority', () => {
+  it('accepts only a binding WRITE route with a complete writer authority', () => {
     expect(ledgerRouteDigest(fixtureRoute)).toMatch(/^[a-f0-9]{64}$/);
+    for (const change of [
+      { mode: 'HISTORICAL' },
+      { protocol: 'agritrace-ledger-route/1' },
+      { envelopeVersion: '3.0.0' },
+      { writerAuthority: null },
+      { bindingDigest: null },
+    ])
+      expect(() => ledgerRouteDigest({ ...fixtureRoute, ...change })).toThrow(
+        'Incompatible',
+      );
     expect(() =>
-      ledgerRouteDigest({ ...fixtureRoute, mode: 'HISTORICAL' }),
-    ).toThrow('Unsupported');
-    expect(() =>
-      ledgerRouteDigest({ ...fixtureRoute, writerMspId: null }),
-    ).toThrow('authority');
+      ledgerRouteDigest({ ...fixtureRoute, channelId: 'bad channel' }),
+    ).toThrow('destination');
   });
   it('never verifies an event that has no route of its own', () => {
     const legacy = { dataHash: event.dataHash, ledgerRoute: null };
@@ -71,31 +68,5 @@ describe('Immutable logical ledger routes', () => {
         { dataHash: event.dataHash },
       ),
     ).toBe(false);
-  });
-  it('derives a different digest when the configured destination changes', () => {
-    const moved = configuredWriteRoute({
-      ...process.env,
-      FABRIC_CHANNEL_NAME: 'another-channel',
-    });
-    expect(moved.digest).not.toBe(fixtureRoute.digest);
-    expect(() =>
-      configuredWriteRoute({
-        ...process.env,
-        FABRIC_CHANNEL_NAME: 'bad channel',
-      }),
-    ).toThrow('destination');
-  });
-  it('captures the gateway destination once so changed env cannot relabel a cached connection', () => {
-    vi.stubEnv('FABRIC_SAMPLES_DIR', 'isolated-network');
-    vi.stubEnv('FABRIC_MSP_ID', fixtureRoute.writerMspId!);
-    vi.stubEnv('RELAYER_MSP_DIR', 'isolated-identity-reference');
-    vi.stubEnv('FABRIC_NETWORK_NAME', fixtureRoute.network);
-    vi.stubEnv('FABRIC_CHANNEL_NAME', fixtureRoute.channelId);
-    vi.stubEnv('LEDGER_WRITER_AUTHORITY', fixtureRoute.writerAuthority!);
-    const provider = new FabricAdapterProvider();
-    const captured = provider.getWriterRoute();
-    vi.stubEnv('FABRIC_CHANNEL_NAME', 'changed-channel');
-    expect(provider.getWriterRoute()).toBe(captured);
-    expect(provider.getWriterRoute().channelId).toBe(fixtureRoute.channelId);
   });
 });

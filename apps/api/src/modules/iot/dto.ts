@@ -38,19 +38,6 @@ export class IngestSensorReadingDto {
   recordedAt!: string;
 }
 
-export class CreateSensorDigestDto {
-  @ApiProperty({ type: String, format: 'date-time' })
-  @IsDateString()
-  periodStart!: string;
-  @ApiProperty({ type: String, format: 'date-time' })
-  @IsDateString()
-  periodEnd!: string;
-  @ApiProperty({ type: Boolean, required: false })
-  @IsOptional()
-  @IsBoolean()
-  isFinal?: boolean;
-}
-
 export class IngestShipmentTelemetryDto {
   @ApiProperty({ type: String, maxLength: 120 })
   @IsString()

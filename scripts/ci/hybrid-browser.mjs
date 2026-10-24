@@ -20,7 +20,6 @@ assert.ok(process.argv.slice(2).every(argument => argument === '--enterprise-onl
 await withHybridStack(async ({ env, root, evidenceDir, receipt, npm }) => {
   env.HYBRID_BROWSER_TESTS = '1';
   env.FABRIC_ENABLED = 'true';
-  env.FABRIC_LEGACY_WRITER = 'false';
   env.FABRIC_WORKER_INTERVAL_MS = '500';
   env.ENTERPRISE_ONBOARDING_ENABLED = 'true';
   // Isolated stack only (NODE_ENV=test): a paying producer settles its first

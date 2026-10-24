@@ -134,7 +134,6 @@ export class LotHarvestService {
           tx,
           cycleId,
           harvestTime,
-          input.finalSensorDigestId,
         );
         const aggregate = await tx.harvestEvent.aggregate({
           where: { cycleId },
@@ -154,7 +153,6 @@ export class LotHarvestService {
           data: {
             cycleId,
             harvestCode: `TH-${randomUUID().slice(0, 12).toUpperCase()}`,
-            finalSensorDigestId: input.finalSensorDigestId,
             harvestTime,
             quantity: harvestedQuantity,
             unit: input.unit,
@@ -219,7 +217,6 @@ export class LotHarvestService {
             digestHash: sensorWindow.digestHash,
             readingCount: sensorWindow.readingCount,
             schemaVersion: sensorWindow.schemaVersion,
-            reconciliationId: sensorWindow.reconciliationId,
           },
         });
         const event = await this.trace.createInTransaction(tx, {

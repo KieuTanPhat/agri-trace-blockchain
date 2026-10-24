@@ -8,7 +8,6 @@ import { createHash, randomUUID } from 'node:crypto';
 import { canonicalize } from 'json-canonicalize';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { calculateTraceEventHash } from './trace-hash.js';
 import { publicBlockchainDeliveryError } from './trace-evidence.js';
 import {
   B_SCHEMA_VERSION,
@@ -30,7 +29,6 @@ import { scopedTraceEventReadWhere } from '../supply-chains/business-read-scope.
 import { getLotEventProofStatus } from '../lots/lot-proof-status.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import {
-  activeWriteRoute,
   EVENT_BINDING_CONTEXT_INCLUDE,
   EVENT_LEDGER_ROUTE_INCLUDE,
   type PinnedRoute,
@@ -139,8 +137,8 @@ export class TraceService {
     if (heads.length > 1)
       throw new ConflictException('Trace event chain has multiple heads');
     const previous = heads[0];
-    // Release B: a cycle born on a binding stays on it for life; every child
-    // (care, harvest, Lot, Shipment...) resolves its origin through the cycle.
+    // A cycle born on a binding stays on it for life; every child (care,
+    // harvest, Lot, Shipment...) resolves its origin through the cycle.
     const originCycleId = roots[0]?.cycleId ?? null;
     const origin = originCycleId
       ? await tx.cycleLedgerContext.findUnique({
@@ -148,15 +146,11 @@ export class TraceService {
           include: { binding: { include: { state: true, route: true } } },
         })
       : null;
-    if (origin && origin.binding.state?.status !== 'ACTIVE')
+    if (!origin)
+      throw new ConflictException('Sự kiện cần binding Fabric hoạt động');
+    if (origin.binding.state?.status !== 'ACTIVE')
       throw new ServiceUnavailableException('Binding ledger đang tạm dừng');
-    if (!origin && process.env.FABRIC_LEGACY_WRITER === 'false')
-      throw new ConflictException(
-        'Sự kiện cần binding Fabric; route ghi cũ đã bị vô hiệu hóa',
-      );
-    const route: PinnedRoute = origin
-      ? (origin.binding.route as PinnedRoute)
-      : await activeWriteRoute(tx);
+    const route = origin.binding.route as PinnedRoute;
     if (previous) {
       const sidecar = await tx.eventLedgerRoute.findUnique({
         where: { eventId: previous.eventId },
@@ -170,7 +164,7 @@ export class TraceService {
       if (
         !predecessor ||
         !sameLedgerDestination(predecessor, route) ||
-        (origin && predecessor.bindingDigest !== route.bindingDigest)
+        predecessor.bindingDigest !== route.bindingDigest
       )
         throw new ConflictException(
           'Ledger predecessor cần route cùng destination đã xác minh',
@@ -186,7 +180,6 @@ export class TraceService {
       : null;
     if (input.signature) {
       if (
-        !origin ||
         !signed ||
         signed.status !== 'CONSUMED' ||
         !signed.signature ||
@@ -255,14 +248,12 @@ export class TraceService {
     };
     // B events hash the private body (V2 shape) and then commit to the public
     // context: binding, chain reference and the permission epoch captured here.
-    const captured = origin
-      ? await reserveEventPermission(
-          tx,
-          origin.bindingDigest,
-          input.actor,
-          input.entityType,
-        )
-      : null;
+    const captured = await reserveEventPermission(
+      tx,
+      origin.bindingDigest,
+      input.actor,
+      input.entityType,
+    );
     const assertion = signed
       ? {
           algorithm: 'Ed25519' as const,
@@ -279,44 +270,36 @@ export class TraceService {
           assertionDigest: assertionDigest(assertion),
         }
       : null;
-    const bodyDigest = origin
-      ? content
-        ? signedPrivateBodyDigest(content)
-        : privateBodyDigest(hashInput)
-      : null;
-    const commit =
-      origin && captured && bodyDigest
-        ? (context: Parameters<typeof bindingEventCommitment>[0]) =>
-            assertion
-              ? signedBindingEventCommitment(context, bodyDigest, {
-                  keyRef: assertion.keyRef,
-                  intentDigest: assertion.intentDigest,
-                  ...content!,
-                })
-              : bindingEventCommitment(context, bodyDigest)
-        : null;
+    const bodyDigest = content
+      ? signedPrivateBodyDigest(content)
+      : privateBodyDigest(hashInput);
+    const context: Parameters<typeof bindingEventCommitment>[0] = {
+      eventId: id,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      cycleId: input.cycleId ?? null,
+      lotId: input.lotId ?? null,
+      eventType: input.eventType,
+      eventTime,
+      previousEventHash: previous?.dataHash ?? null,
+      bindingDigest: origin.bindingDigest,
+      chainRef: origin.binding.chainRef,
+      permissions: [
+        {
+          permissionRef: captured.permissionRef,
+          epoch: String(captured.epoch),
+          ordinal: String(captured.ordinal),
+        },
+      ],
+    };
     const dataHash =
-      origin && captured && bodyDigest && commit
-        ? commit({
-            eventId: id,
-            entityType: input.entityType,
-            entityId: input.entityId,
-            cycleId: input.cycleId ?? null,
-            lotId: input.lotId ?? null,
-            eventType: input.eventType,
-            eventTime,
-            previousEventHash: previous?.dataHash ?? null,
-            bindingDigest: origin.bindingDigest,
-            chainRef: origin.binding.chainRef,
-            permissions: [
-              {
-                permissionRef: captured.permissionRef,
-                epoch: String(captured.epoch),
-                ordinal: String(captured.ordinal),
-              },
-            ],
+      assertion && content
+        ? signedBindingEventCommitment(context, bodyDigest, {
+            keyRef: assertion.keyRef,
+            intentDigest: assertion.intentDigest,
+            ...content,
           })
-        : calculateTraceEventHash(hashInput);
+        : bindingEventCommitment(context, bodyDigest);
 
     const event = await tx.traceEvent.create({
       data: {
@@ -331,11 +314,7 @@ export class TraceService {
         actorRole: input.actor.role,
         authProofType,
         actorAuthProof,
-        schemaVersion: origin
-          ? signed
-            ? C_SCHEMA_VERSION
-            : B_SCHEMA_VERSION
-          : '2.0.0',
+        schemaVersion: signed ? C_SCHEMA_VERSION : B_SCHEMA_VERSION,
         canonicalizationVersion: 'RFC8785',
         eventTime,
         businessData: input.businessData,
@@ -359,37 +338,35 @@ export class TraceService {
       await tx.eventChainContext.create({
         data: { eventId: event.id, chainId },
       });
-    if (origin && captured && bodyDigest) {
-      await tx.eventBindingContext.create({
+    await tx.eventBindingContext.create({
+      data: {
+        eventId: event.id,
+        bindingDigest: origin.bindingDigest,
+        privateBodyDigest: bodyDigest,
+        ...(signed ? { commitmentVersion: 'c2' } : {}),
+      },
+    });
+    await tx.eventPermissionEpoch.create({
+      data: {
+        eventId: event.id,
+        permissionRef: captured.permissionRef,
+        epoch: captured.epoch,
+        ordinal: captured.ordinal,
+      },
+    });
+    if (signed && assertion)
+      await tx.eventActorSignature.create({
         data: {
           eventId: event.id,
-          bindingDigest: origin.bindingDigest,
-          privateBodyDigest: bodyDigest,
-          ...(signed ? { commitmentVersion: 'c2' } : {}),
+          intentId: signed.id,
+          keyRef: signed.keyRef,
+          bindingDigest: signed.bindingDigest,
+          organizationId: signed.organizationId,
+          intentDigest: signed.intentDigest,
+          assertionDigest: assertionDigest(assertion),
+          signature: assertion.signature,
         },
       });
-      await tx.eventPermissionEpoch.create({
-        data: {
-          eventId: event.id,
-          permissionRef: captured.permissionRef,
-          epoch: captured.epoch,
-          ordinal: captured.ordinal,
-        },
-      });
-      if (signed && assertion)
-        await tx.eventActorSignature.create({
-          data: {
-            eventId: event.id,
-            intentId: signed.id,
-            keyRef: signed.keyRef,
-            bindingDigest: signed.bindingDigest,
-            organizationId: signed.organizationId,
-            intentDigest: signed.intentDigest,
-            assertionDigest: assertionDigest(assertion),
-            signature: assertion.signature,
-          },
-        });
-    }
     return event;
   }
 

@@ -47,7 +47,7 @@ function validateCaddy(file) {
 }
 
 function checkEvents(minimum) {
-  const output = dc(['run', '--rm', '--no-deps', '-T', '-e', 'CI_VALIDATOR_PATH=/validator/validation.js',
+  const output = dc(['run', '--rm', '--no-deps', '-T', '-e', 'CI_CHAINCODE_DIST=/validator',
     '-v', `${path.join(repository, 'blockchain/chaincode/dist')}:/validator:ro`, '--entrypoint', 'node', 'api', 'deploy/ci/check-events.mjs']);
   const result = JSON.parse(output.trim().split('\n').at(-1));
   assert.equal(result.result, 'passed');
@@ -132,13 +132,21 @@ async function main() {
   assert.deepEqual(provision(), { result: 'passed', usersCreated: 0 });
   checkpoint('Production provisioning creates five accounts and replays idempotently');
 
+  // No Fabric runs here: bind the provisioned chain to a simulated ledger so the
+  // single B write path can be rehearsed. Events stay PENDING; never on production.
+  const simulate = () => JSON.parse(dc(['run', '--rm', '--no-deps', '-T', '-e', 'LEDGER_SIMULATION=1', 'api',
+    'node', 'apps/api/dist/operator/simulated-ledger.js']).trim().split('\n').at(-1));
+  assert.ok(simulate().boundChains >= 1, 'The rehearsal chain must receive a simulated binding');
+  assert.equal(simulate().boundChains, 0, 'Simulated binding must replay without creating another');
+  checkpoint('The rehearsal chain is bound to a simulated ledger (no Fabric) and replays idempotently');
+
   dc(['up', '-d', '--wait', '--wait-timeout', '240', 'api', 'web', 'proxy']);
   await waitForEdge(origin);
   const smoke = await runSmoke({ origin, fixture });
   evidence.smoke = { flows: smoke.flows, lots: smoke.lotIds.length };
   checkpoint(`Business and session flows pass through the production edge routing (${smoke.flows.length} flows)`);
   const checked = checkEvents(5);
-  checkpoint(`${checked} trace events are accepted by the compiled chaincode input validator`);
+  checkpoint(`${checked} trace events are binding commitments the compiled chaincode accepts and recomputes`);
 
   // Backup and restore into a brand-new volume; the database is never overwritten in place.
   dc(['stop', 'api', 'web', 'proxy']);

@@ -201,7 +201,7 @@ export class AuthService {
         },
       });
       if (!session) return { state: 'revoked' } as const;
-      const familyId = session.familyId ?? session.id;
+      const familyId = session.familyId;
       if (
         session.user.accountStatus !== 'ACTIVE' ||
         (session.user.organizationId &&
@@ -280,7 +280,7 @@ export class AuthService {
     if (session) {
       await this.prisma.$transaction(async (tx) => {
         await lockSessionOwner(tx, session.userId, session.user.organizationId);
-        await this.revokeFamily(tx, session.familyId ?? session.id);
+        await this.revokeFamily(tx, session.familyId);
       });
     }
     return { revoked: true };

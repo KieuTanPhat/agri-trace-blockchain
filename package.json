@@ -49,7 +49,6 @@
     "test:hybrid:browser": "node scripts/ci/hybrid-browser.mjs",
     "test:enterprise:peer": "node scripts/ci/enterprise-peer.mjs",
     "test:ci": "node --test scripts/ci/ci.test.mjs scripts/demo/verification-initialization.test.mjs deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs && node --import tsx --test blockchain/network/hybrid/acceptance/export-check.test.mts",
-    "test:worker-contract": "npm run build --workspace blockchain/gateway && npm run prisma:generate --workspace apps/api && npm run build --workspace apps/api && npm run build --workspace blockchain/chaincode && node --test scripts/ci/worker-contract.test.mjs",
     "check": "npm run agents:check && npm run test:agents && npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
   },
   "workspaces": [

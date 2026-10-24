@@ -121,7 +121,7 @@ class Controller:
                   "WEB_MEMORY": "768m", "WEB_HEAP_MB": "512",
                   "FABRIC_DOCKER_NETWORK": self.fabric["network"],
                   "HYBRID_WRITES_MODE": self.fresh_write_mode(record),
-                  "HYBRID_CANARY_ACTOR_IDS": self.canary_actor_ids(record), "FABRIC_LEGACY_WRITER": "false"}
+                  "HYBRID_CANARY_ACTOR_IDS": self.canary_actor_ids(record)}
         resources = self.config.get("resource_profile", {})
         for name in ("POSTGRES", "API", "WORKER", "WEB"):
             if name in resources:
@@ -197,7 +197,7 @@ class Controller:
         mounts = services["postgres"].get("volumes", [])
         require(len(mounts) == 1 and mounts[0].get("source") == "postgres-data" and mounts[0].get("target") == "/var/lib/postgresql", "Database mount changed")
         api = services["api"]["environment"]
-        require(api["FABRIC_ENABLED"] == "false" and api["FABRIC_LEGACY_WRITER"] == "false" and
+        require(api["FABRIC_ENABLED"] == "false" and "FABRIC_LEGACY_WRITER" not in api and
                 api["HYBRID_WRITES_MODE"] == self.fresh_write_mode(record) and
                 api.get("HYBRID_CANARY_ACTOR_IDS", "") == self.canary_actor_ids(record) and
                 api["JWT_SECRET"] == self.environment["JWT_SECRET"] and
@@ -208,7 +208,7 @@ class Controller:
         for name in ("api", "web"):
             require(services[name]["networks"]["ingress"].get("aliases", []) == [self.prefix + "-" + name], "Ingress alias changed")
         worker = services["worker"]
-        require(worker["environment"]["FABRIC_ENABLED"] == "true" and worker["environment"]["FABRIC_LEGACY_WRITER"] == "false" and
+        require(worker["environment"]["FABRIC_ENABLED"] == "true" and "FABRIC_LEGACY_WRITER" not in worker["environment"] and
                 worker["user"] == f"{self.environment['WORKER_UID']}:{self.environment['WORKER_GID']}", "Hosted Worker identity boundary changed")
         self.enterprise_admission_preflight(api, worker)
         expected_mounts = {"/hosted-config": "HOSTED_WORKER_CONFIG_HOST", "/hosted-identities": "HOSTED_WORKER_IDENTITIES_HOST"}

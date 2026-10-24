@@ -242,6 +242,12 @@ const prisma = new PrismaClient({
         .set('Idempotency-Key', key)
         .send(payload);
     }
+    const farmActor = () => ({
+      sub: users.farm,
+      organizationId: farmOrgId,
+      role: 'FARM_STAFF',
+    });
+
     async function plantedCycle(quantity = 1) {
       const created = await post('/production-cycles', {
         chainId,
@@ -350,6 +356,8 @@ const prisma = new PrismaClient({
     it('keeps a linear hash chain when business timestamps are backdated or tied', async () => {
       const db = prisma as unknown as PrismaService;
       const trace = new TraceService(db, new OrganizationAccessService(db));
+      // Every event belongs to a bound cycle and an actor with a ledger grant.
+      const cycle = await plantedCycle();
       const entityId = randomUUID();
       const events = [];
       for (const eventTime of ['2026-09-28', '2026-09-25', '2026-09-25']) {
@@ -358,9 +366,10 @@ const prisma = new PrismaClient({
             trace.createInTransaction(tx, {
               entityType: 'LOT',
               entityId,
+              cycleId: cycle.id,
               eventType: 'TEST_CHECKPOINT',
               eventTime: new Date(eventTime),
-              actor: { sub: null, organizationId: null, role: 'SYSTEM_ACTOR' },
+              actor: farmActor(),
               businessData: { sequence: events.length },
             }),
           ),
@@ -600,18 +609,24 @@ const prisma = new PrismaClient({
         where: { OR: [{ lotId: lot.id }, { cycleId: cycle.id, lotId: null }] },
         orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
       });
-      const confirm = (event: (typeof events)[number]) =>
-        prisma.blockchainProof.create({
+      const confirm = async (event: (typeof events)[number]) => {
+        // A proof names the destination fixed by the event's own route.
+        const { definition } = await prisma.eventLedgerRoute.findUniqueOrThrow({
+          where: { eventId: event.id },
+          include: { definition: true },
+        });
+        return prisma.blockchainProof.create({
           data: {
             eventId: event.id,
             dataHash: event.dataHash,
-            network: 'audit-fixture',
+            network: definition.network,
             txId: randomBytes(32).toString('hex'),
-            channelId: process.env.FABRIC_CHANNEL_NAME ?? 'agritrace',
+            channelId: definition.channelId,
             recordedAt: new Date(),
             transactionStatus: 'CONFIRMED',
           },
         });
+      };
       await confirm(events.at(-1)!);
       const checkStatus = async (status: string) => {
         const detail = (await get(`/lots/${lot.id}`).expect(200)).body.data;
@@ -735,6 +750,7 @@ const prisma = new PrismaClient({
 
     it('keeps concurrent trace appends on a single chain', async () => {
       const trace = app.get(TraceService);
+      const cycle = await plantedCycle();
       const entityId = randomUUID();
       await Promise.all(
         [0, 1, 2].map((sequence) =>
@@ -742,8 +758,9 @@ const prisma = new PrismaClient({
             trace.createInTransaction(tx, {
               entityType: 'LOT',
               entityId,
+              cycleId: cycle.id,
               eventType: 'CONCURRENT_CHECKPOINT',
-              actor: { sub: null, organizationId: null, role: 'SYSTEM_ACTOR' },
+              actor: farmActor(),
               businessData: { sequence },
             }),
           ),
@@ -761,7 +778,7 @@ const prisma = new PrismaClient({
       ).toHaveLength(1);
     });
 
-    it('records sensor readings only off-chain and anchors explicit digests', async () => {
+    it('records sensor readings only off-chain', async () => {
       const cycle = await plantedCycle();
       const device = (
         await post('/iot/devices', {
@@ -792,16 +809,6 @@ const prisma = new PrismaClient({
       expect(
         await prisma.traceEvent.count({ where: { cycleId: cycle.id } }),
       ).toBe(before);
-      await post(`/iot/cycles/${cycle.id}/digests`, {
-        periodStart: new Date(
-          new Date(body.recordedAt).getTime() - 60_000,
-        ).toISOString(),
-        periodEnd: body.recordedAt,
-        isFinal: true,
-      }).expect(201);
-      expect(
-        await prisma.traceEvent.count({ where: { cycleId: cycle.id } }),
-      ).toBe(before + 1);
       await post(`/production-cycles/${cycle.id}/close`, { version: 1 }).expect(
         201,
       );
@@ -1133,7 +1140,6 @@ const prisma = new PrismaClient({
           '/certificates',
           '/inspections',
           '/iot/readings',
-          `/iot/cycles/${cycle.id}/digests`,
           ...['telemetry', 'devices', 'telemetry-digests'].map(
             (action) => `/iot/shipments/${shipment.id}/${action}`,
           ),
@@ -1147,7 +1153,6 @@ const prisma = new PrismaClient({
           shipments: await prisma.shipment.count(),
           movements: await prisma.quantityMovement.count(),
           readings: await prisma.sensorReading.count(),
-          digests: await prisma.sensorDigest.count(),
           telemetry: await prisma.shipmentTelemetry.count(),
           bindings: await prisma.shipmentTrackingBinding.count(),
           telemetryDigests: await prisma.shipmentTelemetryDigest.count(),

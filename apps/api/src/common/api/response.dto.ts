@@ -7,7 +7,6 @@ import {
   ProductionCycleRecordDto,
   CareRecordRecordDto,
   SensorReadingRecordDto,
-  SensorDigestRecordDto,
   HarvestEventRecordDto,
   LotRecordDto,
   ShipmentRecordDto,
@@ -19,7 +18,6 @@ import {
   InspectionRecordDto,
   ComplianceAssignmentRecordDto,
   ComplianceAssignmentAuditRecordDto,
-  CycleSensorReconciliationRecordDto,
   TraceEventRecordDto,
   BlockchainProofRecordDto,
   BlockchainOutboxRecordDto,
@@ -96,8 +94,6 @@ export class CycleDetailDto extends ProductionCycleRecordDto {
   careRecords!: CareRecordRecordDto[];
   @ApiProperty({ type: [SensorReadingRecordDto] })
   sensorReadings!: SensorReadingRecordDto[];
-  @ApiProperty({ type: [SensorDigestRecordDto] })
-  sensorDigests!: SensorDigestRecordDto[];
   @ApiProperty({ type: [CertificateRecordDto] })
   certificates!: CertificateRecordDto[];
   @ApiProperty({ type: [HarvestDetailDto] }) harvestEvents!: HarvestDetailDto[];
@@ -108,11 +104,6 @@ export class CareResultDto {
 }
 export class SensorReadingResultDto extends SensorReadingRecordDto {
   @ApiProperty() late!: boolean;
-}
-export class ReconciliationResultDto {
-  @ApiProperty({ type: CycleSensorReconciliationRecordDto })
-  reconciliation!: CycleSensorReconciliationRecordDto;
-  @ApiProperty() cycleVersion!: number;
 }
 export class DeviceListDto extends IotDeviceRecordDto {
   @ApiProperty({ type: OrgDto }) organization!: OrgDto;

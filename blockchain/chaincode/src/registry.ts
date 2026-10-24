@@ -337,8 +337,10 @@ async function validatePayload(
       requireExactKeys(payload, ["channelId", "strictB", "allowLegacyV3Writes"], kind);
       if (payload.channelId !== channelId)
         throw contractError("INVALID_INPUT", "channelId differs from the invoking channel");
-      if (payload.strictB !== true || typeof payload.allowLegacyV3Writes !== "boolean")
-        throw contractError("INVALID_INPUT", "bootstrap requires strictB=true and a boolean legacy flag");
+      // The release-A writer is gone; the flag stays in the stored policy
+      // format and must be false so no channel can claim legacy writes.
+      if (payload.strictB !== true || payload.allowLegacyV3Writes !== false)
+        throw contractError("INVALID_INPUT", "bootstrap requires strictB=true and allowLegacyV3Writes=false");
       if (expectedRevision !== "0")
         throw contractError("INVALID_INPUT", "channel bootstrap is a one-time change");
       if (!forProposal && (await getChannelPolicy(ctx)))
@@ -478,7 +480,7 @@ async function applyChange(ctx: Context, proposal: Proposal): Promise<Record<str
         docType: "channelPolicy",
         channelId,
         strictB: true,
-        allowLegacyV3Writes: payload.allowLegacyV3Writes as boolean,
+        allowLegacyV3Writes: false,
         governanceDigest: GOVERNANCE_DIGEST,
         revision: 1,
       };

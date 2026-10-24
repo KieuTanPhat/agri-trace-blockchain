@@ -56,7 +56,7 @@ export class LotQueryService {
         custodian: null,
         distributionMode: true,
       };
-    // Legacy lot commands apply to harvested lots only.
+    // Shipment-flow lot commands apply to harvested lots only.
     const chainId = lot.harvest?.cycle.chainId;
     if (!chainId) return response;
     const commands = new Set<LotCommand>();

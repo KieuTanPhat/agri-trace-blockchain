@@ -89,9 +89,12 @@ cách ly và image API/Web build từ commit:
 3. Migration chạy từ DB rỗng, chạy lại là no-op và checksum trong `_prisma_migrations` khớp repo.
 4. `db:provision-compliance-role` tạo một lần rồi replay; provisioning production (cùng
    transaction với `bootstrap-production.mjs`) tạo năm tài khoản rồi replay không đổi gì.
+   Vì rehearsal không chạy Fabric, `simulated-ledger.js` (`LEDGER_SIMULATION=1`) gắn binding
+   giả lập cho chuỗi vừa cấp rồi replay không tạo thêm; sự kiện đứng `PENDING`.
 5. Luồng nghiệp vụ và phiên qua proxy: đăng nhập, RBAC từ chối, replay idempotency, hai harvest,
    ShipmentPlan đồng thuận, receive/reject, QR công khai `PENDING`, xoay refresh và logout.
-6. Mọi trace event đã lưu được validator chaincode đã biên dịch chấp nhận (chỉ đọc).
+6. Mọi trace event đã lưu là cam kết B/C mà chaincode đã biên dịch chấp nhận và tính lại
+   đúng `dataHash` (chỉ đọc).
 7. Backup bằng `pg_dump`, xóa volume, restore vào DB rỗng; số lượng bảng và băm event giống hệt,
    migration vẫn là no-op, tài khoản/lot/QR vẫn dùng được.
 8. Image API không mang script hoặc fixture UAT.
@@ -108,7 +111,7 @@ và giữ các gate hiện tại trước khi đưa vào một thay đổi riên
 
 Tài nguyên mang nhãn Compose của đúng lần chạy, job từ chối tài nguyên sẵn có, chỉ chạy trên
 GitHub runner và không đọc secret, database, identity hay volume của VPS. Kết quả nằm ở artifact
-`production-rehearsal-<SHA>` (14 ngày). Fabric thật không nằm ở đây mà ở `fabric-smoke` và
+`production-rehearsal-<SHA>` (14 ngày). Fabric thật không nằm ở đây mà ở job
 `hybrid-fabric`. Bài kiểm tra PostgreSQL cho provisioning production
 (`deploy/ci/bootstrap-production.test.mjs`) chạy trong job `API` trên Node 24.22.1.
 Job `changes` còn chạy `deploy/ci/migrations-immutable.mjs`: PR sửa, xóa hoặc đổi tên migration
@@ -124,13 +127,13 @@ PostgreSQL của Application CI đáp ứng điều này); không cấp URL prod
 suite. Việc tách database giữ nguyên MFA fixture của các suite khác.
 
 Application CI chạy SQL/binding/dual handover, migration lịch sử và cleanup cài
-mới trên PostgreSQL 18. Blockchain CI có job `Hybrid A B C real Fabric and browser`:
+mới trên PostgreSQL 18. Blockchain CI có job `Hybrid B C real Fabric and browser`:
 mạng 3 Org cách ly, API → Worker → ledger, fault/load và Chromium desktop/mobile.
 Job đặt `HYBRID_FABRIC_E2E=1` và từ chối required tests bị skip. Fixture/harness
 không cấp quyền Admin/Auditor ghi nghiệp vụ để vượt test. CI xanh đúng SHA là cổng
 source; smoke thực trên VPS vẫn bắt buộc theo [kế hoạch phát hành](plans/hybrid-production-readiness-2026-10-13.md).
 
-## Production và Fabric smoke
+## Production containers
 
 Application CI build và khởi động đủ PostgreSQL/API/Worker/Web. Kiểm tra
 HTTP của API/Web và readiness của Worker qua `docker compose exec`, không
@@ -142,39 +145,13 @@ Web check gọi optimizer thực của Next.js để chuyển PNG sang PNG/JPEG/
 với `sharp` đã vá. Production smoke còn gọi `/_next/image` và kiểm WebP trả
 về để xác nhận native binary có thể dùng trong image Alpine và standalone.
 
-Blockchain CI dùng Fabric 2.5.16, CA 1.5.22 và technical relayer của mạng
-thử nghiệm. Installer cố định tại commit
-`f871cf92a026aba7b12e6f06d71ded3e6e659d71` của Fabric v2.5.16; samples tại
-`5789681b4f4d24e58fa40f19a69f5496892374b6`. Bootstrap không fallback sang
-nhánh upstream đang thay đổi; chỉ nhận override bằng SHA đầy đủ.
-`docker-compose.ci.yml` nối riêng Worker vào `fabric_test`,
-mount đúng thư mục `relayer/msp` ở chế độ đọc và chạy bằng UID/GID chủ khóa.
-API không nhận signing identity. Script `fabric-integration.mjs` thực hiện:
-
-1. Tạo catalog/tài khoản test riêng, đăng nhập qua production HTTP API.
-2. Tạo cycle, kiểm replay `Idempotency-Key`, plant, care và harvest tạo Lot/QR.
-3. Khi Worker dừng: kiểm event/outbox đã commit, chưa có proof, API/QR là
-   `PENDING`.
-4. Bật production Worker: đợi outbox về `COMPLETED`, proof về `CONFIRMED`;
-   không có thêm/mất business event hoặc dead-letter.
-5. Query Fabric trực tiếp, đối chiếu event/hash/transaction id với PostgreSQL
-   và API; kiểm predecessor, entity head/history, toàn bộ QR là `VERIFIED`.
-6. Kiểm health loop hoạt động, không có lỗi và backlog rỗng.
-
-Gateway chạy trên host runner dùng `localhost:7051`; Worker trong container
-dùng `peer0.org1.example.com:7051` trên mạng Docker. Test Web dùng Web Storage
-của cửa sổ JSDOM, kể cả trên Node 26 có global storage riêng.
-
-Bài kiểm tra hợp đồng nhanh dùng Worker đã compile và validator thực của
-chaincode, trước khi dựng Docker/Fabric. Nó đã phát hiện Worker gửi field
-`hasBusinessPayload` bị chính sách metadata của chaincode từ chối. Worker
-hiện bỏ field tùy chọn đó. Bài kiểm tra nhanh dùng database/transport giả;
-bài kiểm tra production/Fabric xác minh luồng bằng các dịch vụ thật.
-
-Artifact `fabric-integration-<SHA>` giữ kết quả, các bước, event id, hash và
-tx id trong 14 ngày. Password test được tạo ngẫu nhiên; JWT, private key và
-payload riêng tư không được ghi vào artifact. Stack dùng database/volume
-riêng và được dọn trong `always()`, kể cả khi kiểm tra lỗi.
+Fabric thật chỉ chạy trong job `hybrid-fabric`. Job dùng Fabric 2.5.16, CA 1.5.22;
+`blockchain/network/network.sh bootstrap` tải installer cố định tại commit
+`f871cf92a026aba7b12e6f06d71ded3e6e659d71` và samples tại
+`5789681b4f4d24e58fa40f19a69f5496892374b6` chỉ để lấy binary/cấu hình; mạng do
+`hybrid/hybrid-network.sh` dựng. Bootstrap không fallback sang nhánh upstream đang
+thay đổi; chỉ nhận override bằng SHA đầy đủ. Job smoke test-network và Worker
+bản A cũ (`fabric-smoke`, `worker-contract`) đã gỡ cùng luồng ghi A.
 
 ## Audit và dependency
 
@@ -260,7 +237,6 @@ khi rule `no-html-link-for-pages` phát hiện điều hướng nội bộ bằn
 ```bash
 npm ci --no-audit --no-fund
 npm run test:ci
-npm run test:worker-contract
 npm run lint:contract --workspace apps/web
 npm audit --package-lock-only --audit-level=moderate
 npm audit --package-lock-only --omit=dev --audit-level=moderate
@@ -279,11 +255,9 @@ E2E từ chối chạy nếu thiếu `TEST_DATABASE_URL`, tránh kết quả xan
 bài PostgreSQL bị skip. Test controller/policy Python chạy riêng trong CI:
 `python -m unittest discover -s deploy/cd -p 'test_*.py' -v`; controller cần
 Linux để kiểm durable directory fsync.
-Để chạy smoke Fabric, dựng network bằng các lệnh trong README Blockchain,
-build Gateway, đặt `COMPOSE_PROJECT_NAME` riêng, khởi động `postgres api`
-bằng hai file Compose rồi chạy `node scripts/ci/fabric-integration.mjs`.
-Trên Linux đặt `CI_WORKER_UID`/`CI_WORKER_GID` theo chủ identity. Dọn đúng
-Compose project và mạng thử nghiệm sau khi hoàn tất.
+Để chạy Fabric thật, dùng mạng hybrid theo [runbook Hybrid](hybrid-fabric-runbook.md).
+E2E API không cần Fabric: chuỗi dựng trong test nhận binding giả lập
+(`test/support/chain-scope.ts`); suite hybrid tự đăng ký binding riêng.
 
 ## Nghiệm thu
 

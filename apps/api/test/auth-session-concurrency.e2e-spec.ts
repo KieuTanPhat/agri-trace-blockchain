@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcrypt';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
@@ -394,25 +394,6 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
         where: { familyId: original.sessionId, revokedAt: null },
       }),
     ).toBe(0);
-    await expect(accepts(rotated.accessToken)).rejects.toMatchObject({
-      status: 401,
-    });
-  });
-
-  it('supports old API inserts without family_id and rotates/revokes legacy sessions', async () => {
-    const id = randomUUID();
-    const token = randomUUID();
-    const tokenHash = createHash('sha256').update(token).digest('hex');
-    await prisma.$executeRaw`INSERT INTO refresh_session (refresh_session_id, user_id, token_hash, expires_at)
-      VALUES (${id}::uuid, ${userId}::uuid, ${tokenHash}, now() + interval '1 day')`;
-    expect(
-      (await prisma.refreshSession.findUniqueOrThrow({ where: { id } }))
-        .familyId,
-    ).toBeNull();
-    const rotated = await auth.refresh({ refreshToken: token });
-    expect(rotated.sessionId).toBe(id);
-    await expect(accepts(rotated.accessToken)).resolves.toBe(true);
-    await auth.logout({ refreshToken: token });
     await expect(accepts(rotated.accessToken)).rejects.toMatchObject({
       status: 401,
     });

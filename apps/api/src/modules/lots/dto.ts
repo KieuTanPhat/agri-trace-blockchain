@@ -86,10 +86,6 @@ export class RecordHarvestDto {
   @IsOptional()
   @IsString()
   harvestArea?: string;
-  @ApiProperty({ type: String, required: false, format: 'uuid' })
-  @IsOptional()
-  @IsUUID()
-  finalSensorDigestId?: string;
   @ApiProperty({ type: String, required: false, maxLength: 120 })
   @IsOptional()
   @IsString()

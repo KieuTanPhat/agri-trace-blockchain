@@ -163,6 +163,7 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
         })
       ).id;
       chainId = await provisionChain(prisma, {
+        simulatedLedger: false,
         name: 'HO chain',
         ownerOrganizationId: orgs.farm,
         memberOrganizationIds: [orgs.transporter, orgs.retailer],

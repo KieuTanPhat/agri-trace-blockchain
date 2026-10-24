@@ -150,10 +150,23 @@ export class ServiceCatalogView {
   hosting!: Array<Record<string, unknown>>;
   @ApiProperty() simulationEnabled!: boolean;
 }
+export class ServicePlanLimitsView {
+  @ApiProperty() products!: number;
+  @ApiProperty() chains!: number;
+  @ApiProperty() members!: number;
+  @ApiProperty() qrLabels!: number;
+}
+export class ServicePlanVersionView {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() version!: number;
+  @ApiProperty() setupFee!: number;
+  @ApiProperty() annualFee!: number;
+  @ApiProperty() termMonths!: number;
+  @ApiProperty({ type: ServicePlanLimitsView }) limits!: ServicePlanLimitsView;
+}
 export class ServicePlanView {
   @ApiProperty() code!: string;
   @ApiProperty() name!: string;
-  @ApiProperty() products!: number;
-  @ApiProperty() setup!: number;
-  @ApiProperty() annual!: number;
+  @ApiProperty({ type: ServicePlanVersionView })
+  version!: ServicePlanVersionView;
 }

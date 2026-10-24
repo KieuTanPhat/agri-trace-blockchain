@@ -336,10 +336,6 @@ export class BindingDeliveryService {
 
       const state = await this.reconcile(job, binding, connection);
       if (state !== 'CLEAR') return;
-      if (context.commitmentVersion === 'c1')
-        throw new PermanentDeliveryError(
-          'Legacy c1 signed write is disabled; reconcile existing attempts and review without changing the event or command key',
-        );
       await this.attempt(job, binding, connection);
     } catch (error) {
       if (!(error instanceof LostDeliveryLeaseError))

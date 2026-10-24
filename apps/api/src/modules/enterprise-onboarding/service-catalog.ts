@@ -1,39 +1,12 @@
-/** Reference only. QR usage is quoted separately and never silently charged.
- * Source: https://icheck.com.vn/chi-phi-trien-khai-truy-xuat-nguon-goc
- * iCheck reference dated 2026-08-07, checked 2026-10-17. Peer pricing is an
- * AgriTrace demo assumption, not an iCheck infrastructure offering. */
-export const SERVICE_CATALOG_VERSION = 'agritrace-reference-2026-10-17';
-export const SERVICE_PLANS = [
-  {
-    code: 'TRACE_5',
-    name: 'Truy xuất 5 sản phẩm',
-    products: 5,
-    setup: 5_000_000,
-    annual: 3_500_000,
-  },
-  {
-    code: 'TRACE_10',
-    name: 'Truy xuất 10 sản phẩm',
-    products: 10,
-    setup: 5_000_000,
-    annual: 5_500_000,
-  },
-  {
-    code: 'TRACE_20',
-    name: 'Truy xuất 20 sản phẩm',
-    products: 20,
-    setup: 5_000_000,
-    annual: 9_000_000,
-  },
-] as const;
 export const simulationEnabled = () =>
   process.env.ENTERPRISE_PAYMENT_SIMULATION_ENABLED === 'true' &&
   process.env.NODE_ENV !== 'production';
-/** Static terms around the DB-backed, versioned plan list. */
-export const serviceCatalog = (
-  plans: unknown[] = SERVICE_PLANS as unknown as unknown[],
-  version: string = SERVICE_CATALOG_VERSION,
-) => ({
+/** Static terms around the DB-backed, versioned plan list. QR usage is quoted
+ * separately and never silently charged. Source:
+ * https://icheck.com.vn/chi-phi-trien-khai-truy-xuat-nguon-goc (iCheck
+ * reference dated 2026-08-07, checked 2026-10-17). Peer pricing is an
+ * AgriTrace demo assumption, not an iCheck infrastructure offering. */
+export const serviceCatalog = (plans: unknown[], version: string) => ({
   version,
   currency: 'VND',
   termMonths: 12,

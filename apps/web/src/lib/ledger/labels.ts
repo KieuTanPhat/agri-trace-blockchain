@@ -11,7 +11,6 @@ const table: Record<string, Record<string, Entry>> = {
     REJECTED: ["Đã trả hồ sơ", "danger"],
     AWAITING_ACTIVATION: ["Chờ kích hoạt", "warn"],
     ACTIVE: ["Đang hoạt động", "ok"],
-    ACTIVE_LEGACY: ["Hoạt động (hồ sơ cũ)", "ok"],
     OPERATOR_PROVISIONED: ["Do vận hành cấp", "neutral"],
   },
   request: {

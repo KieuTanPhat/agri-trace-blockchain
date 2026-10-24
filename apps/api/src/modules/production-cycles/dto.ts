@@ -217,18 +217,3 @@ export class CancelCycleDto extends VersionedCommandDto {
   @MaxLength(500)
   reason!: string;
 }
-
-export class ReconcileCycleSensorDto extends VersionedCommandDto {
-  @ApiProperty({ type: String, format: 'date-time' })
-  @IsDateString()
-  plantedAt!: string;
-  @ApiProperty({ type: String, required: false, format: 'uuid' })
-  @IsOptional()
-  @IsUUID()
-  throughHarvestId?: string;
-  @ApiProperty({ type: String, maxLength: 1000, minLength: 1 })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(1000)
-  reason!: string;
-}

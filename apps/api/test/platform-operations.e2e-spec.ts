@@ -11,6 +11,7 @@ import { GlobalExceptionFilter } from '../src/common/exception/global-exception.
 import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { provisionChain } from './support/chain-scope.js';
+import { newSessionIds } from './support/session.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -49,7 +50,7 @@ async function actorWith(
     },
   });
   const session = await prisma.refreshSession.create({
-    data: {
+    data: { ...newSessionIds(),
       userId: user.id,
       tokenHash: randomUUID(),
       expiresAt: new Date(Date.now() + 3_600_000),
@@ -89,6 +90,7 @@ async function seed(
         eventTime: new Date(),
         businessData: {},
         dataHash: randomUUID().replace(/-/gu, '').repeat(2),
+        schemaVersion: '3.0.0',
       },
     });
     if (chainId)
@@ -142,7 +144,9 @@ describe('Platform operations dashboard (real PostgreSQL, read-only)', () => {
         data: { name: `Ops B ${randomUUID()}`, type: 'FARM' },
       })
     ).id;
+    // Binding/credential rows here are this suite's own fixtures.
     chainA = await provisionChain(prisma, {
+      simulatedLedger: false,
       name: `Ops chain ${randomUUID()}`,
       ownerOrganizationId: orgA,
       memberOrganizationIds: [],
@@ -397,6 +401,7 @@ second line`,
 
   it('classifies certificate expiry bands and lists revocations without exposing key material', async () => {
     const chain = await provisionChain(prisma, {
+      simulatedLedger: false,
       name: `Ops creds ${randomUUID()}`,
       ownerOrganizationId: orgB,
       memberOrganizationIds: [],
@@ -614,11 +619,13 @@ second line`,
     await prisma.refreshSession.createMany({
       data: [
         {
+          ...newSessionIds(),
           userId: victim.id,
           tokenHash: randomUUID(),
           expiresAt: new Date(Date.now() - 60_000),
         },
         {
+          ...newSessionIds(),
           userId: victim.id,
           tokenHash: randomUUID(),
           expiresAt: new Date(Date.now() + 3_600_000),

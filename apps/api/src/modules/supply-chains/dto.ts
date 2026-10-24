@@ -174,8 +174,8 @@ export class LedgerWorkerObservationDto {
 export class LedgerStatusDto {
   @ApiProperty({ type: String, format: 'uuid' }) chainId!: string;
   @ApiProperty({
-    enum: ['RELEASE_A', 'SERVICE', 'MANAGED_ORG', 'SELF_MANAGED_ORG'],
-    description: 'RELEASE_A: chuỗi chưa có binding, giữ route cũ',
+    enum: ['UNBOUND', 'SERVICE', 'MANAGED_ORG', 'SELF_MANAGED_ORG'],
+    description: 'UNBOUND: chuỗi chưa có binding nên chưa ghi được sự kiện',
   })
   profile!: string;
   @ApiProperty({ type: String, nullable: true }) bindingStatus!: string | null;

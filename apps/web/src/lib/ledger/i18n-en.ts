@@ -964,7 +964,6 @@ export const EN: Record<string, string> = {
   "Hoàn tất hồ sơ ảnh · {p0}": "Complete photo records · {p0}",
   "Hoạt chất": "Active ingredient",
   "Hoạt động": "Active",
-  "Hoạt động (hồ sơ cũ)": "Active (legacy enrollment)",
   "Hoạt động quản trị gần đây": "Recent admin activity",
   "Hold chặn giao nhận trên binding/quyền/sự kiện tới khi operator giải phóng theo runbook. API chỉ đọc, chỉ liệt kê hold chưa giải quyết.":
     "A hold blocks handovers on a binding/permission/event until the operator releases it per the runbook. The API is read-only and lists unresolved holds only.",

@@ -10,7 +10,7 @@ export function useWorkspaceAccess() {
   const auth = useAuth();
   const query = useLedgerQuery({ queryKey: ["enterprise-access"], queryFn: wapi.access, enabled:ledgerIsEnterpriseUser(auth.user) });
   const access = query.data;
-  const active = !!access && ["ACTIVE", "ACTIVE_LEGACY"].includes(access.stage);
+  const active = !!access && ["ACTIVE", "OPERATOR_PROVISIONED"].includes(access.stage);
   return {
     access, primary: access?.primary ?? false, owner: access?.owner ?? false, tier: access?.tier ?? null,
     // Scoped cached permissions only keep the hidden tree stable during a

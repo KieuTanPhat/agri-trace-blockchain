@@ -17,10 +17,11 @@ import { contractError } from "./errors";
  * test/signing.spec.ts and apps/api binding-commitment.spec.ts share vectors. */
 export const C_ENVELOPE_VERSION = "6.0.0";
 export const C_SCHEMA_VERSION = "5.0.0";
-export const SIGNED_EVENT_DOMAIN = "agritrace:binding-event:c1";
-export const INTENT_SIGNATURE_DOMAIN = "agritrace:intent-signature:c1";
+export const SIGNED_EVENT_DOMAIN = "agritrace:binding-event:c2";
+export const INTENT_SIGNATURE_DOMAIN = "agritrace:intent-signature:c2";
+/** Key proof-of-possession kept its first domain; c2 did not change it. */
 export const KEY_POP_DOMAIN = "agritrace:signing-key-pop:c1";
-export const ASSERTION_DOMAIN = "agritrace:signature-assertion:c1";
+export const ASSERTION_DOMAIN = "agritrace:signature-assertion:c2";
 export const SIGNING_PROTOCOL = "agritrace-signing/1";
 
 /** Event types that change custody between organizations and therefore may
@@ -38,8 +39,8 @@ export interface EventSignature {
   keyRef: string;
   intentDigest: string;
   assertionDigest: string;
-  payloadDigest?: string;
-  metadataDigest?: string;
+  payloadDigest: string;
+  metadataDigest: string;
 }
 
 export interface SignedBindingEventInput extends BindingEventInput {
@@ -51,7 +52,7 @@ export interface SignatureAssertion {
   keyRef: string;
   intentDigest: string;
   signature: string;
-  payloadDigest?: string;
+  payloadDigest: string;
 }
 
 function b64url(value: unknown, label: string, bytes?: number): Buffer {
@@ -118,7 +119,7 @@ export interface IntentSignedFields {
   eventType: string;
   bindingDigest: string;
   keyRef: string;
-  payloadDigest?: string;
+  payloadDigest: string;
 }
 
 /** What the organization key signs. It repeats the public identity of the
@@ -126,7 +127,7 @@ export interface IntentSignedFields {
  * binding or key even though the ledger never sees the private intent. */
 export function intentSignedMessage(fields: IntentSignedFields): Buffer {
   return bytesWithDomain(
-    fields.payloadDigest === undefined ? INTENT_SIGNATURE_DOMAIN : "agritrace:intent-signature:c2",
+    INTENT_SIGNATURE_DOMAIN,
     canonicalize({
       intentDigest: fields.intentDigest,
       chainRef: fields.chainRef,
@@ -136,7 +137,7 @@ export function intentSignedMessage(fields: IntentSignedFields): Buffer {
       eventType: fields.eventType,
       bindingDigest: fields.bindingDigest,
       keyRef: fields.keyRef,
-      ...(fields.payloadDigest === undefined ? {} : { payloadDigest: fields.payloadDigest }),
+      payloadDigest: fields.payloadDigest,
     }),
   );
 }
@@ -145,13 +146,13 @@ export function assertionDigest(assertion: SignatureAssertion): string {
   return createHash("sha256")
     .update(
       bytesWithDomain(
-        assertion.payloadDigest === undefined ? ASSERTION_DOMAIN : "agritrace:signature-assertion:c2",
+        ASSERTION_DOMAIN,
         canonicalize({
           algorithm: assertion.algorithm,
           keyRef: assertion.keyRef,
           intentDigest: assertion.intentDigest,
           signature: assertion.signature,
-          ...(assertion.payloadDigest === undefined ? {} : { payloadDigest: assertion.payloadDigest }),
+          payloadDigest: assertion.payloadDigest,
         }),
       ),
     )
@@ -164,7 +165,7 @@ export function signedEventBody(event: SignedBindingEventInput) {
 
 export function signedBindingEventCommitment(event: SignedBindingEventInput): string {
   return createHash("sha256")
-    .update(bytesWithDomain(event.envelopeVersion === C_ENVELOPE_VERSION ? "agritrace:binding-event:c2" : SIGNED_EVENT_DOMAIN, canonicalize(signedEventBody(event))))
+    .update(bytesWithDomain(SIGNED_EVENT_DOMAIN, canonicalize(signedEventBody(event))))
     .digest("hex");
 }
 

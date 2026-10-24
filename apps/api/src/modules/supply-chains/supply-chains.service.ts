@@ -235,7 +235,7 @@ export class SupplyChainsService {
     if (!binding)
       return {
         chainId,
-        profile: 'RELEASE_A',
+        profile: 'UNBOUND',
         bindingStatus: null,
         channelId: null,
         ...empty,

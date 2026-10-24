@@ -4,6 +4,7 @@ import {
   ValidationPipe,
   type INestApplication,
 } from '@nestjs/common';
+import { newSessionIds } from './support/session.js';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -71,7 +72,7 @@ async function makeUser(
 }
 async function session(actor: Actor) {
   const created = await prisma.refreshSession.create({
-    data: {
+    data: { ...newSessionIds(),
       userId: actor.id,
       tokenHash: randomUUID(),
       expiresAt: new Date(Date.now() + 3_600_000),

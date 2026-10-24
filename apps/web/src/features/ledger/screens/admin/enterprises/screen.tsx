@@ -60,7 +60,7 @@ const match = (e: Enrollment, k: StageKey) =>
     ? e.status === "APPROVED" &&
       e.capabilityRequests.some((c) => c.status === "PENDING")
     : k === "ACTIVE"
-      ? ["ACTIVE", "ACTIVE_LEGACY"].includes(e.onboardingStage)
+      ? e.onboardingStage === "ACTIVE"
       : e.onboardingStage === k);
 
 function PreviewScreen() {
