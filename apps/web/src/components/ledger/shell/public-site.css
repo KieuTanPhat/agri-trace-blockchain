@@ -1,0 +1,83 @@
+/*
+ * Token riêng cho trang công khai (agritrace.dev): chỉ một giao diện nền sáng,
+ * tông xanh lá nông nghiệp + cam nhấn. Khai báo lại toàn bộ token Ledger trong
+ * `.pub-site` để `.dark` trên <html> (do khu quản trị lưu) không đổi màu trang ngoài;
+ * biến dẫn xuất (--primary, --border…) phải khai báo lại vì var() được tính tại nơi khai báo.
+ */
+.pub-site {
+  color-scheme: light;
+  --canvas: #f7f9f5;
+  --sunken: #eef2ea;
+  --line: #dde4d7;
+  --line-strong: #c4ccbd;
+  --ink: #14211a;
+  --ink-2: #4c5a51;
+  --brand: #17803d;
+  --brand-weak: #e7f4ea;
+  --brand-ink: #0f5a2b;
+  --ok: #1e6b3a;
+  --ok-bg: #e2f1e6;
+  --info: #1f4e8c;
+  --info-bg: #e6edf7;
+  --warn: #7a4f00;
+  --warn-dot: #b07a12;
+  --warn-bg: #fbf0d9;
+  --danger: #a3261e;
+  --danger-bg: #f8e3e0;
+  --neutral: #4a4f55;
+  --neutral-bg: #ecedea;
+  --row-alt: #f7f8f5;
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --secondary: var(--sunken);
+  --secondary-foreground: var(--ink);
+  --muted: var(--sunken);
+  --muted-foreground: var(--ink-2);
+  --accent: var(--sunken);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: #22a04f;
+  --pub-deep: #0d2e1b;
+  --pub-on-deep: #e8f5ec;
+  --pub-on-deep-2: #a9c9b4;
+  --pub-accent: #ea6a12;
+  --pub-accent-hover: #cf5a0a;
+  --pub-accent-ink: #b0480a;
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+/* Lớp phủ trên ảnh nền để chữ trắng đủ tương phản. */
+.pub-photo-shade {
+  background: linear-gradient(100deg, rgb(7 33 18 / 0.88) 0%, rgb(7 33 18 / 0.62) 45%, rgb(7 33 18 / 0.15) 100%);
+}
+
+/* Hiện dần khi cuộn tới; không ẩn nội dung khi người dùng tắt chuyển động. */
+@media (prefers-reduced-motion: no-preference) {
+  .pub-reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity 0.7s ease-out,
+      transform 0.7s ease-out;
+    transition-delay: var(--pub-delay, 0ms);
+  }
+  .pub-reveal[data-visible="true"] {
+    opacity: 1;
+    transform: none;
+  }
+  .pub-zoom img {
+    transition: transform 0.6s ease-out;
+  }
+  .pub-zoom:hover img {
+    transform: scale(1.05);
+  }
+}

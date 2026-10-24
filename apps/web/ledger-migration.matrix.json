@@ -22125,7 +22125,7 @@
     },
     {
       "route": "/",
-      "sourceFile": "apps/web/src/app/page.tsx",
+      "sourceFile": "apps/web/src/app/(site)/page.tsx",
       "task": 17,
       "targetScreen": "apps/web/src/features/ledger/screens/home/screen.tsx",
       "exampleUrl": "/",
@@ -22149,8 +22149,8 @@
           "tests": [],
           "status": "verified",
           "baselineLogicSources": [
-            "apps/web/src/app/page.tsx",
-            "apps/web/src/app/page.tsx"
+            "apps/web/src/app/(site)/page.tsx",
+            "apps/web/src/app/(site)/page.tsx"
           ],
           "implementation": [
             "apps/web/src/features/ledger/public/home.tsx"
@@ -22187,7 +22187,7 @@
     },
     {
       "route": "/privacy",
-      "sourceFile": "apps/web/src/app/privacy/page.tsx",
+      "sourceFile": "apps/web/src/app/(site)/privacy/page.tsx",
       "task": 17,
       "targetScreen": "apps/web/src/features/ledger/screens/privacy/screen.tsx",
       "exampleUrl": "/privacy",
@@ -22211,8 +22211,8 @@
           "tests": [],
           "status": "verified",
           "baselineLogicSources": [
-            "apps/web/src/app/privacy/page.tsx",
-            "apps/web/src/app/privacy/page.tsx"
+            "apps/web/src/app/(site)/privacy/page.tsx",
+            "apps/web/src/app/(site)/privacy/page.tsx"
           ],
           "implementation": [
             "apps/web/src/features/ledger/public/legal.tsx"
@@ -25851,7 +25851,7 @@
     },
     {
       "route": "/scan",
-      "sourceFile": "apps/web/src/app/scan/page.tsx",
+      "sourceFile": "apps/web/src/app/(site)/scan/page.tsx",
       "task": 17,
       "targetScreen": "apps/web/src/features/ledger/screens/scan/screen.tsx",
       "exampleUrl": "/scan",
@@ -25883,8 +25883,8 @@
           ],
           "status": "verified",
           "baselineLogicSources": [
-            "apps/web/src/app/scan/page.tsx",
-            "apps/web/src/app/scan/page.tsx"
+            "apps/web/src/app/(site)/scan/page.tsx",
+            "apps/web/src/app/(site)/scan/page.tsx"
           ],
           "implementation": [
             "apps/web/src/features/ledger/public/scan.tsx"
@@ -35681,7 +35681,7 @@
     },
     {
       "route": "/terms",
-      "sourceFile": "apps/web/src/app/terms/page.tsx",
+      "sourceFile": "apps/web/src/app/(site)/terms/page.tsx",
       "task": 17,
       "targetScreen": "apps/web/src/features/ledger/screens/terms/screen.tsx",
       "exampleUrl": "/terms",
@@ -35705,8 +35705,8 @@
           "tests": [],
           "status": "verified",
           "baselineLogicSources": [
-            "apps/web/src/app/terms/page.tsx",
-            "apps/web/src/app/terms/page.tsx"
+            "apps/web/src/app/(site)/terms/page.tsx",
+            "apps/web/src/app/(site)/terms/page.tsx"
           ],
           "implementation": [
             "apps/web/src/features/ledger/public/legal.tsx"
@@ -35743,7 +35743,7 @@
     },
     {
       "route": "/trace/[lotId]",
-      "sourceFile": "apps/web/src/app/trace/[lotId]/page.tsx",
+      "sourceFile": "apps/web/src/app/(site)/trace/[lotId]/page.tsx",
       "task": 17,
       "targetScreen": "apps/web/src/features/ledger/screens/trace/[lotId]/screen.tsx",
       "exampleUrl": "/trace/fixture-public-token",
@@ -35773,8 +35773,8 @@
           ],
           "status": "verified",
           "baselineLogicSources": [
-            "apps/web/src/app/trace/[lotId]/page.tsx",
-            "apps/web/src/app/trace/[lotId]/page.tsx"
+            "apps/web/src/app/(site)/trace/[lotId]/page.tsx",
+            "apps/web/src/app/(site)/trace/[lotId]/page.tsx"
           ],
           "implementation": [
             "apps/web/src/features/ledger/public/trace.tsx",
@@ -35800,7 +35800,7 @@
           ],
           "status": "verified",
           "baselineLogicSources": [
-            "apps/web/src/app/trace/[lotId]/page.tsx",
+            "apps/web/src/app/(site)/trace/[lotId]/page.tsx",
             "apps/web/src/lib/api-client.ts"
           ],
           "implementation": [
@@ -35827,7 +35827,7 @@
           ],
           "status": "verified",
           "baselineLogicSources": [
-            "apps/web/src/app/trace/[lotId]/page.tsx",
+            "apps/web/src/app/(site)/trace/[lotId]/page.tsx",
             "apps/web/src/lib/api-client.ts"
           ],
           "implementation": [
@@ -35862,7 +35862,7 @@
           ],
           "status": "verified",
           "baselineLogicSources": [
-            "apps/web/src/app/trace/[lotId]/page.tsx",
+            "apps/web/src/app/(site)/trace/[lotId]/page.tsx",
             "apps/web/src/components/site/consumer-report-form.tsx"
           ],
           "implementation": [

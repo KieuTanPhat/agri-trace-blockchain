@@ -2,12 +2,15 @@ import {cleanup,render,screen} from "@testing-library/react";
 import {afterEach,expect,it,vi} from "vitest";
 import Home from "@/features/ledger/public/home";
 import {SITE_CONTACT} from "@/lib/site-contact";
-vi.mock("@/components/ledger/shell/public-shell",()=>({LedgerPublicShell:({children}:{children:React.ReactNode})=><>{children}</>}));
+vi.mock("next/navigation",()=>({useRouter:()=>({push:vi.fn()})}));
+vi.mock("next/image",()=>({default:({alt}:{alt:string})=><span role="img" aria-label={alt}/>}));
 afterEach(cleanup);
-it("offers public scan and canonical account routes without a demonstration lot",()=>{
+it("offers public scan and solutions without a demonstration lot or account buttons",()=>{
  const {container}=render(<Home/>);expect(screen.getByRole("heading",{level:1})).toHaveTextContent("Hành trình nông sản");
  const hrefs=screen.getAllByRole("link").map(a=>a.getAttribute("href"));
- expect(hrefs).toEqual(expect.arrayContaining(["/scan","/login","/register"]));
+ expect(hrefs).toEqual(expect.arrayContaining(["/scan","/solutions","/contact"]));
+ expect(hrefs).not.toContain("/register");
+ expect(hrefs).not.toContain("/login");
  expect(hrefs.some(h=>h?.startsWith("/trace/"))).toBe(false);
  expect(container.textContent).not.toMatch(/demo|lô mẫu|dữ liệu minh họa/i);
 });

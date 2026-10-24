@@ -6,6 +6,7 @@ import { getAuthorizationScope } from "@/lib/auth-scope";
 import { t } from "@/lib/ledger/i18n";
 import { ErrorState } from "./kit/page";
 import {LedgerPortalScope} from "./portal-scope";
+import { isCustomerPage } from "@/lib/site-origins";
 
 const PUBLIC = new Set([
   "/",
@@ -32,7 +33,7 @@ export function LedgerAuthRouteGate({
   const [portalContainer,setPortalContainer]=useState<HTMLDivElement|null>(null);
   if (privateAccessStatus === "ready" && user) admitted.current = identity;
   const publicRoute =
-    PUBLIC.has(path) || path === "/trace" || path.startsWith("/trace/");
+    PUBLIC.has(path) || path === "/trace" || path.startsWith("/trace/") || isCustomerPage(path);
   useEffect(() => {
     if (publicRoute || isLoading) return;
     if (!user) router.replace(`/login?next=${encodeURIComponent(path)}`);

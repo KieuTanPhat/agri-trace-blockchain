@@ -96,7 +96,19 @@ trong bộ nhớ trang, không thay body/key của yêu cầu đang chờ.
 
 ## Công khai, camera và PWA
 
-`/` có đăng ký/đăng nhập/quét QR và liên hệ từ `lib/site-contact.ts`. `/privacy`, `/terms`
+Trang khách hàng nằm trong nhóm route `app/(site)`; `layout.tsx` của nhóm dựng
+`LedgerPublicShell` một lần để header/footer không dựng lại khi chuyển trang. `/` có ô tra cứu
+mã, vai trò trong chuỗi, quy trình truy xuất và liên hệ từ `lib/site-contact.ts`. `/about`,
+`/solutions` (gồm bảng giá `#bang-gia` và link đăng ký sang domain doanh nghiệp) và `/contact`
+là trang tĩnh, nội dung và ảnh (Unsplash, nguồn trong `PHOTO_CREDITS`) ở
+`features/ledger/public/content.ts`; chỉ mô tả năng lực đã có, không đặt số liệu, khách hàng hay
+giá chưa xác nhận. Trang chủ chưa có khối số liệu vì API chưa có endpoint thống kê công khai.
+Header công khai không có nút đăng nhập/đăng ký; đăng ký nằm trong menu Giải pháp.
+Trang công khai và `/login` chỉ có nền sáng: token riêng trong
+`components/ledger/shell/public-site.css` (lớp `.pub-site`, tông xanh lá và cam nhấn) và
+`useForceLight()` tạm gỡ `.dark` của khu quản lý. Hiệu ứng hiện dần khi cuộn (`Reveal`) tắt
+khi người dùng chọn giảm chuyển động. Bản tiếng Anh nằm trong `lib/ledger/public-i18n-en.ts`,
+đọc qua `pt()`; chuỗi thiếu rơi về `t()` rồi về tiếng Việt. `/privacy`, `/terms`
 giữ nội dung pháp lý/version hiện có. `/scan` giải mã QR trên thiết bị từ camera/ảnh/mã/URL.
 Chỉ bật camera sau đồng ý; tắt khi ẩn/rời trang, kể cả stream đến trễ. URL trace ngoài được
 lấy token, chuẩn hóa `/trace/<token>` cùng origin; scheme nguy hiểm và URL quản trị bị từ chối.
@@ -118,7 +130,8 @@ cùng tên; publisher production truyền hai origin này, chưa có thao tác d
 
 `src/proxy.ts` chuyển GET/HEAD của login/register/join-organization và các trang
 quản lý trên domain khách hàng sang domain doanh nghiệp, giữ path/query. Root
-doanh nghiệp vào `/login`; `/scan` và `/trace/...` quay về domain khách hàng.
+doanh nghiệp vào `/login`; `/scan`, `/trace/...` và các trang thông tin trong
+`CUSTOMER_PAGES` (`lib/site-origins.ts`) quay về domain khách hàng.
 API, assets và trang pháp lý giữ origin hiện tại. API browser dùng `/api` khi
 tách domain; cookie/token không chuyển giữa hai domain. Host lạ không được dùng
 để tạo đích redirect. `next` sau đăng nhập vẫn qua kiểm quyền và chống open redirect.

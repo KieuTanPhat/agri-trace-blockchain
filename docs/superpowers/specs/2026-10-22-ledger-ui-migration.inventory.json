@@ -3112,7 +3112,7 @@
       "target": "apps/web/src/features/ledger/screens/login/screen.tsx",
       "source": "src/app/login/page.tsx",
       "sourceSha256": "89311d1c0580ea9241286d00ec0ed7bfa0e94ed21278b773b2625967018ee395",
-      "targetSha256": "73dff5db72be5557d128120599d349ad186abaa2b2953a9682f622ddd322608b",
+      "targetSha256": "f10faa2452d67fd1e27f444962f804185b20a752a506b94b02a81eb7e3ad87c1",
       "adaptation": "Ledger auth presentation; baseline session/MFA/password policy and API, without preview accounts.",
       "adaptations": [
         "Approved domain split: business auth/workspace at nongtrace.site; customer/scan/QR remain at agritrace.dev. Presentation unchanged."

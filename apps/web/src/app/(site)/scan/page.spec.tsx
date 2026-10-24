@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import ScanPage from "@/features/ledger/public/scan";
+vi.mock("next/image",()=>({default:({alt}:{alt:string})=><span role="img" aria-label={alt}/>}));
 vi.mock("@/components/ledger/shell/public-shell",()=>({LedgerPublicShell:({children}:{children:React.ReactNode})=><>{children}</>}));
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));

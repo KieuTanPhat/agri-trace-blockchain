@@ -36,6 +36,11 @@ export function publicTraceUrl(token: string, fallbackOrigin = "") {
   const pair = readSiteOrigins();
   return pair ? target(pair.customer, path).href : `${fallbackOrigin}${path}`;
 }
+/** Customer-site pages besides `/` and trace; they never need a business session. */
+export const CUSTOMER_PAGES = ["/scan", "/about", "/solutions", "/contact"] as const;
+export function isCustomerPage(path: string) {
+  return CUSTOMER_PAGES.some((page) => path === page);
+}
 /** Only configured hostnames participate; API, assets and legal pages stay on their origin. */
 export function siteRedirect(input: URL): URL | null {
   const pair = readSiteOrigins();
@@ -45,7 +50,7 @@ export function siteRedirect(input: URL): URL | null {
   if (![businessHost, customerHost].includes(host)) return null;
   const path = input.pathname;
   if (/^\/(?:api|_next|brand)(?:\/|$)/.test(path) || /\.[a-z0-9]+$/i.test(path) || ["/terms", "/privacy"].includes(path)) return null;
-  const publicPage = path === "/" || path === "/scan" || path === "/trace" || path.startsWith("/trace/");
+  const publicPage = path === "/" || path === "/trace" || path.startsWith("/trace/") || isCustomerPage(path);
   let destination: URL | null = null;
   if (host === customerHost && !publicPage) destination = target(pair.business, path);
   if (host === businessHost && publicPage) destination = target(path === "/" ? pair.business : pair.customer, path === "/" ? "/login" : path);
