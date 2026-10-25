@@ -152,6 +152,15 @@ theo origin, không tự chuyển sang domain mới. Khóa riêng không extract
 được xuất/chuyển qua URL; người ký cần đăng ký khóa thiết bị trên origin mới theo
 quyền hiện hành trước khi sử dụng. Domain mới yêu cầu đăng nhập lại.
 
+## Ứng dụng mobile native
+
+`apps/mobile` là Expo package/lockfile độc lập, dùng Node/npm cùng repo. Trang chủ
+là route đầu tiên; không buộc đăng nhập để quét/đọc trace. Màu native đối chiếu
+public-site.css và types sinh từ cùng contract NestJS với Web. Trace sau chế biến
+không giả lập vụ trồng hoặc cửa sổ cảm biến thu hoạch; giữ cảnh báo cùng proof.
+Consumer native không có quyền enterprise và không dùng cookie browser.
+Xem [mobile guide](../apps/mobile/README.md) cho setup, cờ dev và giới hạn native.
+
 ## Kiểm tra
 
 `npm run check --workspace apps/web` gồm typecheck, Vitest, lint-contract, image-optimizer

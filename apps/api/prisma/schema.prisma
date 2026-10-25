@@ -8,6 +8,36 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Operator-published consumer content. Plain text; independent of business events.
+model ConsumerNews {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String    @db.VarChar(255)
+  summary     String    @db.VarChar(1000)
+  body        String    @db.VarChar(50000)
+  coverUrl    String?   @map("cover_url") @db.VarChar(2048)
+  isPublished Boolean   @default(false) @map("is_published")
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  @@index([isPublished, publishedAt, id], map: "ix_consumer_news_public")
+  @@map("consumer_news")
+}
+
+/// Public announcements, not organization/user notifications or domain alerts.
+model ConsumerAnnouncement {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title     String    @db.VarChar(255)
+  body      String    @db.VarChar(5000)
+  severity  String    @default("INFO") @db.VarChar(16)
+  isActive  Boolean   @default(false) @map("is_active")
+  startsAt  DateTime  @map("starts_at") @db.Timestamptz(6)
+  endsAt    DateTime? @map("ends_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  @@index([isActive, startsAt, id], map: "ix_consumer_announcement_public")
+  @@map("consumer_announcement")
+}
+
 model Role {
   id          String  @id @default(dbgenerated("gen_random_uuid()")) @map("role_id") @db.Uuid
   code        String  @unique @db.VarChar(50)
@@ -47,6 +77,7 @@ model User {
   organizationId             String?                     @map("organization_id") @db.Uuid
   roleId                     String                      @map("role_id") @db.Uuid
   email                      String                      @db.VarChar(255)
+  consumerProfile            ConsumerProfile?
   passwordHash               String                      @map("password_hash")
   fullName                   String                      @map("full_name") @db.VarChar(255)
   accountStatus              AccountStatus               @default(ACTIVE) @map("account_status")
@@ -73,6 +104,40 @@ model User {
   @@unique([id, organizationId], map: "uq_user_org_scope")
   @@map("app_user")
   credentialMails             EnterpriseMail[]            @relation("AccountCredentialMail")
+}
+
+model ConsumerProfile {
+  phone           String   @unique @db.VarChar(16)
+  userId          String   @id @map("user_id") @db.Uuid
+  contactEmail    String?  @map("contact_email") @db.VarChar(255)
+  provinceCode    String   @map("province_code") @db.VarChar(10)
+  provinceName    String   @map("province_name") @db.VarChar(255)
+  wardCode        String   @map("ward_code") @db.VarChar(10)
+  wardName        String   @map("ward_name") @db.VarChar(255)
+  businessAddress String?  @map("business_address") @db.VarChar(255)
+  consentVersion  String   @map("consent_version") @db.VarChar(120)
+  consentedAt     DateTime @default(now()) @map("consented_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("consumer_profile")
+}
+
+model ConsumerPhoneProof {
+  tokenHash String   @id @map("token_hash") @db.VarChar(64)
+  proofKey  String   @unique @map("proof_key") @db.VarChar(64)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime @default(now()) @map("used_at") @db.Timestamptz(6)
+
+  @@map("consumer_phone_proof")
+}
+
+model ConsumerAuthLimit {
+  keyHash   String   @id @map("key_hash") @db.VarChar(64)
+  windowAt  DateTime @map("window_at") @db.Timestamptz(6)
+  attempts  Int
+
+  @@map("consumer_auth_limit")
 }
 
 model RefreshSession {
@@ -120,6 +185,9 @@ model Organization {
   productionCycles        ProductionCycle[]
   shipmentsAsRetailer     Shipment[]                @relation("ShipmentRetailer")
   shipmentsAsTransporter  Shipment[]                @relation("ShipmentTransporter")
+  distributionsAsSender DistributionTransfer[] @relation("DistributionSender")
+  distributionsAsCarrier DistributionTransfer[] @relation("DistributionCarrier")
+  distributionsAsReceiver DistributionTransfer[] @relation("DistributionReceiver")
   trackingBindings        ShipmentTrackingBinding[]
   traceEvents             TraceEvent[]
   capabilities            OrganizationCapability[]
@@ -828,6 +896,9 @@ model LotHolding {
 }
 
 model DistributionTransfer {
+  sender Organization @relation("DistributionSender", fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  carrier Organization @relation("DistributionCarrier", fields: [carrierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  receiver Organization @relation("DistributionReceiver", fields: [receiverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   plannedPickupAt DateTime? @map("planned_pickup_at") @db.Timestamptz(6)
   plannedDeliveryAt DateTime? @map("planned_delivery_at") @db.Timestamptz(6)
   note String? @db.VarChar(1000)
@@ -857,6 +928,7 @@ model DistributionTransfer {
 }
 
 model DistributionLine {
+  lot Lot @relation(fields: [lotId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   transferId String @map("transfer_id") @db.Uuid
   lotId String @map("lot_id") @db.Uuid
@@ -1747,6 +1819,7 @@ model Lot {
   processingRun     ProcessingRun?     @relation("ProcessingRunLots", fields: [processingRunId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   processingInputs  ProcessingInput[]
   processingOutput  ProcessingOutput?
+  distributionLines DistributionLine[]
   parentLot         Lot?               @relation("LotLineage", fields: [parentLotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   childLots         Lot[]              @relation("LotLineage")
   product           Product            @relation(fields: [productId], references: [id], onUpdate: NoAction)

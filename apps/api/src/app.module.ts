@@ -1,3 +1,6 @@
+import { PublicDirectoryModule } from './modules/public-directory/public-directory.module.js';
+import { PublicContentModule } from './modules/public-content/public-content.module.js';
+import { WeatherModule } from './modules/weather/weather.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { ProcessingModule } from './modules/processing/processing.module.js';
@@ -50,6 +53,9 @@ import { SupplyChainsModule } from './modules/supply-chains/supply-chains.module
     DistributionModule,
     UsersModule,
     CatalogModule,
+    PublicDirectoryModule,
+    PublicContentModule,
+    WeatherModule,
     OrganizationsModule,
     ProductionCyclesModule,
     LotsModule,
