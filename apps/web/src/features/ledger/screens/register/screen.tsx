@@ -330,13 +330,13 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                 value={String(step)}
                 onValueChange={(value) => void goTo(Number(value))}
               >
-                <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-transparent p-0">
+                <TabsList className="flex h-auto w-full min-w-0 flex-nowrap justify-start gap-1 overflow-x-auto overscroll-x-contain bg-transparent p-0 md:w-auto md:flex-wrap md:overflow-visible">
                   {REGISTRATION_STEPS.map((label, index) => (
                     <TabsTrigger
                       key={label}
                       value={String(index)}
                       disabled={locked}
-                      className="h-auto whitespace-normal px-3 py-2 text-left"
+                      className="h-auto flex-none snap-start whitespace-nowrap px-3 py-2 text-left md:flex-1 md:whitespace-normal"
                     >
                       <span className="font-mono">{index + 1}.</span>
                       {t(label)}
@@ -344,7 +344,7 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                   ))}
                 </TabsList>
               </Tabs>
-              <Section title={t(REGISTRATION_STEPS[step])}>
+              <Section title={t(REGISTRATION_STEPS[step])} className="min-w-0">
                 <form
                   noValidate
                   onSubmit={async (event) => {
@@ -363,7 +363,7 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                 >
                   <fieldset
                     disabled={locked || catalogLoading}
-                    className="grid min-w-0 gap-x-6 gap-y-4 px-4 py-5 sm:grid-cols-2 sm:px-5"
+                    className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 px-4 py-5 sm:grid-cols-2 sm:px-5"
                   >
                     {step === 0 && (
                       <>
