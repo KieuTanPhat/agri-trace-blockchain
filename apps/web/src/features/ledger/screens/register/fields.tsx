@@ -152,13 +152,14 @@ export function RegistrationUpload({
 }) {
   const logo = kind === "LOGO";
   return (
-    <div className="flex flex-col gap-1.5 sm:col-span-2">
+    <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-2">
       <Label htmlFor={`upload-${kind}`} className="text-[13px] font-medium">
         {label}
       </Label>
       <Input
         id={`upload-${kind}`}
         type="file"
+        className="max-w-full"
         accept={
           logo
             ? "image/jpeg,image/png,image/webp"
@@ -192,7 +193,7 @@ export function RegistrationUpload({
           onChange({ id: crypto.randomUUID(), file });
         }}
       />
-      <span className="text-[12px] text-ink-2">
+      <span className="min-w-0 break-all text-[12px] text-ink-2">
         {files[kind]?.file.name ??
           (logo ? t("Logo không bắt buộc") : t("Tài liệu được lưu riêng tư"))}
       </span>
