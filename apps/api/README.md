@@ -16,6 +16,39 @@ role reviewer còn thiếu; không dùng demo seed trên dữ liệu dùng chung
 
 ## Chạy local
 
+### Native consumer auth (ACheck)
+
+Append migration `20261214000000_consumer_mobile` thêm role CONSUMER, nội dung
+công khai, profile/consent và replay/rate-limit tables; không backfill/sửa user cũ.
+`consumer_profile.phone` là định danh consumer duy nhất, tách số liên hệ doanh
+nghiệp `app_user.phone` đã có. Prisma ánh xạ các FK distribution đã tồn tại để query
+đúng tổ chức tham gia; không đổi FK hoặc migration lịch sử.
+Năm POST `/api/auth/mobile/{register,login,password-reset,refresh,logout}` và
+`GET /api/consumer/me` tách browser cookies. Response native chứa refresh credential;
+không thay cookie contract Web. Không đưa native credential vào query/log.
+
+`CONSUMER_AUTH_ENABLED=false` mặc định. Bản dev riêng bật cờ đó và
+`CONSUMER_DEV_REGISTRATION_ENABLED=true`, `NODE_ENV=development`,
+`FIREBASE_PROJECT_ID` đúng project Android. Đăng ký production hiện luôn đóng
+chờ chính sách đã duyệt; thông báo dev không phải consent pháp lý production.
+Firebase cert/RS256 xác minh theo contract JWT chính thức, không cần private key
+và không kiểm Firebase account revocation. `auth_time` và `iat` phải trong5 phút;
+provider/phone/project phải khớp. SQL transaction chống replay cùng token và
+cùng UID/auth_time. API không gửi SMS; Firebase native thực hiện khi user bấm.
+
+Consumer dùng AuthService hiện có cho family/JWT/lock; reset thu hồi toàn bộ
+family dưới account lock, cập nhật tuổi mật khẩu và xóa yêu cầu đổi mật khẩu.
+Consumer hết hạn mật khẩu phải xác minh SMS và reset trước khi có phiên mới.
+JWT guard chặn CONSUMER ở mọi route nội bộ ngoài
+`/consumer/me`; role/organization/account/session vẫn từ DB. HTTP no-store kể cả
+lỗi, origin giữ danh sách trắng, refresh409 có Retry-After1. Chỉ năm POST native
+được maintenance allowlist khi cờ bật; không mở domain writes hoặc Fabric.
+Rate limit IP tại controller và10 lần/15 phút/số/op qua HMAC bền vững trong DB.
+Chưa tự dọn replay/rate-limit lịch sử; nếu cần retention phải có job/SQL được review,
+không xóa proof còn có thể dùng hoặc reset limiter để vượt kiểm soát.
+
+Đối chiếu cấu hình mobile và giới hạn kiểm chứng tại `../mobile/README.md`.
+
 Từ thư mục gốc repository:
 
 ```bash

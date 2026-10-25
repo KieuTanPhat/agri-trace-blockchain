@@ -64,13 +64,35 @@ export class AuthService {
   }
 
   async login(input: LoginDto, previousRefreshToken?: string) {
+    return this.loginAccount(input, previousRefreshToken);
+  }
+
+  async loginConsumer(
+    phone: string,
+    password: string,
+    previousRefreshToken?: string,
+  ) {
+    return this.loginAccount(
+      { email: '', password },
+      previousRefreshToken,
+      phone,
+    );
+  }
+
+  private async loginAccount(
+    input: LoginDto,
+    previousRefreshToken?: string,
+    consumerPhone?: string,
+  ) {
     const email = input.email.trim().toLowerCase();
 
     // The live database enforces case-insensitive uniqueness through
     // ux_app_user_email_lower, an expression index Prisma cannot expose as a
     // findUnique selector.
     const user = await this.prisma.user.findFirst({
-      where: { email },
+      where: consumerPhone
+        ? { consumerProfile: { phone: consumerPhone } }
+        : { email },
       include: {
         role: {
           select: {
@@ -99,11 +121,24 @@ export class AuthService {
       throw new UnauthorizedException(GENERIC_LOGIN_ERROR);
     }
 
+    if (
+      consumerPhone
+        ? user.role.code !== 'CONSUMER' || user.organizationId !== null
+        : user.role.code === 'CONSUMER'
+    ) {
+      throw new UnauthorizedException(GENERIC_LOGIN_ERROR);
+    }
+
     if (user.accountStatus !== 'ACTIVE') {
       throw new UnauthorizedException('Tài khoản hiện không hoạt động');
     }
     if (user.organizationId && user.organization?.status !== 'ACTIVE') {
       throw new UnauthorizedException('Tổ chức hiện không hoạt động');
+    }
+    // Validate/retire the previous native family BEFORE issuing a new one.
+    // A wrong-kind previous credential must not leave an unreturned active family.
+    if (consumerPhone && previousRefreshToken) {
+      await this.logout({ refreshToken: previousRefreshToken }, true);
     }
 
     let failedSecondFactor = false;
@@ -122,6 +157,13 @@ export class AuthService {
           !current ||
           current.passwordHash !== user.passwordHash ||
           current.role.code !== user.role.code ||
+          (consumerPhone &&
+            (current.organizationId !== null ||
+              (
+                await tx.consumerProfile.findUnique({
+                  where: { userId: current.id },
+                })
+              )?.phone !== consumerPhone)) ||
           current.accountStatus !== 'ACTIVE' ||
           (current.organizationId && current.organization?.status !== 'ACTIVE')
         ) {
@@ -151,6 +193,10 @@ export class AuthService {
           });
         if (await enforcePasswordAge(tx, current))
           current.mustChangePassword = true;
+        if (consumerPhone && current.mustChangePassword)
+          throw new UnauthorizedException(
+            'Cần xác minh số điện thoại và đặt lại mật khẩu trước khi đăng nhập',
+          );
         const {
           passwordHash: _passwordHash,
           version: _version,
@@ -170,13 +216,13 @@ export class AuthService {
       });
     // A browser account switch also invalidates access tokens held by other
     // tabs. Logout uses the same DB locks as rotation, including old tokens.
-    if (previousRefreshToken) {
+    if (previousRefreshToken && !consumerPhone) {
       await this.logout({ refreshToken: previousRefreshToken });
     }
     return result;
   }
 
-  async refresh(input: RefreshTokenDto) {
+  async refresh(input: RefreshTokenDto, consumerOnly = false) {
     const tokenHash = this.hashRefreshToken(input.refreshToken);
     const owner = await this.prisma.refreshSession.findUnique({
       where: { tokenHash },
@@ -201,6 +247,15 @@ export class AuthService {
         },
       });
       if (!session) return { state: 'revoked' } as const;
+      if (
+        consumerOnly &&
+        (session.user.role.code !== 'CONSUMER' ||
+          session.user.organizationId !== null ||
+          !(await tx.consumerProfile.findUnique({
+            where: { userId: session.userId },
+          })))
+      )
+        return { state: 'revoked' } as const;
       const familyId = session.familyId;
       if (
         session.user.accountStatus !== 'ACTIVE' ||
@@ -230,10 +285,12 @@ export class AuthService {
       }
       if (session.expiresAt <= new Date()) return { state: 'revoked' } as const;
       const { passwordChangedAt, ...sessionUser } = session.user;
-      if (
-        await enforcePasswordAge(tx, { ...sessionUser, passwordChangedAt })
-      )
+      if (await enforcePasswordAge(tx, { ...sessionUser, passwordChangedAt }))
         sessionUser.mustChangePassword = true;
+      if (consumerOnly && sessionUser.mustChangePassword) {
+        await this.revokeFamily(tx, familyId);
+        return { state: 'revoked' } as const;
+      }
 
       const nextToken = randomBytes(48).toString('base64url');
       const expiresAt = session.expiresAt;
@@ -267,17 +324,25 @@ export class AuthService {
     return result.payload;
   }
 
-  async logout(input: RefreshTokenDto) {
+  async logout(input: RefreshTokenDto, consumerOnly = false) {
     const session = await this.prisma.refreshSession.findUnique({
       where: { tokenHash: this.hashRefreshToken(input.refreshToken) },
       select: {
         id: true,
         familyId: true,
         userId: true,
-        user: { select: { organizationId: true } },
+        user: {
+          select: { organizationId: true, role: { select: { code: true } } },
+        },
       },
     });
     if (session) {
+      if (
+        consumerOnly &&
+        (session.user.role.code !== 'CONSUMER' ||
+          session.user.organizationId !== null)
+      )
+        throw new UnauthorizedException('Phiên không hợp lệ');
       await this.prisma.$transaction(async (tx) => {
         await lockSessionOwner(tx, session.userId, session.user.organizationId);
         await this.revokeFamily(tx, session.familyId);
@@ -450,7 +515,7 @@ export class AuthService {
     return user;
   }
 
-  private async createAuthResponse(
+  async createAuthResponse(
     tx: Prisma.TransactionClient,
     user: {
       id: string;

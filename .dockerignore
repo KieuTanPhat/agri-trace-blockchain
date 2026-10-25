@@ -10,6 +10,7 @@ CLAUDE.md
 .docx-review
 node_modules
 **/node_modules
+apps/mobile
 dist
 **/dist
 .next

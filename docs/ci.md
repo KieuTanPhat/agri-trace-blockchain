@@ -11,9 +11,9 @@ actions được cố định bằng SHA và cập nhật qua Dependabot.
 
 | Check bắt buộc | Kiểm tra |
 | --- | --- |
-| `Application gate` | API/Web trên Node 24.22.1; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |
+| `Application gate` | API/Web/Mobile trên Node 24.22.1; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |
 | `Blockchain gate` | Gateway/chaincode trên Node 24.22.1; coverage chaincode; cài/audit/check chaincode độc lập; job `hybrid-fabric` (mạng 3 Org thật: API → outbox → Worker → binding → proof B/C và trình duyệt). |
-| `Dependency gate` | Audit hai lockfile và dependency đã cài; kiểm peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. |
+| `Dependency gate` | Audit lockfile root, chaincode và mobile độc lập; kiểm dependency đã cài và peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. |
 
 Mỗi workflow tạo gate cho mọi PR, kể cả PR chỉ sửa tài liệu. Việc chọn job
 diễn ra trong `scripts/ci/changes.mjs`, thay vì bỏ cả workflow bằng `paths`:
@@ -58,7 +58,8 @@ tắc PR, chống xóa nhánh và chống force push đang có khi cập nhật 
 
 | Thay đổi | Các kiểm tra được chọn |
 | --- | --- |
-| `apps/api/**`, gồm Worker và migration | API, production containers, production rehearsal, tích hợp Fabric. |
+| `apps/api/**`, gồm Worker và migration | API, Mobile, production containers, production rehearsal, tích hợp Fabric. |
+| `apps/mobile/**` | Mobile: lint/typecheck/unit, kiểm Expo, export Android/iOS và browser fixture; audit dependency riêng luôn chạy. |
 | `apps/web/**` | Web, production containers, production rehearsal. |
 | `blockchain/gateway/**` | API là consumer, Gateway/chaincode, production containers, tích hợp Fabric. |
 | `blockchain/chaincode/**`, `blockchain/network/**` | Gateway/chaincode, tích hợp Fabric. |

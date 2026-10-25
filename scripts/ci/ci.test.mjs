@@ -31,7 +31,7 @@ test('enterprise approval recovery rejects a changed policy, package or definiti
 
 test('Gateway changes run API, containers and hybrid Fabric integration', () => {
   assert.deepEqual(classifyChanges(['blockchain/gateway/src/connect.ts']), {
-    api: true, web: false, containers: true, blockchain: true, hybrid: true,
+    api: true, web: false, mobile: false, containers: true, blockchain: true, hybrid: true,
   });
 });
 
@@ -59,7 +59,7 @@ test('manifests and CI changes select all checks', () => {
 
 test('Web changes select its checks and the production stack', () => {
   assert.deepEqual(classifyChanges(['apps/web/src/app/page.tsx']), {
-    api: false, web: true, containers: true, blockchain: false, hybrid: true,
+    api: false, web: true, mobile: false, containers: true, blockchain: false, hybrid: true,
   });
 });
 
@@ -79,8 +79,8 @@ test('Compose overrides select production and Fabric integration', () => {
 test('documentation-only PRs skip expensive jobs without leaving gates pending', () => {
   assert.ok(Object.values(classifyChanges(['README.md', 'docs/ci.md'])).every(value => value === false));
   assert.deepEqual(gateErrors('application', {
-    changes: { result: 'success', outputs: { api: 'false', web: 'false', containers: 'false' } },
-    api: { result: 'skipped' }, web: { result: 'skipped' }, 'container-build': { result: 'skipped' }, rehearsal: { result: 'skipped' },
+    changes: { result: 'success', outputs: { api: 'false', web: 'false', mobile: 'false', containers: 'false' } },
+    api: { result: 'skipped' }, web: { result: 'skipped' }, mobile: { result: 'skipped' }, 'container-build': { result: 'skipped' }, rehearsal: { result: 'skipped' },
   }), []);
 });
 
@@ -194,10 +194,10 @@ test('blockchain gate requires the selected standalone check and permits documen
 });
 
 test('dependency gate requires both lockfile audits and the installed graph', () => {
-  const needs = { audit: { result: 'success' }, 'workspace-peers': { result: 'success' } };
+  const needs = { audit: { result: 'success' }, 'workspace-peers': { result: 'success' }, 'mobile-audit': { result: 'success' } };
   assert.deepEqual(gateErrors('dependency', needs), []);
   for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
-    for (const job of ['audit', 'workspace-peers']) {
+    for (const job of ['audit', 'workspace-peers', 'mobile-audit']) {
       assert.ok(gateErrors('dependency', { ...needs, [job]: { result } }).length > 0);
     }
   }
@@ -205,13 +205,28 @@ test('dependency gate requires both lockfile audits and the installed graph', ()
 
 test('application gate requires the production rehearsal whenever containers are selected', () => {
   const needs = {
-    changes: { result: 'success', outputs: { api: 'true', web: 'true', containers: 'true' } },
-    api: { result: 'success' }, web: { result: 'success' }, 'container-build': { result: 'success' }, rehearsal: { result: 'success' },
+    changes: { result: 'success', outputs: { api: 'true', web: 'true', mobile: 'true', containers: 'true' } },
+    api: { result: 'success' }, web: { result: 'success' }, mobile: { result: 'success' }, 'container-build': { result: 'success' }, rehearsal: { result: 'success' },
   };
   assert.deepEqual(gateErrors('application', needs), []);
   for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
     assert.ok(gateErrors('application', { ...needs, rehearsal: { result } }).length > 0);
   }
+});
+
+test('mobile-only PR selects mobile without selecting business or Fabric jobs', () => {
+  assert.deepEqual(classifyChanges(['apps/mobile/app/(tabs)/scan.tsx']), {
+    api: false, web: false, mobile: true, containers: false, blockchain: false, hybrid: false,
+  });
+  assert.equal(classifyChanges(['apps/api/src/common/api/openapi.ts']).mobile, true);
+  const needs = {
+    changes: { result: 'success', outputs: { api: 'false', web: 'false', mobile: 'true', containers: 'false' } },
+    api: { result: 'skipped' }, web: { result: 'skipped' }, mobile: { result: 'success' },
+    'container-build': { result: 'skipped' }, rehearsal: { result: 'skipped' },
+  };
+  assert.deepEqual(gateErrors('application', needs), []);
+  for (const result of ['failure', 'cancelled', 'skipped', undefined])
+    assert.ok(gateErrors('application', { ...needs, mobile: { result } }).length > 0);
 });
 
 test('the local Compose stack passes an explicit business write mode to the API', () => {
