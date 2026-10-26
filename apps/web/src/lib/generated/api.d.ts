@@ -2457,6 +2457,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Mark received retail stock ready for sale
+         * @description The custodian Retailer transitions RETAIL_RECEIVED to FOR_SALE after delivery. Requires positive reconciled stock, no past expiry, and current Lot and Shipment versions. Preserves quantity and records MARKED_FOR_SALE with its outbox atomically. Retry with the original body and Idempotency-Key.
+         */
         post: operations["LotCommandsController_markForSale"];
         delete?: never;
         options?: never;
@@ -2473,6 +2477,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Mark all remaining retail stock sold
+         * @description The custodian Retailer transitions FOR_SALE to SOLD after delivery. Requires positive reconciled stock, no past expiry, and current Lot and Shipment versions. Consumes all remaining quantity in one SALE_OUT movement, records LOT_SOLD and its outbox atomically, and leaves availableQuantity zero. No quantity, payment or partial-sale input. Retry with the original body and Idempotency-Key.
+         */
         post: operations["LotCommandsController_markSold"];
         delete?: never;
         options?: never;

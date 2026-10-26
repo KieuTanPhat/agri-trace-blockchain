@@ -16,6 +16,74 @@ const shipment = {
 };
 
 describe('Lot action policy', () => {
+  describe('minimal retail sale', () => {
+    const retailer = { role: 'RETAILER', organizationId: 'retailer' };
+    const received: LotActionContext = {
+      ...lot,
+      currentState: 'RETAIL_RECEIVED',
+      shipment: { ...shipment, status: 'DELIVERED' },
+    };
+    const saleCommands = (context: LotActionContext, actor = retailer) =>
+      getAllowedLotCommands(context, actor).filter((command) =>
+        ['markForSale', 'markSold'].includes(command),
+      );
+
+    it.each(['STANDARD', 'DUAL_SIGNED'])(
+      'offers only the next sale transition after %s delivery',
+      (handoverMode) => {
+        const context = {
+          ...received,
+          shipment: { ...shipment, status: 'DELIVERED', handoverMode },
+        };
+        expect(saleCommands(context)).toEqual(['markForSale']);
+        expect(saleCommands({ ...context, currentState: 'FOR_SALE' })).toEqual([
+          'markSold',
+        ]);
+      },
+    );
+
+    it.each(['RETAIL_RECEIVED', 'FOR_SALE'])(
+      'denies wrong actors, empty stock, expired or unreconciled %s lots',
+      (currentState) => {
+        const context = { ...received, currentState };
+        for (const role of [
+          'FARM_STAFF',
+          'TRANSPORTER',
+          'SYSTEM_ADMIN',
+          'AUDITOR',
+        ])
+          expect(saleCommands(context, { ...retailer, role })).toEqual([]);
+        expect(
+          saleCommands(context, { ...retailer, organizationId: 'other' }),
+        ).toEqual([]);
+        for (const override of [
+          { availableQuantity: '0' },
+          { quantityReconciled: false },
+          { expiryDate: new Date('2000-01-01T00:00:00Z') },
+          { shipment: null },
+          { shipment: { ...shipment, status: 'ARRIVED' } },
+        ])
+          expect(saleCommands({ ...context, ...override })).toEqual([]);
+      },
+    );
+
+    it.each(['SOLD', 'RECALLED', 'EXPIRED', 'DAMAGED', 'REJECTED', 'ARRIVED'])(
+      'never offers sale commands in %s even if stock is positive',
+      (currentState) => {
+        expect(saleCommands({ ...received, currentState })).toEqual([]);
+      },
+    );
+
+    it('retains recall after sold without offering another sale', () => {
+      expect(
+        getAllowedLotCommands(
+          { ...received, currentState: 'SOLD', availableQuantity: '0' },
+          retailer,
+        ),
+      ).toEqual(['recall']);
+    });
+  });
+
   it.each(['SYSTEM_ADMIN', 'AUDITOR'])(
     'never offers business commands to %s even in the owning organization',
     (role) => {

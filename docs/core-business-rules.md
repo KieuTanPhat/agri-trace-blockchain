@@ -32,6 +32,19 @@ is still undergoing validation; the rules below are requirements to preserve.
   received plus new damage with available. Rejection cannot subtract twice.
 - Recall/expiry preserve actual custody. FAILED does not imply goods returned to
   the farmer. A missing or contradictory custody history blocks commands.
+- Core retail sale uses `POST /lots/:lotId/mark-for-sale` followed by
+  `POST /lots/:lotId/mark-sold`, both with `Idempotency-Key` and the original
+  `{ version, shipmentVersion }` body. Only the Retailer holding the delivered
+  Shipment may transition `RETAIL_RECEIVED → FOR_SALE → SOLD`, with positive,
+  reconciled available quantity and an unexpired Lot. Mark-for-sale preserves
+  quantity and records `MARKED_FOR_SALE`; mark-sold consumes all remaining
+  quantity in one `SALE_OUT` movement and `LOT_SOLD` event, leaving available
+  quantity zero. Domain changes, movement, trace/outbox and command journal
+  commit atomically. Retrying the same body/key returns the original result.
+  There is no sale quantity input, partial-sale, marketplace or payment flow.
+  Public trace retains `SOLD`, zero availability and the sold timeline summary;
+  recall remains possible after sale. This describes implementation; task
+  acceptance still requires reviewer evidence and the integration owner's sign-off.
 - Compliance reviewer independence applies across correction/submission history.
   Public certification is APPROVED, public, valid and not superseded by another
   approved record. Evidence verification and quality certification are separate.

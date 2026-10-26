@@ -1919,11 +1919,30 @@ const prisma = new PrismaClient({
 
     it('sells the exact remaining quantity once and permits recall after SOLD without a zero movement', async () => {
       const { lot, shipment, traceQr } = await deliveredLot(0.3);
+      const readyKey = randomUUID();
+      const readyBody = { version: 3, shipmentVersion: 3 };
       await post(
         `/lots/${lot.id}/mark-for-sale`,
-        { version: 3, shipmentVersion: 3 },
+        readyBody,
         'retailer',
+        readyKey,
       ).expect(201);
+      await post(
+        `/lots/${lot.id}/mark-for-sale`,
+        readyBody,
+        'retailer',
+        readyKey,
+      ).expect(201);
+      expect(
+        await prisma.quantityMovement.count({ where: { lotId: lot.id } }),
+      ).toBe(1);
+      expect(
+        (await get(`/lots/${lot.id}`, 'retailer').expect(200)).body.data,
+      ).toMatchObject({
+        currentState: 'FOR_SALE',
+        availableQuantity: 0.3,
+        version: 4,
+      });
       const key = randomUUID();
       const body = { version: 4, shipmentVersion: 3 };
       const sold = await post(
@@ -1951,6 +1970,38 @@ const prisma = new PrismaClient({
       expect(movements[0].quantity.toString()).toBe('0.3');
       expect(movements[0].delta.toString()).toBe('-0.3');
       expect(movements[0].afterQty.toString()).toBe('0');
+      for (const eventType of ['MARKED_FOR_SALE', 'LOT_SOLD']) {
+        const events = await prisma.traceEvent.findMany({
+          where: { lotId: lot.id, eventType },
+          include: { blockchainOutbox: true },
+        });
+        expect(events).toHaveLength(1);
+        expect(events[0].blockchainOutbox).not.toBeNull();
+        if (eventType === 'LOT_SOLD') {
+          expect(movements[0].eventId).toBe(events[0].id);
+          expect(events[0].businessData).toMatchObject({
+            beforeQuantity: '0.3',
+            afterQuantity: '0',
+            quantity: '0.3',
+          });
+        }
+      }
+      const soldTrace = await request(app.getHttpServer())
+        .get(`/api/public/trace/${traceQr.traceToken}`)
+        .expect(200);
+      expect(soldTrace.body.data).toMatchObject({
+        currentState: 'SOLD',
+        availableQuantity: 0,
+        allowedCommands: [],
+      });
+      expect(soldTrace.body.data.timeline).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            eventType: 'LOT_SOLD',
+            summary: 'Đã bán toàn bộ lượng hàng còn lại.',
+          }),
+        ]),
+      );
       await post(
         `/lots/${lot.id}/mark-for-sale`,
         { version: 5, shipmentVersion: 3 },
@@ -1973,6 +2024,155 @@ const prisma = new PrismaClient({
         .expect(200);
       expect(trace.body.data.currentState).toBe('RECALLED');
       expect(JSON.stringify(trace.body.data.warnings)).toContain('RECALL');
+    });
+
+    it('rejects wrong actors, states and stale sale versions without business writes', async () => {
+      const { lot } = await deliveredLot();
+      const snapshot = async () => ({
+        lot: await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } }),
+        events: await prisma.traceEvent.findMany({ where: { lotId: lot.id } }),
+        movements: await prisma.quantityMovement.findMany({
+          where: { lotId: lot.id },
+        }),
+      });
+      const before = await snapshot();
+      for (const command of ['mark-for-sale', 'mark-sold']) {
+        for (const actor of [
+          'farm',
+          'transporter',
+          'admin',
+          'auditor',
+          'foreign',
+        ])
+          await post(
+            `/lots/${lot.id}/${command}`,
+            { version: 3, shipmentVersion: 3 },
+            actor,
+          ).expect(403);
+        for (const body of [
+          { version: 2, shipmentVersion: 3 },
+          { version: 3, shipmentVersion: 2 },
+        ])
+          await post(`/lots/${lot.id}/${command}`, body, 'retailer').expect(
+            409,
+          );
+      }
+      await post(
+        `/lots/${lot.id}/mark-sold`,
+        { version: 3, shipmentVersion: 3 },
+        'retailer',
+      ).expect(409);
+      expect(await snapshot()).toEqual(before);
+    });
+
+    it('rolls back a sale after trace and outbox insertion fails before commit', async () => {
+      const { lot } = await deliveredLot(0.3);
+      await post(
+        `/lots/${lot.id}/mark-for-sale`,
+        { version: 3, shipmentVersion: 3 },
+        'retailer',
+      ).expect(201);
+      const snapshot = async () => ({
+        lot: await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } }),
+        movements: await prisma.quantityMovement.count({
+          where: { lotId: lot.id },
+        }),
+        events: await prisma.traceEvent.count({ where: { lotId: lot.id } }),
+        outbox: await prisma.blockchainOutbox.count({
+          where: { traceEvent: { lotId: lot.id } },
+        }),
+      });
+      const before = await snapshot();
+      const trace = app.get(TraceService);
+      const create = trace.createInTransaction.bind(trace);
+      const failure = vi
+        .spyOn(trace, 'createInTransaction')
+        .mockImplementationOnce(async (tx, input) => {
+          await create(tx, input);
+          throw new Error(
+            'simulated failure after sale trace/outbox insertion',
+          );
+        });
+      const key = randomUUID();
+      const body = { version: 4, shipmentVersion: 3 };
+      try {
+        await post(`/lots/${lot.id}/mark-sold`, body, 'retailer', key).expect(
+          500,
+        );
+      } finally {
+        failure.mockRestore();
+      }
+      expect(await snapshot()).toEqual(before);
+      const record = await prisma.idempotencyRecord.findFirstOrThrow({
+        where: { idempotencyKey: key },
+      });
+      expect(record.status).toBe('PROCESSING');
+      expect(
+        await prisma.commandCommit.findUnique({
+          where: { idempotencyRecordId: record.id },
+        }),
+      ).toBeNull();
+      await post(`/lots/${lot.id}/mark-sold`, body, 'retailer', key).expect(
+        409,
+      );
+      expect(await snapshot()).toEqual(before);
+    });
+
+    it('recovers a committed sale from its journal after response-cache failure', async () => {
+      const { lot } = await deliveredLot(0.3);
+      await post(
+        `/lots/${lot.id}/mark-for-sale`,
+        { version: 3, shipmentVersion: 3 },
+        'retailer',
+      ).expect(201);
+      const key = randomUUID();
+      const body = { version: 4, shipmentVersion: 3 };
+      const failure = vi
+        .spyOn(app.get(IdempotencyService), 'complete')
+        .mockRejectedValueOnce(
+          new Error('simulated sale response-cache failure'),
+        );
+      try {
+        await post(`/lots/${lot.id}/mark-sold`, body, 'retailer', key).expect(
+          500,
+        );
+      } finally {
+        failure.mockRestore();
+      }
+      const record = await prisma.idempotencyRecord.findFirstOrThrow({
+        where: { idempotencyKey: key },
+      });
+      const journal = await prisma.commandCommit.findUniqueOrThrow({
+        where: { idempotencyRecordId: record.id },
+      });
+      const replay = await post(
+        `/lots/${lot.id}/mark-sold`,
+        body,
+        'retailer',
+        key,
+      ).expect(201);
+      expect(replay.body.data).toEqual(journal.responseBody);
+      expect(replay.body.data).toMatchObject({
+        currentState: 'SOLD',
+        availableQuantity: 0,
+        version: 5,
+      });
+      expect(
+        await prisma.quantityMovement.count({
+          where: { lotId: lot.id, type: 'SALE_OUT' },
+        }),
+      ).toBe(1);
+      expect(
+        await prisma.traceEvent.count({
+          where: { lotId: lot.id, eventType: 'LOT_SOLD' },
+        }),
+      ).toBe(1);
+      await post(
+        `/lots/${lot.id}/mark-sold`,
+        { ...body, version: 5 },
+        'retailer',
+        key,
+      ).expect(409);
     });
 
     it('serializes competing sale requests and keeps state, quantity and outbox atomic', async () => {

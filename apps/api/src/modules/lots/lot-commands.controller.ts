@@ -8,7 +8,12 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -58,6 +63,11 @@ export class LotCommandsController {
   }
   @Roles('RETAILER')
   @Post('mark-for-sale')
+  @ApiOperation({
+    summary: 'Mark received retail stock ready for sale',
+    description:
+      'The custodian Retailer transitions RETAIL_RECEIVED to FOR_SALE after delivery. Requires positive reconciled stock, no past expiry, and current Lot and Shipment versions. Preserves quantity and records MARKED_FOR_SALE with its outbox atomically. Retry with the original body and Idempotency-Key.',
+  })
   @ApiDataResponse(LotCommandResultDto, 201)
   markForSale(
     @Param('lotId', ParseUUIDPipe) id: string,
@@ -71,6 +81,11 @@ export class LotCommandsController {
   }
   @Roles('RETAILER')
   @Post('mark-sold')
+  @ApiOperation({
+    summary: 'Mark all remaining retail stock sold',
+    description:
+      'The custodian Retailer transitions FOR_SALE to SOLD after delivery. Requires positive reconciled stock, no past expiry, and current Lot and Shipment versions. Consumes all remaining quantity in one SALE_OUT movement, records LOT_SOLD and its outbox atomically, and leaves availableQuantity zero. No quantity, payment or partial-sale input. Retry with the original body and Idempotency-Key.',
+  })
   @ApiDataResponse(LotCommandResultDto, 201)
   markSold(
     @Param('lotId', ParseUUIDPipe) id: string,
