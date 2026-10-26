@@ -148,6 +148,7 @@ jobs:
         working-directory: apps/mobile
         run: npm audit --workspaces=false --audit-level=moderate
       - name: Export consumer web application
+        if: ${{ !cancelled() }}
         working-directory: apps/mobile
         env:
           EXPO_PUBLIC_API_BASE_URL: /api
