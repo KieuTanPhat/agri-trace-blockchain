@@ -186,9 +186,11 @@ export async function runEnterpriseBrowserScenarios(options) {
       // The page header and the embedded profile section share this title.
       await owner.getByRole('heading', { name: 'Hồ sơ đăng ký', exact: true }).first().waitFor({ timeout });
       await owner.getByText('PENDING_REVIEW', { exact: true }).first().waitFor({ timeout });
-      // Before approval the owner has no connection workspace.
+      // Before approval the owner has no connection workspace; the shell sends
+      // a blocked page to the owner's landing page (plan selection).
       await owner.goto(`${options.origin}/enterprise/connections`, { waitUntil: 'domcontentloaded' });
-      await owner.getByRole('alert').filter({ hasText: /\S/ }).first().waitFor({ timeout });
+      await owner.waitForURL(url => url.pathname === '/enterprise/service', { timeout });
+      await owner.getByText('Chủ hồ sơ đăng ký được chọn dịch vụ sau khi hồ sơ được duyệt.', { exact: true }).waitFor({ timeout });
       assert.equal(await owner.getByRole('heading', { name: 'Kết nối doanh nghiệp', exact: true }).count(), 0);
       await bothLayouts(owner);
       await until(() => authorization, 'owner authentication');

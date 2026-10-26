@@ -146,7 +146,7 @@ jobs:
       - run: node_modules/.bin/oxlint --max-warnings 0 apps/mobile/src/
       - name: Audit mobile tooling and application dependencies
         working-directory: apps/mobile
-        run: npm audit --workspaces=false --audit-level=moderate
+        run: node ../../scripts/ci/mobile-audit.mjs
       - name: Export consumer web application
         if: ${{ !cancelled() }}
         working-directory: apps/mobile

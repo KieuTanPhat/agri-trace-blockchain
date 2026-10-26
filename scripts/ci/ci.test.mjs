@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { classifyChanges, changedFiles } from './changes.mjs';
 import { gateErrors } from './gate.mjs';
+import { evaluateAudit } from './mobile-audit.mjs';
 import './hybrid-browser-login.test.mjs';
 import { approvalPolicy, verifyApprovedDefinition } from '../../blockchain/network/enterprise/peer.mjs';
 
@@ -227,4 +228,16 @@ test('the local Compose stack passes an explicit business write mode to the API'
   const api = compose.slice(compose.indexOf('\n  api:'), compose.indexOf('\n  worker:'));
   assert.match(api, /HYBRID_WRITES_MODE: \$\{HYBRID_WRITES_MODE:-OPEN\}/);
   assert.match(readFileSync(new URL('../../.env.docker.example', import.meta.url), 'utf8'), /^HYBRID_WRITES_MODE=OPEN$/m);
+});
+
+test('mobile audit allows only listed, unexpired advisories', () => {
+  const advisory = (name, id, severity = 'high') => ({ name, severity, title: 't', url: `https://github.com/advisories/${id}` });
+  const report = vias => ({ vulnerabilities: { x: { via: vias } } });
+  const allowed = [{ id: 'GHSA-a', package: 'forge', expires: '2026-11-26' }];
+  const before = new Date('2026-11-25T23:59:59Z'), after = new Date('2026-11-26T00:00:00Z');
+  assert.deepEqual(evaluateAudit(report(['forge', advisory('forge', 'GHSA-a')]), before, allowed), []);
+  assert.equal(evaluateAudit(report([advisory('forge', 'GHSA-a')]), after, allowed).length, 1);
+  assert.equal(evaluateAudit(report([advisory('other', 'GHSA-a')]), before, allowed).length, 1);
+  assert.equal(evaluateAudit(report([advisory('forge', 'GHSA-b', 'moderate')]), before, allowed).length, 1);
+  assert.deepEqual(evaluateAudit(report([advisory('forge', 'GHSA-c', 'low')]), before, allowed), []);
 });
