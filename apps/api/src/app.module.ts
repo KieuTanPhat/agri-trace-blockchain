@@ -5,6 +5,9 @@ import { PlatformAdminModule } from './modules/platform-admin/platform-admin.mod
 import { EnterpriseWorkspaceModule } from './modules/enterprise-workspace/enterprise-workspace.module.js';
 import { DistributionModule } from './modules/distribution/distribution.module.js';
 import { PlatformGovernanceModule } from './modules/platform-governance/platform-governance.module.js';
+import { PublicDirectoryModule } from './modules/public-directory/public-directory.module.js';
+import { PublicContentModule } from './modules/public-content/public-content.module.js';
+import { WeatherModule } from './modules/weather/weather.module.js';
 import { EnterpriseOnboardingModule } from './modules/enterprise-onboarding/enterprise-onboarding.module.js';
 import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -50,6 +53,9 @@ import { SupplyChainsModule } from './modules/supply-chains/supply-chains.module
     DistributionModule,
     UsersModule,
     CatalogModule,
+    PublicDirectoryModule,
+    PublicContentModule,
+    WeatherModule,
     OrganizationsModule,
     ProductionCyclesModule,
     LotsModule,

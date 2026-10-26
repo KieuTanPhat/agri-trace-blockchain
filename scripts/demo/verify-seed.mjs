@@ -6,7 +6,7 @@ import { verificationInitialization } from "./verification-initialization.mjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../apps/api/dist/generated/prisma/client.js";
 import { SIMULATED_NETWORK } from "../../apps/api/dist/modules/ledger/simulated-ledger.js";
-const local = new URL("../../.codex/seed-current/", import.meta.url);
+const local = new URL("../../.codex/fruit-dataset/run/", import.meta.url);
 const { values } = parseArgs({ options: { fresh: { type: "boolean" } } });
 const initialization = await verificationInitialization(local, values.fresh);
 assert.equal(
@@ -119,7 +119,7 @@ try {
       assert.ok(
         counts.user >= 30 &&
           counts.farm === 3 &&
-          counts.product >= 10 &&
+          counts.product === 28 &&
           counts.productionCycle >= 15 &&
           counts.lot >= 13 &&
           counts.traceEvidence >= 120,
@@ -231,7 +231,7 @@ try {
     "Sealed sensor windows keep DATA and NO_DATA distinct",
     async () => {
       const windows = await db.harvestSensorWindow.findMany();
-      assert.equal(windows.length, 12);
+      assert.equal(windows.length, counts.harvestEvent);
       assert.ok(windows.some((x) => x.readingCount > 0));
       assert.ok(windows.some((x) => x.status === "NO_DATA"));
       for (const w of windows) {

@@ -207,7 +207,7 @@ export function EvidencePanel({
           {...withdraw.props}
           title={tr("Gỡ ảnh sản phẩm")}
           endpoint="POST /enterprise-workspace/evidence/:id/withdraw"
-          description={tr("Ảnh không bị xóa mà chỉ thôi hiển thị. Sản phẩm đang bán cần giữ ít nhất ba ảnh sản phẩm.")}
+          description={tr("Ảnh không bị xóa mà chỉ thôi hiển thị. Sản phẩm đang bán cần giữ ít nhất một ảnh sản phẩm.")}
           schema={withdrawSchema}
           defaultValues={{ reason: "" }}
           tone="danger"

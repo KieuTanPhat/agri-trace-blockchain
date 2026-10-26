@@ -328,7 +328,7 @@ class CatalogController {
       if (!row || row.version !== dto.version || row.evidenceComplete) throw new ConflictException('Sản phẩm đã thay đổi hoặc hoàn tất');
       await enterpriseAuthority(tx, req.user, 'catalog.manage', undefined, row.originFarmId ?? undefined, true);
       const counts = await evidenceCounts(tx, req.user.organizationId!, 'PRODUCT', id);
-      if ((counts.get('PRODUCT_IMAGE') ?? 0) < 3) throw new ConflictException('Cần ít nhất ba ảnh sản phẩm hợp lệ');
+      if ((counts.get('PRODUCT_IMAGE') ?? 0) < 1) throw new ConflictException('Cần ít nhất một ảnh sản phẩm hợp lệ');
       await assertEntitlement(tx, req.user.organizationId!, 'products');
       const updated = await tx.product.updateMany({ where: { id, version: dto.version, evidenceComplete: false }, data: { evidenceComplete: true, status: 'ACTIVE', version: { increment: 1 } } });
       if (updated.count !== 1) throw new ConflictException('Sản phẩm đã thay đổi');

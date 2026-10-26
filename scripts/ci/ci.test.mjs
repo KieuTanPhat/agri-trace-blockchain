@@ -62,6 +62,14 @@ test('Web changes select its checks and the production stack', () => {
     api: false, web: true, containers: true, blockchain: false, hybrid: true,
   });
 });
+test('mobile source selects web, container and hybrid checks',()=>{
+  for(const file of ['apps/mobile/src/lib/queue.ts','apps/mobile/package-lock.json']){const checks=classifyChanges([file]);assert.equal(checks.web,true);assert.equal(checks.containers,true);assert.equal(checks.hybrid,true);}
+});
+test('application gate rejects skipped or failed mobile verification',()=>{
+  const needs={changes:{result:'success',outputs:{api:'true',web:'true',containers:'true'}},api:{result:'success'},web:{result:'success'},mobile:{result:'success'},'container-build':{result:'success'},rehearsal:{result:'success'}};
+  assert.deepEqual(gateErrors('application',needs),[]);
+  for(const result of ['failure','skipped','cancelled',undefined])assert(gateErrors('application',{...needs,mobile:{result}}).length>0);
+});
 
 test('edge routing, rehearsal scripts and the deployment template require all integration checks', () => {
   for (const file of ['deploy/edge/Caddyfile', 'deploy/ci/rehearse.mjs', 'deploy/cd/policy.py', '.env.deploy.example']) {
@@ -80,7 +88,7 @@ test('documentation-only PRs skip expensive jobs without leaving gates pending',
   assert.ok(Object.values(classifyChanges(['README.md', 'docs/ci.md'])).every(value => value === false));
   assert.deepEqual(gateErrors('application', {
     changes: { result: 'success', outputs: { api: 'false', web: 'false', containers: 'false' } },
-    api: { result: 'skipped' }, web: { result: 'skipped' }, 'container-build': { result: 'skipped' }, rehearsal: { result: 'skipped' },
+    api: { result: 'skipped' }, web: { result: 'skipped' }, mobile:{result:'skipped'}, 'container-build': { result: 'skipped' }, rehearsal: { result: 'skipped' },
   }), []);
 });
 
@@ -206,7 +214,7 @@ test('dependency gate requires both lockfile audits and the installed graph', ()
 test('application gate requires the production rehearsal whenever containers are selected', () => {
   const needs = {
     changes: { result: 'success', outputs: { api: 'true', web: 'true', containers: 'true' } },
-    api: { result: 'success' }, web: { result: 'success' }, 'container-build': { result: 'success' }, rehearsal: { result: 'success' },
+    api: { result: 'success' }, web: { result: 'success' }, mobile:{result:'success'}, 'container-build': { result: 'success' }, rehearsal: { result: 'success' },
   };
   assert.deepEqual(gateErrors('application', needs), []);
   for (const result of ['failure', 'cancelled', 'skipped', undefined]) {

@@ -114,6 +114,18 @@ export class JwtAuthGuard implements CanActivate {
       );
     }
 
+    // Consumer sessions never authorize enterprise/internal routes, even a newly
+    // added controller without Roles metadata. Public endpoints remain anonymous.
+    if (
+      user.role.code === 'CONSUMER' &&
+      request.originalUrl?.split('?')[0].replace(/^\/api(?=\/)/, '') !==
+        '/consumer/me'
+    ) {
+      throw new ForbiddenException(
+        'Tài khoản người tiêu dùng không có quyền truy cập nghiệp vụ',
+      );
+    }
+
     request.user = {
       sub: user.id,
       sid: payload.sid,

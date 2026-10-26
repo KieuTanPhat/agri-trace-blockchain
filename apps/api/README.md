@@ -16,6 +16,51 @@ role reviewer còn thiếu; không dùng demo seed trên dữ liệu dùng chung
 
 ## Chạy local
 
+### Native consumer auth (ACheck)
+
+Migration `20261218000001_consumer_phone_auth` thêm role CONSUMER, cột
+`app_user.login_phone` (E.164, unique, chỉ cho tài khoản không thuộc tổ chức),
+profile/consent và bảng chống replay/rate limit; không backfill hay sửa user cũ.
+Cột `app_user.phone` có từ trước là số liên hệ của thành viên doanh nghiệp, không
+dùng để đăng nhập. Năm POST `/api/auth/mobile/{register,login,password-reset,refresh,logout}`
+và `GET /api/consumer/me` tách khỏi browser cookie. Response native chứa refresh
+credential; không thay cookie contract Web. Không đưa native credential vào query/log.
+
+`CONSUMER_AUTH_ENABLED=false` mặc định. Bản dev riêng bật cờ đó và
+`CONSUMER_DEV_REGISTRATION_ENABLED=true`, `NODE_ENV=development`,
+`FIREBASE_PROJECT_ID` đúng project Android. Đăng ký production luôn đóng, chờ
+chính sách được duyệt; thông báo dev không phải consent pháp lý production.
+Firebase cert/RS256 xác minh theo contract JWT chính thức, không cần private key
+và không kiểm Firebase account revocation. `auth_time` và `iat` phải trong 5 phút;
+provider/phone/project phải khớp. SQL transaction chống replay cùng token và
+cùng UID/auth_time. API không gửi SMS; Firebase native gửi khi người dùng bấm.
+
+Consumer dùng AuthService hiện có cho family/JWT/lock; reset thu hồi toàn bộ
+family dưới account lock. Tài khoản CONSUMER không bị buộc đổi mật khẩu theo hạn
+(app chỉ có đặt lại qua SMS). JWT guard chặn CONSUMER ở mọi route nội bộ ngoài
+`/consumer/me`; role/organization/account/session vẫn đọc từ DB. HTTP no-store kể cả
+lỗi, origin giữ danh sách trắng, refresh 409 có Retry-After 1. Chỉ năm POST native
+nằm trong maintenance allowlist khi cờ bật; không mở domain writes hoặc Fabric.
+Rate limit IP tại controller và 10 lần/15 phút/số/thao tác qua HMAC bền vững trong DB.
+Chưa tự dọn lịch sử replay/rate limit; nếu cần retention phải có job/SQL được review,
+không xóa proof còn dùng được hoặc reset limiter để vượt kiểm soát.
+
+### Native session cho app nhân viên
+
+`POST /api/auth/staff/{login,refresh,logout}` dùng cùng email/mật khẩu với Web nhưng
+trả refresh token trong body để app lưu ở secure storage; không đặt cookie. Chỉ thành
+viên doanh nghiệp (có tổ chức, không phải vai nền tảng, máy hay CONSUMER) đăng nhập
+được; tài khoản khác nhận đúng thông báo như sai mật khẩu. Refresh/logout từ chối
+credential không thuộc app nhân viên. `STAFF_APP_AUTH_ENABLED=false` mặc định; khi bật,
+ba POST này nằm trong maintenance allowlist như `/auth/login`.
+
+App nhân viên dùng lại API nghiệp vụ hiện có (mùa vụ, nhật ký chăm sóc, thu hoạch có
+`Idempotency-Key`, lô, bàn giao ký Ed25519) với Bearer token; quyền và phạm vi vẫn do
+các controller đó kiểm. `GET /api/lots/by-trace-token/:token` đổi mã QR vừa quét sang
+lô trong phạm vi người gọi; lô ngoài phạm vi trả 404 giống mã không tồn tại.
+`mustChangePassword` vẫn chặn mọi route nghiệp vụ; app hướng nhân viên đổi mật khẩu
+trên Web.
+
 Từ thư mục gốc repository:
 
 ```bash

@@ -227,6 +227,7 @@ export function mockPublicTrace(traceToken: string): PublicLotTrace | null {
   return {
     lotId: lot.lotId,
     traceToken: lot.traceToken ?? lot.lotId,
+    imageUrl: '/public/trace/test/thumbnail', journey: [],
     lotCode: lot.lotCode,
     productName: lot.productName,
     harvestTime: lot.harvestTime,

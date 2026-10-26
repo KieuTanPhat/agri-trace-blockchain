@@ -1,7 +1,11 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 
-/** Machine identities never sign in with a human password. */
-const EXEMPT_ROLES = ['IOT_DEVICE', 'SYSTEM_ACTOR'];
+/**
+ * Machine identities never sign in with a human password. Consumer app
+ * accounts recover by SMS reset and have no in-app change-password flow, so
+ * forced rotation would lock them out.
+ */
+const EXEMPT_ROLES = ['IOT_DEVICE', 'SYSTEM_ACTOR', 'CONSUMER'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Maximum password age; PASSWORD_MAX_AGE_DAYS=0 disables rotation. */

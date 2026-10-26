@@ -1,6 +1,9 @@
 // Local operator seed. Run only after seed-current.ps1 backup/target checks,
 // or explicitly authorized fresh-cluster checks (see database migration runbook).
 import assert from "node:assert/strict";
+import { freshProducts, processedProducts } from "./fruit-catalog.mjs";
+import {ensureSeedAccount,seedContentId} from "./seed-recovery.mjs";
+import {publishDirectoryProfiles} from "./publish-directory-profiles.mjs";
 import {
   createHash,
   randomUUID,
@@ -19,8 +22,8 @@ import {
 } from "../../apps/api/dist/modules/platform-governance/platform-audit.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const local = `${root}.codex/seed-current`;
-const assets = `${root}scripts/demo/assets`;
+const local = `${root}.codex/fruit-dataset/run`;
+const assets = `${root}.codex/fruit-assets`;
 const url = new URL(process.env.DATABASE_URL);
 assert.equal(
   process.env.AGRITRACE_LOCAL_SEED_TARGET,
@@ -176,7 +179,7 @@ const manifest = JSON.parse(await readFile(`${assets}/manifest.json`, "utf8"));
 for (const asset of manifest.photos) {
   const bytes = await readFile(`${assets}/${asset.file}`);
   assert.equal(digest(bytes), asset.sha256);
-  assert.ok(bytes.length > 10000 && bytes.length < 5e6);
+  assert.ok(bytes.length > 50 && bytes.length < 5e6);
   assert.ok(
     bytes[0] === 255 && bytes[1] === 216,
     "Photos must be real JPEG files",
@@ -198,7 +201,7 @@ const roles = [
 const orgDefs = [
   [
     "farm",
-    "HTX Nông sản Bình Minh (Demo)",
+    "Hợp tác xã Trái cây Bình Minh",
     "FARM",
     "FARM_STAFF",
     "Lâm Đồng",
@@ -206,7 +209,7 @@ const orgDefs = [
   ],
   [
     "berry",
-    "Nông trại Dâu Cao Nguyên (Demo)",
+    "Hợp tác xã Nông nghiệp Phú An",
     "FARM",
     "FARM_STAFF",
     "Lâm Đồng",
@@ -214,7 +217,7 @@ const orgDefs = [
   ],
   [
     "garden",
-    "HTX Vườn Xanh Sông Hồng (Demo)",
+    "Hợp tác xã Miệt Vườn Cửu Long",
     "FARM",
     "FARM_STAFF",
     "Hà Nội",
@@ -222,7 +225,7 @@ const orgDefs = [
   ],
   [
     "carrier",
-    "Vận tải Lạnh An Tâm (Demo)",
+    "Công ty Vận tải lạnh An Tâm",
     "TRANSPORTER",
     "TRANSPORTER",
     "TP. Hồ Chí Minh",
@@ -230,7 +233,7 @@ const orgDefs = [
   ],
   [
     "distributor",
-    "Phân phối Nông sản Việt (Demo)",
+    "Công ty Phân phối Nông sản Việt Xanh",
     "DISTRIBUTOR",
     "DISTRIBUTOR",
     "TP. Hồ Chí Minh",
@@ -238,7 +241,7 @@ const orgDefs = [
   ],
   [
     "retailer",
-    "Cửa hàng Thực phẩm An Lành (Demo)",
+    "Công ty Thực phẩm An Lành",
     "RETAILER",
     "RETAILER",
     "TP. Hồ Chí Minh",
@@ -246,7 +249,7 @@ const orgDefs = [
   ],
   [
     "processor",
-    "Chế biến Nông sản Mùa Vàng (Demo)",
+    "Công ty Chế biến Nông sản Mùa Vàng",
     "PROCESSOR",
     "PROCESSOR",
     "Lâm Đồng",
@@ -254,7 +257,7 @@ const orgDefs = [
   ],
   [
     "auditor",
-    "Trung tâm Kiểm định Độc lập (Demo)",
+    "Trung tâm Kiểm soát Chất lượng Việt Tín",
     "AUDITOR",
     "AUDITOR",
     "TP. Hồ Chí Minh",
@@ -263,6 +266,13 @@ const orgDefs = [
 ];
 let accounts = await load("accounts", null);
 const bootstrap = await step("bootstrap", async () => {
+  const pendingBootstrap=await load("bootstrap-intent",null);
+  if(pendingBootstrap) {
+    const userIds=Object.values(pendingBootstrap.users).map(u=>u.id);
+    const recovered=await db.user.count({where:{id:{in:userIds}}});
+    if(recovered===userIds.length)return pendingBootstrap;
+    assert.equal(recovered,0,"Partially recovered bootstrap requires reconciliation");
+  }
   assert.equal(
     await db.user.count(),
     0,
@@ -270,7 +280,7 @@ const bootstrap = await step("bootstrap", async () => {
   );
   accounts = {
     createdAt: now.toISOString(),
-    warning: "Local demo credentials. Never commit, publish or email.",
+    warning: "Local credentials. Never commit, publish or email.",
     users: [],
   };
   const passwords = new Map();
@@ -311,11 +321,11 @@ const bootstrap = await step("bootstrap", async () => {
           update: {},
         });
       for (const [key, roleCode, name] of [
-        ["admin", "SYSTEM_ADMIN", "Nguyễn Minh An - Quản trị demo"],
-        ["checker", "SYSTEM_ADMIN", "Trần Gia Hân - Phê duyệt demo"],
-        ["operator", "PLATFORM_OPERATOR", "Lê Tuấn Khang - Vận hành demo"],
-        ["cases", "PLATFORM_CASE_MANAGER", "Phạm Ngọc Mai - Hỗ trợ demo"],
-        ["privacy", "PLATFORM_PRIVACY_OFFICER", "Võ Khánh Linh - Dữ liệu demo"],
+        ["admin", "SYSTEM_ADMIN", "Nguyễn Minh An"],
+        ["checker", "SYSTEM_ADMIN", "Trần Gia Hân"],
+        ["operator", "PLATFORM_OPERATOR", "Lê Tuấn Khang"],
+        ["cases", "PLATFORM_CASE_MANAGER", "Phạm Ngọc Mai"],
+        ["privacy", "PLATFORM_PRIVACY_OFFICER", "Võ Khánh Linh"],
       ])
         result.users[key] = await makeUser(
           tx,
@@ -331,7 +341,7 @@ const bootstrap = await step("bootstrap", async () => {
         const owner = await makeUser(
           tx,
           `${key}.owner@example.test`,
-          `${name} - Nguyễn An`,
+          ["Nguyễn Văn Hòa","Trần Thị Thu","Lê Minh Tâm","Phạm Quốc Huy","Võ Thị Lan","Đặng Hoài Nam","Bùi Thanh Phong","Nguyễn Hoàng Anh"][i],
           roleCode,
           {
             organizationId: organization.id,
@@ -340,7 +350,7 @@ const bootstrap = await step("bootstrap", async () => {
             jobTitle: "Chủ quản doanh nghiệp",
             contactAddress: `${ward}, ${province}`,
             memberNote:
-              "Tài khoản và thông tin giả lập được tạo cho demo local.",
+              "Thành viên phụ trách hoạt động sản xuất và giao nhận của đơn vị.",
           },
         );
         result.users[key] = owner;
@@ -367,7 +377,7 @@ const bootstrap = await step("bootstrap", async () => {
           result.users.reviewer = await makeUser(
             tx,
             "reviewer@example.test",
-            "Nguyễn Thu Hà - Kiểm định độc lập demo",
+            "Nguyễn Thu Hà",
             "COMPLIANCE_REVIEWER",
             {
               organizationId: organization.id,
@@ -391,22 +401,22 @@ const bootstrap = await step("bootstrap", async () => {
             organizationId: organization.id,
             ownerId: owner.id,
             registrationDigest: digest(`demo:${organization.id}`),
-            businessId: `DEMO-2026-${String(i + 1).padStart(4, "0")}`,
+            businessId: `AGT-2026-${String(i + 1).padStart(4, "0")}`,
             hostingMode: i % 2 ? "SELF_MANAGED_ORG" : "MANAGED_ORG",
             status: "APPROVED",
             serviceActivatedAt: now,
             serviceActivatedBy: result.users.admin.id,
             serviceActivationReason:
-              "Khởi tạo dataset local được chủ dự án cho phép; không phải nghiệm thu Fabric.",
+              "Khởi tạo hồ sơ local được chủ dự án cho phép; không phải nghiệm thu Fabric.",
             reviewedBy: result.users.admin.id,
-            reviewNote: "Hồ sơ demo đã duyệt; không phải pháp nhân thật.",
+            reviewNote: "Đã rà soát thông tin hồ sơ và phân công người phụ trách.",
           },
         });
         await tx.enterpriseProfile.create({
           data: {
             organizationId: organization.id,
             legalForm: type === "FARM" ? "COOPERATIVE" : "ENTERPRISE",
-            address: `Khu nông nghiệp mẫu ${i + 1}, ${ward}, ${province}`,
+            address: `Khu nông nghiệp  ${i + 1}, ${ward}, ${province}`,
             province,
             ward,
             phone: `0287300000${i}`,
@@ -414,19 +424,19 @@ const bootstrap = await step("bootstrap", async () => {
             representative: `${owner.fullName}`,
             activities: caps,
             website: `https://${key}.example.test`,
-            description: `${name}: ${type === "FARM" ? "Trồng trọt có nhật ký chăm sóc, thu hoạch theo lô và kiểm soát chất lượng." : "Đối tác trong chuỗi nông sản mẫu, lưu đầy đủ thông tin và chứng từ giao nhận."} Dữ liệu demo, không đại diện pháp nhân có thật.`,
+            description: `${name}: ${type === "FARM" ? "Trồng trọt có nhật ký chăm sóc, thu hoạch theo lô và kiểm soát chất lượng." : "Đối tác trong chuỗi nông sản , lưu đầy đủ thông tin và chứng từ giao nhận."} Quản lý hồ sơ vùng sản xuất, chất lượng và giao nhận theo từng lô.`,
             declarationAcceptedAt: now,
             legalData: {
-              registrationNumber: `DEMO-DKKD-${i + 1}`,
-              taxCode: `DEMO-MST-${i + 1}`,
+              registrationNumber: `AGT-DKKD-${i + 1}`,
+              taxCode: `AGT-MST-${i + 1}`,
               representative: owner.fullName,
               position: "Giám đốc",
-              issuedBy: "Cơ quan đăng ký mẫu - không có giá trị pháp lý",
+              issuedBy: "Cơ quan đăng ký  - không có giá trị pháp lý",
               issuedAt: "2025-01-15",
             },
             registrationData: {
               schemaVersion: 2,
-              demo: true,
+             synthetic: true,
               registrationRole: type,
               legalForm: type === "FARM" ? "COOPERATIVE" : "ENTERPRISE",
               activities: caps,
@@ -445,7 +455,7 @@ const bootstrap = await step("bootstrap", async () => {
               accuracyAccepted: true,
               marketingAccepted: false,
               acceptedAt: now.toISOString(),
-              policyVersion: "DEMO-2026-10",
+              policyVersion: "AGT-2026-10",
             },
           },
         });
@@ -465,7 +475,7 @@ const bootstrap = await step("bootstrap", async () => {
           const manager = await makeUser(
             tx,
             `${key}.manager@example.test`,
-            `Trần Quang Minh - ${name}`,
+            ["Trần Quang Minh","Nguyễn Thị Hạnh","Phạm Minh Đức","Lê Quốc Bảo","Võ Thanh Hà","Trần Ngọc Yến","Nguyễn Văn Khải"][i],
             roleCode,
             {
               organizationId: organization.id,
@@ -478,7 +488,7 @@ const bootstrap = await step("bootstrap", async () => {
           const staff = await makeUser(
             tx,
             `${key}.staff@example.test`,
-            `Lê Thảo Vy - ${name}`,
+            ["Lê Thảo Vy","Phạm Ngọc Hân","Nguyễn Thành Đạt","Trần Văn Dũng","Lê Thị Mỹ","Võ Minh Châu","Đặng Thùy Linh"][i],
             roleCode,
             {
               organizationId: organization.id,
@@ -515,7 +525,7 @@ const bootstrap = await step("bootstrap", async () => {
       ]) {
         const org = await tx.organization.create({
           data: {
-            name: `Doanh nghiệp ${key === "pending" ? "Chờ duyệt" : "Bị từ chối"} (Demo)`,
+            name: `Doanh nghiệp ${key === "pending" ? "Chờ duyệt" : "Bị từ chối"} `,
             type: "FARM",
           },
         });
@@ -525,7 +535,7 @@ const bootstrap = await step("bootstrap", async () => {
         const owner = await makeUser(
           tx,
           `${key}.owner@example.test`,
-          `Chủ hồ sơ ${key} demo`,
+          `Chủ hồ sơ ${key}`,
           "FARM_STAFF",
           { organizationId: org.id, enterpriseTier: 1 },
         );
@@ -536,12 +546,12 @@ const bootstrap = await step("bootstrap", async () => {
             organizationId: org.id,
             hostingMode: "MANAGED_ORG",
             registrationDigest: digest(org.id),
-            businessId: `DEMO-${key}`,
+            businessId: `AGT-${key}`,
             status,
             ...(key === "rejected"
               ? {
                   reviewedBy: result.users.admin.id,
-                  reviewNote: "Hồ sơ demo thiếu chứng từ; bổ sung rồi gửi lại.",
+                  reviewNote: "Hồ sơ thiếu chứng từ; bổ sung rồi gửi lại.",
                 }
               : {}),
           },
@@ -556,7 +566,7 @@ const bootstrap = await step("bootstrap", async () => {
         result.users[key] = await makeUser(
           tx,
           `${key}@example.test`,
-          `Tài khoản ${key} demo`,
+          `Tài khoản ${key}`,
           "FARM_STAFF",
           {
             organizationId: result.orgs.farm.id,
@@ -565,6 +575,8 @@ const bootstrap = await step("bootstrap", async () => {
             ...fields,
           },
         );
+      await save("accounts",accounts);
+      await save("bootstrap-intent",result);
       return result;
     },
     { timeout: 120000 },
@@ -650,7 +662,7 @@ async function evidence(key, type, id, kind, photoKey, suffix = "") {
   }
   form.set(
     "description",
-    `Ảnh chụp minh họa dataset demo; không phải ảnh tại doanh nghiệp hoặc chứng nhận thật. ${asset.author}; ${asset.source}; Unsplash License.`,
+    `Ảnh hồ sơ: ${asset.description ?? "Hình ảnh hồ sơ và hoạt động"}.`,
   );
   form.set("file", new Blob([bytes], { type: "image/jpeg" }), asset.file);
   const command = (state.commands[label] ??= { key: randomUUID() });
@@ -708,14 +720,14 @@ const resources = await step("resources", async () => {
             capacityKg: 10000,
             ...(j ? { coldAreaM2: 200 } : {}),
             expectedOutputTons: 60,
-            address: `Khu sản xuất mẫu ${j + 1}, Đức Trọng, Lâm Đồng`,
+            address: `Khu sản xuất  ${j + 1}, Đức Trọng, Lâm Đồng`,
             manager: actors[key].fullName,
             representative: actors[key].fullName,
             phone: "0900000000",
             email: `${key}.site${j}@example.test`,
             staffUserId: actors[key].id,
             otherInfo:
-              "Cơ sở demo: kiểm soát vệ sinh, phân khu tiếp nhận và bảo quản; ảnh stock minh họa.",
+              "Cơ sở: kiểm soát vệ sinh, phân khu tiếp nhận và bảo quản; ảnh stock minh họa.",
           },
           `site:${key}:${j}`,
         ),
@@ -745,7 +757,7 @@ const resources = await step("resources", async () => {
           actors.carrier,
           "/enterprise-workspace/vehicles",
           {
-            registration: `DEMO-51D-${String(12001 + i)}`,
+            registration: `AGT-51D-${String(12001 + i)}`,
             kind: [
               "Xe tải lạnh 2,5 tấn",
               "Xe tải thùng kín 5 tấn",
@@ -766,17 +778,17 @@ const resources = await step("resources", async () => {
           "/enterprise-workspace/materials",
           {
             name: [
-              i === 1 ? "Giống dâu tây Nhật" : "Hạt giống cà chua bi",
+              i === 1 ? "Cây giống ăn trái tuyển chọn" : "Cây giống ăn trái ghép",
               "Phân hữu cơ vi sinh",
               "Chế phẩm sinh học phòng sâu",
             ][j],
             kind: ["SEED", "FERTILIZER", "PROTECTION"][j],
             unit: j ? "kg" : "g",
             code: `${key.toUpperCase()}-VT-${j + 1}`,
-            supplier: "Nhà cung cấp Nông nghiệp Xanh (Demo)",
-            manufacturer: "Cơ sở vật tư mẫu",
-            batchCode: `DEMO-VT-2026-${i}${j}`,
-            origin: "Việt Nam (dữ liệu demo)",
+            supplier: "Công ty Vật tư Nông nghiệp Xanh",
+            manufacturer: "Cơ sở vật tư ",
+            batchCode: `AGT-VT-2026-${i}${j}`,
+            origin: "Việt Nam (dữ liệu)",
             price: j ? 45000 : 120000,
             seedType: j ? undefined : "Giống chọn lọc",
             activeIngredient: j === 2 ? "Bacillus thuringiensis" : undefined,
@@ -813,16 +825,16 @@ const resources = await step("resources", async () => {
       {
         organizationId: actor.organizationId,
         name: [
-          "Vùng cà chua Bình Minh",
-          "Vườn dâu Cao Nguyên",
-          "Vùng cà chua Sông Hồng",
+          "Vườn cây ăn trái Bình Minh",
+          "Vùng dưa và trái cây Phú An",
+          "Vườn trái cây Cửu Long",
         ][i],
         kind: "CROP",
         region: i === 2 ? "Hà Nội" : "Lâm Đồng",
         address:
           i === 2
-            ? "Khu canh tác mẫu, Đông Anh, Hà Nội"
-            : "Khu canh tác mẫu, Đơn Dương, Lâm Đồng",
+            ? "Khu canh tác , Đông Anh, Hà Nội"
+            : "Khu canh tác , Đơn Dương, Lâm Đồng",
         areaM2: 12000,
         expectedOutput: 60000,
         outputUnit: "kg/năm",
@@ -837,28 +849,28 @@ const resources = await step("resources", async () => {
           .filter((x) => x.key === key && x.kind !== "SEED")
           .map((x) => x.id),
         otherInfo:
-          "Vùng demo có phân lô, nhật ký tưới/chăm sóc, thu hoạch theo đợt; chứng từ mẫu không có giá trị pháp lý.",
+          "Vùng có phân lô, nhật ký tưới/chăm sóc, thu hoạch theo đợt; chứng từ  không có giá trị pháp lý.",
       },
       `farm:${key}`,
     );
-    // Legal documents are explicitly watermarked demo samples, never stock photos masquerading as certificates.
+    // Legal documents are explicitly watermarked samples, never stock photos masquerading as certificates.
     // A farm needs only its land-use right document.
     for (const kind of ["LAND_CERTIFICATE"]) {
       const label = `document:${farm.id}:${kind}`;
       if (!state.commands[label]?.complete) {
-        const bytes = await readFile(`${assets}/demo-${kind}.jpg`);
+        const bytes = await readFile(`${assets}/land-${i + 1}.jpg`);
         const form = new FormData();
         form.set("entityType", "FARM");
         form.set("entityId", farm.id);
         form.set("kind", kind);
         form.set(
           "description",
-          "DEMO - Hồ sơ mẫu cho phần mềm, không có giá trị pháp lý, không chứng nhận chất lượng hoặc quyền sử dụng đất.",
+          "Bản tham khảo đã ẩn thông tin định danh; lưu cùng hồ sơ vùng sản xuất.",
         );
         form.set(
           "file",
           new Blob([bytes], { type: "image/jpeg" }),
-          `DEMO-${kind}.jpg`,
+          `AGT-${kind}.jpg`,
         );
         const cmd = (state.commands[label] ??= { key: randomUUID() });
         await save("progress", state);
@@ -899,32 +911,32 @@ const resources = await step("resources", async () => {
             name: `Khu ${j ? "B" : "A"} - 6.000 m²`,
             area: 6000,
             unit: "m2",
-            location: "Phân khu demo, tưới nhỏ giọt, có rãnh thoát nước",
+            location: "Phân khu, tưới nhỏ giọt, có rãnh thoát nước",
           },
           `plot:${key}:${j}`,
         )),
         key,
       });
-    for (let j = 0; j < 3; j++) {
+    const catalog = freshProducts.filter(p => p.owner === key);
+    for (let j = 0; j < catalog.length; j++) {
+      const definition = catalog[j];
       const product = await api(
         actor,
         "/catalog/products",
         {
-          productName: `${i === 1 ? "Dâu tây Nhật" : "Cà chua bi"} ${["loại 1", "đóng hộp 500 g", "tuyển chọn"][j]}`,
-          variety: i === 1 ? "Dâu Nhật" : "Cà chua bi đỏ",
+          productName: definition.name,
+          variety: definition.variety,
           sku: `${key.toUpperCase()}-SP-${j + 1}`,
-          category: i === 1 ? "Trái cây tươi" : "Rau quả tươi",
+          category: definition.category,
           defaultUnit: "kg",
           originFarmId: farm.id,
-          price: i === 1 ? 180000 + j * 20000 : 45000 + j * 5000,
+          price: definition.price,
           storageConditions:
-            i === 1
-              ? "Bảo quản 2-5°C, không rửa trước khi cất lạnh"
-              : "Bảo quản nơi thoáng mát 10-15°C, tránh ánh nắng",
-          ingredients: i === 1 ? "100% dâu tây tươi" : "100% cà chua bi tươi",
+            definition.storage,
+          ingredients: `100% ${definition.name.toLowerCase()}`,
           usageInstructions:
             "Rửa sạch trước khi dùng; loại bỏ quả hư; đọc hạn sử dụng trên tem.",
-          description: `Sản phẩm demo của ${bootstrap.orgs[key].name}. Ảnh chụp stock đúng loại nông sản, không phải chứng nhận chất lượng.`,
+          description: definition.description,
           rawMaterials: "Nông sản tươi thu hoạch theo lô",
           manufacturingSiteId: result.sites[key][1].id,
           managerUserId: actor.id,
@@ -933,13 +945,13 @@ const resources = await step("resources", async () => {
         },
         `product:${key}:${j}`,
       );
-      for (let k = 1; k <= 3; k++)
+      for (let k = 1; k <= 1; k++)
         await evidence(
           key,
           "PRODUCT",
           product.id,
           "PRODUCT_IMAGE",
-          `${i === 1 ? "berry" : "tomato"}${k}`,
+          definition.slug,
         );
       result.products.push({
         ...(await api(
@@ -949,6 +961,7 @@ const resources = await step("resources", async () => {
           `product-complete:${product.id}`,
         )),
         key,
+        slug: definition.slug,
       });
     }
   }
@@ -993,7 +1006,7 @@ const chains = await step("chains", async () => {
                 where: { organizationId: actors[other].organizationId },
               })
             ).businessId,
-            note: "Đối tác demo, giao nhận nông sản có kiểm tra hai phía.",
+            note: "Đối tác, giao nhận nông sản có kiểm tra hai phía.",
           },
           `partner:${key}:${other}`,
         ),
@@ -1013,14 +1026,14 @@ const chains = await step("chains", async () => {
       "/supply-chains",
       {
         name: [
-          "Chuỗi cà chua Bình Minh",
-          "Chuỗi dâu Cao Nguyên",
-          "Chuỗi chăn nuôi mẫu",
-          "Chuỗi thủy sản mẫu",
+          "Chuỗi trái cây Bình Minh",
+          "Chuỗi trái cây Phú An",
+          "Chuỗi trái cây Cửu Long",
+          "Chuỗi chế biến trái cây Mùa Vàng",
         ][i],
-        chainType: ["CROP", "PROCESSED_FOOD", "LIVESTOCK", "AQUACULTURE"][i],
+        chainType: i === 3 ? "PROCESSED_FOOD" : "CROP",
         description:
-          "Chuỗi demo có tổ chức độc lập tại từng khâu. Loại ngoài CROP chỉ phân loại; nghiệp vụ sản xuất hiện vẫn là trồng trọt.",
+          "Chuỗi có tổ chức độc lập tại từng khâu. Loại ngoài CROP chỉ phân loại; nghiệp vụ sản xuất hiện vẫn là trồng trọt.",
         participants: [
           "FARM",
           "PROCESSOR",
@@ -1150,7 +1163,7 @@ const chains = await step("chains", async () => {
       "CHAIN",
       chain.id,
       "CHAIN_IMAGE",
-      key === "berry" ? "berry3" : "tomatoField",
+      "care",
     );
     result.push({ ...chain, key });
   }
@@ -1270,7 +1283,7 @@ await step("delegation", async () => {
           farmId: farm.id,
           reviewerUserId: actors.reviewer.id,
           reason:
-            "Phân công reviewer độc lập cho vùng sản xuất trong dataset demo.",
+            "Phân công reviewer độc lập cho vùng sản xuất trong hồ sơ.",
         },
         `compliance-assignment:${farm.id}`,
       );
@@ -1303,8 +1316,10 @@ const production = await step("production", async () => {
     const key = farm.key,
       actor = actors[key],
       chain = chains.find((x) => x.key === key);
-    for (let i = 0; i < 5; i++) {
-      const product = resources.products.filter((x) => x.key === key)[i % 3];
+    const farmProducts = resources.products.filter((x) => x.key === key);
+    for (let i = 0; i < farmProducts.length + 3; i++) {
+      const product = farmProducts[i % farmProducts.length];
+      const allocated = i % 2 === 0 || ["mit", "chuoi", "xoai"].includes(product.slug);
       const cycle = await api(
         actor,
         "/production-cycles",
@@ -1313,7 +1328,7 @@ const production = await step("production", async () => {
           farmId: farm.id,
           plotId: resources.plots.filter((x) => x.key === key)[i % 2].id,
           productId: product.id,
-          cycleCode: `DEMO-202610-${key.toUpperCase()}-${i + 1}`,
+          cycleCode: `AGT-202610-${key.toUpperCase()}-${i + 1}`,
           name: `${product.productName} - vụ ${i + 1}/2026`,
           startDate: day(-70).slice(0, 10),
           plannedHarvest: day(14).slice(0, 10),
@@ -1326,7 +1341,7 @@ const production = await step("production", async () => {
           responsibleUserId: actor.id,
           cultivationMethod:
             "Canh tác quản lý tổng hợp, tưới nhỏ giọt, ghi nhật ký theo lô",
-          note: "Vụ demo có ảnh chụp minh họa; không tuyên bố chứng nhận hoặc dữ liệu cảm biến vật lý thật.",
+          note: "Vụ có ảnh chụp minh họa; không tuyên bố chứng nhận hoặc dữ liệu cảm biến vật lý thật.",
         },
         `cycle:${key}:${i}`,
       );
@@ -1336,17 +1351,17 @@ const production = await step("production", async () => {
         "CYCLE",
         cycle.id,
         "CYCLE_IMAGE",
-        key === "berry" ? "berry3" : "tomatoField",
+        "care",
       );
-      if (i === 0) continue;
-      if (i === 4) {
+      if (i === farmProducts.length) continue;
+      if (i === farmProducts.length + 2) {
         await api(
           actor,
           `/production-cycles/${cycle.id}/cancel`,
           {
             version: cycle.version,
             reason:
-              "Hủy vụ mẫu trước khi trồng do điều chỉnh kế hoạch canh tác.",
+              "Hủy vụ  trước khi trồng do điều chỉnh kế hoạch canh tác.",
           },
           `cycle-cancel:${cycle.id}`,
         );
@@ -1361,14 +1376,14 @@ const production = await step("production", async () => {
         { version: current.version, plantedAt: day(-60) },
         `plant:${cycle.id}`,
       );
-      if (i === 1) continue;
+      if (i === farmProducts.length + 1) continue;
       const careEvidence = unwrap(
         await evidence(
           key,
           "CYCLE",
           cycle.id,
           "CARE_IMAGE",
-          key === "berry" ? "berry3" : "tomatoField",
+          "care",
         ),
       );
       current = await db.productionCycle.findUniqueOrThrow({
@@ -1384,7 +1399,7 @@ const production = await step("production", async () => {
           eventTime: day(-25),
           evidenceRef: careEvidence.id,
           method: "Tưới nhỏ giọt theo luống",
-          cropCondition: "Lá xanh, cây sinh trưởng đồng đều (mô tả demo)",
+          cropCondition: "Lá xanh, cây sinh trưởng đồng đều (mô tả)",
           performerUserId: actor.id,
           note: "Ghi nhận minh họa, không phải tư vấn kỹ thuật.",
         },
@@ -1397,7 +1412,7 @@ const production = await step("production", async () => {
           {
             organizationId: actor.organizationId,
             cycleId: cycle.id,
-            deviceCode: `DEMO-${key}-TEMP`,
+            deviceCode: `AGT-${key}-TEMP`,
             name: "Cảm biến nhiệt độ nhà màng (mô phỏng)",
             type: "TEMPERATURE",
           },
@@ -1423,7 +1438,7 @@ const production = await step("production", async () => {
           "CYCLE",
           cycle.id,
           "HARVEST_IMAGE",
-          key === "berry" ? "berry3" : "tomato3",
+          `harvest${i % 3 === 0 ? "" : (i % 3) + 1}`,
         ),
       );
       const lotEvidence = unwrap(
@@ -1432,7 +1447,7 @@ const production = await step("production", async () => {
           "CYCLE",
           cycle.id,
           "LOT_IMAGE",
-          key === "berry" ? "berry1" : "tomato1",
+          product.slug,
         ),
       );
       for (let h = 0; h < 2; h++) {
@@ -1451,7 +1466,7 @@ const production = await step("production", async () => {
             quantity: 250 + h * 50,
             unit: "kg",
             harvestTime: day(h ? -7 : -14),
-            lotCode: `DEMO-${key.toUpperCase()}-${i}-${h + 1}`,
+            lotCode: `AGT-${key.toUpperCase()}-${i}-${h + 1}`,
             grade: h ? "Loại 2" : "Loại 1",
             expiryDate: day(21).slice(0, 10),
             packaging: "Thùng nhựa thực phẩm 10 kg có tem lô",
@@ -1459,9 +1474,9 @@ const production = await step("production", async () => {
             harvestArea: "6.000 m²",
             harvestMethod: "Thu hái thủ công, phân loại tại vườn",
             qualityNote:
-              "Mô tả chất lượng demo; cần kiểm định thực tế trước sử dụng.",
+              "Mô tả chất lượng; cần kiểm định thực tế trước sử dụng.",
             note: "Thu hoạch nhiều đợt giữ nguyên nguồn lô.",
-            ...(i === 3
+            ...(allocated
               ? { initialStorageSiteId: resources.sites[key][1].id }
               : {}),
           },
@@ -1473,10 +1488,11 @@ const production = await step("production", async () => {
           cycleId: cycle.id,
           chainId: chain.id,
           traceToken: receipt.traceQr.traceToken,
-          allocated: i === 3,
+          allocated,
+          productSlug: product.slug,
         });
       }
-      if (i === 3) {
+      if (i % 3 === 0) {
         current = await db.productionCycle.findUniqueOrThrow({
           where: { id: cycle.id },
         });
@@ -1518,7 +1534,7 @@ await step("first-login-delegation", async () => {
 const shipments = await step("shipments", async () => {
   const result = [];
   const legacy = production.lots.filter((l) => !l.allocated);
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < Math.min(12, legacy.length); i++) {
     const lot = legacy[i],
       owner = actors[lot.key],
       path = `/supply-chains/${lot.chainId}/shipment-plans`;
@@ -1531,7 +1547,7 @@ const shipments = await step("shipments", async () => {
         retailerOrgId: actors.retailer.organizationId,
         quantity: String(lot.availableQuantity),
         unit: "kg",
-        origin: "Vùng sản xuất demo",
+        origin: "Vùng sản xuất",
         destination: "Cửa hàng An Lành - TP. Hồ Chí Minh",
         vehicleRef: resources.vehicles[i % 3].registration,
       },
@@ -1561,7 +1577,7 @@ const shipments = await step("shipments", async () => {
     const id = finalized.shipmentId;
     assert.ok(id, "Finalized plan must create a Shipment");
     result.push(id);
-    if (i === 0) continue;
+    if (i % 4 === 0) continue;
     let row = await db.shipment.findUniqueOrThrow({ where: { id } }),
       current = await db.lot.findUniqueOrThrow({ where: { id: lot.id } });
     await api(
@@ -1570,7 +1586,7 @@ const shipments = await step("shipments", async () => {
       { version: row.version, lotVersion: current.version },
       `shipment-start:${id}`,
     );
-    if (i === 1) continue;
+    if (i % 4 === 1) continue;
     row = await db.shipment.findUniqueOrThrow({ where: { id } });
     current = await db.lot.findUniqueOrThrow({ where: { id: lot.id } });
     await api(
@@ -1579,7 +1595,7 @@ const shipments = await step("shipments", async () => {
       { version: row.version, lotVersion: current.version },
       `shipment-arrive:${id}`,
     );
-    if (i === 2) continue;
+    if (i % 4 === 2) continue;
     row = await db.shipment.findUniqueOrThrow({ where: { id } });
     current = await db.lot.findUniqueOrThrow({ where: { id: lot.id } });
     await api(
@@ -1590,7 +1606,7 @@ const shipments = await step("shipments", async () => {
         lotVersion: current.version,
         receivedQuantity: Number(current.availableQuantity),
         damagedQuantity: 0,
-        note: "Đã nhận đủ số lượng demo; bảo quản mát.",
+        note: "Đã nhận đủ số lượng; bảo quản mát.",
       },
       `shipment-receive:${id}`,
     );
@@ -1631,7 +1647,7 @@ async function signingKey(key) {
       id: value.id,
       publicKey: value.publicKey,
       popSignature,
-      label: "Khóa demo local - không phải khóa của doanh nghiệp thật",
+      label: "Khóa local - không phải khóa của doanh nghiệp thật",
     },
     `key:${key}`,
   );
@@ -1671,9 +1687,11 @@ async function attest(id, key, phase) {
 }
 const transfers = await step("distribution", async () => {
   const result = [];
-  for (let i = 0; i < 4; i++) {
-    const lot = production.lots.filter((l) => l.allocated)[i],
-      receiver = i === 0 ? "processor" : i === 3 ? "retailer" : "distributor";
+  const ingredientLots = processedProducts.map(p => production.lots.find(l => l.allocated && l.productSlug === p.source));
+  const otherLots = production.lots.filter(l => l.allocated && !ingredientLots.some(x => x.id === l.id));
+  const selected = [...ingredientLots, ...otherLots.slice(0,3)];
+  for (let i = 0; i < selected.length; i++) {
+    const lot = selected[i], receiver = i < 3 ? "processor" : i === 5 ? "retailer" : "distributor";
     const transfer = unwrap(
       await api(
         actors[lot.key],
@@ -1686,24 +1704,24 @@ const transfers = await step("distribution", async () => {
           receiverSiteId: resources.sites[receiver][0].id,
           carrierSiteId: resources.sites.carrier[0].id,
           vehicleId: resources.vehicles[i % 3].id,
-          origin: "Kho nguồn demo",
+          origin: "Kho nguồn",
           destination: resources.sites[receiver][0].address,
           plannedPickupAt: new Date(Date.now() + 3600000).toISOString(),
           plannedDeliveryAt: new Date(Date.now() + 5 * 3600000).toISOString(),
           lines: [{ lotId: lot.id, quantity: "100.000", unit: "kg" }],
-          note: "Chặng giao nhận demo, ký Ed25519 hai phía; không có proof Fabric.",
+          note: "Chặng giao nhận, ký Ed25519 hai phía; không có proof Fabric.",
         },
         `transfer:${i}`,
       ),
     );
-    result.push({ ...transfer, key: lot.key, receiver, lotId: lot.id });
-    if (i === 1) continue;
+    result.push({ ...transfer, key: lot.key, receiver, lotId: lot.id, productSlug: lot.productSlug });
+    if (i === 3) continue;
     for (const key of [lot.key, "carrier", receiver])
       await attest(transfer.id, key, "CONSENT");
-    if (i === 2) continue;
+    if (i === 4) continue;
     for (const key of [lot.key, "carrier"])
       await attest(transfer.id, key, "PICKUP");
-    if (i === 3) continue;
+    if (i === 5) continue;
     const row = await db.distributionTransfer.findUniqueOrThrow({
       where: { id: transfer.id },
       include: { lines: true },
@@ -1719,7 +1737,7 @@ const transfers = await step("distribution", async () => {
           rejected: "0",
           quarantined: "0",
         })),
-        reason: "Đã đối chiếu đủ số lượng và tình trạng hàng demo.",
+        reason: "Đã đối chiếu đủ số lượng và tình trạng hàng.",
       },
       `transfer-receipt:${transfer.id}`,
     );
@@ -1730,102 +1748,34 @@ const transfers = await step("distribution", async () => {
 });
 
 const processing = await step("processing", async () => {
-  const product = await api(
-    actors.processor,
-    "/catalog/products",
-    {
-      productName: "Cà chua sơ chế đóng khay 500 g",
-      sku: "DEMO-CB-001",
-      category: "Nông sản sơ chế",
-      defaultUnit: "kg",
-      price: 65000,
-      storageConditions: "Bảo quản lạnh 2-5°C, dùng trong hạn ghi trên tem",
-      ingredients: "100% cà chua tươi",
-      rawMaterials: "Cà chua bi từ lô có truy xuất nguồn gốc",
-      usageInstructions:
-        "Rửa sạch trước khi sử dụng, không dùng bao bì hư hỏng",
-      manufacturingSiteId: resources.sites.processor[0].id,
-      managerUserId: actors.processor.id,
-      description:
-        "Thành phẩm sơ chế mẫu; cân bằng khối lượng được kiểm bằng API và SQL. Ảnh stock minh họa.",
-    },
-    "processed-product",
-  );
-  for (let k = 1; k <= 3; k++)
-    await evidence(
-      "processor",
-      "PRODUCT",
-      product.id,
-      "PRODUCT_IMAGE",
-      `tomato${k}`,
-    );
-  await api(
-    actors.processor,
-    `/catalog/products/${product.id}/complete`,
-    { version: product.version },
-    "processed-product-complete",
-  );
-  const source = transfers[0],
-    result = [];
-  for (let i = 0; i < 3; i++) {
-    const quantity = i ? "10.000" : "50.000",
-      output = i ? "9.000" : "48.000",
-      loss = i ? "1.000" : "2.000";
-    const run = unwrap(
-      await api(
-        actors.processor,
-        "/processing-runs",
-        {
-          chainId: source.chainId,
-          siteId: resources.sites.processor[0].id,
-          baseUnit: "kg",
-          processType: "PRELIMINARY",
-          recipe:
-            "Phân loại, loại bỏ quả hỏng, làm sạch, để ráo và đóng khay thực phẩm",
-          inputs: [{ lotId: source.lotId, quantity }],
-          outputs: [
-            {
-              productId: product.id,
-              kind: "PRODUCT",
-              quantity: output,
-              unit: "kg",
-              lotName: `Cà chua sơ chế - mẻ demo ${i + 1}`,
-              packaging: "Khay thực phẩm 500 g",
-              packageCount: i ? 18 : 96,
-              expiryDate: day(7).slice(0, 10),
-            },
-          ],
-          losses: [
-            {
-              reason: "TRIMMING",
-              quantity: loss,
-              note: "Loại bỏ phần không đạt (mô phỏng)",
-            },
-          ],
-          note: "Dữ liệu chế biến demo; khối lượng đầu vào = đầu ra + hao hụt.",
-        },
-        `processing:${i}`,
-      ),
-    );
-    result.push(run);
-    if (i === 0)
-      await api(
-        actors.processor,
-        `/processing-runs/${run.id}/complete`,
-        { version: run.version },
-        `processing-complete:${run.id}`,
-      );
-    if (i === 2)
-      await api(
-        actors.processor,
-        `/processing-runs/${run.id}/cancel`,
-        {
-          version: run.version,
-          reason:
-            "Hủy kế hoạch demo trước thực hiện; không thay đổi lượng nguyên liệu.",
-        },
-        `processing-cancel:${run.id}`,
-      );
+  const result = [];
+  for (const definition of processedProducts) {
+    const product = await api(actors.processor, "/catalog/products", {
+      productName:definition.name, sku:`MV-${definition.slug.toUpperCase()}`, category:definition.category,
+      defaultUnit:"kg", variety:definition.variety, price:definition.price,
+      storageConditions:definition.storage, ingredients:`100% ${definition.variety.toLowerCase()}`,
+      rawMaterials:`${definition.variety} từ các lô nguồn có truy xuất`, usageInstructions:definition.usage,
+      manufacturingSiteId:resources.sites.processor[0].id, managerUserId:actors.processor.id,
+      distributor:bootstrap.orgs.distributor.name, carrier:bootstrap.orgs.carrier.name, description:definition.description,
+    }, `processed-product:${definition.slug}`);
+    await evidence("processor","PRODUCT",product.id,"PRODUCT_IMAGE",definition.slug);
+    await api(actors.processor,`/catalog/products/${product.id}/complete`,{version:product.version},`processed-product-complete:${definition.slug}`);
+    const source = transfers.find(t => t.receiver === "processor" && t.productSlug === definition.source);
+    assert.ok(source, `Missing received ingredient ${definition.source}`);
+    for(let i=0;i<3;i++) {
+      const run = unwrap(await api(actors.processor,"/processing-runs",{
+        chainId:source.chainId,siteId:resources.sites.processor[0].id,baseUnit:"kg",processType:"DRYING",
+        recipe:"Tiếp nhận, phân loại, sơ chế, sấy theo mẻ và đóng gói kín.",
+        inputs:[{lotId:source.lotId,quantity:i===0?"50.000":"10.000"}],
+        outputs:[{productId:product.id,kind:"PRODUCT",quantity:i===0?"12.000":"2.400",unit:"kg",
+          lotName:`${definition.name} - mẻ ${i+1}`,packaging:"Túi kín 200 g",packageCount:i===0?60:12,expiryDate:day(180).slice(0,10)}],
+        losses:[{reason:"MOISTURE",quantity:i===0?"38.000":"7.600",note:"Nước thoát ra trong quá trình sấy và phần sơ chế"}],
+        note:"Đối soát khối lượng nguyên liệu, thành phẩm và hao hụt theo mẻ.",
+      },`processing:${definition.slug}:${i}`));
+      result.push(run);
+      if(i===0) await api(actors.processor,`/processing-runs/${run.id}/complete`,{version:run.version},`processing-complete:${run.id}`);
+      if(i===2) await api(actors.processor,`/processing-runs/${run.id}/cancel`,{version:run.version,reason:"Điều chỉnh lịch sản xuất, chưa thực hiện cấp phát nguyên liệu."},`processing-cancel:${run.id}`);
+    }
   }
   return result;
 });
@@ -1839,7 +1789,7 @@ await step("compliance", async () => {
         lotId: lot.id,
         result: "PASS",
         inspectedAt: day(-1),
-        note: "Kiểm tra demo bởi tài khoản được phân công độc lập; không phải chứng thư kiểm định thật.",
+        note: "Kiểm tra bởi tài khoản được phân công độc lập; không phải chứng thư kiểm định thật.",
       },
       `inspection:${lot.id}`,
     );
@@ -1852,7 +1802,7 @@ await step("compliance", async () => {
       lotId: warning.id,
       kind: "WARNING",
       message:
-        "DỮ LIỆU DEMO: kiểm tra bao bì và bảo quản theo nhãn; ảnh chụp chỉ có tính minh họa.",
+        "DỮ LIỆU AGT: kiểm tra bao bì và bảo quản theo nhãn; ảnh chụp chỉ có tính minh họa.",
     },
     `notice:${warning.id}`,
   );
@@ -1864,7 +1814,7 @@ await step("compliance", async () => {
       lotId: recalled.id,
       kind: "RECALL",
       message:
-        "THU HỒI THỬ TRONG DATASET DEMO: tạm dừng lưu thông lô để đối soát chất lượng; không phải thông báo về sản phẩm ngoài thực tế.",
+        "Tạm dừng lưu thông lô để kiểm tra tình trạng bao bì và đối chiếu chất lượng tại điểm nhận.",
     },
     `recall:${recalled.id}`,
   );
@@ -1878,7 +1828,7 @@ await step("compliance", async () => {
       unit: "kg",
       siteId: resources.sites[warning.key][1].id,
       version: lotRow.version,
-      reason: "Cách ly một phần hàng demo để chờ kiểm tra bao bì.",
+      reason: "Cách ly một phần hàng để chờ kiểm tra bao bì.",
       action: "HOLD",
       cause: "AWAITING_INSPECTION",
       note: "Không thay đổi lịch sử quyền giữ hàng.",
@@ -1903,7 +1853,7 @@ await step("billing-reference-correction", async () => {
     });
     for (const old of invalid) {
       const reason =
-        "Điều chỉnh gói khởi tạo demo theo mô hình SINGLE: hủy snapshot gói không phù hợp và tạo snapshot đúng, không ghi thanh toán thật.";
+        "Điều chỉnh gói khởi tạo theo mô hình SINGLE: hủy snapshot gói không phù hợp và tạo snapshot đúng, không ghi thanh toán thật.";
       await tx.subscription.update({
         where: { id: old.id },
         data: {
@@ -1930,7 +1880,7 @@ await step("billing-reference-correction", async () => {
         organizationId: old.organizationId,
         reason,
         details: {
-          demo: true,
+         synthetic: true,
           cancelledSnapshotId: old.id,
           planCode: "TRACE_20",
         },
@@ -1975,7 +1925,7 @@ await step("administration", async () => {
             "Hỗ trợ tra cứu tem hàng nhận",
             "Cần hướng dẫn cân bằng khối lượng chế biến",
           ][i],
-          body: "Yêu cầu hỗ trợ trong dataset demo. Vui lòng hướng dẫn thao tác và kiểm tra thông tin liên quan. Không có dữ liệu khách hàng thật.",
+          body: "Yêu cầu hỗ trợ trong hồ sơ. Vui lòng hướng dẫn thao tác và kiểm tra thông tin liên quan. Không có dữ liệu khách hàng thật.",
         },
         `ticket:${key}`,
       ),
@@ -1994,7 +1944,7 @@ await step("administration", async () => {
       `/platform-admin/tickets/${t.id}/reply`,
       {
         version: row.version,
-        body: "AgriTrace đã tiếp nhận yêu cầu demo. Hướng dẫn đã được đối chiếu với chức năng hiện hành; vui lòng kiểm tra lại dữ liệu.",
+        body: "AgriTrace đã tiếp nhận yêu cầu. Hướng dẫn đã được đối chiếu với chức năng hiện hành; vui lòng kiểm tra lại dữ liệu.",
         status: ["IN_PROGRESS", "WAITING_CUSTOMER", "RESOLVED"][(i - 1) % 3],
       },
       `ticket-reply:${t.id}`,
@@ -2006,7 +1956,7 @@ await step("administration", async () => {
         `/platform-admin/tickets/${t.id}/close`,
         {
           version: row.version,
-          reason: "Đã hoàn tất hướng dẫn và xác nhận đóng yêu cầu hỗ trợ demo.",
+          reason: "Đã hoàn tất hướng dẫn và xác nhận đóng yêu cầu hỗ trợ.",
         },
         `ticket-close:${t.id}`,
       );
@@ -2020,9 +1970,9 @@ await step("administration", async () => {
         title: [
           "Dữ liệu trải nghiệm AgriTrace",
           "Hướng dẫn bảo quản và giao nhận",
-          "Lịch kiểm tra hệ thống mẫu",
+          "Lịch kiểm tra hệ thống ",
         ][i],
-        body: "Thông báo trong dataset demo: mọi tổ chức và thông tin nghiệp vụ là giả lập. Ảnh stock có giấy phép; Fabric đang tắt, không có proof mạng thật.",
+        body: "Thông báo trong hồ sơ: mọi tổ chức và thông tin nghiệp vụ là tham khảo. Ảnh stock có giấy phép; Fabric đang tắt, không có proof mạng thật.",
         audience: i ? "ENTERPRISE" : "ALL",
         severity: ["INFO", "WARNING", "MAINTENANCE"][i],
         startsAt: day(-1),
@@ -2035,9 +1985,9 @@ await step("administration", async () => {
       actors.cases,
       "/platform-cases",
       {
-        title: `Đối soát thông tin lô demo ${i + 1}`,
+        title: `Đối soát thông tin lô ${i + 1}`,
         description:
-          "Hồ sơ sự cố demo dùng để minh họa giao việc và hội thoại; không tự thay đổi quyền giữ hàng hoặc trạng thái chất lượng.",
+          "Hồ sơ sự cố dùng để minh họa giao việc và hội thoại; không tự thay đổi quyền giữ hàng hoặc trạng thái chất lượng.",
         category: ["QUALITY", "LABELING", "OTHER"][i],
         severity: ["LOW", "MEDIUM", "HIGH"][i],
         source: "INTERNAL",
@@ -2063,7 +2013,7 @@ await step("public-media", async () => {
       "LOT",
       lot.id,
       "LOT_IMAGE",
-      lot.key === "berry" ? "berry1" : "tomato1",
+      lot.productSlug,
       "public",
     );
   return true;
@@ -2078,7 +2028,7 @@ await step("onboarding-profiles", async () => {
       create: {
         organizationId: actor.organizationId,
         legalForm: "COOPERATIVE",
-        address: "Khu sản xuất demo, Đức Trọng, Lâm Đồng",
+        address: "Khu sản xuất, Đức Trọng, Lâm Đồng",
         province: "Lâm Đồng",
         ward: "Đức Trọng",
         phone: "0900000000",
@@ -2086,15 +2036,15 @@ await step("onboarding-profiles", async () => {
         representative: actor.fullName,
         activities: ["FARM"],
         description:
-          "Hồ sơ đầy đủ thông tin liên hệ demo để xem quy trình xét duyệt. Chứng từ và pháp nhân không có giá trị ngoài dataset.",
+          "Hồ sơ đầy đủ thông tin liên hệ để xem quy trình xét duyệt. Chứng từ và pháp nhân không có giá trị ngoài hồ sơ.",
         declarationAcceptedAt: now,
         legalData: {
-          registrationNumber: `DEMO-${key}`,
-          taxCode: `DEMO-${key}`,
-          issuedBy: "Cơ quan mẫu",
+          registrationNumber: `AGT-${key}`,
+          taxCode: `AGT-${key}`,
+          issuedBy: "Cơ quan ",
         },
         registrationData: {
-          demo: true,
+         synthetic: true,
           registrationRole: "PRODUCER",
           production: { type: "CROP", areaM2: 5000 },
           servicePreferences: ["TRACEABILITY"],
@@ -2103,7 +2053,7 @@ await step("onboarding-profiles", async () => {
       },
     });
   }
-  // These are explicit initial snapshots for the demo's onboarding queue.
+  // These are explicit initial snapshots for the's onboarding queue.
   // They carry no business capabilities, ledger binding, payment receipt or proof.
   for (const stage of [
     "approved",
@@ -2119,7 +2069,7 @@ await step("onboarding-profiles", async () => {
     });
     const user = await db.$transaction(async (tx) => {
       const org = await tx.organization.create({
-        data: { name: `HTX ${stage} (Demo)`, type: "FARM" },
+        data: { name: `HTX ${stage} `, type: "FARM" },
       });
       await tx.organizationCapability.deleteMany({
         where: { organizationId: org.id },
@@ -2130,7 +2080,7 @@ await step("onboarding-profiles", async () => {
       const user = await tx.user.create({
         data: {
           email,
-          fullName: `Chủ hồ sơ ${stage} demo`,
+          fullName: `Chủ hồ sơ ${stage}`,
           phone: "0900000000",
           jobTitle: "Chủ quản",
           passwordHash,
@@ -2146,19 +2096,19 @@ await step("onboarding-profiles", async () => {
           organizationId: org.id,
           ownerId: user.id,
           registrationDigest: digest(org.id),
-          businessId: `DEMO-${stage}`,
+          businessId: `AGT-${stage}`,
           hostingMode: "MANAGED_ORG",
           status: "APPROVED",
           reviewedBy: actors.admin.id,
           reviewNote:
-            "Hồ sơ demo đã duyệt, đang ở bước dịch vụ; chưa có quyền nghiệp vụ.",
+            "Hồ sơ đã duyệt, đang ở bước dịch vụ; chưa có quyền nghiệp vụ.",
         },
       });
       await tx.enterpriseProfile.create({
         data: {
           organizationId: org.id,
           legalForm: "COOPERATIVE",
-          address: "Khu sản xuất demo, Đức Trọng, Lâm Đồng",
+          address: "Khu sản xuất, Đức Trọng, Lâm Đồng",
           province: "Lâm Đồng",
           ward: "Đức Trọng",
           phone: "0900000000",
@@ -2167,16 +2117,16 @@ await step("onboarding-profiles", async () => {
           activities: ["FARM"],
           declarationAcceptedAt: now,
           description: "Hồ sơ minh họa các giai đoạn xét duyệt và dịch vụ.",
-          legalData: { demo: true, registrationNumber: `DEMO-${stage}` },
+          legalData: {synthetic: true, registrationNumber: `AGT-${stage}` },
           registrationData: {
-            demo: true,
+           synthetic: true,
             registrationRole: "PRODUCER",
             servicePreferences: ["TRACEABILITY"],
           },
         },
       });
       if (stage !== "approved") {
-        const contractText = `AGRITRACE DEMO - Hợp đồng trải nghiệm không có giá trị pháp lý. Gói ${plan.planCode}, thời hạn ${plan.termMonths} tháng, phí thiết lập ${plan.setupFee} VND, phí năm ${plan.annualFee} VND. Không có thanh toán thật hoặc chữ ký số chứng thực.`;
+        const contractText = `AGRITRACE AGT - Hợp đồng trải nghiệm không có giá trị pháp lý. Gói ${plan.planCode}, thời hạn ${plan.termMonths} tháng, phí thiết lập ${plan.setupFee} VND, phí năm ${plan.annualFee} VND. Không có thanh toán thật hoặc chữ ký số chứng thực.`;
         const order = await tx.enterpriseServiceOrder.create({
           data: {
             enrollmentId: enrollment.id,
@@ -2184,10 +2134,10 @@ await step("onboarding-profiles", async () => {
             hostingMode: "MANAGED_ORG",
             billingEmail: email,
             billingName: org.name,
-            billingAddress: "Đức Trọng, Lâm Đồng (Demo)",
+            billingAddress: "Đức Trọng, Lâm Đồng ",
             amount: Number(plan.setupFee + plan.annualFee),
             quotation: {
-              demo: true,
+             synthetic: true,
               planCode: plan.planCode,
               planVersionId: plan.id,
               setup: Number(plan.setupFee),
@@ -2232,7 +2182,7 @@ await step("privacy", async () => {
       {
         requestType: ["ACCESS", "CORRECTION", "RESTRICTION"][i],
         message:
-          "Yêu cầu quyền dữ liệu trong môi trường demo: vui lòng cung cấp hướng dẫn kiểm tra thông tin hồ sơ và phạm vi chia sẻ. Không có thông tin cá nhân thật.",
+          "Yêu cầu quyền dữ liệu trong môi trường: vui lòng cung cấp hướng dẫn kiểm tra thông tin hồ sơ và phạm vi chia sẻ. Không có thông tin cá nhân thật.",
       },
       `privacy-request:${key}`,
     );
@@ -2242,7 +2192,7 @@ await step("privacy", async () => {
     {
       detectedAt: new Date(Date.now() - 3600000).toISOString(),
       message:
-        "Diễn tập hồ sơ riêng tư trong dataset demo; không phải sự cố rò rỉ thực tế và không gửi báo cáo ra ngoài.",
+        "Diễn tập hồ sơ riêng tư trong hồ sơ; không phải sự cố rò rỉ thực tế và không gửi báo cáo ra ngoài.",
     },
     "privacy-demo-breach",
   );
@@ -2253,20 +2203,14 @@ await step("certificates-and-amendment", async () => {
   for (const [i, key] of ["farm", "berry", "garden"].entries()) {
     const cycle = production.cycles.filter((x) => x.key === key)[2],
       farm = resources.farms.find((x) => x.key === key);
-    const document = await db.traceEvidence.findFirstOrThrow({
-      where: {
-        entityType: "FARM",
-        entityId: farm.id,
-        kind: "QUALITY_CERTIFICATE",
-      },
-    });
+    const document = unwrap(await evidence(key,"CYCLE",cycle.id,"CERTIFICATE_IMAGE","reference-cert"));
     const cert = await api(
       actors[key],
       "/certificates",
       {
         cycleId: cycle.id,
-        type: "Chứng nhận DEMO - không có giá trị pháp lý",
-        issuer: "Đơn vị chứng nhận giả lập (không phải chứng nhận thật)",
+        type: "Hồ sơ kiểm soát nội bộ vùng sản xuất",
+        issuer: "Đơn vị chứng nhận tham khảo (không phải chứng nhận thật)",
         issueDate: day(-1).slice(0, 10),
         expiryDate: day(180).slice(0, 10),
         isPublic: false,
@@ -2283,7 +2227,7 @@ await step("certificates-and-amendment", async () => {
           version: cert.version,
           status: i === 0 ? "APPROVED" : "REJECTED",
           reviewNote:
-            "Quy trình review demo độc lập. Hồ sơ không có giá trị kiểm định hoặc chứng nhận thật.",
+            "Quy trình review độc lập. Hồ sơ không có giá trị kiểm định hoặc chứng nhận thật.",
         },
         `demo-certificate-review:${key}`,
         "PATCH",
@@ -2298,7 +2242,7 @@ await step("certificates-and-amendment", async () => {
     {
       version: profile.version,
       reason:
-        "Đề nghị điều chỉnh thông tin liên hệ trong hồ sơ demo để minh họa hàng chờ xét duyệt.",
+        "Đề nghị điều chỉnh thông tin liên hệ trong hồ sơ để minh họa hàng chờ xét duyệt.",
       phone: "0900000022",
       contactEmail: "farm.updated@example.test",
       website: "https://farm.example.test",
@@ -2329,7 +2273,7 @@ const retailDelivery = await step("retail-delivery", async () => {
         plannedPickupAt: new Date(Date.now() + 3600000).toISOString(),
         plannedDeliveryAt: new Date(Date.now() + 5 * 3600000).toISOString(),
         lines: [{ lotId: lot.id, quantity: "100.000", unit: "kg" }],
-        note: "Lô demo giao tới cửa hàng, ghi nhận bán một phần qua API.",
+        note: "Lô giao tới cửa hàng, ghi nhận bán một phần qua API.",
       },
       "retail-transfer",
     ),
@@ -2348,7 +2292,7 @@ const retailDelivery = await step("retail-delivery", async () => {
       lines: [
         { lotId: lot.id, received: "100.000", rejected: "0", quarantined: "0" },
       ],
-      reason: "Nhận đủ hàng demo tại cửa hàng, đối chiếu hai phía.",
+      reason: "Nhận đủ hàng tại cửa hàng, đối chiếu hai phía.",
     },
     "retail-receipt",
   );
@@ -2365,7 +2309,7 @@ const retailDelivery = await step("retail-delivery", async () => {
       version: current.version,
       kind: "SALE",
       siteId: resources.sites.retailer[0].id,
-      reason: "Bán lẻ một phần lô demo; không có thanh toán thật.",
+      reason: "Bán lẻ một phần lô; không có thanh toán thật.",
     },
     "retail-sale",
   );
@@ -2381,9 +2325,50 @@ await step("processed-public-media", async () => {
       "LOT",
       lot.id,
       "LOT_IMAGE",
-      "tomato3",
+      processedProducts.find(p => p.name === lot.lotName?.split(" - mẻ")[0])?.slug ?? (await db.product.findUniqueOrThrow({where:{id:lot.productId}})).sku.replace("MV-", "").toLowerCase(),
       "public",
     );
+  return true;
+});
+
+await step("consumer-accounts", async () => {
+  const locations = JSON.parse(await readFile(`${root}apps/api/src/common/locations/vietnam.json`,"utf8"));
+  const province=locations.provinces[0],ward=province.wards[0];
+  const role=await db.role.findUniqueOrThrow({where:{code:"CONSUMER"}});
+  for(const [i,fullName] of ["Nguyễn Ngọc Hà","Trần Minh Châu","Lê Hoàng Phúc"].entries()) {
+    const loginPhone=`+8490000010${i}`, email=`${loginPhone.slice(1)}@phone.invalid`;
+    await ensureSeedAccount({records:accounts.users,key:loginPhone,
+      lookup:()=>db.user.findUnique({where:{loginPhone}}),
+      generate:()=>({email,phone:loginPhone,password:`Agri!${randomBytes(18).toString("base64url")}9a`,fullName,role:"CONSUMER",organizationId:null,tier:null,accountStatus:"ACTIVE",mustChangePassword:false}),
+      persist:()=>save("accounts",accounts),
+      create:async record=>db.user.create({data:{email,loginPhone,phone:loginPhone,fullName,passwordHash:await hash(record.password,12),passwordChangedAt:now,roleId:role.id,
+        consumerProfile:{create:{provinceCode:province.code,provinceName:province.label,wardCode:ward.code,wardName:ward.label,contactEmail:`consumer${i+1}@example.test`,businessAddress:`${12+i*8} đường Hoàng Hoa Thám`,consentVersion:"DEV-CONSUMER-TEST-20261020"}}}}),
+    });
+  }
+  return true;
+});
+
+await step("organization-media", async () => {
+  for (const key of ["farm","berry","garden","carrier","distributor","retailer","processor"])
+    await evidence(key,"PROFILE",actors[key].organizationId,"OTHER",`logo-${key}`);
+  return true;
+});
+
+await step("cycle-team", async () => {
+  for (const cycle of production.cycles)
+    await api(actors[cycle.key],`/production-cycles/${cycle.id}/staff`,{staffUserIds:[actors[cycle.key].id,bootstrap.users[`${cycle.key}Manager`].id,bootstrap.users[`${cycle.key}Staff`].id]},`cycle-team:${cycle.id}`);
+  return true;
+});
+
+await step("directory-publication",()=>publishDirectoryProfiles(db));
+
+await step("consumer-content", async () => {
+  for (const [i,title] of ["Đọc thông tin nguồn gốc trên tem QR","Bảo quản trái cây sau khi nhận hàng","Theo dõi hành trình từ vùng trồng đến cửa hàng","Phân biệt lô nguồn và mẻ chế biến","Kiểm tra bao bì trước khi sử dụng","Ghi nhật ký chăm sóc theo vụ"].entries()) {
+    const id = seedContentId(state.startedAt,`news-${i}`);
+    await db.consumerNews.upsert({where:{id},update:{},create:{id,title,summary:"Hướng dẫn kiểm tra thông tin sản phẩm, bảo quản và đối chiếu nguồn gốc theo mã lô.",body:"Mỗi lô hàng có mã truy xuất riêng. Người mua có thể quét mã trên tem để xem đơn vị sản xuất, ngày thu hoạch, lịch sử giao nhận và các cảnh báo hiện hành. Kiểm tra nhãn, bao bì và điều kiện bảo quản trước khi sử dụng.",isPublished:true,publishedAt:new Date(day(-i-1))}});
+  }
+  const id=seedContentId(state.startedAt,"announcement");
+  await db.consumerAnnouncement.upsert({where:{id},update:{},create:{id,title:"Kiểm tra mã lô khi nhận hàng",body:"Quét mã QR trên tem để đối chiếu tên sản phẩm, ngày thu hoạch và thông tin giao nhận.",severity:"INFO",isActive:true,startsAt:new Date(day(-2)),endsAt:new Date(day(60))}});
   return true;
 });
 
@@ -2397,7 +2382,7 @@ await step("notice-copy", async () => {
       {
         version: notice.version,
         reason:
-          "Điều chỉnh thông báo của dataset để chỉ hiển thị hướng dẫn trải nghiệm cần thiết.",
+          "Điều chỉnh thông báo của hồ sơ để chỉ hiển thị hướng dẫn trải nghiệm cần thiết.",
       },
       `withdraw-seed-notice:${notice.id}`,
     );
@@ -2405,8 +2390,8 @@ await step("notice-copy", async () => {
     actors.admin,
     "/platform-admin/notices",
     {
-      title: "Không gian trải nghiệm AgriTrace",
-      body: "Thông tin doanh nghiệp và nghiệp vụ trong môi trường này là dữ liệu mẫu. Bạn có thể xem hồ sơ, tra cứu lô hàng và trải nghiệm các quy trình theo quyền của tài khoản.",
+      title: "Thông tin vận hành AgriTrace",
+      body: "Tra cứu nguồn gốc bằng mã QR trên tem hàng. Thành viên đăng nhập để cập nhật nhật ký, quản lý lô và đối chiếu giao nhận theo phạm vi được phân công.",
       audience: "ALL",
       severity: "INFO",
       startsAt: day(-1),

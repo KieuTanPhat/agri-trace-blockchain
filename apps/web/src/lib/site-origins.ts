@@ -50,7 +50,7 @@ export function siteRedirect(input: URL): URL | null {
   if (![businessHost, customerHost].includes(host)) return null;
   const path = input.pathname;
   if (/^\/(?:api|_next|brand)(?:\/|$)/.test(path) || /\.[a-z0-9]+$/i.test(path) || ["/terms", "/privacy"].includes(path)) return null;
-  const publicPage = path === "/" || path === "/trace" || path.startsWith("/trace/") || isCustomerPage(path);
+  const publicPage = path === "/" || path === "/trace" || path.startsWith("/trace/") || path==='/consumer' || path.startsWith('/consumer/') || isCustomerPage(path);
   let destination: URL | null = null;
   if (host === customerHost && !publicPage) destination = target(pair.business, path);
   if (host === businessHost && publicPage) destination = target(path === "/" ? pair.business : pair.customer, path === "/" ? "/login" : path);

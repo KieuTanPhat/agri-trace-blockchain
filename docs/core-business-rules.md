@@ -391,7 +391,7 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
 
 - Sản phẩm, vùng sản xuất, giống/vật tư và cơ sở mới khởi tạo ở trạng thái chưa
   hoạt động. Chỉ kích hoạt sau khi có đủ trường bắt buộc và ảnh chứng cứ hiện hành:
-  sản phẩm ít nhất 3 ảnh, vùng sản xuất đủ 5 nhóm bắt buộc, giống/vật tư và cơ sở
+  sản phẩm ít nhất 1 ảnh, vùng sản xuất đủ 5 nhóm bắt buộc, giống/vật tư và cơ sở
   ít nhất 1 ảnh đúng loại. Mỗi file tối đa 5 MB; đính chính tạo bản mới, không sửa
   file hoặc trace cũ.
 - Vụ sản xuất có thể lập nháp trước khi có chuỗi. Nháp giữ UUID, mã tự sinh, vùng,
@@ -562,7 +562,7 @@ Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-proc
   `trace_evidence_withdrawal` (lý do, người gỡ); file và hash được giữ để đối soát,
   nhưng không còn trong danh sách ảnh và không được tính vào điều kiện ba ảnh. Chỉ
   gỡ được ảnh sản phẩm của chính tổ chức; sản phẩm đang hoạt động phải còn ít nhất
-  ba ảnh sản phẩm sau khi gỡ.
+  một ảnh sản phẩm sau khi gỡ.
 - Worker giải mã mật khẩu tạm/OTP trong hàng đợi mail bằng `JWT_SECRET`, nên Worker
   phải được cấu hình cùng giá trị với API. Lỗi gửi mail được ghi log (chỉ lý do,
   không có người nhận, mật khẩu hay OTP).
@@ -614,3 +614,29 @@ Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-proc
   Giá trị đã lưu trước đó không có trong danh mục vẫn hiện để chọn lại khi sửa.
   API chưa ràng buộc giá trị theo danh mục (nhập CSV và tích hợp cũ vẫn chạy).
 
+
+## Tài khoản trên hai app mobile (26/10/2026)
+
+- **ACheck (người tiêu dùng):** role CONSUMER, không thuộc tổ chức, đăng nhập bằng
+  `login_phone` đã xác minh OTP. Không có quyền nghiệp vụ: JWT guard trả 403 ở mọi
+  route nội bộ trừ `/consumer/me`. Quét QR, danh bạ, bảng tin, thông báo và thời tiết
+  là API công khai, không cần tài khoản. Lịch sử quét lưu trên máy, không có API ghi.
+  API công khai chỉ hiện tổ chức ACTIVE và sản phẩm có ít nhất một lô đã có QR; không
+  trả email, mã số thuế, chế độ hosting, dữ liệu kết nối Fabric hay người dùng.
+- **App nhân viên:** cùng tài khoản doanh nghiệp với Web, phiên native riêng
+  (`/auth/staff/*`). Không tạo quyền mới: mọi thao tác đi qua controller nghiệp vụ
+  hiện có, cùng membership, grant, assignment, phạm vi nhân viên của vụ và
+  idempotency. Tra lô theo QR chỉ trả lô trong phạm vi đọc của người gọi.
+- Cả hai cờ đăng nhập (`CONSUMER_AUTH_ENABLED`, `STAFF_APP_AUTH_ENABLED`) mặc định tắt.
+
+### Trạng thái có mặt trên thị trường của sản phẩm
+
+Danh mục công khai hiển thị `Đang bán` khi ít nhất một lô hợp lệ của sản phẩm
+còn lượng có thể bán tại một nhà bán lẻ đang hoạt động. Tồn phân phối dùng
+`quantity - reserved - quarantined` tại địa điểm; khi đã có LotHolding thì
+không quay về số dư legacy để suy ra còn hàng. Luồng shipment legacy cần lô
+FOR_SALE, chuyến DELIVERED và availableQuantity > 0. Giao nhận mới đề xuất hoặc
+đang vận chuyển không làm sản phẩm thành đang bán. Lô thu hồi, hết hạn, hỏng,
+bị từ chối, đã tiêu thụ hoặc đã bán hết không đủ điều kiện. Hạn dùng theo ngày
+Việt Nam. Nếu không có nhà bán lẻ đáp ứng, hiển thị `Chưa bán`.
+Trạng thái sản phẩm tổng hợp không thay cảnh báo riêng của từng lô.

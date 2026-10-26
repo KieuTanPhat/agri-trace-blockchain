@@ -60,7 +60,7 @@ const fields = {
 };
 const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 const baseSchema = z.object(fields);
-// A new product starts with at least one photo; completion still needs three.
+// A new product starts with at least one photo; completion needs that current photo.
 const createSchema = baseSchema.extend({ photos: z.array(z.instanceof(File)).min(1, { error: () => tr("Chọn ít nhất một ảnh sản phẩm") }).max(10, { error: () => tr("Tối đa 10 ảnh mỗi lần") }).refine((files) => files.every((f) => /^image\/(png|jpeg)$/.test(f.type) && f.size > 0 && f.size <= PHOTO_MAX_BYTES), { error: () => tr("Ảnh PNG hoặc JPEG, tối đa 5 MB") }) });
 const reviseSchema = z.object({ ...fields, sku: req(1, 100), status: z.enum(["ACTIVE", "INACTIVE"]), reason: z.string().trim().min(10, { error: () => tr("Tối thiểu 10 ký tự") }).max(1000) });
 const emptySchema = z.object({});
@@ -145,7 +145,7 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
     <>
       <PageHeader
         title={tr("Sản phẩm")}
-        description={tr("Danh mục sản phẩm gắn với vùng xuất xứ đã hoàn tất hồ sơ. Sản phẩm mới ở trạng thái ngừng; cần ít nhất ba ảnh sản phẩm rồi hoàn tất để bán (tính vào hạn mức sản phẩm của gói).")}
+        description={tr("Danh mục sản phẩm gắn với vùng xuất xứ đã hoàn tất hồ sơ. Sản phẩm mới ở trạng thái ngừng; cần ít nhất một ảnh sản phẩm rồi hoàn tất để bán (tính vào hạn mức sản phẩm của gói).")}
         actions={
           can("catalog.manage") && (
             <>
@@ -168,7 +168,7 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
         onOpenChange={o=>{add.props.onOpenChange(o);if(!o && view==="new" && !created.current)router.push("/enterprise/products");}}
         title={tr("Thêm sản phẩm")}
         endpoint="POST /catalog/products"
-        description={tr("Chọn ít nhất một ảnh sản phẩm. SKU do hệ thống tự sinh. Sản phẩm mới ở trạng thái ngừng cho tới khi đủ ba ảnh và được hoàn tất.")}
+        description={tr("Chọn ít nhất một ảnh sản phẩm. SKU do hệ thống tự sinh. Sản phẩm mới ở trạng thái ngừng cho tới khi một ảnh và được hoàn tất.")}
         schema={createSchema}
         defaultValues={{ ...emptyValues(), originFarmId: readyFarms[0]?.id ?? "", photos: [] }}
         submitLabel={tr("Thêm")}
@@ -221,7 +221,7 @@ function ProductPhotosField({ control }: { control: Control<z.infer<typeof creat
       control={control}
       name="photos"
       render={({ field, fieldState }) => (
-        <PhotoPicker required label={tr("Ảnh sản phẩm")} files={field.value} onChange={field.onChange} error={fieldState.error?.message} hint={tr("Ít nhất 1 ảnh, PNG hoặc JPEG tối đa 5 MB. Ảnh đầu tiên là ảnh chính; cần đủ 3 ảnh để hoàn tất.")} />
+        <PhotoPicker required label={tr("Ảnh sản phẩm")} files={field.value} onChange={field.onChange} error={fieldState.error?.message} hint={tr("Ít nhất 1 ảnh, PNG hoặc JPEG tối đa 5 MB. Ảnh đầu tiên là ảnh chính; cần ít nhất 1 ảnh để hoàn tất.")} />
       )}
     />
   );
@@ -314,7 +314,7 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
                     </div>
                   ))}
               </dl>
-              <EvidencePanel entityType="PRODUCT" entityId={p.id} canManage={canEvidence} required={[{ kind: "PRODUCT_IMAGE", min: 3 }]} title={tr("Ảnh sản phẩm")} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
+              <EvidencePanel entityType="PRODUCT" entityId={p.id} canManage={canEvidence} required={[{ kind: "PRODUCT_IMAGE", min: 1 }]} title={tr("Ảnh sản phẩm")} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
               <section className="flex flex-col gap-2"><h3 className="text-[13px] font-semibold">{tr("Lô liên quan")}</h3>{lots.error ? <ErrorState error={lots.error} onRetry={()=>lots.refetch()}/> : <p className="text-sm text-ink-2">{lots.data?.filter(l=>l.productName===p.productName).length ?? "…"} {tr("lô")}</p>}</section>
               <section className="flex flex-col gap-2">
                 <h3 className="text-[13px] font-semibold">{tr("Lịch sử phiên bản")}</h3>
@@ -347,7 +347,7 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
               </CommandDialog>
             )}
             {complete.target && (
-              <CommandDialog {...complete.props} title={tr("Hoàn tất hồ sơ ảnh · {p0}", { p0: p.productName })} endpoint={`POST /catalog/products/${p.id}/complete`} description={tr("Cần ít nhất ba ảnh sản phẩm hiện hành. Hoàn tất đưa sản phẩm vào bán và tính vào hạn mức sản phẩm của gói dịch vụ.")} schema={emptySchema} defaultValues={{}} version={p.version} submitLabel={tr("Hoàn tất")} invalidate={[["ws-catalog"], ["ws-overview"]]} run={(_, cmd) => wapi.completeProduct(p.id, { version: currentVersion(p.version) }, cmd)}>
+              <CommandDialog {...complete.props} title={tr("Hoàn tất hồ sơ ảnh · {p0}", { p0: p.productName })} endpoint={`POST /catalog/products/${p.id}/complete`} description={tr("Cần ít nhất một ảnh sản phẩm hiện hành. Hoàn tất đưa sản phẩm vào bán và tính vào hạn mức sản phẩm của gói dịch vụ.")} schema={emptySchema} defaultValues={{}} version={p.version} submitLabel={tr("Hoàn tất")} invalidate={[["ws-catalog"], ["ws-overview"]]} run={(_, cmd) => wapi.completeProduct(p.id, { version: currentVersion(p.version) }, cmd)}>
                 {() => null}
               </CommandDialog>
             )}

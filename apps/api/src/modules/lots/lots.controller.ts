@@ -1,5 +1,6 @@
 import { FARM_WRITE_ROLES } from '../auth/business-write.policy.js';
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,11 +8,16 @@ import {
   Header,
   Param,
   ParseUUIDPipe,
+  type PipeTransform,
   Post,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiTags,ApiProduces,ApiOkResponse } from '@nestjs/swagger';
+import type {Response} from 'express';
+import {Throttle} from '@nestjs/throttler';
+import {PublicJourneyService} from './public-journey.service.js';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -33,6 +39,15 @@ import {
   InternalLotDto,
   PublicLotDto,
 } from './lot-response.dto.js';
+
+/** Printed trace tokens are URL-safe and short; anything else is not a QR. */
+class ParseTraceTokenPipe implements PipeTransform<string, string> {
+  transform(value: string) {
+    if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(value))
+      throw new BadRequestException('Mã truy xuất không hợp lệ');
+    return value;
+  }
+}
 
 @ApiTags('lots')
 @ApiBearerAuth()
@@ -96,6 +111,15 @@ export class LotsController {
     return this.query.getList(req.user);
   }
 
+  @Get('lots/by-trace-token/:token')
+  @ApiDataResponse(InternalLotDto)
+  getLotByTraceToken(
+    @Param('token', new ParseTraceTokenPipe()) token: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.query.getInternalByTraceToken(token, req.user);
+  }
+
   @Get('lots/:lotId')
   @ApiDataResponse(InternalLotDto)
   getLot(
@@ -109,7 +133,13 @@ export class LotsController {
 @ApiTags('public-trace')
 @Controller('public/trace')
 export class PublicTraceController {
-  constructor(private readonly query: LotQueryService) {}
+  constructor(private readonly query: LotQueryService,private readonly journey:PublicJourneyService) {}
+  @Get(':token/thumbnail') @Throttle({default:{limit:240,ttl:60000}}) @Header('Cache-Control','no-store')
+  @ApiProduces('image/jpeg','image/png') @ApiOkResponse({schema:{type:'string',format:'binary'}})
+  async thumbnail(@Param('token',new ParseTraceTokenPipe()) token:string,@Res() response:Response){const file=await this.journey.image(token);response.setHeader('X-Content-Type-Options','nosniff');response.type(file.mediaType).send(Buffer.from(file.content));}
+  @Get(':token/media/:id') @Throttle({default:{limit:240,ttl:60000}}) @Header('Cache-Control','no-store')
+  @ApiProduces('image/jpeg','image/png') @ApiOkResponse({schema:{type:'string',format:'binary'}})
+  async media(@Param('token',new ParseTraceTokenPipe()) token:string,@Param('id',ParseUUIDPipe) id:string,@Res() response:Response){const file=await this.journey.image(token,id);response.setHeader('X-Content-Type-Options','nosniff');response.type(file.mediaType).send(Buffer.from(file.content));}
   @Header('Cache-Control', 'no-store')
   @Get(':token')
   @ApiDataResponse(PublicLotDto)

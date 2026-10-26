@@ -91,6 +91,7 @@ export function canAccessManagementRoute(
       [
         "/admin/inbox",
         "/admin/notices",
+        "/admin/news",
         "/admin/directory",
         "/admin/roles",
         "/admin/chains",

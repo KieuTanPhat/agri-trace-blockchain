@@ -21,6 +21,7 @@ import { IdempotencyService } from './idempotency.service.js';
 import { IdempotencyKey } from './idempotency-key.decorator.js';
 
 const operations = [
+  'PLATFORM_NEWS_CREATE','PLATFORM_NEWS_UPDATE','PLATFORM_NEWS_STATUS',
   'EW_PROFILE_CONTACT','EW_PROFILE_SUBMIT','EW_PROFILE_WITHDRAW','ENTERPRISE_PROFILE_REVIEW',
   'PRIVACY_REQUEST_CREATE',
   'PLATFORM_PRIVACY_BREACH_CREATE',

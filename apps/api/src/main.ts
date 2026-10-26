@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type {NestExpressApplication} from '@nestjs/platform-express';
 import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { ApiResponseInterceptor } from './common/api/api-response.interceptor.js';
@@ -9,9 +10,10 @@ import { createApplicationLogger } from './common/logging/app-logger.js';
 import { createOpenApiDocument } from './common/api/openapi.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: createApplicationLogger(),
   });
+  app.useBodyParser('json',{limit:'1mb'});
   app.enableShutdownHooks();
   const trustProxyHops = process.env.TRUST_PROXY_HOPS;
   if (trustProxyHops !== undefined) {

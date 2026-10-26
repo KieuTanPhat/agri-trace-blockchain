@@ -1244,7 +1244,7 @@ const prisma = new PrismaClient({
         }),
       ).toBeGreaterThan(0);
     });
-    it('withdraws product photos without deleting them and keeps three on an active product', async () => {
+    it('activates with one photo and preserves the last current photo on an active product', async () => {
       const a = await register();
       await approve(a.enrollment.id).expect(201);
       await activate(a);
@@ -1290,10 +1290,13 @@ const prisma = new PrismaClient({
         await post('/catalog/products', productForm(farm.id), a.token).expect(201)
       ).body.data;
       const photos = [];
-      for (let i = 0; i < 4; i++) photos.push(await upload('PRODUCT', product.id, 'PRODUCT_IMAGE'));
+      await post(`/catalog/products/${product.id}/complete`, { version: product.version }, a.token).expect(409);
+      photos.push(await upload('PRODUCT', product.id, 'PRODUCT_IMAGE'));
       await post(`/catalog/products/${product.id}/complete`, { version: product.version }, a.token).expect(201);
       const withdraw = (id: string) =>
         post(`/enterprise-workspace/evidence/${id}/withdraw`, { reason: 'Ảnh mờ, không đúng sản phẩm' }, a.token);
+      await withdraw(photos[0].id).expect(409);
+      photos.push(await upload('PRODUCT', product.id, 'PRODUCT_IMAGE'));
       await withdraw(photos[0].id).expect(201);
       await withdraw(photos[0].id).expect(409);
       await withdraw(photos[1].id).expect(409);
@@ -1302,9 +1305,9 @@ const prisma = new PrismaClient({
         await get(`/enterprise-workspace/evidence?entityType=PRODUCT&entityId=${product.id}`, a.token).expect(200)
       ).body.data.items.map((row: { id: string }) => row.id);
       expect(listed).not.toContain(photos[0].id);
-      expect(listed).toHaveLength(3);
+      expect(listed).toHaveLength(1);
       // The file itself stays for audit.
-      expect(await prisma.traceEvidence.count({ where: { entityId: product.id } })).toBe(4);
+      expect(await prisma.traceEvidence.count({ where: { entityId: product.id } })).toBe(2);
     });
     it('rate limits public registration attempts with the actual global guard', async () => {
       throttleBypass.mockRestore();

@@ -1,7 +1,7 @@
 import { pathToFileURL } from 'node:url';
 
 const selectedJobs = {
-  application: { api: 'api', web: 'web', 'container-build': 'containers', rehearsal: 'containers' },
+  application: { api: 'api', web: 'web', mobile:'web', 'container-build': 'containers', rehearsal: 'containers' },
   blockchain: { verify: 'blockchain', 'standalone-chaincode': 'blockchain', 'hybrid-fabric': 'hybrid' },
 };
 

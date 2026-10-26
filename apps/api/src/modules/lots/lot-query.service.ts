@@ -17,12 +17,14 @@ import { toInternalLotDto, toPublicLotDto } from './lot.presenter.js';
 import { scopedLotReadWhere } from '../supply-chains/business-read-scope.js';
 import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
 import { getAllowedLotCommands, type LotCommand } from './lot-action.policy.js';
+import {PublicJourneyService} from './public-journey.service.js';
 
 @Injectable()
 export class LotQueryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: OrganizationAccessService,
+    private readonly journey: PublicJourneyService,
   ) {}
 
   async getInternal(lotId: string, actor: Actor) {
@@ -33,6 +35,26 @@ export class LotQueryService {
     });
     if (!lot) throw new NotFoundException('Không tìm thấy lô hàng');
     return this.projectInternal(lot, actor);
+  }
+
+  /**
+   * Staff app scan: resolves a printed trace token to the caller's internal
+   * lot view. A lot outside the caller's scope answers like an unknown token,
+   * so a scan never reveals that another organization's lot exists.
+   */
+  async getInternalByTraceToken(traceToken: string, actor: Actor) {
+    const qr = await this.prisma.traceQr.findUnique({
+      where: { traceToken },
+      select: { lotId: true },
+    });
+    if (!qr) throw new NotFoundException('Không tìm thấy lô hàng');
+    try {
+      return await this.getInternal(qr.lotId, actor);
+    } catch (error) {
+      if (error instanceof ForbiddenException)
+        throw new NotFoundException('Không tìm thấy lô hàng');
+      throw error;
+    }
   }
 
   async getList(actor: Actor) {
@@ -170,6 +192,8 @@ export class LotQueryService {
       ON CONFLICT (lot_id, day) DO UPDATE SET scans = trace_scan_daily.scans + 1`.catch(() => undefined);
     return {
       ...toPublicLotDto(qr.lot, traceToken, traceEvents),
+      journey:await this.journey.build(qr.lot,traceEvents,lines,traceToken),
+      imageUrl:await this.journey.thumbnailUrl(traceToken,qr.lot.id),
       notices,
       productionWarnings:[...new Set(productionWarnings)],
       distributionJourney: lines.map((l) => {

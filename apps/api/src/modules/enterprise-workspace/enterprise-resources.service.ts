@@ -201,7 +201,7 @@ export class EnterpriseResourcesService {
    });
  }
  /** Hides a product photo without deleting it. A product on sale keeps at
-  * least three current photos, so a replacement is uploaded first. */
+  * least one current photo, so a replacement is uploaded first. */
  withdrawEvidence(actor:CommandActor,id:string,reason:string) {
    return commandTransaction(this.db,async tx=>{
      await enterpriseAuthority(tx,actor,'evidence.manage',undefined,undefined,true);
@@ -217,7 +217,7 @@ export class EnterpriseResourcesService {
        const rows=await tx.traceEvidence.findMany({where:{organizationId:actor.organizationId!,entityType:'PRODUCT',entityId:row.entityId,kind:'PRODUCT_IMAGE',withdrawal:null},select:{id:true,supersedesId:true}});
        const superseded=new Set(rows.map(r=>r.supersedesId).filter(Boolean));
        const remaining=rows.filter(r=>!superseded.has(r.id)&&r.id!==id).length;
-       if(remaining<3)throw new ConflictException('Sản phẩm đang hoạt động cần ít nhất ba ảnh; tải ảnh mới trước khi gỡ ảnh này');
+       if(remaining<1)throw new ConflictException('Sản phẩm đang hoạt động cần ít nhất một ảnh; tải ảnh mới trước khi gỡ ảnh này');
      }
      await tx.traceEvidenceWithdrawal.create({data:{evidenceId:id,organizationId:actor.organizationId!,actorId:actor.sub!,reason:reason.trim()}});
      return {record:{id,withdrawn:true}};

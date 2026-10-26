@@ -277,6 +277,9 @@ export async function authorizeCommand(
     case 'PLATFORM_QR_UNBLOCK':
     case 'PLATFORM_NOTICE_PUBLISH':
     case 'PLATFORM_NOTICE_WITHDRAW':
+    case 'PLATFORM_NEWS_CREATE':
+    case 'PLATFORM_NEWS_UPDATE':
+    case 'PLATFORM_NEWS_STATUS':
     case 'PLATFORM_SETTING_CHANGE':
     case 'PLATFORM_REFERENCE_UPSERT':
       requireRole(actor, ['SYSTEM_ADMIN']);

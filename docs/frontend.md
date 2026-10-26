@@ -6,6 +6,15 @@ production build và start từ chối các cờ mock. API client không có fal
 
 ## Nguồn giao diện và cấu trúc
 
+Danh mục mobile ở `apps/mobile/src/app/consumer` dùng ảnh, giá tham khảo theo đơn
+vị, liên hệ doanh nghiệp và lô QR từ API công khai. Hai danh sách có tìm kiếm
+tiếng Việt, lọc theo vùng/danh mục/loại hình và sắp xếp giá; trang chi tiết cho
+phép mở rộng giới thiệu, xem doanh nghiệp và chọn đúng lô trên tem để truy xuất.
+Nhãn có mã truy xuất không thay thế chứng nhận chất lượng hay proof Fabric.
+Giá, liên hệ và logo chỉ được chiếu từ bản xuất bản riêng trong
+`public_directory_publication`; không đọc ra hồ sơ pháp lý riêng tư. Endpoint
+ảnh kiểm lại khả năng hiển thị công khai và trả JPEG/PNG với `no-store`.
+
 Ledger UI theo snapshot preview đã duyệt trong
 [inventory](superpowers/specs/2026-10-22-ledger-ui-migration.inventory.json).
 [Spec](superpowers/specs/2026-10-22-ledger-ui-migration-design.md) và
@@ -153,6 +162,37 @@ theo origin, không tự chuyển sang domain mới. Khóa riêng không extract
 quyền hiện hành trước khi sử dụng. Domain mới yêu cầu đăng nhập lại.
 
 ## Kiểm tra
+
+### Bản tin và hành trình người tiêu dùng
+
+- Admin mở `/admin/news` để tạo bản nháp, tải ảnh bìa, xem trước, sửa, đăng,
+  ẩn hoặc lưu trữ bản tin. Chỉ `SYSTEM_ADMIN` có quyền quản lý. Nội dung là
+  plain text; ảnh JPG/PNG/WebP tối đa 384 KB, mỗi chiều tối đa 2048 px.
+  Mọi thay đổi dùng version, idempotency và platform audit.
+- Logo và ảnh sản phẩm dùng tham số `v` theo evidence công khai hiện hành;
+  endpoint vẫn kiểm quyền công khai/thu hồi trên mọi request, kể cả URL phiên bản cũ.
+  Mobile lưu URL ảnh công khai cùng lịch sử xem, tải lại danh mục khi quay về màn
+  hình và chỉ tự thử lại ảnh lỗi một lần; lỗi kéo dài có nút tải lại thủ công.
+- Mobile đọc cùng nguồn `/public/news`; bản nháp, tin đã ẩn/lưu trữ và tin hẹn
+  giờ chưa đến hạn không được trả về. Danh sách cập nhật khi trở lại màn hình;
+  người dùng cũng có thể kéo để tải lại bảng tin.
+- Web và mobile nhóm hành trình theo từng địa điểm, thiếu địa điểm thì nhóm
+  theo doanh nghiệp. Mở từng nhóm để xem nhật ký, ảnh, liên hệ và chứng nhận
+  công khai còn hiệu lực. Các sự kiện đính kèm kỹ thuật được thay bằng thư viện ảnh.
+- Nút doanh nghiệp trên trang truy xuất mobile mở hồ sơ bằng organization ID,
+  không tìm theo tên vùng trồng hoặc nhãn riêng tư. Từ khóa tìm kiếm của danh
+  sách phải hiển thị rõ; xóa bộ lọc cũng xóa tham số URL để tải lại không lọc ngầm.
+- `PublicDirectoryPublication` là snapshot công khai tách khỏi hồ sơ pháp lý.
+  `publicDirectory.traceSites`, `traceMedia` (ràng buộc `lotId`, `evidenceId`,
+  `groupKey`, caption) và `traceDetailsPublished` cho phép công khai tường minh.
+  Endpoint ảnh kiểm lại snapshot mới nhất, chủ sở hữu, phạm vi lô/vụ/địa điểm,
+  thu hồi ảnh và supersession trên mỗi request. Giấy đất/đăng ký pháp lý không
+  được suy ra là ảnh công khai. Nhóm vùng trồng riêng tư giữ ẩn vị trí và ảnh.
+- Với bộ trái cây local đã được chủ dữ liệu cho phép, chạy
+  `node scripts/demo/publish-fruit-presentation.mjs` sau khi chuẩn bị asset và
+  nạp dữ liệu; script lấy logo từ `Data/logoDoanhNghiep`, upload qua API và
+  tạo snapshot. `node scripts/demo/publish-fruit-news.mjs` thêm ảnh bìa bằng
+  API admin. Cả hai kiểm đúng container/DB local trước khi ghi.
 
 `npm run check --workspace apps/web` gồm typecheck, Vitest, lint-contract, image-optimizer
 và production build; build đã chạy ESLint/Oxlint. Browser contract suite từ gốc repo:

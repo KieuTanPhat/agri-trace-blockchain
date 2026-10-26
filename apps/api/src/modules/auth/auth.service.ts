@@ -38,6 +38,31 @@ let dummyHash: Promise<string> | undefined;
 const timingHash = () => (dummyHash ??= hash('agritrace-timing-equalizer', 12));
 const isPlatformRole = (code: string) =>
   (PLATFORM_ROLES as readonly string[]).includes(code);
+const MACHINE_ROLES = ['IOT_DEVICE', 'SYSTEM_ACTOR'];
+
+/**
+ * The client a session family belongs to. Web uses HttpOnly cookies and takes
+ * any non-consumer account. Native families carry the refresh token in the
+ * request body and are limited to their own app: consumer accounts on ACheck,
+ * enterprise members (no platform or machine role) on the staff app.
+ */
+export type SessionAudience = 'web' | 'consumer' | 'staff';
+export function audienceAllows(
+  audience: SessionAudience,
+  user: { role: { code: string }; organizationId: string | null },
+) {
+  const role = user.role.code;
+  if (audience === 'consumer')
+    return role === 'CONSUMER' && user.organizationId === null;
+  if (role === 'CONSUMER') return false;
+  if (audience === 'staff')
+    return (
+      user.organizationId !== null &&
+      !isPlatformRole(role) &&
+      !MACHINE_ROLES.includes(role)
+    );
+  return true;
+}
 
 @Injectable()
 export class AuthService {
@@ -64,13 +89,39 @@ export class AuthService {
   }
 
   async login(input: LoginDto, previousRefreshToken?: string) {
+    return this.loginAccount(input, previousRefreshToken);
+  }
+
+  async loginConsumer(
+    phone: string,
+    password: string,
+    previousRefreshToken?: string,
+  ) {
+    return this.loginAccount(
+      { email: '', password },
+      previousRefreshToken,
+      phone,
+    );
+  }
+
+  /** Staff app sign-in: same credentials and checks as the web, native family. */
+  async loginStaff(input: LoginDto, previousRefreshToken?: string) {
+    return this.loginAccount(input, previousRefreshToken, undefined, 'staff');
+  }
+
+  private async loginAccount(
+    input: LoginDto,
+    previousRefreshToken?: string,
+    consumerPhone?: string,
+    audience: SessionAudience = consumerPhone ? 'consumer' : 'web',
+  ) {
     const email = input.email.trim().toLowerCase();
 
     // The live database enforces case-insensitive uniqueness through
     // ux_app_user_email_lower, an expression index Prisma cannot expose as a
     // findUnique selector.
     const user = await this.prisma.user.findFirst({
-      where: { email },
+      where: consumerPhone ? { loginPhone: consumerPhone } : { email },
       include: {
         role: {
           select: {
@@ -83,9 +134,15 @@ export class AuthService {
       },
     });
 
-    if (!user) {
+    const loginError = consumerPhone
+      ? 'Số điện thoại hoặc mật khẩu không chính xác'
+      : GENERIC_LOGIN_ERROR;
+    // Consumer accounts sign in only by phone on ACheck, and business accounts
+    // only by email: a wrong-kind account answers exactly like a wrong password.
+    const wrongKind = !!user && !audienceAllows(audience, user);
+    if (!user || wrongKind) {
       await compare(input.password, await timingHash());
-      throw new UnauthorizedException(GENERIC_LOGIN_ERROR);
+      throw new UnauthorizedException(loginError);
     }
     const platform = isPlatformRole(user.role.code);
     if (platform && user.lockedUntil && user.lockedUntil > new Date()) {
@@ -96,7 +153,7 @@ export class AuthService {
     if (!(await compare(input.password, user.passwordHash))) {
       // Bookkeeping must never turn a rejected sign-in into a 500.
       if (platform) await this.recordFailedLogin(user).catch(() => undefined);
-      throw new UnauthorizedException(GENERIC_LOGIN_ERROR);
+      throw new UnauthorizedException(loginError);
     }
 
     if (user.accountStatus !== 'ACTIVE') {
@@ -104,6 +161,11 @@ export class AuthService {
     }
     if (user.organizationId && user.organization?.status !== 'ACTIVE') {
       throw new UnauthorizedException('Tổ chức hiện không hoạt động');
+    }
+    // Validate/retire the previous native family BEFORE issuing a new one.
+    // A wrong-kind previous credential must not leave an unreturned active family.
+    if (audience !== 'web' && previousRefreshToken) {
+      await this.logout({ refreshToken: previousRefreshToken }, audience);
     }
 
     let failedSecondFactor = false;
@@ -123,7 +185,16 @@ export class AuthService {
           current.passwordHash !== user.passwordHash ||
           current.role.code !== user.role.code ||
           current.accountStatus !== 'ACTIVE' ||
-          (current.organizationId && current.organization?.status !== 'ACTIVE')
+          (current.organizationId &&
+            current.organization?.status !== 'ACTIVE') ||
+          !audienceAllows(audience, current) ||
+          (consumerPhone &&
+            (current.organizationId !== null ||
+              current.loginPhone !== consumerPhone ||
+              !(await tx.consumerProfile.findUnique({
+                where: { userId: current.id },
+                select: { userId: true },
+              }))))
         ) {
           throw new UnauthorizedException(
             'Tài khoản hoặc tổ chức không hoạt động',
@@ -170,13 +241,13 @@ export class AuthService {
       });
     // A browser account switch also invalidates access tokens held by other
     // tabs. Logout uses the same DB locks as rotation, including old tokens.
-    if (previousRefreshToken) {
+    if (previousRefreshToken && audience === 'web') {
       await this.logout({ refreshToken: previousRefreshToken });
     }
     return result;
   }
 
-  async refresh(input: RefreshTokenDto) {
+  async refresh(input: RefreshTokenDto, audience: SessionAudience = 'web') {
     const tokenHash = this.hashRefreshToken(input.refreshToken);
     const owner = await this.prisma.refreshSession.findUnique({
       where: { tokenHash },
@@ -201,6 +272,17 @@ export class AuthService {
         },
       });
       if (!session) return { state: 'revoked' } as const;
+      // A native credential refreshes only within its own app.
+      if (
+        audience !== 'web' &&
+        (!audienceAllows(audience, session.user) ||
+          (audience === 'consumer' &&
+            !(await tx.consumerProfile.findUnique({
+              where: { userId: session.userId },
+              select: { userId: true },
+            }))))
+      )
+        return { state: 'revoked' } as const;
       const familyId = session.familyId;
       if (
         session.user.accountStatus !== 'ACTIVE' ||
@@ -267,17 +349,21 @@ export class AuthService {
     return result.payload;
   }
 
-  async logout(input: RefreshTokenDto) {
+  async logout(input: RefreshTokenDto, audience: SessionAudience = 'web') {
     const session = await this.prisma.refreshSession.findUnique({
       where: { tokenHash: this.hashRefreshToken(input.refreshToken) },
       select: {
         id: true,
         familyId: true,
         userId: true,
-        user: { select: { organizationId: true } },
+        user: {
+          select: { organizationId: true, role: { select: { code: true } } },
+        },
       },
     });
     if (session) {
+      if (audience !== 'web' && !audienceAllows(audience, session.user))
+        throw new UnauthorizedException('Phiên không hợp lệ');
       await this.prisma.$transaction(async (tx) => {
         await lockSessionOwner(tx, session.userId, session.user.organizationId);
         await this.revokeFamily(tx, session.familyId);
@@ -450,7 +536,7 @@ export class AuthService {
     return user;
   }
 
-  private async createAuthResponse(
+  async createAuthResponse(
     tx: Prisma.TransactionClient,
     user: {
       id: string;

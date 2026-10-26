@@ -246,17 +246,24 @@ function publicCertificate(certificate: PublicLot['certificates'][number]) {
   };
 }
 
-function eventSummary(eventType: string) {
+export function eventSummary(eventType: string) {
   const summaries: Record<string, string> = {
-    DISTRIBUTION_PROPOSED: 'Lập giao nhận và dành lượng hàng từ lô nguồn.',
-    DISTRIBUTION_ATTESTED: 'Một bên đã ký xác nhận nội dung giao nhận.',
-    DISTRIBUTION_READY: 'Các bên đã đồng thuận giao nhận.',
-    DISTRIBUTION_IN_TRANSIT: 'Hai bên đã ký bàn giao cho đơn vị vận chuyển.',
-    DISTRIBUTION_DELIVERED: 'Hai bên đã ký xác nhận nhận hàng.',
+    EVIDENCE_ATTACHED: 'Bổ sung hình ảnh và hồ sơ cho giai đoạn này.',
+    EVIDENCE_WITHDRAWN: 'Gỡ tài liệu đã công khai.',
+    DISTRIBUTION_SITE_ALLOCATED: 'Sắp xếp hàng vào địa điểm bảo quản.',
+    PROCESSING_RUN_CREATED: 'Chuẩn bị chế biến.',
+    PROCESSING_RUN_COMPLETED: 'Hoàn thành chế biến và tạo lô thành phẩm.',
+    PROCESSING_COMPLETED: 'Hoàn thành chế biến và đóng gói.',
+    SITE_TRANSFER_COMPLETED: 'Chuyển hàng sang địa điểm mới.',
+    DISTRIBUTION_PROPOSED: 'Chuẩn bị giao hàng.',
+    DISTRIBUTION_ATTESTED: 'Xác nhận thông tin giao nhận.',
+    DISTRIBUTION_READY: 'Hàng đã sẵn sàng bàn giao.',
+    DISTRIBUTION_IN_TRANSIT: 'Đã bàn giao cho đơn vị vận chuyển.',
+    DISTRIBUTION_DELIVERED: 'Điểm nhận đã nhận hàng.',
     DISTRIBUTION_CANCELLED: 'Hủy giao nhận trước khi bàn giao hàng.',
     DISTRIBUTION_QUANTITY_RECORDED:
       'Ghi nhận thay đổi số lượng của lô (bán, hao hụt hoặc chế biến).',
-    PRODUCTION_CYCLE_CREATED: 'Khởi tạo chu kỳ sản xuất.',
+    PRODUCTION_CYCLE_CREATED: 'Mở mùa vụ trồng mới.',
     CYCLE_PLANTED: 'Ghi nhận gieo trồng.',
     CARE_RECORDED: 'Ghi nhận hoạt động chăm sóc.',
     SENSOR_READING_RECORDED: 'Ghi nhận dữ liệu cảm biến.',
@@ -281,5 +288,5 @@ function eventSummary(eventType: string) {
     RECALL_RECORDED: 'Lô hàng đã được thu hồi.',
     LOT_EXPIRED: 'Ghi nhận lô hàng hết hạn sử dụng.',
   };
-  return summaries[eventType] ?? eventType.replaceAll('_', ' ').toLowerCase();
+  return summaries[eventType] ?? 'Cập nhật nhật ký của lô hàng.';
 }
