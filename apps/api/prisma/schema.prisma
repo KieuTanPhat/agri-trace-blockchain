@@ -69,6 +69,8 @@ model User {
   signingIntents             SigningIntent[]             @relation("SigningIntentCreator")
   handoversOffered           ShipmentHandover[]          @relation("HandoverOfferer")
   handoversResolved          ShipmentHandover[]          @relation("HandoverResolver")
+  cycleStaff                 ProductionCycleStaff[]      @relation("CycleStaffUser")
+  cycleStaffAssigned         ProductionCycleStaff[]      @relation("CycleStaffAssigner")
 
   @@unique([id, organizationId], map: "uq_user_org_scope")
   @@map("app_user")
@@ -524,6 +526,9 @@ model SupplyChain {
 
   @@index([ownerOrganizationId])
   productIds String[] @default([]) @map("product_ids") @db.Uuid
+  /// Chuỗi riêng tạo khi kích hoạt doanh nghiệp sản xuất; mỗi tổ chức tối đa một
+  /// chuỗi (index một phần supply_chain_one_personal trong migration).
+  personal   Boolean  @default(false)
   @@map("supply_chain")
 }
 
@@ -845,6 +850,10 @@ model DistributionTransfer {
   origin String @db.VarChar(500)
   destination String @db.VarChar(500)
   vehicleId String? @map("vehicle_id") @db.Uuid
+  /// PLATFORM_CARRIER | EXTERNAL_CARRIER | SELF_DELIVERY | RECEIVER_PICKUP
+  transportMode String @default("PLATFORM_CARRIER") @map("transport_mode") @db.VarChar(30)
+  /// Vehicle/driver typed on the transfer; carrierName names an external carrier.
+  transportDetails Json? @map("transport_details")
   status String @default("PROPOSED") @db.VarChar(30)
   version Int @default(0)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -854,6 +863,23 @@ model DistributionTransfer {
   @@index([receiverId, status])
   @@index([carrierId, status])
   @@map("distribution_transfer")
+}
+
+model DistributionPickupRequest {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  senderId String @map("sender_id") @db.Uuid
+  receiverId String @map("receiver_id") @db.Uuid
+  requestedBy String @map("requested_by") @db.Uuid
+  preferredPickupAt DateTime? @map("preferred_pickup_at") @db.Timestamptz(6)
+  note String @db.VarChar(1000)
+  status String @default("OPEN") @db.VarChar(20)
+  transferId String? @unique @map("transfer_id") @db.Uuid
+  resolutionNote String? @map("resolution_note") @db.VarChar(1000)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@index([senderId, status], map: "distribution_pickup_sender_status")
+  @@index([receiverId, status], map: "distribution_pickup_receiver_status")
+  @@map("distribution_pickup_request")
 }
 
 model DistributionLine {
@@ -1576,6 +1602,7 @@ model ProductionCycle {
   traceEvents        TraceEvent[]
   chain              SupplyChain          @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   assignments        StageAssignment[]
+  staff              ProductionCycleStaff[]
 
   harvestSensorWindows  HarvestSensorWindow[]
 
@@ -1586,6 +1613,23 @@ model ProductionCycle {
   @@index([productId], map: "ix_production_cycle_product")
   @@index([currentState], map: "ix_production_cycle_state")
   @@map("production_cycle")
+}
+
+/// Nhân viên được giao vụ (ít nhất một). Nhân viên cấp 3 chỉ thấy và ghi vụ mình
+/// được giao. Không thuộc nội dung ledger.
+model ProductionCycleStaff {
+  cycleId        String          @map("cycle_id") @db.Uuid
+  userId         String          @map("user_id") @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  assignedBy     String          @map("assigned_by") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  cycle          ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  user           User            @relation("CycleStaffUser", fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  assigner       User            @relation("CycleStaffAssigner", fields: [assignedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@id([cycleId, userId])
+  @@index([userId], map: "production_cycle_staff_user")
+  @@map("production_cycle_staff")
 }
 
 /// A local planning record. It has no chain, trace event or Fabric stream until
@@ -1603,6 +1647,7 @@ model ProductionCycleDraft {
   cultivatedArea     Decimal   @map("cultivated_area") @db.Decimal(12, 2)
   seedMaterialId     String?   @map("seed_material_id") @db.Uuid
   responsibleUserId  String?   @map("responsible_user_id") @db.Uuid
+  staffUserIds       String[]  @default([]) @map("staff_user_ids") @db.Uuid
   cultivationMethod  String?   @map("cultivation_method") @db.VarChar(255)
   maxHarvestQuantity Decimal?  @map("max_harvest_quantity") @db.Decimal(14, 3)
   harvestUnit        String    @map("harvest_unit") @db.VarChar(30)

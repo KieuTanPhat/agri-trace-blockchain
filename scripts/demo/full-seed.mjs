@@ -841,20 +841,9 @@ const resources = await step("resources", async () => {
       },
       `farm:${key}`,
     );
-    for (const kind of ["AREA_IMAGE", "INSPECTION_IMAGE"])
-      await evidence(
-        key,
-        "FARM",
-        farm.id,
-        kind,
-        i === 1 ? "berry3" : "tomatoField",
-      );
     // Legal documents are explicitly watermarked demo samples, never stock photos masquerading as certificates.
-    for (const kind of [
-      "LAND_CERTIFICATE",
-      "PRODUCTION_CONTRACT",
-      "QUALITY_CERTIFICATE",
-    ]) {
+    // A farm needs only its land-use right document.
+    for (const kind of ["LAND_CERTIFICATE"]) {
       const label = `document:${farm.id}:${kind}`;
       if (!state.commands[label]?.complete) {
         const bytes = await readFile(`${assets}/demo-${kind}.jpg`);

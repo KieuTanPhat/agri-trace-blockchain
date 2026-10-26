@@ -27,6 +27,8 @@ export function canAccessManagementRoute(
     path === prefix || path.startsWith(prefix + "/");
   // Every signed-in account may change its own password.
   if (path === "/account/password" || path === "/account/privacy") return true;
+  // Every platform account has a notifications page behind the header bell.
+  if (path === "/admin/notifications") return !!platformAdminHome(role);
   if (role !== "SYSTEM_ADMIN" && platformAdminHome(role)) {
     if (path === "/admin/security") return true;
     if (role === "PLATFORM_OPERATOR")
@@ -83,7 +85,6 @@ export function canAccessManagementRoute(
       within("/admin/recall") ||
       within("/admin/privacy") ||
       within("/admin/cases") ||
-      within("/admin/approvals") ||
       within("/admin/security") ||
       within("/admin/compliance-assignments") ||
       within("/admin/inspectors") ||

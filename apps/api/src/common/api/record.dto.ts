@@ -110,6 +110,7 @@ export class ProductRecordDto {
 export class ProductionCycleRecordDto {
     @ApiProperty({ type: String, format: 'uuid', nullable: true }) seedMaterialId!: string | null;
     @ApiProperty({ type: String, format: 'uuid', nullable: true }) responsibleUserId!: string | null;
+    @ApiProperty({ type: [String], format: 'uuid', required: false, description: 'Nhân viên được giao vụ (danh sách và chi tiết vụ)' }) staffUserIds?: string[];
     @ApiProperty({ type: String, nullable: true }) cultivationMethod!: string | null;
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
   @ApiProperty({ type: String, format: 'uuid', nullable: true }) chainId!:

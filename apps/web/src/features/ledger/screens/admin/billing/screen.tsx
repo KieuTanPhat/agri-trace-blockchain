@@ -24,7 +24,6 @@ const draftSchema = z.object({
   chains: int(0, 1000),
   members: int(1, 100000),
   products: int(0, 100000),
-  qrLabels: int(0, 1e8),
   note: z.string().trim().min(10, { error: () => tr("Tối thiểu 10 ký tự") }).max(1000),
 });
 const publishSchema = z.object({ reason: reason() });
@@ -42,9 +41,9 @@ function Plans() {
   const q = useQuery({ queryKey: ["plans"], queryFn: api.billing.plans });
   const draft = useDialog<Plan>();
   const publish = useDialog<PlanVersion>();
-  const invalidate = [["plans"], ["approvals"], ["inbox"]];
+  const invalidate = [["plans"], ["inbox"]];
   if (q.error) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
-  const base = draft.target?.versions.find((v) => v.status === "PUBLISHED") ?? draft.target?.versions[0] ?? {setupFee:0,annualFee:0,termMonths:12,limits:{products:5,chains:1,members:10,qrLabels:10000}};
+  const base = draft.target?.versions.find((v) => v.status === "PUBLISHED") ?? draft.target?.versions[0] ?? {setupFee:0,annualFee:0,termMonths:12,limits:{products:5,chains:1,members:10}};
 
   return (
     <>
@@ -92,7 +91,7 @@ function Plans() {
                           </td>
                           <td className="px-3 text-right font-mono text-[12px]">{fmtMoney(v.setupFee)}</td>
                           <td className="px-3 text-right font-mono text-[12px]">{fmtMoney(v.annualFee)}</td>
-                          <td className="px-3 font-mono text-[12px]">{v.limits.chains} · {fmtNumber(v.limits.members)} · {fmtNumber(v.limits.products)} · {fmtNumber(v.limits.qrLabels)}</td>
+                          <td className="px-3 font-mono text-[12px]">{v.limits.chains} · {fmtNumber(v.limits.members)} · {fmtNumber(v.limits.products)}</td>
 
                           <td className="px-3 font-mono text-[12px]">{v.activeSubscriptions}</td>
                           <td className="px-4">
@@ -123,7 +122,7 @@ function Plans() {
           submitLabel={tr("Lưu bản nháp")}
           invalidate={invalidate}
           wide
-          run={(v, cmd) => api.billing.draftVersion(draft.target!.code, { setupFee: v.setupFee, annualFee: v.annualFee, termMonths: v.termMonths, limits: { chains: v.chains, members: v.members, products: v.products, qrLabels: v.qrLabels }, note: v.note }, cmd)}
+          run={(v, cmd) => api.billing.draftVersion(draft.target!.code, { setupFee: v.setupFee, annualFee: v.annualFee, termMonths: v.termMonths, limits: { chains: v.chains, members: v.members, products: v.products }, note: v.note }, cmd)}
         >
           {(f) => (
             <>
@@ -136,7 +135,6 @@ function Plans() {
                 <TextField control={f.control} name="chains" label={tr("Chuỗi")} type="number" />
                 <TextField control={f.control} name="members" label={tr("Thành viên")} type="number" />
                 <TextField control={f.control} name="products" label={tr("Sản phẩm")} type="number" />
-                <TextField control={f.control} name="qrLabels" label="Tem QR" type="number" />
               </div>
 
               <TextAreaField control={f.control} name="note" label={tr("Ghi chú thay đổi")} hint={tr("10–1000 ký tự")} />
@@ -154,7 +152,6 @@ function Plans() {
           defaultValues={{ reason: "" }}
           submitLabel={tr("Công bố")}
           invalidate={invalidate}
-          proposal={{ operation: "PLAN_VERSION_PUBLISH", params: () => ({ versionId: publish.target!.id }), reason: (v) => v.reason }}
           run={(v, cmd) => api.billing.publishVersion(publish.target!.id, v, cmd)}
         >
           {(f) => <TextAreaField control={f.control} name="reason" label={tr("Lý do công bố")} />}

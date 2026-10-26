@@ -30,7 +30,6 @@ const TABS: (InboxKind | "ALL" | "OVERDUE")[] = [
   "CAPABILITY",
   "AMENDMENT",
   "CONNECTION",
-  "APPROVAL",
   "CASE",
   "TICKET",
   "CONSUMER_REPORT",

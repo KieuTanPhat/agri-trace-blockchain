@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { useLedgerQuery as useQuery } from "@/lib/ledger/data";
 import { Controller } from "react-hook-form";
@@ -20,6 +20,7 @@ import { Callout, EmptyState, ErrorState, LoadingRows } from "@/components/ledge
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 import { useEvidenceObjectUrl } from "./image-gallery";
+import { useFilePreviews } from "./photo-picker";
 
 export const EVIDENCE_KIND_LABEL: Record<string, string> = localized({
   OTHER: "Khác",
@@ -52,7 +53,7 @@ export const EVIDENCE_KINDS: Partial<Record<EvidenceEntity, string[]>> = {
   QUARANTINE: ["QUARANTINE_IMAGE", "INSPECTION_IMAGE", "CERTIFICATE_IMAGE", "OTHER"],
   CYCLE_DRAFT: ["CYCLE_IMAGE", "CERTIFICATE_IMAGE", "OTHER"],
   PRODUCT: ["PRODUCT_IMAGE", "INSPECTION_IMAGE", "OTHER"],
-  FARM: ["AREA_IMAGE", "LAND_CERTIFICATE", "PRODUCTION_CONTRACT", "QUALITY_CERTIFICATE", "INSPECTION_IMAGE", "OTHER"],
+  FARM: ["LAND_CERTIFICATE", "OTHER"],
   SITE: ["SITE_IMAGE", "BUSINESS_LICENSE", "QUALITY_CERTIFICATE", "INSPECTION_IMAGE", "OTHER"],
   MATERIAL: ["SEED_IMAGE", "MATERIAL_IMAGE", "CERTIFICATE_IMAGE", "INSPECTION_IMAGE", "OTHER"],
   PROFILE: ["BUSINESS_LICENSE", "CERTIFICATE_IMAGE", "OTHER"],
@@ -137,9 +138,9 @@ export function EvidencePanel({
         <ul className="divide-y divide-line/70 rounded-md border border-line">
           {rows.map((e, i) => (
             <li key={e.id} className="flex items-start gap-3 px-3 py-2.5">
-              <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded bg-sunken text-ink-2" aria-hidden>
-                {e.mediaType === "application/pdf" ? <FileText className="size-4" /> : <ImageIcon className="size-4" />}
-              </span>
+              <button type="button" onClick={() => setView(e)} aria-label={tr("Xem {p0}", { p0: e.fileName })} className="shrink-0">
+                <EvidenceThumb evidence={e} />
+              </button>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="flex flex-wrap items-center gap-1.5">
                   <Badge tone="neutral" dot={false}>{EVIDENCE_KIND_LABEL[e.kind] ?? e.kind}</Badge>
@@ -184,6 +185,7 @@ export function EvidencePanel({
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="evidence-file">{tr("Tệp")}</Label>
                     <Input id="evidence-file" type="file" accept="image/png,image/jpeg,application/pdf" onChange={(e) => field.onChange(e.target.files?.[0])} aria-invalid={!!fieldState.error} />
+                    {field.value instanceof File && <LocalPreview file={field.value} />}
                     <span className={cn("text-[12px]", fieldState.error ? "text-danger" : "text-ink-2")}>{fieldState.error?.message ?? tr("PNG, JPEG hoặc PDF · tối đa 5 MB")}</span>
                   </div>
                 )}
@@ -220,6 +222,27 @@ export function EvidencePanel({
       <EvidenceViewer evidence={view} onClose={() => setView(null)} />
     </section>
   );
+}
+
+/** Ảnh thu nhỏ đã kiểm sha256; PDF hiện biểu tượng. */
+export function EvidenceThumb({ evidence }: { evidence: Evidence }) {
+  const image = evidence.mediaType.startsWith("image/");
+  const q = useQuery({ queryKey: ["ws-evidence-content", evidence.id], queryFn: () => wapi.evidenceContent(evidence.id), enabled: image, retry: false });
+  const verified = useEvidenceObjectUrl(image && !q.error ? q.data : undefined);
+  return (
+    <span className="relative inline-flex size-14 items-center justify-center overflow-hidden rounded border border-line bg-sunken text-ink-2">
+      {verified.url ? <Image unoptimized fill src={verified.url} alt={evidence.description} className="object-cover" /> : image ? <ImageIcon className="size-4" aria-hidden /> : <FileText className="size-4" aria-hidden />}
+    </span>
+  );
+}
+
+function LocalPreview({ file }: { file: File }) {
+  const [url] = useFilePreviews(useStableFiles(file));
+  if (!file.type.startsWith("image/")) return <span className="text-[12px] text-ink-2">{file.name}</span>;
+  return url ? <Image unoptimized width={320} height={240} src={url} alt={file.name} className="max-h-48 w-auto rounded border border-line bg-sunken object-contain" /> : null;
+}
+function useStableFiles(file: File) {
+  return useMemo(() => [file], [file]);
 }
 
 function EvidenceViewer({ evidence, onClose }: { evidence: Evidence | null; onClose: () => void }) {

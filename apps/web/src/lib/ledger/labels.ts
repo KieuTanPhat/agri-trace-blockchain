@@ -193,7 +193,6 @@ export const INBOX_KIND_LABEL: Record<string, string> = localized({
   CAPABILITY: "Năng lực",
   AMENDMENT: "Điều chỉnh",
   CONNECTION: "Kết nối",
-  APPROVAL: "Phê duyệt",
   TICKET: "Hỗ trợ",
   CONSUMER_REPORT: "Báo cáo NTD",
   CASE: "Sự cố",
@@ -238,6 +237,7 @@ export const REF_CATEGORY_LABEL: Record<string, string> = localized({
   LOSS_REASON: "Lý do hao hụt",
   PROCESSING_TYPE: "Loại hình chế biến",
   TICKET_CATEGORY: "Chủ đề hỗ trợ",
+  VEHICLE_TYPE: "Loại xe",
 });
 export const AUDIENCE_LABEL: Record<string, string> = localized({
   ALL: "Tất cả",

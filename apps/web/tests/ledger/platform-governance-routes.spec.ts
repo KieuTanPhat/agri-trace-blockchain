@@ -4,9 +4,6 @@ const id = "11111111-1111-4111-8111-111111111111",
   account = "55555555-5555-4555-8555-555555555555",
   connection = "88888888-8888-4888-8888-888888888888";
 const routes: [string, string, string][] = [
-  [`/admin/approvals/${id}`, "admin-approvals-detail", "Cấp năng lực tổ chức"],
-  ["/admin/approvals/new", "admin-approvals-new", "Tạo đề xuất phê duyệt"],
-  ["/admin/approvals", "admin-approvals", "Phê duyệt hai bước"],
   ["/admin/audit-log", "admin-audit-log", "Nhật ký kiểm toán nền tảng"],
   [
     `/admin/compliance-assignments/${id}`,
@@ -68,7 +65,7 @@ for (const [url, name, heading] of routes)
     await expect(page.getByTestId(`ledger-screen-${name}`)).toBeVisible();
     if (
       url.endsWith("/new") &&
-      ["admin-approvals-new", "admin-users-new"].includes(name)
+      ["admin-users-new"].includes(name)
     ) {
       await expect(
         page

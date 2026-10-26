@@ -62,7 +62,7 @@ export default function InventoryPage() {
   ];
   return (
     <>
-      <PageHeader title={tr("Tồn kho")} description={tr("Lượng doanh nghiệp đang giữ theo lô và theo cơ sở. Phân bổ vào cơ sở, chuyển kho nội bộ, cách ly, ghi bán hoặc hư hỏng đều cập nhật phiên bản lô và ghi sự kiện truy xuất.")} />
+      <PageHeader title={tr("Tồn kho")} description={tr("Lượng doanh nghiệp đang giữ theo lô và theo cơ sở, gồm lô vừa thu hoạch chưa giao đi và hàng đã nhận. Phân bổ vào cơ sở, chuyển kho nội bộ, cách ly, ghi bán hoặc hư hỏng đều cập nhật phiên bản lô và ghi sự kiện truy xuất.")} />
       <PageBody>
         <div role="tablist" className="flex flex-wrap gap-1">
           {(["stock", "slips", "cases"] as const).map((k) => (
@@ -174,11 +174,11 @@ function LotSheet({ lot, ownSites, onClose }: { lot: StockLot | null; ownSites: 
                   <SelectField control={f.control} name="fromSiteId" label={tr("Cơ sở xuất")} options={siteOpts} />
                   <SelectField control={f.control} name="toSiteId" label={tr("Cơ sở nhận")} options={ownSites.map((s) => ({ value: s.id, label: s.name }))} />
                   <TextField control={f.control} name="quantity" label={tr("Số lượng ({p0})", { p0: lot.unit })} inputMode="decimal" />
-                  <SelectField control={f.control} name="receiverUserId" label={tr("Người nhận dự kiến (tùy chọn)")} options={[{value:"__none",label:tr("Không chỉ định")},...(members.data??[]).filter(m=>m.accountStatus==="ACTIVE").map(m=>({value:m.id,label:m.fullName}))]}/>
+                  <SelectField control={f.control} name="receiverUserId" label={tr("Người nhận dự kiến")} options={[{value:"__none",label:tr("Không chỉ định")},...(members.data??[]).filter(m=>m.accountStatus==="ACTIVE").map(m=>({value:m.id,label:m.fullName}))]}/>
                   <SelectField control={f.control} name="dispatch" label={tr("Xuất hàng")} options={[{ value: "no", label: tr("Để chờ xuất") }, { value: "yes", label: tr("Xuất ngay") }]} />
                 </div>
                 <TextAreaField control={f.control} name="reason" label={tr("Lý do")} max={1000} />
-                <TextAreaField control={f.control} name="note" label={tr("Ghi chú chuyển kho (tùy chọn)")} max={1000}/>
+                <TextAreaField control={f.control} name="note" label={tr("Ghi chú chuyển kho")} max={1000}/>
               </>
             )}
           </CommandDialog>
@@ -193,7 +193,7 @@ function LotSheet({ lot, ownSites, onClose }: { lot: StockLot | null; ownSites: 
                 </div>
                 <SelectField control={f.control} name="cause" label={tr("Nguyên nhân")} options={Object.entries(CAUSE_LABEL).map(([value, label]) => ({ value, label }))} />
                 <TextAreaField control={f.control} name="reason" label={tr("Lý do")} max={1000} />
-                <TextAreaField control={f.control} name="note" label={tr("Ghi chú (tùy chọn)")} max={1000} />
+                <TextAreaField control={f.control} name="note" label={tr("Ghi chú")} max={1000} />
               </>
             )}
           </CommandDialog>
@@ -268,7 +268,7 @@ function Slips() {
       )}
       {t?.kind === "RECEIVE" && (
         <CommandDialog {...act.props} title={tr("Xác nhận nhận phiếu {p0}", { p0: t.slip.code })} endpoint="POST /distribution/site-transfers/:id/receive" description={tr("Nhận ít hơn lượng chuyển thì phiếu chuyển sang Chênh lệch để xử lý phần thiếu.")} schema={z.object({ note:z.string().max(1000),receivedQuantity: z.string().regex(DEC, { error: () => tr("Số không âm, tối đa 3 chữ số thập phân") }).refine((v) => Number(v) <= Number(t.slip.quantity), { error: () => tr("Lượng thực nhận vượt lượng chuyển") }) })} defaultValues={{ receivedQuantity: t.slip.quantity,note:"" }} version={t.slip.version} submitLabel={tr("Xác nhận")} invalidate={INVALIDATE} run={(v, cmd) => distApi.receiveSiteTransfer(t.slip.id, { version: t.slip.version, receivedQuantity: v.receivedQuantity,note:v.note||undefined }, cmd)}>
-          {(f) => <><TextField control={f.control} name="receivedQuantity" label={tr("Thực nhận ({p0})", { p0: t.slip.unit })} inputMode="decimal" /><TextAreaField control={f.control} name="note" label={tr("Ghi chú nhận hàng (tùy chọn)")} max={1000}/></>}
+          {(f) => <><TextField control={f.control} name="receivedQuantity" label={tr("Thực nhận ({p0})", { p0: t.slip.unit })} inputMode="decimal" /><TextAreaField control={f.control} name="note" label={tr("Ghi chú nhận hàng")} max={1000}/></>}
         </CommandDialog>
       )}
       {t?.kind === "RESOLVE" && (

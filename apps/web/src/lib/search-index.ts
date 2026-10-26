@@ -59,7 +59,6 @@ export const fieldIndex: Record<string, FieldSection[]> = {
     { fields: ["Thành viên", "Cấp tài khoản", "Nhóm quyền", "Trạng thái", "Thao tác", "Quyền & trạng thái"] },
     { page: "Thêm thành viên", href: "/enterprise/members/new", fields: memberFields },
     { page: "Lời mời đang gửi", href: "/enterprise/members/invitations", fields: ["Lời mời thành viên"] },
-    { page: "Chuyển quyền chủ quản", href: "/enterprise/ownership", fields: ["Người nhận", "Sau khi chuyển", "Lý do", "Yêu cầu chuyển quyền"] },
   ],
   "/enterprise/roles": [
     { fields: ["Nhóm quyền"] },
@@ -94,7 +93,6 @@ export const fieldIndex: Record<string, FieldSection[]> = {
   ],
   "/lots": [{ fields: ["Nông sản", "Mã lô", "Nông trại", "Cập nhật gần nhất", "Trạng thái", "Tìm lô", "Lọc trạng thái", "Lọc trang trại", "Tổng số lô", "Đang vận chuyển", "Đã thu hoạch"] }],
   "/iot-simulator": [{ fields: ["Thiết bị", "Vụ trồng", "Loại cảm biến", "Giá trị và đơn vị", "Thời điểm ghi nhận UTC", "Cấu hình cảm biến"] }],
-  "/enterprise/qr": [{ fields: ["Mẫu tem", "Số tem", "Lịch sử in của tổ chức"] }],
   "/enterprise/sites": [
     { fields: ["Tên cơ sở", "Loại cơ sở", "Địa chỉ", "Trạng thái"] },
     { page: "Thêm cơ sở", href: "/enterprise/sites/new", fields: siteFields },
@@ -103,6 +101,7 @@ export const fieldIndex: Record<string, FieldSection[]> = {
     { fields: ["Biển số / mã phương tiện", "Loại phương tiện", "Trạng thái"] },
     { page: "Thêm phương tiện", href: "/enterprise/vehicles/new", fields: ["Biển số / mã phương tiện", "Loại phương tiện"] },
   ],
+  "/enterprise/qr": [{ fields: ["Mã QR", "Mã lô", "Trạng thái QR", "Tải QR"] }],
   "/enterprise/inventory": [{ fields: ["Tồn kho theo cơ sở", "Phân bổ lượng chưa gắn cơ sở", "Lập phiếu chuyển hàng giữa các cơ sở", "Phiếu chuyển kho", "Lập phiếu cách ly", "Phiếu cách ly", "Cơ sở xuất hàng", "Cơ sở nhận hàng", "Lý do chuyển hàng", "Khối lượng thực nhận", "Cơ sở đang giữ", "Nguyên nhân"] }],
   "/distribution": [
     { fields: ["Giao nhận", "Bên giao → Bên nhận", "Đơn vị vận chuyển", "Lượng hàng", "Trạng thái"] },
@@ -133,10 +132,6 @@ export const fieldIndex: Record<string, FieldSection[]> = {
   "/admin/users": [
     { fields: ["Danh sách tài khoản nền tảng", "Lọc nhóm tài khoản"] },
     { page: "Tạo tài khoản", href: "/admin/users/new", fields: ["Họ và tên", "Email đăng nhập", "Tổ chức kiểm định", "Loại tài khoản"] },
-  ],
-  "/admin/approvals": [
-    { fields: ["Danh sách đề xuất", "Lọc trạng thái đề xuất"] },
-    { page: "Tạo đề xuất", href: "/admin/approvals/new", fields: ["Loại thao tác cần phê duyệt", "Tài khoản được cấp quyền", "Tổ chức", "Năng lực", "Phạm vi quản trị", "Họ và tên", "Email đăng nhập"] },
   ],
   "/admin/operations": [{ fields: ["Hàng đợi ghi sổ cái", "Hold giao nhận", "Tác vụ điều khiển sổ cái", "Sức khỏe kết nối", "Chứng thư & khóa ký", "Hàng đợi thư", "Phiên đang hoạt động", "Lọc theo chuỗi", "Lọc theo tổ chức"] }],
   "/admin/audit-log": [{ fields: ["Thời điểm", "Người thực hiện", "Hành động", "Đối tượng", "Lý do / chi tiết", "Lọc theo hành động", "Lọc theo loại đối tượng"] }],

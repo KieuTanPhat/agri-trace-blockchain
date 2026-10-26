@@ -60,7 +60,7 @@ export default function LedgerScreen({ route }: LedgerScreenProps) {
             {[
               "Ghi nhận vụ sản xuất, thu hoạch, chế biến và giao nhận",
               "Dấu dữ liệu được đối chiếu trên Hyperledger Fabric",
-              "In tem QR để người tiêu dùng tự tra cứu",
+              "Mã QR cho từng lô để người tiêu dùng tự tra cứu",
             ].map((item) => (
               <li key={item} className="border-l-2 border-[#9be7b4] pl-3">
                 {t(item)}

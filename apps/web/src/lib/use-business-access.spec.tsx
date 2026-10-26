@@ -53,13 +53,14 @@ describe("Current business permission refresh", () => {
     await waitFor(() => expect(result.current.revision).toBe(second));
     expect(result.current.productionAccess).toBe(false);
   });
-  it("keeps the same scope through a focus check and changes it after another tab revokes access", async () => {
+  it("keeps the page usable through a focus check and changes scope after another tab revokes access", async () => {
     const { result } = renderHook(() => useBusinessAccess(user));
     await waitFor(() => expect(result.current.status).toBe("ready"));
     const slow = deferred<{ accessRevision: string }>();
     vi.mocked(request).mockReturnValueOnce(slow.promise);
     act(() => window.dispatchEvent(new Event("focus")));
-    expect(result.current.status).toBe("checking");
+    // Returning focus (tab switch, closed file picker) revalidates in the background.
+    expect(result.current.status).toBe("ready");
     expect(result.current.revision).toBe(first);
     await act(async () => slow.resolve({ accessRevision: first }));
     expect(result.current.status).toBe("ready");
@@ -102,7 +103,7 @@ describe("Current business permission refresh", () => {
     act(() => window.dispatchEvent(new Event("focus")));
     await waitFor(() => expect(result.current.status).toBe("ready"));
   });
-  it("does not expose a response that completed while the tab was hidden", async () => {
+  it("keeps the page usable while hidden and revalidates when the tab returns", async () => {
     const slow = deferred<{ accessRevision: string }>();
     vi.mocked(request).mockReturnValueOnce(slow.promise);
     const { result } = renderHook(() => useBusinessAccess(user));
@@ -111,10 +112,14 @@ describe("Current business permission refresh", () => {
       .mockReturnValue("hidden");
     act(() => document.dispatchEvent(new Event("visibilitychange")));
     await act(async () => slow.resolve({ accessRevision: first }));
-    expect(result.current.status).toBe("checking");
+    expect(result.current.status).toBe("ready");
+    const calls = vi.mocked(request).mock.calls.length;
     visibility.mockReturnValue("visible");
     act(() => document.dispatchEvent(new Event("visibilitychange")));
-    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.status).toBe("ready");
+    await waitFor(() =>
+      expect(vi.mocked(request).mock.calls.length).toBe(calls + 1),
+    );
   });
   it("clears scope cache on logout/unmount and rejects missing revision", async () => {
     const { result, unmount } = renderHook(() => useBusinessAccess(user));

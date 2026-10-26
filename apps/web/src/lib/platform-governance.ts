@@ -4,7 +4,6 @@ type Schemas = components["schemas"];
 export type AuditPage = Schemas["PlatformAuditPageDto"];
 export type AuditExport = Schemas["PlatformAuditExportDto"];
 export type AuditVerification = Schemas["PlatformAuditVerificationDto"];
-export type Approval = Schemas["PlatformApprovalDto"];
 export type MfaStatus = Schemas["MfaStatusDto"];
 export type OperationsSummary = Schemas["OperationsSummaryDto"];
 export type PlatformCase = Schemas["PlatformCaseDto"];

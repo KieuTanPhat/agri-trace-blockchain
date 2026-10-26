@@ -80,7 +80,10 @@ function cycleForRole(
     chain: { is: chainAuthority(actor, role) },
     ...delegatedScope,
     ...(role === 'FARM_STAFF'
-      ? { assignments: { some: assignment(actor, 'PRODUCTION') } }
+      ? {
+          assignments: { some: assignment(actor, 'PRODUCTION') },
+          ...(scope?.cycleStaffOnly ? { staff: { some: { userId: actor.sub! } } } : {}),
+        }
       : role === 'COMPLIANCE_REVIEWER'
         ? {
             farmOrgId: { not: actor.organizationId! },

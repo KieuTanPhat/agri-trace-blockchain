@@ -498,15 +498,6 @@ function Capabilities({
               cmd,
             )
           }
-          proposal={{
-            operation: "CAPABILITY_REQUEST_APPROVE",
-            params: (v) => ({
-              requestId: dialog.target!.id,
-              version: dialog.target!.version,
-              note: v.note,
-            }),
-            reason: (v) => v.note,
-          }}
           success={tr("Đã ghi quyết định năng lực")}
         >
           {(f) => (
@@ -596,15 +587,6 @@ export function Connections({
               cmd,
             )
           }
-          proposal={{
-            operation: "CONNECTION_APPROVE",
-            params: (v) => ({
-              connectionId: dialog.target!.id,
-              version: dialog.target!.version,
-              note: v.note,
-            }),
-            reason: (v) => v.note,
-          }}
         >
           {(f) => (
             <>

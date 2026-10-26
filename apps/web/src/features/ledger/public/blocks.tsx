@@ -103,7 +103,7 @@ export function CtaBand() {
           <div className="flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
             <div className="flex max-w-2xl flex-col gap-2">
               <h2 className="text-[28px] leading-tight font-semibold tracking-tight">{pt("Đưa sản phẩm của bạn lên chuỗi truy xuất")}</h2>
-              <p className="text-[16px] text-white/85">{pt("Đăng ký hồ sơ doanh nghiệp, được xét duyệt năng lực và bắt đầu in tem QR cho từng lô hàng.")}</p>
+              <p className="text-[16px] text-white/85">{pt("Đăng ký hồ sơ doanh nghiệp, được xét duyệt năng lực và nhận mã QR truy xuất cho từng lô hàng.")}</p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg" className="bg-(--pub-accent) text-white hover:bg-(--pub-accent-hover)">

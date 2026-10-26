@@ -242,16 +242,12 @@
           "overdueCases": {
             "type": "number"
           },
-          "pendingApprovals": {
-            "type": "number"
-          },
           "privacyRequests": {
             "type": "number"
           }
         },
         "required": [
           "generatedAt",
-          "pendingApprovals",
           "openCases",
           "overdueCases",
           "privacyRequests",
@@ -835,24 +831,6 @@
         ],
         "type": "object"
       },
-      "CancelApprovalDto": {
-        "properties": {
-          "note": {
-            "maxLength": 1000,
-            "minLength": 10,
-            "type": "string"
-          },
-          "version": {
-            "minimum": 0,
-            "type": "number"
-          }
-        },
-        "required": [
-          "note",
-          "version"
-        ],
-        "type": "object"
-      },
       "CancelCycleDto": {
         "properties": {
           "reason": {
@@ -905,7 +883,8 @@
               "TRANSPORTER",
               "DISTRIBUTOR",
               "RETAILER",
-              "AUDITOR"
+              "AUDITOR",
+              "PROCESSOR"
             ],
             "type": "string"
           }
@@ -1845,6 +1824,10 @@
             "format": "uuid",
             "type": "string"
           },
+          "personal": {
+            "description": "Chuỗi riêng tạo khi kích hoạt doanh nghiệp sản xuất",
+            "type": "boolean"
+          },
           "plannedStartDate": {
             "format": "date",
             "nullable": true,
@@ -1875,6 +1858,7 @@
           "description",
           "plannedStartDate",
           "note",
+          "personal",
           "version",
           "createdAt"
         ],
@@ -2632,6 +2616,16 @@
             "format": "uuid",
             "type": "string"
           },
+          "staffUserIds": {
+            "description": "Nhân viên được giao vụ; người đầu tiên là người phụ trách. Bỏ trống: người phụ trách hoặc người tạo",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array"
+          },
           "startDate": {
             "format": "date",
             "type": "string"
@@ -2666,8 +2660,8 @@
             "type": "string"
           },
           "cycleCode": {
+            "description": "Mã nội bộ; hệ thống tự sinh nếu bỏ trống",
             "maxLength": 100,
-            "minLength": 1,
             "type": "string"
           },
           "farmId": {
@@ -2711,6 +2705,16 @@
             "format": "uuid",
             "type": "string"
           },
+          "staffUserIds": {
+            "description": "Nhân viên được giao vụ; người đầu tiên là người phụ trách. Bỏ trống: người phụ trách hoặc người tạo",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array"
+          },
           "startDate": {
             "type": "string"
           }
@@ -2719,7 +2723,6 @@
           "chainId",
           "farmId",
           "productId",
-          "cycleCode",
           "harvestUnit"
         ],
         "type": "object"
@@ -3101,6 +3104,14 @@
             },
             "type": "array"
           },
+          "staffUserIds": {
+            "description": "Nhân viên được giao vụ (danh sách và chi tiết vụ)",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
           "startDate": {
             "format": "date-time",
             "nullable": true,
@@ -3242,6 +3253,14 @@
             "nullable": true,
             "type": "string"
           },
+          "staffUserIds": {
+            "description": "Nhân viên được giao vụ (danh sách và chi tiết vụ)",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
           "startDate": {
             "format": "date-time",
             "nullable": true,
@@ -3305,6 +3324,26 @@
           "id",
           "cycleCode",
           "currentState"
+        ],
+        "type": "object"
+      },
+      "CycleStaffRecordDto": {
+        "properties": {
+          "cycleId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "staffUserIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "cycleId",
+          "staffUserIds"
         ],
         "type": "object"
       },
@@ -3451,32 +3490,6 @@
         "required": [
           "label",
           "value"
-        ],
-        "type": "object"
-      },
-      "DecideApprovalDto": {
-        "properties": {
-          "decision": {
-            "enum": [
-              "APPROVE",
-              "REJECT"
-            ],
-            "type": "string"
-          },
-          "note": {
-            "maxLength": 1000,
-            "minLength": 10,
-            "type": "string"
-          },
-          "version": {
-            "minimum": 0,
-            "type": "number"
-          }
-        },
-        "required": [
-          "decision",
-          "note",
-          "version"
         ],
         "type": "object"
       },
@@ -7050,11 +7063,6 @@
               "EW_CREATE_MEMBER",
               "EW_INVITE_MEMBER",
               "EW_REVOKE_MEMBER_INVITATION",
-              "EW_OWNERSHIP_PROPOSE",
-              "EW_OWNERSHIP_ACCEPT",
-              "EW_OWNERSHIP_DECLINE",
-              "EW_OWNERSHIP_CANCEL",
-              "EW_QR_PRINT",
               "EW_UPDATE_MEMBER",
               "EW_CHANGE_MEMBER_SUPERVISOR",
               "EW_CREATE_ROLE",
@@ -7091,6 +7099,10 @@
               "EW_SITE_TRANSFER_RECEIVE",
               "EW_SITE_TRANSFER_RESOLVE",
               "EW_SITE_TRANSFER_CANCEL",
+              "EW_PICKUP_REQUEST",
+              "EW_PICKUP_DECLINE",
+              "EW_PICKUP_CANCEL",
+              "DIST_JOIN_CHAIN",
               "DIST_RECEIPT",
               "DIST_RETURN",
               "DIST_RETURN_SIGN",
@@ -7116,6 +7128,7 @@
               "CREATE_PRODUCTION_CYCLE",
               "EW_CREATE_CYCLE_DRAFT",
               "EW_LINK_CYCLE_DRAFT",
+              "EW_SET_CYCLE_STAFF",
               "PLANT_PRODUCTION_CYCLE",
               "RECORD_CARE",
               "RECORD_SENSOR",
@@ -7945,38 +7958,6 @@
           "scopedBy",
           "counts",
           "oldestUnfinishedAgeSeconds"
-        ],
-        "type": "object"
-      },
-      "LabelPrintInput": {
-        "properties": {
-          "copies": {
-            "maximum": 500,
-            "minimum": 1,
-            "type": "number"
-          },
-          "lotId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "reason": {
-            "description": "Required when the organization already printed labels for this lot",
-            "maxLength": 1000,
-            "minLength": 10,
-            "type": "string"
-          },
-          "template": {
-            "enum": [
-              "COMPACT",
-              "STANDARD"
-            ],
-            "type": "string"
-          }
-        },
-        "required": [
-          "lotId",
-          "template",
-          "copies"
         ],
         "type": "object"
       },
@@ -9669,47 +9650,6 @@
         ],
         "type": "object"
       },
-      "OwnershipResolveInput": {
-        "properties": {
-          "note": {
-            "maxLength": 1000,
-            "minLength": 10,
-            "type": "string"
-          },
-          "version": {
-            "minimum": 0,
-            "type": "number"
-          }
-        },
-        "required": [
-          "version",
-          "note"
-        ],
-        "type": "object"
-      },
-      "OwnershipTransferInput": {
-        "properties": {
-          "reason": {
-            "maxLength": 1000,
-            "minLength": 10,
-            "type": "string"
-          },
-          "retainPreviousAdmin": {
-            "description": "Keep the current owner as a level-1 administrator after acceptance",
-            "type": "boolean"
-          },
-          "toUserId": {
-            "format": "uuid",
-            "type": "string"
-          }
-        },
-        "required": [
-          "toUserId",
-          "retainPreviousAdmin",
-          "reason"
-        ],
-        "type": "object"
-      },
       "OwnProfileEnrollmentDto": {
         "properties": {
           "businessId": {
@@ -10012,6 +9952,45 @@
         ],
         "type": "object"
       },
+      "PickupRequestInput": {
+        "properties": {
+          "note": {
+            "description": "Sản phẩm, lượng và thời gian muốn lấy",
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "preferredPickupAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "senderId": {
+            "description": "Bên giao (đối tác đã liên kết)",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "senderId",
+          "note"
+        ],
+        "type": "object"
+      },
+      "PickupResolveInput": {
+        "properties": {
+          "note": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "version": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "type": "object"
+      },
       "PlanAcceptanceResultDto": {
         "properties": {
           "acceptedAt": {
@@ -10120,18 +10099,12 @@
             "maximum": 100000,
             "minimum": 0,
             "type": "number"
-          },
-          "qrLabels": {
-            "maximum": 100000000,
-            "minimum": 0,
-            "type": "number"
           }
         },
         "required": [
           "products",
           "chains",
-          "members",
-          "qrLabels"
+          "members"
         ],
         "type": "object"
       },
@@ -10287,118 +10260,6 @@
           "termMonths",
           "limits",
           "note"
-        ],
-        "type": "object"
-      },
-      "PlatformApprovalDto": {
-        "properties": {
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "decidedAt": {
-            "format": "date-time",
-            "nullable": true,
-            "type": "string"
-          },
-          "decidedBy": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PlatformWhoDto"
-              }
-            ],
-            "nullable": true,
-            "type": "object"
-          },
-          "decisionNote": {
-            "nullable": true,
-            "type": "string"
-          },
-          "effectiveStatus": {
-            "enum": [
-              "PENDING",
-              "APPROVED",
-              "REJECTED",
-              "CANCELLED",
-              "EXPIRED"
-            ],
-            "type": "string"
-          },
-          "expiresAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "operation": {
-            "enum": [
-              "CAPABILITY_GRANT",
-              "CREATE_CHAIN_GRANT",
-              "SYSTEM_ADMIN_CREATE",
-              "CONNECTION_APPROVE",
-              "ADMIN_PASSWORD_RESET"
-            ],
-            "type": "string"
-          },
-          "organizationId": {
-            "format": "uuid",
-            "nullable": true,
-            "type": "string"
-          },
-          "payload": {
-            "additionalProperties": true,
-            "description": "Tham số đã chuẩn hóa; khóa nhạy cảm bị che",
-            "type": "object"
-          },
-          "payloadHash": {
-            "type": "string"
-          },
-          "proposer": {
-            "$ref": "#/components/schemas/PlatformWhoDto"
-          },
-          "proposerReason": {
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "PENDING",
-              "APPROVED",
-              "REJECTED",
-              "CANCELLED",
-              "EXPIRED"
-            ],
-            "type": "string"
-          },
-          "subjectId": {
-            "type": "string"
-          },
-          "subjectType": {
-            "type": "string"
-          },
-          "version": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "id",
-          "operation",
-          "subjectType",
-          "subjectId",
-          "organizationId",
-          "payload",
-          "payloadHash",
-          "proposer",
-          "proposerReason",
-          "status",
-          "effectiveStatus",
-          "expiresAt",
-          "decidedBy",
-          "decidedAt",
-          "decisionNote",
-          "version",
-          "createdAt"
         ],
         "type": "object"
       },
@@ -10992,7 +10853,11 @@
             "type": "string"
           },
           "unit": {
-            "maxLength": 30,
+            "description": "Mặc định m2",
+            "enum": [
+              "m2",
+              "ha"
+            ],
             "type": "string"
           }
         },
@@ -11834,6 +11699,13 @@
             "nullable": true,
             "type": "object"
           },
+          "staffUserIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
           "startDate": {
             "format": "date",
             "type": "string"
@@ -11850,6 +11722,7 @@
           "productId",
           "seedMaterialId",
           "responsibleUserId",
+          "staffUserIds",
           "cultivationMethod",
           "name",
           "cycleCode",
@@ -11940,6 +11813,14 @@
             "format": "uuid",
             "nullable": true,
             "type": "string"
+          },
+          "staffUserIds": {
+            "description": "Nhân viên được giao vụ (danh sách và chi tiết vụ)",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
           },
           "startDate": {
             "format": "date-time",
@@ -12734,42 +12615,6 @@
         "required": [
           "version",
           "reason"
-        ],
-        "type": "object"
-      },
-      "ProposeApprovalDto": {
-        "properties": {
-          "operation": {
-            "enum": [
-              "CAPABILITY_GRANT",
-              "CREATE_CHAIN_GRANT",
-              "SYSTEM_ADMIN_CREATE",
-              "CONNECTION_APPROVE",
-              "ADMIN_PASSWORD_RESET",
-              "CAPABILITY_REQUEST_APPROVE",
-              "PLAN_VERSION_PUBLISH",
-              "INVOICE_CONFIRM_PAYMENT",
-              "SETTING_CHANGE",
-              "QR_BLOCK"
-            ],
-            "type": "string"
-          },
-          "params": {
-            "additionalProperties": true,
-            "description": "Tham số thao tác. CAPABILITY_GRANT {organizationId, code}; CREATE_CHAIN_GRANT {organizationId, userId}; SYSTEM_ADMIN_CREATE {email, fullName, temporaryPassword}; CONNECTION_APPROVE {connectionId, version, note}; ADMIN_PASSWORD_RESET {userId, temporaryPassword}; CAPABILITY_REQUEST_APPROVE {requestId, version, note}; PLAN_VERSION_PUBLISH {versionId}; INVOICE_CONFIRM_PAYMENT {invoiceId, version, reference}; SETTING_CHANGE {key, value, version}; QR_BLOCK {lotId, publicMessage}. Mật khẩu tạm không được lưu dạng rõ.",
-            "type": "object"
-          },
-          "reason": {
-            "description": "Lý do (tối thiểu 10 ký tự) được ghi vào nhật ký kiểm toán",
-            "maxLength": 1000,
-            "minLength": 10,
-            "type": "string"
-          }
-        },
-        "required": [
-          "reason",
-          "operation",
-          "params"
         ],
         "type": "object"
       },
@@ -13653,7 +13498,8 @@
               "CERTIFICATE_TYPE",
               "LOSS_REASON",
               "PROCESSING_TYPE",
-              "TICKET_CATEGORY"
+              "TICKET_CATEGORY",
+              "VEHICLE_TYPE"
             ],
             "type": "string"
           },
@@ -15149,16 +14995,12 @@
           },
           "products": {
             "type": "number"
-          },
-          "qrLabels": {
-            "type": "number"
           }
         },
         "required": [
           "products",
           "chains",
-          "members",
-          "qrLabels"
+          "members"
         ],
         "type": "object"
       },
@@ -15307,6 +15149,24 @@
           "stage",
           "catalog",
           "emails"
+        ],
+        "type": "object"
+      },
+      "SetCycleStaffDto": {
+        "properties": {
+          "staffUserIds": {
+            "description": "Danh sách mới, thay toàn bộ; người đầu tiên là người phụ trách",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "staffUserIds"
         ],
         "type": "object"
       },
@@ -17290,6 +17150,7 @@
       "TransferInput": {
         "properties": {
           "carrierId": {
+            "description": "Chỉ dùng với PLATFORM_CARRIER",
             "format": "uuid",
             "type": "string"
           },
@@ -17298,11 +17159,20 @@
             "type": "string"
           },
           "chainId": {
+            "description": "Bỏ trống: lấy theo chuỗi của lô; nếu gửi phải khớp chuỗi của lô",
             "format": "uuid",
             "type": "string"
           },
           "destination": {
             "maxLength": 500,
+            "type": "string"
+          },
+          "externalHirer": {
+            "description": "Bên thuê đơn vị vận chuyển ngoài AgriTrace; bên đó giữ hàng trong lúc vận chuyển",
+            "enum": [
+              "SENDER",
+              "RECEIVER"
+            ],
             "type": "string"
           },
           "lines": {
@@ -17317,6 +17187,11 @@
           },
           "origin": {
             "maxLength": 500,
+            "type": "string"
+          },
+          "pickupRequestId": {
+            "description": "Yêu cầu lấy hàng của bên nhận được chuyển thành phiếu này",
+            "format": "uuid",
             "type": "string"
           },
           "plannedDeliveryAt": {
@@ -17340,6 +17215,19 @@
             "format": "uuid",
             "type": "string"
           },
+          "transportDetails": {
+            "$ref": "#/components/schemas/TransportDetailsInput"
+          },
+          "transportMode": {
+            "default": "PLATFORM_CARRIER",
+            "enum": [
+              "PLATFORM_CARRIER",
+              "EXTERNAL_CARRIER",
+              "SELF_DELIVERY",
+              "RECEIVER_PICKUP"
+            ],
+            "type": "string"
+          },
           "vehicleId": {
             "format": "uuid",
             "type": "string"
@@ -17347,9 +17235,7 @@
         },
         "required": [
           "plannedPickupAt",
-          "chainId",
           "receiverId",
-          "carrierId",
           "origin",
           "destination",
           "lines"
@@ -17470,6 +17356,28 @@
         "required": [
           "version"
         ],
+        "type": "object"
+      },
+      "TransportDetailsInput": {
+        "properties": {
+          "carrierName": {
+            "description": "Bắt buộc khi thuê đơn vị vận chuyển ngoài AgriTrace",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "driverName": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "driverPhone": {
+            "maxLength": 30,
+            "type": "string"
+          },
+          "registration": {
+            "maxLength": 40,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "UnboundDto": {
@@ -24629,9 +24537,9 @@
         ]
       }
     },
-    "/api/distribution/qr": {
+    "/api/distribution/pickup-requests": {
       "get": {
-        "operationId": "DistributionController_qr",
+        "operationId": "DistributionController_pickupRequests",
         "parameters": [],
         "responses": {
           "200": {
@@ -24640,7 +24548,7 @@
                 "schema": {
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/DistributionReportDto"
+                      "$ref": "#/components/schemas/WorkspaceListDto"
                     },
                     "requestId": {
                       "type": "string"
@@ -24777,11 +24685,9 @@
         "tags": [
           "distribution"
         ]
-      }
-    },
-    "/api/distribution/qr/prints": {
+      },
       "post": {
-        "operationId": "QrLabelsController_print",
+        "operationId": "DistributionController_requestPickup",
         "parameters": [
           {
             "in": "header",
@@ -24796,7 +24702,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LabelPrintInput"
+                "$ref": "#/components/schemas/PickupRequestInput"
               }
             }
           },
@@ -24948,19 +24854,364 @@
         ]
       }
     },
-    "/api/distribution/qr/prints/{lotId}": {
-      "get": {
-        "operationId": "QrLabelsController_history",
+    "/api/distribution/pickup-requests/{id}/cancel": {
+      "post": {
+        "operationId": "DistributionController_cancelPickup",
         "parameters": [
           {
             "in": "path",
-            "name": "lotId",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
             "required": true,
             "schema": {
               "type": "string"
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PickupResolveInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "distribution"
+        ]
+      }
+    },
+    "/api/distribution/pickup-requests/{id}/decline": {
+      "post": {
+        "operationId": "DistributionController_declinePickup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PickupResolveInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "distribution"
+        ]
+      }
+    },
+    "/api/distribution/qr": {
+      "get": {
+        "operationId": "DistributionController_qr",
+        "parameters": [],
         "responses": {
           "200": {
             "content": {
@@ -24968,7 +25219,7 @@
                 "schema": {
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/WorkspaceListDto"
+                      "$ref": "#/components/schemas/DistributionReportDto"
                     },
                     "requestId": {
                       "type": "string"
@@ -28159,6 +28410,183 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ConsentRenewInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "distribution"
+        ]
+      }
+    },
+    "/api/distribution/transfers/{id}/join-chain": {
+      "post": {
+        "operationId": "DistributionController_joinChain",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferVersion"
               }
             }
           },
@@ -37119,854 +37547,6 @@
         ],
         "tags": [
           "enterprise-workspace"
-        ]
-      }
-    },
-    "/api/enterprise-workspace/ownership-transfers": {
-      "get": {
-        "operationId": "OwnershipTransfersController_list",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/WorkspaceListDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "enterprise-members"
-        ]
-      },
-      "post": {
-        "operationId": "OwnershipTransfersController_propose",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OwnershipTransferInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/WorkspaceRecordDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "enterprise-members"
-        ]
-      }
-    },
-    "/api/enterprise-workspace/ownership-transfers/{id}/accept": {
-      "post": {
-        "operationId": "OwnershipTransfersController_accept",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OwnershipResolveInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/WorkspaceRecordDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "enterprise-members"
-        ]
-      }
-    },
-    "/api/enterprise-workspace/ownership-transfers/{id}/cancel": {
-      "post": {
-        "operationId": "OwnershipTransfersController_cancel",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OwnershipResolveInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/WorkspaceRecordDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "enterprise-members"
-        ]
-      }
-    },
-    "/api/enterprise-workspace/ownership-transfers/{id}/decline": {
-      "post": {
-        "operationId": "OwnershipTransfersController_decline",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OwnershipResolveInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/WorkspaceRecordDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "enterprise-members"
         ]
       }
     },
@@ -51320,7 +50900,8 @@
                 "CERTIFICATE_TYPE",
                 "LOSS_REASON",
                 "PROCESSING_TYPE",
-                "TICKET_CATEGORY"
+                "TICKET_CATEGORY",
+                "VEHICLE_TYPE"
               ],
               "type": "string"
             }
@@ -53288,871 +52869,6 @@
         ],
         "tags": [
           "platform-admin"
-        ]
-      }
-    },
-    "/api/platform-approvals": {
-      "get": {
-        "operationId": "PlatformApprovalsController_list",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "enum": [
-                "PENDING",
-                "APPROVED",
-                "REJECTED",
-                "CANCELLED",
-                "EXPIRED"
-              ],
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/PlatformApprovalDto"
-                      },
-                      "type": "array"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "platform-approvals"
-        ]
-      },
-      "post": {
-        "operationId": "PlatformApprovalsController_propose",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-mfa-code",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProposeApprovalDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/PlatformApprovalDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "platform-approvals"
-        ]
-      }
-    },
-    "/api/platform-approvals/{id}": {
-      "get": {
-        "operationId": "PlatformApprovalsController_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/PlatformApprovalDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "platform-approvals"
-        ]
-      }
-    },
-    "/api/platform-approvals/{id}/cancel": {
-      "post": {
-        "operationId": "PlatformApprovalsController_cancel",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CancelApprovalDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/PlatformApprovalDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "platform-approvals"
-        ]
-      }
-    },
-    "/api/platform-approvals/{id}/decision": {
-      "post": {
-        "operationId": "PlatformApprovalsController_decide",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-mfa-code",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DecideApprovalDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/PlatformApprovalDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "platform-approvals"
         ]
       }
     },
@@ -64451,6 +63167,183 @@
         ]
       }
     },
+    "/api/production-cycles/{id}/staff": {
+      "post": {
+        "operationId": "ProductionCyclesController_setStaff",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetCycleStaffDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CycleStaffRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "production-cycles"
+        ]
+      }
+    },
     "/api/production-cycles/drafts": {
       "get": {
         "operationId": "ProductionCyclesController_drafts",
@@ -65435,7 +64328,8 @@
                 "CERTIFICATE_TYPE",
                 "LOSS_REASON",
                 "PROCESSING_TYPE",
-                "TICKET_CATEGORY"
+                "TICKET_CATEGORY",
+                "VEHICLE_TYPE"
               ],
               "type": "string"
             }

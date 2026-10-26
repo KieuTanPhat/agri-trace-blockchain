@@ -16,6 +16,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog";
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { ChoiceField, SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
+import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
@@ -93,7 +94,10 @@ const fromSite = (s: Site): SiteValues => ({
 
 export default function SitesPage({view="list",resourceId,family="sites"}:{view?:"list"|"new"|"detail";resourceId?:string;family?:"sites"|"vehicles"}) {
   const router=useRouter();
-  const { can, primary } = useWorkspaceAccess();
+  const { can: canPermission, primary, access } = useWorkspaceAccess();
+  // Vehicles belong to transport companies; others type the plate on the transfer.
+  const transporter = !!access?.capabilities.includes("TRANSPORTER");
+  const can = (permission: string) => (permission.startsWith("vehicles.") ? transporter : true) && canPermission(permission);
   const [picked, setTab] = useState<"sites" | "vehicles" | null>(family);
   const tab = picked ?? (can("sites.read") || !can("vehicles.read") ? "sites" : "vehicles");
   const [openSite, setOpenSite] = useState<string | null>(family==="sites"?resourceId ?? null:null);
@@ -188,7 +192,7 @@ export default function SitesPage({view="list",resourceId,family="sites"}:{view?
           {(f) => (
             <>
               <TextField control={f.control} name="registration" label={tr("Biển số")} />
-              <TextField control={f.control} name="kind" label={tr("Loại xe")} />
+              <ReferenceSelectField control={f.control} name="kind" label={tr("Loại xe")} category="VEHICLE_TYPE" />
             </>
           )}
         </CommandDialog>
@@ -212,7 +216,7 @@ export default function SitesPage({view="list",resourceId,family="sites"}:{view?
             <>
               <div className="grid gap-3 sm:grid-cols-2">
                 <TextField control={f.control} name="registration" label={tr("Biển số")} />
-                <TextField control={f.control} name="kind" label={tr("Loại xe")} />
+                <ReferenceSelectField control={f.control} name="kind" label={tr("Loại xe")} category="VEHICLE_TYPE" />
               </div>
               <ChoiceField control={f.control} name="status" label={tr("Trạng thái")} options={[{ value: "ACTIVE", label: tr("Hoạt động") }, { value: "INACTIVE", label: tr("Ngừng") }]} />
               <TextAreaField control={f.control} name="reason" label={tr("Lý do thay đổi")} max={1000} />
@@ -233,22 +237,22 @@ function SiteFields({ f, staffOptions }: { f: { control: never }; staffOptions: 
         <TextField control={c} name="name" label={tr("Tên cơ sở")} max={255} />
         <SelectField control={c} name="kind" label={tr("Loại")} options={Object.entries(SITE_KIND_LABEL).map(([value, label]) => ({ value, label }))} />
       </div>
-      <SelectField control={c} name="farmId" label={tr("Vùng liên kết (tùy chọn)")} options={(catalog.data?.farms??[]).filter(f=>f.status==="ACTIVE" && f.evidenceComplete).map(f=>({value:f.id,label:f.name}))}/>
+      <SelectField control={c} name="farmId" label={tr("Vùng liên kết")} options={(catalog.data?.farms??[]).filter(f=>f.status==="ACTIVE" && f.evidenceComplete).map(f=>({value:f.id,label:f.name}))}/>
       <TextField control={c} name="address" label={tr("Địa chỉ")} max={500} />
       <div className="grid gap-3 sm:grid-cols-2">
         <TextField control={c} name="ward" label={tr("Phường/xã")} />
         <TextField control={c} name="region" label={tr("Tỉnh/thành")} />
         <TextField control={c} name="areaM2" label={tr("Diện tích (m²)")} type="number" />
-        <TextField control={c} name="coldAreaM2" label={tr("Diện tích lạnh (m², tùy chọn)")} type="number" />
-        <TextField control={c} name="capacityKg" label={tr("Sức chứa (kg, tùy chọn)")} type="number" />
-        <TextField control={c} name="expectedOutputTons" label={tr("Sản lượng dự kiến (tấn, tùy chọn)")} type="number" />
-        <TextField control={c} name="manager" label={tr("Người quản lý (tùy chọn)")} />
-        <TextField control={c} name="representative" label={tr("Người đại diện (tùy chọn)")} />
-        <TextField control={c} name="phone" label={tr("Điện thoại (tùy chọn)")} />
-        <TextField control={c} name="email" label={tr("Email (tùy chọn)")} />
+        <TextField control={c} name="coldAreaM2" label={tr("Diện tích lạnh (m²)")} type="number" />
+        <TextField control={c} name="capacityKg" label={tr("Sức chứa (kg)")} type="number" />
+        <TextField control={c} name="expectedOutputTons" label={tr("Sản lượng dự kiến (tấn)")} type="number" />
+        <TextField control={c} name="manager" label={tr("Người quản lý")} />
+        <TextField control={c} name="representative" label={tr("Người đại diện")} />
+        <TextField control={c} name="phone" label={tr("Điện thoại")} />
+        <TextField control={c} name="email" label={tr("Email")} />
       </div>
-      {staffOptions.length > 0 && <SelectField control={c} name="staffUserId" label={tr("Nhân viên phụ trách (tùy chọn)")} options={staffOptions} />}
-      <TextAreaField control={c} name="otherInfo" label={tr("Thông tin khác (tùy chọn)")} max={2000} />
+      {staffOptions.length > 0 && <SelectField control={c} name="staffUserId" label={tr("Nhân viên phụ trách")} options={staffOptions} />}
+      <TextAreaField control={c} name="otherInfo" label={tr("Thông tin khác")} max={2000} />
     </>
   );
 }

@@ -76,7 +76,7 @@ export function LedgerProviders({ children }: { children: React.ReactNode }) {
               <LedgerAuthRouteGate>{children}</LedgerAuthRouteGate>
             </LocaleBoundary>
           </LedgerConfirmProvider>
-          <Toaster position="bottom-right" />
+          <Toaster position="bottom-right" expand visibleToasts={5} gap={8} />
         </TooltipProvider>
       </AuthorizationBoundary>
     </AuthProvider>

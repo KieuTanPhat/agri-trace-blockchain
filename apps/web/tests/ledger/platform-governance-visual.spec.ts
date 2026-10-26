@@ -16,9 +16,6 @@ test("Ledger focus trap, Escape and small viewports work with reduced motion",as
  for(let i=0;i<4;i++){await page.keyboard.press(i%2?"Shift+Tab":"Tab");expect(await dialog.evaluate(el=>el.contains(document.activeElement))).toBe(true);}
  await page.keyboard.press("Escape");await expect(dialog).toHaveCount(0);await expect(trigger).toBeFocused();
  expect(await page.evaluate(()=>matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
- await page.setViewportSize({width:768,height:900});await page.goto("/admin/approvals/new");
- await expect(page.getByRole("dialog").getByRole("heading",{name:"Tạo đề xuất phê duyệt",exact:true})).toBeVisible();
- expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 
 test("Ledger login fits desktop and phone",async({page,api})=>{
@@ -35,17 +32,10 @@ test("Ledger governance presentation has no document overflow on desktop and mob
   for (const [url, name] of [
     ["/admin/inbox", "inbox"],
     ["/admin/enterprises/11111111-1111-4111-8111-111111111111", "enrollment"],
-    ["/admin/approvals/new", "proposal"],
     ["/admin/security", "mfa"],
   ]) {
     await page.goto(url);
-    if (name === "proposal")
-      await expect(
-        page
-          .getByRole("dialog")
-          .getByRole("heading", { name: "Tạo đề xuất phê duyệt", exact: true }),
-      ).toBeVisible();
-    else await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({
       path: path.join(out, `task-6-${name}-desktop.png`),

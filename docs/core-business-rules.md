@@ -115,8 +115,9 @@ not public; automatic abandoned-upload retention cleanup is not implemented.
 Service preferences do not create an order or business grants. Accuracy, terms
 and privacy acknowledgements are separate required inputs; marketing is optional
 and defaults off. The server records the policy version and acceptance timestamp.
-New registration service preferences require TRACEABILITY and optionally
-QR_LABELS. Other capabilities remain separate from signup preferences. A
+New registration service preferences require TRACEABILITY; the form no longer
+offers QR_LABELS (label printing was retired on 26/10/2026), while the API still
+accepts it from drafts saved earlier. Other capabilities remain separate from signup preferences. A
 rate-limited, no-store public email availability check returns only a boolean;
 it never reserves an email or replaces atomic uniqueness at final registration.
 
@@ -201,7 +202,7 @@ organization names, excluding sibling lines, employee identities, signatures,
 keys, contact profiles and precise facility addresses. Existing expiry,
 sensor-integrity, certification and proof warnings remain independent.
 
-## Quản trị nền tảng: nhật ký kiểm toán, MFA và phê duyệt hai bước
+## Quản trị nền tảng: nhật ký kiểm toán và MFA
 
 Cập nhật 2026-10-18 (pha P0 quản trị nền tảng). Admin/Auditor vẫn không có quyền
 ghi nghiệp vụ; phần này chỉ ràng buộc việc quản trị tài khoản và tổ chức nền tảng.
@@ -242,18 +243,12 @@ ghi nghiệp vụ; phần này chỉ ràng buộc việc quản trị tài kho�
   có tiền tố phiên bản `v1.`. Operator xoay khóa bằng `rotate-platform-secret`
   khi API/Worker đã dừng; xem runbook. Công cụ xác minh toàn bộ ciphertext rồi
   đổi trong một transaction và thu hồi các mã khôi phục HMAC cũ một cách tường minh.
-- **Phê duyệt hai bước (maker–checker)** áp cho: cấp năng lực tổ chức, cấp vai trò
-  `CREATE_CHAIN`, tạo `SYSTEM_ADMIN`, đặt lại mật khẩu của một `SYSTEM_ADMIN`
-  (nếu không, một admin đặt mật khẩu tạm rồi đăng nhập thay admin khác và tự
-  duyệt đề xuất của chính mình) và chấp nhận kết nối peer (`/platform-approvals`). Người duyệt phải khác người đề xuất (kiểm trong service
-  và bằng CHECK ở DB); đề xuất bất biến, có hạn (`PLATFORM_APPROVAL_TTL_HOURS`,
-  mặc định 48 giờ), quyết định là cuối cùng và việc thực thi nằm cùng transaction
-  với quyết định. Đề xuất quá hạn được hệ thống chuyển `EXPIRED` ngay khi có đề xuất
-  mới cho cùng đối tượng (không chặn vĩnh viễn); đề xuất của người đã bị vô hiệu
-  hóa không duyệt được và bất kỳ admin nào cũng hủy được. `PLATFORM_APPROVALS_MODE=ENFORCED` mới chặn đường trực tiếp
-  (409); mặc định `OFF` để không phá luồng hiện hữu. **Không bọc** duyệt/từ chối hồ
-  sơ doanh nghiệp (`enterprise-enrollments/:id/review`) và từ chối kết nối: vẫn một
-  admin xử lý nhưng đều được ghi nhật ký.
+- **Không còn phê duyệt hai bước (maker–checker)** từ 2026-10-25: cấp năng lực
+  tổ chức, cấp `CREATE_CHAIN`, tạo/đặt lại mật khẩu tài khoản quản trị, duyệt kết
+  nối, công bố bảng giá, xác nhận thanh toán, đổi tham số và khóa QR đều do một
+  `SYSTEM_ADMIN` thực hiện trực tiếp, có lý do khi lệnh yêu cầu và luôn ghi nhật ký
+  kiểm toán. Endpoint `/platform-approvals` và biến `PLATFORM_APPROVALS_MODE`,
+  `PLATFORM_APPROVAL_TTL_HOURS` đã gỡ; bảng `platform_approval` được giữ làm lịch sử.
 - **Khóa nhật ký trước mọi khóa hàng:** mọi giao dịch có ghi nhật ký lấy advisory
   lock `platform_audit` ngay đầu giao dịch (trước cả khóa actor/org của
   `authorizeCommand`), nên khóa này không thể nằm trong chu trình deadlock và các
@@ -390,9 +385,7 @@ SYSTEM_ADMIN giữ quyền quản trị đầy đủ. PLATFORM_OPERATOR chỉ đ
 và diễn tập; PLATFORM_CASE_MANAGER quản lý hồ sơ sự cố và đọc diễn tập;
 PLATFORM_PRIVACY_OFFICER chỉ xử lý hộp thư quyền dữ liệu/sự cố riêng tư. Cả ba
 có MFA tự phục vụ và khóa đăng nhập nền tảng, không có quyền user/org/grant/
-maker-checker hoặc ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
-Tạo/đặt lại mật khẩu các tài khoản quản trị hẹp cũng cần maker-checker khi
-ENFORCED. Phê duyệt SYSTEM_ADMIN_CREATE cũ không có roleCode vẫn tạo SYSTEM_ADMIN.
+ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
 
 ## Hồ sơ nghiệp vụ theo biểu mẫu bổ sung (19/10/2026)
 
@@ -432,6 +425,21 @@ ENFORCED. Phê duyệt SYSTEM_ADMIN_CREATE cũ không có roleCode vẫn tạo S
   của phiếu mới. Phiếu cũ có các cột mới `NULL` giữ snapshot/chữ ký trước đó.
   Chủ chuỗi chỉ ngừng hồ sơ nghiệp vụ khi không còn giao nhận, lượng chờ đối
   soát hay nghĩa vụ thu hồi chưa hoàn tất; lịch sử và QR cũ tiếp tục đọc được.
+- Từ 2026-10-26 phiếu giao nhận có `transport_mode`: `PLATFORM_CARRIER` (đơn vị
+  vận chuyển trên AgriTrace, ba bên độc lập như trước), `EXTERNAL_CARRIER` (thuê
+  xe ngoài; bên thuê là bên giao hoặc bên nhận và giữ vai trò người chở),
+  `SELF_DELIVERY` (bên giao tự chở) và `RECEIVER_PICKUP` (bên nhận tự lấy). Khi
+  bên giao hoặc bên nhận kiêm người chở, mỗi bước chỉ cần chữ ký của các doanh
+  nghiệp khác nhau tham gia bước đó (`distribution_phase_parties`); chỉ đơn vị
+  vận chuyển trên AgriTrace ghi quan sát cảm biến. Thông tin xe/tài xế nhập tay
+  nằm trong snapshot ký của phiếu không dùng `PLATFORM_CARRIER`; phiếu cũ giữ
+  nguyên snapshot. Phiếu đi theo chuỗi của lô (không chọn chuỗi). Bên nhận hoặc
+  đơn vị vận chuyển chưa ở chuỗi nhận lời mời khi phiếu được lập; chủ quản chấp
+  nhận vào chuỗi trên phiếu. Nếu bên giao là chủ chuỗi, người chấp nhận được cấp
+  vai trò theo năng lực doanh nghiệp; nếu không, chủ chuỗi cấp vai trò như thường.
+  Chỉ ký được khi đã là thành viên hoạt động và quyền ledger đã đồng bộ. Bên nhận
+  gửi được yêu cầu lấy hàng (không giữ chỗ hàng); bên giao lập phiếu
+  `RECEIVER_PICKUP` từ yêu cầu hoặc từ chối.
 - Phân bổ lượng chưa gắn cơ sở ghi ngay, không cần giao nhận vật lý. Chuyển hàng
   giữa hai cơ sở của cùng doanh nghiệp phải lập phiếu chuyển kho (`CK-…`): Chờ
   chuyển → Đang chuyển → Đã nhận/Chênh lệch, hoặc Hủy khi chưa xuất. Khi xuất,
@@ -480,7 +488,7 @@ Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-proc
   toán một hóa đơn. Doanh thu mô phỏng tách riêng, không tính là tiền thật.
 - Trạng thái hiệu lực suy ra từ `ends_at`: `ACTIVE`, `GRACE` trong
   `billing.graceDays` (mặc định 15 ngày), sau đó `RESTRICTED`. `GRACE` vẫn tạo mới;
-  `RESTRICTED` chặn kích hoạt sản phẩm, tạo chuỗi, thêm thành viên và in tem QR,
+  `RESTRICTED` chặn kích hoạt sản phẩm, tạo chuỗi và thêm thành viên,
   nhưng không chặn giao nhận đang dở, đọc dữ liệu hay trang QR công khai. Hạn mức
   kiểm trong cùng transaction của lệnh tạo.
 
@@ -526,10 +534,6 @@ Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-proc
   bị khóa. Mở khóa cần lý do.
 - Tham số nền tảng chỉ gồm danh sách cho phép (`SETTING_RULES`), có phiên bản và
   audit; secret, khóa ký, cấu hình Fabric/controller không nằm trong đó.
-- Khi `PLATFORM_APPROVALS_MODE=ENFORCED`, duyệt năng lực, công bố bảng giá, xác
-  nhận thanh toán, đổi tham số và khóa QR phải qua phê duyệt hai bước
-  (`CAPABILITY_REQUEST_APPROVE`, `PLAN_VERSION_PUBLISH`, `INVOICE_CONFIRM_PAYMENT`,
-  `SETTING_CHANGE`, `QR_BLOCK`). Từ chối, hủy hóa đơn, mở khóa QR là một người.
 - Báo cáo vi phạm từ trang QR công khai: không đăng nhập, `requestId` chống gửi
   trùng, giới hạn `consumerReports.maxPerHour` theo băm có khóa của nguồn mạng (không
   lưu IP). Liên hệ chỉ lưu khi có đồng ý và chỉ nhân sự xử lý (`SYSTEM_ADMIN`,
@@ -562,3 +566,51 @@ Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-proc
 - Worker giải mã mật khẩu tạm/OTP trong hàng đợi mail bằng `JWT_SECRET`, nên Worker
   phải được cấu hình cùng giá trị với API. Lỗi gửi mail được ghi log (chỉ lý do,
   không có người nhận, mật khẩu hay OTP).
+
+## Chuỗi riêng, nhân viên của vụ và ràng buộc diện tích (26/10/2026)
+
+- **Chuỗi riêng.** Khi admin kích hoạt doanh nghiệp được cấp `CREATE_CHAIN` (có
+  năng lực `FARM` hoặc mô hình doanh nghiệp chuỗi), cùng lệnh kích hoạt tạo một
+  chuỗi `personal = true` (migration `20261215000000_personal_supply_chain`, tối
+  đa một chuỗi mỗi tổ chức). Chuỗi có hồ sơ nghiệp vụ `ACTIVE`, chủ doanh nghiệp là
+  thành viên, `CHAIN_MANAGER` và vai trò nghiệp vụ theo từng năng lực đã duyệt.
+  Chuỗi riêng không tính vào hạn mức `chains` của gói. Binding vẫn do vận hành
+  đăng ký ngoài API (xem Hybrid runbook); trước khi binding `ACTIVE`, chuỗi chưa
+  nhận lệnh sản xuất. Doanh nghiệp đã kích hoạt trước đó được bổ sung bằng
+  `node dist/operator/personal-chains.js`. Đối tác vào chuỗi qua phiếu giao như
+  mọi chuỗi khác. Form tạo vụ ẩn ô chuỗi khi doanh nghiệp chỉ có một chuỗi và mặc
+  định chọn chuỗi riêng.
+- **Nhân viên của vụ.** Mỗi vụ có ít nhất một nhân viên được giao
+  (`production_cycle_staff`, migration `20261216000000_production_cycle_staff`);
+  người đầu tiên là người phụ trách (`responsibleUserId`). Bỏ trống thì lấy người
+  phụ trách hoặc người tạo. Vụ nháp giữ danh sách trong `staff_user_ids` và chuyển
+  sang vụ khi đưa vào chuỗi. Nhân viên cấp 3 chỉ thấy và ghi (xuống giống, nhật ký,
+  thu hoạch, kết thúc/hủy) vụ và vụ nháp mình được giao; cấp 1 và 2 thấy mọi vụ trong
+  phạm vi được giao và đổi danh sách bằng `POST /production-cycles/:id/staff`
+  (`EW_SET_CYCLE_STAFF`, quyền `production.write`). Người đại diện thu hoạch và người
+  thực hiện chăm sóc phải là nhân viên được giao (hoặc chính người ghi). Danh sách
+  này là phân quyền vận hành, không nằm trong payload/hash sự kiện ledger.
+- **Diện tích.** Thửa đất mới ghi đơn vị `m2` hoặc `ha` (mặc định `m2`); tổng diện
+  tích các thửa đang hoạt động không vượt `areaM2` của vùng. Diện tích canh tác
+  của vụ (m²) không vượt diện tích thửa, hoặc diện tích vùng khi vụ không chọn thửa.
+  Thửa cũ ghi đơn vị tự do không bị kiểm.
+- **Hồ sơ vùng sản xuất.** Vùng chỉ cần ảnh giấy quyền sử dụng đất
+  (`LAND_CERTIFICATE`); các loại ảnh vùng, hợp đồng sản xuất, chứng nhận chất
+  lượng và ảnh kiểm tra đã bỏ và không tải thêm được (chỉ còn `OTHER` dùng chung).
+  Form thêm vùng bắt buộc chọn ảnh này, tải lên và hoàn tất hồ sơ ngay sau khi tạo.
+- **Đơn vị thu hoạch.** Form thu hoạch khóa đơn vị theo kế hoạch của vụ vì API
+  bắt buộc trùng; form tạo vụ lấy đơn vị mặc định của sản phẩm.
+- **Gỡ in tem QR, thêm Kho QR.** Lệnh in `EW_QR_PRINT` và API lịch sử in đã gỡ;
+  hạn mức `qrLabels` không còn trong gói (phiên bản giá cũ còn khóa này thì bị bỏ
+  qua); bảng `trace_label_print` giữ làm lịch sử. Trang **Kho QR**
+  (`/enterprise/qr`, `GET /distribution/qr`, quyền `qr.manage` "Xem kho QR") liệt
+  kê mã QR truy xuất của các lô doanh nghiệp đang giữ hoặc đã sản xuất, trạng thái
+  (hoạt động, bị khóa, có thông báo), cho xem, chép liên kết và tải mã SVG. Kho QR
+  chỉ đọc; mã QR vẫn sinh cùng lô.
+- **Danh mục mẫu thay ô nhập tay.** Đơn vị tính, nhóm sản phẩm/loại hình vùng, loại
+  chứng nhận và loại xe chọn từ danh mục mẫu do admin quản lý (`reference_item`;
+  migration `20261217000000_reference_vehicle_units` thêm `VEHICLE_TYPE` và một số
+  đơn vị). Đơn vị lưu theo ký hiệu (`kg`, `tấn`…), các danh mục khác lưu theo nhãn.
+  Giá trị đã lưu trước đó không có trong danh mục vẫn hiện để chọn lại khi sửa.
+  API chưa ràng buộc giá trị theo danh mục (nhập CSV và tích hợp cũ vẫn chạy).
+

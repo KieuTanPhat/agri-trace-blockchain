@@ -38,7 +38,7 @@ export function GrantsField<T extends FieldValues>({ control, name, roles, chain
                       <SelectValue placeholder={tr("Chọn nhóm quyền")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {roles.map((r) => (
+                      {roles.filter((r) => r.id === g.roleId || !value.some((other) => other.roleId === r.id)).map((r) => (
                         <SelectItem key={r.id} value={r.id}>
                           {r.name} <span className="text-ink-2">· {r.permissions.length} {tr("quyền")}</span>
                         </SelectItem>
@@ -77,9 +77,15 @@ export function GrantsField<T extends FieldValues>({ control, name, roles, chain
                 </div>
               </div>
             ))}
-            <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => field.onChange([...value, { roleId: "", chainIds: [], siteIds: [] }])}>
-              <Plus /> {tr("Thêm nhóm quyền")}
-            </Button>
+            {/* Each role is granted once, so rows never outnumber the enterprise's roles. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" size="sm" disabled={value.length >= roles.length} onClick={() => field.onChange([...value, { roleId: "", chainIds: [], siteIds: [] }])}>
+                <Plus /> {tr("Thêm nhóm quyền")}
+              </Button>
+              <span className="text-[12px] text-ink-2">
+                {roles.length ? tr("{p0}/{p1} nhóm quyền của doanh nghiệp", { p0: value.length, p1: roles.length }) : tr("Doanh nghiệp chưa có nhóm quyền nào.")}
+              </span>
+            </div>
             {fieldState.error && <span className={cn("text-[12px] text-danger")}>{fieldState.error.message ?? (fieldState.error as unknown as { root?: { message?: string } }).root?.message}</span>}
           </fieldset>
         );

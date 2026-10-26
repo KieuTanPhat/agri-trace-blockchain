@@ -17,9 +17,7 @@ import {
   lockPlatformAudit,
 } from '../platform-governance/platform-audit.js';
 import {
-  APPROVAL_REQUIRED_MESSAGE,
   PLATFORM_ROLES,
-  approvalsMode,
 } from '../platform-governance/platform-config.js';
 import type {
   CreateUserDto,
@@ -148,10 +146,6 @@ export class UsersService {
   }
 
   async create(actor: PlatformCommandActor, input: CreateUserDto) {
-    // Creating another SYSTEM_ADMIN needs a second administrator once the
-    // two-person policy is enforced; see PlatformApprovalsService.
-    if (isPlatformAdminRole(input.roleCode) && approvalsMode() === 'ENFORCED')
-      throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
     // The account receives a generated temporary password by mail.
     const { password, passwordHash } = await temporaryCredential();
     return commandTransaction(this.prisma, async (tx) => {
@@ -334,11 +328,6 @@ export class UsersService {
     const passwordHash = await hash(input.temporaryPassword, 12);
     return commandTransaction(this.prisma, async (tx) => {
       const existing = await this.lockedPlatformUser(tx, id, input.version);
-      if (
-        isPlatformAdminRole(existing.role.code) &&
-        approvalsMode() === 'ENFORCED'
-      )
-        throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
       return this.applyPasswordReset(
         tx,
         actor,

@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsDateString,
@@ -39,13 +40,15 @@ export class CreateProductionCycleDto {
   productId!: string;
   @ApiProperty({ type: String, required: false, format: 'uuid' }) @IsOptional() @IsUUID() seedMaterialId?: string;
   @ApiProperty({ type: String, required: false, format: 'uuid' }) @IsOptional() @IsUUID() responsibleUserId?: string;
+  @ApiProperty({ type: [String], format: 'uuid', required: false, minItems: 1, maxItems: 20, description: 'Nhân viên được giao vụ; người đầu tiên là người phụ trách. Bỏ trống: người phụ trách hoặc người tạo' })
+  @IsOptional() @IsArray() @ArrayMinSize(1) @ArrayMaxSize(20) @ArrayUnique() @IsUUID('all', { each: true }) staffUserIds?: string[];
   @ApiProperty({ type: String, required: false, maxLength: 255 }) @IsOptional() @IsString() @MaxLength(255) cultivationMethod?: string;
-  @ApiProperty({ type: String, minLength: 1, maxLength: 100 })
+  @ApiProperty({ type: String, required: false, maxLength: 100, description: 'Mã nội bộ; hệ thống tự sinh nếu bỏ trống' })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsOptional()
   @IsString()
-  @MinLength(1)
   @MaxLength(100)
-  cycleCode!: string;
+  cycleCode?: string;
   @ApiProperty({ type: String, required: false })
   @IsOptional()
   @IsDateString()
@@ -84,6 +87,8 @@ export class CreateProductionCycleDraftDto {
   @ApiProperty({ type: String, format: 'uuid' }) @IsUUID() productId!: string;
   @ApiProperty({ type: String, required: false, format: 'uuid' }) @IsOptional() @IsUUID() seedMaterialId?: string;
   @ApiProperty({ type: String, required: false, format: 'uuid' }) @IsOptional() @IsUUID() responsibleUserId?: string;
+  @ApiProperty({ type: [String], format: 'uuid', required: false, minItems: 1, maxItems: 20, description: 'Nhân viên được giao vụ; người đầu tiên là người phụ trách. Bỏ trống: người phụ trách hoặc người tạo' })
+  @IsOptional() @IsArray() @ArrayMinSize(1) @ArrayMaxSize(20) @ArrayUnique() @IsUUID('all', { each: true }) staffUserIds?: string[];
   @ApiProperty({ type: String, required: false, maxLength: 255 }) @IsOptional() @IsString() @MaxLength(255) cultivationMethod?: string;
   @ApiProperty({ minLength: 2, maxLength: 255 }) @IsString() @MinLength(2) @MaxLength(255) name!: string;
   @ApiProperty({ required: false, maxLength: 100, description: 'Mã nội bộ; hệ thống tự sinh nếu bỏ trống' }) @IsOptional() @IsString() @MaxLength(100) cycleCode?: string;
@@ -93,6 +98,16 @@ export class CreateProductionCycleDraftDto {
   @ApiProperty({ type: Number, required: false, minimum: 0, exclusiveMinimum: true }) @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 3 }) @IsPositive() maxHarvestQuantity?: number;
   @ApiProperty({ maxLength: 30 }) @IsString() @MinLength(1) @MaxLength(30) harvestUnit!: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() note?: string;
+}
+
+export class SetCycleStaffDto {
+  @ApiProperty({ type: [String], format: 'uuid', minItems: 1, maxItems: 20, description: 'Danh sách mới, thay toàn bộ; người đầu tiên là người phụ trách' })
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(20) @ArrayUnique() @IsUUID('all', { each: true }) staffUserIds!: string[];
+}
+
+export class CycleStaffRecordDto {
+  @ApiProperty({ format: 'uuid' }) cycleId!: string;
+  @ApiProperty({ type: [String], format: 'uuid' }) staffUserIds!: string[];
 }
 
 export class LinkProductionCycleDraftDto {
@@ -108,6 +123,7 @@ export class ProductionCycleDraftRecordDto {
   @ApiProperty({ format: 'uuid' }) productId!: string;
   @ApiProperty({ format: 'uuid', nullable: true }) seedMaterialId!: string | null;
   @ApiProperty({ format: 'uuid', nullable: true }) responsibleUserId!: string | null;
+  @ApiProperty({ type: [String], format: 'uuid' }) staffUserIds!: string[];
   @ApiProperty({ nullable: true }) cultivationMethod!: string | null;
   @ApiProperty() name!: string;
   @ApiProperty() cycleCode!: string;

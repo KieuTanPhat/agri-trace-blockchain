@@ -45,7 +45,7 @@ export const SOLUTIONS: Solution[] = [
     image: roleProcessing,
     title: "Nhà chế biến",
     summary: "Nhận nguyên liệu từ nhiều lô, ghi nhận quy trình chế biến và tạo lô thành phẩm.",
-    points: ["Đầu vào và đầu ra theo đơn vị quy đổi", "Lô thành phẩm giữ liên kết tới lô nguyên liệu", "Đóng gói và in tem QR cho thành phẩm"],
+    points: ["Đầu vào và đầu ra theo đơn vị quy đổi", "Lô thành phẩm giữ liên kết tới lô nguyên liệu", "Mã QR truy xuất riêng cho từng lô thành phẩm"],
   },
   {
     slug: "van-chuyen",
@@ -97,7 +97,7 @@ export const PLANS: Plan[] = [
   {
     name: "Khởi đầu",
     audience: "Hộ sản xuất, hợp tác xã mới bắt đầu số hóa",
-    features: ["Hồ sơ doanh nghiệp và danh mục sản phẩm", "Vụ sản xuất, nhật ký và thu hoạch", "Tem QR truy xuất công khai cho từng lô"],
+    features: ["Hồ sơ doanh nghiệp và danh mục sản phẩm", "Vụ sản xuất, nhật ký và thu hoạch", "Mã QR truy xuất công khai cho từng lô"],
   },
   {
     name: "Doanh nghiệp",

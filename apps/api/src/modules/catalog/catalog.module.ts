@@ -38,6 +38,7 @@ import {
   ArrayUnique,
   ArrayMaxSize,
 } from 'class-validator';
+import { AREA_UNITS, areaInM2 } from '../../common/area.js';
 import { Transform, Type } from 'class-transformer';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -157,10 +158,9 @@ class PlotDto {
   @IsNumber()
   @IsPositive()
   area?: number;
-  @ApiProperty({ type: String, required: false, maxLength: 30 })
+  @ApiProperty({ type: String, required: false, enum: Object.keys(AREA_UNITS), description: 'Mặc định m2' })
   @IsOptional()
-  @IsString()
-  @MaxLength(30)
+  @IsIn(Object.keys(AREA_UNITS))
   unit?: string;
   @ApiProperty({ type: String, required: false })
   @IsOptional()
@@ -388,8 +388,8 @@ class CatalogController {
       if (!row || row.version !== dto.version || row.evidenceComplete) throw new ConflictException('Vùng sản xuất đã thay đổi hoặc hoàn tất');
       await enterpriseAuthority(tx, req.user, 'catalog.manage', undefined, id, true);
       const counts = await evidenceCounts(tx, req.user.organizationId!, 'FARM', id);
-      for (const kind of ['AREA_IMAGE','LAND_CERTIFICATE','PRODUCTION_CONTRACT','QUALITY_CERTIFICATE','INSPECTION_IMAGE'])
-        if ((counts.get(kind) ?? 0) < 1) throw new ConflictException('Cần đủ năm loại ảnh/chứng từ bắt buộc của vùng sản xuất');
+      // A farm needs only its land-use right document (26/10/2026).
+      if ((counts.get('LAND_CERTIFICATE') ?? 0) < 1) throw new ConflictException('Cần ảnh giấy quyền sử dụng đất của vùng sản xuất');
       const updated = await tx.farm.updateMany({ where: { id, version: dto.version, evidenceComplete: false }, data: { evidenceComplete: true, status: 'ACTIVE', version: { increment: 1 } } });
       if (updated.count !== 1) throw new ConflictException('Vùng sản xuất đã thay đổi');
       return tx.farm.findUniqueOrThrow({ where: { id } });
@@ -418,7 +418,20 @@ class CatalogController {
         throw new ForbiddenException('Ngoài doanh nghiệp');
       if (!farm || farm.status !== 'ACTIVE')
         throw new UnprocessableEntityException('Chọn nông trại đang hoạt động');
-      return tx.plot.create({ data: dto });
+      await tx.$queryRaw`SELECT farm_id FROM farm WHERE farm_id = ${farm.id}::uuid FOR UPDATE`;
+      const areaM2 = areaInM2(dto.area, dto.unit);
+      if (areaM2 !== null && farm.areaM2 !== null) {
+        const others = await tx.plot.findMany({
+          where: { farmId: farm.id, status: 'ACTIVE' },
+          select: { area: true, unit: true },
+        });
+        const used = others.reduce((sum, p) => sum + (areaInM2(p.area, p.unit) ?? 0), 0);
+        if (used + areaM2 > Number(farm.areaM2))
+          throw new UnprocessableEntityException(
+            `Tổng diện tích các thửa vượt diện tích vùng sản xuất (${Number(farm.areaM2)} m², đã dùng ${used} m²)`,
+          );
+      }
+      return tx.plot.create({ data: { ...dto, unit: dto.unit ?? 'm2' } });
     });
   }
 }

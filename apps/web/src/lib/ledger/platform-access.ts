@@ -7,7 +7,6 @@ const reads: Record<string, string> = {
   "inbox.read": "/admin/inbox",
   "enrollment.read": "/admin/enterprises",
   "directory.read": "/admin/organizations",
-  "approval.read": "/admin/approvals",
   "amendment.read": "/admin/enterprises/amendments",
   "users.read": "/admin/users",
   "audit.read": "/admin/audit-log",
@@ -39,9 +38,7 @@ const reads: Record<string, string> = {
 const administrator = new Set([
   "capability.review",
   "enrollment.review",
-  "approval.propose",
-  "approval.cancel",
-  "approval.decide",
+  "capability.grant",
   "amendment.review",
   "operations.adminSummary",
   "organization.update",

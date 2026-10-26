@@ -28,6 +28,7 @@ export const ENTERPRISE_PERMISSIONS = [
   'distribution.write',
   'distribution.sign',
   'trace.read',
+  // Kho QR (read-only since label printing was retired).
   'qr.manage',
   'reports.read',
   'quantity.adjust',
@@ -235,24 +236,6 @@ export async function lockEnterprise(db: Prisma.TransactionClient, organizationI
   await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`enterprise:${organizationId}`},0))`;
 }
 
-/** Proposals belong to the level-1 owner; only the named member may accept or decline.
- * The acceptor scope excludes revision so a replay after acceptance stays valid. */
-async function ownershipAuthority(db: Prisma.TransactionClient, input: AuthorizedCommand, lock: boolean) {
-  const actor = input.actor!;
-  const data = input.payload as Record<string, unknown>;
-  if (['EW_OWNERSHIP_PROPOSE', 'EW_OWNERSHIP_CANCEL'].includes(input.operation)) {
-    const auth = await enterpriseAuthority(db, actor, 'members.manage', undefined, undefined, lock);
-    if (!auth.primary) throw new ForbiddenException('Chỉ quản trị cấp 1 được chuyển quyền chủ quản');
-    return auth.scope;
-  }
-  if (lock) await lockEnterprise(db, actor.organizationId!);
-  const transfer = await db.enterpriseOwnershipTransfer.findFirst({ where: { id: String(data.id), organizationId: actor.organizationId!, toUserId: actor.sub! } });
-  const user = await db.user.findUnique({ where: { id: actor.sub! }, include: { organization: true } });
-  if (!transfer || !user || user.accountStatus !== 'ACTIVE' || user.organizationId !== actor.organizationId || user.organization?.status !== 'ACTIVE')
-    throw new ForbiddenException('Yêu cầu chuyển chủ quản không dành cho tài khoản này');
-  return canonicalSha256({ user: user.id, organization: actor.organizationId, transfer: transfer.id });
-}
-
 /** Enrollment owners can correct a rejected registration before business activation. */
 export async function profileAuthority(db:Prisma.TransactionClient,actor:CommandActor,lock=false) {
  if(!actor.organizationId||!actor.sub||['SYSTEM_ADMIN','AUDITOR','COMPLIANCE_REVIEWER','IOT_DEVICE'].includes(actor.role))throw new ForbiddenException();
@@ -267,10 +250,6 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_PROFILE_CONTACT: 'profile.manage',
   EW_PROFILE_SUBMIT: 'profile.manage',
   EW_PROFILE_WITHDRAW: 'profile.manage',
-  EW_OWNERSHIP_PROPOSE: 'members.manage',
-  EW_OWNERSHIP_CANCEL: 'members.manage',
-  EW_OWNERSHIP_ACCEPT: 'profile.read',
-  EW_OWNERSHIP_DECLINE: 'profile.read',
   EW_CREATE_MEMBER: 'members.manage',
   EW_INVITE_MEMBER: 'members.manage',
   EW_REVOKE_MEMBER_INVITATION: 'members.manage',
@@ -304,6 +283,7 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_CREATE_PLOT: 'catalog.manage',
   EW_CREATE_CYCLE_DRAFT: 'production.write',
   EW_LINK_CYCLE_DRAFT: 'production.write',
+  EW_SET_CYCLE_STAFF: 'production.write',
   DIST_CREATE: 'distribution.write',
   DIST_CANCEL: 'distribution.write',
   DIST_SIGN: 'distribution.sign',
@@ -322,13 +302,16 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_SITE_TRANSFER_RECEIVE: 'inventory.manage',
   EW_SITE_TRANSFER_RESOLVE: 'inventory.manage',
   EW_SITE_TRANSFER_CANCEL: 'inventory.manage',
-  EW_QR_PRINT: 'qr.manage',
   DIST_RECEIPT: 'distribution.sign',
   DIST_C2_PREPARE: 'distribution.sign',
   DIST_C2_SUBMIT: 'distribution.sign',
   DIST_RENEW_CONSENT: 'distribution.write',
   DIST_RETURN: 'distribution.write',
   DIST_RETURN_SIGN: 'distribution.sign',
+  DIST_JOIN_CHAIN: 'distribution.sign',
+  EW_PICKUP_REQUEST: 'distribution.write',
+  EW_PICKUP_DECLINE: 'distribution.write',
+  EW_PICKUP_CANCEL: 'distribution.write',
   EW_REGISTER_DISTRIBUTION_KEY: 'roles.manage',
   EW_REVOKE_DISTRIBUTION_KEY: 'roles.manage',
   EW_PROCESSING_CREATE: 'processing.write',
@@ -350,7 +333,6 @@ export async function authorizeWorkspaceCommand(
     throw new ForbiddenException('Command doanh nghiệp chưa có policy');
   const data = input.payload as Record<string, unknown>;
   if (input.operation.startsWith('EW_PROFILE_')) return profileAuthority(db,input.actor!,lock);
-  if (input.operation.startsWith('EW_OWNERSHIP_')) return ownershipAuthority(db, input, lock);
   if (input.operation === 'EW_UPLOAD_EVIDENCE') {
     if(data.entityType==='PROFILE'&&data.entityId===input.actor!.organizationId)return profileAuthority(db,input.actor!,lock);
     const context = await evidenceSubject(db,input.actor!,String(data.entityType),String(data.entityId),permission,typeof data.siteId==='string'?data.siteId:undefined);
@@ -382,6 +364,14 @@ export async function authorizeWorkspaceCommand(
     return (await enterpriseAuthority(db, input.actor!, permission, chainId, siteId, lock)).scope;
   }
   let cycleDraftFarmId: string | undefined;
+  let staffCycle: { farmId: string; chainId: string } | null = null;
+  if (input.operation === 'EW_SET_CYCLE_STAFF') {
+    staffCycle = await db.productionCycle.findFirst({
+      where: { id: String(data.id), farmOrgId: input.actor!.organizationId! },
+      select: { farmId: true, chainId: true },
+    });
+    if (!staffCycle) throw new ForbiddenException('Vụ nằm ngoài doanh nghiệp');
+  }
   if (input.operation === 'EW_LINK_CYCLE_DRAFT') {
     const draftId = String(data.id);
     const draft = await db.productionCycleDraft.findFirst({
@@ -398,8 +388,8 @@ export async function authorizeWorkspaceCommand(
     if (!cycleDraftFarmId)
       throw new ForbiddenException('Vụ nháp nằm ngoài doanh nghiệp hoặc không còn tồn tại');
   }
-  const lotOperations = ['EW_DISPOSITION', 'EW_TRACE_NOTICE', 'EW_ALLOCATE', 'EW_QUARANTINE', 'EW_QR_PRINT', 'EW_SITE_TRANSFER_CREATE', 'EW_SITE_TRANSFER_DISPATCH', 'EW_SITE_TRANSFER_RECEIVE', 'EW_SITE_TRANSFER_RESOLVE', 'EW_SITE_TRANSFER_CANCEL'];
-  const producerMayAct = ['EW_ALLOCATE', 'EW_QR_PRINT'];
+  const lotOperations = ['EW_DISPOSITION', 'EW_TRACE_NOTICE', 'EW_ALLOCATE', 'EW_QUARANTINE', 'EW_SITE_TRANSFER_CREATE', 'EW_SITE_TRANSFER_DISPATCH', 'EW_SITE_TRANSFER_RECEIVE', 'EW_SITE_TRANSFER_RESOLVE', 'EW_SITE_TRANSFER_CANCEL'];
+  const producerMayAct = ['EW_ALLOCATE'];
   const lot = lotOperations.includes(input.operation)
     ? await db.lot.findUnique({
         where: { id: String(siteTransfer?.lotId ?? data.lotId) },
@@ -447,6 +437,11 @@ export async function authorizeWorkspaceCommand(
       ))
   )
     throw new ForbiddenException('Giao nhận nằm ngoài doanh nghiệp');
+  // A new transfer follows the chain of its lots; the client no longer picks it.
+  const firstLine = input.operation === 'DIST_CREATE' && Array.isArray(data.lines) ? (data.lines[0] as { lotId?: unknown } | undefined) : undefined;
+  const createLot = typeof firstLine?.lotId === 'string'
+    ? await db.lot.findUnique({ where: { id: firstLine.lotId }, include: LOT_ORIGIN_INCLUDE })
+    : null;
   let siteId: string | undefined;
   if (transfer) {
     siteId =
@@ -481,6 +476,8 @@ export async function authorizeWorkspaceCommand(
     siteId = data.originFarmId;
   } else if (input.operation === 'EW_LINK_CYCLE_DRAFT') {
     siteId = cycleDraftFarmId;
+  } else if (staffCycle) {
+    siteId = staffCycle.farmId;
   } else if (['EW_REVISE_SITE', 'EW_UPDATE_SITE'].includes(input.operation)) {
     siteId = String(data.id);
   }
@@ -488,8 +485,10 @@ export async function authorizeWorkspaceCommand(
     db,
     input.actor!,
     permission,
-    transfer?.chainId ??
+    (input.operation === 'DIST_JOIN_CHAIN' ? undefined : transfer?.chainId) ??
       (lot ? lotChainId(lot) : undefined) ??
+      (createLot ? lotChainId(createLot) : undefined) ??
+      staffCycle?.chainId ??
       (typeof data.chainId === 'string' ? data.chainId : undefined),
     siteId ??
       (input.operation === 'EW_TRACE_NOTICE'

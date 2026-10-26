@@ -41,6 +41,7 @@ export type Actor = {
     chainIds: string[];
     farmIds: string[];
     distributionChainIds?: string[];
+    cycleStaffOnly?: boolean;
     roleScopes: Array<{
       chainIds: string[];
       siteIds: string[];

@@ -5,7 +5,6 @@ import { useLedgerQuery as useQuery } from "@/lib/ledger/data";
 import { Button } from "@/components/ledger/ui/button";
 import { ArrowRight } from "lucide-react";
 import { wapi } from "@/lib/ledger/workspace-api";
-import { useAuth } from "@/lib/auth-store";
 import { CAPABILITY_LABEL, MODEL_LABEL } from "@/lib/ledger/labels";
 import { PERMISSION_GROUPS, PERMISSION_LABEL, TIER_LABEL } from "@/lib/ledger/workspace-permissions";
 import { useOverview, useWorkspaceAccess } from "@/lib/ledger/workspace-context";
@@ -15,10 +14,8 @@ import { cn } from "@/lib/ledger/utils";
 
 import { t as tr } from "@/lib/ledger/i18n";
 export default function WorkspaceHome() {
-  const { user } = useAuth();
   const o = useOverview();
   const { can, primary, access } = useWorkspaceAccess();
-  const transfers = useQuery({ queryKey: ["ws-transfers"], queryFn: wapi.transfers });
   const invitations = useQuery({ queryKey: ["ws-invitations"], queryFn: wapi.invitations, enabled: can("members.manage") && access?.tier !== 3 });
 
 
@@ -27,9 +24,7 @@ export default function WorkspaceHome() {
   if (!o.data) return <LoadingRows rows={8} className="p-8" />;
   const d = o.data;
   const perms = new Set(d.permissions);
-  const forMe = transfers.data?.filter((x) => x.status === "PENDING" && !x.expired && x.toUserId === user?.id) ?? [];
   const todo = [
-    ...forMe.map((x) => ({ href: "/enterprise/ownership", text: tr("{p0} đề nghị chuyển quyền chủ quản cho bạn", { p0: x.from?.fullName }), tone: "warn" as const })),
     ...(invitations.data ?? []).filter((i) => i.status === "PENDING").map((i) => ({ href: "/enterprise/members/invitations", text: tr("Lời mời {p0} chưa được chấp nhận", { p0: i.fullName }), tone: "neutral" as const })),
   ];
 
@@ -81,7 +76,7 @@ export default function WorkspaceHome() {
                   {todo.map((x, i) => (
                     <li key={i}>
                       <Link href={x.href} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[13px] hover:bg-row-alt sm:px-5">
-                        <span className={cn(x.tone === "warn" && "font-medium")}>{x.text}</span>
+                        <span>{x.text}</span>
                         <ArrowRight className="size-3.5 shrink-0 text-ink-2" />
                       </Link>
                     </li>

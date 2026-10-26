@@ -15,14 +15,15 @@ import { payingParticipant } from '../enterprise-onboarding/registration-profile
 import { appendPlatformAudit } from '../platform-governance/platform-audit.js';
 
 type Db = Prisma.TransactionClient;
-export const RESOURCES = ['products', 'chains', 'members', 'qrLabels'] as const;
+// QR label printing was retired; older plan versions may still carry a
+// qrLabels key, which normalizeLimits ignores.
+export const RESOURCES = ['products', 'chains', 'members'] as const;
 export type Resource = (typeof RESOURCES)[number];
 export type Limits = Record<Resource, number>;
 export const RESOURCE_LABELS: Record<Resource, string> = {
   products: 'sản phẩm',
   chains: 'chuỗi truy xuất',
   members: 'thành viên',
-  qrLabels: 'tem QR trong kỳ',
 };
 export const PAYMENT_PROVIDERS = ['SIMULATION', 'MANUAL', 'SEPAY'] as const;
 export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
@@ -214,7 +215,6 @@ export async function entitlementFor(db: Db, organizationId: string) {
           products: 30,
           chains: 0,
           members: 30,
-          qrLabels: 20000,
         }),
       ),
       periodStart: new Date(Date.now() - 365 * DAY),
@@ -239,21 +239,14 @@ export async function entitlementFor(db: Db, organizationId: string) {
 export async function usageFor(
   db: Db,
   organizationId: string,
-  periodStart: Date | null,
 ): Promise<Limits> {
-  const [products, chains, members, qr] = await Promise.all([
+  const [products, chains, members] = await Promise.all([
     db.product.count({ where: { organizationId, status: 'ACTIVE' } }),
-    db.supplyChain.count({ where: { ownerOrganizationId: organizationId } }),
+    // The personal chain comes with activation and is outside the plan limit.
+    db.supplyChain.count({ where: { ownerOrganizationId: organizationId, personal: false } }),
     db.user.count({ where: { organizationId, accountStatus: 'ACTIVE' } }),
-    db.traceLabelPrint.aggregate({
-      where: {
-        organizationId,
-        ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
-      },
-      _sum: { copies: true },
-    }),
   ]);
-  return { products, chains, members, qrLabels: qr._sum.copies ?? 0 };
+  return { products, chains, members };
 }
 
 /** Called in the creating command's transaction, after the enterprise lock,
@@ -273,7 +266,7 @@ export async function assertEntitlement(
         : 'Tổ chức chưa có gói dịch vụ hiệu lực',
     );
   const limit = e.limits?.[resource] ?? 0;
-  const used = (await usageFor(tx, organizationId, e.periodStart))[resource];
+  const used = (await usageFor(tx, organizationId))[resource];
   if (used + add > limit)
     throw new ForbiddenException(
       `Vượt hạn mức ${RESOURCE_LABELS[resource]} của gói (${used}/${limit}); nâng cấp hoặc liên hệ quản trị`,

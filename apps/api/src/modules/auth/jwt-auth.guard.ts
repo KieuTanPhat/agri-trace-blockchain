@@ -175,6 +175,8 @@ export class JwtAuthGuard implements CanActivate {
                     .flatMap((r) => r.siteIds),
                 ),
               ],
+              // Tier-3 employees work only on the cycles assigned to them.
+              cycleStaffOnly: user.enterpriseTier === 3,
             },
           }
         : {}),

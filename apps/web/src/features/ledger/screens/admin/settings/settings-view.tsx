@@ -140,15 +140,6 @@ export function SettingsView() {
               cmd,
             )
           }
-          proposal={{
-            operation: "SETTING_CHANGE",
-            params: (v) => ({
-              key: row.key,
-              value: JSON.parse(v.value) as unknown,
-              version: row.version,
-            }),
-            reason: (v) => v.reason,
-          }}
         >
           {(f) => (
             <>

@@ -64,7 +64,7 @@ export const permissionLabels: Record<string, string> = {
   "distribution.write": "Tạo giao nhận / phân bổ",
   "distribution.sign": "Ký đồng thuận và bàn giao",
   "trace.read": "Xem hành trình truy xuất",
-  "qr.manage": "Tải / in tem QR",
+  "qr.manage": "Xem kho QR",
   "reports.read": "Xem báo cáo đối soát",
   "processing.read": "Xem lệnh chế biến",
   "processing.write": "Lập và hoàn tất lệnh chế biến",

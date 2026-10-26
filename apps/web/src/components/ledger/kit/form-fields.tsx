@@ -1,6 +1,7 @@
 "use client";
 
-import { useId } from "react";
+import { createContext, useContext, useId } from "react";
+import type { z } from "zod";
 import {
   Controller,
   type Control,
@@ -26,6 +27,36 @@ interface Base<T extends FieldValues> {
   label: string;
   hint?: React.ReactNode;
   className?: string;
+  /** Ghi đè khi schema không thể hiện được (bắt buộc theo điều kiện). */
+  required?: boolean;
+}
+
+/** Schema của form đang mở; trường tự đọc để biết có bắt buộc không. */
+export const FormSchemaContext = createContext<z.ZodType | null>(null);
+
+type Def = { type?: string; innerType?: Def; in?: Def; shape?: Record<string, Def>; element?: Def; _zod?: { def: Def }; safeParse?: (v: unknown) => { success: boolean } };
+const def = (s: Def | undefined) => s?._zod?.def;
+
+/** Lần theo đường dẫn `a.0.b` trong schema object/array (bỏ qua pipe/optional). */
+function fieldSchema(schema: Def | undefined, path: string) {
+  let node = schema;
+  for (const key of path.split(".")) {
+    while (node && ["pipe", "optional", "nullable", "default"].includes(def(node)?.type ?? ""))
+      node = def(node)!.in ?? def(node)!.innerType;
+    if (!node) return undefined;
+    const d = def(node);
+    node = /^\d+$/.test(key) && d?.type === "array" ? d.element : d?.shape?.[key];
+  }
+  return node;
+}
+
+/** Bắt buộc khi cả giá trị rỗng lẫn undefined đều không qua schema. */
+function useRequired(name: string, override?: boolean) {
+  const schema = useContext(FormSchemaContext) as Def | null;
+  if (override !== undefined) return override;
+  const field = fieldSchema(schema ?? undefined, name);
+  if (!field?.safeParse) return false;
+  return !field.safeParse(undefined).success && !field.safeParse("").success;
 }
 
 function Shell({
@@ -36,6 +67,7 @@ function Shell({
   counter,
   children,
   className,
+  required,
 }: {
   id: string;
   label: string;
@@ -44,11 +76,13 @@ function Shell({
   counter?: string;
   children: React.ReactNode;
   className?: string;
+  required?: boolean;
 }) {
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <Label htmlFor={id} className="text-[13px] font-medium">
+      <Label htmlFor={id} className="gap-0.5 text-[13px] font-medium">
         {label}
+        {required && <span aria-hidden className="text-danger after:content-['*']" />}
       </Label>
       {children}
       <div className="flex items-start justify-between gap-3 text-[12px]">
@@ -69,6 +103,7 @@ export function TextField<T extends FieldValues>({
   label,
   hint,
   className,
+  required,
   type = "text",
   placeholder,
   autoComplete,
@@ -82,6 +117,7 @@ export function TextField<T extends FieldValues>({
   max?: number;
 }) {
   const id = useId();
+  const isRequired = useRequired(name, required);
   return (
     <Controller
       control={control}
@@ -91,6 +127,7 @@ export function TextField<T extends FieldValues>({
           id={id}
           label={label}
           hint={hint}
+          required={isRequired}
           error={fieldState.error?.message}
           className={className}
           counter={
@@ -104,6 +141,7 @@ export function TextField<T extends FieldValues>({
             autoComplete={autoComplete}
             inputMode={inputMode}
             aria-invalid={!!fieldState.error}
+            aria-required={isRequired || undefined}
             aria-describedby={`${id}-msg`}
             {...field}
             value={field.value ?? ""}
@@ -129,11 +167,13 @@ export function TextAreaField<T extends FieldValues>({
   label,
   hint,
   className,
+  required,
   max = 1000,
   rows = 3,
   placeholder,
 }: Base<T> & { max?: number; rows?: number; placeholder?: string }) {
   const id = useId();
+  const isRequired = useRequired(name, required);
   return (
     <Controller
       control={control}
@@ -143,6 +183,7 @@ export function TextAreaField<T extends FieldValues>({
           id={id}
           label={label}
           hint={hint}
+          required={isRequired}
           error={fieldState.error?.message}
           className={className}
           counter={`${String(field.value ?? "").length} / ${max}`}
@@ -152,6 +193,7 @@ export function TextAreaField<T extends FieldValues>({
             rows={rows}
             placeholder={placeholder}
             aria-invalid={!!fieldState.error}
+            aria-required={isRequired || undefined}
             aria-describedby={`${id}-msg`}
             {...field}
             value={field.value ?? ""}
@@ -168,6 +210,7 @@ export function SelectField<T extends FieldValues>({
   label,
   hint,
   className,
+  required,
   options,
   placeholder = tr("Chọn…"),
   onValueChange,
@@ -177,6 +220,7 @@ export function SelectField<T extends FieldValues>({
   onValueChange?: (value: string) => void;
 }) {
   const id = useId();
+  const isRequired = useRequired(name, required);
   return (
     <Controller
       control={control}
@@ -186,6 +230,7 @@ export function SelectField<T extends FieldValues>({
           id={id}
           label={label}
           hint={hint}
+          required={isRequired}
           error={fieldState.error?.message}
           className={className}
         >
@@ -194,6 +239,7 @@ export function SelectField<T extends FieldValues>({
               id={id}
               aria-describedby={`${id}-msg`}
               aria-invalid={!!fieldState.error}
+            aria-required={isRequired || undefined}
               className="w-full"
             >
               <SelectValue placeholder={placeholder} />
@@ -208,6 +254,68 @@ export function SelectField<T extends FieldValues>({
           </Select>
         </Shell>
       )}
+    />
+  );
+}
+
+/** Chọn nhiều mục bằng ô đánh dấu; giá trị là mảng theo thứ tự đã chọn. */
+export function CheckListField<T extends FieldValues>({
+  control,
+  name,
+  label,
+  hint,
+  className,
+  required,
+  options,
+  empty,
+}: Base<T> & {
+  options: { value: string; label: string; help?: string }[];
+  empty?: string;
+}) {
+  const id = useId();
+  const isRequired = useRequired(name, required);
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => {
+        const picked = (field.value ?? []) as string[];
+        return (
+          <fieldset
+            className={cn("flex flex-col gap-1.5", className)}
+            aria-describedby={`${id}-msg`}
+            aria-invalid={!!fieldState.error}
+          >
+            <legend className="mb-1.5 flex gap-0.5 text-[13px] font-medium">
+              {label}
+              {isRequired && <span aria-hidden className="text-danger after:content-['*']" />}
+            </legend>
+            <div className={cn("flex max-h-44 flex-col overflow-y-auto rounded-md border", fieldState.error ? "border-danger" : "border-line")}>
+              {options.length === 0 && (
+                <span className="px-3 py-2 text-[12.5px] text-ink-2">{empty ?? tr("Không có lựa chọn")}</span>
+              )}
+              {options.map((o) => (
+                <label key={o.value} className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-[13px] hover:bg-row-alt">
+                  <input
+                    type="checkbox"
+                    className="accent-[var(--brand)]"
+                    checked={picked.includes(o.value)}
+                    onChange={(e) => {
+                      field.onChange(e.target.checked ? [...picked, o.value] : picked.filter((v) => v !== o.value));
+                      field.onBlur();
+                    }}
+                  />
+                  <span className="flex-1">{o.label}</span>
+                  {o.help && <span className="text-[12px] text-ink-2">{o.help}</span>}
+                </label>
+              ))}
+            </div>
+            <span id={`${id}-msg`} className={cn("text-[12px]", fieldState.error ? "text-danger" : "text-ink-2")}>
+              {fieldState.error?.message ?? hint}
+            </span>
+          </fieldset>
+        );
+      }}
     />
   );
 }

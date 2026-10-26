@@ -46,7 +46,6 @@ export class PlatformAuditPageDto {
 
 export class AdminSummaryDto {
   @ApiProperty({ type: String, format: 'date-time' }) generatedAt!: string;
-  @ApiProperty() pendingApprovals!: number;
   @ApiProperty() openCases!: number;
   @ApiProperty() overdueCases!: number;
   @ApiProperty() privacyRequests!: number;
@@ -109,49 +108,6 @@ export class MfaEnabledDto {
 
 export class MfaDisabledDto {
   @ApiProperty({ type: Boolean }) enabled!: boolean;
-}
-
-export class PlatformApprovalDto {
-  @ApiProperty({ type: String, format: 'uuid' }) id!: string;
-  @ApiProperty({
-    enum: [
-      'CAPABILITY_GRANT',
-      'CREATE_CHAIN_GRANT',
-      'SYSTEM_ADMIN_CREATE',
-      'CONNECTION_APPROVE',
-      'ADMIN_PASSWORD_RESET',
-    ],
-  })
-  operation!: string;
-  @ApiProperty({ type: String }) subjectType!: string;
-  @ApiProperty({ type: String }) subjectId!: string;
-  @ApiProperty({ type: String, format: 'uuid', nullable: true })
-  organizationId!: string | null;
-  @ApiProperty({
-    type: Object,
-    additionalProperties: true,
-    description: 'Tham số đã chuẩn hóa; khóa nhạy cảm bị che',
-  })
-  payload!: Record<string, unknown>;
-  @ApiProperty({ type: String }) payloadHash!: string;
-  @ApiProperty({ type: PlatformWhoDto }) proposer!: PlatformWhoDto;
-  @ApiProperty({ type: String }) proposerReason!: string;
-  @ApiProperty({
-    enum: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED'],
-  })
-  status!: string;
-  @ApiProperty({
-    enum: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED'],
-  })
-  effectiveStatus!: string;
-  @ApiProperty({ type: String, format: 'date-time' }) expiresAt!: string;
-  @ApiProperty({ type: PlatformWhoDto, nullable: true })
-  decidedBy!: PlatformWhoDto | null;
-  @ApiProperty({ type: String, format: 'date-time', nullable: true })
-  decidedAt!: string | null;
-  @ApiProperty({ type: String, nullable: true }) decisionNote!: string | null;
-  @ApiProperty({ type: Number }) version!: number;
-  @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
 }
 
 const SCOPES = ['chain', 'organization'];

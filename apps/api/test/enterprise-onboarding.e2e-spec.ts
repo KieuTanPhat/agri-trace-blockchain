@@ -701,12 +701,30 @@ const prisma = new PrismaClient({
       ).expect(403);
       await activate(a);
       const grants = await prisma.scopedRoleGrant.findMany({
-        where: { organizationId: row.organizationId },
+        where: { organizationId: row.organizationId, scope: 'ORGANIZATION' },
       });
       expect(grants.map((g) => g.role).sort()).toEqual([
         'CREATE_CHAIN',
         'ORG_ADMIN',
       ]);
+      // Activation also opens the producer's personal chain, ready for cycles
+      // once its ledger binding is active; it stays outside the plan limit.
+      const chains = await prisma.supplyChain.findMany({
+        where: { ownerOrganizationId: row.organizationId },
+        include: { businessProfile: true, memberships: true, grants: true },
+      });
+      expect(chains).toHaveLength(1);
+      expect(chains[0]).toMatchObject({
+        personal: true,
+        businessProfile: { state: 'ACTIVE' },
+        memberships: [{ organizationId: row.organizationId, status: 'ACTIVE' }],
+      });
+      expect(chains[0].grants.map((g) => g.role)).toEqual(
+        expect.arrayContaining(['CHAIN_MANAGER', 'FARM_STAFF']),
+      );
+      expect(new Set(chains[0].grants.map((g) => g.userId))).toEqual(
+        new Set([row.ownerId]),
+      );
       // Replay whichever command committed; it cannot create another grant.
       if (results[0].status === 201)
         await post(
@@ -1013,13 +1031,7 @@ const prisma = new PrismaClient({
       await post('/catalog/products', productForm(farm.id), a.token).expect(
         422,
       );
-      for (const kind of [
-        'AREA_IMAGE',
-        'LAND_CERTIFICATE',
-        'PRODUCTION_CONTRACT',
-        'QUALITY_CERTIFICATE',
-        'INSPECTION_IMAGE',
-      ])
+      for (const kind of ['LAND_CERTIFICATE'])
         await request(app.getHttpServer())
           .post('/api/enterprise-workspace/evidence')
           .set('Authorization', `Bearer ${a.token}`)
@@ -1271,7 +1283,7 @@ const prisma = new PrismaClient({
         ).expect(201)
       ).body.data;
       const farmPhotos = [];
-      for (const kind of ['AREA_IMAGE', 'LAND_CERTIFICATE', 'PRODUCTION_CONTRACT', 'QUALITY_CERTIFICATE', 'INSPECTION_IMAGE'])
+      for (const kind of ['LAND_CERTIFICATE'])
         farmPhotos.push(await upload('FARM', farm.id, kind));
       await post(`/catalog/farms/${farm.id}/complete`, { version: 0 }, a.token).expect(201);
       const product = (

@@ -19,11 +19,16 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog";
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { ChoiceField, SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
+import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
-import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
+import { EVIDENCE_KIND_LABEL, EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
+import { PhotoPicker } from "@/components/ledger/workspace/photo-picker";
+import { newLedgerCommandKey } from "@/lib/ledger/command-context";
 
-const REQUIRED = ["AREA_IMAGE", "LAND_CERTIFICATE", "PRODUCTION_CONTRACT", "QUALITY_CERTIFICATE", "INSPECTION_IMAGE"].map((kind) => ({ kind, min: 1 }));
+const REQUIRED_KINDS = ["LAND_CERTIFICATE"] as const;
+const REQUIRED = REQUIRED_KINDS.map((kind) => ({ kind, min: 1 }));
+const files = z.array(z.instanceof(File)).min(1, { error: () => tr("Chọn ít nhất một ảnh") }).max(5, { error: () => tr("Tối đa {p0} ảnh", { p0: 5 }) });
 const opt = (max: number) => z.string().trim().max(max).optional();
 // FarmDto (catalog/catalog.module.ts)
 const farmSchema = z.object({
@@ -44,11 +49,13 @@ const farmSchema = z.object({
   inputMaterialIds: z.array(z.string()).max(50),
   linkedSiteId: z.string().optional(),
 });
+// A new farm carries its required land-use right document, so it is completed at once.
+const createFarmSchema = farmSchema.extend(Object.fromEntries(REQUIRED_KINDS.map((k) => [k, files])) as Record<(typeof REQUIRED_KINDS)[number], typeof files>);
 // PlotDto
 const plotSchema = z.object({
   name: z.string().trim().min(1, { error: () => tr("Không được để trống") }).max(255),
   area: z.union([z.literal(""), z.coerce.number<number>().positive({ error: () => tr("Phải là số dương") })]).optional(),
-  unit: opt(30),
+  unit: z.enum(["m2", "ha"]),
   location: opt(500),
 });
 const emptySchema = z.object({});
@@ -84,7 +91,7 @@ export default function AreasPage({view="list",resourceId,farmId}:{view?:"list"|
     <>
       <PageHeader
         title={tr("Vùng sản xuất")}
-        description={tr("Vùng trồng và lô đất của doanh nghiệp. Vùng mới ở trạng thái ngừng; cần đủ năm loại ảnh/chứng từ (ảnh vùng, quyền sử dụng đất, hợp đồng sản xuất, chứng nhận chất lượng, ảnh kiểm tra) rồi hoàn tất để đưa vào hoạt động và gắn sản phẩm.")}
+        description={tr("Vùng trồng và lô đất của doanh nghiệp. Khi thêm vùng cần kèm ảnh giấy quyền sử dụng đất; vùng được đưa vào hoạt động ngay để gắn sản phẩm.")}
         actions={can("catalog.manage") && farmCapable && <Button size="sm" onClick={() => router.push("/enterprise/areas/new")}><Plus /> {tr("Thêm vùng sản xuất")}</Button>}
       />
       <PageBody className="min-w-0">
@@ -103,41 +110,67 @@ export default function AreasPage({view="list",resourceId,farmId}:{view?:"list"|
         onDone={()=>router.push("/enterprise/areas")}
         title={tr("Thêm vùng sản xuất")}
         endpoint="POST /catalog/farms"
-        description={tr("Mã nội bộ do hệ thống sinh. Giống và vật tư chọn từ danh mục của doanh nghiệp; nhà xưởng liên kết phải là cơ sở đang hoạt động.")}
-        schema={farmSchema}
-        defaultValues={{ name: "", kind: "", region: "", address: "", areaM2: "" as unknown as number, expectedOutput: "" as unknown as number, outputUnit: "kg", privacy: "PRIVATE", representative: "", phone: "", email: "", cropCode: "", otherInfo: "", seedMaterialIds: [], inputMaterialIds: [], linkedSiteId: "" }}
+        description={tr("Điền đủ thông tin và ảnh giấy quyền sử dụng đất; vùng được đưa vào hoạt động ngay khi lưu. Mã nội bộ do hệ thống sinh.")}
+        schema={createFarmSchema}
+        defaultValues={{ name: "", kind: "", region: "", address: "", areaM2: "" as unknown as number, expectedOutput: "" as unknown as number, outputUnit: "kg", privacy: "PRIVATE", representative: "", phone: "", email: "", cropCode: "", otherInfo: "", seedMaterialIds: [], inputMaterialIds: [], linkedSiteId: "", ...Object.fromEntries(REQUIRED_KINDS.map((k) => [k, []])) }}
         submitLabel={tr("Thêm")}
         invalidate={[["ws-catalog"]]}
         wide
-        run={(v, cmd) => {
+        success={(r) => {
+          const { failed, completed } = r as { failed?: number; completed?: boolean };
+          return failed
+            ? tr("Đã thêm vùng; {p0} ảnh chưa tải lên được, hãy tải lại trong chi tiết vùng rồi hoàn tất", { p0: failed })
+            : completed ? tr("Đã thêm vùng và đưa vào hoạt động") : tr("Đã thêm vùng; hãy hoàn tất hồ sơ trong chi tiết vùng");
+        }}
+        run={async (v, cmd) => {
           const body: FarmInput = { organizationId: user!.organizationId!, location:v.address, name: v.name, kind: v.kind, region: v.region, address: v.address, areaM2: v.areaM2, expectedOutput: v.expectedOutput, outputUnit: v.outputUnit, privacy: v.privacy, representative: blank(v.representative), phone: blank(v.phone), email: blank(v.email), cropCode: blank(v.cropCode), otherInfo: blank(v.otherInfo), seedMaterialIds: v.seedMaterialIds, inputMaterialIds: v.inputMaterialIds, linkedSiteId: blank(v.linkedSiteId) };
-          return wapi.createFarm(body, cmd);
+          const farm = (await wapi.createFarm(body, cmd)) as { id: string; version: number };
+          // Evidence uploads and completion are separate commands; a failure
+          // leaves the farm in place for the owner to finish from its detail.
+          let failed = 0;
+          for (const kind of REQUIRED_KINDS)
+            for (const [i, file] of v[kind].entries())
+              try {
+                await wapi.uploadEvidence({ file, entityType: "FARM", entityId: farm.id, kind, description: tr("{p0} · {p1} ({p2})", { p0: EVIDENCE_KIND_LABEL[kind] ?? kind, p1: v.name, p2: i + 1 }) }, { idempotencyKey: newLedgerCommandKey() });
+              } catch {
+                failed++;
+              }
+          const completed = !failed && (await wapi.completeFarm(farm.id, { version: farm.version }, { idempotencyKey: newLedgerCommandKey() }).then(() => true, () => false));
+          return { id: farm.id, failed, completed };
         }}
       >
         {(f) => (
           <>
             <div className="grid gap-3 sm:grid-cols-2">
               <TextField control={f.control} name="name" label={tr("Tên vùng")} max={255} />
-              <TextField control={f.control} name="kind" label={tr("Loại hình (ví dụ: Cây ăn quả)")} />
+              <ReferenceSelectField control={f.control} name="kind" label={tr("Loại hình")} category="PRODUCT_CATEGORY" />
             </div>
             <TextField control={f.control} name="address" label={tr("Địa chỉ")} max={500} />
             <div className="grid gap-3 sm:grid-cols-2">
               <TextField control={f.control} name="region" label={tr("Khu vực")} />
-              <TextField control={f.control} name="cropCode" label={tr("Mã vùng trồng (tùy chọn)")} />
+              <TextField control={f.control} name="cropCode" label={tr("Mã vùng trồng")} />
               <TextField control={f.control} name="areaM2" label={tr("Diện tích (m²)")} type="number" />
               <div className="grid grid-cols-[minmax(0,1fr)_96px] gap-2">
                 <TextField control={f.control} name="expectedOutput" label={tr("Sản lượng dự kiến")} type="number" />
-                <TextField control={f.control} name="outputUnit" label={tr("Đơn vị")} />
+                <ReferenceSelectField control={f.control} name="outputUnit" label={tr("Đơn vị")} category="UNIT" />
               </div>
-              <TextField control={f.control} name="representative" label={tr("Người đại diện (tùy chọn)")} />
-              <TextField control={f.control} name="phone" label={tr("Điện thoại (tùy chọn)")} />
-              <TextField control={f.control} name="email" label={tr("Email (tùy chọn)")} />
-              <SelectField control={f.control} name="linkedSiteId" label={tr("Nhà xưởng liên kết (tùy chọn)")} options={(sites.data ?? []).filter((s) => s.status === "ACTIVE").map((s) => ({ value: s.id, label: s.name }))} />
+              <TextField control={f.control} name="representative" label={tr("Người đại diện")} />
+              <TextField control={f.control} name="phone" label={tr("Điện thoại")} />
+              <TextField control={f.control} name="email" label={tr("Email")} />
+              <SelectField control={f.control} name="linkedSiteId" label={tr("Nhà xưởng liên kết")} options={(sites.data ?? []).filter((s) => s.status === "ACTIVE").map((s) => ({ value: s.id, label: s.name }))} />
             </div>
             <ChoiceField control={f.control} name="privacy" label={tr("Hiển thị")} options={[{ value: "PRIVATE", label: tr("Riêng tư"), help: tr("Chỉ doanh nghiệp xem") }, { value: "PUBLIC", label: tr("Công khai"), help: tr("Có thể hiện trên trang truy xuất") }]} />
             <MaterialChecks control={f.control as never} name="seedMaterialIds" label={tr("Giống sử dụng")} options={mats.filter((m) => m.kind === "SEED")} />
             <MaterialChecks control={f.control as never} name="inputMaterialIds" label={tr("Vật tư đầu vào")} options={mats.filter((m) => m.kind !== "SEED")} />
-            <TextAreaField control={f.control} name="otherInfo" label={tr("Thông tin khác (tùy chọn)")} max={2000} />
+            <TextAreaField control={f.control} name="otherInfo" label={tr("Thông tin khác")} max={2000} />
+            <fieldset className="flex flex-col gap-3">
+              <legend className="mb-1 text-[13px] font-semibold">{tr("Ảnh và chứng từ")}</legend>
+              {REQUIRED_KINDS.map((kind) => (
+                <Controller key={kind} control={f.control} name={kind} render={({ field, fieldState }) => (
+                  <PhotoPicker required mainBadge={false} label={EVIDENCE_KIND_LABEL[kind] ?? kind} files={field.value} onChange={field.onChange} error={fieldState.error?.message} hint={tr("1–5 ảnh PNG hoặc JPEG, tối đa 5 MB mỗi ảnh.")} />
+                )} />
+              ))}
+            </fieldset>
           </>
         )}
       </CommandDialog>
@@ -250,20 +283,20 @@ function FarmSheet({ farm, plots, materials, sites, onClose, canManage, canEvide
               <EvidencePanel entityType="FARM" entityId={f.id} canManage={canEvidence} required={REQUIRED} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
             </div>
             {complete.target && (
-              <CommandDialog {...complete.props} title={tr("Hoàn tất hồ sơ ảnh · {p0}", { p0: f.name })} endpoint={`POST /catalog/farms/${f.id}/complete`} description={tr("Cần đủ năm loại ảnh/chứng từ bắt buộc. Hoàn tất sẽ đưa vùng vào hoạt động.")} schema={emptySchema} defaultValues={{}} version={f.version} submitLabel={tr("Hoàn tất")} invalidate={[["ws-catalog"]]} run={(_, cmd) => wapi.completeFarm(f.id, { version: f.version }, cmd)}>
+              <CommandDialog {...complete.props} title={tr("Hoàn tất hồ sơ ảnh · {p0}", { p0: f.name })} endpoint={`POST /catalog/farms/${f.id}/complete`} description={tr("Cần ảnh giấy quyền sử dụng đất. Hoàn tất sẽ đưa vùng vào hoạt động.")} schema={emptySchema} defaultValues={{}} version={f.version} submitLabel={tr("Hoàn tất")} invalidate={[["ws-catalog"]]} run={(_, cmd) => wapi.completeFarm(f.id, { version: f.version }, cmd)}>
                 {() => null}
               </CommandDialog>
             )}
             {canManage && f.status==="ACTIVE" && (initialPlot || addPlot.target) && (
-              <CommandDialog {...addPlot.props} open={initialPlot || addPlot.props.open} onOpenChange={o=>{addPlot.props.onOpenChange(o);if(!o && initialPlot)router.push(`/enterprise/areas/${f.id}`);}} title={tr("Thêm lô đất · {p0}", { p0: f.name })} endpoint="POST /catalog/plots" description={tr("Tên lô đất không trùng trong cùng vùng sản xuất.")} schema={plotSchema} defaultValues={{ name: "", area: "", unit: "m2", location: "" }} submitLabel={tr("Thêm")} invalidate={[["ws-catalog"]]} run={(v, cmd) => wapi.createPlot({ farmId: f.id, name: v.name, area: blank(v.area) as number | undefined, unit: blank(v.unit), location: blank(v.location) }, cmd)}>
+              <CommandDialog {...addPlot.props} open={initialPlot || addPlot.props.open} onOpenChange={o=>{addPlot.props.onOpenChange(o);if(!o && initialPlot)router.push(`/enterprise/areas/${f.id}`);}} title={tr("Thêm lô đất · {p0}", { p0: f.name })} endpoint="POST /catalog/plots" description={tr("Tên lô đất không trùng trong cùng vùng sản xuất.")} schema={plotSchema} defaultValues={{ name: "", area: "", unit: "m2", location: "" }} submitLabel={tr("Thêm")} invalidate={[["ws-catalog"]]} run={(v, cmd) => wapi.createPlot({ farmId: f.id, name: v.name, area: blank(v.area) as number | undefined, unit: v.unit, location: blank(v.location) }, cmd)}>
                 {(form) => (
                   <>
                     <TextField control={form.control} name="name" label={tr("Tên lô đất")} max={255} />
                     <div className="grid grid-cols-[minmax(0,1fr)_96px] gap-2">
-                      <TextField control={form.control} name="area" label={tr("Diện tích (tùy chọn)")} type="number" />
-                      <TextField control={form.control} name="unit" label={tr("Đơn vị")} />
+                      <TextField control={form.control} name="area" label={tr("Diện tích")} type="number" />
+                      <SelectField control={form.control} name="unit" label={tr("Đơn vị")} options={[{ value: "m2", label: "m²" }, { value: "ha", label: "ha" }]} />
                     </div>
-                    <TextField control={form.control} name="location" label={tr("Vị trí (tùy chọn)")} />
+                    <TextField control={form.control} name="location" label={tr("Vị trí")} />
                   </>
                 )}
               </CommandDialog>

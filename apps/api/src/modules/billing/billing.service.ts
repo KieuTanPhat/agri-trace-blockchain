@@ -9,10 +9,6 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
 import { appendPlatformAudit, lockPlatformAudit } from '../platform-governance/platform-audit.js';
-import {
-  APPROVAL_REQUIRED_MESSAGE,
-  approvalsMode,
-} from '../platform-governance/platform-config.js';
 import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
 import { simulationEnabled } from '../enterprise-onboarding/service-catalog.js';
 import {
@@ -116,8 +112,6 @@ export class BillingService {
   }
 
   publishVersion(actor: CommandActor, versionId: string, reason: string) {
-    if (approvalsMode() === 'ENFORCED')
-      throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
     return commandTransaction(this.db, async (tx) => ({
       record: planVersionView(await publishPlanVersionTx(tx, actor, versionId, reason)),
     }));
@@ -168,8 +162,6 @@ export class BillingService {
   }
 
   confirmPayment(actor: CommandActor, invoiceId: string, input: ConfirmPaymentInput) {
-    if (approvalsMode() === 'ENFORCED')
-      throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
     return commandTransaction(this.db, async (tx) => {
       await lockPlatformAudit(tx);
       return {
@@ -273,7 +265,7 @@ export class BillingService {
       paying: e.paying,
       status: e.status,
       limits: e.limits,
-      usage: await usageFor(this.db, organizationId, e.periodStart),
+      usage: await usageFor(this.db, organizationId),
       subscription: e.subscription
         ? await subscriptionView(this.db, { ...e.subscription, organization: null })
         : null,

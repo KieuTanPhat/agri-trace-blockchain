@@ -169,7 +169,7 @@ export default function ProfilePage() {
                 <TextField control={f.control} name="phone" label={tr("Điện thoại")} />
                 <TextField control={f.control} name="contactEmail" label={tr("Email liên hệ")} type="email" />
               </div>
-              <TextField control={f.control} name="website" label={tr("Website (tùy chọn)")} placeholder="https://" />
+              <TextField control={f.control} name="website" label={tr("Website")} placeholder="https://" />
               <TextAreaField control={f.control} name="description" label={tr("Giới thiệu doanh nghiệp")} max={2000} />
               <TextAreaField control={f.control} name="reason" label={tr("Lý do thay đổi")} max={1000} />
             </>

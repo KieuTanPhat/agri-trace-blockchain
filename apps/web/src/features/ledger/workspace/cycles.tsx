@@ -23,7 +23,8 @@ import { Button } from "@/components/ledger/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ledger/ui/sheet";
 import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog";
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
-import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
+import { CheckListField, SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
+import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
@@ -39,7 +40,7 @@ const base = {
   farmId: id(() => tr("Chọn vùng sản xuất")),
   productId: id(() => tr("Chọn sản phẩm")),
   seedMaterialId: z.string().optional(),
-  responsibleUserId: z.string().optional(),
+  staffUserIds: z.array(z.string()).min(1, { error: () => tr("Chọn ít nhất một nhân viên") }).max(20, { error: () => tr("Tối đa {p0} nhân viên", { p0: 20 }) }),
   cultivationMethod: opt(255),
   harvestUnit: z.string().trim().min(1, { error: () => tr("Không được để trống") }).max(30),
   maxHarvestQuantity: posOpt,
@@ -47,10 +48,10 @@ const base = {
 };
 const dateOrder = (v: { startDate?: string; plannedHarvest?: string }) => !v.startDate || !v.plannedHarvest || v.plannedHarvest >= v.startDate;
 const cycleSchema = z
-  .object({ ...base, chainId: id(() => tr("Chọn chuỗi")), plotId: z.string().optional(), cycleCode: z.string().trim().min(1, { error: () => tr("Không được để trống") }).max(100), name: opt(255), cultivatedArea: posOpt, startDate: z.string().optional(), plannedHarvest: z.string().optional() })
+  .object({ ...base, chainId: id(() => tr("Chọn chuỗi")), plotId: z.string().optional(), name: opt(255), cultivatedArea: posOpt, startDate: z.string().optional(), plannedHarvest: z.string().optional() })
   .refine(dateOrder, { path: ["plannedHarvest"], error: () => tr("Ngày dự kiến thu hoạch phải sau ngày bắt đầu") });
 const draftSchema = z
-  .object({ ...base, plotId: id(() => tr("Chọn thửa đất")), cycleCode: opt(100), name: z.string().trim().min(2, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 2 }) }).max(255), cultivatedArea: pos, startDate: z.string().min(1, { error: () => tr("Không được để trống") }), plannedHarvest: z.string().min(1, { error: () => tr("Không được để trống") }) })
+  .object({ ...base, plotId: id(() => tr("Chọn thửa đất")), name: z.string().trim().min(2, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 2 }) }).max(255), cultivatedArea: pos, startDate: z.string().min(1, { error: () => tr("Không được để trống") }), plannedHarvest: z.string().min(1, { error: () => tr("Không được để trống") }) })
   .refine(dateOrder, { path: ["plannedHarvest"], error: () => tr("Ngày dự kiến thu hoạch phải sau ngày bắt đầu") });
 const linkSchema = z.object({ chainId: id(() => tr("Chọn chuỗi")) });
 const plantSchema = z.object({ plantedAt: z.string().min(1, { error: () => tr("Không được để trống") }) });
@@ -71,7 +72,6 @@ const careSchema = z.object({
 const harvestSchema = z
   .object({
     lotName: z.string().trim().min(1, { error: () => tr("Không được để trống") }).max(255),
-    lotCode: opt(120),
     harvestTime: z.string().min(1, { error: () => tr("Không được để trống") }),
     quantity: pos,
     unit: z.string().trim().min(1).max(30),
@@ -90,6 +90,7 @@ const harvestSchema = z
   })
   .refine((v) => !v.packedAt || v.packedAt >= v.harvestTime.slice(0, 10), { path: ["packedAt"], error: () => tr("Ngày đóng gói không trước ngày thu hoạch") })
   .refine((v) => !v.expiryDate || v.expiryDate >= (v.packedAt || v.harvestTime.slice(0, 10)), { path: ["expiryDate"], error: () => tr("Ngày hết hạn không trước ngày thu hoạch/đóng gói") });
+const staffSchema = z.object({ staffUserIds: base.staffUserIds });
 const cancelSchema = z.object({ reason: z.string().trim().min(1, { error: () => tr("Không được để trống") }).max(500) });
 const emptySchema = z.object({});
 const blank = <V,>(v: V) => (v === "" || v === undefined || v === null ? undefined : v);
@@ -106,7 +107,8 @@ function useOptions() {
     farms: (catalog.data?.farms ?? []).filter((f) => f.status === "ACTIVE" && f.evidenceComplete),
     plots: (catalog.data?.plots ?? []).filter((p) => p.status === "ACTIVE"),
     products: (catalog.data?.products ?? []).filter((p) => p.status === "ACTIVE" && p.evidenceComplete && p.organizationId===actor?.organizationId),
-    chains: chains.data ?? [],
+    // The personal chain comes first so it is the default for a new cycle.
+    chains: [...(chains.data ?? [])].sort((a, b) => Number(!!b.personal) - Number(!!a.personal)),
     seeds: (materials.data ?? []).filter((m) => m.kind === "SEED" && m.status === "ACTIVE" && m.evidenceComplete),
     inputs: (materials.data ?? []).filter((m) => m.status === "ACTIVE"),
     members: (members.data ?? []).filter((m) => m.accountStatus === "ACTIVE"),
@@ -114,6 +116,18 @@ function useOptions() {
   };
 }
 type Options = ReturnType<typeof useOptions>;
+const AREA_FACTOR: Record<string, number> = { m2: 1, "m²": 1, ha: 10_000 };
+/** Upper bound of a cycle's cultivated area in m², as the API enforces it:
+ * the plot when one is chosen, else the farm. Unknown units give no bound. */
+function cultivationLimit(options: Options, farmId: string, plotId: string) {
+  const plot = options.plots.find((p) => p.id === plotId);
+  const factor = plot ? AREA_FACTOR[(plot.unit ?? "m2").trim().toLowerCase()] : undefined;
+  const plotM2 = plot?.area != null && factor ? Number(plot.area) * factor : null;
+  const farm = options.farms.find((f) => f.id === farmId);
+  const farmM2 = farm?.areaM2 != null ? Number(farm.areaM2) : null;
+  if (plotM2 !== null && farmM2 !== null) return Math.min(plotM2, farmM2);
+  return plotM2 ?? farmM2;
+}
 
 export default function CyclesPage({cycleId,view="list"}:{cycleId?:string;view?:string}) {
  const router=useRouter();
@@ -190,20 +204,21 @@ export default function CyclesPage({cycleId,view="list"}:{cycleId?:string;view?:
 }
 
 function CreateDialog({ kind, props, options }: { kind: "cycle" | "draft"; props: { open: boolean; onOpenChange: (o: boolean) => void }; options: Options }) {
-  const common = { farmId: options.farms[0]?.id ?? "", productId: "", seedMaterialId: "", responsibleUserId: "", cultivationMethod: "", harvestUnit: "kg", maxHarvestQuantity: "" as const, note: "", plotId: "", name: "", startDate: "", plannedHarvest: "" };
+  const me = useSession().user?.id;
+  const common = { farmId: options.farms[0]?.id ?? "", productId: "", seedMaterialId: "", staffUserIds: options.members.some((m) => m.id === me) ? [me!] : [], cultivationMethod: "", harvestUnit: "kg", maxHarvestQuantity: "" as const, note: "", plotId: "", name: "", startDate: "", plannedHarvest: "" };
   if (kind === "draft")
     return (
       <CommandDialog
         {...props}
         title={tr("Lập vụ nháp")}
         endpoint="POST /production-cycles/drafts"
-        description={tr("Vụ nháp dùng để chuẩn bị khi chưa chọn chuỗi; mã vụ tự sinh nếu bỏ trống và không được trùng trong cùng vùng.")}
+        description={tr("Vụ nháp dùng để chuẩn bị khi chưa chọn chuỗi; mã vụ do hệ thống tự sinh.")}
         schema={draftSchema}
-        defaultValues={{ ...common, cycleCode: "", cultivatedArea: "" as unknown as number }}
+        defaultValues={{ ...common, cultivatedArea: "" as unknown as number }}
         submitLabel={tr("Lưu nháp")}
         invalidate={[["ws-cycle-drafts"]]}
         wide
-        run={(v, cmd) => opsApi.createDraft({ farmId: v.farmId, plotId: v.plotId, productId: v.productId, name: v.name, cycleCode: blank(v.cycleCode), cultivatedArea: v.cultivatedArea, startDate: v.startDate, plannedHarvest: v.plannedHarvest, harvestUnit: v.harvestUnit, maxHarvestQuantity: blank(v.maxHarvestQuantity) as number | undefined, seedMaterialId: blank(v.seedMaterialId), responsibleUserId: blank(v.responsibleUserId), cultivationMethod: blank(v.cultivationMethod), note: blank(v.note) }, cmd)}
+        run={(v, cmd) => opsApi.createDraft({ farmId: v.farmId, plotId: v.plotId, productId: v.productId, name: v.name, cultivatedArea: v.cultivatedArea, startDate: v.startDate, plannedHarvest: v.plannedHarvest, harvestUnit: v.harvestUnit, maxHarvestQuantity: blank(v.maxHarvestQuantity) as number | undefined, seedMaterialId: blank(v.seedMaterialId), staffUserIds: v.staffUserIds, cultivationMethod: blank(v.cultivationMethod), note: blank(v.note) }, cmd)}
       >
         {(f) => <CycleFields f={f as never} options={options} draft />}
       </CommandDialog>
@@ -215,39 +230,55 @@ function CreateDialog({ kind, props, options }: { kind: "cycle" | "draft"; props
       endpoint="POST /production-cycles"
       description={tr("Vùng sản xuất và sản phẩm phải đã hoàn tất hồ sơ; giống phải là giống đang dùng của doanh nghiệp. Tổ chức cần vai sản xuất trong chuỗi đã chọn.")}
       schema={cycleSchema}
-      defaultValues={{ ...common, chainId: options.chains[0]?.id ?? "", cycleCode: "", cultivatedArea: "" }}
+      defaultValues={{ ...common, chainId: options.chains[0]?.id ?? "", cultivatedArea: "" }}
       submitLabel={tr("Tạo vụ")}
       invalidate={[["ws-cycles"]]}
       wide
-      run={(v, cmd) => opsApi.createCycle({ chainId: v.chainId, farmId: v.farmId, plotId: blank(v.plotId), productId: v.productId, cycleCode: v.cycleCode, name: blank(v.name), cultivatedArea: blank(v.cultivatedArea) as number | undefined, startDate: blank(v.startDate), plannedHarvest: blank(v.plannedHarvest), harvestUnit: v.harvestUnit, maxHarvestQuantity: blank(v.maxHarvestQuantity) as number | undefined, seedMaterialId: blank(v.seedMaterialId), responsibleUserId: blank(v.responsibleUserId), cultivationMethod: blank(v.cultivationMethod), note: blank(v.note) }, cmd)}
+      run={(v, cmd) => opsApi.createCycle({ chainId: v.chainId, farmId: v.farmId, plotId: blank(v.plotId), productId: v.productId, name: blank(v.name), cultivatedArea: blank(v.cultivatedArea) as number | undefined, startDate: blank(v.startDate), plannedHarvest: blank(v.plannedHarvest), harvestUnit: v.harvestUnit, maxHarvestQuantity: blank(v.maxHarvestQuantity) as number | undefined, seedMaterialId: blank(v.seedMaterialId), staffUserIds: v.staffUserIds, cultivationMethod: blank(v.cultivationMethod), note: blank(v.note) }, cmd)}
     >
       {(f) => <CycleFields f={f as never} options={options} />}
     </CommandDialog>
   );
 }
 
-function CycleFields({ f, options, draft }: { f: { control: never }; options: Options; draft?: boolean }) {
+/** Members who can be assigned; the signed-in user is always offered so an
+ * employee without members.read can still assign themself. */
+function staffOptions(options: Options, me?: { id: string; fullName: string } | null) {
+  const list = options.members.map((m) => ({ value: m.id, label: m.fullName }));
+  if (me && !list.some((m) => m.value === me.id)) list.unshift({ value: me.id, label: me.fullName });
+  return list;
+}
+
+function StaffField({ control, options }: { control: never; options: Options }) {
+  const { user } = useSession();
+  return <CheckListField control={control} name="staffUserIds" label={tr("Nhân viên phụ trách")} hint={tr("Người chọn đầu tiên là người phụ trách chính; nhân viên chỉ thấy vụ mình được giao.")} options={staffOptions(options, user)} empty={tr("Chưa có nhân viên đang hoạt động")} />;
+}
+
+function CycleFields({ f, options, draft }: { f: { control: never; setValue: (name: "harvestUnit", value: string) => void }; options: Options; draft?: boolean }) {
   const c = f.control;
   const farmId = useWatch({ control: c, name: "farmId" }) as string;
+  const plotId = useWatch({ control: c, name: "plotId" }) as string;
+  const maxArea = cultivationLimit(options, farmId, plotId);
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
-        {!draft && <SelectField control={c} name="chainId" label={tr("Chuỗi cung ứng")} options={options.chains.map((x) => ({ value: x.id, label: x.name }))} />}
-        <TextField control={c} name="name" label={draft ? tr("Tên vụ") : tr("Tên vụ (tùy chọn)")} max={255} />
-        <TextField control={c} name="cycleCode" label={draft ? tr("Mã vụ (tùy chọn)") : tr("Mã vụ")} max={100} />
+        {!draft && (options.chains.length === 1
+          ? <p className="self-end text-[13px] text-ink-2">{tr("Ghi vào {p0}", { p0: options.chains[0].name })}</p>
+          : <SelectField control={c} name="chainId" label={tr("Chuỗi cung ứng")} options={options.chains.map((x) => ({ value: x.id, label: x.personal ? tr("{p0} (chuỗi riêng)", { p0: x.name }) : x.name }))} />)}
+        <TextField control={c} name="name" label={draft ? tr("Tên vụ") : tr("Tên vụ")} max={255} />
         <SelectField control={c} name="farmId" label={tr("Vùng sản xuất")} options={options.farms.map((x) => ({ value: x.id, label: x.name }))} />
-        <SelectField control={c} name="plotId" label={draft ? tr("Thửa đất") : tr("Thửa đất (tùy chọn)")} options={options.plots.filter((p) => p.farmId === farmId).map((p) => ({ value: p.id, label: p.name }))} />
-        <SelectField control={c} name="productId" label={tr("Sản phẩm")} options={options.products.map((p) => ({ value: p.id, label: p.productName }))} />
-        <SelectField control={c} name="seedMaterialId" label={tr("Giống (tùy chọn)")} options={options.seeds.map((m) => ({ value: m.id, label: m.name }))} />
-        <SelectField control={c} name="responsibleUserId" label={tr("Người phụ trách (tùy chọn)")} options={options.members.map((m) => ({ value: m.id, label: m.fullName }))} />
-        <TextField control={c} name="cultivatedArea" label={draft ? tr("Diện tích canh tác (m²)") : tr("Diện tích canh tác (m², tùy chọn)")} type="number" />
-        <TextField control={c} name="cultivationMethod" label={tr("Phương thức canh tác (tùy chọn)")} />
-        <TextField control={c} name="startDate" label={draft ? tr("Ngày bắt đầu") : tr("Ngày bắt đầu (tùy chọn)")} type="date" />
-        <TextField control={c} name="plannedHarvest" label={draft ? tr("Dự kiến thu hoạch") : tr("Dự kiến thu hoạch (tùy chọn)")} type="date" />
-        <TextField control={c} name="harvestUnit" label={tr("Đơn vị thu hoạch")} />
-        <TextField control={c} name="maxHarvestQuantity" label={tr("Sản lượng tối đa (tùy chọn)")} type="number" />
+        <SelectField control={c} name="plotId" label={draft ? tr("Thửa đất") : tr("Thửa đất")} options={options.plots.filter((p) => p.farmId === farmId).map((p) => ({ value: p.id, label: p.name }))} />
+        <SelectField control={c} name="productId" label={tr("Sản phẩm")} options={options.products.map((p) => ({ value: p.id, label: p.productName }))} onValueChange={(id) => { const unit = options.products.find((p) => p.id === id)?.defaultUnit; if (unit) f.setValue("harvestUnit", unit); }} />
+        <SelectField control={c} name="seedMaterialId" label={tr("Giống")} options={options.seeds.map((m) => ({ value: m.id, label: m.name }))} />
+        <TextField control={c} name="cultivatedArea" label={tr("Diện tích canh tác (m²)")} type="number" hint={maxArea !== null ? tr("Tối đa {p0} m²", { p0: maxArea.toLocaleString("vi-VN") }) : undefined} />
+        <TextField control={c} name="cultivationMethod" label={tr("Phương thức canh tác")} />
+        <TextField control={c} name="startDate" label={draft ? tr("Ngày bắt đầu") : tr("Ngày bắt đầu")} type="date" />
+        <TextField control={c} name="plannedHarvest" label={draft ? tr("Dự kiến thu hoạch") : tr("Dự kiến thu hoạch")} type="date" />
+        <ReferenceSelectField control={c} name="harvestUnit" label={tr("Đơn vị thu hoạch")} category="UNIT" />
+        <TextField control={c} name="maxHarvestQuantity" label={tr("Sản lượng tối đa")} type="number" />
       </div>
-      <TextAreaField control={c} name="note" label={tr("Ghi chú (tùy chọn)")} />
+      <StaffField control={c} options={options} />
+      <TextAreaField control={c} name="note" label={tr("Ghi chú")} />
     </>
   );
 }
@@ -262,7 +293,13 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
   const harvest = useDialog();
   const close = useDialog();
   const cancel = useDialog();
+  const staffEdit = useDialog();
+  const { tier } = useWorkspaceAccess();
   const c = q.data;
+  const staff = c?.staffUserIds ?? [];
+  // The API accepts an assignee as representative; the signed-in user when assigned.
+  const rep = user && staff.includes(user.id) ? user.id : (staff[0] ?? user?.id);
+  const name = (id: string) => options.members.find((m) => m.id === id)?.fullName ?? (id === user?.id ? user.fullName : id.slice(0, 8));
   const routeProps=(d:{props:{open:boolean;onOpenChange:(o:boolean)=>void}},part:string)=>({...d.props,open:d.props.open||view===part,onOpenChange:(o:boolean)=>{d.props.onOpenChange(o);if(!o&&["plant","journal-new","harvest-new"].includes(view))router.push(`/production-cycles/${id}`);}});
   const invalidate = [["ws-cycle", id], ["ws-cycles"], ["ws-lots"]];
   const active = c && ["PLANTED", "GROWING"].includes(c.currentState);
@@ -293,6 +330,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                   {active && <Button size="sm" onClick={() => care.open(true)}>{tr("Ghi nhật ký chăm sóc")}</Button>}
                   {active && <Button size="sm" variant="outline" onClick={() => harvest.open(true)}>{tr("Thu hoạch")}</Button>}
                   {active && <Button size="sm" variant="outline" onClick={() => close.open(true)}>{tr("Kết thúc vụ")}</Button>}
+                  {tier !== 3 && <Button size="sm" variant="outline" onClick={() => staffEdit.open(true)}>{tr("Đổi nhân viên")}</Button>}
                   <Button size="sm" variant="ghost" className="text-danger" onClick={() => cancel.open(true)}>{tr("Hủy vụ")}</Button>
                 </div>
               )}
@@ -306,7 +344,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                   [tr("Đã thu hoạch"), `${fmtNumber(sumQuantities(c.harvestEvents.map(h=>h.quantity)))} ${c.harvestUnit}${c.maxHarvestQuantity ? ` / ${fmtNumber(c.maxHarvestQuantity)}` : ""}`],
                   [tr("Phương thức canh tác"), c.cultivationMethod],
                   [tr("Giống"), options.seeds.find((m) => m.id === c.seedMaterialId)?.name ?? (c.seedMaterialId ? c.seedMaterialId.slice(0, 8) : null)],
-                  [tr("Người phụ trách"), options.members.find((m) => m.id === c.responsibleUserId)?.fullName ?? (c.responsibleUserId ? c.responsibleUserId.slice(0, 8) : null)],
+                  [tr("Nhân viên phụ trách"), staff.length ? staff.map(name).join(", ") : null],
                   [tr("Ghi chú"), c.note],
                 ]
                   .filter(([, v]) => v)
@@ -374,9 +412,9 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                 {...routeProps(care,"journal-new")}
                 title={tr("Ghi nhật ký chăm sóc")}
                 endpoint="POST /production-cycles/:id/care"
-                description={tr("Cần 1–5 ảnh nhật ký hiện hành của vụ (tải ở khối Ảnh vụ sản xuất, loại Ảnh nhật ký chăm sóc). Vật tư chọn từ danh mục phải còn hạn tại ngày dùng; thời gian cách ly lấy theo danh mục.")}
+                description={tr("Cần 1–5 ảnh nhật ký: tải hoặc chụp ngay trong form, hoặc chọn ảnh đã tải trước. Vật tư chọn từ danh mục phải còn hạn tại ngày dùng; thời gian cách ly lấy theo danh mục.")}
                 schema={careSchema}
-                defaultValues={{ name: "", careType: CARE_TYPES[0], eventTime: nowLocal, materialId: "", materialName:"",activeIngredient:"",withdrawalPeriod:"",performerUserId:c.responsibleUserId??user?.id??"",quantity: "", unit: "", applicationArea: "", method: "", cropCondition: "", note: "", images: [] }}
+                defaultValues={{ name: "", careType: CARE_TYPES[0], eventTime: nowLocal, materialId: "", materialName:"",activeIngredient:"",withdrawalPeriod:"",performerUserId:rep??user?.id??"",quantity: "", unit: "", applicationArea: "", method: "", cropCondition: "", note: "", images: [] }}
                 version={c.version}
                 wide
                 submitLabel={tr("Ghi nhật ký")}
@@ -389,16 +427,16 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                       <TextField control={f.control} name="name" label={tr("Công việc")} max={255} />
                       <SelectField control={f.control} name="careType" label={tr("Loại công việc")} options={CARE_TYPES.map((t) => ({ value: t, label: CARE_TYPE_LABEL[t] }))} />
                       <TextField control={f.control} name="eventTime" label={tr("Thời điểm thực hiện")} type="datetime-local" />
-                      <SelectField control={f.control} name="materialId" label={tr("Vật tư sử dụng (tùy chọn)")} options={options.inputs.map((m) => ({ value: m.id, label: `${m.name} (${m.unit})` }))} />
-                      <TextField control={f.control} name="quantity" label={tr("Lượng (tùy chọn)")} type="number" />
-                      <TextField control={f.control} name="unit" label={tr("Đơn vị (khớp danh mục vật tư)")} />
-                      <TextField control={f.control} name="applicationArea" label={tr("Khu vực áp dụng (tùy chọn)")} />
-                      <TextField control={f.control} name="method" label={tr("Cách thực hiện (tùy chọn)")} />
+                      <SelectField control={f.control} name="materialId" label={tr("Vật tư sử dụng")} options={options.inputs.map((m) => ({ value: m.id, label: `${m.name} (${m.unit})` }))} />
+                      <TextField control={f.control} name="quantity" label={tr("Lượng")} type="number" />
+                      <ReferenceSelectField control={f.control} name="unit" label={tr("Đơn vị (khớp danh mục vật tư)")} category="UNIT" />
+                      <TextField control={f.control} name="applicationArea" label={tr("Khu vực áp dụng")} />
+                      <TextField control={f.control} name="method" label={tr("Cách thực hiện")} />
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2"><TextField control={f.control} name="materialName" label={tr("Tên vật tư (khi không chọn danh mục)")}/><TextField control={f.control} name="activeIngredient" label={tr("Hoạt chất (tùy chọn)")}/><TextField control={f.control} name="withdrawalPeriod" type="number" label={tr("Thời gian cách ly (ngày)")}/><SelectField control={f.control} name="performerUserId" label={tr("Người thực hiện")} options={options.members.filter(m=>m.id===user?.id||m.id===c.responsibleUserId).map(m=>({value:m.id,label:m.fullName}))}/></div>
-                    <TextField control={f.control} name="cropCondition" label={tr("Tình trạng cây trồng (tùy chọn)")} max={500} />
+                    <div className="grid gap-3 sm:grid-cols-2"><TextField control={f.control} name="materialName" label={tr("Tên vật tư (khi không chọn danh mục)")}/><TextField control={f.control} name="activeIngredient" label={tr("Hoạt chất")}/><TextField control={f.control} name="withdrawalPeriod" type="number" label={tr("Thời gian cách ly (ngày)")}/><SelectField control={f.control} name="performerUserId" label={tr("Người thực hiện")} options={options.members.filter(m=>m.id===user?.id||m.id===c.responsibleUserId).map(m=>({value:m.id,label:m.fullName}))}/></div>
+                    <TextField control={f.control} name="cropCondition" label={tr("Tình trạng cây trồng")} max={500} />
                     <EvidencePick control={f.control} name="images" label={tr("Ảnh nhật ký")} entityType="CYCLE" entityId={c.id} kind="CARE_IMAGE" />
-                    <TextAreaField control={f.control} name="note" label={tr("Ghi chú (tùy chọn)")} />
+                    <TextAreaField control={f.control} name="note" label={tr("Ghi chú")} />
                   </>
                 )}
               </CommandDialog>
@@ -410,38 +448,40 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                 endpoint="POST /production-cycles/:cycleId/harvests"
                 description={tr("Mỗi lần thu hoạch tạo một lô kèm mã QR truy xuất. Người đại diện là người phụ trách vụ (hoặc tài khoản đang ghi khi vụ chưa phân công). Tổng sản lượng không vượt sản lượng tối đa của vụ.")}
                 schema={harvestSchema}
-                defaultValues={{ lotName: "", lotCode: "", harvestTime: nowLocal, quantity: "" as unknown as number, unit: c.harvestUnit ?? c.product.defaultUnit ?? "kg", grade: "", harvestArea: "", harvestMethod: "", qualityNote: "", packageCount: "", packaging: "", packedAt: "", expiryDate: "", initialStorageSiteId: "", note: "", images: [], lotImage: [] }}
+                defaultValues={{ lotName: "", harvestTime: nowLocal, quantity: "" as unknown as number, unit: c.harvestUnit ?? c.product.defaultUnit ?? "kg", grade: "", harvestArea: "", harvestMethod: "", qualityNote: "", packageCount: "", packaging: "", packedAt: "", expiryDate: "", initialStorageSiteId: "", note: "", images: [], lotImage: [] }}
                 version={c.version}
                 wide
                 submitLabel={tr("Ghi thu hoạch")}
                 invalidate={invalidate}
                 run={(v, cmd) =>
-                  opsApi.harvest(c.id, { version: c.version, lotName: v.lotName, lotCode: blank(v.lotCode), representativeUserId: c.responsibleUserId ?? user!.id, evidenceRef: v.images[0], additionalEvidenceRefs: additionalEvidence(v.images.slice(1)), lotImageEvidenceRef: v.lotImage[0], harvestTime: localToIso(v.harvestTime)!, quantity: v.quantity, unit: v.unit, grade: blank(v.grade), harvestArea: blank(v.harvestArea), harvestMethod: blank(v.harvestMethod), qualityNote: blank(v.qualityNote), packageCount: blank(v.packageCount) as number | undefined, packaging: blank(v.packaging), packedAt: blank(v.packedAt), expiryDate: blank(v.expiryDate), initialStorageSiteId: blank(v.initialStorageSiteId), note: blank(v.note) }, cmd)
+                  opsApi.harvest(c.id, { version: c.version, lotName: v.lotName, representativeUserId: rep!, evidenceRef: v.images[0], additionalEvidenceRefs: additionalEvidence(v.images.slice(1)), lotImageEvidenceRef: v.lotImage[0], harvestTime: localToIso(v.harvestTime)!, quantity: v.quantity, unit: v.unit, grade: blank(v.grade), harvestArea: blank(v.harvestArea), harvestMethod: blank(v.harvestMethod), qualityNote: blank(v.qualityNote), packageCount: blank(v.packageCount) as number | undefined, packaging: blank(v.packaging), packedAt: blank(v.packedAt), expiryDate: blank(v.expiryDate), initialStorageSiteId: blank(v.initialStorageSiteId), note: blank(v.note) }, cmd)
                 }
               >
                 {(f) => (
                   <>
-                    <Callout tone="info">{tr("Người đại diện")}: {options.members.find((m) => m.id === (c.responsibleUserId ?? user?.id))?.fullName ?? user?.fullName}</Callout>
+                    <Callout tone="info">{tr("Người đại diện")}: {rep ? name(rep) : user?.fullName}</Callout>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <TextField control={f.control} name="lotName" label={tr("Tên lô")} max={255} />
-                      <TextField control={f.control} name="lotCode" label={tr("Mã lô (tùy chọn, tự sinh)")} max={120} />
                       <TextField control={f.control} name="harvestTime" label={tr("Thời điểm thu hoạch")} type="datetime-local" />
-                      <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-2">
-                        <TextField control={f.control} name="quantity" label={tr("Sản lượng")} type="number" />
-                        <TextField control={f.control} name="unit" label={tr("Đơn vị")} />
-                      </div>
-                      <TextField control={f.control} name="grade" label={tr("Phân loại (tùy chọn)")} />
-                      <TextField control={f.control} name="harvestArea" label={tr("Khu vực thu hoạch (tùy chọn)")} />
-                      <TextField control={f.control} name="packageCount" label={tr("Số kiện (tùy chọn)")} type="number" />
-                      <TextField control={f.control} name="packaging" label={tr("Quy cách đóng gói (tùy chọn)")} />
-                      <TextField control={f.control} name="packedAt" label={tr("Ngày đóng gói (tùy chọn)")} type="date" />
-                      <TextField control={f.control} name="expiryDate" label={tr("Hạn sử dụng (tùy chọn)")} type="date" />
-                      <SelectField control={f.control} name="initialStorageSiteId" label={tr("Cơ sở lưu giữ ban đầu (tùy chọn)")} options={options.sites.map((s) => ({ value: s.id, label: s.name }))} />
-                      <TextField control={f.control} name="harvestMethod" label={tr("Cách thu hoạch (tùy chọn)")} />
+                      {/* The API requires the cycle's planned unit, so it is not editable once set. */}
+                      {c.harvestUnit
+                        ? <TextField control={f.control} name="quantity" label={tr("Sản lượng ({p0})", { p0: c.harvestUnit })} type="number" />
+                        : <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-2">
+                            <TextField control={f.control} name="quantity" label={tr("Sản lượng")} type="number" />
+                            <ReferenceSelectField control={f.control} name="unit" label={tr("Đơn vị")} category="UNIT" />
+                          </div>}
+                      <TextField control={f.control} name="grade" label={tr("Phân loại")} />
+                      <TextField control={f.control} name="harvestArea" label={tr("Khu vực thu hoạch")} />
+                      <TextField control={f.control} name="packageCount" label={tr("Số kiện")} type="number" />
+                      <TextField control={f.control} name="packaging" label={tr("Quy cách đóng gói")} />
+                      <TextField control={f.control} name="packedAt" label={tr("Ngày đóng gói")} type="date" />
+                      <TextField control={f.control} name="expiryDate" label={tr("Hạn sử dụng")} type="date" />
+                      <SelectField control={f.control} name="initialStorageSiteId" label={tr("Cơ sở lưu giữ ban đầu")} options={options.sites.map((s) => ({ value: s.id, label: s.name }))} />
+                      <TextField control={f.control} name="harvestMethod" label={tr("Cách thu hoạch")} />
                     </div>
                     <EvidencePick control={f.control} name="images" label={tr("Ảnh thu hoạch")} entityType="CYCLE" entityId={c.id} kind="HARVEST_IMAGE" />
                     <EvidencePick control={f.control} name="lotImage" label={tr("Ảnh lô hàng")} entityType="CYCLE" entityId={c.id} kind="LOT_IMAGE" min={1} max={1} />
-                    <TextAreaField control={f.control} name="qualityNote" label={tr("Ghi chú chất lượng (tùy chọn)")} /><TextAreaField control={f.control} name="note" label={tr("Ghi chú (tùy chọn)")} />
+                    <TextAreaField control={f.control} name="qualityNote" label={tr("Ghi chú chất lượng")} /><TextAreaField control={f.control} name="note" label={tr("Ghi chú")} />
                   </>
                 )}
               </CommandDialog>
@@ -454,6 +494,11 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
             {cancel.target && (
               <CommandDialog {...cancel.props} title={tr("Hủy vụ · {p0}", { p0: c.cycleCode })} endpoint="POST /production-cycles/:id/cancel" description={tr("Hủy là cuối cùng và được ghi lên sổ truy xuất kèm lý do.")} schema={cancelSchema} defaultValues={{ reason: "" }} version={c.version} tone="danger" submitLabel={tr("Hủy vụ")} invalidate={invalidate} run={(v, cmd) => opsApi.cancel(c.id, { version: c.version, reason: v.reason }, cmd)}>
                 {(f) => <TextAreaField control={f.control} name="reason" label={tr("Lý do")} max={500} />}
+              </CommandDialog>
+            )}
+            {staffEdit.target && (
+              <CommandDialog {...staffEdit.props} title={tr("Nhân viên phụ trách · {p0}", { p0: c.cycleCode })} endpoint="POST /production-cycles/:id/staff" description={tr("Thay toàn bộ danh sách. Nhân viên bị bỏ khỏi danh sách không còn thấy vụ này.")} schema={staffSchema} defaultValues={{ staffUserIds: staff }} submitLabel={tr("Lưu")} invalidate={invalidate} run={(v, cmd) => opsApi.setStaff(c.id, { staffUserIds: v.staffUserIds }, cmd)}>
+                {(f) => <StaffField control={f.control as never} options={options} />}
               </CommandDialog>
             )}
           </>

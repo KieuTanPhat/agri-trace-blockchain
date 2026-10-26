@@ -53,13 +53,13 @@ export default function WsBillingPage() {
         )}
         <Section title={tr("Mức sử dụng")} aside={b.paying ? tr("Theo hạn mức gói") : "Theo billing.participantLimits"}>
           <div className="grid grid-cols-2 gap-x-6 gap-y-4 px-4 py-4 sm:grid-cols-4 sm:px-5">
-            {(["members", "products", "chains", "qrLabels"] as const).map((k) => {
+            {(["members", "products", "chains"] as const).map((k) => {
               const lim = b.limits?.[k];
               const used = b.usage[k] ?? 0;
               const pct = lim ? Math.min(100, (used / lim) * 100) : 0;
               return (
                 <div key={k} className="flex flex-col gap-1.5 text-[12px]">
-                  <span className="text-ink-2">{{ members: tr("Thành viên"), products: tr("Sản phẩm"), chains: tr("Chuỗi"), qrLabels: tr("Tem QR trong kỳ") }[k]}</span>
+                  <span className="text-ink-2">{{ members: tr("Thành viên"), products: tr("Sản phẩm"), chains: tr("Chuỗi") }[k]}</span>
                   <span className="font-mono text-[14px]">
                     {fmtNumber(used)} / {lim === undefined ? "—" : fmtNumber(lim)}
                   </span>

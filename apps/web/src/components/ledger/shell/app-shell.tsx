@@ -1,16 +1,17 @@
 "use client";
 import { LedgerRecoveryPanel } from "../command-recovery";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, Menu, Moon, Search, ShieldCheck, Sun } from "lucide-react";
+import { Bell, LogOut, Menu, Moon, Search, ShieldCheck, Sun } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { request } from "@/lib/api-client";
 import type { components } from "@/lib/generated/api";
 import { canAccessManagementRoute, platformAdminHome } from "@/lib/permissions";
 import {
   canUseEnterpriseRoute,
+  enterpriseLanding,
   type EnterpriseAccess,
 } from "@/lib/enterprise-access";
 import { ledgerQueryKey } from "@/lib/ledger/query-scope";
@@ -25,6 +26,8 @@ import { AgritraceLogo } from "../brand";
 import { LanguageSwitch, useLocale } from "../locale";
 import { useLedgerConfirm } from "../confirm-provider";
 import { Button } from "../ui/button";
+import { Switch } from "../ui/switch";
+import { useNotificationFeed } from "@/lib/ledger/notifications";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,32 +46,102 @@ const subscribeTheme = (listener: () => void) => {
   window.addEventListener(THEME_EVENT, listener);
   return () => window.removeEventListener(THEME_EVENT, listener);
 };
-export function LedgerThemeToggle() {
+function useLedgerDarkTheme() {
   const dark = useSyncExternalStore(
     subscribeTheme,
     () => document.documentElement.classList.contains("dark"),
     () => false,
   );
+  const setDark = (next: boolean) => {
+    document.documentElement.classList.toggle("dark", next);
+    window.dispatchEvent(new Event(THEME_EVENT));
+    try {
+      localStorage.setItem("agt-admin.theme", next ? "dark" : "light");
+    } catch {
+      /* Optional storage. */
+    }
+  };
+  return [dark, setDark] as const;
+}
+export function LedgerThemeToggle() {
+  const [dark, setDark] = useLedgerDarkTheme();
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={dark ? t("Giao diện sáng") : t("Giao diện tối")}
-      onClick={() => {
-        document.documentElement.classList.toggle("dark", !dark);
-        window.dispatchEvent(new Event(THEME_EVENT));
-        try {
-          localStorage.setItem("agt-admin.theme", dark ? "light" : "dark");
-        } catch {
-          /* Optional storage. */
-        }
+    <label className="flex items-center gap-2 text-[13px]">
+      <Moon className="size-4 text-ink-2" aria-hidden />
+      {t("Giao diện tối")}
+      <Switch checked={dark} onCheckedChange={setDark} />
+    </label>
+  );
+}
+function ThemeMenuItem() {
+  const [dark, setDark] = useLedgerDarkTheme();
+  return (
+    <DropdownMenuItem
+      onSelect={(event) => {
+        event.preventDefault();
+        setDark(!dark);
       }}
     >
-      {dark ? <Sun /> : <Moon />}
+      {dark ? <Moon /> : <Sun />}
+      <span className="flex-1">{t("Giao diện tối")}</span>
+      <Switch
+        checked={dark}
+        tabIndex={-1}
+        aria-hidden
+        className="pointer-events-none"
+      />
+    </DropdownMenuItem>
+  );
+}
+function NotificationBell({
+  enterprise,
+  permissions,
+  inbox,
+  href,
+}: {
+  enterprise: boolean;
+  permissions: string[];
+  inbox: boolean;
+  href: string;
+}) {
+  const { count } = useNotificationFeed(
+    enterprise ? { kind: "enterprise", permissions } : { kind: "platform", inbox },
+  );
+  return (
+    <Button
+      asChild
+      variant="ghost"
+      size="icon-sm"
+      className="relative"
+    >
+      <Link
+        href={href}
+        aria-label={
+          count ? t("Thông báo ({p0} mới)", { p0: count }) : t("Thông báo")
+        }
+      >
+        <Bell />
+        {count > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 font-mono text-[10px] leading-none font-semibold text-white">
+            {count > 99 ? "99+" : count}
+          </span>
+        )}
+      </Link>
     </Button>
   );
 }
+const ShellMounted = createContext(false);
+/** Route layouts mount the shell once so navigation keeps the sidebar, its
+ * scroll position and loaded access state; screens inside it render bare. */
 export function LedgerAppShell({ children }: { children: React.ReactNode }) {
+  if (useContext(ShellMounted)) return children;
+  return (
+    <ShellMounted.Provider value>
+      <ShellFrame>{children}</ShellFrame>
+    </ShellMounted.Provider>
+  );
+}
+function ShellFrame({ children }: { children: React.ReactNode }) {
   useLocale();
   const { user, isLoading, privateAccessStatus, logout } = useAuth();
   const pathname = usePathname(),
@@ -116,6 +189,17 @@ export function LedgerAppShell({ children }: { children: React.ReactNode }) {
     if (user?.mustChangePassword && pathname !== "/account/password")
       router.replace("/account/password");
   }, [user, isLoading, pathname, router]);
+  // A page this enterprise account cannot open (a stale ?next= after sign-in,
+  // or a service not yet active) leads to its own landing page instead.
+  const landing = access.data ? enterpriseLanding(access.data) : null;
+  const blocked =
+    enterprise &&
+    !!access.data &&
+    !pathname.startsWith("/account/") &&
+    !canUseEnterpriseRoute(pathname, access.data);
+  useEffect(() => {
+    if (blocked && landing && landing !== pathname) router.replace(landing);
+  }, [blocked, landing, pathname, router]);
   if (
     isLoading ||
     !user ||
@@ -166,13 +250,16 @@ export function LedgerAppShell({ children }: { children: React.ReactNode }) {
           </h1>
           <Link
             className="text-brand hover:underline"
-            href={platformAdminHome(user.role.code) ?? "/enterprise"}
+            href={platformAdminHome(user.role.code) ?? landing ?? "/"}
           >
             {t("Về trang đầu")}
           </Link>
         </div>
       </div>
     );
+  const notificationsHref = enterprise
+    ? "/enterprise/notifications"
+    : "/admin/notifications";
   const brand = enterprise ? (
     <div className="flex flex-col gap-2 border-b border-line px-5 pt-4 pb-3">
       <Link href="/enterprise" aria-label="AgriTrace">
@@ -255,7 +342,14 @@ export function LedgerAppShell({ children }: { children: React.ReactNode }) {
           )}
           <div className="ml-auto flex items-center gap-2">
             <LanguageSwitch />
-            <LedgerThemeToggle />
+            {allowed(notificationsHref) && (
+              <NotificationBell
+                enterprise={enterprise}
+                permissions={access.data?.permissions ?? []}
+                inbox={allowed("/admin/inbox")}
+                href={notificationsHref}
+              />
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -298,6 +392,7 @@ export function LedgerAppShell({ children }: { children: React.ReactNode }) {
                     {t("Quyền dữ liệu cá nhân")}
                   </Link>
                 </DropdownMenuItem>
+                <ThemeMenuItem />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={async () => {

@@ -117,10 +117,10 @@ export class GrantRoleDto {
 }
 export class CapabilityDto {
   @ApiProperty({
-    enum: ['FARM', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER', 'AUDITOR'],
+    enum: ['FARM', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER', 'AUDITOR', 'PROCESSOR'],
   })
-  @IsIn(['FARM', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER', 'AUDITOR'])
-  code!: 'FARM' | 'TRANSPORTER' | 'DISTRIBUTOR' | 'RETAILER' | 'AUDITOR';
+  @IsIn(['FARM', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER', 'AUDITOR', 'PROCESSOR'])
+  code!: 'FARM' | 'TRANSPORTER' | 'DISTRIBUTOR' | 'RETAILER' | 'AUDITOR' | 'PROCESSOR';
 }
 export class ChainRecordDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
@@ -139,6 +139,7 @@ export class ChainRecordDto {
   @ApiProperty({ type: String, nullable: true, format: 'date' }) plannedStartDate!: string | null;
   @ApiProperty({ type: String, nullable: true }) note!: string | null;
   @ApiProperty({ type: [String], format: 'uuid', required: false }) productIds?: string[];
+  @ApiProperty({ type: Boolean, description: 'Chuỗi riêng tạo khi kích hoạt doanh nghiệp sản xuất' }) personal!: boolean;
   @ApiProperty({ type: Number }) version!: number;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
 }

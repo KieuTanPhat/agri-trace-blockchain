@@ -53,29 +53,6 @@ const farmCapability: S["CapabilityRequestViewDto"] = {
   version: 1,
 };
 pendingEnrollment.capabilityRequests = [farmCapability];
-export const ownProposal: S["PlatformApprovalDto"] = {
-  id: enrollmentId,
-  operation: "CAPABILITY_GRANT",
-  organizationId: pendingEnrollment.organizationId,
-  subjectId: pendingEnrollment.organizationId,
-  subjectType: "ORGANIZATION",
-  payload: { organizationId: pendingEnrollment.organizationId, code: "FARM" },
-  payloadHash: "a".repeat(64),
-  proposer: {
-    id: proposer.id,
-    email: proposer.email,
-    fullName: proposer.fullName,
-  },
-  proposerReason: "Xác minh năng lực theo hồ sơ",
-  status: "PENDING",
-  effectiveStatus: "PENDING",
-  version: 2,
-  createdAt: "2026-10-22T00:00:00.000Z",
-  expiresAt: "2099-10-22T00:00:00.000Z",
-  decidedAt: null,
-  decidedBy: null,
-  decisionNote: null,
-};
 function governance(
   request: CapturedRequest,
   state: FixtureState,
@@ -89,11 +66,6 @@ function governance(
     request.method === "GET"
   )
     return { data: state.values.get("enrollment") ?? pendingEnrollment };
-  if (
-    request.path === `/platform-approvals/${enrollmentId}` &&
-    request.method === "GET"
-  )
-    return { data: state.values.get("proposal") ?? ownProposal };
   if (request.path === "/organizations" && request.method === "GET")
     return { data: [] };
   if (request.path === "/users/roles" && request.method === "GET")
@@ -127,11 +99,6 @@ function governance(
     });
     return { data: state.values.get("account") };
   }
-  if (
-    request.path.split("?")[0] === "/platform-approvals" &&
-    request.method === "GET"
-  )
-    return { data: [state.values.get("proposal") ?? ownProposal] };
   if (
     request.path === "/platform-admin/organizations" &&
     request.method === "GET"
@@ -203,47 +170,7 @@ const governanceAccount: S["UserListDto"] = {
   updatedAt: "2026-10-22T00:00:00Z",
 };
 registerScenario("governance.accounts", { handle: governance });
-registerScenario("governance.checker", {
-  configure: (state) =>
-    state.values.set("proposal", {
-      ...ownProposal,
-      proposer: {
-        ...ownProposal.proposer,
-        id: "66666666-6666-4666-8666-666666666666",
-      },
-    }),
-  handle: (request, state) => {
-    if (
-      request.path === `/platform-approvals/${enrollmentId}` &&
-      request.method === "GET"
-    )
-      return { data: state.values.get("proposal") };
-    if (
-      request.path === `/platform-approvals/${enrollmentId}/decision` &&
-      request.method === "POST"
-    ) {
-      const input = JSON.parse(request.body ?? "{}") as S["DecideApprovalDto"];
-      if (
-        input.version !== 2 ||
-        input.note.length < 10 ||
-        !request.idempotencyKey ||
-        request.mfaCode !== "123456"
-      )
-        throw new Error("Checker version/reason/key/MFA missing");
-      state.values.set("proposal", {
-        ...(state.values.get("proposal") as S["PlatformApprovalDto"]),
-        status: "APPROVED",
-        effectiveStatus: "APPROVED",
-        version: 3,
-        decisionNote: input.note,
-      });
-      return { data: state.values.get("proposal") };
-    }
-    return governance(request, state);
-  },
-});
 registerScenario("governance.pending-enrollment", { handle: governance });
-registerScenario("governance.own-proposal", { handle: governance });
 const legalDocument: S["RegistrationDocumentViewDto"] = {
   id: "44444444-4444-4444-8444-444444444444",
   kind: "LEGAL_REGISTRATION",
@@ -327,7 +254,6 @@ const inbox: LedgerInbox = {
     CAPABILITY: 0,
     AMENDMENT: 0,
     CONNECTION: 0,
-    APPROVAL: 0,
     TICKET: 0,
     CONSUMER_REPORT: 0,
     CASE: 0,
@@ -396,7 +322,6 @@ registerScenario("governance.workbench", {
       return {
         data: {
           generatedAt: "2026-10-23T00:00:00Z",
-          pendingApprovals: 0,
           openCases: 0,
           overdueCases: 0,
           privacyRequests: 0,
@@ -663,24 +588,6 @@ registerScenario("governance.registry", {
           },
         ] satisfies S["ScopedUserDto"][],
       };
-    if (r.path === "/platform-approvals" && r.method === "POST")
-      return { data: { ...ownProposal, ...JSON.parse(r.body ?? "{}") } };
-    if (
-      r.path === `/platform-approvals/${enrollmentId}/cancel` &&
-      r.method === "POST"
-    ) {
-      const input = JSON.parse(r.body ?? "{}") as S["CancelApprovalDto"];
-      if (input.version !== 2 || input.note.length < 10 || !r.idempotencyKey)
-        throw new Error("Cancel version/note/key missing");
-      state.values.set("proposal", {
-        ...ownProposal,
-        status: "CANCELLED",
-        effectiveStatus: "CANCELLED",
-        version: 3,
-        decisionNote: input.note,
-      });
-      return { data: state.values.get("proposal") };
-    }
     if (
       r.path === `/enterprise-enrollments/${enrollmentId}/activate` &&
       r.method === "POST"
@@ -962,32 +869,6 @@ const product: S["ProductRecordDto"] = {
   variety: null,
   sku: "XOAI-001",
 };
-registerScenario("governance.checker-wrong-mfa", {
-  configure: (state) => readScenario("governance.checker").configure?.(state),
-  handle: (r, state) =>
-    r.path.endsWith("/decision") &&
-    r.method === "POST" &&
-    r.mfaCode !== "123456"
-      ? {
-          status: 403,
-          error: { code: "FORBIDDEN", message: "Mã xác thực không đúng" },
-        }
-      : readScenario("governance.checker").handle(r, state),
-});
-registerScenario("governance.checker-recovery", {
-  configure: (state) => readScenario("governance.checker").configure?.(state),
-  handle: (r, state) => {
-    if (r.path.endsWith("/decision") && r.method === "POST") {
-      if (r.mfaCode !== "ABCDE-FGHJK")
-        throw new Error("Baseline recovery factor was not preserved");
-      return readScenario("governance.checker").handle(
-        { ...r, mfaCode: "123456" },
-        state,
-      );
-    }
-    return readScenario("governance.checker").handle(r, state);
-  },
-});
 registerScenario("governance.ready-activation", {
   configure: (state) =>
     state.values.set("enrollment", {
@@ -1022,16 +903,6 @@ registerScenario("governance.mfa-enabled", {
       enabledAt: "2026-10-23T00:00:00Z",
       recoveryCodesRemaining: 2,
     } satisfies S["MfaStatusDto"]),
-  handle: (r, state) => readScenario("governance.registry").handle(r, state),
-});
-registerScenario("governance.expired-proposal", {
-  configure: (state) =>
-    state.values.set("proposal", {
-      ...ownProposal,
-      expiresAt: "2020-01-01T00:00:00Z",
-      effectiveStatus: "EXPIRED",
-      proposer: { ...ownProposal.proposer, id: reviewer.id },
-    }),
   handle: (r, state) => readScenario("governance.registry").handle(r, state),
 });
 registerScenario("governance.locked-account", {

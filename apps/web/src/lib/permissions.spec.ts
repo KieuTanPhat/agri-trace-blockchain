@@ -82,8 +82,7 @@ describe("Web business permissions", () => {
     ).toBe(false);
     for (const path of [
       "/admin/audit-log",
-      "/admin/approvals",
-      "/admin/approvals/new",
+      "/admin/notifications",
       "/admin/security",
       "/admin/operations",
       "/admin/cases",

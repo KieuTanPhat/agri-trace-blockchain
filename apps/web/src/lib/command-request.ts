@@ -21,12 +21,11 @@ const creates: Record<string, Operation> = {
   '/distribution/quarantine':'EW_QUARANTINE',
   '/distribution/site-transfers':'EW_SITE_TRANSFER_CREATE',
   '/enterprise-messages':'EW_MESSAGE_SEND',
-  '/distribution/qr/prints':'EW_QR_PRINT',
+  '/distribution/pickup-requests':'EW_PICKUP_REQUEST',
   '/enterprise-workspace/materials':'EW_CREATE_MATERIAL',
   '/enterprise-workspace/products-import/apply':'EW_IMPORT_PRODUCTS',
   "/enterprise-workspace/roles": "EW_CREATE_ROLE",
   '/enterprise-workspace/member-invitations':'EW_INVITE_MEMBER',
-  '/enterprise-workspace/ownership-transfers':'EW_OWNERSHIP_PROPOSE',
   "/enterprise-workspace/partners": "EW_INVITE_PARTNER",
   "/enterprise-workspace/sites": "EW_CREATE_SITE",
   "/enterprise-workspace/vehicles": "EW_CREATE_VEHICLE",
@@ -67,7 +66,7 @@ export function commandRequest(
   if(profileAmendment&&method==='POST')return result(profileAmendment[3]==='review'?'ENTERPRISE_PROFILE_REVIEW':'EW_PROFILE_WITHDRAW',{id:profileAmendment[2]});
   const transfer = match(
     path,
-    `/distribution/transfers/(${uuid})/(sign|cancel|journal|receipt|returns|consent-renewal|c2/prepare|c2/submit)`,
+    `/distribution/transfers/(${uuid})/(sign|cancel|journal|receipt|returns|consent-renewal|join-chain|c2/prepare|c2/submit)`,
   );
   if (transfer && method === "POST")
     return result(
@@ -80,13 +79,13 @@ export function commandRequest(
     );
   const message=match(path,`/enterprise-messages/(${uuid})/(replies|read)`);
   if(message&&method==='POST')return result(message[2]==='replies'?'EW_MESSAGE_REPLY':'EW_MESSAGE_READ',{id:message[1]});
+  const pickup=match(path,`/distribution/pickup-requests/(${uuid})/(decline|cancel)`);
+  if(pickup&&method==='POST')return result(pickup[2]==='decline'?'EW_PICKUP_DECLINE':'EW_PICKUP_CANCEL',{id:pickup[1]});
   const siteTransfer=match(path,`/distribution/site-transfers/(${uuid})/(dispatch|receive|resolve|cancel)`);
   if(siteTransfer&&method==='POST')return result(({dispatch:'EW_SITE_TRANSFER_DISPATCH',receive:'EW_SITE_TRANSFER_RECEIVE',resolve:'EW_SITE_TRANSFER_RESOLVE',cancel:'EW_SITE_TRANSFER_CANCEL'} as Record<string,Operation>)[siteTransfer[2]],{id:siteTransfer[1]});
   const returnSign=match(path,`/distribution/transfers/(${uuid})/returns/(${uuid})/sign`);
   const invitation=match(path,`/enterprise-workspace/member-invitations/(${uuid})/revoke`);
   if(invitation&&method==='POST')return result('EW_REVOKE_MEMBER_INVITATION',{id:invitation[1]});
-  const ownership=match(path,`/enterprise-workspace/ownership-transfers/(${uuid})/(accept|decline|cancel)`);
-  if(ownership&&method==='POST')return result(({accept:'EW_OWNERSHIP_ACCEPT',decline:'EW_OWNERSHIP_DECLINE',cancel:'EW_OWNERSHIP_CANCEL'} as Record<string,Operation>)[ownership[2]],{id:ownership[1]});
   const enterpriseCase=match(path,`/enterprise-cases/(${uuid})/(acknowledge|respond)`);
   if(enterpriseCase&&method==='POST')return result(enterpriseCase[2]==='acknowledge'?'EW_CASE_ACK':'EW_CASE_RESPOND',{id:enterpriseCase[1]});
   if(returnSign&&method==='POST')return result('DIST_RETURN_SIGN',{id:returnSign[1],returnId:returnSign[2]});

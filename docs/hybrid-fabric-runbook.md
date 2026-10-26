@@ -143,6 +143,23 @@ khi registry trên ledger đã xác nhận. Các lệnh còn lại:
 | `resolve-hold --hold <uuid> --resolution "<text>"` | Đóng một delivery hold sau khi rà soát |
 | `status [--chain <uuid>]` | Quyền, outbox, hold, control job theo binding |
 
+### Chuỗi riêng của doanh nghiệp
+
+Từ 26/10/2026, kích hoạt doanh nghiệp sản xuất tạo sẵn một chuỗi riêng
+(`supply_chain.personal = true`). API không đăng ký binding cho chuỗi này: mỗi
+chuỗi riêng mới vẫn đi qua `register-binding` → `onboard` → `activate` như trên.
+Khi binding `ACTIVE`, các grant đã ghi lúc kích hoạt được xếp hàng xác nhận quyền.
+Môi trường local dùng `ledger-simulator` tự gắn binding giả lập trong vài giây.
+
+Bổ sung chuỗi riêng cho các doanh nghiệp đã kích hoạt trước đó (idempotent; chạy
+`--dry-run` trước để xem danh sách tổ chức):
+
+```bash
+cd apps/api
+node dist/operator/personal-chains.js --dry-run
+node dist/operator/personal-chains.js
+```
+
 ## 5. Vòng đời quyền ledger
 
 Quyền ghi của từng thành viên được đồng bộ lên ledger, không chỉ nằm trong DB:

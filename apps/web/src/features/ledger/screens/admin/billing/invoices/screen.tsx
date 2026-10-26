@@ -142,7 +142,6 @@ function Invoices() {
           version={a.inv.version}
           submitLabel={tr("Xác nhận đã thu")}
           invalidate={invalidate}
-          proposal={{ operation: "INVOICE_CONFIRM_PAYMENT", params: (v) => ({ invoiceId: a.inv.id, version: a.inv.version, reference: v.reference }), reason: (v) => v.reason }}
           run={(v, cmd) => api.billing.confirmPayment(a.inv.id, { ...v, version: a.inv.version }, cmd)}
         >
           {(f) => (
