@@ -51,6 +51,15 @@ test('bootstrap input is refused outside an explicitly enabled production contex
   assert.throws(() => validateBootstrap(escaping, production));
 });
 
+test('dataset ledger binding accepts only a bounded list of dataset chains', () => {
+  const input = { ...bootstrapInput(), operation: 'dataset-ledger' };
+  const chains = [randomUUID(), randomUUID()];
+  assert.equal(validateBootstrap({ ...input, chainIds: chains }, production).chainIds, chains);
+  for (const chainIds of [undefined, [], ['not-a-uuid'], [chains[0], chains[0]],
+    Array.from({ length: 17 }, () => randomUUID()), [input.catalog.chainId]])
+    assert.throws(() => validateBootstrap({ ...input, chainIds }, production));
+});
+
 test('provisioning creates hashed accounts, organizations with capabilities, one ACTIVE chain and scoped grants', async () => {
   const input = bootstrapInput();
   await provisionBusinessCatalog(database, input);

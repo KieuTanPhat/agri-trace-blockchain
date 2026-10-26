@@ -32,7 +32,13 @@ export function validateBootstrap(input, environment = process.env) {
       assert.ok(identity[name].startsWith('/operator/') && !identity[name].split('/').includes('..'));
     }
   }
-  assert.ok(['provision', 'activate-keys'].includes(input.operation ?? 'provision'));
+  assert.ok(['provision', 'activate-keys', 'dataset-ledger'].includes(input.operation ?? 'provision'));
+  if (input.operation === 'dataset-ledger') {
+    assert.ok(Array.isArray(input.chainIds) && input.chainIds.length > 0 && input.chainIds.length <= 16);
+    assert.equal(new Set(input.chainIds).size, input.chainIds.length);
+    for (const id of input.chainIds) assert.match(id, UUID);
+    assert.ok(!input.chainIds.includes(input.catalog.chainId), 'The technical smoke chain is bound by provision');
+  }
   return input;
 }
 
@@ -99,6 +105,32 @@ export async function provisionBusinessCatalog(db, input) {
   }, { timeout: 60_000 });
 }
 
+// Binds chains the 28-product dataset created through the API, the same way
+// `provision` binds the smoke chain. Each call activates what the Worker
+// inventory already carries and reports the first entry it still needs.
+async function bindDatasetChains(db, input, { operator, approvers, relayer, governanceDigest }) {
+  const bound = [];
+  for (const chainId of input.chainIds) {
+    const chain = await db.supplyChain.findUniqueOrThrow({ where: { id: chainId }, include: { ledgerProfile: true } });
+    const binding = await db.$transaction(tx => registerBinding(tx, { chainId: chain.id, network: input.network, channelId: input.channel,
+      chaincodeName: input.chaincode, contractName: 'AgriTraceContract', writerAuthority: input.writerAuthority,
+      writerMspId: input.connections.relayer.mspId, governanceDigest, profile: 'MANAGED_ORG' }));
+    if (chain.ledgerProfile?.activeBindingDigest !== binding.digest) {
+      await onboardBindingOnLedger({ operator, reader: relayer.reader, channelId: input.channel, approvers,
+        binding: { digest: binding.digest, network: input.network, chaincodeName: input.chaincode, contractName: 'AgriTraceContract',
+          chainRef: binding.chainRef, writerAuthority: input.writerAuthority, writerMspId: input.connections.relayer.mspId, governanceDigest },
+        relayerFingerprint: relayer.fingerprint });
+      await db.$transaction(tx => mirrorCredential(tx, binding.digest, relayer.fingerprint));
+      const node = workerBindingNode(input.workerConnection, binding.digest);
+      if (!inventoryHasBinding(JSON.parse(readFileSync('/worker-bindings.json', 'utf8')), node))
+        return { result: 'inventory-required', bindingDigest: binding.digest, workerBinding: node };
+      await db.$transaction(tx => activateBinding(tx, binding.digest));
+    }
+    bound.push({ chainId: chain.id, bindingDigest: binding.digest, chainRef: binding.chainRef });
+  }
+  return { result: 'passed', chains: bound };
+}
+
 export async function bootstrapProduction(input) {
   validateBootstrap(input);
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: input.databaseUrl }) });
@@ -124,6 +156,8 @@ export async function bootstrapProduction(input) {
     const approvers = Object.keys(adminReaders);
     const health = await relayer.reader.health();
     assert.equal(health.governanceDigest, input.governanceDigest);
+    if (input.operation === 'dataset-ledger')
+      return await bindDatasetChains(db, input, { operator, approvers, relayer, governanceDigest: health.governanceDigest });
     const binding = await db.$transaction(tx => registerBinding(tx, { chainId: catalog.chainId, network: input.network, channelId: input.channel,
       chaincodeName: input.chaincode, contractName: 'AgriTraceContract', writerAuthority: input.writerAuthority,
       writerMspId: input.connections.relayer.mspId, governanceDigest: health.governanceDigest, profile: 'MANAGED_ORG' }));

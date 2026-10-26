@@ -270,8 +270,12 @@ export async function runEnterpriseBrowserScenarios(options) {
       } else assert.equal(await owner.getByLabel('Peer host', { exact: true }).count(), 0);
       await bothLayouts(owner);
       const connection = await command(owner, '/enterprise-connections', () => owner.getByRole('button', { name: 'Yêu cầu kết nối', exact: true }).click());
-      await owner.getByText('Chưa có chuỗi đủ điều kiện để gửi yêu cầu kết nối mới.', { exact: true }).waitFor({ timeout });
-      assert.equal(await owner.getByRole('button', { name: 'Yêu cầu kết nối', exact: true }).count(), 0);
+      // The requested chain leaves the choice; the owner's personal chain stays eligible.
+      await owner.getByText(chain.name, { exact: true }).first().waitFor({ timeout });
+      await owner.getByRole('combobox', { name: 'Chuỗi', exact: true }).click();
+      await owner.getByRole('option').first().waitFor({ timeout });
+      assert.equal(await owner.getByRole('option', { name: chain.name, exact: true }).count(), 0);
+      await owner.keyboard.press('Escape');
       activePage = admin;
       step('admin-connection-review');
       await admin.goto(`${options.origin}/admin/enterprises/${enrollmentId}/connections/${connection.id}`, { waitUntil: 'domcontentloaded' });

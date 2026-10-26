@@ -1,24 +1,20 @@
-import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import sharp from "sharp";
-import { assertFruitTarget } from "./fresh-fruit-target.mjs";
+import { datasetContext } from "./dataset-context.mjs";
 import { seedContentId } from "./seed-recovery.mjs";
-const [a, p] = JSON.parse(
-  execFileSync(
-    "docker",
-    [
-      "inspect",
-      "agri-trace-demo-local-api-1",
-      "agri-trace-demo-local-postgres-1",
-    ],
-    { encoding: "utf8" },
-  ),
-);
-assertFruitTarget(a, p, process.cwd());
-const base = "http://127.0.0.1:8080/api";
+const context = datasetContext();
+const base = context.base;
+// The API image has no sharp: production reads covers pre-rendered by the
+// dataset bundle (news-<photo>.jpg) with the same resize settings.
+const cover = context.production
+  ? (photo) => readFile(`${context.assets}/news-${photo}.jpg`)
+  : async (photo) =>
+      (await import("sharp")).default(`${context.assets}/${photo}.jpg`)
+        .resize({ width: 1000, withoutEnlargement: true })
+        .jpeg({ quality: 75 })
+        .toBuffer();
 const account = JSON.parse(
-  await readFile(".codex/fruit-dataset/run/accounts.json", "utf8"),
+  await readFile(`${context.run}/accounts.json`, "utf8"),
 ).users.find((u) => u.role === "SYSTEM_ADMIN");
 let bearer;
 async function call(path, body, key) {
@@ -49,12 +45,7 @@ const photos = ["care", "warehouse1", "harvest", "lot", "warehouse3", "water"];
 let count = 0;
 for (const [i, row] of rows.entries()) {
   if (row.hasCover) continue;
-  const bytes = await sharp(
-    ".codex/fruit-assets/" + photos[i % photos.length] + ".jpg",
-  )
-    .resize({ width: 1000, withoutEnlargement: true })
-    .jpeg({ quality: 75 })
-    .toBuffer();
+  const bytes = await cover(photos[i % photos.length]);
   const sha = createHash("sha256").update(bytes).digest("hex");
   await call(
     "/platform-admin/news/" + row.id,
@@ -70,4 +61,4 @@ for (const [i, row] of rows.entries()) {
   );
   count++;
 }
-console.log(`Đã thêm ${count} ảnh bìa qua API quản lý bản tin local.`);
+console.log(`Đã thêm ${count} ảnh bìa qua API quản lý bản tin.`);

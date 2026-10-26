@@ -21,22 +21,10 @@ import {
   lockPlatformAudit,
 } from "../../apps/api/dist/modules/platform-governance/platform-audit.js";
 
-const root = fileURLToPath(new URL("../../", import.meta.url));
-const local = `${root}.codex/fruit-dataset/run`;
-const assets = `${root}.codex/fruit-assets`;
-const url = new URL(process.env.DATABASE_URL);
-assert.equal(
-  process.env.AGRITRACE_LOCAL_SEED_TARGET,
-  "agri-trace-demo-local/agri_trace",
-);
-assert.equal(url.hostname, "127.0.0.1");
-assert.equal(url.port, "5433");
-assert.equal(url.pathname, "/agri_trace");
-assert.equal(process.env.FABRIC_ENABLED, "false");
-assert.match(
-  process.env.PUBLIC_TRACE_BASE_URL,
-  /^http:\/\/localhost:3000\/trace\/?$/,
-);
+const target = seedTarget();
+const local = target.run;
+const assets = target.assets;
+const url = new URL(target.databaseUrl);
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: url.href }),
 });
@@ -45,7 +33,7 @@ process.on("unhandledRejection", async (error) => {
   await db.$disconnect();
   process.exitCode = 1;
 });
-const base = "http://127.0.0.1:8080/api";
+const base = target.apiBase;
 await mkdir(local, { recursive: true });
 const json = (value) =>
   JSON.stringify(
@@ -85,6 +73,9 @@ const canonical = (v) =>
       : JSON.stringify(v);
 async function step(name, body) {
   if (state.steps[name]) return state.steps[name];
+  // Real Fabric confirms bindings and grants asynchronously; start each step
+  // on a settled ledger so business writes never race a pending grant.
+  if (target.mode === "production") await ledgerSettled();
   const result = await body();
   state.steps[name] = result ?? true;
   await save("progress", state);
@@ -273,9 +264,9 @@ const bootstrap = await step("bootstrap", async () => {
     if(recovered===userIds.length)return pendingBootstrap;
     assert.equal(recovered,0,"Partially recovered bootstrap requires reconciliation");
   }
-  assert.equal(
-    await db.user.count(),
-    0,
+  assert.deepEqual(
+    (await db.user.findMany({ select: { id: true } })).map((u) => u.id).sort(),
+    [...target.baselineUserIds].sort(),
     "Reset must be performed by the operator wrapper first",
   );
   accounts = {
@@ -1292,20 +1283,31 @@ await step("delegation", async () => {
 });
 
 // Local Fabric is off: the ledger-simulator service binds new chains and
-// confirms requested ledger grants. Wait for it before writing events.
-async function ledgerSettled(timeoutMs = 60_000) {
+// confirms requested ledger grants. In production the root operator binds the
+// new chains on the real ledger (this run exits for it), then the Worker
+// confirms the grants on Fabric.
+async function ledgerSettled(timeoutMs = target.mode === "production" ? 900_000 : 60_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const [{ unbound, pending }] = await db.$queryRaw`
-      SELECT (SELECT count(*)::int FROM supply_chain c
-                LEFT JOIN chain_ledger_profile p ON p.chain_id = c.chain_id
-               WHERE p.active_binding_digest IS NULL) AS unbound,
-             (SELECT count(*)::int FROM ledger_permission_sync
-               WHERE state IN ('REQUESTED', 'REVOKE_REQUESTED')) AS pending`;
-    if (unbound === 0 && pending === 0) return;
-    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    const unboundChains = await db.$queryRaw`
+      SELECT c.chain_id::text AS id FROM supply_chain c
+        LEFT JOIN chain_ledger_profile p ON p.chain_id = c.chain_id
+       WHERE p.active_binding_digest IS NULL ORDER BY c.chain_id`;
+    const [{ pending }] = await db.$queryRaw`
+      SELECT count(*)::int AS pending FROM ledger_permission_sync
+       WHERE state IN ('REQUESTED', 'REVOKE_REQUESTED', 'PENDING_LEDGER', 'PENDING_REVOKE_LEDGER')`;
+    if (unboundChains.length && target.mode === "production") {
+      await save("ledger-required", { chainIds: unboundChains.map((c) => c.id) });
+      console.log(`Operator must bind ${unboundChains.length} chain(s) on the ledger; rerun afterwards.`);
+      await db.$disconnect();
+      process.exit(LEDGER_REQUIRED_EXIT);
+    }
+    if (unboundChains.length === 0 && pending === 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
-  throw new Error("Simulated ledger did not settle; is ledger-simulator running?");
+  throw new Error(target.mode === "production"
+    ? "Fabric did not confirm ledger grants in time; inspect Worker health"
+    : "Simulated ledger did not settle; is ledger-simulator running?");
 }
 
 const production = await step("production", async () => {
@@ -2332,7 +2334,7 @@ await step("processed-public-media", async () => {
 });
 
 await step("consumer-accounts", async () => {
-  const locations = JSON.parse(await readFile(`${root}apps/api/src/common/locations/vietnam.json`,"utf8"));
+  const locations = JSON.parse(await readFile(new URL("../../apps/api/dist/common/locations/vietnam.json", import.meta.url),"utf8"));
   const province=locations.provinces[0],ward=province.wards[0];
   const role=await db.role.findUniqueOrThrow({where:{code:"CONSUMER"}});
   for(const [i,fullName] of ["Nguyễn Ngọc Hà","Trần Minh Châu","Lê Hoàng Phúc"].entries()) {

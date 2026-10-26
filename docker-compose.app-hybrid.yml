@@ -6,6 +6,9 @@ services:
       # Only the controller's smoke session sets these technical account IDs (CANARY).
       HYBRID_CANARY_ACTOR_IDS: ${HYBRID_CANARY_ACTOR_IDS:-}
       ENTERPRISE_ONBOARDING_ENABLED: ${ENTERPRISE_ONBOARDING_ENABLED:-false}
+      # Mobile sign-in (ACheck consumers, staff app); off unless the private env opts in.
+      CONSUMER_AUTH_ENABLED: ${CONSUMER_AUTH_ENABLED:-false}
+      STAFF_APP_AUTH_ENABLED: ${STAFF_APP_AUTH_ENABLED:-false}
   worker:
     environment:
       FABRIC_ENABLED: "true"

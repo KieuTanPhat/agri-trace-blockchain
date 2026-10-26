@@ -1,35 +1,21 @@
 /** Explicit local publication authorized by the dataset owner. Never targets production. */
-import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../apps/api/dist/generated/prisma/client.js";
-import { assertFruitTarget } from "./fresh-fruit-target.mjs";
+import { datasetContext } from "./dataset-context.mjs";
 import { seedContentId } from "./seed-recovery.mjs";
-const [api, postgres] = JSON.parse(
-  execFileSync(
-    "docker",
-    [
-      "inspect",
-      "agri-trace-demo-local-api-1",
-      "agri-trace-demo-local-postgres-1",
-    ],
-    { encoding: "utf8" },
-  ),
-);
-const env = assertFruitTarget(api, postgres, process.cwd()),
-  url = new URL(env.DATABASE_URL);
-url.hostname = "127.0.0.1";
-url.port = "5433";
+const context = datasetContext(),
+  url = new URL(context.databaseUrl);
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: url.href }),
 });
 const accounts = JSON.parse(
-  await readFile(".codex/fruit-dataset/run/accounts.json", "utf8"),
+  await readFile(`${context.run}/accounts.json`, "utf8"),
 ).users;
 const assets = JSON.parse(
-  await readFile(".codex/fruit-assets/manifest.json", "utf8"),
+  await readFile(`${context.assets}/manifest.json`, "utf8"),
 ).photos;
 const names = {
   farm: "Bình Minh",
@@ -40,7 +26,7 @@ const names = {
   retailer: "An Lành",
   processor: "Mùa Vàng",
 };
-const base = "http://127.0.0.1:8080/api";
+const base = context.base;
 async function json(path, options = {}) {
   const r = await fetch(base + path, options);
   const j = await r.json();
@@ -92,7 +78,7 @@ try {
     where: { replacement: null },
     select: { lotId: true, inspectorOrgId: true },
   });
-  const inspectionBytes = await readFile(".codex/fruit-assets/inspect.jpg");
+  const inspectionBytes = await readFile(`${context.assets}/inspect.jpg`);
   const today = new Date(
     new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }),
   );
@@ -113,7 +99,7 @@ try {
     )?.[0];
     if (!key) continue;
     const asset = assets.find((a) => a.key === `logo-${key}`),
-      bytes = await readFile(".codex/fruit-assets/" + asset.file);
+      bytes = await readFile(`${context.assets}/${asset.file}`);
     const sha = createHash("sha256").update(bytes).digest("hex");
     let session;
     const ownerSession = async () => {
