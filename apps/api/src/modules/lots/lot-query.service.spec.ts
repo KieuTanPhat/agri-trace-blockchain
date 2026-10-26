@@ -134,6 +134,7 @@ function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
   const service = new LotQueryService(
     database as unknown as PrismaService,
     {} as OrganizationAccessService,
+    {build:vi.fn().mockResolvedValue([]),thumbnailUrl:vi.fn().mockResolvedValue('/public/trace/test/thumbnail')} as unknown as import('./public-journey.service.js').PublicJourneyService,
   );
   return { service, events, actorUserId, database };
 }

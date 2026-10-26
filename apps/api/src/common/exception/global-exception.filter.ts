@@ -19,6 +19,19 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const status = this.getStatus(exception);
     const message = this.getMessage(exception);
     const code = this.getErrorCode(exception, status);
+    if (status === 429 && exception instanceof HttpException) {
+      const body = exception.getResponse();
+      if (
+        typeof body === 'object' &&
+        body &&
+        'retryAfterSeconds' in body &&
+        typeof body.retryAfterSeconds === 'number' &&
+        Number.isInteger(body.retryAfterSeconds) &&
+        body.retryAfterSeconds > 0 &&
+        body.retryAfterSeconds <= 3600
+      )
+        response.setHeader('Retry-After', String(body.retryAfterSeconds));
+    }
 
     response.status(status).json({
       success: false,

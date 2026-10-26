@@ -2419,6 +2419,83 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       }).expect(400); // chainId is required by the contract
     });
 
+    it('assigns cycle staff and limits tier-3 employees to their assigned cycles', async () => {
+      // Without a list the creator is the single assignee.
+      const solo = await post('/production-cycles', producerToken, {
+        chainId, farmId, productId, harvestUnit: 'kg',
+      }).expect(201);
+      expect(
+        (await db.productionCycleStaff.findMany({ where: { cycleId: solo.body.data.id } })).map((s) => s.userId),
+      ).toEqual([producer.sub]);
+      const role = await db.role.findUniqueOrThrow({ where: { code: 'FARM_STAFF' } });
+      // A tier-3 member needs a supervising organization admin.
+      const orgAdmin = { userId: producer.sub!, organizationId: producer.organizationId!, scope: 'ORGANIZATION' as const, role: 'ORG_ADMIN' as const };
+      if (!(await db.scopedRoleGrant.findFirst({ where: { ...orgAdmin, revokedAt: null } })))
+        await db.scopedRoleGrant.create({ data: orgAdmin });
+      const employee = await db.user.create({
+        data: {
+          email: `staff-${randomUUID()}@example.test`,
+          passwordHash: 'x',
+          fullName: 'Nhân viên cấp 3',
+          roleId: role.id,
+          organizationId: producer.organizationId!,
+          accountStatus: 'ACTIVE',
+          enterpriseTier: 3,
+          supervisorId: producer.sub!,
+        },
+      });
+      const enterpriseRole = await db.enterpriseRole.create({
+        data: {
+          organizationId: producer.organizationId!,
+          name: `Ghi vụ ${randomUUID().slice(0, 8)}`,
+          permissions: ['profile.read', 'production.read', 'production.write'],
+        },
+      });
+      await db.enterpriseMemberRole.create({
+        data: {
+          userId: employee.id,
+          organizationId: producer.organizationId!,
+          roleId: enterpriseRole.id,
+          chainIds: [chainId],
+          siteIds: [farmId],
+        },
+      });
+      await db.scopedRoleGrant.create({
+        data: { userId: employee.id, organizationId: producer.organizationId!, chainId, scope: 'CHAIN', role: 'FARM_STAFF' },
+      });
+      const employeeToken = app.get(JwtService).sign({
+        sub: employee.id,
+        sid: (await authenticated({ sub: employee.id, organizationId: producer.organizationId, role: 'FARM_STAFF' })).sid,
+      });
+      const assigned = await post('/production-cycles', producerToken, {
+        chainId, farmId, productId, harvestUnit: 'kg', staffUserIds: [producer.sub, employee.id],
+      }).expect(201);
+      const visible = async () =>
+        ((await get('/production-cycles', employeeToken).expect(200)).body.data as { id: string }[]).map((c) => c.id);
+      expect(await visible()).toEqual([assigned.body.data.id]);
+      await get(`/production-cycles/${solo.body.data.id}`, employeeToken).expect(404);
+      await post(`/production-cycles/${solo.body.data.id}/plant`, employeeToken, {
+        version: 0, plantedAt: new Date().toISOString(),
+      }).expect(404);
+      // An employee cannot change who is assigned; the owner can.
+      await post(`/production-cycles/${assigned.body.data.id}/staff`, employeeToken, {
+        staffUserIds: [employee.id],
+      }).expect(403);
+      await post(`/production-cycles/${solo.body.data.id}/staff`, producerToken, {
+        staffUserIds: [],
+      }).expect(400);
+      await post(`/production-cycles/${solo.body.data.id}/staff`, producerToken, {
+        staffUserIds: [transporter.sub],
+      }).expect(422);
+      await post(`/production-cycles/${solo.body.data.id}/staff`, producerToken, {
+        staffUserIds: [producer.sub, employee.id],
+      }).expect(201);
+      expect((await visible()).sort()).toEqual([assigned.body.data.id, solo.body.data.id].sort());
+      // Assignees appear on the record, responsible person first.
+      const detail = await get(`/production-cycles/${assigned.body.data.id}`, producerToken).expect(200);
+      expect(detail.body.data.staffUserIds).toEqual([producer.sub, employee.id]);
+    });
+
     it('rejects a stream without an ACTIVE binding before any domain, trace, outbox or positive journal write', async () => {
       const { activeBindingDigest: digest } =
         await db.chainLedgerProfile.findUniqueOrThrow({ where: { chainId } });

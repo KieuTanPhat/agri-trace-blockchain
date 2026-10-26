@@ -23,7 +23,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { lockPlatformAudit } from '../platform-governance/platform-audit.js';
-import { APPROVAL_REQUIRED_MESSAGE, approvalsMode } from '../platform-governance/platform-config.js';
 import { AdminInsightsService } from './admin-insights.service.js';
 import { blockQrTx, changeSettingTx, unblockQrTx } from './admin-controls.js';
 import { SupportService } from './support.service.js';
@@ -133,7 +132,6 @@ export class PlatformAdminController extends Commands {
   @Roles('SYSTEM_ADMIN') @Post('settings/:key') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
   changeSetting(@Param('key') key: string, @Body() input: SettingChangeInput, @IdempotencyKey() idemKey: string, @Req() req: AuthenticatedRequest) {
     return this.command(req, idemKey, 'PLATFORM_SETTING_CHANGE', { ...input, key }, () => {
-      if (approvalsMode() === 'ENFORCED') throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
       return commandTransaction(this.db, async (tx) => {
         await lockPlatformAudit(tx);
         const row = await changeSettingTx(tx, req.user, { key, value: input.value, version: input.version, reason: input.reason });
@@ -145,7 +143,6 @@ export class PlatformAdminController extends Commands {
   @Roles('SYSTEM_ADMIN') @Post('qr-blocks') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
   blockQr(@Body() input: BlockQrInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
     return this.command(req, key, 'PLATFORM_QR_BLOCK', input, () => {
-      if (approvalsMode() === 'ENFORCED') throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
       return commandTransaction(this.db, async (tx) => {
         await lockPlatformAudit(tx);
         const row = await blockQrTx(tx, req.user, input);

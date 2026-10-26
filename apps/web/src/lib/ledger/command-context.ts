@@ -1,9 +1,5 @@
-import { request } from "../api-client";
-import type { components } from "../generated/api";
 import { getLedgerError } from "./errors";
 export type LedgerCommandContext = { idempotencyKey: string; mfaCode?: string };
-export type ApprovalOperation =
-  components["schemas"]["ProposeApprovalDto"]["operation"];
 export const newLedgerCommandKey = () => crypto.randomUUID();
 export function ledgerCommandError(error: unknown) {
   const e = getLedgerError(error) ?? {
@@ -23,20 +19,4 @@ export function ledgerCommandError(error: unknown) {
         : undefined,
     canRestart: "canRestart" in detail && detail.canRestart === true,
   };
-}
-export function ledgerApprovalProposal(
-  payload: components["schemas"]["ProposeApprovalDto"],
-  command: LedgerCommandContext,
-) {
-  return request<components["schemas"]["PlatformApprovalDto"]>(
-    "/platform-approvals",
-    {
-      method: "POST",
-      headers: {
-        "Idempotency-Key": command.idempotencyKey,
-        ...(command.mfaCode ? { "X-MFA-Code": command.mfaCode } : {}),
-      },
-      body: JSON.stringify(payload),
-    },
-  );
 }

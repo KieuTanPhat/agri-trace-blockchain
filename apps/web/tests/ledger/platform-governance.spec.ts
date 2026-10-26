@@ -1,32 +1,6 @@
 import { test, expect } from "./fixtures";
 import "./fixtures/platform-governance";
 const id = "11111111-1111-4111-8111-111111111111";
-test("checker can use a baseline one-time MFA recovery code", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("platform-admin");
-  await api.scenario("governance.checker-recovery");
-  await page.goto(`/admin/approvals/${id}`);
-  await page
-    .getByLabel("Ghi chú quyết định", { exact: true })
-    .fill("Đã đối chiếu độc lập hồ sơ");
-  await page
-    .getByLabel("Mã xác thực hai yếu tố", { exact: true })
-    .fill("ABCDE-FGHJK");
-  await page
-    .getByRole("button", { name: "Ghi quyết định cuối cùng", exact: true })
-    .click();
-  await expect(
-    page.getByText("Đã phê duyệt", { exact: true }).first(),
-  ).toBeVisible();
-  expect(
-    api
-      .requests()
-      .filter((r) => r.method === "POST" && r.path.endsWith("/decision"))
-      .map((r) => r.mfaCode),
-  ).toEqual(["ABCDE-FGHJK"]);
-});
 test("manual activation follows the baseline exemption for registrations without capability requests", async ({
   page,
   api,
@@ -205,32 +179,6 @@ test("platform account status retains the current version and reason", async ({
     reason: "Ngừng truy cập theo yêu cầu",
   });
 });
-test("a different checker decides with version and MFA while the pending proposal cannot be cancelled early", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("platform-admin");
-  await api.scenario("governance.checker");
-  await page.goto(`/admin/approvals/${id}`);
-  await expect(
-    page.getByLabel("Ghi chú quyết định", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Hủy đề xuất", exact: true }),
-  ).toHaveCount(0);
-  await page
-    .getByLabel("Ghi chú quyết định", { exact: true })
-    .fill("Đã kiểm tra độc lập hồ sơ");
-  await page
-    .getByLabel("Mã xác thực hai yếu tố", { exact: false })
-    .fill("123456");
-  await page
-    .getByRole("button", { name: "Ghi quyết định cuối cùng", exact: true })
-    .click();
-  await expect(
-    page.getByText("Đã phê duyệt", { exact: true }).first(),
-  ).toBeVisible();
-});
 test("auditor cannot perform platform decisions", async ({ page, api }) => {
   await api.useActor("auditor");
   await api.scenario("governance.pending-enrollment");
@@ -243,22 +191,6 @@ test("auditor cannot perform platform decisions", async ({ page, api }) => {
   ).toHaveCount(0);
   expect(
     api.requests().filter((r) => r.path === "/enterprise-enrollments"),
-  ).toHaveLength(0);
-});
-test("maker cannot approve own proposal", async ({ page, api }) => {
-  await api.useActor("platform-admin");
-  await api.scenario("governance.own-proposal");
-  await page.goto(`/admin/approvals/${id}`);
-  await expect(
-    page.getByTestId("ledger-screen-admin-approvals-detail"),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Phê duyệt đề xuất", exact: true }),
-  ).toBeDisabled();
-  expect(
-    api
-      .requests()
-      .filter((r) => r.method === "POST" && r.path.includes("/decision")),
   ).toHaveLength(0);
 });
 test("enrollment review sends the current version and does not activate a paying producer", async ({

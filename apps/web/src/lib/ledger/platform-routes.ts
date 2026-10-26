@@ -20,10 +20,6 @@ export function getInboxGuide(kind: InboxKind) {
       who: "Quản trị viên nền tảng",
       rule: "Đối chiếu chuỗi, tổ chức và phạm vi kết nối được đề nghị.",
     },
-    APPROVAL: {
-      who: "Quản trị viên khác người đề xuất",
-      rule: "Người đề xuất không được tự phê duyệt. Quyết định dùng phiên bản hiện tại và xác thực bổ sung.",
-    },
     TICKET: {
       who: "Người phụ trách hỗ trợ",
       rule: "Xem nội dung, lịch sử và phạm vi truy cập trước khi phản hồi hoặc chuyển trạng thái.",

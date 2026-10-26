@@ -22,7 +22,7 @@ const evidenceKinds: Record<string, readonly string[]> = {
   SITE_TRANSFER: ['OTHER', 'TRANSFER_IMAGE'],
   QUARANTINE: ['OTHER', 'QUARANTINE_IMAGE', 'INSPECTION_IMAGE', 'CERTIFICATE_IMAGE'],
   PRODUCT: ['OTHER', 'PRODUCT_IMAGE', 'INSPECTION_IMAGE'],
-  FARM: ['OTHER', 'AREA_IMAGE', 'LAND_CERTIFICATE', 'PRODUCTION_CONTRACT', 'QUALITY_CERTIFICATE', 'INSPECTION_IMAGE'],
+  FARM: ['OTHER', 'LAND_CERTIFICATE'],
   SITE: ['OTHER', 'SITE_IMAGE', 'BUSINESS_LICENSE', 'QUALITY_CERTIFICATE', 'INSPECTION_IMAGE'],
   CYCLE: ['OTHER', 'CYCLE_IMAGE', 'CARE_IMAGE', 'HARVEST_IMAGE', 'LOT_IMAGE', 'CERTIFICATE_IMAGE'],
   CYCLE_DRAFT: ['OTHER', 'CYCLE_IMAGE', 'CERTIFICATE_IMAGE'],
@@ -201,7 +201,7 @@ export class EnterpriseResourcesService {
    });
  }
  /** Hides a product photo without deleting it. A product on sale keeps at
-  * least three current photos, so a replacement is uploaded first. */
+  * least one current photo, so a replacement is uploaded first. */
  withdrawEvidence(actor:CommandActor,id:string,reason:string) {
    return commandTransaction(this.db,async tx=>{
      await enterpriseAuthority(tx,actor,'evidence.manage',undefined,undefined,true);
@@ -217,7 +217,7 @@ export class EnterpriseResourcesService {
        const rows=await tx.traceEvidence.findMany({where:{organizationId:actor.organizationId!,entityType:'PRODUCT',entityId:row.entityId,kind:'PRODUCT_IMAGE',withdrawal:null},select:{id:true,supersedesId:true}});
        const superseded=new Set(rows.map(r=>r.supersedesId).filter(Boolean));
        const remaining=rows.filter(r=>!superseded.has(r.id)&&r.id!==id).length;
-       if(remaining<3)throw new ConflictException('Sản phẩm đang hoạt động cần ít nhất ba ảnh; tải ảnh mới trước khi gỡ ảnh này');
+       if(remaining<1)throw new ConflictException('Sản phẩm đang hoạt động cần ít nhất một ảnh; tải ảnh mới trước khi gỡ ảnh này');
      }
      await tx.traceEvidenceWithdrawal.create({data:{evidenceId:id,organizationId:actor.organizationId!,actorId:actor.sub!,reason:reason.trim()}});
      return {record:{id,withdrawn:true}};

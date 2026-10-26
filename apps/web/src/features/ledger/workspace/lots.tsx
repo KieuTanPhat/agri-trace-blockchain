@@ -276,9 +276,9 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
                     <SelectField control={f.control} name="retailerOrgId" label={tr("Đơn vị bán lẻ")} options={(orgs.data ?? []).filter((o) => o.type === "RETAILER" && o.status === "ACTIVE").map((o) => ({ value: o.id, label: o.name }))} />
                     <TextField control={f.control} name="origin" label={tr("Nơi lấy hàng")} />
                     <TextField control={f.control} name="destination" label={tr("Nơi giao")} />
-                    <TextField control={f.control} name="plannedPickupTime" label={tr("Dự kiến lấy hàng (tùy chọn)")} type="datetime-local" />
-                    <TextField control={f.control} name="expectedArrivalTime" label={tr("Dự kiến đến (tùy chọn)")} type="datetime-local" />
-                    <TextField control={f.control} name="vehicleRef" label={tr("Phương tiện (tùy chọn)")} />
+                    <TextField control={f.control} name="plannedPickupTime" label={tr("Dự kiến lấy hàng")} type="datetime-local" />
+                    <TextField control={f.control} name="expectedArrivalTime" label={tr("Dự kiến đến")} type="datetime-local" />
+                    <TextField control={f.control} name="vehicleRef" label={tr("Phương tiện")} />
                   </div>
                 )}
               </CommandDialog>
@@ -304,10 +304,10 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
                   <>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <TextField control={f.control} name="receivedQuantity" label={tr("Số lượng nhận")} type="number" />
-                      <TextField control={f.control} name="damagedQuantity" label={tr("Hư hỏng (tùy chọn)")} type="number" />
+                      <TextField control={f.control} name="damagedQuantity" label={tr("Hư hỏng")} type="number" />
                       <TextField control={f.control} name="occurredAt" label={tr("Thời điểm nhận")} type="datetime-local" />
                     </div>
-                    <TextAreaField control={f.control} name="note" label={tr("Ghi chú (tùy chọn)")} />
+                    <TextAreaField control={f.control} name="note" label={tr("Ghi chú")} />
                   </>
                 )}
               </CommandDialog>
@@ -334,7 +334,7 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
                   <>
                     <TextField control={f.control} name="quantity" label={tr("Lượng hư hỏng ({p0}, tối đa {p1})", { p0: l.unit, p1: fmtNumber(l.availableQuantity) })} type="number" />
                     <TextAreaField control={f.control} name="reason" label={tr("Lý do")} max={1000} />
-                    <TextField control={f.control} name="evidenceRef" label={tr("Tham chiếu chứng cứ (tùy chọn)")} />
+                    <TextField control={f.control} name="evidenceRef" label={tr("Tham chiếu chứng cứ")} />
                   </>
                 )}
               </CommandDialog>

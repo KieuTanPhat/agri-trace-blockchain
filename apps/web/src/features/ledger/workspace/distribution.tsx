@@ -10,7 +10,7 @@ import DistributionSigningPage from "./chain-signing";
 import {DistributionSignature} from "./distribution-signing";
 
 import { distApi } from "@/lib/ledger/dist-api";
-import type {Phase, Transfer, TransferAction, TransferDetail } from "@/lib/ledger/dist-types";
+import type {Phase, PickupRequest, Transfer, TransferAction, TransferDetail, TransportMode } from "@/lib/ledger/dist-types";
 import { wapi } from "@/lib/ledger/enterprise-coordination-api";
 import {useAuth as useSession} from "@/lib/auth-store";
 import { fmtDateTime, fmtNumber } from "@/lib/ledger/format";
@@ -25,7 +25,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog";
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
-import { EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } from "@/components/ledger/kit/page";
+import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 
@@ -33,6 +33,7 @@ export const TRANSFER_STATUS_LABEL: Record<string, string> = localized({ PROPOSE
 const TRANSFER_TONE: Record<string, "info" | "brand" | "ok" | "neutral" | "warn"> = { PROPOSED: "info", READY: "warn", IN_TRANSIT: "brand", DELIVERED: "ok", CANCELLED: "neutral" };
 const ACTION_LABEL: Record<string, string> = localized({
   CONSENT: "Ký đồng thuận",
+  JOIN_CHAIN: "Chấp nhận vào chuỗi",
   PICKUP: "Ký lấy hàng",
   DELIVERY: "Ký giao hàng",
   ACTUAL_RECEIPT: "Lập biên bản thực nhận",
@@ -44,7 +45,14 @@ const ACTION_LABEL: Record<string, string> = localized({
   RECONCILE_REMAINDER: "Đối soát phần còn lại",
 });
 const ROLE_LABEL: Record<string, string> = localized({ SENDER: "Bên giao", CARRIER: "Bên vận chuyển", RECEIVER: "Bên nhận" });
-const PHASE_LABEL: Record<Phase, string> = localized({ CONSENT: "Đồng thuận (3 bên)", PICKUP: "Lấy hàng (giao + vận chuyển)", DELIVERY: "Giao hàng (vận chuyển + nhận)" });
+const PHASE_LABEL: Record<Phase, string> = localized({ CONSENT: "Đồng thuận các bên", PICKUP: "Lấy hàng (giao + người chở)", DELIVERY: "Giao hàng (người chở + nhận)" });
+export const TRANSPORT_MODE_LABEL: Record<TransportMode, string> = localized({ PLATFORM_CARRIER: "Đơn vị vận chuyển trên AgriTrace", EXTERNAL_CARRIER: "Thuê đơn vị vận chuyển ngoài", SELF_DELIVERY: "Bên giao tự chở", RECEIVER_PICKUP: "Bên nhận tự đến lấy" });
+const TRANSPORT_MODE_HINT: Record<TransportMode, string> = localized({
+  PLATFORM_CARRIER: "Ba bên ký: giao + vận chuyển ký lấy hàng, vận chuyển + nhận ký giao hàng. Đơn vị vận chuyển ghi được nhiệt độ trên đường.",
+  EXTERNAL_CARRIER: "Bên thuê xe giữ trách nhiệm hàng trên đường. Bên giao thuê: bên giao + nhận ký khi giao. Bên nhận thuê: hai bên ký lúc xe lấy hàng.",
+  SELF_DELIVERY: "Bên giao giữ hàng tới nơi; bên giao + nhận ký khi giao hàng.",
+  RECEIVER_PICKUP: "Bên giao + nhận ký tại điểm lấy hàng; quyền giữ hàng chuyển sang bên nhận ngay.",
+});
 const DEC = /^\d{1,11}(\.\d{1,3})?$/;
 const dec = (msg = () => tr("Số không âm, tối đa 3 chữ số thập phân")) => z.string().regex(DEC, { error: msg });
 const reason10 = z.string().trim().min(10, { error: () => tr("Tối thiểu 10 ký tự") }).max(1000);
@@ -52,14 +60,15 @@ const reason10 = z.string().trim().min(10, { error: () => tr("Tối thiểu 10 k
 export default function DistributionPage({route}:{route:import("@/lib/ledger/route-input").LedgerRouteInput}) {
  const pathname=usePathname(),router=useRouter(),routeId=typeof route.params.id==="string"?route.params.id:undefined,isNew=pathname==="/distribution/new";
   const { can } = useWorkspaceAccess();
-  const [tab, setTab] = useState<"transfers" | "tasks" | "keys">("transfers");
+  const [tab, setTab] = useState<"transfers" | "tasks" | "requests" | "keys">("transfers");
+  const [fromRequest, setFromRequest] = useState<PickupRequest | null>(null);
   const [openId, setOpenId] = useState<string | null>(routeId??null);
   const transfers = useQuery({ queryKey: ["dist-transfers"], queryFn: distApi.transfers, enabled: can("distribution.read") });
   const create = useDialog();
   if (!can("distribution.read")) return <ErrorState error={new Error(tr("Bạn chưa có quyền distribution.read"))} />;
   const cols: Column<Transfer>[] = [
     { key: "route", header: tr("Chặng"), cell: (t) => <span className="flex flex-col"><span className="font-medium">{t.origin} → {t.destination}</span><span className="font-mono text-[11px] text-ink-2">{t.id.slice(0, 8)} · v{t.version}</span></span> },
-    { key: "parties", header: tr("Giao → vận chuyển → nhận"), hideBelow: "md", cell: (t) => <span className="text-[12.5px]">{t.senderName} → {t.carrierName} → {t.receiverName}</span> },
+    { key: "parties", header: tr("Giao → nhận"), hideBelow: "md", cell: (t) => <span className="flex flex-col text-[12.5px]"><span>{t.senderName} → {t.receiverName}</span><span className="text-[11.5px] text-ink-2">{transportSummary(t)}</span></span> },
     { key: "lines", header: tr("Lô"), hideBelow: "lg", cell: (t) => <span className="text-[12.5px]">{t.lines.map((l) => `${l.lotCode} (${fmtNumber(l.quantity)} ${l.unit})`).join(", ")}</span> },
     { key: "pickup", header: tr("Dự kiến lấy"), hideBelow: "lg", cell: (t) => <span className="font-mono text-[12px]">{fmtDateTime(t.plannedPickupAt)}</span> },
     { key: "status", header: tr("Trạng thái"), cell: (t) => <Badge tone={TRANSFER_TONE[t.status]}>{TRANSFER_STATUS_LABEL[t.status]}</Badge> },
@@ -69,14 +78,14 @@ export default function DistributionPage({route}:{route:import("@/lib/ledger/rou
     <>
       <PageHeader
         title={tr("Giao nhận")}
-        description={tr("Chặng giao nhận giữa ba doanh nghiệp độc lập (giao, vận chuyển, nhận) đã liên kết đối tác và cùng thuộc chuỗi. Mỗi bước được ký số Ed25519 trên ảnh chụp chuẩn hóa của chặng: đồng thuận (3 bên) → lấy hàng (2 bên) → giao hàng (2 bên). Tồn kho chỉ dịch chuyển khi đủ chữ ký.")}
+        description={tr("Giao hàng giữa hai doanh nghiệp đã liên kết đối tác. Chở hàng bằng đơn vị vận chuyển trên AgriTrace, thuê xe ngoài, bên giao tự chở hoặc bên nhận tự đến lấy. Phiếu tự đi theo chuỗi của lô; bên nhận chưa ở chuỗi được thêm vào khi đồng thuận. Mỗi lần hàng đổi người giữ đều có hai bên ký; tồn kho chỉ dịch chuyển khi đủ chữ ký.")}
         actions={can("distribution.write") && <Button size="sm" onClick={() => router.push("/distribution/new")}><Plus /> {tr("Tạo chặng giao nhận")}</Button>}
       />
       <PageBody>
         <div role="tablist" className="flex gap-1">
-          {(["transfers", "tasks", "keys"] as const).map((k) => (
+          {(["transfers", "tasks", "requests", "keys"] as const).map((k) => (
             <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)} className={cn("h-8 rounded-md border px-3 text-[12.5px] font-medium", tab === k ? "border-ink bg-ink text-canvas" : "border-line bg-card")}>
-              {{ transfers: tr("Chặng giao nhận"), tasks: tr("Việc chờ"), keys: tr("Khóa ký") }[k]}
+              {{ transfers: tr("Chặng giao nhận"), tasks: tr("Việc chờ"), requests: tr("Yêu cầu lấy hàng"), keys: tr("Khóa ký") }[k]}
             </button>
           ))}
         </div>
@@ -86,10 +95,11 @@ export default function DistributionPage({route}:{route:import("@/lib/ledger/rou
           </div>
         )}
         {tab === "tasks" && <Tasks onOpen={setOpenId} />}
+        {tab === "requests" && <PickupRequests onCreate={(r) => { setFromRequest(r); create.open(true); }} />}
         {tab === "keys" && <DistributionSigningPage/>}
       </PageBody>
       <TransferSheet id={openId} view={pathname.endsWith("/journal")?"journal":"detail"} onClose={() => {setOpenId(null);router.push("/distribution");}}/>
-      {(create.target||isNew)&&can("distribution.write")&&<CreateTransfer props={{open:true,onOpenChange:o=>{if(!o){create.close();if(isNew)router.push("/distribution");}}}}/>}
+      {(create.target||isNew)&&can("distribution.write")&&<CreateTransfer request={fromRequest} props={{open:true,onOpenChange:o=>{if(!o){create.close();setFromRequest(null);if(isNew)router.push("/distribution");}}}}/>}
     </>
   );
 }
@@ -140,15 +150,22 @@ function Tasks({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 // ---------------------------------------------------------------------------
+const TRANSPORT_MODES = ["PLATFORM_CARRIER", "EXTERNAL_CARRIER", "SELF_DELIVERY", "RECEIVER_PICKUP"] as const;
+const optText = (min: number, max: number) => z.union([z.literal(""), z.string().trim().min(min, { error: () => tr("Tối thiểu {p0} ký tự", { p0: min }) }).max(max)]).optional();
 const createSchema = z
   .object({
-    chainId: z.string().min(1, { error: () => tr("Chọn chuỗi") }),
-    carrierId: z.string().min(1, { error: () => tr("Chọn bên vận chuyển") }),
+    transportMode: z.enum(TRANSPORT_MODES),
+    externalHirer: z.enum(["SENDER", "RECEIVER"]),
+    carrierId: z.string().optional(),
     receiverId: z.string().min(1, { error: () => tr("Chọn bên nhận") }),
     senderSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở giao") }),
-    carrierSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở vận chuyển") }),
+    carrierSiteId: z.string().optional(),
     receiverSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở nhận") }),
     vehicleId: z.string().optional(),
+    carrierName: optText(2, 255),
+    registration: optText(3, 40),
+    driverName: optText(2, 255),
+    driverPhone: z.union([z.literal(""), z.string().regex(/^[0-9+().\s-]{6,30}$/, { error: () => tr("Số điện thoại không hợp lệ") })]).optional(),
     origin: z.string().trim().min(3, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 3 }) }).max(500),
     destination: z.string().trim().min(3, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 3 }) }).max(500),
     plannedPickupAt: z.string().min(1, { error: () => tr("Không được để trống") }),
@@ -156,13 +173,24 @@ const createSchema = z
     note: z.string().max(1000).optional(),
     lines: z.array(z.object({ lotId: z.string().min(1, { error: () => tr("Chọn lô") }), quantity: dec() })).min(1).max(30),
   })
+  .refine((v) => v.transportMode !== "PLATFORM_CARRIER" || !!v.carrierId, { path: ["carrierId"], error: () => tr("Chọn đơn vị vận chuyển") })
+  .refine((v) => v.transportMode !== "PLATFORM_CARRIER" || !!v.carrierSiteId, { path: ["carrierSiteId"], error: () => tr("Chọn cơ sở của đơn vị vận chuyển") })
+  .refine((v) => v.transportMode !== "EXTERNAL_CARRIER" || !!v.carrierName, { path: ["carrierName"], error: () => tr("Nhập tên đơn vị vận chuyển") })
   .refine((v) => !v.plannedDeliveryAt || v.plannedDeliveryAt >= v.plannedPickupAt, { path: ["plannedDeliveryAt"], error: () => tr("Dự kiến giao không trước dự kiến lấy hàng") })
   .refine((v) => new Set(v.lines.map((l) => l.lotId)).size === v.lines.length, { path: ["lines"], error: () => tr("Không lặp lô trong cùng giao nhận") });
 
-function CreateTransfer({ props }: { props: { open: boolean; onOpenChange: (o: boolean) => void } }) {
+function transportSummary(t: Pick<Transfer, "transportMode" | "transportDetails" | "carrierName" | "carrierId" | "senderId">) {
+  const mode = t.transportMode ?? "PLATFORM_CARRIER";
+  if (mode === "PLATFORM_CARRIER") return t.carrierName ?? "";
+  const plate = t.transportDetails?.registration ? ` · ${t.transportDetails.registration}` : "";
+  if (mode === "EXTERNAL_CARRIER")
+    return `${t.transportDetails?.carrierName ?? ""} (${t.carrierId === t.senderId ? tr("bên giao thuê") : tr("bên nhận thuê")})${plate}`;
+  return `${TRANSPORT_MODE_LABEL[mode]}${plate}`;
+}
+
+function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChange: (o: boolean) => void }; request?: PickupRequest | null }) {
   const { user } = useSession();
   const now = useNow();
-  const chains = useQuery({ queryKey: ["ws-chains"], queryFn: wapi.chains });
   const options = useQuery({ queryKey: ["dist-options"], queryFn: distApi.options });
   const partners = useQuery({ queryKey: ["ws-partners"], queryFn: wapi.partners });
   const stock = useQuery({ queryKey: ["dist-report"], queryFn: () => distApi.report() });
@@ -171,24 +199,29 @@ function CreateTransfer({ props }: { props: { open: boolean; onOpenChange: (o: b
   return (
     <CommandDialog
       {...props}
-      title={tr("Tạo chặng giao nhận")}
+      title={request ? tr("Lập phiếu từ yêu cầu lấy hàng") : tr("Tạo chặng giao nhận")}
       endpoint="POST /distribution/transfers"
-      description={tr("Lượng giao được giữ chỗ tại cơ sở giao cho tới khi lấy hàng hoặc hủy. Bên vận chuyển phải là tổ chức vận chuyển; bên nhận là chế biến, phân phối hoặc bán lẻ; cả hai đã liên kết đối tác với bạn và cùng thuộc chuỗi.")}
+      description={tr("Lượng giao được giữ chỗ tại cơ sở giao cho tới khi lấy hàng hoặc hủy. Bên nhận là chế biến, phân phối hoặc bán lẻ đã liên kết đối tác với bạn; phiếu đi theo chuỗi của lô.")}
       schema={createSchema}
-      defaultValues={{ chainId: chains.data?.[0]?.id ?? "", carrierId: "", receiverId: "", senderSiteId: "", carrierSiteId: "", receiverSiteId: "", vehicleId: "", origin: "", destination: "", plannedPickupAt: isoToLocal(new Date(now + 3600_000).toISOString()), plannedDeliveryAt: "", note: "", lines: [{ lotId: "", quantity: "" }] }}
+      defaultValues={{ transportMode: request ? "RECEIVER_PICKUP" : "PLATFORM_CARRIER", externalHirer: "SENDER", carrierId: "", receiverId: request?.receiverId ?? "", senderSiteId: "", carrierSiteId: "", receiverSiteId: "", vehicleId: "", carrierName: "", registration: "", driverName: "", driverPhone: "", origin: "", destination: "", plannedPickupAt: isoToLocal(request?.preferredPickupAt ?? new Date(now + 3600_000).toISOString()), plannedDeliveryAt: "", note: request?.note ?? "", lines: [{ lotId: "", quantity: "" }] }}
       submitLabel={tr("Tạo chặng")}
-      invalidate={[["dist-transfers"], ["dist-report"], ["dist-tasks"]]}
+      invalidate={[["dist-transfers"], ["dist-report"], ["dist-tasks"], ["dist-pickups"]]}
       wide
-      run={(v, cmd) =>
-        distApi.create(
+      run={(v, cmd) => {
+        const platform = v.transportMode === "PLATFORM_CARRIER";
+        const details = { carrierName: v.transportMode === "EXTERNAL_CARRIER" ? v.carrierName || undefined : undefined, registration: v.registration || undefined, driverName: v.driverName || undefined, driverPhone: v.driverPhone || undefined };
+        return distApi.create(
           {
-            chainId: v.chainId,
-            carrierId: v.carrierId,
+            transportMode: v.transportMode,
+            externalHirer: v.transportMode === "EXTERNAL_CARRIER" ? v.externalHirer : undefined,
+            carrierId: platform ? v.carrierId : undefined,
+            carrierSiteId: platform ? v.carrierSiteId : undefined,
+            vehicleId: platform ? v.vehicleId || undefined : undefined,
+            transportDetails: platform ? undefined : details,
+            pickupRequestId: request?.id,
             receiverId: v.receiverId,
             senderSiteId: v.senderSiteId,
-            carrierSiteId: v.carrierSiteId,
             receiverSiteId: v.receiverSiteId,
-            vehicleId: v.vehicleId || undefined,
             origin: v.origin,
             destination: v.destination,
             plannedPickupAt: localToIso(v.plannedPickupAt)!,
@@ -197,32 +230,143 @@ function CreateTransfer({ props }: { props: { open: boolean; onOpenChange: (o: b
             lines: v.lines.map((l) => ({ lotId: l.lotId, quantity: l.quantity, unit: stock.data?.lots.find((x) => x.lotId === l.lotId)?.unit ?? "kg" })),
           },
           cmd,
-        )
-      }
+        );
+      }}
     >
       {(f) => {
         const c = f.control as unknown as Control<z.infer<typeof createSchema>>;
         return (
           <>
+            <TransportFields control={c} request={!!request} carriers={partyOrgs.filter((o) => o.type === "TRANSPORTER")} sites={options.data?.items ?? []} vehicles={options.data?.vehicles ?? []} />
             <div className="grid gap-3 sm:grid-cols-2">
-              <SelectField control={c} name="chainId" label={tr("Chuỗi cung ứng")} options={(chains.data ?? []).map((x) => ({ value: x.id, label: x.name }))} />
               <SelectField control={c} name="senderSiteId" label={tr("Cơ sở giao (của bạn)")} options={(options.data?.items ?? []).filter((s) => s.organizationId === me).map((s) => ({ value: s.id, label: s.name }))} />
-              <SelectField control={c} name="carrierId" label={tr("Bên vận chuyển")} options={partyOrgs.filter((o) => o.type === "TRANSPORTER").map((o) => ({ value: o.id, label: o.name }))} />
-              <PartySite control={c} party="carrierId" name="carrierSiteId" label={tr("Cơ sở vận chuyển")} sites={options.data?.items ?? []} />
-              <SelectField control={c} name="receiverId" label={tr("Bên nhận")} options={partyOrgs.filter((o) => ["PROCESSOR", "DISTRIBUTOR", "RETAILER"].includes(o.type)).map((o) => ({ value: o.id, label: o.name }))} />
+              <SelectField control={c} name="receiverId" label={tr("Bên nhận")} options={partyOrgs.filter((o) => ["PROCESSOR", "DISTRIBUTOR", "RETAILER"].includes(o.type) && (!request || o.id === request.receiverId)).map((o) => ({ value: o.id, label: o.name }))} />
               <PartySite control={c} party="receiverId" name="receiverSiteId" label={tr("Cơ sở nhận")} sites={options.data?.items ?? []} />
-              <PartyVehicle control={c} vehicles={options.data?.vehicles ?? []} />
               <TextField control={c} name="plannedPickupAt" label={tr("Dự kiến lấy hàng")} type="datetime-local" />
               <TextField control={c} name="origin" label={tr("Nơi lấy hàng")} />
               <TextField control={c} name="destination" label={tr("Nơi giao")} />
-              <TextField control={c} name="plannedDeliveryAt" label={tr("Dự kiến giao (tùy chọn)")} type="datetime-local" />
+              <TextField control={c} name="plannedDeliveryAt" label={tr("Dự kiến giao")} type="datetime-local" />
             </div>
             <LinesField control={c} lots={(stock.data?.lots ?? []).filter((l) => !l.blocked)} />
-            <TextAreaField control={c} name="note" label={tr("Ghi chú (tùy chọn)")} max={1000} />
+            <TextAreaField control={c} name="note" label={tr("Ghi chú")} max={1000} />
           </>
         );
       }}
     </CommandDialog>
+  );
+}
+function TransportFields({ control, request, carriers, sites, vehicles }: { control: Control<CreateValues>; request: boolean; carriers: { id: string; name: string }[]; sites: { id: string; organizationId: string; name: string }[]; vehicles: { id: string; organizationId: string; registration: string; kind: string }[] }) {
+  const mode = useWatch({ control, name: "transportMode" });
+  return (
+    <fieldset className="flex flex-col gap-3 rounded-md border border-line p-3">
+      <legend className="px-1 text-[13px] font-medium">{tr("Cách vận chuyển")}</legend>
+      <SelectField control={control} name="transportMode" label={tr("Ai chở hàng")} options={TRANSPORT_MODES.filter((m) => !request || m === "RECEIVER_PICKUP" || m === "EXTERNAL_CARRIER").map((m) => ({ value: m, label: TRANSPORT_MODE_LABEL[m] }))} />
+      <p className="text-[12px] text-ink-2">{TRANSPORT_MODE_HINT[mode]}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {mode === "PLATFORM_CARRIER" ? (
+          <>
+            <SelectField control={control} name="carrierId" label={tr("Đơn vị vận chuyển")} options={carriers.map((o) => ({ value: o.id, label: o.name }))} />
+            <PartySite control={control} party="carrierId" name="carrierSiteId" label={tr("Cơ sở vận chuyển")} sites={sites} />
+            <PartyVehicle control={control} vehicles={vehicles} />
+          </>
+        ) : (
+          <>
+            {mode === "EXTERNAL_CARRIER" && (
+              <>
+                <SelectField control={control} name="externalHirer" label={tr("Bên thuê xe")} options={[{ value: "SENDER", label: tr("Bên giao (bạn)") }, { value: "RECEIVER", label: tr("Bên nhận") }]} />
+                <TextField control={control} name="carrierName" label={tr("Tên đơn vị vận chuyển")} max={255} />
+              </>
+            )}
+            <TextField control={control} name="registration" label={tr("Biển số xe")} max={40} />
+            <TextField control={control} name="driverName" label={tr("Tài xế / người nhận hàng")} max={255} />
+            <TextField control={control} name="driverPhone" label={tr("Số điện thoại")} inputMode="tel" />
+          </>
+        )}
+      </div>
+    </fieldset>
+  );
+}
+
+function PickupRequests({ onCreate }: { onCreate: (r: PickupRequest) => void }) {
+  const { can } = useWorkspaceAccess();
+  const { user } = useSession();
+  const q = useQuery({ queryKey: ["dist-pickups"], queryFn: distApi.pickupRequests });
+  const partners = useQuery({ queryKey: ["ws-partners"], queryFn: wapi.partners });
+  const ask = useDialog();
+  const resolve = useDialog<{ r: PickupRequest; action: "decline" | "cancel" }>();
+  const me = user?.organizationId ?? "";
+  const senders = (partners.data ?? []).filter((p) => p.status === "ACTIVE").flatMap((p) => (p.inviterId === me ? p.invitee : p.inviter) ?? []);
+  const STATUS: Record<PickupRequest["status"], string> = localized({ OPEN: "Đang chờ", ACCEPTED: "Đã lập phiếu", DECLINED: "Bị từ chối", CANCELLED: "Đã rút" });
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="min-w-0 flex-1 text-[12.5px] text-ink-2">{tr("Bên nhận gửi yêu cầu tự đến lấy hàng; bên giao chọn lô, số lượng và lập phiếu từ yêu cầu.")}</p>
+        {can("distribution.write") && <Button size="sm" variant="outline" onClick={() => ask.open(true)}><Plus /> {tr("Yêu cầu lấy hàng")}</Button>}
+      </div>
+      <div className="overflow-hidden rounded-md border border-line bg-card">
+        <DataTable
+          rows={q.data}
+          loading={q.isLoading}
+          error={q.error}
+          onRetry={() => q.refetch()}
+          rowKey={(r) => r.id}
+          empty={<EmptyState title={tr("Chưa có yêu cầu lấy hàng")} />}
+          columns={[
+            { key: "who", header: tr("Bên giao → bên nhận"), cell: (r) => <span className="flex flex-col text-[12.5px]"><span>{r.senderName} → {r.receiverName}</span><span className="text-[11.5px] text-ink-2">{r.direction === "INCOMING" ? tr("Gửi tới bạn") : tr("Bạn gửi")}</span></span> },
+            { key: "note", header: tr("Nội dung"), cell: (r) => <span className="line-clamp-2 text-[12.5px]">{r.note}</span> },
+            { key: "at", header: tr("Muốn lấy lúc"), hideBelow: "md", cell: (r) => <span className="font-mono text-[12px]">{fmtDateTime(r.preferredPickupAt)}</span> },
+            { key: "status", header: tr("Trạng thái"), cell: (r) => <Badge tone={r.status === "OPEN" ? "info" : r.status === "ACCEPTED" ? "ok" : "neutral"}>{STATUS[r.status]}</Badge> },
+            { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (r) => r.status === "OPEN" && can("distribution.write") ? (
+              <span className="flex gap-1.5">
+                {r.direction === "INCOMING" ? (
+                  <>
+                    <Button size="xs" onClick={() => onCreate(r)}>{tr("Lập phiếu")}</Button>
+                    <Button size="xs" variant="outline" onClick={() => resolve.open({ r, action: "decline" })}>{tr("Từ chối")}</Button>
+                  </>
+                ) : (
+                  <Button size="xs" variant="outline" onClick={() => resolve.open({ r, action: "cancel" })}>{tr("Rút yêu cầu")}</Button>
+                )}
+              </span>
+            ) : null },
+          ]}
+        />
+      </div>
+      <CommandDialog
+        {...ask.props}
+        title={tr("Yêu cầu tự đến lấy hàng")}
+        endpoint="POST /distribution/pickup-requests"
+        description={tr("Bên giao nhận được yêu cầu và lập phiếu từ tồn kho của họ. Yêu cầu không giữ chỗ hàng.")}
+        schema={z.object({ senderId: z.string().min(1, { error: () => tr("Chọn bên giao") }), preferredPickupAt: z.string().optional(), note: z.string().trim().min(5, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 5 }) }).max(1000) })}
+        defaultValues={{ senderId: "", preferredPickupAt: "", note: "" }}
+        submitLabel={tr("Gửi yêu cầu")}
+        invalidate={[["dist-pickups"]]}
+        run={(v, cmd) => distApi.requestPickup({ senderId: v.senderId, preferredPickupAt: localToIso(v.preferredPickupAt), note: v.note }, cmd)}
+      >
+        {(f) => (
+          <>
+            <SelectField control={f.control} name="senderId" label={tr("Bên giao")} options={senders.map((o) => ({ value: o.id, label: o.name }))} />
+            <TextField control={f.control} name="preferredPickupAt" label={tr("Muốn lấy lúc")} type="datetime-local" />
+            <TextAreaField control={f.control} name="note" label={tr("Sản phẩm, số lượng, ghi chú")} max={1000} />
+          </>
+        )}
+      </CommandDialog>
+      {resolve.target && (
+        <CommandDialog
+          {...resolve.props}
+          title={resolve.target.action === "decline" ? tr("Từ chối yêu cầu lấy hàng") : tr("Rút yêu cầu lấy hàng")}
+          endpoint={`POST /distribution/pickup-requests/:id/${resolve.target.action}`}
+          schema={z.object({ note: z.string().max(1000).optional() })}
+          defaultValues={{ note: "" }}
+          version={resolve.target.r.version}
+          tone="danger"
+          submitLabel={resolve.target.action === "decline" ? tr("Từ chối") : tr("Rút yêu cầu")}
+          invalidate={[["dist-pickups"]]}
+          run={(v, cmd) => distApi.resolvePickup(resolve.target!.r.id, resolve.target!.action, { version: resolve.target!.r.version, note: v.note || undefined }, cmd)}
+        >
+          {(f) => <TextAreaField control={f.control} name="note" label={tr("Lý do")} max={1000} />}
+        </CommandDialog>
+      )}
+    </section>
   );
 }
 type CreateValues = z.infer<typeof createSchema>;
@@ -232,7 +376,7 @@ function PartySite({ control, party, name, label, sites }: { control: Control<Cr
 }
 function PartyVehicle({ control, vehicles }: { control: Control<CreateValues>; vehicles: { id: string; organizationId: string; registration: string; kind: string }[] }) {
   const org = useWatch({ control, name: "carrierId" });
-  return <SelectField control={control} name="vehicleId" label={tr("Phương tiện (tùy chọn)")} options={vehicles.filter((v) => v.organizationId === org).map((v) => ({ value: v.id, label: `${v.registration} · ${v.kind}` }))} />;
+  return <SelectField control={control} name="vehicleId" label={tr("Phương tiện")} options={vehicles.filter((v) => v.organizationId === org).map((v) => ({ value: v.id, label: `${v.registration} · ${v.kind}` }))} />;
 }
 function LinesField({ control, lots }: { control: Control<CreateValues>; lots: { lotId: string; lotCode: string; productName: string; available: string; unit: string; siteHoldings: { siteId: string; available: string }[] }[] }) {
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
@@ -287,8 +431,18 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
             <div className="flex flex-col gap-5 px-4 pb-6">
               <div className="flex flex-wrap gap-1.5">
                 <Badge tone={TRANSFER_TONE[t.status]}>{TRANSFER_STATUS_LABEL[t.status]}</Badge>
-                <Badge tone="neutral" dot={false}>{t.senderId === me ? ROLE_LABEL.SENDER : t.carrierId === me ? ROLE_LABEL.CARRIER : ROLE_LABEL.RECEIVER}</Badge>
+                <Badge tone="neutral" dot={false}>{t.senderId === me ? ROLE_LABEL.SENDER : t.receiverId === me ? ROLE_LABEL.RECEIVER : ROLE_LABEL.CARRIER}</Badge>
               </div>
+              {t.chainAccess && t.senderId !== me && t.chainAccess.membership !== "ACTIVE" && (
+                <Callout tone="info" title={tr("Cần vào chuỗi {p0}", { p0: t.chainAccess.chainName ?? "" })}>
+                  {tr("Lô thuộc chuỗi này. Chủ quản doanh nghiệp bấm 'Chấp nhận vào chuỗi' để tham gia rồi mới ký được.")}
+                </Callout>
+              )}
+              {t.chainAccess && t.senderId !== me && t.chainAccess.membership === "ACTIVE" && t.chainAccess.roleGrants === 0 && t.status === "PROPOSED" && (
+                <Callout tone="warn" title={tr("Chờ chủ chuỗi cấp quyền ký")}>
+                  {tr("Doanh nghiệp bạn đã vào chuỗi nhưng chưa có vai trò ký. Chủ chuỗi cấp vai trò ở trang thành viên chuỗi.")}
+                </Callout>
+              )}
               {t.allowedActions.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {t.allowedActions.map((a) => (
@@ -299,8 +453,10 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
               <dl className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
                 <dt className="text-ink-2">{ROLE_LABEL.SENDER}</dt>
                 <dd>{t.senderName}</dd>
+                <dt className="text-ink-2">{tr("Cách vận chuyển")}</dt>
+                <dd>{TRANSPORT_MODE_LABEL[t.transportMode ?? "PLATFORM_CARRIER"]}</dd>
                 <dt className="text-ink-2">{ROLE_LABEL.CARRIER}</dt>
-                <dd>{t.carrierName}</dd>
+                <dd>{transportSummary(t)}{t.transportDetails?.driverName ? ` · ${t.transportDetails.driverName}` : ""}{t.transportDetails?.driverPhone ? ` · ${t.transportDetails.driverPhone}` : ""}</dd>
                 <dt className="text-ink-2">{ROLE_LABEL.RECEIVER}</dt>
                 <dd>{t.receiverName}</dd>
                 <dt className="text-ink-2">{tr("Dự kiến lấy / giao")}</dt>
@@ -375,6 +531,11 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
 
             {(act.target==="CONSENT"||act.target==="PICKUP"||act.target==="DELIVERY")&&<DistributionSignature transfer={t} phase={act.target} props={act.props}/>}
             {act.target === "ACTUAL_RECEIPT" && <ReceiptDialog t={t} props={act.props} invalidate={invalidate} />}
+            {act.target === "JOIN_CHAIN" && (
+              <CommandDialog {...act.props} title={tr("Chấp nhận vào chuỗi {p0}", { p0: t.chainAccess?.chainName ?? "" })} endpoint="POST /distribution/transfers/:id/join-chain" description={t.chainAccess?.ownerIsSender ? tr("Lô thuộc chuỗi của bên giao. Doanh nghiệp bạn trở thành thành viên và tài khoản của bạn được cấp vai trò ký theo năng lực; quyền ký dùng được sau khi đồng bộ sổ cái.") : tr("Doanh nghiệp bạn trở thành thành viên chuỗi của lô. Chủ chuỗi cần cấp vai trò ký cho tài khoản của bạn trước khi ký đồng thuận.")} schema={z.object({})} defaultValues={{}} version={t.version} submitLabel={tr("Chấp nhận")} invalidate={invalidate} run={(_, cmd) => distApi.joinChain(t.id, { version: t.version }, cmd)}>
+                {() => null}
+              </CommandDialog>
+            )}
             {act.target === "CANCEL" && (
               <CommandDialog {...act.props} title={tr("Hủy chặng giao nhận")} endpoint="POST /distribution/transfers/:id/cancel" description={tr("Chỉ bên giao hủy được trước khi lấy hàng; lượng giữ chỗ được trả lại cơ sở giao.")} schema={z.object({})} defaultValues={{}} version={t.version} tone="danger" submitLabel={tr("Hủy chặng")} invalidate={invalidate} run={(_, cmd) => distApi.cancel(t.id, { version: t.version }, cmd)}>
                 {() => null}
@@ -391,7 +552,7 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
                   <>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <TextField control={f.control} name="eventTime" label={tr("Thời điểm")} type="datetime-local" />
-                      <TextField control={f.control} name="temperature" label={tr("Nhiệt độ (°C, tùy chọn)")} />
+                      <TextField control={f.control} name="temperature" label={tr("Nhiệt độ (°C)")} />
                     </div>
                     <TextAreaField control={f.control} name="note" label={tr("Nội dung")} max={1000} />
                   </>

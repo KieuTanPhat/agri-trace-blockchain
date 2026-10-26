@@ -36,6 +36,8 @@ import {
   LinkProductionCycleDraftDto,
   ProductionCycleDraftListDto,
   ProductionCycleDraftRecordDto,
+  SetCycleStaffDto,
+  CycleStaffRecordDto,
 } from './dto.js';
 import { ProductionCyclesService } from './production-cycles.service.js';
 
@@ -212,6 +214,19 @@ export class ProductionCyclesController {
   ) {
     return this.run('CANCEL_PRODUCTION_CYCLE', key, req, { id, ...dto }, () =>
       this.service.cancel(id, dto, req.user),
+    );
+  }
+  @ApiDataResponse(CycleStaffRecordDto, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @Post(':id/staff')
+  setStaff(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetCycleStaffDto,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.run('EW_SET_CYCLE_STAFF', key, req, { id, ...dto }, () =>
+      this.service.setStaff(id, dto, req.user),
     );
   }
 }

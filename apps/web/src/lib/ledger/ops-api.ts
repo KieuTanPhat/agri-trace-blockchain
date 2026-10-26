@@ -11,6 +11,7 @@ export const opsApi={
  createCycle:(v:S["CreateProductionCycleDto"],c:LedgerCommandContext)=>post(root,v,c),
  createDraft:(v:S["CreateProductionCycleDraftDto"],c:LedgerCommandContext)=>post(root+"/drafts",v,c),
  linkDraft:(id:string,v:S["LinkProductionCycleDraftDto"],c:LedgerCommandContext)=>post(root+"/drafts/"+encodeURIComponent(id)+"/link",v,c),
+ setStaff:(id:string,v:S["SetCycleStaffDto"],c:LedgerCommandContext)=>post(root+"/"+encodeURIComponent(id)+"/staff",v,c),
  plant:(id:string,v:S["PlantCycleDto"],c:LedgerCommandContext)=>post(path(id)+"/plant",v,c),
  care:(id:string,v:S["CareRecordDto"],c:LedgerCommandContext)=>post(path(id)+"/care",v,c),
  harvest:(id:string,v:S["RecordHarvestDto"],c:LedgerCommandContext)=>post<S["HarvestResultDto"]>(path(id)+"/harvests",v,c),

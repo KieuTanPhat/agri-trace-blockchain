@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLedgerQuery as useQuery, useLedgerQueryClient as useQueryClient } from "@/lib/ledger/data";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ledger/ui/input";
@@ -24,9 +24,13 @@ import { Textarea } from "@/components/ledger/ui/textarea";
 import { CommandDialog, CommandForm, useDialog } from "@/components/ledger/kit/command-dialog";
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { ChoiceField, SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
+import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
+import { PhotoPicker } from "@/components/ledger/workspace/photo-picker";
+import { newLedgerCommandKey } from "@/lib/ledger/command-context";
+import { Controller, type Control } from "react-hook-form";
 import { RevisionHistory } from "@/components/ledger/workspace/revision-history";
 
 function currentVersion(version:number|undefined){if(version===undefined)throw new Error("Thiếu phiên bản hiện hành");return version;}
@@ -54,10 +58,13 @@ const fields = {
   carrier: opt(255),
   description: opt(2000),
 };
-const createSchema = z.object(fields);
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+const baseSchema = z.object(fields);
+// A new product starts with at least one photo; completion needs that current photo.
+const createSchema = baseSchema.extend({ photos: z.array(z.instanceof(File)).min(1, { error: () => tr("Chọn ít nhất một ảnh sản phẩm") }).max(10, { error: () => tr("Tối đa 10 ảnh mỗi lần") }).refine((files) => files.every((f) => /^image\/(png|jpeg)$/.test(f.type) && f.size > 0 && f.size <= PHOTO_MAX_BYTES), { error: () => tr("Ảnh PNG hoặc JPEG, tối đa 5 MB") }) });
 const reviseSchema = z.object({ ...fields, sku: req(1, 100), status: z.enum(["ACTIVE", "INACTIVE"]), reason: z.string().trim().min(10, { error: () => tr("Tối thiểu 10 ký tự") }).max(1000) });
 const emptySchema = z.object({});
-type Values = z.infer<typeof createSchema>;
+type Values = z.infer<typeof baseSchema>;
 const blank = <V,>(v: V) => (v === "" || v === undefined || v === null ? undefined : v);
 function toInput(v: Values): ProductInput {
   return {
@@ -116,6 +123,9 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
   const sites = useQuery({ queryKey: ["ws-sites"], queryFn: wapi.sites, enabled: can("sites.read") });
   const members = useQuery({ queryKey: ["ws-members"], queryFn: wapi.members, enabled: can("members.read") });
   const add = useDialog();
+  // Set by onDone, which runs before the dialog closes, so closing does not
+  // send the owner back to the list after a successful create.
+  const created = useRef(false);
   if (!can("catalog.read")) return <ErrorState error={new Error(tr("Bạn chưa có quyền catalog.read"))} />;
   const farms = catalog.data?.farms ?? [];
   const readyFarms = farms.filter((f) => f.status === "ACTIVE" && f.evidenceComplete);
@@ -135,7 +145,7 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
     <>
       <PageHeader
         title={tr("Sản phẩm")}
-        description={tr("Danh mục sản phẩm gắn với vùng xuất xứ đã hoàn tất hồ sơ. Sản phẩm mới ở trạng thái ngừng; cần ít nhất ba ảnh sản phẩm rồi hoàn tất để bán (tính vào hạn mức sản phẩm của gói).")}
+        description={tr("Danh mục sản phẩm gắn với vùng xuất xứ đã hoàn tất hồ sơ. Sản phẩm mới ở trạng thái ngừng; cần ít nhất một ảnh sản phẩm rồi hoàn tất để bán (tính vào hạn mức sản phẩm của gói).")}
         actions={
           can("catalog.manage") && (
             <>
@@ -155,19 +165,49 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
       <CommandDialog
         {...add.props}
         open={can("catalog.manage") && (view === "new" || add.props.open)}
-        onOpenChange={o=>{add.props.onOpenChange(o);if(!o && view==="new")router.push("/enterprise/products");}}
-        onDone={()=>router.push("/enterprise/products")}
+        onOpenChange={o=>{add.props.onOpenChange(o);if(!o && view==="new" && !created.current)router.push("/enterprise/products");}}
         title={tr("Thêm sản phẩm")}
         endpoint="POST /catalog/products"
-        description={tr("SKU tự sinh nếu bỏ trống. Sản phẩm mới ở trạng thái ngừng cho tới khi đủ ba ảnh và được hoàn tất.")}
+        description={tr("Chọn ít nhất một ảnh sản phẩm. SKU do hệ thống tự sinh. Sản phẩm mới ở trạng thái ngừng cho tới khi một ảnh và được hoàn tất.")}
         schema={createSchema}
-        defaultValues={{ ...emptyValues(), originFarmId: readyFarms[0]?.id ?? "" }}
+        defaultValues={{ ...emptyValues(), originFarmId: readyFarms[0]?.id ?? "", photos: [] }}
         submitLabel={tr("Thêm")}
         invalidate={[["ws-catalog"]]}
         wide
-        run={(v, cmd) => wapi.createProduct(toInput(v), cmd)}
+        success={(r) => {
+          const { uploaded, failed } = r as { uploaded?: number; failed?: number };
+          return failed ? tr("Đã thêm sản phẩm; {p0} ảnh chưa tải lên được, hãy tải lại ở trang sản phẩm", { p0: failed }) : uploaded ? tr("Đã thêm sản phẩm kèm {p0} ảnh", { p0: uploaded }) : tr("Đã thêm sản phẩm");
+        }}
+        onDone={(r) => {
+          const id = (r as { id?: string } | undefined)?.id;
+          created.current = true;
+          router.push(id ? `/enterprise/products/${id}` : "/enterprise/products");
+        }}
+        run={async (v, cmd) => {
+          const product = (await wapi.createProduct(toInput(v), cmd)) as { id: string };
+          // Photos are separate evidence commands; a failed upload leaves the
+          // product in place for the owner to retry from its detail page.
+          let failed = 0;
+          const uploaded: string[] = [];
+          for (const [i, file] of v.photos.entries())
+            try {
+              const photo = await wapi.uploadEvidence({ file, entityType: "PRODUCT", entityId: product.id, kind: "PRODUCT_IMAGE", description: tr("Ảnh sản phẩm {p0} ({p1})", { p0: v.productName, p1: i + 1 }) }, { idempotencyKey: newLedgerCommandKey() });
+              uploaded.push(String(photo.record.id));
+            } catch {
+              failed++;
+            }
+          // Keep the picker's order: its first photo is the main one.
+          if (uploaded.length > 1)
+            await wapi.orderProductPhotos(product.id, { order: uploaded }, { idempotencyKey: newLedgerCommandKey() }).catch(() => undefined);
+          return { id: product.id, uploaded: v.photos.length - failed, failed };
+        }}
       >
-        {(f) => <ProductFields f={f as never} options={options} />}
+        {(f) => (
+          <>
+            <ProductPhotosField control={f.control} />
+            <ProductFields f={f as never} options={options} creating />
+          </>
+        )}
       </CommandDialog>
       <ImportDialog open={importing && can("catalog.manage")} onOpenChange={o=>{setImporting(o);if(!o && view==="import")router.push("/enterprise/products");}} farms={readyFarms} />
     </>
@@ -175,27 +215,39 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
 }
 const emptyValues = (): Values => ({ productName: "", sku: "", gtin: "", category: "", variety: "", defaultUnit: "kg", originFarmId: "", price: "", storageConditions: "", ingredients: "", usageInstructions: "", rawMaterials: "", manufacturingSiteId: "", managerUserId: "", exporter: "", importer: "", distributor: "", carrier: "", description: "" });
 
-function ProductFields({ f, options }: { f: { control: never }; options: { farms: Farm[]; sites: Site[]; members: Member[] } }) {
+function ProductPhotosField({ control }: { control: Control<z.infer<typeof createSchema>> }) {
+  return (
+    <Controller
+      control={control}
+      name="photos"
+      render={({ field, fieldState }) => (
+        <PhotoPicker required label={tr("Ảnh sản phẩm")} files={field.value} onChange={field.onChange} error={fieldState.error?.message} hint={tr("Ít nhất 1 ảnh, PNG hoặc JPEG tối đa 5 MB. Ảnh đầu tiên là ảnh chính; cần ít nhất 1 ảnh để hoàn tất.")} />
+      )}
+    />
+  );
+}
+
+function ProductFields({ f, options, creating }: { f: { control: never }; options: { farms: Farm[]; sites: Site[]; members: Member[] }; creating?: boolean }) {
   const c = f.control;
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
         <TextField control={c} name="productName" label={tr("Tên sản phẩm")} max={255} />
-        <TextField control={c} name="sku" label={tr("SKU")} max={100} />
-        <TextField control={c} name="category" label={tr("Nhóm sản phẩm")} />
-        <TextField control={c} name="variety" label={tr("Giống/chủng loại (tùy chọn)")} />
-        <TextField control={c} name="gtin" label={tr("GTIN (tùy chọn)")} inputMode="numeric" />
-        <TextField control={c} name="defaultUnit" label={tr("Đơn vị tính")} />
+        {!creating && <TextField control={c} name="sku" label={tr("SKU")} max={100} />}
+        <ReferenceSelectField control={c} name="category" label={tr("Nhóm sản phẩm")} category="PRODUCT_CATEGORY" />
+        <TextField control={c} name="variety" label={tr("Giống/chủng loại")} />
+        <TextField control={c} name="gtin" label={tr("GTIN")} inputMode="numeric" />
+        <ReferenceSelectField control={c} name="defaultUnit" label={tr("Đơn vị tính")} category="UNIT" />
         <SelectField control={c} name="originFarmId" label={tr("Vùng xuất xứ")} options={options.farms.map((x) => ({ value: x.id, label: x.name }))} />
-        <TextField control={c} name="price" label={tr("Giá (VND, tùy chọn)")} type="number" />
-        <SelectField control={c} name="manufacturingSiteId" label={tr("Nhà xưởng sản xuất (tùy chọn)")} options={options.sites.map((s) => ({ value: s.id, label: s.name }))} />
-        <SelectField control={c} name="managerUserId" label={tr("Người quản lý sản phẩm (tùy chọn)")} options={options.members.map((m) => ({ value: m.id, label: m.fullName }))} />
+        <TextField control={c} name="price" label={tr("Giá (VND)")} type="number" />
+        <SelectField control={c} name="manufacturingSiteId" label={tr("Nhà xưởng sản xuất")} options={options.sites.map((s) => ({ value: s.id, label: s.name }))} />
+        <SelectField control={c} name="managerUserId" label={tr("Người quản lý sản phẩm")} options={options.members.map((m) => ({ value: m.id, label: m.fullName }))} />
       </div>
       <TextAreaField control={c} name="storageConditions" label={tr("Điều kiện bảo quản")} max={2000} />
       <TextAreaField control={c} name="ingredients" label={tr("Thành phần")} max={2000} />
       <TextAreaField control={c} name="usageInstructions" label={tr("Hướng dẫn sử dụng")} max={2000} />
       <details className="rounded-md border border-line px-3 py-2">
-        <summary className="cursor-pointer text-[13px] font-medium">{tr("Thông tin chuỗi phân phối (tùy chọn)")}</summary>
+        <summary className="cursor-pointer text-[13px] font-medium">{tr("Thông tin chuỗi phân phối")}</summary>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <TextField control={c} name="distributor" label={tr("Nhà phân phối")} />
           <TextField control={c} name="carrier" label={tr("Đơn vị vận chuyển")} />
@@ -204,7 +256,7 @@ function ProductFields({ f, options }: { f: { control: never }; options: { farms
         </div>
         <TextAreaField control={c} name="rawMaterials" label={tr("Nguyên liệu")} max={2000} className="mt-3" />
       </details>
-      <TextAreaField control={c} name="description" label={tr("Mô tả (tùy chọn)")} max={2000} />
+      <TextAreaField control={c} name="description" label={tr("Mô tả")} max={2000} />
     </>
   );
 }
@@ -262,7 +314,7 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
                     </div>
                   ))}
               </dl>
-              <EvidencePanel entityType="PRODUCT" entityId={p.id} canManage={canEvidence} required={[{ kind: "PRODUCT_IMAGE", min: 3 }]} title={tr("Ảnh sản phẩm")} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
+              <EvidencePanel entityType="PRODUCT" entityId={p.id} canManage={canEvidence} required={[{ kind: "PRODUCT_IMAGE", min: 1 }]} title={tr("Ảnh sản phẩm")} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
               <section className="flex flex-col gap-2"><h3 className="text-[13px] font-semibold">{tr("Lô liên quan")}</h3>{lots.error ? <ErrorState error={lots.error} onRetry={()=>lots.refetch()}/> : <p className="text-sm text-ink-2">{lots.data?.filter(l=>l.productName===p.productName).length ?? "…"} {tr("lô")}</p>}</section>
               <section className="flex flex-col gap-2">
                 <h3 className="text-[13px] font-semibold">{tr("Lịch sử phiên bản")}</h3>
@@ -295,7 +347,7 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
               </CommandDialog>
             )}
             {complete.target && (
-              <CommandDialog {...complete.props} title={tr("Hoàn tất hồ sơ ảnh · {p0}", { p0: p.productName })} endpoint={`POST /catalog/products/${p.id}/complete`} description={tr("Cần ít nhất ba ảnh sản phẩm hiện hành. Hoàn tất đưa sản phẩm vào bán và tính vào hạn mức sản phẩm của gói dịch vụ.")} schema={emptySchema} defaultValues={{}} version={p.version} submitLabel={tr("Hoàn tất")} invalidate={[["ws-catalog"], ["ws-overview"]]} run={(_, cmd) => wapi.completeProduct(p.id, { version: currentVersion(p.version) }, cmd)}>
+              <CommandDialog {...complete.props} title={tr("Hoàn tất hồ sơ ảnh · {p0}", { p0: p.productName })} endpoint={`POST /catalog/products/${p.id}/complete`} description={tr("Cần ít nhất một ảnh sản phẩm hiện hành. Hoàn tất đưa sản phẩm vào bán và tính vào hạn mức sản phẩm của gói dịch vụ.")} schema={emptySchema} defaultValues={{}} version={p.version} submitLabel={tr("Hoàn tất")} invalidate={[["ws-catalog"], ["ws-overview"]]} run={(_, cmd) => wapi.completeProduct(p.id, { version: currentVersion(p.version) }, cmd)}>
                 {() => null}
               </CommandDialog>
             )}

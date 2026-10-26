@@ -602,19 +602,6 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                             disabled
                             onChange={() => {}}
                           />
-                          <RegistrationCheck
-                            name="qr-labels"
-                            label={t("Tem QR theo lô")}
-                            checked={draft.interests.includes("QR_LABELS")}
-                            onChange={(checked) =>
-                              update(
-                                "interests",
-                                checked
-                                  ? ["TRACEABILITY", "QR_LABELS"]
-                                  : ["TRACEABILITY"],
-                              )
-                            }
-                          />
                         </div>
                         <RegistrationSelect
                           name="hostingMode"

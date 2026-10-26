@@ -29,6 +29,8 @@ export interface CommandActor {
     chainIds: string[];
     farmIds: string[];
     distributionChainIds?: string[];
+    /** Tier-3 employee: production cycles limited to those assigned. */
+    cycleStaffOnly?: boolean;
     roleScopes: Array<{
       chainIds: string[];
       siteIds: string[];
@@ -258,16 +260,13 @@ export async function authorizeCommand(
     case 'CREATE_ORGANIZATIONS':
     case 'GRANT_COMPLIANCE_ASSIGNMENT':
     case 'REVOKE_COMPLIANCE_ASSIGNMENT':
-    // Platform governance: account/organization controls and maker-checker.
+    // Platform governance: account and organization controls.
     // Platform administration never creates business-actor authority.
     case 'PLATFORM_USER_STATUS':
     case 'PLATFORM_USER_UNLOCK':
     case 'PLATFORM_USER_REVOKE_SESSIONS':
     case 'PLATFORM_USER_RESET_PASSWORD':
     case 'PLATFORM_ORG_UPDATE':
-    case 'PLATFORM_APPROVAL_PROPOSE':
-    case 'PLATFORM_APPROVAL_DECIDE':
-    case 'PLATFORM_APPROVAL_CANCEL':
     // Billing, organization/QR controls and platform configuration.
     case 'PLATFORM_BILLING_PLAN_DRAFT':
     case 'PLATFORM_BILLING_PLAN_PUBLISH':
@@ -278,6 +277,9 @@ export async function authorizeCommand(
     case 'PLATFORM_QR_UNBLOCK':
     case 'PLATFORM_NOTICE_PUBLISH':
     case 'PLATFORM_NOTICE_WITHDRAW':
+    case 'PLATFORM_NEWS_CREATE':
+    case 'PLATFORM_NEWS_UPDATE':
+    case 'PLATFORM_NEWS_STATUS':
     case 'PLATFORM_SETTING_CHANGE':
     case 'PLATFORM_REFERENCE_UPSERT':
       requireRole(actor, ['SYSTEM_ADMIN']);

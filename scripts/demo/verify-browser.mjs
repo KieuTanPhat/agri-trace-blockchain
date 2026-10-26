@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { readFile, writeFile } from "node:fs/promises";
-const local = new URL("../../.codex/seed-current/", import.meta.url);
+const local = new URL("../../.codex/fruit-dataset/run/", import.meta.url);
 const accounts = JSON.parse(
   await readFile(new URL("accounts.json", local), "utf8"),
 );
 const dataset = JSON.parse(
   await readFile(new URL("dataset.json", local), "utf8"),
 );
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? {channel:process.env.PLAYWRIGHT_CHANNEL} : {}) });
 const results = [],
   errors = [];
 try {

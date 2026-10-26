@@ -21,7 +21,7 @@ export const SETTING_RULES: Record<string, { valid: (v: unknown) => boolean; hin
     valid: (v) =>
       !!v && typeof v === 'object' && !Array.isArray(v) &&
       RESOURCES.every((r) => int(0, 100_000_000)((v as Record<string, unknown>)[r])),
-    hint: 'đối tượng {products, chains, members, qrLabels} số nguyên ≥ 0',
+    hint: 'đối tượng {products, chains, members} số nguyên ≥ 0',
   },
   'processing.massBalanceTolerancePercent': {
     valid: (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 10,

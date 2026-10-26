@@ -127,6 +127,35 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run check --workspace apps/web
 
+  mobile:
+    name: Mobile / Expo 58
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with: {node-version-file: .node-version}
+      - run: npm install --global npm@12.1.0
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix apps/mobile --workspaces=false --no-audit --no-fund
+      - run: node --import tsx --test apps/mobile/test/command-queue.test.ts apps/web/scripts/mobile-routing.test.mjs
+      - run: npm run check --prefix apps/mobile --workspaces=false
+      - run: node_modules/.bin/oxlint --max-warnings 0 apps/mobile/src/
+      - name: Audit mobile tooling and application dependencies
+        working-directory: apps/mobile
+        run: node ../../scripts/ci/mobile-audit.mjs
+      - name: Export consumer web application
+        if: ${{ !cancelled() }}
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_BASE_URL: /api
+          EXPO_PUBLIC_TRACE_ORIGIN: https://agritrace.dev
+          EXPO_PUBLIC_APP_VARIANT: consumer
+        run: node node_modules/expo/bin/cli export --platform web
+
   container-build:
     name: Production containers
     needs: changes
@@ -212,7 +241,7 @@ jobs:
 
   gate:
     name: Application gate
-    needs: [changes, api, web, container-build, rehearsal]
+    needs: [changes, api, web, mobile, container-build, rehearsal]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

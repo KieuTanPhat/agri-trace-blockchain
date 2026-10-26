@@ -141,13 +141,8 @@ function Overview() {
                   </span>
                 }
               >
-                <dl className="grid grid-cols-2 divide-line/70 sm:grid-cols-4 lg:grid-cols-7 lg:divide-x">
+                <dl className="grid grid-cols-2 divide-line/70 sm:grid-cols-3 lg:grid-cols-6 lg:divide-x">
                   {[
-                    {
-                      label: tr("Đề xuất chờ duyệt"),
-                      value: s.pendingApprovals,
-                      href: "/admin/approvals",
-                    },
                     {
                       label: tr("Sự cố đang mở"),
                       value: s.openCases,

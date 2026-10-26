@@ -5,7 +5,6 @@ import { AuthModule } from '../auth/auth.module.js';
 import { SupplyChainsModule } from '../supply-chains/supply-chains.module.js';
 import { UsersModule } from '../users/users.module.js';
 import {
-  PlatformApprovalsController,
   PlatformAuditController,
   PlatformMfaController,
   PlatformOperationsController,
@@ -23,7 +22,6 @@ import {
   PrivacyRequestsController,
 } from './platform-privacy.js';
 import { PlatformOperationsService } from './platform-operations.service.js';
-import { PlatformApprovalsService } from './platform-approvals.service.js';
 import { PlatformAuditService } from './platform-audit.service.js';
 
 @Module({
@@ -37,7 +35,6 @@ import { PlatformAuditService } from './platform-audit.service.js';
   controllers: [
     PlatformAuditController,
     PlatformMfaController,
-    PlatformApprovalsController,
     PlatformOperationsController,
     PlatformCasesController,
     EnterpriseCasesController,
@@ -47,7 +44,6 @@ import { PlatformAuditService } from './platform-audit.service.js';
   ],
   providers: [
     PlatformAuditService,
-    PlatformApprovalsService,
     PlatformOperationsService,
     PlatformCasesService,
     PlatformRecallService,

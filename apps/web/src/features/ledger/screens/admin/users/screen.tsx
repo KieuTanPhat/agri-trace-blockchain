@@ -127,7 +127,7 @@ export function PlatformUsers({
       ),
     [q.data, role, status, search, accountId],
   );
-  const invalidate = [["users"], ["approvals"], ["inbox"]];
+  const invalidate = [["users"], ["inbox"]];
 
   const columns: Column<PlatformUser>[] = [
     {
@@ -339,19 +339,6 @@ export function PlatformUsers({
         }}
         submitLabel={tr("Tạo tài khoản")}
         invalidate={invalidate}
-        proposal={{
-          operation: "SYSTEM_ADMIN_CREATE",
-          params: (v) => ({
-            email: v.email,
-            fullName: v.fullName,
-            roleCode: v.roleCode,
-          }),
-          reason: (v) =>
-            tr("Tạo tài khoản {p0} cho {p1}", {
-              p0: v.roleCode,
-              p1: v.fullName,
-            }),
-        }}
         run={(v, cmd) =>
           api.users.create(
             {
@@ -500,18 +487,6 @@ export function PlatformUsers({
           tone="danger"
           submitLabel={tr("Đặt mật khẩu tạm")}
           invalidate={invalidate}
-          proposal={
-            ADMIN_LIKE.includes(a.user.role.code)
-              ? {
-                  operation: "ADMIN_PASSWORD_RESET",
-                  params: (v) => ({
-                    userId: a.user.id,
-                    temporaryPassword: v.temporaryPassword,
-                  }),
-                  reason: (v) => v.reason,
-                }
-              : undefined
-          }
           run={(v, cmd) =>
             api.users.resetPassword(
               a.user.id,

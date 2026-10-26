@@ -51,11 +51,6 @@ import {
   appendPlatformAudit,
   lockPlatformAudit,
 } from '../platform-governance/platform-audit.js';
-import {
-  APPROVAL_REQUIRED_MESSAGE,
-  approvalsMode,
-} from '../platform-governance/platform-config.js';
-
 const INCLUDE = {
   organization: {
     include: {
@@ -854,10 +849,6 @@ export class EnterpriseOnboardingService {
     input: ReviewEnterpriseDto,
   ) {
     return commandTransaction(this.prisma, (tx) => {
-      // Granting business authority needs a second administrator once the
-      // two-person policy is enforced. Rejecting stays a single-admin action.
-      if (input.decision === 'APPROVE' && approvalsMode() === 'ENFORCED')
-        throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
       return reviewCapabilityTx(tx, actor, requestId, input);
     });
   }
@@ -867,10 +858,6 @@ export class EnterpriseOnboardingService {
     input: ReviewEnterpriseDto,
   ) {
     return commandTransaction(this.prisma, (tx) => {
-      // Accepting a peer connection needs a second administrator once the
-      // two-person policy is enforced. Rejecting stays a single-admin action.
-      if (input.decision === 'APPROVE' && approvalsMode() === 'ENFORCED')
-        throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
       return reviewConnectionTx(tx, actor, id, input);
     });
   }

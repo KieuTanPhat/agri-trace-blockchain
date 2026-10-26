@@ -75,7 +75,6 @@ export const payingDraft = (model: string, activities: string[]) =>
   model === "SUPPLY_CHAIN_ENTERPRISE" || activities.includes("FARM");
 export const INTEREST_OPTIONS = [
   ["TRACEABILITY", "Truy xuất nguồn gốc"],
-  ["QR_LABELS", "Tem QR theo lô"],
 ] as const;
 export const CERTIFICATION_OPTIONS = [
   ["VIETGAP", "VietGAP"],
@@ -313,11 +312,12 @@ export function validateRegistrationStep(
     if (
       !d.interests.includes("TRACEABILITY") ||
       d.interests.some(
+        // QR_LABELS stays accepted for drafts saved before label printing was retired.
         (value) => !["TRACEABILITY", "QR_LABELS"].includes(value),
       )
     )
       errors.interests =
-        "Dịch vụ Truy xuất nguồn gốc là bắt buộc; có thể chọn thêm Tem QR theo lô.";
+        "Dịch vụ Truy xuất nguồn gốc là bắt buộc.";
     if (
       d.expectedLotsPerMonth &&
       (!/^\d+$/.test(d.expectedLotsPerMonth) ||

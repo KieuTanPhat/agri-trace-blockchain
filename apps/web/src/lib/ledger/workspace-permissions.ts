@@ -6,7 +6,7 @@ export const PERMISSION_LABEL: Record<string, string> = localized({
   "partners.read": "Xem đối tác", "partners.manage": "Quản lý đối tác", "catalog.read": "Xem danh mục", "catalog.manage": "Quản lý danh mục", "sites.read": "Xem cơ sở", "sites.manage": "Quản lý cơ sở",
   "vehicles.read": "Xem phương tiện", "vehicles.manage": "Quản lý phương tiện", "materials.read": "Xem vật tư", "materials.manage": "Quản lý vật tư",
   "production.read": "Xem sản xuất", "production.write": "Ghi sản xuất", "processing.read": "Xem chế biến", "processing.write": "Ghi chế biến", "inventory.manage": "Phân bổ tồn kho", "quarantine.manage": "Cách ly hàng",
-  "distribution.read": "Xem giao nhận", "distribution.write": "Tạo giao nhận", "distribution.sign": "Ký giao nhận", "trace.read": "Xem truy xuất", "qr.manage": "Quản lý tem QR", "reports.read": "Xem báo cáo", "quantity.adjust": "Ghi nhận số lượng",
+  "distribution.read": "Xem giao nhận", "distribution.write": "Tạo giao nhận", "distribution.sign": "Ký giao nhận", "trace.read": "Xem truy xuất", "qr.manage": "Xem kho QR", "reports.read": "Xem báo cáo", "quantity.adjust": "Ghi nhận số lượng",
   "evidence.read": "Xem chứng cứ", "evidence.manage": "Quản lý chứng cứ", "cases.read": "Xem sự cố", "cases.respond": "Phản hồi sự cố",
 });
 export const PERMISSION_GROUPS = [

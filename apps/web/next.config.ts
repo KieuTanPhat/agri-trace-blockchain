@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: monorepoRoot,
   // npm run build enforces both ESLint and Oxlint before invoking Next 16.
   turbopack: { root: monorepoRoot },
+  async rewrites(){
+    return {beforeFiles:[
+      {source:'/consumer/:path*',destination:'/mobile/index.html'},
+      {source:'/staff/:path*',destination:'/mobile/index.html'},
+      {source:'/_expo/:path*',destination:'/mobile/_expo/:path*'},
+      {source:'/assets/:path*',destination:'/mobile/assets/:path*'},
+    ],afterFiles:[],fallback:[]};
+  },
 };
 
 export default nextConfig;

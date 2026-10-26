@@ -12,6 +12,7 @@ actions được cố định bằng SHA và cập nhật qua Dependabot.
 | Check bắt buộc | Kiểm tra |
 | --- | --- |
 | `Application gate` | API/Web trên Node 24.22.1; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |
+| Mobile trong `Application gate` | Expo 58 dùng lockfile riêng; kiểm queue theo tài khoản/đối soát lệnh, typecheck, lint, audit mọi dependency gồm CLI và web export. Thay đổi mobile chọn cả Web/container/Fabric; job lỗi hoặc skip chặn phát hành. |
 | `Blockchain gate` | Gateway/chaincode trên Node 24.22.1; coverage chaincode; cài/audit/check chaincode độc lập; job `hybrid-fabric` (mạng 3 Org thật: API → outbox → Worker → binding → proof B/C và trình duyệt). |
 | `Dependency gate` | Audit hai lockfile và dependency đã cài; kiểm peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. |
 

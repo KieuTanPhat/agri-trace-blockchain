@@ -162,7 +162,7 @@ async function submit(event: FormEvent) {
           unit: unit.trim(),
           lotCode: lotCode.trim() || undefined,
           lotName: lotName.trim(),
-          representativeUserId: cycles.find((cycle) => cycle.id === cycleId)?.responsibleUserId ?? user?.id ?? "",
+          representativeUserId: representative(cycles.find((cycle) => cycle.id === cycleId), user?.id),
           evidenceRef,
           additionalEvidenceRefs: additionalEvidenceRefs as Parameters<typeof sendHarvest>[3]["additionalEvidenceRefs"],
           lotImageEvidenceRef,
@@ -185,4 +185,11 @@ async function submit(event: FormEvent) {
     }
   }
 return {busy,mounted,recovery,setRecovery,created,setCreated,open,setOpen,cycles,setCycles,cycleId,setCycleId,quantity,setQuantity,unit,setUnit,lotCode,setLotCode,lotName,setLotName,evidenceRef,setEvidenceRef,additionalEvidenceRefs,setAdditionalEvidenceRefs,lotImageEvidenceRef,setLotImageEvidenceRef,expiryDate,setExpiryDate,pending,setPending,message,setMessage,evidence,currentHarvestImages,currentLotImages,showError,applyRecovery,checkPrevious,startNew,selectCycle,submit};
+}
+
+/** The signed-in employee when assigned to the cycle, else its first assignee. */
+function representative(cycle: { staffUserIds?: string[]; responsibleUserId: string | null } | undefined, me?: string) {
+  const staff = cycle?.staffUserIds ?? [];
+  if (me && staff.includes(me)) return me;
+  return staff[0] ?? cycle?.responsibleUserId ?? me ?? "";
 }

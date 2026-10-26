@@ -7,7 +7,6 @@ const reads: Record<string, string> = {
   "inbox.read": "/admin/inbox",
   "enrollment.read": "/admin/enterprises",
   "directory.read": "/admin/organizations",
-  "approval.read": "/admin/approvals",
   "amendment.read": "/admin/enterprises/amendments",
   "users.read": "/admin/users",
   "audit.read": "/admin/audit-log",
@@ -20,6 +19,7 @@ const reads: Record<string, string> = {
   "reports.read": "/admin/reports",
   "recall.read": "/admin/recall",
   "notices.read": "/admin/notices",
+  "news.read": "/admin/news",
   "operations.read": "/admin/operations",
   "ledger.read": "/admin/ledger",
   "traceReport.read": "/admin/trace-report",
@@ -39,9 +39,7 @@ const reads: Record<string, string> = {
 const administrator = new Set([
   "capability.review",
   "enrollment.review",
-  "approval.propose",
-  "approval.cancel",
-  "approval.decide",
+  "capability.grant",
   "amendment.review",
   "operations.adminSummary",
   "organization.update",
@@ -76,6 +74,7 @@ export function useLedgerSession() {
       if (permission === "reports.triage")
         return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
       if (permission === "notices.write") return role === "SYSTEM_ADMIN";
+      if (permission === "news.write") return role === "SYSTEM_ADMIN";
       if (permission === "reference.write" || permission === "qr.write")
         return role === "SYSTEM_ADMIN";
       if (permission === "tickets.write")

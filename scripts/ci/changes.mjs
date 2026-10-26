@@ -30,7 +30,7 @@ export function classifyChanges(files, force = false) {
     if (file.startsWith('apps/api/') || file.startsWith('blockchain/gateway/')) {
       result.api = result.containers = result.hybrid = true;
     }
-    if (file.startsWith('apps/web/')) result.web = result.containers = result.hybrid = true;
+    if (file.startsWith('apps/web/')||file.startsWith('apps/mobile/')) result.web = result.containers = result.hybrid = true;
     if (file.startsWith('blockchain/')) result.blockchain = result.hybrid = true;
     if (/^docker-compose(?:\.[^/]+)?\.ya?ml$/.test(file)) {
       result.containers = result.hybrid = true;

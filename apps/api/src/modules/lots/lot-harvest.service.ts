@@ -60,8 +60,9 @@ export class LotHarvestService {
           organizationId: actor.organizationId!,
           accountStatus: 'ACTIVE',
         }, select: { id: true, fullName: true } });
-        if (!representative || input.representativeUserId !== (cycle.responsibleUserId ?? actor.sub))
-          throw new UnprocessableEntityException('Người đại diện phải là thành viên được phân công cho vụ hoặc tài khoản đang ghi khi vụ chưa phân công');
+        const assigned = await tx.productionCycleStaff.findMany({ where: { cycleId }, select: { userId: true } });
+        if (!representative || !(assigned.length ? assigned.some((a) => a.userId === input.representativeUserId) : input.representativeUserId === actor.sub))
+          throw new UnprocessableEntityException('Người đại diện phải là nhân viên được giao vụ, hoặc tài khoản đang ghi khi vụ chưa giao ai');
         const harvestEvidenceIds = [input.evidenceRef, ...(input.additionalEvidenceRefs ?? [])];
         if (new Set(harvestEvidenceIds).size !== harvestEvidenceIds.length)
           throw new UnprocessableEntityException('Ảnh thu hoạch bị chọn trùng');

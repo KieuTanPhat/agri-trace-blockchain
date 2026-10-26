@@ -186,9 +186,11 @@ export async function runEnterpriseBrowserScenarios(options) {
       // The page header and the embedded profile section share this title.
       await owner.getByRole('heading', { name: 'Hồ sơ đăng ký', exact: true }).first().waitFor({ timeout });
       await owner.getByText('PENDING_REVIEW', { exact: true }).first().waitFor({ timeout });
-      // Before approval the owner has no connection workspace.
+      // Before approval the owner has no connection workspace; the shell sends
+      // a blocked page to the owner's landing page (plan selection).
       await owner.goto(`${options.origin}/enterprise/connections`, { waitUntil: 'domcontentloaded' });
-      await owner.getByRole('alert').filter({ hasText: /\S/ }).first().waitFor({ timeout });
+      await owner.waitForURL(url => url.pathname === '/enterprise/service', { timeout });
+      await owner.getByText('Chủ hồ sơ đăng ký được chọn dịch vụ sau khi hồ sơ được duyệt.', { exact: true }).waitFor({ timeout });
       assert.equal(await owner.getByRole('heading', { name: 'Kết nối doanh nghiệp', exact: true }).count(), 0);
       await bothLayouts(owner);
       await until(() => authorization, 'owner authentication');
@@ -268,8 +270,12 @@ export async function runEnterpriseBrowserScenarios(options) {
       } else assert.equal(await owner.getByLabel('Peer host', { exact: true }).count(), 0);
       await bothLayouts(owner);
       const connection = await command(owner, '/enterprise-connections', () => owner.getByRole('button', { name: 'Yêu cầu kết nối', exact: true }).click());
-      await owner.getByText('Chưa có chuỗi đủ điều kiện để gửi yêu cầu kết nối mới.', { exact: true }).waitFor({ timeout });
-      assert.equal(await owner.getByRole('button', { name: 'Yêu cầu kết nối', exact: true }).count(), 0);
+      // The requested chain leaves the choice; the owner's personal chain stays eligible.
+      await owner.getByText(chain.name, { exact: true }).first().waitFor({ timeout });
+      await owner.getByRole('combobox', { name: 'Chuỗi', exact: true }).click();
+      await owner.getByRole('option').first().waitFor({ timeout });
+      assert.equal(await owner.getByRole('option', { name: chain.name, exact: true }).count(), 0);
+      await owner.keyboard.press('Escape');
       activePage = admin;
       step('admin-connection-review');
       await admin.goto(`${options.origin}/admin/enterprises/${enrollmentId}/connections/${connection.id}`, { waitUntil: 'domcontentloaded' });

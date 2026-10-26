@@ -129,7 +129,7 @@ function LotDetail({ lot }: { lot: LotSearchItem }) {
   const lineage = useQuery({ queryKey: ["lineage", lot.lotId], queryFn: () => api.trace.lineage(lot.lotId) });
   const block = useDialog();
   const unblock = useDialog();
-  const invalidate = [["lots"], ["qr"], ["approvals"], ["inbox"]];
+  const invalidate = [["lots"], ["qr"], ["inbox"]];
   return (
     <section aria-label={tr("Lô {p0}", { p0: lot.lotCode })} className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-3 rounded-md border border-line bg-card p-5">
@@ -211,7 +211,6 @@ function LotDetail({ lot }: { lot: LotSearchItem }) {
         tone="danger"
         submitLabel={tr("Khóa QR")}
         invalidate={invalidate}
-        proposal={{ operation: "QR_BLOCK", params: (v) => ({ lotId: lot.lotId, publicMessage: v.publicMessage }), reason: (v) => v.reason }}
         run={(v, cmd) => api.trace.block({ lotId: lot.lotId, ...v }, cmd)}
       >
         {(f) => (
@@ -272,16 +271,6 @@ export function QrOverview() {
           )}
         </Section>
       </div>
-      <Section title={tr("In tem theo tổ chức")}>
-        <ul className="divide-y divide-line/70">
-          {d.printsByOrganization.map((p) => (
-            <li key={p.organizationId} className="flex items-center justify-between gap-2 px-4 py-2 text-[13px] sm:px-5">
-              <span className="truncate">{p.organizationName}</span>
-              <span className="font-mono text-[12px] text-ink-2">{fmtNumber(p.copies)} tem · {p.prints} {tr("lần in")}</span>
-            </li>
-          ))}
-        </ul>
-      </Section>
 <CommandDialog {...release.props} title={tr("Mở khóa QR")} endpoint="POST /platform-admin/qr-blocks/:id/unblock" schema={unblockSchema} defaultValues={{reason:""}} version={release.target?.version} submitLabel={tr("Mở khóa")} invalidate={[["qr"],["lots"]]} run={(v,cmd)=>api.trace.unblock(release.target!.id,{...v,version:release.target!.version},cmd)}>{f=><TextAreaField control={f.control} name="reason" label={tr("Lý do mở khóa")}/>}</CommandDialog>
     </div>
   );

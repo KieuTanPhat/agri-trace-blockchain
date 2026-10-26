@@ -9,7 +9,7 @@ export {chainId};
 const keySchema=z.object({keyRef:z.string(),label:z.string(),publicKey:z.string(),chainId:z.string(),organizationId:z.string(),algorithm:z.string(),status:z.enum(["PENDING_LEDGER","ACTIVE","REVOKED"]),createdAt:z.string(),activatedAt:z.string().nullable(),revokedAt:z.string().nullable()});
 export const bindingDigest="c".repeat(64),planId="abababab-abab-4bab-8bab-abababababab";
 const owner=actorSession("org-owner")!.user.id;
-const chain:S["ChainRecordDto"]={id:chainId,ownerOrganizationId:organizationId,name:"Chuỗi Ledger",code:"CHAIN-17",chainType:"CROP",createdAt:"2026-10-22T00:00:00Z",description:"Chuỗi kiểm tra ký",note:null,plannedStartDate:null,supplyModel:null,version:3};
+const chain:S["ChainRecordDto"]={id:chainId,ownerOrganizationId:organizationId,name:"Chuỗi Ledger",code:"CHAIN-17",chainType:"CROP",personal:false,createdAt:"2026-10-22T00:00:00Z",description:"Chuỗi kiểm tra ký",note:null,plannedStartDate:null,supplyModel:null,version:3};
 const membership:S["MemberRecordDto"]={id:memberId,chainId,organizationId,status:"ACTIVE",version:4,invitationRevision:1,createdAt:"2026-10-22T00:00:00Z",updatedAt:"2026-10-22T00:00:00Z"};
 const grant=(role:string,scope:string):S["GrantRecordDto"]=>({id:memberId,userId:owner,organizationId,chainId:scope==="CHAIN"?chainId:null,role,scope,revision:4,revokedAt:null,createdAt:"2026-10-22T00:00:00Z"});
 const business:S["BusinessProfileDto"]={chainId,state:"ACTIVE",version:2,scopeVersion:1,createdAt:"2026-10-22T00:00:00Z",suspendedAt:null,suspendedBy:null,suspensionReason:null};

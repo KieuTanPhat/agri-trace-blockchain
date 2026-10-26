@@ -9,11 +9,13 @@ import { LotQueryService } from './lot-query.service.js';
 import { LotCommandsService } from './lot-commands.service.js';
 import { LotCommandsController } from './lot-commands.controller.js';
 import { HarvestRequestStatusService } from './harvest-request-status.service.js';
+import {PublicJourneyService} from './public-journey.service.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, TraceModule, IdempotencyModule],
   controllers: [LotsController, PublicTraceController, LotCommandsController],
   providers: [
+    PublicJourneyService,
     LotHarvestService,
     LotQueryService,
     LotCommandsService,

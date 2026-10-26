@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import {PublicJourneyGroupDto} from './public-journey.dto.js';
 import { ROLE_CODES } from '../auth/role-codes.js';
 import { LOT_COMMANDS } from './lot-action.policy.js';
 import {
@@ -254,6 +255,8 @@ export class PublicTraceNoticeDto {
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
 }
 export class PublicLotDto extends LotBaseDto {
+  @ApiProperty({type:[PublicJourneyGroupDto]}) journey!:PublicJourneyGroupDto[];
+  @ApiProperty() imageUrl!:string;
   @ApiProperty({type:String,isArray:true,required:false,description:'Advisory based on declared production journal, not a certification'}) productionWarnings?:string[];
   @ApiProperty({ type: [PublicTraceNoticeDto], required: false })
   notices?: PublicTraceNoticeDto[];

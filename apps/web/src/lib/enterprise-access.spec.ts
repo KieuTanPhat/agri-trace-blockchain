@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canUseEnterpriseRoute,
+  enterpriseLanding,
   type EnterpriseAccess,
 } from "./enterprise-access";
 const staff: EnterpriseAccess = {
@@ -76,5 +77,17 @@ describe("Current enterprise navigation authority", () => {
     expect(canUseEnterpriseRoute("/enterprise/vehicles", distributor)).toBe(
       false,
     );
+  });
+});
+
+describe("enterpriseLanding", () => {
+  it("sends an owner awaiting activation to the service page, not a blocked workspace", () => {
+    const pending = { ...staff, stage: "APPROVED", owner: true, primary: true };
+    expect(canUseEnterpriseRoute("/enterprise/partners", pending)).toBe(false);
+    expect(enterpriseLanding(pending)).toBe("/enterprise/service");
+  });
+  it("keeps the workspace home once the service is active and has nothing for others", () => {
+    expect(enterpriseLanding(staff)).toBe("/enterprise");
+    expect(enterpriseLanding({ ...staff, stage: "APPROVED" })).toBeNull();
   });
 });

@@ -57,10 +57,6 @@ const rules: [RegExp, string][] = [
     "Phát cảnh báo hoặc thu hồi cho lô; thông báo hiển thị trên QR.",
   ],
   [
-    /^\/enterprise-workspace\/ownership-transfers/,
-    "Đề nghị hoặc trả lời chuyển quyền chủ quản doanh nghiệp.",
-  ],
-  [
     /^\/enterprise-workspace\/(members|roles)\/[0-9a-f-]{36}$/,
     "Thay đổi quyền hoặc trạng thái của thành viên, nhóm quyền.",
   ],

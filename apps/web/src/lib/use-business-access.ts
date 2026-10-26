@@ -70,7 +70,7 @@ export function useBusinessAccess(user: AuthUser | null) {
           identity,
           revision: previous,
           productionAccess,
-          status: tabHidden() ? "checking" : "ready",
+          status: "ready",
         });
       } catch {
         if (active) {
@@ -100,18 +100,13 @@ export function useBusinessAccess(user: AuthUser | null) {
     const storage = (event: StorageEvent) => {
       if (event.key === PERMISSION_SYNC_KEY || event.key === null) refresh();
     };
+    // Returning to the tab or closing a file picker revalidates in the
+    // background; the page stays usable and only locks if the check fails.
     const visibility = () => {
-      if (document.visibilityState === "hidden")
-        setScope({
-          identity,
-          revision: previous,
-          productionAccess,
-          status: "checking",
-        });
-      else refresh();
+      if (document.visibilityState === "visible") changed();
     };
-    window.addEventListener("focus", refresh);
-    window.addEventListener("pageshow", refresh);
+    window.addEventListener("focus", changed);
+    window.addEventListener("pageshow", changed);
     window.addEventListener("storage", storage);
     window.addEventListener(PERMISSION_SYNC_EVENT, refresh);
     window.addEventListener(PERMISSION_CHECK_EVENT, changed);
@@ -122,8 +117,8 @@ export function useBusinessAccess(user: AuthUser | null) {
       active = false;
       forget();
       window.clearInterval(timer);
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener("pageshow", refresh);
+      window.removeEventListener("focus", changed);
+      window.removeEventListener("pageshow", changed);
       window.removeEventListener("storage", storage);
       window.removeEventListener(PERMISSION_SYNC_EVENT, refresh);
       window.removeEventListener(PERMISSION_CHECK_EVENT, changed);

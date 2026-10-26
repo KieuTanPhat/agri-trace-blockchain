@@ -32,7 +32,27 @@ export class TransferLineInput {
   @MaxLength(30)
   unit!: string;
 }
+export const TRANSPORT_MODES = ['PLATFORM_CARRIER', 'EXTERNAL_CARRIER', 'SELF_DELIVERY', 'RECEIVER_PICKUP'] as const;
+export type TransportMode = (typeof TRANSPORT_MODES)[number];
+export class TransportDetailsInput {
+  @ApiProperty({ required: false, maxLength: 255, description: 'Bắt buộc khi thuê đơn vị vận chuyển ngoài AgriTrace' })
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(255) carrierName?: string;
+  @ApiProperty({ required: false, maxLength: 40 })
+  @IsOptional() @IsString() @MinLength(3) @MaxLength(40) registration?: string;
+  @ApiProperty({ required: false, maxLength: 255 })
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(255) driverName?: string;
+  @ApiProperty({ required: false, maxLength: 30 })
+  @IsOptional() @IsString() @Matches(/^[0-9+().\s-]{6,30}$/) driverPhone?: string;
+}
 export class TransferInput {
+  @ApiProperty({ enum: TRANSPORT_MODES, required: false, default: 'PLATFORM_CARRIER' })
+  @IsOptional() @IsIn(TRANSPORT_MODES) transportMode?: TransportMode;
+  @ApiProperty({ enum: ['SENDER', 'RECEIVER'], required: false, description: 'Bên thuê đơn vị vận chuyển ngoài AgriTrace; bên đó giữ hàng trong lúc vận chuyển' })
+  @IsOptional() @IsIn(['SENDER', 'RECEIVER']) externalHirer?: 'SENDER' | 'RECEIVER';
+  @ApiProperty({ type: TransportDetailsInput, required: false })
+  @IsOptional() @ValidateNested() @Type(() => TransportDetailsInput) transportDetails?: TransportDetailsInput;
+  @ApiProperty({ required: false, format: 'uuid', description: 'Yêu cầu lấy hàng của bên nhận được chuyển thành phiếu này' })
+  @IsOptional() @IsUUID() pickupRequestId?: string;
   @ApiProperty({ type: String, format: 'date-time', description: 'Dự kiến lấy hàng; múi giờ bắt buộc' })
   @IsDateString() plannedPickupAt!: string;
   @ApiProperty({ type: String, required: false, format: 'date-time' })
@@ -51,9 +71,11 @@ export class TransferInput {
   @IsOptional()
   @IsUUID()
   receiverSiteId?: string;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() chainId!: string;
+  @ApiProperty({ required: false, format: 'uuid', description: 'Bỏ trống: lấy theo chuỗi của lô; nếu gửi phải khớp chuỗi của lô' })
+  @IsOptional() @IsUUID() chainId?: string;
   @ApiProperty({ format: 'uuid' }) @IsUUID() receiverId!: string;
-  @ApiProperty({ format: 'uuid' }) @IsUUID() carrierId!: string;
+  @ApiProperty({ required: false, format: 'uuid', description: 'Chỉ dùng với PLATFORM_CARRIER' })
+  @IsOptional() @IsUUID() carrierId?: string;
   @ApiProperty({ required: false, format: 'uuid' })
   @IsOptional()
   @IsUUID()
@@ -75,6 +97,15 @@ export class TransferInput {
   @ValidateNested({ each: true })
   @Type(() => TransferLineInput)
   lines!: TransferLineInput[];
+}
+export class PickupRequestInput {
+  @ApiProperty({ format: 'uuid', description: 'Bên giao (đối tác đã liên kết)' }) @IsUUID() senderId!: string;
+  @ApiProperty({ required: false, type: String, format: 'date-time' }) @IsOptional() @IsDateString() preferredPickupAt?: string;
+  @ApiProperty({ maxLength: 1000, description: 'Sản phẩm, lượng và thời gian muốn lấy' }) @IsString() @MinLength(5) @MaxLength(1000) note!: string;
+}
+export class PickupResolveInput {
+  @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
+  @ApiProperty({ required: false, maxLength: 1000 }) @IsOptional() @IsString() @MaxLength(1000) note?: string;
 }
 export class TransferVersion {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;

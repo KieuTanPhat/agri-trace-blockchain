@@ -238,7 +238,7 @@ function ProfileFields({ f, primary, roles, chains, sites }: { f: Parameters<Par
       <SelectField control={f.control} name="responsibleFarmId" label={tr("Vùng trồng phụ trách")} options={sites.filter(site => site.kind === "FARM" && site.status === "ACTIVE").map(site => ({value:site.id,label:site.name}))}/>
       <TextField control={f.control} name="memberNote" label={tr("Ghi chú")}/>
       <div className="grid gap-3 sm:grid-cols-2">
-        <SelectField control={f.control} name="workSiteId" label={tr("Cơ sở làm việc (tùy chọn)")} options={sites.filter((s) => s.status === "ACTIVE" && s.kind !== "FARM").map((s) => ({ value: s.id, label: s.name }))} />
+        <SelectField control={f.control} name="workSiteId" label={tr("Cơ sở làm việc")} options={sites.filter((s) => s.status === "ACTIVE" && s.kind !== "FARM").map((s) => ({ value: s.id, label: s.name }))} />
         <ChoiceField
           control={f.control}
           name="tier"
@@ -409,7 +409,7 @@ function MemberDetail({ canonicalEdit = false, m, all, manage, primary, roles, c
             <TextField control={f.control} name="contactAddress" label={tr("Địa chỉ liên hệ")}/>
             <TextField control={f.control} name="memberNote" label={tr("Ghi chú")}/>
             <SelectField control={f.control} name="responsibleFarmId" label={tr("Vùng trồng phụ trách")} options={sites.filter(site => site.kind === "FARM" && site.status === "ACTIVE").map(site => ({value:site.id,label:site.name}))}/>
-            <SelectField control={f.control} name="workSiteId" label={tr("Cơ sở làm việc (tùy chọn)")} options={sites.filter(site => site.status === "ACTIVE" && site.kind !== "FARM").map(site => ({ value: site.id, label: site.name }))}/>
+            <SelectField control={f.control} name="workSiteId" label={tr("Cơ sở làm việc")} options={sites.filter(site => site.status === "ACTIVE" && site.kind !== "FARM").map(site => ({ value: site.id, label: site.name }))}/>
             <GrantsField control={f.control} name="roles" roles={roles} chains={chains} sites={sites} />
           </>
         )}

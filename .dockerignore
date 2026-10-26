@@ -12,6 +12,7 @@ node_modules
 **/node_modules
 dist
 **/dist
+**/.expo
 .next
 **/.next
 coverage

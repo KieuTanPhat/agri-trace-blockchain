@@ -16,6 +16,7 @@ import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { FilterSelect } from "@/components/ledger/kit/filters";
 import { ChoiceField, SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
+import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
@@ -122,14 +123,14 @@ export default function MaterialsPage({view="list",resourceId}:{view?:"list"|"ne
         </div>
       </PageBody>
       <MaterialSheet row={q.data?.find((m) => m.id === openId) ?? null} onClose={() => {setOpenId(null);router.push("/enterprise/materials");}} canManage={can("materials.manage")} canEvidence={can("materials.manage") && can("evidence.manage")} />
-      <CommandDialog {...add.props} open={view==="new" && can("materials.manage") && farmCapable} onOpenChange={o=>{if(!o)router.push("/enterprise/materials");}} onDone={()=>router.push("/enterprise/materials")} title={tr("Thêm giống/vật tư")} endpoint="POST /enterprise-workspace/materials" description={tr("Mã tự sinh nếu bỏ trống. Mục mới ở trạng thái ngừng cho tới khi hoàn tất ảnh.")} schema={createSchema} defaultValues={{ code: "", name: "", kind: "SEED", unit: "", seedType: "", supplier: "", batchCode: "", activeIngredient: "", price: "", origin: "", manufacturer: "", description: "", withdrawalDays: "", expiryDate: "" }} submitLabel={tr("Thêm")} invalidate={[["ws-materials"]]} wide run={(v, cmd) => wapi.createMaterial(toInput(v), cmd)}>
-        {(f) => <MaterialFields f={f as never} />}
+      <CommandDialog {...add.props} open={view==="new" && can("materials.manage") && farmCapable} onOpenChange={o=>{if(!o)router.push("/enterprise/materials");}} onDone={()=>router.push("/enterprise/materials")} title={tr("Thêm giống/vật tư")} endpoint="POST /enterprise-workspace/materials" description={tr("Mã do hệ thống tự sinh. Mục mới ở trạng thái ngừng cho tới khi hoàn tất ảnh.")} schema={createSchema} defaultValues={{ code: "", name: "", kind: "SEED", unit: "", seedType: "", supplier: "", batchCode: "", activeIngredient: "", price: "", origin: "", manufacturer: "", description: "", withdrawalDays: "", expiryDate: "" }} submitLabel={tr("Thêm")} invalidate={[["ws-materials"]]} wide run={(v, cmd) => wapi.createMaterial(toInput(v), cmd)}>
+        {(f) => <MaterialFields f={f as never} creating />}
       </CommandDialog>
     </>
   );
 }
 
-function MaterialFields({ f }: { f: { control: never; watch: (k: string) => string } }) {
+function MaterialFields({ f, creating }: { f: { control: never; watch: (k: string) => string }; creating?: boolean }) {
   const c = f.control;
   const kind = f.watch("kind");
   return (
@@ -137,19 +138,19 @@ function MaterialFields({ f }: { f: { control: never; watch: (k: string) => stri
       <div className="grid gap-3 sm:grid-cols-2">
         <TextField control={c} name="name" label={tr("Tên")} max={255} />
         <SelectField control={c} name="kind" label={tr("Loại")} options={Object.entries(MATERIAL_KIND_LABEL).map(([value, label]) => ({ value, label }))} />
-        <TextField control={c} name="code" label={tr("Mã (tùy chọn)")} />
-        <TextField control={c} name="unit" label={tr("Đơn vị tính")} />
+        {!creating && <TextField control={c} name="code" label={tr("Mã")} />}
+        <ReferenceSelectField control={c} name="unit" label={tr("Đơn vị tính")} category="UNIT" />
         {kind === "SEED" && <TextField control={c} name="seedType" label={tr("Loại giống")} />}
         {kind === "PROTECTION" && <TextField control={c} name="activeIngredient" label={tr("Hoạt chất")} />}
         {kind === "PROTECTION" && <TextField control={c} name="withdrawalDays" label={tr("Thời gian cách ly (ngày)")} type="number" />}
-        <TextField control={c} name="supplier" label={tr("Nhà cung cấp (tùy chọn)")} />
-        <TextField control={c} name="manufacturer" label={tr("Nhà sản xuất (tùy chọn)")} />
-        <TextField control={c} name="batchCode" label={tr("Số lô (tùy chọn)")} />
-        <TextField control={c} name="origin" label={tr("Xuất xứ (tùy chọn)")} />
-        <TextField control={c} name="price" label={tr("Đơn giá (VND, tùy chọn)")} type="number" />
-        <TextField control={c} name="expiryDate" label={tr("Hạn dùng (tùy chọn)")} type="date" />
+        <TextField control={c} name="supplier" label={tr("Nhà cung cấp")} />
+        <TextField control={c} name="manufacturer" label={tr("Nhà sản xuất")} />
+        <TextField control={c} name="batchCode" label={tr("Số lô")} />
+        <TextField control={c} name="origin" label={tr("Xuất xứ")} />
+        <TextField control={c} name="price" label={tr("Đơn giá (VND)")} type="number" />
+        <TextField control={c} name="expiryDate" label={tr("Hạn dùng")} type="date" />
       </div>
-      <TextAreaField control={c} name="description" label={tr("Mô tả (tùy chọn)")} max={2000} />
+      <TextAreaField control={c} name="description" label={tr("Mô tả")} max={2000} />
     </>
   );
 }

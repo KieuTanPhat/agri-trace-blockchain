@@ -149,12 +149,11 @@ export class AdminInsightsService {
     const now = Date.now();
     const enrollmentSla = await settingNumber(this.db, 'enrollment.reviewSlaHours', 48);
     const supportSla = await settingNumber(this.db, 'support.reviewSlaHours', 24);
-    const [enrollments, capabilities, amendments, connections, approvals, tickets, reports, cases, invoices] = await Promise.all([
+    const [enrollments, capabilities, amendments, connections, tickets, reports, cases, invoices] = await Promise.all([
       this.db.enterpriseEnrollment.findMany({ where: { status: 'PENDING_REVIEW' }, include: { organization: { select: { name: true } } }, take: 200 }),
       this.db.capabilityRequest.findMany({ where: { status: 'PENDING' }, include: { organization: { select: { name: true, enterpriseEnrollment: { select: { id: true } } } } }, take: 200 }),
       this.db.enterpriseProfileAmendment.findMany({ where: { status: 'PENDING' }, take: 200 }),
       this.db.enterpriseConnection.findMany({ where: { status: 'PENDING_REVIEW' }, include: { enrollment: { include: { organization: { select: { name: true } } } } }, take: 200 }),
-      this.db.platformApproval.findMany({ where: { status: 'PENDING', expiresAt: { gt: new Date() } }, take: 200 }),
       this.db.supportTicket.findMany({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } }, include: { organization: { select: { name: true } } }, take: 200 }),
       this.db.consumerReport.findMany({ where: { status: 'NEW' }, take: 200 }),
       this.db.platformCase.findMany({ where: { status: { in: ['OPEN', 'ESCALATED'] } }, include: { owner: { select: { name: true } } }, take: 200 }),
@@ -179,14 +178,13 @@ export class AdminInsightsService {
       ...capabilities.map((c) => item('CAPABILITY', c.id, `Năng lực ${c.code}`, c.organization.name, c.createdAt, new Date(c.createdAt.getTime() + enrollmentSla * HOUR), c.organization.enterpriseEnrollment ? `/admin/enterprises/${c.organization.enterpriseEnrollment.id}` : '/admin/enterprises')),
       ...amendments.map((a) => item('AMENDMENT', a.id, 'Điều chỉnh hồ sơ', orgNames.get(a.organizationId) ?? null, a.createdAt, new Date(a.createdAt.getTime() + enrollmentSla * HOUR), `/admin/enterprises/amendments/${a.id}`)),
       ...connections.map((c) => item('CONNECTION', c.id, 'Kết nối blockchain', c.enrollment.organization.name, c.createdAt, new Date(c.createdAt.getTime() + enrollmentSla * HOUR), `/admin/enterprises/${c.enrollmentId}/connections/${c.id}`)),
-      ...approvals.map((a) => item('APPROVAL', a.id, `Phê duyệt hai bước: ${a.operation}`, null, a.createdAt, a.expiresAt, `/admin/approvals/${a.id}`)),
       ...tickets.map((t) => item('TICKET', t.id, `${t.code}: ${t.subject}`, t.organization.name, t.createdAt, t.dueAt, `/admin/support/${t.id}`)),
       ...reports.map((r) => item('CONSUMER_REPORT', r.id, `Báo cáo từ người tiêu dùng (${r.category})`, null, r.createdAt, new Date(r.createdAt.getTime() + supportSla * HOUR), '/admin/reports')),
       ...cases.map((c) => item('CASE', c.id, `Sự cố #${c.caseNumber}: ${c.title}`, c.owner?.name ?? null, c.createdAt, c.responseDueAt, `/admin/cases/${c.id}`)),
       ...invoices.map((i) => item('INVOICE_OVERDUE', i.id, `Hóa đơn quá hạn ${i.number}`, i.organization.name, i.issuedAt, i.dueAt, '/admin/billing/invoices')),
     ].sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.createdAt.localeCompare(b.createdAt));
     const summary = Object.fromEntries(
-      ['ENROLLMENT', 'CAPABILITY', 'AMENDMENT', 'CONNECTION', 'APPROVAL', 'TICKET', 'CONSUMER_REPORT', 'CASE', 'INVOICE_OVERDUE'].map((k) => [k, items.filter((i) => i.kind === k).length]),
+      ['ENROLLMENT', 'CAPABILITY', 'AMENDMENT', 'CONNECTION', 'TICKET', 'CONSUMER_REPORT', 'CASE', 'INVOICE_OVERDUE'].map((k) => [k, items.filter((i) => i.kind === k).length]),
     );
     return { items, summary: { ...summary, total: items.length, overdue: items.filter((i) => i.overdue).length } };
   }
@@ -295,7 +293,7 @@ export class AdminInsightsService {
         paying: entitlement.paying,
         status: entitlement.status,
         limits: entitlement.limits,
-        usage: await usageFor(this.db, id, entitlement.periodStart),
+        usage: await usageFor(this.db, id),
         subscription: entitlement.subscription ? await subscriptionView(this.db, { ...entitlement.subscription, organization: null }) : null,
         invoices: invoices.map(invoiceView),
       },
@@ -409,23 +407,18 @@ export class AdminInsightsService {
   }
 
   async qrOverview() {
-    const [total, blocks, prints, scans] = await Promise.all([
+    const [total, blocks, scans] = await Promise.all([
       this.db.traceQr.count(),
       this.db.traceQrBlock.findMany({ orderBy: { blockedAt: 'desc' }, take: 200 }),
-      this.db.traceLabelPrint.groupBy({ by: ['organizationId'], _sum: { copies: true }, _count: { _all: true } }),
       this.db.traceScanDaily.groupBy({ by: ['day'], where: { day: { gte: new Date(Date.now() - 30 * DAY) } }, _sum: { scans: true }, orderBy: { day: 'asc' } }),
     ]);
     const lots = await this.db.lot.findMany({ where: { id: { in: blocks.map((b) => b.lotId) } }, select: { id: true, lotCode: true, organization: { select: { name: true } }, product: { select: { productName: true } } } });
-    const orgs = await this.db.organization.findMany({ where: { id: { in: prints.map((p) => p.organizationId) } }, select: { id: true, name: true } });
     return {
       totalQr: total,
       blocked: blocks.map((b) => {
         const lot = lots.find((l) => l.id === b.lotId);
         return { id: b.id, lotId: b.lotId, lotCode: lot?.lotCode, productName: lot?.product.productName, organizationName: lot?.organization.name, reason: b.reason, publicMessage: b.publicMessage, blockedAt: b.blockedAt.toISOString(), unblockedAt: iso(b.unblockedAt), unblockReason: b.unblockReason, version: b.version };
       }),
-      printsByOrganization: prints
-        .map((p) => ({ organizationId: p.organizationId, organizationName: orgs.find((o) => o.id === p.organizationId)?.name ?? '', prints: p._count._all, copies: p._sum.copies ?? 0 }))
-        .sort((a, b) => b.copies - a.copies),
       scansByDay: scans.map((s) => ({ day: s.day.toISOString().slice(0, 10), scans: s._sum.scans ?? 0 })),
     };
   }

@@ -34,9 +34,6 @@ export const wapi = {
   revokeInvitation: (id: string, cmd: LedgerCommandContext) => post(root + "/member-invitations/" + encodeURIComponent(id) + "/revoke", {}, cmd),
   saveRole: (id: string | null, input: S["EnterpriseRoleInput"], cmd: LedgerCommandContext) => post(root + "/roles" + (id ? "/" + encodeURIComponent(id) : ""), input, cmd),
   deleteRole: (id: string, input: { version: number }, cmd: LedgerCommandContext) => post(root + "/roles/" + encodeURIComponent(id) + "/delete", input, cmd),
-  transfers: () => items<V.OwnershipTransfer>(root + "/ownership-transfers"),
-  proposeTransfer: (input: S["OwnershipTransferInput"], cmd: LedgerCommandContext) => post(root + "/ownership-transfers", input, cmd),
-  resolveTransfer: (id: string, action: "accept" | "decline" | "cancel", input: S["OwnershipResolveInput"], cmd: LedgerCommandContext) => post(root + "/ownership-transfers/" + encodeURIComponent(id) + "/" + action, input, cmd),
   profile: async () => {
     const data = await record<S["OwnProfileWorkspaceDto"]>(root + "/profile");
     return { ...data, profile: data.profile ? { ...data.profile, legalData: profileLegalData.parse(data.profile.legalData) } : null };
@@ -55,6 +52,7 @@ export const wapi = {
   },
   withdrawEvidence: (id: string, input: S["EvidenceWithdrawalInput"], cmd: LedgerCommandContext) => post(root + "/evidence/" + encodeURIComponent(id) + "/withdraw", input, cmd),
   revisions: (entityType: string, id: string) => items<V.Revision>(root + "/revisions/" + encodeURIComponent(entityType) + "/" + encodeURIComponent(id)),
-  cases: () => items<S["EnterpriseCaseDto"]>("/enterprise-cases"),
+  // The API returns the case list as a bare array, not an {items} page.
+  cases: () => ledgerRequest<S["EnterpriseCaseDto"][]>("/enterprise-cases"),
   distributionTasks: () => ledgerRequest<S["DistributionTasksDto"]>("/distribution/tasks"),
 };

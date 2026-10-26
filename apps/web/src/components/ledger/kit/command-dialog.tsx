@@ -18,11 +18,7 @@ import {
   ledgerCommandError,
   newLedgerCommandKey as newIdempotencyKey,
 } from "@/lib/ledger/command-context";
-import {
-  ledgerApprovalProposal,
-  type LedgerCommandContext as Cmd,
-} from "@/lib/ledger/command-context";
-import type { ApprovalOperation } from "@/lib/ledger/command-context";
+import type { LedgerCommandContext as Cmd } from "@/lib/ledger/command-context";
 import { retryPendingCommand } from "@/lib/api-client";
 import { useLocale } from "../locale";
 import { Button } from "@/components/ledger/ui/button";
@@ -38,6 +34,7 @@ import { Input } from "@/components/ledger/ui/input";
 import { Label } from "@/components/ledger/ui/label";
 import { cn } from "@/lib/ledger/utils";
 import { Callout } from "./page";
+import { FormSchemaContext } from "./form-fields";
 
 import { t as tr } from "@/lib/ledger/i18n";
 export interface CommandDialogProps<S extends z.ZodType<FieldValues>> {
@@ -63,12 +60,6 @@ export interface CommandDialogProps<S extends z.ZodType<FieldValues>> {
   wide?: boolean;
   /** Hiển thị trong trang (panel quyết định) thay vì dialog. */
   inline?: boolean;
-  /** Khi Backend bật ENFORCED và trả 409, cho phép gửi đề xuất maker–checker thay thế. */
-  proposal?: {
-    operation: ApprovalOperation;
-    params: (values: z.infer<S>) => Record<string, unknown>;
-    reason: (values: z.infer<S>) => string;
-  };
 }
 
 export function CommandDialog<S extends z.ZodType<FieldValues>>(
@@ -139,7 +130,6 @@ function Body<S extends z.ZodType<FieldValues>>({
   onDone,
   version,
   inline,
-  proposal,
 }: CommandDialogProps<S> & { onLockChange?: (locked: boolean) => void }) {
   useLocale();
   void endpoint;
@@ -153,9 +143,7 @@ function Body<S extends z.ZodType<FieldValues>>({
   const original = useRef<{
     values: z.infer<S>;
     command: Cmd;
-    proposal: boolean;
     invoke: typeof run;
-    proposalBody?: Parameters<typeof ledgerApprovalProposal>[0];
   } | null>(null);
   const recoveryId = useRef<string | undefined>(undefined),
     inFlight = useRef(false);
@@ -167,18 +155,17 @@ function Body<S extends z.ZodType<FieldValues>>({
   > | null>(null);
   const [busy, setBusy] = useState(false);
   const mfaRef = useRef<HTMLInputElement>(null);
-  const [needsApproval, setNeedsApproval] = useState(false);
-  const showMfa = stepUp || needsApproval;
+  const showMfa = stepUp;
 
   const lock = (value: boolean) => {
     setFrozen(value);
     onLockChange?.(value);
   };
-  async function execute(values: z.infer<S>, asProposal = false) {
+  async function execute(values: z.infer<S>) {
     if (inFlight.current) return;
     if (
       !original.current &&
-      (stepUp || asProposal) &&
+      stepUp &&
       !/^(?:\d{6}|[A-HJ-NP-Z2-9]{10})$/.test(
         mfa.replace(/[\s-]/g, "").toUpperCase(),
       )
@@ -195,32 +182,31 @@ function Body<S extends z.ZodType<FieldValues>>({
       values: structuredClone(values),
       command: {
         idempotencyKey: idemKey,
-        mfaCode: stepUp || asProposal ? mfa.replace(/\s/g, "") : undefined,
+        mfaCode: stepUp ? mfa.replace(/\s/g, "") : undefined,
       },
-      proposal: asProposal,
       invoke: run,
-      proposalBody:
-        asProposal && proposal
-          ? structuredClone({
-              operation: proposal.operation,
-              params: proposal.params(values),
-              reason: proposal.reason(values),
-            })
-          : undefined,
     };
     const saved = original.current;
     let result: unknown;
     try {
       result = recoveryId.current
         ? await retryPendingCommand(recoveryId.current)
-        : saved.proposalBody
-          ? await ledgerApprovalProposal(saved.proposalBody, saved.command)
-          : await saved.invoke(saved.values, saved.command);
+        : await saved.invoke(saved.values, saved.command);
     } catch (cause) {
       const err = ledgerCommandError(cause);
       setError(err);
       recoveryId.current = err.recoveryId ?? recoveryId.current;
+      // A validation rejection is reconciled at once: the journal confirms
+      // nothing was committed, so the form unlocks instead of waiting on a click.
+      let reconciled = false;
+      if (err.recoveryId && [400, 422].includes(err.status))
+        try {
+          await retryPendingCommand(err.recoveryId);
+        } catch (check) {
+          reconciled = ledgerCommandError(check).canRestart;
+        }
       const known =
+        reconciled ||
         err.canRestart ||
         err.code === "RECOVERY_REFRESH" ||
         (!recoveryId.current &&
@@ -233,12 +219,6 @@ function Body<S extends z.ZodType<FieldValues>>({
         lock(false);
         setIdemKey(newIdempotencyKey());
         if (err.isStepUp) setMfaError(err.message);
-        if (
-          err.isConflict &&
-          /phê duyệt hai bước/i.test(err.message) &&
-          proposal
-        )
-          setNeedsApproval(true);
       } else lock(true);
       return;
     } finally {
@@ -249,17 +229,12 @@ function Body<S extends z.ZodType<FieldValues>>({
     recoveryId.current = undefined;
     lock(false);
     await Promise.all(
-      (saved.proposal
-        ? [["approvals"], ["inbox"], ...invalidate]
-        : invalidate
-      ).map((queryKey) => qc.invalidateQueries({ queryKey })),
+      invalidate.map((queryKey) => qc.invalidateQueries({ queryKey })),
     );
     toast.success(
-      saved.proposal
-        ? tr("Đã gửi đề xuất phê duyệt hai bước")
-        : typeof success === "function"
-          ? success(result)
-          : (success ?? tr("Đã ghi nhận")),
+      typeof success === "function"
+        ? success(result)
+        : (success ?? tr("Đã ghi nhận")),
     );
     onDone?.(result);
     onOpenChange(false);
@@ -269,7 +244,6 @@ function Body<S extends z.ZodType<FieldValues>>({
       setIdemKey(newIdempotencyKey());
     }
   }
-  const sendProposal = form.handleSubmit((values) => execute(values, true));
 
   useEffect(() => {
     if (mfaError) mfaRef.current?.focus();
@@ -303,7 +277,9 @@ function Body<S extends z.ZodType<FieldValues>>({
         disabled={busy || frozen}
         className="flex min-w-0 flex-col gap-4"
       >
-        {children(form)}
+        <FormSchemaContext.Provider value={schema}>
+          {children(form)}
+        </FormSchemaContext.Provider>
       </fieldset>
 
       {showMfa && (
@@ -369,17 +345,6 @@ function Body<S extends z.ZodType<FieldValues>>({
               }}
             >
               {tr("Đóng và tải lại dữ liệu")}
-            </Button>
-          )}
-          {needsApproval && proposal && (
-            <Button
-              type="button"
-              size="xs"
-              className="mt-2 ml-2"
-              disabled={busy || frozen}
-              onClick={() => sendProposal()}
-            >
-              {tr("Gửi đề xuất")} {proposal.operation} {tr("thay thế")}
             </Button>
           )}
         </Callout>

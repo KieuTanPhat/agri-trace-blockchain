@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useLedgerQuery as useQuery } from "@/lib/ledger/data";
 import { z } from "zod";
 import { api } from "@/lib/ledger/platform-api";
+import { chainApi } from "@/lib/ledger/chain-api";
 import type { OrganizationDetail } from "@/lib/ledger/platform-api";
 import { useLedgerSession as useSession } from "@/lib/ledger/platform-access";
 import { fmtDate, fmtDateTime, fmtMoney, fmtNumber } from "@/lib/ledger/format";
@@ -68,7 +69,6 @@ const grantSchema = z.object({
     "RETAILER",
     "AUDITOR",
   ]),
-  reason: reason(),
 });
 
 export function OrganizationDetailView({ id }: { id: string }) {
@@ -125,13 +125,13 @@ export function OrganizationDetailView({ id }: { id: string }) {
                 </Link>
               </Button>
             )}
-            {can("approval.propose") && (
+            {can("capability.grant") && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => grant.open(true)}
               >
-                {tr("Đề xuất cấp năng lực")}
+                {tr("Cấp năng lực")}
               </Button>
             )}
             {can("billing.write") && o.billing.subscription && (
@@ -405,27 +405,14 @@ export function OrganizationDetailView({ id }: { id: string }) {
 
       <CommandDialog
         {...grant.props}
-        title={tr("Đề xuất cấp năng lực")}
-        endpoint="POST /platform-approvals · CAPABILITY_GRANT"
-        description={tr(
-          "Cấp năng lực tổ chức là thao tác maker–checker: tạo đề xuất bất biến, một SYSTEM_ADMIN khác duyệt trong thời hạn.",
-        )}
+        title={tr("Cấp năng lực")}
+        endpoint="POST /organizations/:id/capabilities"
         schema={grantSchema}
-        defaultValues={{ code: "PROCESSOR", reason: "" }}
-        stepUp
-        submitLabel={tr("Gửi đề xuất")}
-        invalidate={[["approvals"], ["inbox"]]}
-        success={tr("Đã tạo đề xuất, chờ người duyệt thứ hai")}
-        run={(v, cmd) =>
-          api.approvals.propose(
-            {
-              operation: "CAPABILITY_GRANT",
-              params: { organizationId: id, code: v.code },
-              reason: v.reason,
-            },
-            cmd,
-          )
-        }
+        defaultValues={{ code: "PROCESSOR" }}
+        submitLabel={tr("Cấp năng lực")}
+        invalidate={invalidate}
+        success={tr("Đã cấp năng lực")}
+        run={(v, cmd) => chainApi.capability(id, { code: v.code }, cmd)}
       >
         {(f) => (
           <>
@@ -436,12 +423,6 @@ export function OrganizationDetailView({ id }: { id: string }) {
               options={Object.entries(CAPABILITY_LABEL).map(
                 ([value, label]) => ({ value, label: `${label} (${value})` }),
               )}
-            />
-            <TextAreaField
-              control={f.control}
-              name="reason"
-              label={tr("Lý do đề xuất")}
-              hint={tr("10–1000 ký tự · người duyệt sẽ đọc lý do này")}
             />
           </>
         )}
@@ -613,7 +594,7 @@ function Billing({ o }: { o: OrganizationDetail }) {
           </p>
         )}
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line/70 px-4 py-4 sm:grid-cols-4 sm:px-5">
-          {(["products", "chains", "members", "qrLabels"] as const).map((k) => {
+          {(["products", "chains", "members"] as const).map((k) => {
             const lim = limits[k];
             const used = usage[k] ?? 0;
             const pct = lim ? Math.min(100, (used / lim) * 100) : 0;
@@ -625,7 +606,6 @@ function Billing({ o }: { o: OrganizationDetail }) {
                       products: tr("Sản phẩm"),
                       chains: tr("Chuỗi"),
                       members: tr("Thành viên"),
-                      qrLabels: "Tem QR",
                     }[k]
                   }
                 </span>

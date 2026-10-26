@@ -35,6 +35,8 @@ import {
   ConsentRenewInput,
   DistributionReportQuery,
   DistributionTasksDto,
+  PickupRequestInput,
+  PickupResolveInput,
 } from './dto.js';
 import { DistributionService } from './distribution.service.js';
 @ApiTags('distribution')
@@ -120,6 +122,7 @@ export class DistributionController {
   ) {
     return this.service.report(req.user,'reports.read',query);
   }
+  /** Kho QR: the trace QR of every lot the enterprise holds or produced. */
   @Get('qr') @ApiDataResponse(DistributionReportDto) qr(
     @Req() req: AuthenticatedRequest,
   ) {
@@ -127,6 +130,33 @@ export class DistributionController {
   }
   @Get('tasks') @ApiDataResponse(DistributionTasksDto) tasks(@Req() req: AuthenticatedRequest) {
     return this.service.tasks(req.user);
+  }
+  @Post('transfers/:id/join-chain')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(WorkspaceRecordDto, 201)
+  joinChain(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: TransferVersion, @IdempotencyKey() key: string) {
+    return this.run(req, key, 'DIST_JOIN_CHAIN', { ...dto, id }, () => this.service.joinChainForTransfer(req.user, id, dto));
+  }
+  @Get('pickup-requests') @ApiDataResponse(WorkspaceListDto) pickupRequests(@Req() req: AuthenticatedRequest) {
+    return this.service.pickupRequests(req.user);
+  }
+  @Post('pickup-requests')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(WorkspaceRecordDto, 201)
+  requestPickup(@Req() req: AuthenticatedRequest, @Body() dto: PickupRequestInput, @IdempotencyKey() key: string) {
+    return this.run(req, key, 'EW_PICKUP_REQUEST', dto, () => this.service.requestPickup(req.user, dto));
+  }
+  @Post('pickup-requests/:id/decline')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(WorkspaceRecordDto, 201)
+  declinePickup(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: PickupResolveInput, @IdempotencyKey() key: string) {
+    return this.run(req, key, 'EW_PICKUP_DECLINE', { ...dto, id }, () => this.service.resolvePickup(req.user, id, dto, 'DECLINED'));
+  }
+  @Post('pickup-requests/:id/cancel')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(WorkspaceRecordDto, 201)
+  cancelPickup(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: PickupResolveInput, @IdempotencyKey() key: string) {
+    return this.run(req, key, 'EW_PICKUP_CANCEL', { ...dto, id }, () => this.service.resolvePickup(req.user, id, dto, 'CANCELLED'));
   }
   @Get('keys') @ApiDataResponse(WorkspaceListDto) keys(
     @Req() req: AuthenticatedRequest,

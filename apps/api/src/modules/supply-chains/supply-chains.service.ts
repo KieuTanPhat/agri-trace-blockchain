@@ -27,10 +27,6 @@ import {
   lockPlatformAudit,
 } from '../platform-governance/platform-audit.js';
 import {
-  APPROVAL_REQUIRED_MESSAGE,
-  approvalsMode,
-} from '../platform-governance/platform-config.js';
-import {
   requestLedgerGrant,
   requestLedgerRevoke,
 } from '../ledger/ledger-permissions.js';
@@ -628,14 +624,6 @@ export class SupplyChainsService {
   }
   grant(actor: CommandActor, organizationId: string, input: GrantRoleDto) {
     return this.transaction((tx) => {
-      // A platform administrator cannot grant CREATE_CHAIN alone once the
-      // two-person approval policy is enforced; use POST /platform-approvals.
-      if (
-        actor.role === 'SYSTEM_ADMIN' &&
-        input.role === 'CREATE_CHAIN' &&
-        approvalsMode() === 'ENFORCED'
-      )
-        throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
       return this.grantTx(tx, actor, organizationId, input);
     });
   }
@@ -795,8 +783,6 @@ export class SupplyChainsService {
     code: keyof typeof import('../../generated/prisma/enums.js').OrganizationType,
   ) {
     return this.transaction((tx) => {
-      if (actor.role === 'SYSTEM_ADMIN' && approvalsMode() === 'ENFORCED')
-        throw new ConflictException(APPROVAL_REQUIRED_MESSAGE);
       return this.capabilityTx(tx, actor, organizationId, code);
     });
   }

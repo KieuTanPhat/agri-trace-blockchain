@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsIn,
   IsByteLength,
   IsInt,
   IsOptional,
@@ -10,7 +9,6 @@ import {
   MaxLength,
   Min,
   MinLength,
-  IsObject,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { MIN_REASON_LENGTH } from './platform-config.js';
@@ -120,73 +118,6 @@ export class MfaCodeDto {
   @MinLength(6)
   @MaxLength(20)
   code!: string;
-}
-
-export const APPROVAL_OPERATIONS = [
-  'CAPABILITY_GRANT',
-  'CREATE_CHAIN_GRANT',
-  'SYSTEM_ADMIN_CREATE',
-  'CONNECTION_APPROVE',
-  'ADMIN_PASSWORD_RESET',
-  'CAPABILITY_REQUEST_APPROVE',
-  'PLAN_VERSION_PUBLISH',
-  'INVOICE_CONFIRM_PAYMENT',
-  'SETTING_CHANGE',
-  'QR_BLOCK',
-] as const;
-export type ApprovalOperation = (typeof APPROVAL_OPERATIONS)[number];
-
-export class ProposeApprovalDto extends ReasonDto {
-  @ApiProperty({ enum: APPROVAL_OPERATIONS })
-  @IsIn(APPROVAL_OPERATIONS)
-  operation!: ApprovalOperation;
-  @ApiProperty({
-    type: Object,
-    additionalProperties: true,
-    description:
-      'Tham số thao tác. CAPABILITY_GRANT {organizationId, code}; CREATE_CHAIN_GRANT {organizationId, userId}; SYSTEM_ADMIN_CREATE {email, fullName, temporaryPassword}; CONNECTION_APPROVE {connectionId, version, note}; ADMIN_PASSWORD_RESET {userId, temporaryPassword}; CAPABILITY_REQUEST_APPROVE {requestId, version, note}; PLAN_VERSION_PUBLISH {versionId}; INVOICE_CONFIRM_PAYMENT {invoiceId, version, reference}; SETTING_CHANGE {key, value, version}; QR_BLOCK {lotId, publicMessage}. Mật khẩu tạm không được lưu dạng rõ.',
-  })
-  @IsObject()
-  params!: Record<string, unknown>;
-}
-
-export class DecideApprovalDto {
-  @ApiProperty({ enum: ['APPROVE', 'REJECT'] })
-  @IsIn(['APPROVE', 'REJECT'])
-  decision!: 'APPROVE' | 'REJECT';
-  @ApiProperty({ type: String, minLength: MIN_REASON_LENGTH, maxLength: 1000 })
-  @Transform(trim)
-  @IsString()
-  @MinLength(MIN_REASON_LENGTH)
-  @MaxLength(1000)
-  note!: string;
-  @ApiProperty({ type: Number, minimum: 0 })
-  @IsInt()
-  @Min(0)
-  version!: number;
-}
-
-export class CancelApprovalDto {
-  @ApiProperty({ type: String, minLength: MIN_REASON_LENGTH, maxLength: 1000 })
-  @Transform(trim)
-  @IsString()
-  @MinLength(MIN_REASON_LENGTH)
-  @MaxLength(1000)
-  note!: string;
-  @ApiProperty({ type: Number, minimum: 0 })
-  @IsInt()
-  @Min(0)
-  version!: number;
-}
-
-export class ApprovalListQueryDto {
-  @ApiProperty({
-    enum: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED'],
-    required: false,
-  })
-  @IsOptional()
-  @IsIn(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED'])
-  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
 }
 
 export class TemporaryPasswordField extends ReasonDto {

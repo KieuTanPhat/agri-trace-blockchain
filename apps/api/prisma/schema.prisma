@@ -8,6 +8,40 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Operator-published consumer content. Plain text; independent of business events.
+model ConsumerNews {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String    @db.VarChar(255)
+  summary     String    @db.VarChar(1000)
+  body        String    @db.VarChar(50000)
+  coverUrl    String?   @map("cover_url") @db.VarChar(2048)
+  coverContent Bytes?   @map("cover_content")
+  coverMimeType String? @map("cover_mime_type") @db.VarChar(40)
+  version     Int       @default(0)
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(6)
+  isPublished Boolean   @default(false) @map("is_published")
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  @@index([isPublished, publishedAt, id], map: "ix_consumer_news_public")
+  @@map("consumer_news")
+}
+
+/// Public announcements, not organization/user notifications or domain alerts.
+model ConsumerAnnouncement {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title     String    @db.VarChar(255)
+  body      String    @db.VarChar(5000)
+  severity  String    @default("INFO") @db.VarChar(16)
+  isActive  Boolean   @default(false) @map("is_active")
+  startsAt  DateTime  @map("starts_at") @db.Timestamptz(6)
+  endsAt    DateTime? @map("ends_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  @@index([isActive, startsAt, id], map: "ix_consumer_announcement_public")
+  @@map("consumer_announcement")
+}
+
 model Role {
   id          String  @id @default(dbgenerated("gen_random_uuid()")) @map("role_id") @db.Uuid
   code        String  @unique @db.VarChar(50)
@@ -47,6 +81,8 @@ model User {
   organizationId             String?                     @map("organization_id") @db.Uuid
   roleId                     String                      @map("role_id") @db.Uuid
   email                      String                      @db.VarChar(255)
+  loginPhone                 String?                     @unique @map("login_phone") @db.VarChar(16)
+  consumerProfile            ConsumerProfile?
   passwordHash               String                      @map("password_hash")
   fullName                   String                      @map("full_name") @db.VarChar(255)
   accountStatus              AccountStatus               @default(ACTIVE) @map("account_status")
@@ -69,10 +105,45 @@ model User {
   signingIntents             SigningIntent[]             @relation("SigningIntentCreator")
   handoversOffered           ShipmentHandover[]          @relation("HandoverOfferer")
   handoversResolved          ShipmentHandover[]          @relation("HandoverResolver")
+  cycleStaff                 ProductionCycleStaff[]      @relation("CycleStaffUser")
+  cycleStaffAssigned         ProductionCycleStaff[]      @relation("CycleStaffAssigner")
 
   @@unique([id, organizationId], map: "uq_user_org_scope")
   @@map("app_user")
   credentialMails             EnterpriseMail[]            @relation("AccountCredentialMail")
+}
+
+model ConsumerProfile {
+  userId          String   @id @map("user_id") @db.Uuid
+  contactEmail    String?  @map("contact_email") @db.VarChar(255)
+  provinceCode    String   @map("province_code") @db.VarChar(10)
+  provinceName    String   @map("province_name") @db.VarChar(255)
+  wardCode        String   @map("ward_code") @db.VarChar(10)
+  wardName        String   @map("ward_name") @db.VarChar(255)
+  businessAddress String?  @map("business_address") @db.VarChar(255)
+  consentVersion  String   @map("consent_version") @db.VarChar(120)
+  consentedAt     DateTime @default(now()) @map("consented_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("consumer_profile")
+}
+
+model ConsumerPhoneProof {
+  tokenHash String   @id @map("token_hash") @db.VarChar(64)
+  proofKey  String   @unique @map("proof_key") @db.VarChar(64)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime @default(now()) @map("used_at") @db.Timestamptz(6)
+
+  @@map("consumer_phone_proof")
+}
+
+model ConsumerAuthLimit {
+  keyHash   String   @id @map("key_hash") @db.VarChar(64)
+  windowAt  DateTime @map("window_at") @db.Timestamptz(6)
+  attempts  Int
+
+  @@map("consumer_auth_limit")
 }
 
 model RefreshSession {
@@ -92,6 +163,7 @@ model RefreshSession {
 }
 
 model Organization {
+  directoryPublications PublicDirectoryPublication[]
   platformCasesOwned PlatformCase[] @relation("PlatformCaseOwner")
   platformCaseEvents PlatformCaseEvent[]
   version                 Int                       @default(0) @map("version")
@@ -140,6 +212,17 @@ model Organization {
   handoversReceived       ShipmentHandover[]        @relation("HandoverReceiver")
 
   @@map("organization")
+}
+
+/// Separate public snapshots; original registration/acceptance evidence remains immutable.
+model PublicDirectoryPublication {
+  id String @id @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  presentation Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization Organization @relation(fields:[organizationId],references:[id],onDelete:Restrict)
+  @@index([organizationId,createdAt(sort:Desc),id(sort:Desc)],map:"ix_directory_publication_latest")
+  @@map("public_directory_publication")
 }
 
 /// Business capability of an organization. A capability never grants user
@@ -524,6 +607,9 @@ model SupplyChain {
 
   @@index([ownerOrganizationId])
   productIds String[] @default([]) @map("product_ids") @db.Uuid
+  /// Chuỗi riêng tạo khi kích hoạt doanh nghiệp sản xuất; mỗi tổ chức tối đa một
+  /// chuỗi (index một phần supply_chain_one_personal trong migration).
+  personal   Boolean  @default(false)
   @@map("supply_chain")
 }
 
@@ -845,6 +931,10 @@ model DistributionTransfer {
   origin String @db.VarChar(500)
   destination String @db.VarChar(500)
   vehicleId String? @map("vehicle_id") @db.Uuid
+  /// PLATFORM_CARRIER | EXTERNAL_CARRIER | SELF_DELIVERY | RECEIVER_PICKUP
+  transportMode String @default("PLATFORM_CARRIER") @map("transport_mode") @db.VarChar(30)
+  /// Vehicle/driver typed on the transfer; carrierName names an external carrier.
+  transportDetails Json? @map("transport_details")
   status String @default("PROPOSED") @db.VarChar(30)
   version Int @default(0)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -854,6 +944,23 @@ model DistributionTransfer {
   @@index([receiverId, status])
   @@index([carrierId, status])
   @@map("distribution_transfer")
+}
+
+model DistributionPickupRequest {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  senderId String @map("sender_id") @db.Uuid
+  receiverId String @map("receiver_id") @db.Uuid
+  requestedBy String @map("requested_by") @db.Uuid
+  preferredPickupAt DateTime? @map("preferred_pickup_at") @db.Timestamptz(6)
+  note String @db.VarChar(1000)
+  status String @default("OPEN") @db.VarChar(20)
+  transferId String? @unique @map("transfer_id") @db.Uuid
+  resolutionNote String? @map("resolution_note") @db.VarChar(1000)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@index([senderId, status], map: "distribution_pickup_sender_status")
+  @@index([receiverId, status], map: "distribution_pickup_receiver_status")
+  @@map("distribution_pickup_request")
 }
 
 model DistributionLine {
@@ -1576,6 +1683,7 @@ model ProductionCycle {
   traceEvents        TraceEvent[]
   chain              SupplyChain          @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   assignments        StageAssignment[]
+  staff              ProductionCycleStaff[]
 
   harvestSensorWindows  HarvestSensorWindow[]
 
@@ -1586,6 +1694,23 @@ model ProductionCycle {
   @@index([productId], map: "ix_production_cycle_product")
   @@index([currentState], map: "ix_production_cycle_state")
   @@map("production_cycle")
+}
+
+/// Nhân viên được giao vụ (ít nhất một). Nhân viên cấp 3 chỉ thấy và ghi vụ mình
+/// được giao. Không thuộc nội dung ledger.
+model ProductionCycleStaff {
+  cycleId        String          @map("cycle_id") @db.Uuid
+  userId         String          @map("user_id") @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  assignedBy     String          @map("assigned_by") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  cycle          ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  user           User            @relation("CycleStaffUser", fields: [userId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  assigner       User            @relation("CycleStaffAssigner", fields: [assignedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@id([cycleId, userId])
+  @@index([userId], map: "production_cycle_staff_user")
+  @@map("production_cycle_staff")
 }
 
 /// A local planning record. It has no chain, trace event or Fabric stream until
@@ -1603,6 +1728,7 @@ model ProductionCycleDraft {
   cultivatedArea     Decimal   @map("cultivated_area") @db.Decimal(12, 2)
   seedMaterialId     String?   @map("seed_material_id") @db.Uuid
   responsibleUserId  String?   @map("responsible_user_id") @db.Uuid
+  staffUserIds       String[]  @default([]) @map("staff_user_ids") @db.Uuid
   cultivationMethod  String?   @map("cultivation_method") @db.VarChar(255)
   maxHarvestQuantity Decimal?  @map("max_harvest_quantity") @db.Decimal(14, 3)
   harvestUnit        String    @map("harvest_unit") @db.VarChar(30)

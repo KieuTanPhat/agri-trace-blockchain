@@ -9,6 +9,7 @@ import {newLedgerCommandKey as newIdempotencyKey} from "@/lib/ledger/command-con
 import { wapi } from "@/lib/ledger/enterprise-coordination-api";
 import { fmtAgo, fmtDateTime } from "@/lib/ledger/format";
 import { useWorkspaceAccess } from "@/lib/ledger/workspace-context";
+import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ledger/ui/button";
 import { Checkbox } from "@/components/ledger/ui/checkbox";
 import { CommandDialog, CommandForm, useDialog } from "@/components/ledger/kit/command-dialog";
@@ -24,6 +25,7 @@ const replySchema = z.object({ body: z.string().trim().min(1, { error: () => tr(
 
 export default function MessagesPage() {
   const { can } = useWorkspaceAccess();
+  const me = useAuth().user?.id;
   const q = useQuery({ queryKey: ["ws-messages"], queryFn: wapi.messages });
   const members = useQuery({ queryKey: ["ws-members"], queryFn: wapi.members, enabled: can("members.read") });
   const [selectedId, setSelected] = useState<string | null>(null);
@@ -109,7 +111,7 @@ export default function MessagesPage() {
                     <legend className="mb-1 text-[13px] font-medium">{tr("Người nhận")}</legend>
                     <div className="grid max-h-48 gap-1 overflow-y-auto sm:grid-cols-2">
                       {(members.data ?? [])
-                        .filter((m) => m.accountStatus === "ACTIVE")
+                        .filter((m) => m.accountStatus === "ACTIVE" && m.id !== me)
                         .map((m) => (
                           <label key={m.id} className="flex items-center gap-2 text-[13px]">
                             <Checkbox checked={field.value.includes(m.id)} onCheckedChange={(on) => field.onChange(on ? [...field.value, m.id] : field.value.filter((x: string) => x !== m.id))} />

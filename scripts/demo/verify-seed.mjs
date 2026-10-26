@@ -6,17 +6,13 @@ import { verificationInitialization } from "./verification-initialization.mjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../apps/api/dist/generated/prisma/client.js";
 import { SIMULATED_NETWORK } from "../../apps/api/dist/modules/ledger/simulated-ledger.js";
-const local = new URL("../../.codex/seed-current/", import.meta.url);
+import { pathToFileURL } from "node:url";
+import { seedTarget } from "./seed-target.mjs";
+const target = seedTarget();
+const local = pathToFileURL(`${target.run}/`);
 const { values } = parseArgs({ options: { fresh: { type: "boolean" } } });
 const initialization = await verificationInitialization(local, values.fresh);
-assert.equal(
-  process.env.AGRITRACE_LOCAL_SEED_TARGET,
-  "agri-trace-demo-local/agri_trace",
-);
-const url = new URL(process.env.DATABASE_URL);
-assert.equal(url.hostname, "127.0.0.1");
-assert.equal(url.port, "5433");
-assert.equal(url.pathname, "/agri_trace");
+const url = new URL(target.databaseUrl);
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: url.href }),
 });
@@ -32,7 +28,7 @@ async function request(route, actor, body) {
   let r;
   const commandKey = randomUUID();
   for (let attempt = 0; attempt < 8; attempt++) {
-    r = await fetch(`http://localhost:8080/api${route}`, {
+    r = await fetch(`${target.apiBase}${route}`, {
       method: body === undefined ? "GET" : "POST",
       headers: {
         ...(actor ? { Authorization: `Bearer ${actor}` } : {}),
@@ -119,7 +115,7 @@ try {
       assert.ok(
         counts.user >= 30 &&
           counts.farm === 3 &&
-          counts.product >= 10 &&
+          counts.product === 28 &&
           counts.productionCycle >= 15 &&
           counts.lot >= 13 &&
           counts.traceEvidence >= 120,
@@ -201,16 +197,26 @@ try {
     },
   );
   await check(
-    "Simulated bindings, no fabricated proof; complete SQL event/outbox chain",
+    target.mode === "production"
+      ? "Real Fabric bindings and a stored proof for every delivered event"
+      : "Simulated bindings, no fabricated proof; complete SQL event/outbox chain",
     async () => {
-      assert.equal(counts.blockchainProof, 0);
       assert.ok((await db.fabricNetworkBinding.count()) > 0);
-      assert.equal(
-        await db.fabricNetworkBinding.count({
-          where: { network: { not: SIMULATED_NETWORK } },
-        }),
-        0,
-      );
+      if (target.mode === "production") {
+        assert.equal(
+          await db.fabricNetworkBinding.count({ where: { network: SIMULATED_NETWORK } }),
+          0,
+        );
+        assert.equal(counts.blockchainProof, counts.blockchainOutbox);
+      } else {
+        assert.equal(counts.blockchainProof, 0);
+        assert.equal(
+          await db.fabricNetworkBinding.count({
+            where: { network: { not: SIMULATED_NETWORK } },
+          }),
+          0,
+        );
+      }
       assert.equal(
         await db.traceEvent.count({ where: { bindingContext: null } }),
         0,
@@ -231,7 +237,7 @@ try {
     "Sealed sensor windows keep DATA and NO_DATA distinct",
     async () => {
       const windows = await db.harvestSensorWindow.findMany();
-      assert.equal(windows.length, 12);
+      assert.equal(windows.length, counts.harvestEvent);
       assert.ok(windows.some((x) => x.readingCount > 0));
       assert.ok(windows.some((x) => x.status === "NO_DATA"));
       for (const w of windows) {

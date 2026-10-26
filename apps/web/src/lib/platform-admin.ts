@@ -146,7 +146,6 @@ export const resourceLabels: Record<string, string> = {
   products: "Sản phẩm",
   chains: "Chuỗi truy xuất",
   members: "Thành viên",
-  qrLabels: "Tem QR trong kỳ",
 };
 
 /** Label lookup that falls back to the raw code. */

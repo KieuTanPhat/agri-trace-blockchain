@@ -162,7 +162,7 @@ export default function PartnersPage({view="list",partnerId,externalMode=false}:
       </PageBody>
       {invite.target && (
         <CommandDialog {...invite.props} title={tr("Mời liên kết · {p0}", { p0: invite.target.name })} endpoint="POST /enterprise-workspace/partners" schema={inviteSchema} defaultValues={{ note: "" }} submitLabel={tr("Gửi lời mời")} invalidate={invalidate} run={(v, cmd) => wapi.invitePartner({ businessId: invite.target!.agriTraceCode ?? invite.target!.businessId, note: v.note || undefined }, cmd)}>
-          {(f) => <TextAreaField control={f.control} name="note" label={tr("Ghi chú cho đối tác (tùy chọn)")} max={500} />}
+          {(f) => <TextAreaField control={f.control} name="note" label={tr("Ghi chú cho đối tác")} max={500} />}
         </CommandDialog>
       )}
       {r && (

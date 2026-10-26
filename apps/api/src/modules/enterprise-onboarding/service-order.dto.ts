@@ -154,7 +154,6 @@ export class ServicePlanLimitsView {
   @ApiProperty() products!: number;
   @ApiProperty() chains!: number;
   @ApiProperty() members!: number;
-  @ApiProperty() qrLabels!: number;
 }
 export class ServicePlanVersionView {
   @ApiProperty({ format: 'uuid' }) id!: string;

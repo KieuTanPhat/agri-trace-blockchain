@@ -26,6 +26,7 @@ import { IdempotencyService } from '../src/common/idempotency/idempotency.servic
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
 import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 import { provisionChain } from './support/chain-scope.js';
+import { confirmSimulatedPermissions } from '../src/modules/ledger/simulated-ledger.js';
 import { seedCycleEvidence } from './support/cycle-evidence.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
@@ -624,6 +625,229 @@ const prisma = new PrismaClient({
       });
       expect(holding.quantity.toFixed(3)).toBe('1.000');
       expect(holding.reserved.toFixed(3)).toBe('0.500');
+    });
+
+    it('delivers by the sender itself: invites the receiver, joins on acceptance and needs only two signers', async () => {
+      const receiver = await prisma.organization.create({
+        data: { name: `Self delivery receiver ${randomUUID()}`, type: 'PROCESSOR' },
+      });
+      const role = await prisma.role.findUniqueOrThrow({ where: { code: 'PROCESSOR' } });
+      users.selfReceiver = (
+        await prisma.user.create({
+          data: {
+            fullName: 'Self delivery receiver',
+            email: `self-receiver-${randomUUID()}@example.test`,
+            roleId: role.id,
+            organizationId: receiver.id,
+            passwordHash: 'not-a-login-fixture',
+          },
+        })
+      ).id;
+      sessionIds.selfReceiver = randomUUID();
+      await prisma.refreshSession.create({
+        data: {
+          id: sessionIds.selfReceiver,
+          familyId: sessionIds.selfReceiver,
+          userId: users.selfReceiver,
+          tokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 3_600_000),
+        },
+      });
+      // The receiver is only a partner: it is not a member of the lot's chain.
+      const selfChainId = await provisionChain(prisma, {
+        ownerOrganizationId: farmOrgId,
+        memberOrganizationIds: [],
+        grants: [
+          { userId: users.farm, organizationId: farmOrgId, role: 'FARM_STAFF' },
+          { userId: users.farm, organizationId: farmOrgId, role: 'ORG_ADMIN' },
+          { userId: users.selfReceiver, organizationId: receiver.id, role: 'ORG_ADMIN' },
+        ],
+      });
+      await prisma.enterprisePartner.upsert({
+        where: { inviterId_inviteeId: { inviterId: farmOrgId, inviteeId: receiver.id } },
+        create: { inviterId: farmOrgId, inviteeId: receiver.id, status: 'ACTIVE' },
+        update: {},
+      });
+      const [senderSite, receiverSite] = await Promise.all(
+        [farmOrgId, receiver.id].map((organizationId) =>
+          prisma.enterpriseSite.create({
+            data: { organizationId, name: 'Self delivery depot', kind: 'WAREHOUSE', address: 'Isolated test depot' },
+          }),
+        ),
+      );
+      const { lot } = await harvestedLot(1, selfChainId);
+      await post('/distribution/allocations', {
+        lotId: lot.id,
+        siteId: senderSite.id,
+        quantity: '1.000',
+        unit: 'kg',
+        version: lot.version,
+        reason: 'Allocate source stock for self delivery regression',
+      }).expect(201);
+      // Platform carriers stay independent; a self delivery names no carrier.
+      await post('/distribution/transfers', {
+        transportMode: 'PLATFORM_CARRIER',
+        carrierId: receiver.id,
+        carrierSiteId: receiverSite.id,
+        receiverId: receiver.id,
+        senderSiteId: senderSite.id,
+        receiverSiteId: receiverSite.id,
+        origin: 'Self delivery farm',
+        destination: 'Self delivery receiver',
+        plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
+        lines: [{ lotId: lot.id, quantity: '0.600', unit: 'kg' }],
+      }).expect(422);
+      let transfer = (
+        await post('/distribution/transfers', {
+          transportMode: 'SELF_DELIVERY',
+          transportDetails: { registration: '51C-123.45', driverName: 'Tài xế nông trại' },
+          receiverId: receiver.id,
+          senderSiteId: senderSite.id,
+          receiverSiteId: receiverSite.id,
+          origin: 'Self delivery farm',
+          destination: 'Self delivery receiver',
+          plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
+          lines: [{ lotId: lot.id, quantity: '0.600', unit: 'kg' }],
+        }).expect(201)
+      ).body.data.record;
+      expect(transfer).toMatchObject({
+        chainId: selfChainId,
+        carrierId: farmOrgId,
+        carrierSiteId: senderSite.id,
+        transportMode: 'SELF_DELIVERY',
+      });
+      expect(
+        await prisma.chainMembership.findUniqueOrThrow({
+          where: { chainId_organizationId: { chainId: selfChainId, organizationId: receiver.id } },
+        }),
+      ).toMatchObject({ status: 'INVITED' });
+
+      const keys: Record<string, { keyRef: string; privateKey: ReturnType<typeof generateKeyPairSync>['privateKey'] }> = {};
+      for (const [actor, organizationId] of [['farm', farmOrgId], ['selfReceiver', receiver.id]] as const) {
+        const pair = generateKeyPairSync('ed25519');
+        const keyRef = randomUUID();
+        const publicKey = pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
+        await post(
+          '/distribution/keys',
+          {
+            id: keyRef,
+            label: 'Isolated self delivery key',
+            publicKey,
+            popSignature: sign(
+              null,
+              Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId, publicKey })}`),
+              pair.privateKey,
+            ).toString('base64url'),
+          },
+          actor,
+        ).expect(201);
+        keys[actor] = { keyRef, privateKey: pair.privateKey };
+      }
+      const signPhase = async (actor: 'farm' | 'selfReceiver', organizationId: string, phase: string) => {
+        const challengeResponse = await get(`/distribution/transfers/${transfer.id}/challenge`, actor);
+        if (challengeResponse.status !== 200) return challengeResponse;
+        const challenge = challengeResponse.body.data;
+        const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
+        const body = {
+          snapshotDigest: challenge.snapshotDigest,
+          transferId: transfer.id,
+          phase,
+          organizationId,
+          userId: users[actor],
+          keyRef: keys[actor].keyRef,
+          version: String(transfer.version),
+          expiresAt,
+        };
+        const signature = sign(null, Buffer.from(`${challenge.domain}\0${canonicalize(body)}`), keys[actor].privateKey).toString('base64url');
+        return post(`/distribution/transfers/${transfer.id}/sign`, { version: transfer.version, phase, keyRef: keys[actor].keyRef, expiresAt, signature }, actor);
+      };
+      // An invited receiver must accept the chain before it can sign.
+      const early = await signPhase('selfReceiver', receiver.id, 'CONSENT');
+      expect(early.status, JSON.stringify(early.body)).toBe(403);
+      const joinResponse = await post(`/distribution/transfers/${transfer.id}/join-chain`, { version: transfer.version }, 'selfReceiver');
+      expect(joinResponse.status, JSON.stringify(joinResponse.body)).toBe(201);
+      const joined = joinResponse.body.data.record;
+      expect(joined).toMatchObject({ membership: 'ACTIVE', roleGranted: true });
+      expect(
+        await prisma.scopedRoleGrant.count({
+          where: { chainId: selfChainId, userId: users.selfReceiver, role: 'PROCESSOR', revokedAt: null },
+        }),
+      ).toBe(1);
+      await confirmSimulatedPermissions(prisma, { guard: false });
+
+      for (const [actor, organizationId] of [['selfReceiver', receiver.id], ['farm', farmOrgId]] as const) {
+        const consent = await signPhase(actor, organizationId, 'CONSENT');
+        expect(consent.status, JSON.stringify(consent.body)).toBe(201);
+        transfer = consent.body.data.record;
+      }
+      expect(transfer.status).toBe('READY');
+      // The sender carries the goods: it alone signs the pickup.
+      const pickup = await signPhase('farm', farmOrgId, 'PICKUP');
+      expect(pickup.status, JSON.stringify(pickup.body)).toBe(201);
+      transfer = pickup.body.data.record;
+      expect(transfer.status).toBe('IN_TRANSIT');
+      const sent = await prisma.lotHolding.findUniqueOrThrow({
+        where: { lotId_organizationId: { lotId: lot.id, organizationId: farmOrgId } },
+      });
+      expect(sent.quantity.toFixed(3)).toBe('0.400');
+      await post(`/distribution/transfers/${transfer.id}/receipt`, {
+        version: transfer.version,
+        reason: 'Đã kiểm đếm đủ lượng giao tại kho nhận',
+        lines: [{ lotId: lot.id, received: '0.600', rejected: '0', quarantined: '0' }],
+      }, 'selfReceiver').expect(201);
+      transfer = (await get(`/distribution/transfers/${transfer.id}`, 'selfReceiver').expect(200)).body.data.record;
+      for (const [actor, organizationId] of [['farm', farmOrgId], ['selfReceiver', receiver.id]] as const) {
+        const delivery = await signPhase(actor, organizationId, 'DELIVERY');
+        expect(delivery.status, JSON.stringify(delivery.body)).toBe(201);
+        transfer = delivery.body.data.record;
+      }
+      expect(transfer.status).toBe('DELIVERED');
+      const received = await prisma.lotHolding.findUniqueOrThrow({
+        where: { lotId_organizationId: { lotId: lot.id, organizationId: receiver.id } },
+      });
+      expect(received.quantity.toFixed(3)).toBe('0.600');
+      expect(
+        await prisma.distributionAttestation.count({ where: { transferId: transfer.id } }),
+      ).toBe(5);
+
+      // The receiver asks to collect more; the sender turns one request into a
+      // pickup transfer and declines the other. Requests never reserve stock.
+      const ask = (note: string) =>
+        post('/distribution/pickup-requests', { senderId: farmOrgId, note }, 'selfReceiver').expect(201);
+      const wanted = (await ask('Lấy thêm 0,2 kg xoài')).body.data.record;
+      const extra = (await ask('Lấy thêm hàng tuần sau')).body.data.record;
+      const base = {
+        receiverId: receiver.id,
+        senderSiteId: senderSite.id,
+        receiverSiteId: receiverSite.id,
+        origin: 'Self delivery farm',
+        destination: 'Receiver collects',
+        plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
+        lines: [{ lotId: lot.id, quantity: '0.200', unit: 'kg' }],
+      };
+      await post('/distribution/transfers', { ...base, transportMode: 'EXTERNAL_CARRIER', externalHirer: 'RECEIVER' }).expect(422);
+      await post('/distribution/transfers', { ...base, transportMode: 'SELF_DELIVERY', pickupRequestId: wanted.id }).expect(409);
+      const collected = (
+        await post('/distribution/transfers', { ...base, transportMode: 'RECEIVER_PICKUP', pickupRequestId: wanted.id }).expect(201)
+      ).body.data.record;
+      expect(collected).toMatchObject({ carrierId: receiver.id, carrierSiteId: receiverSite.id, transportMode: 'RECEIVER_PICKUP' });
+      expect(await prisma.distributionPickupRequest.findUniqueOrThrow({ where: { id: wanted.id } })).toMatchObject({
+        status: 'ACCEPTED',
+        transferId: collected.id,
+      });
+      await post(`/distribution/pickup-requests/${extra.id}/decline`, { version: extra.version }, 'selfReceiver').expect(404);
+      await post(`/distribution/pickup-requests/${extra.id}/decline`, { version: extra.version, note: 'Hết hàng tuần sau' }).expect(201);
+      expect(await prisma.distributionPickupRequest.findUniqueOrThrow({ where: { id: extra.id } })).toMatchObject({ status: 'DECLINED' });
+      const hired = (
+        await post('/distribution/transfers', {
+          ...base,
+          lines: [{ lotId: lot.id, quantity: '0.100', unit: 'kg' }],
+          transportMode: 'EXTERNAL_CARRIER',
+          externalHirer: 'RECEIVER',
+          transportDetails: { carrierName: 'Xe tải Minh Phát', registration: '60C-555.66' },
+        }).expect(201)
+      ).body.data.record;
+      expect(hired).toMatchObject({ carrierId: receiver.id, transportDetails: { carrierName: 'Xe tải Minh Phát' } });
     });
 
     it('keeps a linear hash chain when business timestamps are backdated or tied', async () => {

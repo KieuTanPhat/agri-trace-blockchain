@@ -128,9 +128,9 @@ Migration `20261029000000_platform_governance` thêm `platform_audit` (nối bă
 append-only), `platform_mfa`, `platform_approval` và các cột version/khóa tạm cho
 `app_user`, `organization`. Mã nằm ở `apps/api/src/modules/platform-governance`;
 quy tắc ở [business rules](core-business-rules.md). Biến cấu hình mới:
-`PLATFORM_SECRET_KEY`, `PLATFORM_MFA_MODE`, `PLATFORM_APPROVALS_MODE`,
-`PLATFORM_LOGIN_MAX_ATTEMPTS`, `PLATFORM_LOGIN_LOCK_MINUTES`,
-`PLATFORM_APPROVAL_TTL_HOURS`.
+`PLATFORM_SECRET_KEY`, `PLATFORM_MFA_MODE`, `PLATFORM_LOGIN_MAX_ATTEMPTS`,
+`PLATFORM_LOGIN_LOCK_MINUTES`. Phê duyệt hai bước đã gỡ (2026-10-25);
+`platform_approval` chỉ còn là lịch sử.
 
 P1 bổ sung vận hành chỉ đọc, hồ sơ sự cố và diễn tập thu hồi. Migration
 `20261031000000_platform_privacy` thêm hộp thư quyền dữ liệu/hồ sơ vi phạm mã hóa;

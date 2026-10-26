@@ -71,7 +71,11 @@ afterEach(() => {
 });
 async function renderCommandScenario(
   outcome:
-    "committed-response-lost" | "not-found" | "rejected" | "known-conflict",
+    | "committed-response-lost"
+    | "not-found"
+    | "rejected"
+    | "known-conflict"
+    | "validation-rejected",
 ) {
   const requests: Wire[] = [],
     done = vi.fn();
@@ -96,6 +100,14 @@ async function renderCommandScenario(
           data: { accessRevision: permissionRevision, productionChains: [] },
         });
       if (path === endpoint) {
+        if (outcome === "validation-rejected")
+          return Response.json(
+            {
+              success: false,
+              error: { code: "UNPROCESSABLE_ENTITY", message: "Chọn ít nhất một người nhận" },
+            },
+            { status: 422 },
+          );
         if (outcome === "known-conflict")
           return Response.json(
             {
@@ -115,7 +127,7 @@ async function renderCommandScenario(
         return Response.json({
           success: true,
           data:
-            outcome === "not-found"
+            outcome === "not-found" || outcome === "validation-rejected"
               ? { status: "NOT_FOUND" }
               : outcome === "rejected"
                 ? {
@@ -254,4 +266,15 @@ it("retains an actual uncertain command across permission revalidation without a
   fireEvent.click(screen.getByRole("button", { name: "Đối soát" }));
   await waitFor(() => expect(done).toHaveBeenCalledTimes(1));
   expect(requests.filter((r) => r.path === endpoint)).toHaveLength(1);
+});
+it("reconciles a validation rejection at once so the form unlocks without a resend", async () => {
+  const { requests, done } = await renderCommandScenario("validation-rejected");
+  fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
+  await screen.findByText("Chọn ít nhất một người nhận");
+  await waitFor(() =>
+    expect(screen.getByLabelText("Tên sản phẩm")).toBeEnabled(),
+  );
+  expect(screen.queryByTestId("ledger-command-pending")).not.toBeInTheDocument();
+  expect(requests.filter((r) => r.path === endpoint)).toHaveLength(1);
+  expect(done).not.toHaveBeenCalled();
 });

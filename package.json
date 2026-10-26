@@ -50,11 +50,12 @@
     "test:e2e": "npm run test:e2e --workspace apps/api",
     "test:hybrid:browser": "node scripts/ci/hybrid-browser.mjs",
     "test:enterprise:peer": "node scripts/ci/enterprise-peer.mjs",
-    "test:ci": "node --test scripts/ci/ci.test.mjs scripts/demo/verification-initialization.test.mjs deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs && node --import tsx --test blockchain/network/hybrid/acceptance/export-check.test.mts",
+    "test:ci": "node --test scripts/ci/ci.test.mjs scripts/demo/verification-initialization.test.mjs scripts/demo/seed-target.test.mjs deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs && node --import tsx --test blockchain/network/hybrid/acceptance/export-check.test.mts",
     "check": "npm run agents:check && npm run test:agents && npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
   },
   "workspaces": [
-    "apps/*",
+    "apps/api",
+    "apps/web",
     "blockchain/chaincode",
     "blockchain/gateway"
   ],

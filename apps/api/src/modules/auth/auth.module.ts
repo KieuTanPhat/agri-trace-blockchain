@@ -1,4 +1,20 @@
-import { Module } from '@nestjs/common';
+import {
+  Module,
+  type NestModule,
+  type MiddlewareConsumer,
+} from '@nestjs/common';
+import type { Request, Response, NextFunction } from 'express';
+import {
+  ConsumerController,
+  MobileAuthController,
+  MobileAuthGuard,
+} from './mobile-auth.controller.js';
+import { MobileAuthService } from './mobile-auth.service.js';
+import {
+  StaffSessionController,
+  StaffSessionGuard,
+} from './staff-session.controller.js';
+import { FirebasePhoneVerifier } from './firebase-phone-verifier.js';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { JwtModule, type JwtModuleOptions } from '@nestjs/jwt';
@@ -26,13 +42,22 @@ import { PlatformMfaService } from '../platform-governance/platform-mfa.service.
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [
+    AuthController,
+    MobileAuthController,
+    ConsumerController,
+    StaffSessionController,
+  ],
   providers: [
     AuthService,
     JwtAuthGuard,
     RolesGuard,
     OrganizationAccessService,
     PlatformMfaService,
+    MobileAuthService,
+    MobileAuthGuard,
+    FirebasePhoneVerifier,
+    StaffSessionGuard,
   ],
   exports: [
     JwtAuthGuard,
@@ -42,4 +67,14 @@ import { PlatformMfaService } from '../platform-governance/platform-mfa.service.
     PlatformMfaService,
   ],
 })
-export class AuthModule {}
+export class AuthModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Before guards/throttle/validation: failures must not cache credentials either.
+    consumer
+      .apply((_request: Request, response: Response, next: NextFunction) => {
+        response.setHeader('Cache-Control', 'no-store');
+        next();
+      })
+      .forRoutes(MobileAuthController, ConsumerController, StaffSessionController);
+  }
+}

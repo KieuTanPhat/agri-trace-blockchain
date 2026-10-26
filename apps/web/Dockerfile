@@ -9,6 +9,18 @@ COPY blockchain/chaincode/package.json blockchain/chaincode/package.json
 COPY blockchain/gateway/package.json blockchain/gateway/package.json
 RUN npm install --global npm@12.1.0 && npm ci
 
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS mobile
+WORKDIR /app/apps/mobile
+COPY apps/mobile/package.json apps/mobile/package-lock.json ./
+RUN npm install --global npm@12.1.0 && npm ci --workspaces=false --no-audit --no-fund
+COPY apps/mobile ./
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api
+ARG NEXT_PUBLIC_TRACE_BASE_URL=http://localhost:3000/trace
+ENV EXPO_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV EXPO_PUBLIC_TRACE_ORIGIN=$NEXT_PUBLIC_TRACE_BASE_URL
+ENV EXPO_PUBLIC_APP_VARIANT=consumer
+RUN node node_modules/expo/bin/cli export --platform web
+
 FROM dependencies AS build
 WORKDIR /app
 ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api
@@ -28,6 +40,7 @@ ENV NEXT_PUBLIC_API_MODE=$NEXT_PUBLIC_API_MODE
 ENV NEXT_PUBLIC_BUSINESS_ORIGIN=$NEXT_PUBLIC_BUSINESS_ORIGIN
 ENV NEXT_PUBLIC_CUSTOMER_ORIGIN=$NEXT_PUBLIC_CUSTOMER_ORIGIN
 COPY apps/web apps/web
+COPY --from=mobile /app/apps/mobile/dist apps/web/public/mobile
 RUN npm run build --workspace apps/web
 
 FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS runtime

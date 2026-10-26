@@ -66,7 +66,7 @@ export default function ChainsPage({chainId,view="chains"}:{chainId?:string;view
   const canCreate = ctxQ.data?.grants.some((g) => g.scope==="ORGANIZATION" && g.role === "CREATE_CHAIN" && !g.revokedAt);
   const membership = (chainId: string) => ctxQ.data?.memberships.find((m) => m.chainId === chainId);
   const cols: Column<SupplyChain>[] = [
-    { key: "name", header: tr("Chuỗi"), cell: (c) => <span className="flex flex-col"><span className="font-medium">{c.name}</span><span className="font-mono text-[11.5px] text-ink-2">{c.code} · {CHAIN_TYPE_LABEL[c.chainType]}</span></span> },
+    { key: "name", header: tr("Chuỗi"), cell: (c) => <span className="flex flex-col"><span className="font-medium">{c.name}</span><span className="font-mono text-[11.5px] text-ink-2">{c.code} · {CHAIN_TYPE_LABEL[c.chainType]}{c.personal && <> · <span className="font-sans text-brand-ink">{tr("Chuỗi riêng")}</span></>}</span></span> },
     { key: "owner", header: tr("Chủ chuỗi"), hideBelow: "md", cell: (c) => <span className="text-[12.5px]">{c.ownerOrganizationId === me ? tr("Doanh nghiệp bạn") : names.name(c.ownerOrganizationId)}</span> },
     { key: "member", header: tr("Tư cách của bạn"), cell: (c) => {
       const m = membership(c.id);
@@ -159,13 +159,13 @@ function CreateChain({ props, names }: { props: { open: boolean; onOpenChange: (
             <div className="grid gap-3 sm:grid-cols-2">
               <TextField control={c} name="name" label={tr("Tên chuỗi")} />
               <SelectField control={c} name="chainType" label={tr("Loại chuỗi")} options={CHAIN_TYPES.map((k) => ({ value: k, label: CHAIN_TYPE_LABEL[k] }))} />
-              <TextField control={c} name="plannedStartDate" label={tr("Dự kiến bắt đầu (tùy chọn)")} type="date" />
+              <TextField control={c} name="plannedStartDate" label={tr("Dự kiến bắt đầu")} type="date" />
             </div>
             <p className="text-[12.5px] text-ink-2">{tr("Khâu của doanh nghiệp bạn: {p0}", { p0: myStages.map((s) => STAGE_LABEL[s]).join(", ") || "—" })}</p>
             <ParticipantsField control={c} orgs={partnerOrgs} />
             {products.length > 0 && (
               <fieldset className="flex flex-col gap-1.5">
-                <legend className="mb-1 text-[13px] font-medium">{tr("Sản phẩm liên kết (tùy chọn)")}</legend>
+                <legend className="mb-1 text-[13px] font-medium">{tr("Sản phẩm liên kết")}</legend>
                 {products.map((p) => (
                   <label key={p.id} className="flex items-center gap-2 text-[13px]">
                     <input type="checkbox" checked={picked.includes(p.id)} onChange={(e) => f.setValue("productIds", e.target.checked ? [...picked, p.id] : picked.filter((x) => x !== p.id))} />
@@ -174,7 +174,7 @@ function CreateChain({ props, names }: { props: { open: boolean; onOpenChange: (
                 ))}
               </fieldset>
             )}
-            <TextAreaField control={c} name="description" label={tr("Mô tả (tùy chọn)")} max={2000} /><TextAreaField control={c} name="note" label={tr("Ghi chú (tùy chọn)")} max={2000}/>
+            <TextAreaField control={c} name="description" label={tr("Mô tả")} max={2000} /><TextAreaField control={c} name="note" label={tr("Ghi chú")} max={2000}/>
           </>
         );
       }}
@@ -268,6 +268,13 @@ function ChainSheet({ id, onClose, names,view }: { id: string | null; onClose: (
                   <h3 className="text-[13px] font-semibold">{manager ? tr("Thành viên") : tr("Tư cách thành viên của bạn")}</h3>
                   {manager && <Button size="xs" variant="outline" onClick={() => invite.open(true)} disabled={!invitable.length}><Plus /> {tr("Mời thành viên")}</Button>}
                 </div>
+                {manager && !invitable.length && (
+                  <p className="text-[12.5px] text-ink-2">
+                    {tr("Chỉ mời được doanh nghiệp đã là đối tác đang hoạt động và chưa ở trong chuỗi.")}{" "}
+                    <Link href="/enterprise/partners" className="text-brand underline">{tr("Kết nối đối tác")}</Link>
+                    {c.personal ? ` ${tr("Đối tác cũng tự vào chuỗi khi nhận phiếu giao từ bạn.")}` : ""}
+                  </p>
+                )}
                 <ul className="divide-y divide-line/70 rounded-md border border-line">
                   {(members.data ?? []).map((m) => (
                     <li key={m.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[13px]">

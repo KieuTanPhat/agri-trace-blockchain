@@ -332,6 +332,7 @@ describe("public API", () => {
         startDate: null,
       },
       farmOrg: { organizationId: "farm-1", name: "Farm", type: "FARM" },
+      imageUrl: '/public/trace/test/thumbnail', journey: [],
       allowedCommands: [],
       originType: "HARVEST",
       processing: null,

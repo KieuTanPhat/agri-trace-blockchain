@@ -324,7 +324,6 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
   it('does not grant platform specialists unrelated administration or business writes', async () => {
     for (const who of [operator, cases, privacy]) {
       await call('get', who, 'users').expect(403);
-      await call('post', who, 'platform-approvals', {}).expect(403);
       await call('post', who, `lots/${randomUUID()}/recall`, {
         version: 0,
         reason: 'Không được ghi nghiệp vụ',

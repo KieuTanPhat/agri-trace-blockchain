@@ -6,6 +6,16 @@ export type EnterpriseAccess = {
   permissions: string[];
   capabilities: string[];
 };
+/** First enterprise page this account may open: the workspace once the
+ * service is active, else the plan/onboarding pages an owner completes. */
+export function enterpriseLanding(access: EnterpriseAccess): string | null {
+  return (
+    ["/enterprise", "/enterprise/service", "/enterprise/onboarding"].find(
+      (path) => canUseEnterpriseRoute(path, access),
+    ) ?? null
+  );
+}
+
 export function canUseEnterpriseRoute(
   path: string,
   access: EnterpriseAccess,
@@ -42,14 +52,14 @@ export function canUseEnterpriseRoute(
       access.capabilities.includes("TRANSPORTER") &&
       has(path.endsWith("/new") ? "vehicles.manage" : "vehicles.read")
     );
-  if (within("/enterprise/qr")) return has("qr.manage");
   if (within("/enterprise/inventory")) return has("inventory.manage") || has("quarantine.manage");
   if (within("/enterprise/materials")) return access.capabilities.includes('FARM') && has(path.endsWith('/new') ? 'materials.manage' : 'materials.read');
+  if (within("/enterprise/qr")) return has("qr.manage");
   if (within("/enterprise/inbox")) return has("profile.read");
   if (within("/enterprise/messages")) return has("profile.read");
+  if (within("/enterprise/notifications")) return has("profile.read");
   if (within("/enterprise/settings")) return has("profile.read");
   if (within("/enterprise/help")) return has("profile.read");
-  if (within("/enterprise/ownership")) return has("profile.read");
   if (within("/enterprise/notices"))
     return (
       (access.capabilities.includes("FARM") ||

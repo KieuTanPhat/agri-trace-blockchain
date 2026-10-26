@@ -157,7 +157,7 @@ function CreateCase() {
                     <SelectField
                       control={f.control}
                       name="ownerOrganizationId"
-                      label={tr("Tổ chức phụ trách (tùy chọn)")}
+                      label={tr("Tổ chức phụ trách")}
                       options={(options.data ?? []).map((o) => ({
                         value: o.id,
                         label: o.name,
@@ -166,14 +166,14 @@ function CreateCase() {
                     <TextField
                       control={f.control}
                       name="responseDueAt"
-                      label={tr("Hạn phản hồi (tùy chọn)")}
+                      label={tr("Hạn phản hồi")}
                       type="datetime-local"
                     />
                   </div>
                   <TextField
                     control={f.control}
                     name="lotId"
-                    label={tr("Lô liên quan (tùy chọn)")}
+                    label={tr("Lô liên quan")}
                     hint={tr(
                       "Gắn lô mà không chọn tổ chức thì giao cho doanh nghiệp sản xuất lô",
                     )}

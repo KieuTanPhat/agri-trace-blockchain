@@ -119,6 +119,30 @@ Nếu gián đoạn, giữ journal và `recover` đúng candidate/generation; kh
 network/DB mới hoặc chuyển candidate để vượt lỗi. Sau verified, `reinstall` lặp
 lại bị từ chối vì target đã có current release.
 
+### Nạp bộ dữ liệu 28 sản phẩm sau khi cài lại
+
+Chỉ dùng cho bản cài lại vừa verified, khi ghi đã mở (`open_after_smoke`). Trên
+máy có `.codex/fruit-assets`, checkout đúng SHA đang chạy rồi đóng gói:
+`node scripts/demo/production-dataset-bundle.mjs --out <thư mục trống>`. Gói chứa
+script `scripts/demo` lấy từ commit và ảnh đã chuẩn bị, không chứa ảnh gốc hay tài
+liệu tham chiếu. Chép gói lên VPS, rồi chạy bằng root:
+`python3 -I scripts/demo/production-dataset-run.py --bundle <gói>`.
+
+Runner giữ delivery/host lock, ghim `installation_generation` và 5 tài khoản kỹ
+thuật vào `shared/dataset/<generation>/run/target.json`. Nó chạy seed qua API
+production trong container một lần từ image API của release. Khi chuỗi mới cần
+binding, seed dừng với mã 75; runner gọi `bootstrap-production.mjs` thao tác
+`dataset-ledger` bằng operator container của controller đã cài, thêm Worker
+inventory bằng `add_worker_binding`, activate rồi chạy tiếp. Worker xác nhận quyền
+trên Fabric trước mỗi bước. Sau seed, runner đăng ảnh giới thiệu, ảnh bìa tin và
+chạy `verify-seed.mjs` (binding thật, mỗi event có proof). Lỗi giữa chừng thì sửa
+nguyên nhân rồi chạy lại với `--resume`; checkpoint giữ khóa và body gốc. Mật khẩu
+tài khoản demo nằm trong `run/accounts.json` (root-only), không gửi qua kênh chung.
+
+App mobile (ACheck và app nhân viên) đăng nhập vào production khi private env đặt
+`CONSUMER_AUTH_ENABLED=true` và `STAFF_APP_AUTH_ENABLED=true`. Đăng ký consumer
+vẫn tắt trên production.
+
 ## Delivery và smoke trên VPS
 
 `Production CD` kiểm ba CI push thành công đúng main SHA, HEAD hiện hành, immutable

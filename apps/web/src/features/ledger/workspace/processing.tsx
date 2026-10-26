@@ -20,6 +20,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog";
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
+import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { LineagePanel } from "@/components/ledger/workspace/lineage-panel";
@@ -130,11 +131,11 @@ function Conversions() {
             <>
               <SelectField control={f.control} name="productId" label={tr("Sản phẩm")} options={products.map((p) => ({ value: p.id, label: p.productName }))} />
               <div className="grid gap-3 sm:grid-cols-3">
-                <TextField control={f.control} name="unit" label={tr("Đơn vị ghi nhận")} />
+                <ReferenceSelectField control={f.control} name="unit" label={tr("Đơn vị ghi nhận")} category="UNIT" />
                 <TextField control={f.control} name="factor" label={tr("Hệ số")} inputMode="decimal" />
-                <TextField control={f.control} name="baseUnit" label={tr("Đơn vị cơ sở")} />
+                <ReferenceSelectField control={f.control} name="baseUnit" label={tr("Đơn vị cơ sở")} category="UNIT" />
               </div>
-              <TextField control={f.control} name="note" label={tr("Ghi chú (tùy chọn)")} />
+              <TextField control={f.control} name="note" label={tr("Ghi chú")} />
             </>
           )}
         </CommandDialog>
@@ -220,15 +221,15 @@ function CreateRun({ props, onCreated }: { props: { open: boolean; onOpenChange:
               <SelectField control={c} name="chainId" label={tr("Chuỗi cung ứng")} options={(chains.data ?? []).map((x) => ({ value: x.id, label: x.name }))} />
               <SelectField control={c} name="siteId" label={tr("Cơ sở chế biến / đóng gói")} options={workSites.map((s) => ({ value: s.id, label: s.name }))} />
               <SelectField control={c} name="processType" label={tr("Loại chế biến")} options={PROCESSING_TYPES.map((k) => ({ value: k, label: PROCESS_TYPE_LABEL[k] }))} />
-              <TextField control={c} name="baseUnit" label={tr("Đơn vị cơ sở")} hint={tr("Đơn vị của mọi lô đầu vào")} />
+              <ReferenceSelectField control={c} name="baseUnit" label={tr("Đơn vị cơ sở")} category="UNIT" />
             </div>
             <InputsField control={c} materials={materials.data ?? []} />
             <OutputsField control={c} products={products} />
             <LossesField control={c} />
             <Balance control={c} conversions={conversions.data ?? []} />
             <div className="grid gap-3 sm:grid-cols-2">
-              <TextField control={c} name="recipe" label={tr("Công thức (tùy chọn)")} />
-              <TextField control={c} name="note" label={tr("Ghi chú (tùy chọn)")} />
+              <TextField control={c} name="recipe" label={tr("Công thức")} />
+              <TextField control={c} name="note" label={tr("Ghi chú")} />
             </div>
           </>
         );
@@ -271,10 +272,10 @@ function OutputsField({ control, products }: { control: Control<CreateValues>; p
           </div>
           <div className="grid gap-2 sm:grid-cols-4">
             <TextField control={control} name={`outputs.${i}.quantity`} label={tr("Số lượng")} inputMode="decimal" />
-            <TextField control={control} name={`outputs.${i}.unit`} label={tr("Đơn vị")} />
-            <TextField control={control} name={`outputs.${i}.lotName`} label={tr("Tên lô (tùy chọn)")} />
-            <TextField control={control} name={`outputs.${i}.grade`} label={tr("Phân loại (tùy chọn)")}/><TextField control={control} name={`outputs.${i}.packaging`} label={tr("Quy cách đóng gói (tùy chọn)")}/><TextField control={control} name={`outputs.${i}.packageCount`} label={tr("Số kiện (tùy chọn)")} type="number"/>
-            <TextField control={control} name={`outputs.${i}.expiryDate`} label={tr("Hạn dùng (tùy chọn)")} type="date" />
+            <ReferenceSelectField control={control} name={`outputs.${i}.unit`} label={tr("Đơn vị")} category="UNIT" />
+            <TextField control={control} name={`outputs.${i}.lotName`} label={tr("Tên lô")} />
+            <TextField control={control} name={`outputs.${i}.grade`} label={tr("Phân loại")}/><TextField control={control} name={`outputs.${i}.packaging`} label={tr("Quy cách đóng gói")}/><TextField control={control} name={`outputs.${i}.packageCount`} label={tr("Số kiện")} type="number"/>
+            <TextField control={control} name={`outputs.${i}.expiryDate`} label={tr("Hạn dùng")} type="date" />
           </div>
         </div>
       ))}

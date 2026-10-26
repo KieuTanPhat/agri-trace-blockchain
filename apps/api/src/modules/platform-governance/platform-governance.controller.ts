@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -20,16 +19,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import {
-  ApprovalListQueryDto,
   AuditQueryDto,
-  CancelApprovalDto,
-  DecideApprovalDto,
   EnrollMfaDto,
   MfaCodeDto,
   OperationsQueryDto,
-  ProposeApprovalDto,
 } from './dto.js';
-import { PlatformApprovalsService } from './platform-approvals.service.js';
 import { PlatformAuditService } from './platform-audit.service.js';
 import { PlatformOperationsService } from './platform-operations.service.js';
 import { PlatformCasesService } from './platform-cases.service.js';
@@ -64,18 +58,10 @@ import {
   MfaEnabledDto,
   MfaEnrollmentDto,
   MfaStatusDto,
-  PlatformApprovalDto,
   PlatformAuditExportDto,
   PlatformAuditPageDto,
   PlatformAuditVerificationDto,
 } from './response.dto.js';
-
-const MFA_HEADER = {
-  name: 'X-MFA-Code',
-  required: false,
-  description:
-    'Mã TOTP hoặc mã khôi phục. Bắt buộc cho quản trị viên đã bật MFA khi thực hiện thao tác rủi ro cao.',
-} as const;
 
 /** Read-only evidence for platform administration. AUDITOR may read but never
  * write; there is no mutation endpoint on this controller. */
@@ -173,113 +159,6 @@ export class PlatformMfaController {
   @Post('recovery-codes')
   recoveryCodes(@Req() req: AuthenticatedRequest, @Body() input: MfaCodeDto) {
     return this.service.regenerateRecoveryCodes(req.user, input.code);
-  }
-}
-
-@ApiTags('platform-approvals')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('platform-approvals')
-export class PlatformApprovalsController {
-  constructor(
-    private readonly service: PlatformApprovalsService,
-    private readonly idem: IdempotencyService,
-  ) {}
-
-  private command<T>(
-    req: AuthenticatedRequest,
-    key: string,
-    operation: string,
-    payload: object,
-    work: () => Promise<T>,
-  ) {
-    return this.idem.executeCommand(
-      {
-        idempotencyKey: key,
-        requesterId: req.user.sub,
-        actor: req.user,
-        responseStatus: 201,
-        operation,
-        requestType: 'COMMAND',
-        payload,
-      },
-      work,
-    );
-  }
-
-  @Roles('SYSTEM_ADMIN', 'AUDITOR')
-  @ApiDataResponse(PlatformApprovalDto, 200, true)
-  @Get()
-  list(@Query() query: ApprovalListQueryDto) {
-    return this.service.list(query.status);
-  }
-
-  @Roles('SYSTEM_ADMIN', 'AUDITOR')
-  @ApiDataResponse(PlatformApprovalDto)
-  @Get(':id')
-  get(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.get(id);
-  }
-
-  @Roles('SYSTEM_ADMIN')
-  @ApiDataResponse(PlatformApprovalDto, 201)
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiHeader(MFA_HEADER)
-  @Post()
-  propose(
-    @Body() input: ProposeApprovalDto,
-    @IdempotencyKey() key: string,
-    @Req() req: AuthenticatedRequest,
-    @Headers('x-mfa-code') mfaCode?: string,
-  ) {
-    return this.command(
-      req,
-      key,
-      'PLATFORM_APPROVAL_PROPOSE',
-      // Credentials are part of the replay hash but never of the stored journal.
-      input,
-      () => this.service.propose(req.user, input, mfaCode),
-    );
-  }
-
-  @Roles('SYSTEM_ADMIN')
-  @ApiDataResponse(PlatformApprovalDto, 201)
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiHeader(MFA_HEADER)
-  @Post(':id/decision')
-  decide(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() input: DecideApprovalDto,
-    @IdempotencyKey() key: string,
-    @Req() req: AuthenticatedRequest,
-    @Headers('x-mfa-code') mfaCode?: string,
-  ) {
-    return this.command(
-      req,
-      key,
-      'PLATFORM_APPROVAL_DECIDE',
-      { ...input, id },
-      () => this.service.decide(req.user, id, input, mfaCode),
-    );
-  }
-
-  @Roles('SYSTEM_ADMIN')
-  @ApiDataResponse(PlatformApprovalDto, 201)
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @Post(':id/cancel')
-  cancel(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() input: CancelApprovalDto,
-    @IdempotencyKey() key: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return this.command(
-      req,
-      key,
-      'PLATFORM_APPROVAL_CANCEL',
-      { ...input, id },
-      () => this.service.cancel(req.user, id, input),
-    );
   }
 }
 

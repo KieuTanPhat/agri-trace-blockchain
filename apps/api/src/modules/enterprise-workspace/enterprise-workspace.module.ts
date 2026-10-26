@@ -10,10 +10,9 @@ import { TraceModule } from '../trace/trace.module.js';
 import { MemberInvitationsService, MemberInvitationsController, AcceptMemberInvitationController } from './member-invitations.js';
 import { EnterpriseMessagesController, EnterpriseMessagesService } from './enterprise-messages.js';
 import { ProfileAmendmentsService, ProfileAmendmentsController, ProfileReviewController } from './profile-amendments.js';
-import { OwnershipTransfersService, OwnershipTransfersController } from './ownership-transfers.js';
 @Module({
   imports: [PrismaModule, AuthModule, IdempotencyModule, TraceModule],
-  controllers: [EnterpriseWorkspaceController, EnterpriseResourcesController, PublicEvidenceController,MemberInvitationsController,AcceptMemberInvitationController,ProfileAmendmentsController,ProfileReviewController,OwnershipTransfersController,EnterpriseMessagesController],
-  providers: [EnterpriseWorkspaceService, EnterpriseResourcesService,MemberInvitationsService,ProfileAmendmentsService,OwnershipTransfersService,EnterpriseMessagesService],
+  controllers: [EnterpriseWorkspaceController, EnterpriseResourcesController, PublicEvidenceController,MemberInvitationsController,AcceptMemberInvitationController,ProfileAmendmentsController,ProfileReviewController,EnterpriseMessagesController],
+  providers: [EnterpriseWorkspaceService, EnterpriseResourcesService,MemberInvitationsService,ProfileAmendmentsService,EnterpriseMessagesService],
 })
 export class EnterpriseWorkspaceModule {}

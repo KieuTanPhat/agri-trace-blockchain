@@ -33,11 +33,6 @@ export class PlanLimitsInput {
   @Min(1)
   @Max(100000)
   members!: number;
-  @ApiProperty({ minimum: 0, maximum: 100000000 })
-  @IsInt()
-  @Min(0)
-  @Max(100000000)
-  qrLabels!: number;
 }
 
 export class PlanVersionDraftInput {

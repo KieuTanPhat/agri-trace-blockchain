@@ -23,6 +23,7 @@ try {
     ['docs/openapi/openapi.json', json],
     ['docs/openapi/openapi.sha256', `${createHash('sha256').update(json.replaceAll('\r\n', '\n')).digest('hex')}  openapi.json\n`],
     ['apps/web/src/lib/generated/api.d.ts', types],
+    ['apps/mobile/src/api/generated/api.d.ts', types],
   ];
   for (const [relative, content] of artifacts) {
     const path = join(root, relative);

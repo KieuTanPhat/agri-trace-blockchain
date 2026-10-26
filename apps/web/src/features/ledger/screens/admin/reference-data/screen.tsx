@@ -20,7 +20,7 @@ import { cn } from "@/lib/ledger/utils";
 import { t as tr } from "@/lib/ledger/i18n";
 const CATS = Object.keys(REF_CATEGORY_LABEL) as ReferenceCategory[];
 const schema = z.object({
-  category: z.enum(["UNIT", "PRODUCT_CATEGORY", "CERTIFICATE_TYPE", "LOSS_REASON", "PROCESSING_TYPE", "TICKET_CATEGORY"]),
+  category: z.enum(["UNIT", "PRODUCT_CATEGORY", "CERTIFICATE_TYPE", "LOSS_REASON", "PROCESSING_TYPE", "TICKET_CATEGORY", "VEHICLE_TYPE"]),
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9_]{1,40}$/, { error: () => tr("A-Z, 0-9, _ · tối đa 40") }),
   label: z.string().trim().min(1, { error: () => tr("Bắt buộc") }).max(120),
   description: z.string().max(500).optional(),
@@ -91,7 +91,7 @@ function Reference() {
                 <TextField control={f.control} name="label" label={tr("Nhãn")} max={120} />
                 <TextField control={f.control} name="sortOrder" label={tr("Thứ tự")} type="number" />
               </div>
-              <TextAreaField control={f.control} name="description" label={tr("Mô tả (tùy chọn)")} max={500} rows={2} />
+              <TextAreaField control={f.control} name="description" label={tr("Mô tả")} max={500} rows={2} />
               <ChoiceField control={f.control} name="status" label={tr("Trạng thái")} options={[{ value: "ACTIVE", label: tr("Đang dùng") }, { value: "INACTIVE", label: tr("Ngừng dùng") }]} />
             </>
           )}

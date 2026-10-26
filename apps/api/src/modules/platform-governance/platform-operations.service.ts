@@ -71,7 +71,6 @@ export class PlatformOperationsService {
       reporting: { not: 'NOT_REQUIRED' },
     };
     const [
-      pendingApprovals,
       openCases,
       overdueCases,
       privacyRequests,
@@ -80,9 +79,6 @@ export class PlatformOperationsService {
       lockedAccounts,
     ] = await this.prisma.$transaction(
       [
-        this.prisma.platformApproval.count({
-          where: { status: 'PENDING', expiresAt: { gt: now } },
-        }),
         this.prisma.platformCase.count({
           where: { status: { not: 'CLOSED' } },
         }),
@@ -105,7 +101,6 @@ export class PlatformOperationsService {
     );
     return {
       generatedAt: now.toISOString(),
-      pendingApprovals,
       openCases,
       overdueCases,
       privacyRequests,
