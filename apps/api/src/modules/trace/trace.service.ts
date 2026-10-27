@@ -94,7 +94,19 @@ export class TraceService {
       )`;
     if (roots.length > 1)
       throw new ConflictException('Trace subjects disagree');
-    const chainId = roots[0]?.chainId ?? null;
+    // A lot processed only from external material has no origin cycle; it
+    // keeps the chain binding its run was planned under.
+    const runRoot =
+      roots.length === 0 && input.lotId
+        ? (
+            await tx.$queryRaw<
+              Array<{ chainId: string; bindingDigest: string | null }>
+            >`SELECT r.chain_id AS "chainId", r.binding_digest AS "bindingDigest"
+              FROM lot l JOIN processing_run r ON r.id = l.processing_run_id
+              WHERE l.lot_id = ${input.lotId}::uuid AND r.origin_cycle_id IS NULL`
+          )[0]
+        : undefined;
+    const chainId = roots[0]?.chainId ?? runRoot?.chainId ?? null;
     if (chainId) {
       if (
         !input.businessData ||
@@ -146,7 +158,16 @@ export class TraceService {
           where: { cycleId: originCycleId },
           include: { binding: { include: { state: true, route: true } } },
         })
-      : null;
+      : runRoot?.bindingDigest
+        ? await tx.fabricNetworkBinding
+            .findUnique({
+              where: { digest: runRoot.bindingDigest },
+              include: { state: true, route: true },
+            })
+            .then((binding) =>
+              binding ? { bindingDigest: binding.digest, binding } : null,
+            )
+        : null;
     if (!origin)
       throw new ConflictException('Sự kiện cần binding Fabric hoạt động');
     if (origin.binding.state?.status !== 'ACTIVE')

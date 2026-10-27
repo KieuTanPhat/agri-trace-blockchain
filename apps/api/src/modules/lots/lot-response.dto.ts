@@ -175,6 +175,20 @@ export class ProcessingProvenanceDto {
   @ApiProperty() baseUnit!: string;
   @ApiProperty({ type: [ProcessingInputSummaryDto] })
   inputs!: ProcessingInputSummaryDto[];
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: true,
+    isArray: true,
+    description: 'Nguyên liệu nhập ngoài AgriTrace, doanh nghiệp tự khai (selfDeclared = true)',
+  })
+  externalInputs!: Record<string, unknown>[];
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: true,
+    isArray: true,
+    description: 'Nhật ký các bước chế biến; bản công khai không có người ghi',
+  })
+  steps!: Record<string, unknown>[];
 }
 class LotBaseDto {
   @ApiProperty({ enum: ['HARVEST', 'TRANSFORMATION'] }) originType!: string;

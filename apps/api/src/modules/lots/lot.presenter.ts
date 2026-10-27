@@ -44,6 +44,24 @@ export function processingProvenance(
           : input.lot.organization.name,
       harvestTime: input.lot.harvest?.harvestTime ?? null,
     })),
+    // Material bought outside AgriTrace: declared by the processor, not traced further.
+    externalInputs: run.externalInputs.map((input) => ({
+      materialName: input.receipt.materialName,
+      supplierName: input.receipt.supplierName,
+      ...(publicView ? {} : { documentNo: input.receipt.documentNo }),
+      receivedAt: input.receipt.receivedAt,
+      quantity: Number(input.quantity),
+      unit: input.unit,
+      selfDeclared: true,
+    })),
+    // The public log never names the staff member who recorded a step.
+    steps: run.logs.map((log) => ({
+      ...(publicView ? {} : { id: log.id, recordedBy: log.recordedBy }),
+      step: log.step,
+      occurredAt: log.occurredAt,
+      note: log.note,
+      correction: log.correctsId !== null,
+    })),
   };
 }
 const cycleSummary = (
