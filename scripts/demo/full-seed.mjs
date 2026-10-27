@@ -1765,17 +1765,25 @@ const processing = await step("processing", async () => {
     const source = transfers.find(t => t.receiver === "processor" && t.productSlug === definition.source);
     assert.ok(source, `Missing received ingredient ${definition.source}`);
     for(let i=0;i<3;i++) {
+      // Kế hoạch (sản phẩm chính + nguyên liệu) → bắt đầu (giữ chỗ) → nhật ký → ra lò.
       const run = unwrap(await api(actors.processor,"/processing-runs",{
-        chainId:source.chainId,siteId:resources.sites.processor[0].id,baseUnit:"kg",processType:"DRYING",
+        chainId:source.chainId,siteId:resources.sites.processor[0].id,productId:product.id,baseUnit:"kg",processType:"DRYING",
         recipe:"Tiếp nhận, phân loại, sơ chế, sấy theo mẻ và đóng gói kín.",
-        inputs:[{lotId:source.lotId,quantity:i===0?"50.000":"10.000"}],
-        outputs:[{productId:product.id,kind:"PRODUCT",quantity:i===0?"12.000":"2.400",unit:"kg",
-          lotName:`${definition.name} - mẻ ${i+1}`,packaging:"Túi kín 200 g",packageCount:i===0?60:12,expiryDate:day(180).slice(0,10)}],
-        losses:[{reason:"MOISTURE",quantity:i===0?"38.000":"7.600",note:"Nước thoát ra trong quá trình sấy và phần sơ chế"}],
+        inputs:[{lotId:source.lotId,quantity:i===0?"50.000":"10.000"}],externalInputs:[],
         note:"Đối soát khối lượng nguyên liệu, thành phẩm và hao hụt theo mẻ.",
       },`processing:${definition.slug}:${i}`));
       result.push(run);
-      if(i===0) await api(actors.processor,`/processing-runs/${run.id}/complete`,{version:run.version},`processing-complete:${run.id}`);
+      if(i===0) {
+        const started = unwrap(await api(actors.processor,`/processing-runs/${run.id}/start`,{version:run.version},`processing-start:${run.id}`));
+        for (const [n,[step,note]] of [["SORTING","Phân loại, loại bỏ quả dập."],["DRYING","Sấy 60°C trong 8 giờ, độ ẩm còn khoảng 12%."],["PACKING","Đóng túi kín 200 g, dán tem truy xuất."]].entries())
+          await api(actors.processor,`/processing-runs/${run.id}/logs`,{step,occurredAt:new Date(Date.now()+n*1000).toISOString(),note},`processing-log:${run.id}:${n}`);
+        await api(actors.processor,`/processing-runs/${run.id}/complete`,{
+          version:started.version,
+          output:{quantity:"12.000",unit:"kg",lotName:`${definition.name} - mẻ ${i+1}`,packaging:"Túi kín 200 g",packageCount:60,expiryDate:day(180).slice(0,10)},
+          byProducts:[],
+          losses:[{reason:"MOISTURE",quantity:"38.000",note:"Nước thoát ra trong quá trình sấy và phần sơ chế"}],
+        },`processing-complete:${run.id}`);
+      }
       if(i===2) await api(actors.processor,`/processing-runs/${run.id}/cancel`,{version:run.version,reason:"Điều chỉnh lịch sản xuất, chưa thực hiện cấp phát nguyên liệu."},`processing-cancel:${run.id}`);
     }
   }

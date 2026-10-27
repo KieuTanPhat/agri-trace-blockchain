@@ -17,8 +17,13 @@ import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { ProcessingService } from './processing.service.js';
 import {
+  AddProcessingInputsInput,
   CancelProcessingInput,
+  CompleteProcessingInput,
+  CreateMaterialReceiptInput,
   CreateProcessingRunInput,
+  MaterialReceiptQuery,
+  ProcessingLogInput,
   CreateUnitConversionInput,
   LotLineageDto,
   ProcessingListDto,
@@ -59,6 +64,31 @@ export class ProcessingController {
   @ApiDataResponse(ProcessingListDto)
   materials(@Req() req: AuthenticatedRequest) {
     return this.service.materials(req.user);
+  }
+
+  @Get('stock')
+  @ApiDataResponse(ProcessingRecordDto)
+  stock(@Req() req: AuthenticatedRequest) {
+    return this.service.stock(req.user);
+  }
+
+  @Get('receipts')
+  @ApiDataResponse(ProcessingListDto)
+  receipts(@Req() req: AuthenticatedRequest, @Query() query: MaterialReceiptQuery) {
+    return this.service.receipts(req.user, query);
+  }
+
+  @Get('receipts/:id')
+  @ApiDataResponse(ProcessingRecordDto)
+  receipt(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.receipt(req.user, id);
+  }
+
+  @Post('receipts')
+  @ApiHeader(KEY)
+  @ApiDataResponse(ProcessingRecordDto, 201)
+  createReceipt(@Req() req: AuthenticatedRequest, @Body() input: CreateMaterialReceiptInput, @IdempotencyKey() key: string) {
+    return this.command(req, key, 'EW_MATERIAL_RECEIPT_CREATE', input, () => this.service.createReceipt(req.user, input));
   }
 
   @Get('lineage/:lotId')
@@ -105,13 +135,49 @@ export class ProcessingController {
     return this.command(req, key, 'EW_PROCESSING_CREATE', input, () => this.service.create(req.user, input));
   }
 
+  @Post(':id/start')
+  @ApiHeader(KEY)
+  @ApiDataResponse(ProcessingRecordDto, 201)
+  start(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: ProcessingVersionInput,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.command(req, key, 'EW_PROCESSING_START', { ...input, id }, () => this.service.start(req.user, id, input));
+  }
+
+  @Post(':id/inputs')
+  @ApiHeader(KEY)
+  @ApiDataResponse(ProcessingRecordDto, 201)
+  addInputs(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: AddProcessingInputsInput,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.command(req, key, 'EW_PROCESSING_INPUTS', { ...input, id }, () => this.service.addInputs(req.user, id, input));
+  }
+
+  @Post(':id/logs')
+  @ApiHeader(KEY)
+  @ApiDataResponse(ProcessingRecordDto, 201)
+  addLog(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: ProcessingLogInput,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.command(req, key, 'EW_PROCESSING_LOG', { ...input, id }, () => this.service.addLog(req.user, id, input));
+  }
+
   @Post(':id/complete')
   @ApiHeader(KEY)
   @ApiDataResponse(ProcessingRecordDto, 201)
   complete(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() input: ProcessingVersionInput,
+    @Body() input: CompleteProcessingInput,
     @IdempotencyKey() key: string,
   ) {
     return this.command(req, key, 'EW_PROCESSING_COMPLETE', { ...input, id }, () => this.service.complete(req.user, id, input));

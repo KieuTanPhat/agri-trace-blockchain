@@ -42,6 +42,10 @@ const PROCESSING_PROVENANCE = {
       },
     },
     losses: true,
+    externalInputs: {
+      include: { receipt: { select: { materialName: true, supplierName: true, documentNo: true, receivedAt: true } } },
+    },
+    logs: { orderBy: { occurredAt: 'asc' } },
   },
 } satisfies Prisma.ProcessingRunDefaultArgs;
 

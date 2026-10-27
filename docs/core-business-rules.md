@@ -525,6 +525,41 @@ Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-proc
   vùng riêng tư) và tổng cân bằng; bằng chứng cảm biến là `NOT_APPLICABLE`.
   Diễn tập thu hồi và tra cứu admin lan từ lô nguyên liệu tới mọi lô thành phẩm.
 
+### Phiếu nhập và vòng đời lệnh (27/10/2026)
+
+Kế hoạch: [processing-receipts-lifecycle](plans/processing-receipts-lifecycle-2026-10-27.md).
+Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lệnh lập từ ngày này.
+
+- **Phiếu nhập nguyên liệu** (`material_receipt`, không sửa/xóa):
+  - Khi bên nhận xác nhận thực nhận và cơ sở nhận là loại `PROCESSING`/`PACKING`,
+    hệ thống tự tạo phiếu `AGRITRACE` theo lượng thực nhận trong cùng
+    transaction. Tồn vẫn tính trên tồn cơ sở của lô.
+  - Phiếu `EXTERNAL` cho nguyên liệu mua ngoài: nhà cung cấp, số chứng từ, ngày
+    nhập, lượng/đơn vị. Tồn tính trên chính phiếu (`quantity − reserved − consumed`).
+    Phiếu chỉ dùng được khi có ít nhất một chứng từ `MATERIAL_RECEIPT` chưa rút.
+- **Vòng đời lệnh:**
+  - Lập kế hoạch (`DRAFT`): chọn 1 sản phẩm chính đang hoạt động và nguyên liệu
+    (lô AgriTrace và/hoặc phiếu ngoài) cùng đơn vị cơ sở tại cơ sở; chưa giữ chỗ.
+  - Bắt đầu (`IN_PROGRESS`): giữ chỗ toàn bộ nguyên liệu (`reserved`). Bổ sung
+    nguyên liệu khi đang chế biến thì giữ chỗ ngay.
+  - Hủy: được khi `DRAFT`/`IN_PROGRESS`; hủy lệnh đang chế biến trả lại phần giữ chỗ.
+  - Ra lò (`COMPLETED`, một lần): ghi đúng một dòng sản phẩm chính, phụ phẩm
+    (`BY_PRODUCT`) và hao hụt; kiểm cân bằng gồm cả nguyên liệu ngoài; trừ
+    `quantity` và `reserved` của lô, tăng `consumed` của phiếu ngoài.
+- **Nhật ký** (`processing_log`): chỉ thêm khi `IN_PROGRESS`; sai thì ghi dòng
+  `CORRECTION` trỏ tới dòng cũ. Ảnh tùy chọn (`PROCESSING_LOG`/`PROCESSING_IMAGE`).
+  QR công khai hiện bước, thời điểm và ghi chú, không hiện người ghi.
+- **Sổ cái:** không ghi sự kiện riêng cho nhật ký hay phiếu ngoài. Sự kiện
+  `PROCESSING_OUTPUT` lúc ra lò chứa `externalInputs` (nhà cung cấp, số chứng
+  từ, `selfDeclared`) và `steps` (bước, thời điểm, SHA-256 ghi chú). Lệnh chỉ có
+  nguyên liệu ngoài không có vụ gốc nên giữ `binding_digest` của chuỗi lúc lập;
+  `TraceService` dùng binding đó cho lô thành phẩm.
+  Chuỗi chưa có binding hoạt động thì không lập được lệnh chỉ dùng nguyên liệu ngoài.
+- Lệnh nháp lập trước ngày này (không có sản phẩm chính) không bắt đầu được;
+  hủy và lập lại.
+  Diễn tập thu hồi và tra cứu admin lan từ lô nguyên liệu tới mọi lô thành phẩm.
+
+
 ## Khu quản trị nền tảng mở rộng
 
 - Admin điều phối, không ghi lô/vụ/giao nhận/thu hồi thay doanh nghiệp. Các trang

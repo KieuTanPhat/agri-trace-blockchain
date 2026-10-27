@@ -30,6 +30,7 @@ import {
 import { TraceService } from '../trace/trace.service.js';
 import { randomUUID } from 'node:crypto';
 import { activeSite, siteBalance, requireSiteStock, addSiteStock, internalInTransit, unslippedQuarantine, consumeQuarantineCase, type ReceiptLine } from './distribution-inventory.js';
+import { recordHandoverReceipt } from '../processing/processing-receipts.js';
 import { prepareC2,consumeC2 } from './distribution-c2.js';
 import { BUSINESS_CAPABILITIES, lockChainScope } from '../supply-chains/chain-policy.js';
 import { requestLedgerGrant } from '../ledger/ledger-permissions.js';
@@ -1034,7 +1035,10 @@ export class DistributionService {
               version: { increment: 1 },
             },
           });
-          if (t.receiverSiteId) await addSiteStock(tx, l.lotId, t.receiverId, t.receiverSiteId, received, quarantine);
+          if (t.receiverSiteId) {
+            await addSiteStock(tx, l.lotId, t.receiverId, t.receiverSiteId, received, quarantine);
+            await recordHandoverReceipt(tx, { transferId: id, lotId: l.lotId, organizationId: t.receiverId, siteId: t.receiverSiteId, senderId: t.senderId, received, userId: actor.sub! });
+          }
         }
       }
       const updated = await tx.distributionTransfer.update({

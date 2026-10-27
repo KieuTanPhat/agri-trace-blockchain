@@ -317,6 +317,10 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_PROCESSING_CREATE: 'processing.write',
   EW_PROCESSING_COMPLETE: 'processing.write',
   EW_PROCESSING_CANCEL: 'processing.write',
+  EW_PROCESSING_START: 'processing.write',
+  EW_PROCESSING_INPUTS: 'processing.write',
+  EW_PROCESSING_LOG: 'processing.write',
+  EW_MATERIAL_RECEIPT_CREATE: 'processing.write',
   EW_UNIT_CONVERSION_CREATE: 'catalog.manage',
   EW_UNIT_CONVERSION_REVOKE: 'catalog.manage',
   EW_TICKET_CREATE: 'profile.read',
@@ -351,11 +355,18 @@ export async function authorizeWorkspaceCommand(
     throw new ForbiddenException('Phiếu chuyển nằm ngoài doanh nghiệp');
   if (input.operation.startsWith('EW_SITE_TRANSFER_') && input.operation !== 'EW_SITE_TRANSFER_CREATE' && !siteTransfer)
     throw new ForbiddenException('Không tìm thấy phiếu chuyển');
-  const processingRun = ['EW_PROCESSING_COMPLETE', 'EW_PROCESSING_CANCEL'].includes(input.operation)
+  const runOperation = input.operation.startsWith('EW_PROCESSING_') && input.operation !== 'EW_PROCESSING_CREATE';
+  const processingRun = runOperation
     ? await db.processingRun.findUnique({ where: { id: String(data.id) } })
     : null;
-  if (['EW_PROCESSING_COMPLETE', 'EW_PROCESSING_CANCEL'].includes(input.operation) && processingRun?.organizationId !== input.actor!.organizationId)
+  if (runOperation && processingRun?.organizationId !== input.actor!.organizationId)
     throw new ForbiddenException('Lệnh chế biến nằm ngoài doanh nghiệp');
+  if (input.operation === 'EW_MATERIAL_RECEIPT_CREATE') {
+    // External material receipts are scoped to the receiving site only.
+    const siteId = typeof data.siteId === 'string' ? data.siteId : undefined;
+    if (!siteId) throw new ForbiddenException('Phiếu nhập cần cơ sở nhận');
+    return (await enterpriseAuthority(db, input.actor!, permission, undefined, siteId, lock)).scope;
+  }
   if (input.operation.startsWith('EW_PROCESSING_')) {
     // Processing writes are scoped to one chain and one processing site.
     const chainId = processingRun?.chainId ?? (typeof data.chainId === 'string' ? data.chainId : undefined);

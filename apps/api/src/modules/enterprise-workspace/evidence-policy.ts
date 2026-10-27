@@ -47,6 +47,10 @@ export async function evidenceSubject(tx: Prisma.TransactionClient, actor: Comma
  } else if (entityType === 'QUARANTINE') {
    const slip = await tx.quarantineCase.findFirst({where:own}); if (!slip) throw new NotFoundException();
    const lot = await tx.lot.findUnique({where:{id:slip.lotId},include: LOT_ORIGIN_INCLUDE}); chainId=(lot ? lotChainId(lot) : undefined); siteId=slip.siteId;
+ } else if (entityType === 'MATERIAL_RECEIPT') {
+   const receipt = await tx.materialReceipt.findFirst({where:own}); if (!receipt) throw new NotFoundException(); siteId=receipt.siteId;
+ } else if (entityType === 'PROCESSING_LOG') {
+   const log = await tx.processingLog.findUnique({where:{id:entityId},include:{run:true}}); if (!log || log.run.organizationId!==actor.organizationId) throw new NotFoundException(); chainId=log.run.chainId; siteId=log.run.siteId;
  } else throw new UnprocessableEntityException('Loại chứng cứ không được hỗ trợ');
  await enterpriseAuthority(tx,actor,permission,entityType==='CHAIN'?undefined:chainId,farmScopeId ?? siteId);
  return {chainId,siteId};

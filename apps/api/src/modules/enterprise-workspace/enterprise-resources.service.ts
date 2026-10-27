@@ -19,6 +19,8 @@ export type EvidenceFile = { buffer: Buffer; originalname: string; mimetype: str
 const safeFileName = (name: string) => [...name].map(c => { const code = c.charCodeAt(0); return code < 32 || code === 127 || c === '/' || c === '\\' ? '_' : c; }).join('').slice(0, 180);
 const evidenceKinds: Record<string, readonly string[]> = {
   CHAIN: ['OTHER', 'CHAIN_IMAGE'],
+  MATERIAL_RECEIPT: ['OTHER', 'RECEIPT_DOCUMENT', 'INSPECTION_IMAGE', 'CERTIFICATE_IMAGE'],
+  PROCESSING_LOG: ['OTHER', 'PROCESSING_IMAGE'],
   SITE_TRANSFER: ['OTHER', 'TRANSFER_IMAGE'],
   QUARANTINE: ['OTHER', 'QUARANTINE_IMAGE', 'INSPECTION_IMAGE', 'CERTIFICATE_IMAGE'],
   PRODUCT: ['OTHER', 'PRODUCT_IMAGE', 'INSPECTION_IMAGE'],
@@ -41,6 +43,7 @@ const imageOnlyKinds = new Set([
   'MEMBER_AVATAR',
   'CHAIN_IMAGE',
   'QUARANTINE_IMAGE',
+  'PROCESSING_IMAGE',
 ]);
 @Injectable()
 export class EnterpriseResourcesService {

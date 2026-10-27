@@ -375,6 +375,10 @@ model ProcessingRun {
   note            String?            @db.VarChar(1000)
   status          String             @default("DRAFT") @db.VarChar(20)
   originCycleId   String?            @map("origin_cycle_id") @db.Uuid
+  productId       String?            @map("product_id") @db.Uuid
+  bindingDigest   String?            @map("binding_digest") @db.VarChar(64)
+  startedAt       DateTime?          @map("started_at") @db.Timestamptz(6)
+  startedBy       String?            @map("started_by") @db.Uuid
   inputTotal      Decimal?           @map("input_total") @db.Decimal(14, 3)
   outputTotal     Decimal?           @map("output_total") @db.Decimal(14, 3)
   lossTotal       Decimal?           @map("loss_total") @db.Decimal(14, 3)
@@ -389,6 +393,9 @@ model ProcessingRun {
   inputs          ProcessingInput[]
   outputs         ProcessingOutput[]
   losses          ProcessingLoss[]
+  externalInputs  ProcessingExternalInput[]
+  logs            ProcessingLog[]
+  product         Product?           @relation("ProcessingRunProduct", fields: [productId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   lots            Lot[]              @relation("ProcessingRunLots")
   chain           SupplyChain        @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
@@ -403,6 +410,7 @@ model ProcessingInput {
   lotId    String        @map("lot_id") @db.Uuid
   quantity Decimal       @db.Decimal(14, 3)
   unit     String        @db.VarChar(30)
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   run      ProcessingRun @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   lot      Lot           @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
@@ -442,6 +450,67 @@ model ProcessingLoss {
   run      ProcessingRun @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@map("processing_loss")
+}
+
+/// Goods received at a processing site: from an AgriTrace handover (stock
+/// stays on the lot's site holding) or declared from outside (stock tracked
+/// on the receipt). Receipts are documents and never edited.
+model MaterialReceipt {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String    @unique @db.VarChar(40)
+  organizationId String    @map("organization_id") @db.Uuid
+  siteId         String    @map("site_id") @db.Uuid
+  source         String    @db.VarChar(20)
+  transferId     String?   @map("transfer_id") @db.Uuid
+  lotId          String?   @map("lot_id") @db.Uuid
+  materialName   String    @map("material_name") @db.VarChar(255)
+  supplierName   String    @map("supplier_name") @db.VarChar(255)
+  documentNo     String?   @map("document_no") @db.VarChar(100)
+  receivedAt     DateTime  @map("received_at") @db.Timestamptz(6)
+  quantity       Decimal   @db.Decimal(14, 3)
+  unit           String    @db.VarChar(30)
+  reserved       Decimal   @default(0) @db.Decimal(14, 3)
+  consumed       Decimal   @default(0) @db.Decimal(14, 3)
+  expiryDate     DateTime? @map("expiry_date") @db.Date
+  note           String?   @db.VarChar(1000)
+  createdBy      String    @map("created_by") @db.Uuid
+  version        Int       @default(0)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  runInputs      ProcessingExternalInput[]
+
+  @@index([organizationId, siteId, createdAt(sort: Desc)], map: "ix_material_receipt_org_site")
+  @@map("material_receipt")
+}
+
+model ProcessingExternalInput {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  runId     String          @map("run_id") @db.Uuid
+  receiptId String          @map("receipt_id") @db.Uuid
+  quantity  Decimal         @db.Decimal(14, 3)
+  unit      String          @db.VarChar(30)
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  run       ProcessingRun   @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  receipt   MaterialReceipt @relation(fields: [receiptId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([runId, receiptId])
+  @@index([receiptId], map: "ix_processing_external_input_receipt")
+  @@map("processing_external_input")
+}
+
+/// Append-only log of a running processing run; corrections are new entries.
+model ProcessingLog {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  runId      String        @map("run_id") @db.Uuid
+  step       String        @db.VarChar(30)
+  occurredAt DateTime      @map("occurred_at") @db.Timestamptz(6)
+  note       String        @db.VarChar(2000)
+  correctsId String?       @map("corrects_id") @db.Uuid
+  recordedBy String        @map("recorded_by") @db.Uuid
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  run        ProcessingRun @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([runId, occurredAt], map: "ix_processing_log_run")
+  @@map("processing_log")
 }
 
 /// Administrative QR block. The page keeps resolving with a public warning.
@@ -1636,6 +1705,7 @@ model Product {
   lots        Lot[]
   cycles      ProductionCycle[]
   processingOutputs ProcessingOutput[]
+  processingRuns ProcessingRun[] @relation("ProcessingRunProduct")
   unitConversions ProductUnitConversion[]
 
   rawMaterials String? @map("raw_materials") @db.VarChar(2000)
