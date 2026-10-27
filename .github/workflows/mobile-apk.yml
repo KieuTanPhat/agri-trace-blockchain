@@ -8,7 +8,9 @@ on:
     branches: [ci/mobile-apk]
     paths: ['apps/mobile/**', '.github/workflows/mobile-apk.yml']
 permissions: {contents: read}
-concurrency: {group: mobile-apk-${{ github.ref }}, cancel-in-progress: true}
+concurrency:
+  group: mobile-apk-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   apk:
     name: APK / ${{ matrix.variant }}
