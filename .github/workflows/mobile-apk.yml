@@ -1,0 +1,52 @@
+name: Mobile APK
+# Installable Android builds of ACheck (consumer) and the staff app against
+# production. Signed with the React Native debug key: for sideloaded demos only,
+# never a store submission.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ci/mobile-apk]
+    paths: ['apps/mobile/**', '.github/workflows/mobile-apk.yml']
+permissions: {contents: read}
+concurrency: {group: mobile-apk-${{ github.ref }}, cancel-in-progress: true}
+jobs:
+  apk:
+    name: APK / ${{ matrix.variant }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [consumer, staff]
+    env:
+      EXPO_PUBLIC_APP_VARIANT: ${{ matrix.variant }}
+      EXPO_PUBLIC_API_BASE_URL: https://agritrace.dev/api
+      EXPO_PUBLIC_TRACE_ORIGIN: https://agritrace.dev
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with: {node-version-file: .node-version}
+      - run: npm install --global npm@12.1.0
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix apps/mobile --workspaces=false --no-audit --no-fund
+      - name: Generate the Android project
+        working-directory: apps/mobile
+        run: node node_modules/expo/bin/cli prebuild --platform android --no-install --clean
+      - name: Build release APK
+        working-directory: apps/mobile/android
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+      - name: Name the APK
+        run: |
+          name=$([ "$EXPO_PUBLIC_APP_VARIANT" = staff ] && echo agritrace-nhan-vien || echo acheck)
+          mkdir -p dist
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "dist/$name-${GITHUB_SHA::7}.apk"
+          sha256sum dist/*.apk >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: apk-${{ matrix.variant }}
+          path: dist/*.apk
+          retention-days: 30
