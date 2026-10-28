@@ -1,4 +1,10 @@
 import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { BillingModule } from './modules/billing/billing.module.js';
+import { ProcessingModule } from './modules/processing/processing.module.js';
+import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module.js';
+import { EnterpriseWorkspaceModule } from './modules/enterprise-workspace/enterprise-workspace.module.js';
+import { DistributionModule } from './modules/distribution/distribution.module.js';
+import { PlatformGovernanceModule } from './modules/platform-governance/platform-governance.module.js';
 import { PublicDirectoryModule } from './modules/public-directory/public-directory.module.js';
 import { PublicContentModule } from './modules/public-content/public-content.module.js';
 import { WeatherModule } from './modules/weather/weather.module.js';
@@ -38,7 +44,13 @@ import { SupplyChainsModule } from './modules/supply-chains/supply-chains.module
       },
     ]),
     AuthModule,
+    PlatformGovernanceModule,
+    BillingModule,
+    ProcessingModule,
+    PlatformAdminModule,
     EnterpriseOnboardingModule,
+    EnterpriseWorkspaceModule,
+    DistributionModule,
     UsersModule,
     CatalogModule,
     PublicDirectoryModule,

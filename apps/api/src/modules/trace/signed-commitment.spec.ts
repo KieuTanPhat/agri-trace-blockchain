@@ -10,6 +10,7 @@ import {
   publicKeyHash,
   signedBindingEventCommitment,
   signedMessageForIntent,
+  signedPrivateBodyDigest,
   verifyEd25519,
   type IntentBody,
   type SignatureAssertion,
@@ -28,10 +29,13 @@ describe('Release C commitments (API side)', () => {
   // test/signing.spec.ts). Any divergence fails both suites.
   const signer = testKey(7);
   const intent = 'aa'.repeat(32);
+  const payload = 'bb'.repeat(32);
+  const metadata = 'ee'.repeat(32);
   const assertion = (): SignatureAssertion => ({
     algorithm: 'Ed25519',
     keyRef: u(20),
     intentDigest: intent,
+    payloadDigest: payload,
     signature: signer.sign(
       intentSignedMessage({
         intentDigest: intent,
@@ -42,6 +46,7 @@ describe('Release C commitments (API side)', () => {
         eventType: 'HANDOVER_OFFERED',
         bindingDigest: BINDING,
         keyRef: u(20),
+        payloadDigest: payload,
       }),
     ),
   });
@@ -63,10 +68,18 @@ describe('Release C commitments (API side)', () => {
       'CMhZFan-e2_lrh2vVmrPuTt8S1GaROSKEqtHANDyTtoBJRLJiX8mygXGIh4JByrfIjQoGp4fhu-Pji7kC7CnCg',
     );
     expect(assertion().signature).toBe(
-      'vTr8BYI5j0z1tMW7R35pw7Nq1duFt5pfKvETCM8HHnWYg6oVOXGMb_MGvG4pQYGUMJNKCx-7YuOFtEI6C7JyCA',
+      'XwjfPEMwbLJhTyTaaRcqIuKWb8LK2ZbXoKFM8YPNy-EcyYcY_uBmX6hZFob1QsF6QFQmfnNu2g1OD_HBAW5lBg',
     );
     expect(assertionDigest(assertion())).toBe(
-      'e7134283211249c385eeea22d98e92dbe6443a33420c7d43b3acc8a5662391bb',
+      'ef432bddc600b6b101ac9a49f9e0f1c318a8a1a03be5d2ea6a3559098307b6f3',
+    );
+    const body = signedPrivateBodyDigest({
+      payloadDigest: payload,
+      metadataDigest: metadata,
+      assertionDigest: assertionDigest(assertion()),
+    });
+    expect(body).toBe(
+      '0d3f1e6e4ec443d64d9b10228ad2f25ca97eda43c2bea1040d45aaeaf1c01b9f',
     );
     expect(
       signedBindingEventCommitment(
@@ -83,14 +96,16 @@ describe('Release C commitments (API side)', () => {
           chainRef: u(3),
           permissions: [{ permissionRef: u(5), epoch: '1', ordinal: '1' }],
         },
-        'cd'.repeat(32),
+        body,
         {
           keyRef: u(20),
           intentDigest: intent,
           assertionDigest: assertionDigest(assertion()),
+          payloadDigest: payload,
+          metadataDigest: metadata,
         },
       ),
-    ).toBe('3c7b39789afc0f7d3ac1da7dd5c593c0d5f3c022a60160489db7c7cc9cd43c65');
+    ).toBe('d254ca47c3f9a0497ef096c612abbb912b5fc99fcff2bc383e6d13da748ce5f5');
   });
 
   it('accepts only canonical Ed25519 keys and verifies signatures strictly', () => {

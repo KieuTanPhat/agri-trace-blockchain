@@ -1,23 +1,5 @@
 "use client";
-
-import { ErrorState } from "@/components/error-state";
-
-export default function GlobalError({
-  error,
-  reset,
-}: {
-  error: Error;
-  reset: () => void;
-}) {
-  return (
-    <div className="grid">
-      <ErrorState
-        status={503}
-        title="Ứng dụng gặp lỗi"
-        message={error.message || "Vui lòng thử tải lại màn hình."}
-        actionLabel="Thử lại"
-        onAction={reset}
-      />
-    </div>
-  );
-}
+import {LedgerPublicShell} from "@/components/ledger/shell/public-shell";
+import {PageBody,Callout} from "@/components/ledger/kit/page";
+import {Button} from "@/components/ledger/ui/button";
+export default function ErrorScreen({reset}:{error:Error;reset:()=>void}){return <LedgerPublicShell><PageBody><h1 className="text-2xl font-semibold">Ứng dụng gặp lỗi</h1><Callout tone="warn">Không thể hoàn tất việc tải màn hình. Vui lòng thử lại.</Callout><Button onClick={reset} className="self-start">Thử lại</Button></PageBody></LedgerPublicShell>;}

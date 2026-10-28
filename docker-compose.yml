@@ -2,7 +2,7 @@ name: agri-trace
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-agri_trace}
@@ -11,12 +11,12 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-agritrace} -d ${POSTGRES_DB:-agri_trace}",
+          "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-agritrace} -d ${POSTGRES_DB:-agri_trace}",
         ]
       interval: 5s
       timeout: 5s
@@ -80,29 +80,21 @@ services:
     environment:
       NODE_ENV: production
       WORKER_HEALTH_PORT: 8081
+      # Temporary passwords and OTPs are sealed with this secret by the API;
+      # the Worker must hold the same value to open them before sending.
+      JWT_SECRET: ${JWT_SECRET:-replace-with-a-long-random-production-secret}
       DATABASE_URL: postgresql://${POSTGRES_USER:-agritrace}:${POSTGRES_PASSWORD:-agritrace_dev_password}@postgres:5432/${POSTGRES_DB:-agri_trace}?schema=public
+      # Binding delivery needs the hybrid overlay (docker-compose.app-hybrid.yml)
+      # and its bindings config; locally Fabric stays off and events wait.
       FABRIC_ENABLED: ${FABRIC_ENABLED:-false}
-      FABRIC_NETWORK_NAME: ${FABRIC_NETWORK_NAME:-hyperledger-fabric}
-      FABRIC_CHANNEL_NAME: ${FABRIC_CHANNEL_NAME:-agritrace}
-      FABRIC_CHAINCODE_NAME: ${FABRIC_CHAINCODE_NAME:-agritrace}
-      FABRIC_CONTRACT_NAME: ${FABRIC_CONTRACT_NAME:-AgriTraceContract}
-      FABRIC_MSP_ID: ${FABRIC_MSP_ID:-Org1MSP}
-      FABRIC_PEER_ENDPOINT: ${FABRIC_PEER_ENDPOINT:-host.docker.internal:7051}
-      FABRIC_PEER_HOST_ALIAS: ${FABRIC_PEER_HOST_ALIAS:-peer0.org1.example.com}
-      FABRIC_SAMPLES_DIR: /fabric-samples
-      RELAYER_MSP_DIR: /fabric-identity
       FABRIC_WORKER_INTERVAL_MS: ${FABRIC_WORKER_INTERVAL_MS:-10000}
       FABRIC_WORKER_BATCH_SIZE: ${FABRIC_WORKER_BATCH_SIZE:-20}
       FABRIC_CLAIM_LEASE_MS: ${FABRIC_CLAIM_LEASE_MS:-120000}
       FABRIC_MAX_RETRIES: ${FABRIC_MAX_RETRIES:-5}
-      FABRIC_MAX_RETRY_DELAY_MS: ${FABRIC_MAX_RETRY_DELAY_MS:-300000}
     command: ["node", "apps/api/dist/worker-main.js"]
     depends_on:
       api:
         condition: service_healthy
-    volumes:
-      - ${FABRIC_SAMPLES_DIR_HOST:-./blockchain/.fabric/fabric-samples}:/fabric-samples:ro
-      - ${RELAYER_MSP_DIR_HOST:-./blockchain/network/identities/relayer}:/fabric-identity:ro
     healthcheck:
       test:
         [
@@ -115,6 +107,22 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  # Local stack only: no Fabric runs here, so chains get a simulated binding
+  # and requested grants are confirmed (events stay PENDING). The tool refuses
+  # a database that holds a real binding; production never runs this service.
+  ledger-simulator:
+    image: agri-trace-api
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      LEDGER_SIMULATION: "1"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agritrace}:${POSTGRES_PASSWORD:-agritrace_dev_password}@postgres:5432/${POSTGRES_DB:-agri_trace}?schema=public
+    command: ["node", "apps/api/dist/operator/simulated-ledger.js", "--watch", "5000"]
+    depends_on:
+      api:
+        condition: service_healthy
 
   web:
     build:

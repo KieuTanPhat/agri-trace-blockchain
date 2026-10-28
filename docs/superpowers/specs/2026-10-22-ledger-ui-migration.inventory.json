@@ -1,0 +1,4239 @@
+{
+  "schemaVersion": 1,
+  "plannedAt": "2026-10-22",
+  "baseline": {
+    "repository": "KieuTanPhat/agri-trace-blockchain",
+    "branch": "feature/admin-console-processor",
+    "sha": "e1415e91eaaa96aab7b12f9cb972b109296b5720",
+    "routeCount": 143
+  },
+  "uiSource": {
+    "path": "C:/Users/kieup/Desktop/Fe-clone-Agritrace/agritrace-admin-preview",
+    "readOnly": true,
+    "files": [
+      {
+        "path": "docs/design-system.md",
+        "sha256": "02db5e19992a428cce821849878fa33ced3e73653b7690a67f3bdd75b5dfe4e7",
+        "classification": "design-metadata"
+      },
+      {
+        "path": "package.json",
+        "sha256": "bbf77b6be6de5d7c62db1de37e5c09ee6fcda3fbfc521c4688ab4907b6dd6225",
+        "classification": "design-metadata"
+      },
+      {
+        "path": "public/brand/agritrace-logo-on-dark.png",
+        "sha256": "cd8b2e70c341545179f2aef1cfbbb42c00ccbd32e662449a51fa20e1de542ca7",
+        "classification": "asset"
+      },
+      {
+        "path": "public/brand/agritrace-logo.png",
+        "sha256": "320f075cc764c2d4eb8a56a84053e88b12f8a07fc7475fd8b3d7c046def67e06",
+        "classification": "asset"
+      },
+      {
+        "path": "public/brand/agritrace-mark.png",
+        "sha256": "8ec4341d907e107ce305b212519311a375cd3627fef1d1ade19aed552e67ce73",
+        "classification": "asset"
+      },
+      {
+        "path": "public/file.svg",
+        "sha256": "2b67812c325c199a02536cdbeea0c593a72f707d323b72ee3e08dbab06753bd4",
+        "classification": "asset"
+      },
+      {
+        "path": "public/globe.svg",
+        "sha256": "b614b9bf183925957661ac851498fe1d8029fd43a62fbfed86f9e2624a57e7cf",
+        "classification": "asset"
+      },
+      {
+        "path": "public/next.svg",
+        "sha256": "55995dfad6ecb4945a1e856ddca03c5e16aa5bf13fd21b4df6a74ae79357bcfc",
+        "classification": "asset"
+      },
+      {
+        "path": "public/vercel.svg",
+        "sha256": "f081337b2fee635b455b63275406a3e7f39d6a014e25ad90dab5a67e62a12ac4",
+        "classification": "asset"
+      },
+      {
+        "path": "public/window.svg",
+        "sha256": "644768c4aaeb4767bce293344eeb0c125fb804a94d801440424072202d85e3a1",
+        "classification": "asset"
+      },
+      {
+        "path": "src/app/(console)/account/page.tsx",
+        "sha256": "d24652de2036ff0ee74d0ac6d3b8aed142813b0b2fa52fafab1d4e6265cddc03",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/approvals/[id]/page.tsx",
+        "sha256": "3fc3d3583cdf28ffb753b5dcb6d9b73df3815be01e0c49c795eeed51b04e78fa",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/approvals/page.tsx",
+        "sha256": "1bb03ff50c71519077b78894e5e6b2867af921de4e81fac654e8660aa673443b",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/audit/page.tsx",
+        "sha256": "776b8b33ffa78fe3e2133aff7300eb7d584b6d47deb48e270dddb47dab6d55a9",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/billing/invoices/page.tsx",
+        "sha256": "e17df58d487642eb9f0965a4c44faf6631df66b4de3d791183057e31ff8fdc41",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/billing/page.tsx",
+        "sha256": "1db83643db956eb73afbc6e8000edf901c5b95c452903a908531afe232a89cb7",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/billing/plans/page.tsx",
+        "sha256": "475032a15fbcc7e9b32ea8654f35ad1b391d1d2f7c1db8a386adc3374cdb7223",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/cases/[id]/page.tsx",
+        "sha256": "eaa86f45bdd078525abcc59379cf4a44cb07369528038ee7d7687ade4d72e4a4",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/cases/page.tsx",
+        "sha256": "7d456ca90fc0b8b975f8b09e924606fff4196f7287d3d12f9db3f68bec6d2914",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/chains/page.tsx",
+        "sha256": "b1a05c28bb6d161c7092b09dd923a51eff3a5b7456339d97221b3aaad6baaa79",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/enterprises/[id]/page.tsx",
+        "sha256": "78453590a6cd12810be6cf510315669daf0de4d8b398042269f10aa2db0e91bd",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/enterprises/amendments/[id]/page.tsx",
+        "sha256": "dbf2e2234ddc2e4cbd4fda55deb39772c5fed723c388b587cad69c1c26bbb584",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/enterprises/amendments/page.tsx",
+        "sha256": "b0aec13f5560eb02231f344cd5ffd13558b1f422484a89bf9683dd02eefbb3ce",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/enterprises/page.tsx",
+        "sha256": "327e7a1010427bd86ee3221503d03d4d36dfdd8e86983a6f4cc33672c1421c99",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/inbox/page.tsx",
+        "sha256": "1028feb71e5ac144e752c80cdc19edabfcfe8ed246f473e6f7dd324b2d56e5be",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/inspection/page.tsx",
+        "sha256": "d6ff6f2d1e82daf0ba6ae07bd5193964794058b13c8b1a7f2f1b2356211c8eab",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/layout.tsx",
+        "sha256": "a0f9ff3a387e86f18d2bec56e2d5e3f84761bca273882491ccacfb8af7fc2a67",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/ledger/page.tsx",
+        "sha256": "59ba9da60a39c73ff8d9fd6642094c834bdb1b6bcbb17cfd0f249b7b25b97021",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/lots/page.tsx",
+        "sha256": "a328a2012bbeb77992b3e3ac7f8c15f60f609a704f0561e1490121f5705d6684",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/notices/page.tsx",
+        "sha256": "ba2213a286cf25476aca3b31a88fe9d148d560ed931b9eec1f8d5587ed95a44e",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/operations/page.tsx",
+        "sha256": "eade067b1448e18b94fb4fcbba8412b26155d426a21732412ba51c9bda9bb83a",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/organizations/[id]/page.tsx",
+        "sha256": "140241081ef7fc6280d403847699735d697ea1cac4f798ca38ff5d2213002bbf",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/organizations/page.tsx",
+        "sha256": "1e3ded6963684aece993e843cac1eba9b9db8b5a4033d9cf910a7aa527835467",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/overview/page.tsx",
+        "sha256": "832abac6a76b56cdf78e849555482d5661c960ee605ff93a90021332c5a2b891",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/preview/page.tsx",
+        "sha256": "e332f4996608d3c58250dac30cd4b395caad20d5ad609de357830771cb2eb270",
+        "classification": "excluded-from-runtime"
+      },
+      {
+        "path": "src/app/(console)/privacy/page.tsx",
+        "sha256": "f13aae359fcdc2a663942fb54cc8d910fc77a1b79d6bc7779559a976bf0ef957",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/recall/page.tsx",
+        "sha256": "f995d0ebda72fc1aa7fcae69a0d14c3dcf0f9741f943841ac85c45c573e1f94a",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/reference/page.tsx",
+        "sha256": "18e7afb339f0df8e56e9ca590bcf59178c69374a9730b7f266ca562559c8337e",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/reports/page.tsx",
+        "sha256": "5949eeef76de0620c10ccb3099ab691f2ddce9971aae67642cb293230c499938",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/security/page.tsx",
+        "sha256": "55a848921e6a3cdc63661c6653beaa460208a649041675b6f8f1afe6a64ee7b1",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/settings/page.tsx",
+        "sha256": "d8894a650e77a0577797cf1471101bde624b2d633ccb94943447562c4d71badf",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/tickets/page.tsx",
+        "sha256": "9fcc18b8b2ba75a6e0533d65952f749496df4abce7d7e94f093d22675dfa38e3",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/trace-report/page.tsx",
+        "sha256": "57cf359f931d026eef6969ae3d0c12b4c1b5f80f4e8537b347782669279a69ab",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(console)/users/page.tsx",
+        "sha256": "ddb657065753723d516b6b62ff628a53681b4fc2b299c2f4470e9159d857645d",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/layout.tsx",
+        "sha256": "cdec5a2653e563bcbdeeaf13f25b70f6a74fd4c688ce0dff1c26f4d4493b8977",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/account/page.tsx",
+        "sha256": "cf10003a54accb3545506a700769259ef64ff0cc9eb30ed5bbcc1fd0175aaeaa",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/areas/page.tsx",
+        "sha256": "f265e249ed32db6ac7215891b012d33cb62f58c3c93dad94123abf7532a944fd",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/billing/page.tsx",
+        "sha256": "8d8af688803067dd38ae95455a057882ee26c22a61b4a6b639948a9435e8ae8c",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/cases/page.tsx",
+        "sha256": "14338c89ceb7d615794d00439c7302a1bac86830c21024c14202e5dae27bec17",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/chains/page.tsx",
+        "sha256": "b5a079c1575b2407d3e00b6d21d9a0adbf805c6e985559cced2576f2d8d477e9",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/cycles/page.tsx",
+        "sha256": "53a7916f8966c914defd3a8fedc9da9b2ea0c5f1e13a5eed4edc66e6cacbf5c6",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/distribution/page.tsx",
+        "sha256": "d99bb7593eaf0a2863a6d74f97575e8a55a5d8eb294a68593c0a5d0df294c130",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/inventory/page.tsx",
+        "sha256": "b96cffd269a90c080a71872d0afd4d1d31c1010bdc8e473c62d5b6c81bc7560c",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/lots/page.tsx",
+        "sha256": "8dea3ffe34ce1a70f522fd011b9630991432d928f8b9215e6d24f7708aa97aba",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/materials/page.tsx",
+        "sha256": "3c96e1dc845bdd40de15c444bc96e691bac0ec5461ce0051148407b48fc7d972",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/members/page.tsx",
+        "sha256": "63ca7768696333bb411bd23d8b8be41e0435f671071215b6db9101305c46ee78",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/messages/page.tsx",
+        "sha256": "d0139d133497e2cfb90caa2792628988a500cff7eefe3c2e39ed838f1a4352fc",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/ownership/page.tsx",
+        "sha256": "d01aafb1fa1ec0e32145c7d9d1efc013eaee681731b6a838e2e8f7e0f9295b6f",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/page.tsx",
+        "sha256": "38f616697f450ddfe4bab94beafcaf3906bffc8a58f9b9c1a63a9c91ea6d7f7f",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/partners/page.tsx",
+        "sha256": "9cc1b4b6a367e8fa897e1fda54042c64e50aa8756ef5e44ae6bdbc63b89f73ee",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/processing/page.tsx",
+        "sha256": "9202873cd72e1ef4f2a26d47d754a65f98b37204dab4aa470eebc0e6a338c8fb",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/products/page.tsx",
+        "sha256": "819bb92b58801d7a86ecb4a1f050ef59010583508976ff4017662aa79b27a403",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/profile/page.tsx",
+        "sha256": "2f7ac14b6cfc4af090069cf8eba188c22352ac66b418d12d3aa0a9140539b604",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/qr/page.tsx",
+        "sha256": "71b081dfb056cdf50dcf348fd3b439ed18385989f9ed8c1d3415aa70f16208f4",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/roles/page.tsx",
+        "sha256": "88dae16f14a40f283b12bba8e03e495c1862642ee019a4d61c77549092dd06a5",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/sites/page.tsx",
+        "sha256": "c268460273383adb9d91b56292ec438d4d40cd3a238da55840bb5e2787891917",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/(workspace)/w/support/page.tsx",
+        "sha256": "a401167240b2de8cb314d7e36b73b30294f60d1066539eaeaf653fdb0ea376de",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/globals.css",
+        "sha256": "2ac0b5eeab76aaf73983246eed8d3e595e16597687de955916253160377cef19",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/icon.png",
+        "sha256": "8ec4341d907e107ce305b212519311a375cd3627fef1d1ade19aed552e67ce73",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/invite/page.tsx",
+        "sha256": "a5bacd0ef0b1eb1ea8ba48a15618d34837c40d94547ecbe6e8cc8b0ac2def6cc",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/layout.tsx",
+        "sha256": "8a3e70d79d487c04046bd564d8bfc1242843c3cef43f0b7ece8ef5044413af2f",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/login/page.tsx",
+        "sha256": "89311d1c0580ea9241286d00ec0ed7bfa0e94ed21278b773b2625967018ee395",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/app/page.tsx",
+        "sha256": "a019d6dea72c34fb2fa1831889aa8db8c83ff30660c490af9c348bf7a70149b6",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/brand.tsx",
+        "sha256": "50e7d809c810600b94a7bcfa4c0807b722b9b39b1d2d6889d7307cd04132eba8",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/kit/change-password.tsx",
+        "sha256": "7a891fcdd4f36af8f28cdb0fdac503de7de69f3466790c8e988d9fab7ff11b1c",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/kit/command-dialog.tsx",
+        "sha256": "d837012ec5e5f478257a8c32b09da9128577c578636c63726449489e47882319",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/kit/data-table.tsx",
+        "sha256": "e737c06419897f9fef1c20f377945170c6a6e0f906d5e0036042237b01c7cec1",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/kit/filters.tsx",
+        "sha256": "5a8152cfe8eced5923e76e058335409c26e5af634a6dac71205147fd1daf0a11",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/kit/form-fields.tsx",
+        "sha256": "f9b9ed8b85f79c05a76a0184eebb47e19b94bc4961d979a822112a9203c75b7b",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/kit/guard.tsx",
+        "sha256": "d9ef1f31ac5afdc7ccb1d2a4453c00da37248eae82691732e9436f59a980e8ad",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/kit/lot-picker.tsx",
+        "sha256": "c4051803e3515b2c2b17ff369b1231e4b4b3b496cbacd9b5ee732efa7d9446cb",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/kit/page.tsx",
+        "sha256": "5dc9719fc8159ffd3732aaad69974a645773200fe9a9a15cd913f467e829a798",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/kit/status.tsx",
+        "sha256": "0f64d4f9094ab43aad3eb3663afc947dbc8b354e00be4cac2d63052e9676631b",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/locale.tsx",
+        "sha256": "8bc4925e24a9258c66508c6e7c51129209bebe78d915715b450a4e645b90ab39",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/providers.tsx",
+        "sha256": "6b4cd716c81408a0da423a6fe13d20ddeeac413e0ddf58890fe1147c0ca3ba27",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/shell/app-shell.tsx",
+        "sha256": "7ff5a2e0f5b194ab8195cbe810888a70c81ed934b94da500e7ce95adec206201",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/shell/command-palette.tsx",
+        "sha256": "9a49632b1db2e00cb37701b8f62b605577eab1429acf9929249767489544685d",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/shell/force-password.tsx",
+        "sha256": "c271082e7d2ce6a5a1a9e69c9d259ef1dab73959ae6a84c9742013bbcd855628",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/shell/nav.ts",
+        "sha256": "3a3e844bc282720612f23a073d4b9490e9d313576912eacdff23a5ed07e2c89a",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/shell/preview-panel.tsx",
+        "sha256": "ce3075a09d6e369474470bee99aeb2a05332be006d8dc9fff3c3cb84af1de1b8",
+        "classification": "excluded-from-runtime"
+      },
+      {
+        "path": "src/components/shell/sidebar.tsx",
+        "sha256": "e05f140725d29a41ae1927cf3b77b02ca4d9f4df4bb440de9fa53b831bb8109a",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/alert.tsx",
+        "sha256": "d03dcae5cdb63c381c1144ca9a0c49ba0e46466967d7deb94662034042acb034",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/badge.tsx",
+        "sha256": "13a9380dfff853ee730c14a52df49f22aecd31f40f2998d7c1e7ec458b6e1650",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/button.tsx",
+        "sha256": "79dd6f75f8136394442202d6b8b922fb269eaad0a5dba579397c9d5b41f893bb",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/checkbox.tsx",
+        "sha256": "ba0ac64064e2d8fa7299d53e9e84b9a4772fef8dd4cf6170c56d3030a1d69941",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/command.tsx",
+        "sha256": "8063fbe58e0c7ca013403cb58871b7c2ce104dbf3d8f7b4162d4e7107db9abfa",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/dialog.tsx",
+        "sha256": "0d2e82ed5e7040abda714a0471aff54535e05bad6249da049cc0c3bf3ae024e5",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/dropdown-menu.tsx",
+        "sha256": "d954efb735f13734751207ad22cb0cddd7f6ec53c59d16675d103dae08cb61fb",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/input.tsx",
+        "sha256": "0c9457181f6ddc80969bcf854e92c362903a55b6e889fbef3fd85343ecc4af5b",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/label.tsx",
+        "sha256": "344bde38b8531615dbf8e14af3895517c24d8ef6ce56ddeda7e2e6fe4b5d0c00",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/popover.tsx",
+        "sha256": "3f99d3add6c9fa4f03721e81297ee10e1310785ee1d9d9d4c82a114d84ab0757",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/radio-group.tsx",
+        "sha256": "cfc4f99ee68be2fbbd70de3ffad82e1462d5e8e0bb0aecfd190a4f5115325862",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/scroll-area.tsx",
+        "sha256": "8b73bb9be51300079c7f561bafbe43ee10f6f464cf39c8c1b25123cd4edb94dd",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/select.tsx",
+        "sha256": "962830436bd0b7ee50e556f0747e277d6a86869ed27d167516346b15f26309d8",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/separator.tsx",
+        "sha256": "ad7d5403fe337160e41dbf04147896e448ae3a747b8d06660d627d74d60021bc",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/sheet.tsx",
+        "sha256": "ea473d38a26a9b0b879e5a13139899ad45e9782e896b3fa205c7763a6c506876",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/skeleton.tsx",
+        "sha256": "f51ce0fcd31e5c31437382e80ea0af94b4fc3d64221d27091d36824546780a43",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/sonner.tsx",
+        "sha256": "13ccc9b0fe4248e622f83a1d3b2f0566b72b5e04162d7d0c8db8945ecc71b55f",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/switch.tsx",
+        "sha256": "743676f33f823ffa8008bbd5eb94cb68e227599447d60e132a202291a395f8e4",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/table.tsx",
+        "sha256": "bd1a9fc83a5a2149e504038e274bb7e5a0351af59f6896df52ac4d5b439695ac",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/tabs.tsx",
+        "sha256": "e1df6e2f95ece373ca909c1d54b8ba8cf4c47dd425c1784bbb9a01c38dd0936b",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/textarea.tsx",
+        "sha256": "5cafcfeeee29534f449387a16b585f5923d2faab1a0cdc50a874416b175f59ce",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/ui/tooltip.tsx",
+        "sha256": "611e4305879b2773eafe76bf3c5caa69d8e47367fd97887a71634a27828f4433",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/workspace/evidence-panel.tsx",
+        "sha256": "24e5e41322158f05cc933b3c673d26fc2a7e772647dc9855c008537bc8fb7c3a",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/workspace/evidence-pick.tsx",
+        "sha256": "beaedbfc171c50a239c5247a2495ae7cdfbccafdcfdda47b4a4e9f8ee9714344",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/workspace/grants-editor.tsx",
+        "sha256": "1d294bb7572cd4b86aa2908c7f5abc0fc6eaf34e876581af7852190bf93c037c",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/workspace/lineage-panel.tsx",
+        "sha256": "c73604ff230f082a5497e1a00552ed2c3c71dca76791534462b603410ac14d17",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/workspace/partner-profile.tsx",
+        "sha256": "9d09d2af886f0b8408416008884d545ff58b2f25608c107473cb39a03534f462",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/workspace/revision-history.tsx",
+        "sha256": "ed4f4f15231cf0e746de76e4988b0f9d6538a078b1ea04f162ade028a6be59f1",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/components/workspace/ws-shell.tsx",
+        "sha256": "cd9932127717bff88cbf386b1f25d3e7b8d6c587fce150a5f091f225c4d99232",
+        "classification": "presentation-only"
+      },
+      {
+        "path": "src/lib/format.ts",
+        "sha256": "2f3bbac912b0b3aea7b866af5b7b53ca9d807d6f36cc8204a460ac48bb9fe088",
+        "classification": "display-helper"
+      },
+      {
+        "path": "src/lib/i18n-en.ts",
+        "sha256": "948583446f3e1404ae3325cc93bdffaf71f7381167da92957cd91fda5b499d54",
+        "classification": "display-helper"
+      },
+      {
+        "path": "src/lib/i18n.ts",
+        "sha256": "0cbd47445a174fd0fc06380a9a64ef3c8fbc2493afe14a018aa3a1760c7f7253",
+        "classification": "display-helper"
+      },
+      {
+        "path": "src/lib/labels.ts",
+        "sha256": "22dcc55d3132cb6d9d8a6e6d37dd13e95362a4ed25cb6c4a0065c1b0a66e303f",
+        "classification": "display-helper"
+      },
+      {
+        "path": "src/lib/use-now.ts",
+        "sha256": "b38cb5afbd6fc5f0aa48d95446a52abfe22e8b780003bb12ba42fd21c139878b",
+        "classification": "display-helper"
+      },
+      {
+        "path": "src/lib/utils.ts",
+        "sha256": "14300d758170c270c75b057f38fedb3793a5920ea872f0477e29fb131185e8a7",
+        "classification": "display-helper"
+      },
+      {
+        "path": "src/lib/workspace/ops-labels.ts",
+        "sha256": "d997eb51a44fb6fbc485d50b3391e1643443183aa5a4272a31ce95cb02655d62",
+        "classification": "display-helper"
+      }
+    ],
+    "excludedFromRuntime": [
+      "src/app/(console)/preview/page.tsx",
+      "src/components/shell/preview-panel.tsx",
+      "src/lib/api/",
+      "src/lib/auth/",
+      "src/lib/crypto.ts",
+      "src/lib/mock/",
+      "src/lib/routes.ts",
+      "src/lib/schemas.ts",
+      "src/lib/signing.ts",
+      "src/lib/workspace/context.tsx",
+      "src/lib/workspace/permissions.ts"
+    ],
+    "snapshotRule": "At execution, rediscover current approved presentation paths and display helpers, review added/changed/missing inputs, update file hashes and taskReferences, then freeze the selected source in ignored local scratch. Target runtime must use baseline auth, API, permissions, validation, crypto and recovery; preview data/mocks/demo behavior are reference-only.",
+    "reviewedOn": "2026-10-22",
+    "discovery": {
+      "includeRoots": [
+        "src/app/",
+        "src/components/",
+        "public/"
+      ],
+      "displayHelpers": [
+        "src/lib/utils.ts",
+        "src/lib/use-now.ts",
+        "src/lib/workspace/ops-labels.ts"
+      ],
+      "rules": "Discover recursively including hidden/ignored presentation inputs, excluding secrets, dependencies, build output and test files. The file list is a provenance inventory, not permission to copy demo/auth/API/business logic into runtime.",
+      "onDelta": "Classify added/changed/missing inputs and update hashes plus affected taskReferences before freezing. Preserve all baseline route/action obligations; route additions in preview do not replace baseline routes."
+    },
+    "taskReferences": [
+      {
+        "task": 1,
+        "files": [],
+        "use": "Discover and hash all approved presentation inputs; map additions before freezing. This task consumes metadata, not legacy render source."
+      },
+      {
+        "task": 2,
+        "files": [
+          "package.json"
+        ],
+        "use": "Framework/UI dependency versions only; baseline build/security/deployment contracts remain authoritative."
+      },
+      {
+        "task": 3,
+        "files": [
+          "src/app/globals.css",
+          "src/app/layout.tsx",
+          "src/app/(console)/layout.tsx",
+          "src/app/(workspace)/layout.tsx",
+          "src/components/brand.tsx",
+          "src/components/locale.tsx",
+          "src/components/providers.tsx",
+          "src/components/shell/app-shell.tsx",
+          "src/components/shell/sidebar.tsx",
+          "src/components/shell/command-palette.tsx",
+          "src/components/shell/nav.ts",
+          "src/components/workspace/ws-shell.tsx",
+          "src/components/workspace/grants-editor.tsx",
+          "src/lib/i18n.ts",
+          "src/lib/i18n-en.ts",
+          "src/lib/format.ts",
+          "src/lib/labels.ts",
+          "src/lib/utils.ts",
+          "docs/design-system.md"
+        ],
+        "includeInventoriedPrefixes": [
+          "src/components/ui/",
+          "src/components/kit/",
+          "public/brand/"
+        ],
+        "use": "Port presentation and display helpers. Replace preview session/permission/transport behavior with baseline contracts; omit demo controls."
+      },
+      {
+        "task": 4,
+        "files": [
+          "src/app/login/page.tsx",
+          "src/app/invite/page.tsx",
+          "src/components/kit/change-password.tsx",
+          "src/components/shell/force-password.tsx"
+        ],
+        "use": "Updated auth presentation only; OTP/MFA/session/invitation semantics come from baseline."
+      },
+      {
+        "task": 5,
+        "files": [
+          "src/components/kit/command-dialog.tsx"
+        ],
+        "use": "Dialog/form presentation only; command identity and reconciliation come from baseline recovery."
+      },
+      {
+        "task": 6,
+        "files": [
+          "src/app/(console)/overview/page.tsx",
+          "src/app/(console)/inbox/page.tsx",
+          "src/app/(console)/enterprises/page.tsx",
+          "src/app/(console)/enterprises/[id]/page.tsx",
+          "src/app/(console)/enterprises/amendments/page.tsx",
+          "src/app/(console)/enterprises/amendments/[id]/page.tsx",
+          "src/app/(console)/users/page.tsx",
+          "src/app/(console)/organizations/page.tsx",
+          "src/app/(console)/organizations/[id]/page.tsx",
+          "src/app/(console)/approvals/page.tsx",
+          "src/app/(console)/approvals/[id]/page.tsx",
+          "src/app/(console)/audit/page.tsx",
+          "src/app/(console)/security/page.tsx"
+        ],
+        "use": "Use available governance screens; compose missing baseline detail/new/assignment screens from the same Ledger kit."
+      },
+      {
+        "task": 7,
+        "files": [
+          "src/app/(console)/cases/page.tsx",
+          "src/app/(console)/cases/[id]/page.tsx",
+          "src/app/(console)/tickets/page.tsx",
+          "src/app/(console)/privacy/page.tsx",
+          "src/app/(console)/reports/page.tsx",
+          "src/app/(console)/recall/page.tsx",
+          "src/app/(console)/notices/page.tsx",
+          "src/app/(console)/account/page.tsx"
+        ],
+        "use": "Case/support/privacy/recall presentation; baseline scope and platform action permissions remain authoritative."
+      },
+      {
+        "task": 8,
+        "files": [
+          "src/app/(console)/operations/page.tsx",
+          "src/app/(console)/ledger/page.tsx",
+          "src/app/(console)/trace-report/page.tsx",
+          "src/app/(console)/inspection/page.tsx",
+          "src/app/(console)/chains/page.tsx",
+          "src/app/(console)/lots/page.tsx",
+          "src/app/(console)/reference/page.tsx",
+          "src/app/(console)/billing/page.tsx",
+          "src/app/(console)/billing/plans/page.tsx",
+          "src/app/(console)/billing/invoices/page.tsx",
+          "src/app/(console)/settings/page.tsx"
+        ],
+        "use": "Operational/read/billing presentation; no new mutation from preview mock capabilities."
+      },
+      {
+        "task": 9,
+        "files": [
+          "src/app/(workspace)/w/page.tsx",
+          "src/app/(workspace)/w/members/page.tsx",
+          "src/app/(workspace)/w/roles/page.tsx",
+          "src/app/(workspace)/w/ownership/page.tsx",
+          "src/app/(workspace)/w/account/page.tsx",
+          "src/app/(workspace)/w/profile/page.tsx",
+          "src/components/workspace/ws-shell.tsx",
+          "src/components/workspace/grants-editor.tsx",
+          "src/components/workspace/evidence-panel.tsx",
+          "src/components/workspace/evidence-pick.tsx",
+          "src/components/workspace/revision-history.tsx"
+        ],
+        "use": "Use the available profile screen. First target owner of shared evidence-panel/evidence-pick/revision-history/image-gallery modules, before Tasks 10-15 consume them."
+      },
+      {
+        "task": 10,
+        "files": [
+          "src/app/(workspace)/w/products/page.tsx",
+          "src/components/workspace/evidence-panel.tsx",
+          "src/components/workspace/evidence-pick.tsx",
+          "src/components/workspace/revision-history.tsx"
+        ],
+        "use": "Start from the now-available products screen and Task 9 shared target components. Fill only missing baseline detail/edit/import workflows; do not rebuild the existing Ledger layout."
+      },
+      {
+        "task": 11,
+        "files": [
+          "src/app/(workspace)/w/areas/page.tsx",
+          "src/app/(workspace)/w/materials/page.tsx",
+          "src/app/(workspace)/w/sites/page.tsx",
+          "src/components/workspace/evidence-panel.tsx",
+          "src/components/workspace/evidence-pick.tsx",
+          "src/components/workspace/revision-history.tsx"
+        ],
+        "use": "Use available areas/materials/sites screens and Task 9 shared evidence/revisions. Compose missing vehicles/detail/create paths using these Ledger patterns."
+      },
+      {
+        "task": 12,
+        "files": [
+          "src/app/(workspace)/w/partners/page.tsx",
+          "src/app/(workspace)/w/messages/page.tsx",
+          "src/app/(workspace)/w/support/page.tsx",
+          "src/app/(workspace)/w/billing/page.tsx",
+          "src/app/(workspace)/w/cases/page.tsx",
+          "src/components/workspace/partner-profile.tsx"
+        ],
+        "use": "Use updated partners and existing coordination screens. First target owner of partner-profile.tsx; preserve baseline service stages and access."
+      },
+      {
+        "task": 13,
+        "files": [
+          "src/app/(workspace)/w/chains/page.tsx",
+          "src/components/workspace/grants-editor.tsx"
+        ],
+        "use": "Use available chain screen; compose canonical baseline chain/signing subroutes with its Ledger hierarchy. Do not import preview signing or API implementation."
+      },
+      {
+        "task": 14,
+        "files": [
+          "src/app/(workspace)/w/cycles/page.tsx",
+          "src/lib/workspace/ops-labels.ts",
+          "src/lib/use-now.ts",
+          "src/components/workspace/evidence-panel.tsx",
+          "src/components/workspace/evidence-pick.tsx",
+          "src/components/workspace/revision-history.tsx"
+        ],
+        "use": "Use available cycle presentation and display labels/clock. Baseline types, sensor windows, assignments and harvest recovery define behavior; shared evidence target modules come from Task 9."
+      },
+      {
+        "task": 15,
+        "files": [
+          "src/app/(workspace)/w/lots/page.tsx",
+          "src/app/(workspace)/w/inventory/page.tsx",
+          "src/app/(workspace)/w/distribution/page.tsx",
+          "src/app/(workspace)/w/qr/page.tsx",
+          "src/components/workspace/lineage-panel.tsx",
+          "src/components/workspace/evidence-panel.tsx"
+        ],
+        "use": "Use available lot/inventory/distribution/QR screens. First target owner of lineage-panel.tsx for lot views, consumed by Task 16; preserve private cross-organization lineage fields."
+      },
+      {
+        "task": 16,
+        "files": [
+          "src/app/(workspace)/w/processing/page.tsx",
+          "src/components/workspace/lineage-panel.tsx"
+        ],
+        "use": "Use available processing screen and Task 15 target lineage panel; all mass balance, conversions, authority and lineage semantics come from baseline."
+      },
+      {
+        "task": 17,
+        "files": [
+          "src/components/brand.tsx",
+          "src/components/kit/page.tsx",
+          "src/components/kit/status.tsx",
+          "src/app/globals.css"
+        ],
+        "use": "Compose missing public landing/legal/trace/scanner screens from Ledger kit. Root preview redirect and enterprise QR are not public trace implementations."
+      },
+      {
+        "task": 18,
+        "files": [
+          "docs/design-system.md",
+          "src/app/globals.css"
+        ],
+        "use": "Compare the completed branch to the frozen, updated preview source and approved visual references; verify all baseline routes/actions."
+      }
+    ],
+    "lastSourceRefresh": {
+      "date": "2026-10-22",
+      "previousInputCount": 108,
+      "inputCount": 127,
+      "changed": [
+        "package.json",
+        "src/app/(workspace)/w/partners/page.tsx",
+        "src/app/(workspace)/w/sites/page.tsx",
+        "src/app/globals.css",
+        "src/app/login/page.tsx",
+        "src/components/shell/preview-panel.tsx",
+        "src/components/workspace/ws-shell.tsx",
+        "src/lib/i18n-en.ts"
+      ],
+      "added": [
+        "src/app/(workspace)/w/areas/page.tsx",
+        "src/app/(workspace)/w/chains/page.tsx",
+        "src/app/(workspace)/w/cycles/page.tsx",
+        "src/app/(workspace)/w/distribution/page.tsx",
+        "src/app/(workspace)/w/inventory/page.tsx",
+        "src/app/(workspace)/w/lots/page.tsx",
+        "src/app/(workspace)/w/materials/page.tsx",
+        "src/app/(workspace)/w/processing/page.tsx",
+        "src/app/(workspace)/w/products/page.tsx",
+        "src/app/(workspace)/w/profile/page.tsx",
+        "src/app/(workspace)/w/qr/page.tsx",
+        "src/components/workspace/evidence-panel.tsx",
+        "src/components/workspace/evidence-pick.tsx",
+        "src/components/workspace/lineage-panel.tsx",
+        "src/components/workspace/partner-profile.tsx",
+        "src/components/workspace/revision-history.tsx",
+        "src/lib/use-now.ts",
+        "src/lib/utils.ts",
+        "src/lib/workspace/ops-labels.ts"
+      ],
+      "missing": [],
+      "note": "Source inventory/task references refreshed only. Baseline SHA, 143 canonical routes, legacy UI denylist, Native workflow and no-legacy-UI constraints are unchanged. This is not implementation or runtime acceptance evidence."
+    },
+    "frozenSnapshot": {
+      "manifestSha256": "2f9c86d84a4ccf58b7f315ce3a6f48775b9cc007bf779652cd91d7ef970512d2",
+      "fileCount": 127,
+      "note": "Execution snapshot in plan-specific ignored workspace; paths and hashes frozen after added/changed/missing audit."
+    }
+  },
+  "routes": [
+    {
+      "route": "/account/password",
+      "sourceFile": "apps/web/src/app/account/password/page.tsx",
+      "task": 4,
+      "targetScreen": "apps/web/src/features/ledger/screens/account/password/screen.tsx"
+    },
+    {
+      "route": "/account/privacy",
+      "sourceFile": "apps/web/src/app/account/privacy/page.tsx",
+      "task": 7,
+      "targetScreen": "apps/web/src/features/ledger/screens/account/privacy/screen.tsx"
+    },
+    {
+      "route": "/admin/approvals/[id]",
+      "sourceFile": "apps/web/src/app/admin/approvals/[id]/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/approvals/[id]/screen.tsx"
+    },
+    {
+      "route": "/admin/approvals/new",
+      "sourceFile": "apps/web/src/app/admin/approvals/new/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/approvals/new/screen.tsx"
+    },
+    {
+      "route": "/admin/approvals",
+      "sourceFile": "apps/web/src/app/admin/approvals/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/approvals/screen.tsx"
+    },
+    {
+      "route": "/admin/audit-log",
+      "sourceFile": "apps/web/src/app/admin/audit-log/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/audit-log/screen.tsx"
+    },
+    {
+      "route": "/admin/backup",
+      "sourceFile": "apps/web/src/app/admin/backup/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/backup/screen.tsx"
+    },
+    {
+      "route": "/admin/billing/invoices",
+      "sourceFile": "apps/web/src/app/admin/billing/invoices/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx"
+    },
+    {
+      "route": "/admin/billing",
+      "sourceFile": "apps/web/src/app/admin/billing/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/billing/screen.tsx"
+    },
+    {
+      "route": "/admin/billing/revenue",
+      "sourceFile": "apps/web/src/app/admin/billing/revenue/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/billing/revenue/screen.tsx"
+    },
+    {
+      "route": "/admin/billing/subscriptions",
+      "sourceFile": "apps/web/src/app/admin/billing/subscriptions/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx"
+    },
+    {
+      "route": "/admin/cases/[id]",
+      "sourceFile": "apps/web/src/app/admin/cases/[id]/page.tsx",
+      "task": 7,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx"
+    },
+    {
+      "route": "/admin/cases/new",
+      "sourceFile": "apps/web/src/app/admin/cases/new/page.tsx",
+      "task": 7,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx"
+    },
+    {
+      "route": "/admin/cases",
+      "sourceFile": "apps/web/src/app/admin/cases/page.tsx",
+      "task": 7,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/cases/screen.tsx"
+    },
+    {
+      "route": "/admin/chains",
+      "sourceFile": "apps/web/src/app/admin/chains/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/chains/screen.tsx"
+    },
+    {
+      "route": "/admin/compliance-assignments/[id]",
+      "sourceFile": "apps/web/src/app/admin/compliance-assignments/[id]/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/compliance-assignments/[id]/screen.tsx"
+    },
+    {
+      "route": "/admin/compliance-assignments/new",
+      "sourceFile": "apps/web/src/app/admin/compliance-assignments/new/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/compliance-assignments/new/screen.tsx"
+    },
+    {
+      "route": "/admin/compliance-assignments",
+      "sourceFile": "apps/web/src/app/admin/compliance-assignments/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/compliance-assignments/screen.tsx"
+    },
+    {
+      "route": "/admin/directory/[id]",
+      "sourceFile": "apps/web/src/app/admin/directory/[id]/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx"
+    },
+    {
+      "route": "/admin/directory",
+      "sourceFile": "apps/web/src/app/admin/directory/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/directory/screen.tsx"
+    },
+    {
+      "route": "/admin/enterprises/[id]/connections/[connectionId]",
+      "sourceFile": "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx"
+    },
+    {
+      "route": "/admin/enterprises/[id]",
+      "sourceFile": "apps/web/src/app/admin/enterprises/[id]/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx"
+    },
+    {
+      "route": "/admin/enterprises/amendments/[id]",
+      "sourceFile": "apps/web/src/app/admin/enterprises/amendments/[id]/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/amendments/[id]/screen.tsx"
+    },
+    {
+      "route": "/admin/enterprises/amendments",
+      "sourceFile": "apps/web/src/app/admin/enterprises/amendments/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/amendments/screen.tsx"
+    },
+    {
+      "route": "/admin/enterprises",
+      "sourceFile": "apps/web/src/app/admin/enterprises/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/screen.tsx"
+    },
+    {
+      "route": "/admin/inbox",
+      "sourceFile": "apps/web/src/app/admin/inbox/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/inbox/screen.tsx"
+    },
+    {
+      "route": "/admin/inspectors",
+      "sourceFile": "apps/web/src/app/admin/inspectors/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/inspectors/screen.tsx"
+    },
+    {
+      "route": "/admin/ledger",
+      "sourceFile": "apps/web/src/app/admin/ledger/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx"
+    },
+    {
+      "route": "/admin/lots",
+      "sourceFile": "apps/web/src/app/admin/lots/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/lots/screen.tsx"
+    },
+    {
+      "route": "/admin/monitoring",
+      "sourceFile": "apps/web/src/app/admin/monitoring/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/monitoring/screen.tsx"
+    },
+    {
+      "route": "/admin/notices",
+      "sourceFile": "apps/web/src/app/admin/notices/page.tsx",
+      "task": 7,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/notices/screen.tsx"
+    },
+    {
+      "route": "/admin/operations",
+      "sourceFile": "apps/web/src/app/admin/operations/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx"
+    },
+    {
+      "route": "/admin/organizations/new",
+      "sourceFile": "apps/web/src/app/admin/organizations/new/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/organizations/new/screen.tsx"
+    },
+    {
+      "route": "/admin/organizations",
+      "sourceFile": "apps/web/src/app/admin/organizations/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/organizations/screen.tsx"
+    },
+    {
+      "route": "/admin",
+      "sourceFile": "apps/web/src/app/admin/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/screen.tsx"
+    },
+    {
+      "route": "/admin/privacy",
+      "sourceFile": "apps/web/src/app/admin/privacy/page.tsx",
+      "task": 7,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx"
+    },
+    {
+      "route": "/admin/products/[organizationId]",
+      "sourceFile": "apps/web/src/app/admin/products/[organizationId]/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx"
+    },
+    {
+      "route": "/admin/products",
+      "sourceFile": "apps/web/src/app/admin/products/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/products/screen.tsx"
+    },
+    {
+      "route": "/admin/qr",
+      "sourceFile": "apps/web/src/app/admin/qr/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/qr/screen.tsx"
+    },
+    {
+      "route": "/admin/recall",
+      "sourceFile": "apps/web/src/app/admin/recall/page.tsx",
+      "task": 7,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/recall/screen.tsx"
+    },
+    {
+      "route": "/admin/reference-data",
+      "sourceFile": "apps/web/src/app/admin/reference-data/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx"
+    },
+    {
+      "route": "/admin/reports",
+      "sourceFile": "apps/web/src/app/admin/reports/page.tsx",
+      "task": 7,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/reports/screen.tsx"
+    },
+    {
+      "route": "/admin/roles",
+      "sourceFile": "apps/web/src/app/admin/roles/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/roles/screen.tsx"
+    },
+    {
+      "route": "/admin/security-alerts",
+      "sourceFile": "apps/web/src/app/admin/security-alerts/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/security-alerts/screen.tsx"
+    },
+    {
+      "route": "/admin/security",
+      "sourceFile": "apps/web/src/app/admin/security/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/security/screen.tsx"
+    },
+    {
+      "route": "/admin/settings",
+      "sourceFile": "apps/web/src/app/admin/settings/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/settings/screen.tsx"
+    },
+    {
+      "route": "/admin/statistics",
+      "sourceFile": "apps/web/src/app/admin/statistics/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx"
+    },
+    {
+      "route": "/admin/support/[id]",
+      "sourceFile": "apps/web/src/app/admin/support/[id]/page.tsx",
+      "task": 7,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx"
+    },
+    {
+      "route": "/admin/support",
+      "sourceFile": "apps/web/src/app/admin/support/page.tsx",
+      "task": 7,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/support/screen.tsx"
+    },
+    {
+      "route": "/admin/trace-report",
+      "sourceFile": "apps/web/src/app/admin/trace-report/page.tsx",
+      "task": 8,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx"
+    },
+    {
+      "route": "/admin/users/[id]",
+      "sourceFile": "apps/web/src/app/admin/users/[id]/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/users/[id]/screen.tsx"
+    },
+    {
+      "route": "/admin/users/new",
+      "sourceFile": "apps/web/src/app/admin/users/new/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/users/new/screen.tsx"
+    },
+    {
+      "route": "/admin/users",
+      "sourceFile": "apps/web/src/app/admin/users/page.tsx",
+      "task": 6,
+      "targetScreen": "apps/web/src/features/ledger/screens/admin/users/screen.tsx"
+    },
+    {
+      "route": "/compliance",
+      "sourceFile": "apps/web/src/app/compliance/page.tsx",
+      "task": 14,
+      "targetScreen": "apps/web/src/features/ledger/screens/compliance/screen.tsx"
+    },
+    {
+      "route": "/dashboard",
+      "sourceFile": "apps/web/src/app/dashboard/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/dashboard/screen.tsx"
+    },
+    {
+      "route": "/distribution/[id]/journal",
+      "sourceFile": "apps/web/src/app/distribution/[id]/journal/page.tsx",
+      "task": 15,
+      "targetScreen": "apps/web/src/features/ledger/screens/distribution/[id]/journal/screen.tsx"
+    },
+    {
+      "route": "/distribution/[id]",
+      "sourceFile": "apps/web/src/app/distribution/[id]/page.tsx",
+      "task": 15,
+      "targetScreen": "apps/web/src/features/ledger/screens/distribution/[id]/screen.tsx"
+    },
+    {
+      "route": "/distribution/new",
+      "sourceFile": "apps/web/src/app/distribution/new/page.tsx",
+      "task": 15,
+      "targetScreen": "apps/web/src/features/ledger/screens/distribution/new/screen.tsx"
+    },
+    {
+      "route": "/distribution",
+      "sourceFile": "apps/web/src/app/distribution/page.tsx",
+      "task": 15,
+      "targetScreen": "apps/web/src/features/ledger/screens/distribution/screen.tsx"
+    },
+    {
+      "route": "/enterprise/areas/[id]",
+      "sourceFile": "apps/web/src/app/enterprise/areas/[id]/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/areas/[id]/screen.tsx"
+    },
+    {
+      "route": "/enterprise/areas/new",
+      "sourceFile": "apps/web/src/app/enterprise/areas/new/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/areas/new/screen.tsx"
+    },
+    {
+      "route": "/enterprise/areas",
+      "sourceFile": "apps/web/src/app/enterprise/areas/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/areas/screen.tsx"
+    },
+    {
+      "route": "/enterprise/areas/plots/new",
+      "sourceFile": "apps/web/src/app/enterprise/areas/plots/new/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/areas/plots/new/screen.tsx"
+    },
+    {
+      "route": "/enterprise/billing",
+      "sourceFile": "apps/web/src/app/enterprise/billing/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/billing/screen.tsx"
+    },
+    {
+      "route": "/enterprise/connections",
+      "sourceFile": "apps/web/src/app/enterprise/connections/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/connections/screen.tsx"
+    },
+    {
+      "route": "/enterprise/help",
+      "sourceFile": "apps/web/src/app/enterprise/help/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/help/screen.tsx"
+    },
+    {
+      "route": "/enterprise/inbox",
+      "sourceFile": "apps/web/src/app/enterprise/inbox/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/inbox/screen.tsx"
+    },
+    {
+      "route": "/enterprise/inventory",
+      "sourceFile": "apps/web/src/app/enterprise/inventory/page.tsx",
+      "task": 15,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/inventory/screen.tsx"
+    },
+    {
+      "route": "/enterprise/materials/[id]",
+      "sourceFile": "apps/web/src/app/enterprise/materials/[id]/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/materials/[id]/screen.tsx"
+    },
+    {
+      "route": "/enterprise/materials/new",
+      "sourceFile": "apps/web/src/app/enterprise/materials/new/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/materials/new/screen.tsx"
+    },
+    {
+      "route": "/enterprise/materials",
+      "sourceFile": "apps/web/src/app/enterprise/materials/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/materials/screen.tsx"
+    },
+    {
+      "route": "/enterprise/members/[id]/edit",
+      "sourceFile": "apps/web/src/app/enterprise/members/[id]/edit/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/members/[id]/edit/screen.tsx"
+    },
+    {
+      "route": "/enterprise/members/[id]",
+      "sourceFile": "apps/web/src/app/enterprise/members/[id]/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/members/[id]/screen.tsx"
+    },
+    {
+      "route": "/enterprise/members/invitations",
+      "sourceFile": "apps/web/src/app/enterprise/members/invitations/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/members/invitations/screen.tsx"
+    },
+    {
+      "route": "/enterprise/members/new",
+      "sourceFile": "apps/web/src/app/enterprise/members/new/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/members/new/screen.tsx"
+    },
+    {
+      "route": "/enterprise/members",
+      "sourceFile": "apps/web/src/app/enterprise/members/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/members/screen.tsx"
+    },
+    {
+      "route": "/enterprise/messages",
+      "sourceFile": "apps/web/src/app/enterprise/messages/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/messages/screen.tsx"
+    },
+    {
+      "route": "/enterprise/notices",
+      "sourceFile": "apps/web/src/app/enterprise/notices/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/notices/screen.tsx"
+    },
+    {
+      "route": "/enterprise/onboarding",
+      "sourceFile": "apps/web/src/app/enterprise/onboarding/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/onboarding/screen.tsx"
+    },
+    {
+      "route": "/enterprise/ownership",
+      "sourceFile": "apps/web/src/app/enterprise/ownership/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/ownership/screen.tsx"
+    },
+    {
+      "route": "/enterprise",
+      "sourceFile": "apps/web/src/app/enterprise/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/screen.tsx"
+    },
+    {
+      "route": "/enterprise/partners/external/[id]",
+      "sourceFile": "apps/web/src/app/enterprise/partners/external/[id]/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/partners/external/[id]/screen.tsx"
+    },
+    {
+      "route": "/enterprise/partners/new",
+      "sourceFile": "apps/web/src/app/enterprise/partners/new/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/partners/new/screen.tsx"
+    },
+    {
+      "route": "/enterprise/partners",
+      "sourceFile": "apps/web/src/app/enterprise/partners/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/partners/screen.tsx"
+    },
+    {
+      "route": "/enterprise/processing/[id]",
+      "sourceFile": "apps/web/src/app/enterprise/processing/[id]/page.tsx",
+      "task": 16,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/processing/[id]/screen.tsx"
+    },
+    {
+      "route": "/enterprise/processing/conversions",
+      "sourceFile": "apps/web/src/app/enterprise/processing/conversions/page.tsx",
+      "task": 16,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/processing/conversions/screen.tsx"
+    },
+    {
+      "route": "/enterprise/processing/new",
+      "sourceFile": "apps/web/src/app/enterprise/processing/new/page.tsx",
+      "task": 16,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/processing/new/screen.tsx"
+    },
+    {
+      "route": "/enterprise/processing",
+      "sourceFile": "apps/web/src/app/enterprise/processing/page.tsx",
+      "task": 16,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/processing/screen.tsx"
+    },
+    {
+      "route": "/enterprise/products/[id]/edit",
+      "sourceFile": "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
+      "task": 10,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/products/[id]/edit/screen.tsx"
+    },
+    {
+      "route": "/enterprise/products/[id]",
+      "sourceFile": "apps/web/src/app/enterprise/products/[id]/page.tsx",
+      "task": 10,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/products/[id]/screen.tsx"
+    },
+    {
+      "route": "/enterprise/products/import",
+      "sourceFile": "apps/web/src/app/enterprise/products/import/page.tsx",
+      "task": 10,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/products/import/screen.tsx"
+    },
+    {
+      "route": "/enterprise/products/new",
+      "sourceFile": "apps/web/src/app/enterprise/products/new/page.tsx",
+      "task": 10,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/products/new/screen.tsx"
+    },
+    {
+      "route": "/enterprise/products",
+      "sourceFile": "apps/web/src/app/enterprise/products/page.tsx",
+      "task": 10,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/products/screen.tsx"
+    },
+    {
+      "route": "/enterprise/profile",
+      "sourceFile": "apps/web/src/app/enterprise/profile/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/profile/screen.tsx"
+    },
+    {
+      "route": "/enterprise/qr",
+      "sourceFile": "apps/web/src/app/enterprise/qr/page.tsx",
+      "task": 15,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/qr/screen.tsx"
+    },
+    {
+      "route": "/enterprise/reports/adjust",
+      "sourceFile": "apps/web/src/app/enterprise/reports/adjust/page.tsx",
+      "task": 15,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/reports/adjust/screen.tsx"
+    },
+    {
+      "route": "/enterprise/reports",
+      "sourceFile": "apps/web/src/app/enterprise/reports/page.tsx",
+      "task": 15,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/reports/screen.tsx"
+    },
+    {
+      "route": "/enterprise/roles/[id]",
+      "sourceFile": "apps/web/src/app/enterprise/roles/[id]/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/roles/[id]/screen.tsx"
+    },
+    {
+      "route": "/enterprise/roles/new",
+      "sourceFile": "apps/web/src/app/enterprise/roles/new/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/roles/new/screen.tsx"
+    },
+    {
+      "route": "/enterprise/roles",
+      "sourceFile": "apps/web/src/app/enterprise/roles/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/roles/screen.tsx"
+    },
+    {
+      "route": "/enterprise/service/contract",
+      "sourceFile": "apps/web/src/app/enterprise/service/contract/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/service/contract/screen.tsx"
+    },
+    {
+      "route": "/enterprise/service",
+      "sourceFile": "apps/web/src/app/enterprise/service/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/service/screen.tsx"
+    },
+    {
+      "route": "/enterprise/service/payment",
+      "sourceFile": "apps/web/src/app/enterprise/service/payment/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/service/payment/screen.tsx"
+    },
+    {
+      "route": "/enterprise/settings",
+      "sourceFile": "apps/web/src/app/enterprise/settings/page.tsx",
+      "task": 9,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/settings/screen.tsx"
+    },
+    {
+      "route": "/enterprise/signing",
+      "sourceFile": "apps/web/src/app/enterprise/signing/page.tsx",
+      "task": 13,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/signing/screen.tsx"
+    },
+    {
+      "route": "/enterprise/sites/[id]",
+      "sourceFile": "apps/web/src/app/enterprise/sites/[id]/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/sites/[id]/screen.tsx"
+    },
+    {
+      "route": "/enterprise/sites/new",
+      "sourceFile": "apps/web/src/app/enterprise/sites/new/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/sites/new/screen.tsx"
+    },
+    {
+      "route": "/enterprise/sites",
+      "sourceFile": "apps/web/src/app/enterprise/sites/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/sites/screen.tsx"
+    },
+    {
+      "route": "/enterprise/support/[id]",
+      "sourceFile": "apps/web/src/app/enterprise/support/[id]/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/support/[id]/screen.tsx"
+    },
+    {
+      "route": "/enterprise/support/new",
+      "sourceFile": "apps/web/src/app/enterprise/support/new/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/support/new/screen.tsx"
+    },
+    {
+      "route": "/enterprise/support",
+      "sourceFile": "apps/web/src/app/enterprise/support/page.tsx",
+      "task": 12,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/support/screen.tsx"
+    },
+    {
+      "route": "/enterprise/vehicles/[id]",
+      "sourceFile": "apps/web/src/app/enterprise/vehicles/[id]/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/vehicles/[id]/screen.tsx"
+    },
+    {
+      "route": "/enterprise/vehicles/new",
+      "sourceFile": "apps/web/src/app/enterprise/vehicles/new/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/vehicles/new/screen.tsx"
+    },
+    {
+      "route": "/enterprise/vehicles",
+      "sourceFile": "apps/web/src/app/enterprise/vehicles/page.tsx",
+      "task": 11,
+      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/vehicles/screen.tsx"
+    },
+    {
+      "route": "/iot-simulator",
+      "sourceFile": "apps/web/src/app/iot-simulator/page.tsx",
+      "task": 14,
+      "targetScreen": "apps/web/src/features/ledger/screens/iot-simulator/screen.tsx"
+    },
+    {
+      "route": "/join-organization",
+      "sourceFile": "apps/web/src/app/join-organization/page.tsx",
+      "task": 4,
+      "targetScreen": "apps/web/src/features/ledger/screens/join-organization/screen.tsx"
+    },
+    {
+      "route": "/login",
+      "sourceFile": "apps/web/src/app/login/page.tsx",
+      "task": 4,
+      "targetScreen": "apps/web/src/features/ledger/screens/login/screen.tsx"
+    },
+    {
+      "route": "/lots/[lotId]",
+      "sourceFile": "apps/web/src/app/lots/[lotId]/page.tsx",
+      "task": 15,
+      "targetScreen": "apps/web/src/features/ledger/screens/lots/[lotId]/screen.tsx"
+    },
+    {
+      "route": "/lots",
+      "sourceFile": "apps/web/src/app/lots/page.tsx",
+      "task": 15,
+      "targetScreen": "apps/web/src/features/ledger/screens/lots/screen.tsx"
+    },
+    {
+      "route": "/",
+      "sourceFile": "apps/web/src/app/page.tsx",
+      "task": 17,
+      "targetScreen": "apps/web/src/features/ledger/screens/home/screen.tsx"
+    },
+    {
+      "route": "/privacy",
+      "sourceFile": "apps/web/src/app/privacy/page.tsx",
+      "task": 17,
+      "targetScreen": "apps/web/src/features/ledger/screens/privacy/screen.tsx"
+    },
+    {
+      "route": "/production-cycles/[id]/harvest/new",
+      "sourceFile": "apps/web/src/app/production-cycles/[id]/harvest/new/page.tsx",
+      "task": 14,
+      "targetScreen": "apps/web/src/features/ledger/screens/production-cycles/[id]/harvest/new/screen.tsx"
+    },
+    {
+      "route": "/production-cycles/[id]/harvest",
+      "sourceFile": "apps/web/src/app/production-cycles/[id]/harvest/page.tsx",
+      "task": 14,
+      "targetScreen": "apps/web/src/features/ledger/screens/production-cycles/[id]/harvest/screen.tsx"
+    },
+    {
+      "route": "/production-cycles/[id]/journal/new",
+      "sourceFile": "apps/web/src/app/production-cycles/[id]/journal/new/page.tsx",
+      "task": 14,
+      "targetScreen": "apps/web/src/features/ledger/screens/production-cycles/[id]/journal/new/screen.tsx"
+    },
+    {
+      "route": "/production-cycles/[id]/journal",
+      "sourceFile": "apps/web/src/app/production-cycles/[id]/journal/page.tsx",
+      "task": 14,
+      "targetScreen": "apps/web/src/features/ledger/screens/production-cycles/[id]/journal/screen.tsx"
+    },
+    {
+      "route": "/production-cycles/[id]",
+      "sourceFile": "apps/web/src/app/production-cycles/[id]/page.tsx",
+      "task": 14,
+      "targetScreen": "apps/web/src/features/ledger/screens/production-cycles/[id]/screen.tsx"
+    },
+    {
+      "route": "/production-cycles/[id]/plant",
+      "sourceFile": "apps/web/src/app/production-cycles/[id]/plant/page.tsx",
+      "task": 14,
+      "targetScreen": "apps/web/src/features/ledger/screens/production-cycles/[id]/plant/screen.tsx"
+    },
+    {
+      "route": "/production-cycles/drafts/[id]",
+      "sourceFile": "apps/web/src/app/production-cycles/drafts/[id]/page.tsx",
+      "task": 14,
+      "targetScreen": "apps/web/src/features/ledger/screens/production-cycles/drafts/[id]/screen.tsx"
+    },
+    {
+      "route": "/production-cycles/new",
+      "sourceFile": "apps/web/src/app/production-cycles/new/page.tsx",
+      "task": 14,
+      "targetScreen": "apps/web/src/features/ledger/screens/production-cycles/new/screen.tsx"
+    },
+    {
+      "route": "/production-cycles",
+      "sourceFile": "apps/web/src/app/production-cycles/page.tsx",
+      "task": 14,
+      "targetScreen": "apps/web/src/features/ledger/screens/production-cycles/screen.tsx"
+    },
+    {
+      "route": "/register",
+      "sourceFile": "apps/web/src/app/register/page.tsx",
+      "task": 4,
+      "targetScreen": "apps/web/src/features/ledger/screens/register/screen.tsx"
+    },
+    {
+      "route": "/scan",
+      "sourceFile": "apps/web/src/app/scan/page.tsx",
+      "task": 17,
+      "targetScreen": "apps/web/src/features/ledger/screens/scan/screen.tsx"
+    },
+    {
+      "route": "/supply-chains/[id]/business",
+      "sourceFile": "apps/web/src/app/supply-chains/[id]/business/page.tsx",
+      "task": 13,
+      "targetScreen": "apps/web/src/features/ledger/screens/supply-chains/[id]/business/screen.tsx"
+    },
+    {
+      "route": "/supply-chains/[id]/ledger",
+      "sourceFile": "apps/web/src/app/supply-chains/[id]/ledger/page.tsx",
+      "task": 13,
+      "targetScreen": "apps/web/src/features/ledger/screens/supply-chains/[id]/ledger/screen.tsx"
+    },
+    {
+      "route": "/supply-chains/[id]/members",
+      "sourceFile": "apps/web/src/app/supply-chains/[id]/members/page.tsx",
+      "task": 13,
+      "targetScreen": "apps/web/src/features/ledger/screens/supply-chains/[id]/members/screen.tsx"
+    },
+    {
+      "route": "/supply-chains/[id]",
+      "sourceFile": "apps/web/src/app/supply-chains/[id]/page.tsx",
+      "task": 13,
+      "targetScreen": "apps/web/src/features/ledger/screens/supply-chains/[id]/screen.tsx"
+    },
+    {
+      "route": "/supply-chains/[id]/plans",
+      "sourceFile": "apps/web/src/app/supply-chains/[id]/plans/page.tsx",
+      "task": 13,
+      "targetScreen": "apps/web/src/features/ledger/screens/supply-chains/[id]/plans/screen.tsx"
+    },
+    {
+      "route": "/supply-chains/[id]/roles",
+      "sourceFile": "apps/web/src/app/supply-chains/[id]/roles/page.tsx",
+      "task": 13,
+      "targetScreen": "apps/web/src/features/ledger/screens/supply-chains/[id]/roles/screen.tsx"
+    },
+    {
+      "route": "/supply-chains/[id]/signing",
+      "sourceFile": "apps/web/src/app/supply-chains/[id]/signing/page.tsx",
+      "task": 13,
+      "targetScreen": "apps/web/src/features/ledger/screens/supply-chains/[id]/signing/screen.tsx"
+    },
+    {
+      "route": "/supply-chains/new",
+      "sourceFile": "apps/web/src/app/supply-chains/new/page.tsx",
+      "task": 13,
+      "targetScreen": "apps/web/src/features/ledger/screens/supply-chains/new/screen.tsx"
+    },
+    {
+      "route": "/supply-chains",
+      "sourceFile": "apps/web/src/app/supply-chains/page.tsx",
+      "task": 13,
+      "targetScreen": "apps/web/src/features/ledger/screens/supply-chains/screen.tsx"
+    },
+    {
+      "route": "/terms",
+      "sourceFile": "apps/web/src/app/terms/page.tsx",
+      "task": 17,
+      "targetScreen": "apps/web/src/features/ledger/screens/terms/screen.tsx"
+    },
+    {
+      "route": "/trace/[lotId]",
+      "sourceFile": "apps/web/src/app/trace/[lotId]/page.tsx",
+      "task": 17,
+      "targetScreen": "apps/web/src/features/ledger/screens/trace/[lotId]/screen.tsx"
+    }
+  ],
+  "legacyUi": [
+    {
+      "path": "apps/web/src/app/account/password/page.tsx",
+      "gitBlob": "b7641e87e9985c5891994fbcf9557b8cb5f3296b"
+    },
+    {
+      "path": "apps/web/src/app/account/privacy/page.tsx",
+      "gitBlob": "a8b3d2e57f57eae058536bd5f66e0646c10f86c5"
+    },
+    {
+      "path": "apps/web/src/app/admin/approvals/[id]/page.tsx",
+      "gitBlob": "a5b66a343981d0c87eb6f9f6ff1a0c804ea4138d"
+    },
+    {
+      "path": "apps/web/src/app/admin/approvals/new/page.tsx",
+      "gitBlob": "7a3301cea7233eef51915964cd8d3dfdbe0504da"
+    },
+    {
+      "path": "apps/web/src/app/admin/approvals/page.tsx",
+      "gitBlob": "20056a1fa1c05a9c8759aa4440749504b88d9081"
+    },
+    {
+      "path": "apps/web/src/app/admin/audit-log/page.tsx",
+      "gitBlob": "2c8434e86a5b61aa5d9356954fa1792045e35730"
+    },
+    {
+      "path": "apps/web/src/app/admin/backup/page.tsx",
+      "gitBlob": "b066ec8523b5dce176b8b5c2d00192940ea246de"
+    },
+    {
+      "path": "apps/web/src/app/admin/billing/invoices/page.tsx",
+      "gitBlob": "094c2e3b5a2feeedf6f27a80cb524fe890175250"
+    },
+    {
+      "path": "apps/web/src/app/admin/billing/page.tsx",
+      "gitBlob": "7da5c7f9696acb469f4d972b46d669c9656dbb2c"
+    },
+    {
+      "path": "apps/web/src/app/admin/billing/revenue/page.tsx",
+      "gitBlob": "928d7b1b98c4e13518baefa5adf0e35978975e84"
+    },
+    {
+      "path": "apps/web/src/app/admin/billing/subscriptions/page.tsx",
+      "gitBlob": "a259f12cad3e9a7ea410272e6fcbae92b42e14c9"
+    },
+    {
+      "path": "apps/web/src/app/admin/cases/[id]/page.tsx",
+      "gitBlob": "a9a644ced6e1b6320924b3614ca89ec97a108d88"
+    },
+    {
+      "path": "apps/web/src/app/admin/cases/new/page.tsx",
+      "gitBlob": "a2a34e634d699b38849e78c36068909c6476b27a"
+    },
+    {
+      "path": "apps/web/src/app/admin/cases/page.tsx",
+      "gitBlob": "df0c455281b71f959dddee0c0834612351c852be"
+    },
+    {
+      "path": "apps/web/src/app/admin/chains/page.tsx",
+      "gitBlob": "87296c48ed70ef494ed1e2cd4271a3dfe859ac5d"
+    },
+    {
+      "path": "apps/web/src/app/admin/compliance-assignments/[id]/page.tsx",
+      "gitBlob": "46ae7c2ce63f4cc1f0be3d616662cb35a9e7b265"
+    },
+    {
+      "path": "apps/web/src/app/admin/compliance-assignments/new/page.tsx",
+      "gitBlob": "85ed2594d9b5051c0b0e14ab050b69e951c3778d"
+    },
+    {
+      "path": "apps/web/src/app/admin/compliance-assignments/page.tsx",
+      "gitBlob": "7149c1e12f43559b793a5f7c3f79c86be80b318d"
+    },
+    {
+      "path": "apps/web/src/app/admin/directory/[id]/page.tsx",
+      "gitBlob": "8dfb51498db745f6c86f41ea4a0d053a38e3485b"
+    },
+    {
+      "path": "apps/web/src/app/admin/directory/page.tsx",
+      "gitBlob": "ac355bb80397688148b2c9280ff5e384a6ced3bc"
+    },
+    {
+      "path": "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx",
+      "gitBlob": "4a5691f0304308d8b71aade5529a2eaecb534814"
+    },
+    {
+      "path": "apps/web/src/app/admin/enterprises/[id]/page.tsx",
+      "gitBlob": "f531d2bb6c5d5c0dc4fc5664af7019949af99bc7"
+    },
+    {
+      "path": "apps/web/src/app/admin/enterprises/amendments/[id]/page.tsx",
+      "gitBlob": "df9f72d6def9dc8ae37df675d30f6c9d2adf922e"
+    },
+    {
+      "path": "apps/web/src/app/admin/enterprises/amendments/page.tsx",
+      "gitBlob": "750fa845cf8257b70c9ad486e1b85ebc19b9cc73"
+    },
+    {
+      "path": "apps/web/src/app/admin/enterprises/page.tsx",
+      "gitBlob": "85fdf6c80ccd951881d3ef5ad1c7de8a6d20a226"
+    },
+    {
+      "path": "apps/web/src/app/admin/inbox/page.tsx",
+      "gitBlob": "ced126e1c8eed2c589b7e8584b0ca0e74087f88d"
+    },
+    {
+      "path": "apps/web/src/app/admin/inspectors/page.tsx",
+      "gitBlob": "e0d44b9f5c643630bc8f99081123f22871b8dbbf"
+    },
+    {
+      "path": "apps/web/src/app/admin/ledger/page.tsx",
+      "gitBlob": "88ee2c739daadab7624a2e09a15d3d2da3f068f2"
+    },
+    {
+      "path": "apps/web/src/app/admin/lots/page.tsx",
+      "gitBlob": "a167cee493694cb903201830597dc8138880587e"
+    },
+    {
+      "path": "apps/web/src/app/admin/monitoring/page.tsx",
+      "gitBlob": "97c9a2af22d15d517eca72b6e5616c10da995346"
+    },
+    {
+      "path": "apps/web/src/app/admin/notices/page.tsx",
+      "gitBlob": "981e583705c1d64b9df50b551f13f56b03aed2f4"
+    },
+    {
+      "path": "apps/web/src/app/admin/operations/page.tsx",
+      "gitBlob": "759fc9f8274bfdac295e75e44bf4dd24454aeff5"
+    },
+    {
+      "path": "apps/web/src/app/admin/organizations/new/page.tsx",
+      "gitBlob": "1a39164803f5047808291d7fa20bbe276be76130"
+    },
+    {
+      "path": "apps/web/src/app/admin/organizations/page.tsx",
+      "gitBlob": "22bbe0373069d4cf2f1b6a2b73491f3b38534a9e"
+    },
+    {
+      "path": "apps/web/src/app/admin/page.tsx",
+      "gitBlob": "a6da648f8b305f241e0e50056985513f8b049972"
+    },
+    {
+      "path": "apps/web/src/app/admin/privacy/page.tsx",
+      "gitBlob": "77382b7cc462c1e020a2cff84f89845ce114860c"
+    },
+    {
+      "path": "apps/web/src/app/admin/products/[organizationId]/page.tsx",
+      "gitBlob": "1754aca6ec6894eb1597398b2472681b62bdfac3"
+    },
+    {
+      "path": "apps/web/src/app/admin/products/page.tsx",
+      "gitBlob": "5b2971ddbfea9746b0cf648e7eecb0c8427ad9f4"
+    },
+    {
+      "path": "apps/web/src/app/admin/qr/page.tsx",
+      "gitBlob": "67b2b1fd535abc87e5418c21f8609092073c2ca3"
+    },
+    {
+      "path": "apps/web/src/app/admin/recall/page.tsx",
+      "gitBlob": "507756f6ff8cd7e3503dc538825007eee4340bdb"
+    },
+    {
+      "path": "apps/web/src/app/admin/reference-data/page.tsx",
+      "gitBlob": "063395fefbb539392c34a74f1244e389d7951ecf"
+    },
+    {
+      "path": "apps/web/src/app/admin/reports/page.tsx",
+      "gitBlob": "1efd927a22dc99e9fb2d645f3ea2fdf998e11041"
+    },
+    {
+      "path": "apps/web/src/app/admin/roles/page.tsx",
+      "gitBlob": "4cc805b97b7a61301ca5ee95957a202e1ce2322d"
+    },
+    {
+      "path": "apps/web/src/app/admin/security-alerts/page.tsx",
+      "gitBlob": "0ee6ddc5a9873e020da5e6738d127aad22f29c8a"
+    },
+    {
+      "path": "apps/web/src/app/admin/security/page.tsx",
+      "gitBlob": "323d29b0fcdea0840db504823ff65c838d1a3c64"
+    },
+    {
+      "path": "apps/web/src/app/admin/settings/page.tsx",
+      "gitBlob": "11acde25e5370145f5ec0b3995af9c18951189ad"
+    },
+    {
+      "path": "apps/web/src/app/admin/statistics/page.tsx",
+      "gitBlob": "98db6239b7a72dd56bd84695c2c8dff20b9ea869"
+    },
+    {
+      "path": "apps/web/src/app/admin/support/[id]/page.tsx",
+      "gitBlob": "3f66cae61019281d34a3a92dec5a59eb539e236f"
+    },
+    {
+      "path": "apps/web/src/app/admin/support/page.tsx",
+      "gitBlob": "7e59835bc078efc7172583b0353e958b28069ab5"
+    },
+    {
+      "path": "apps/web/src/app/admin/trace-report/page.tsx",
+      "gitBlob": "f95d7ac3f2b231066906cd78d5f4ca07416a5829"
+    },
+    {
+      "path": "apps/web/src/app/admin/users/[id]/page.tsx",
+      "gitBlob": "ade01756c5c7862cdfcfaafdaae3d1fc96ecfa8f"
+    },
+    {
+      "path": "apps/web/src/app/admin/users/new/page.tsx",
+      "gitBlob": "ec7a790d4cf8acdb016ec060c5d9a0321a279821"
+    },
+    {
+      "path": "apps/web/src/app/admin/users/page.tsx",
+      "gitBlob": "15aaa5e3d2f7c1328056624c719d5b05f081a20d"
+    },
+    {
+      "path": "apps/web/src/app/compliance/page.tsx",
+      "gitBlob": "975c09a82958cbec0f3495178a094a20db9dd431"
+    },
+    {
+      "path": "apps/web/src/app/dashboard/page.tsx",
+      "gitBlob": "d93721d5f6d701db226714fce74da9b7d4c3794d"
+    },
+    {
+      "path": "apps/web/src/app/distribution/[id]/journal/page.tsx",
+      "gitBlob": "20df907981d0dddc32e893ee102b6f8ba72461a1"
+    },
+    {
+      "path": "apps/web/src/app/distribution/[id]/page.tsx",
+      "gitBlob": "d47a743510ae1926decac3c954cae24e0054e32f"
+    },
+    {
+      "path": "apps/web/src/app/distribution/new/page.tsx",
+      "gitBlob": "7426c829677703f71e3c28ce9facb57fcbadf648"
+    },
+    {
+      "path": "apps/web/src/app/distribution/page.tsx",
+      "gitBlob": "0415730925f46d72e39e854bb885cc37b5ff9f27"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/areas/[id]/page.tsx",
+      "gitBlob": "2d2e8d576b192494fe4c291fc9dd16663f04b08a"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/areas/new/page.tsx",
+      "gitBlob": "9da1f98fe99fb118db357d83dce905df5c1a0c0e"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/areas/page.tsx",
+      "gitBlob": "8b047474c9a6a14bd6fa520ca2918390f12007f7"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/areas/plots/new/page.tsx",
+      "gitBlob": "c71f2227558f84a73d5f2182be822c0c2e91016a"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/billing/page.tsx",
+      "gitBlob": "970af60cca665ba2253b2f8fb7c66998d2b3f283"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/connections/page.tsx",
+      "gitBlob": "9c57009b6cd4f08adcdf6d1e48e33ac02c58ba1e"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/help/page.tsx",
+      "gitBlob": "4b880cf54d0aa3f3e091b06757fd5221e90dfeb8"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/inbox/page.tsx",
+      "gitBlob": "03a3181bce829866df72b022cdc9cd08535930ac"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/inventory/page.tsx",
+      "gitBlob": "263861fc5213a4c055b55d7a970b23d0a97fc24e"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/materials/[id]/page.tsx",
+      "gitBlob": "e0f35dd88d8a7a78966b951128ffe08d09c65f32"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/materials/new/page.tsx",
+      "gitBlob": "c2044a51bacab3f2191d75af0c42417b3242271f"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/materials/page.tsx",
+      "gitBlob": "4d38702838f6d92f3e47dcef6f545eab4814e2d5"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/members/[id]/edit/page.tsx",
+      "gitBlob": "bd10725f9b7b32d0640e666600933445b43015c4"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/members/[id]/page.tsx",
+      "gitBlob": "cdea92bf3f97990150b5e5f1c620d925f09d7a5b"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/members/invitations/page.tsx",
+      "gitBlob": "67fc88b483fc1a4084de7acc85d1bdababebc782"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/members/new/page.tsx",
+      "gitBlob": "715272fa8ed5885732b8d90a4fc21a62f3e47655"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/members/page.tsx",
+      "gitBlob": "4d343b7bae687c6e960d123c6a111afee925898a"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/messages/page.tsx",
+      "gitBlob": "4c3640a6d8c64df9f4cb05836a01351fb83f1fd7"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/notices/page.tsx",
+      "gitBlob": "fd6ecf8c56200fe3f4d47b81891dc0263c70bacf"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/onboarding/page.tsx",
+      "gitBlob": "fbe9485a106d9a08c9b74d443a9283019dbe7d0d"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/ownership/page.tsx",
+      "gitBlob": "aef2ad49baa775e799798d5110ee7ec32606b422"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/page.tsx",
+      "gitBlob": "8f342d78c541b3b8f3b8f1863726062c77532e50"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/partners/external/[id]/page.tsx",
+      "gitBlob": "93f244089b5304f9f34859be93e993d520aaa1ec"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/partners/new/page.tsx",
+      "gitBlob": "9a38d5d48e6adf089a03366da39332ea4c264d34"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/partners/page.tsx",
+      "gitBlob": "1a77862c40302a255fc60f8c474634b2de780629"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/processing/[id]/page.tsx",
+      "gitBlob": "56d4ab9a6f52219da53b60bcc6a472dcd684dc6c"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/processing/conversions/page.tsx",
+      "gitBlob": "9c433a134564fb48310026822633387c8d664696"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/processing/new/page.tsx",
+      "gitBlob": "b9c71dfb21cea6d9466458b7e157db3e5e6adea8"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/processing/page.tsx",
+      "gitBlob": "bbbb5642ac1537ae3f233ee84c81a12cb97ede2d"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/products/[id]/edit/page.tsx",
+      "gitBlob": "ae3fe2bda309d9284678829456b4cc013d75d323"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/products/[id]/page.tsx",
+      "gitBlob": "6b69193cbdaa8d4ceabbb00e304b93b6c97703dd"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/products/import/page.tsx",
+      "gitBlob": "cc0fffdf445b7321c60d9c6e59c5fad746b5e0be"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/products/new/page.tsx",
+      "gitBlob": "9e6b14fd4d4ef487dae38fb59789fa792e4b2b3d"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/products/page.tsx",
+      "gitBlob": "9ec986cc44ae0c1c8bb904ddf9584d99b516bb11"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/profile/page.tsx",
+      "gitBlob": "5783cb33b6e666c29144647f508763b737abf930"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/qr/page.tsx",
+      "gitBlob": "8940ccdacd6975756332ba038cb7fe60f7652984"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/reports/adjust/page.tsx",
+      "gitBlob": "a48677af00504e38583ecd525cdc87f0321ac47b"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/reports/page.tsx",
+      "gitBlob": "4ba210be81aac18d2cf8e7275265dc3a8c06f9b8"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/roles/[id]/page.tsx",
+      "gitBlob": "73b341a6b6840ab590c53f191e0e695daa3dda45"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/roles/new/page.tsx",
+      "gitBlob": "660d616168ae9efd125930e9ac7ea540b3270807"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/roles/page.tsx",
+      "gitBlob": "cea6fcc1d3332ce5a9e257680b699c6a13a8ed87"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/service/contract/page.tsx",
+      "gitBlob": "1c6b02804ad4144d6e4203ef753231f0c934fe11"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/service/layout.tsx",
+      "gitBlob": "1b6c0f0667c26352ad6d2a4cc5253f7692257797"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/service/page.tsx",
+      "gitBlob": "aba2f15a3e879d547b089e44bc678c36d443b5e4"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/service/payment/page.tsx",
+      "gitBlob": "fc54171a1cd5e2a54327d32cd826444ba7e1ba40"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/settings/page.tsx",
+      "gitBlob": "7f12b49df571b5e5c6f8def2a0df1a81586bbc15"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/signing/page.tsx",
+      "gitBlob": "c399d90ed0aa4e29845386633d821f52bbfbce6c"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/sites/[id]/page.tsx",
+      "gitBlob": "236729451e960aa0361b7a08574f801462e50414"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/sites/new/page.tsx",
+      "gitBlob": "c0afe4ba06e221e8bcdf59bbb241c0d5709a197e"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/sites/page.tsx",
+      "gitBlob": "01c74a66b73b833df18253f6c73fdef8d293207c"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/support/[id]/page.tsx",
+      "gitBlob": "a04269d86cd0ab7790e47c9e21bb6eaa287004eb"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/support/new/page.tsx",
+      "gitBlob": "c039c1efb89b486024c87527ee326f84d0004b4c"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/support/page.tsx",
+      "gitBlob": "ed98923c96c4da9c209ef95b24e0a52a51d5ca1b"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/vehicles/[id]/page.tsx",
+      "gitBlob": "e0b40875d776965ec0d24cacf738ff26feea2e15"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/vehicles/new/page.tsx",
+      "gitBlob": "9c70325b9aa10cbb62148ec1c778f9b8d638cde3"
+    },
+    {
+      "path": "apps/web/src/app/enterprise/vehicles/page.tsx",
+      "gitBlob": "d752a3a929cf91653c6c9794727344845b896a79"
+    },
+    {
+      "path": "apps/web/src/app/error.tsx",
+      "gitBlob": "c20cd3fe672aa0849c739d8d90071faf864f7662"
+    },
+    {
+      "path": "apps/web/src/app/iot-simulator/page.tsx",
+      "gitBlob": "dfcb39cb81a1c34b4963a937ef73e9ad2d77bcbb"
+    },
+    {
+      "path": "apps/web/src/app/join-organization/page.tsx",
+      "gitBlob": "98be7aab7faa62366a69db4c1d31cb8cb7841d27"
+    },
+    {
+      "path": "apps/web/src/app/layout.tsx",
+      "gitBlob": "0c96e262eb7b1fdf2fc2e788ab94c466f14b2f66"
+    },
+    {
+      "path": "apps/web/src/app/login/page.tsx",
+      "gitBlob": "c13c5da2bca1878fee14b02ff0f6a69a6bda335b"
+    },
+    {
+      "path": "apps/web/src/app/lots/[lotId]/page.tsx",
+      "gitBlob": "6e0ec2b54e61b5145497b2c6f779f3d9fed92aac"
+    },
+    {
+      "path": "apps/web/src/app/lots/page.tsx",
+      "gitBlob": "e3959d5528135a65cde7f39cc119b99df9c3f0ba"
+    },
+    {
+      "path": "apps/web/src/app/not-found.tsx",
+      "gitBlob": "b8c6f7df4a676b1778e30fedda50f022c5b9e02e"
+    },
+    {
+      "path": "apps/web/src/app/page.tsx",
+      "gitBlob": "bd4b06230c47ff0400ea4e0aa6307dae7e9bee6f"
+    },
+    {
+      "path": "apps/web/src/app/privacy/page.tsx",
+      "gitBlob": "a3d0a9cb87ef5d2dc9098c70e83687d17a28544b"
+    },
+    {
+      "path": "apps/web/src/app/production-cycles/[id]/harvest/new/page.tsx",
+      "gitBlob": "9d95bae3da3a603a0692dd07ce4fd1b181517393"
+    },
+    {
+      "path": "apps/web/src/app/production-cycles/[id]/harvest/page.tsx",
+      "gitBlob": "5dcf0180d648360ef4a3dabbac28078948157f0d"
+    },
+    {
+      "path": "apps/web/src/app/production-cycles/[id]/journal/new/page.tsx",
+      "gitBlob": "29b239f83afa40df6d9741e7947bbe73cd80f9ba"
+    },
+    {
+      "path": "apps/web/src/app/production-cycles/[id]/journal/page.tsx",
+      "gitBlob": "1d38d38086e0f4ef4d038c71d33630cb07d5180b"
+    },
+    {
+      "path": "apps/web/src/app/production-cycles/[id]/page.tsx",
+      "gitBlob": "d0f96c388c4ea7e8ea58d5014ff3ebe2e7686d3e"
+    },
+    {
+      "path": "apps/web/src/app/production-cycles/[id]/plant/page.tsx",
+      "gitBlob": "2689aafbd38251b49422f873b36eb6d1901e7c85"
+    },
+    {
+      "path": "apps/web/src/app/production-cycles/drafts/[id]/page.tsx",
+      "gitBlob": "8f01d1ae81a38da6c3c1a667db5270a723c6be80"
+    },
+    {
+      "path": "apps/web/src/app/production-cycles/new/page.tsx",
+      "gitBlob": "2a2a2306c8e08b5dc7d65d2b64476263388a9626"
+    },
+    {
+      "path": "apps/web/src/app/production-cycles/page.tsx",
+      "gitBlob": "35d2b742667ebd1379ebe85520269ed5b069c7ad"
+    },
+    {
+      "path": "apps/web/src/app/register/page.tsx",
+      "gitBlob": "f95da67e1517fa31865c9ab517535d42ec95f8bc"
+    },
+    {
+      "path": "apps/web/src/app/scan/page.tsx",
+      "gitBlob": "27386dc38ddbfb8e6a4aa83e5df32491c26615fc"
+    },
+    {
+      "path": "apps/web/src/app/supply-chains/[id]/business/page.tsx",
+      "gitBlob": "19d27275b01c41df4b38ac518f5489673f83dc5e"
+    },
+    {
+      "path": "apps/web/src/app/supply-chains/[id]/ledger/page.tsx",
+      "gitBlob": "f020a4875b45c3ede1e26b1d4bcfede52bb1924f"
+    },
+    {
+      "path": "apps/web/src/app/supply-chains/[id]/members/page.tsx",
+      "gitBlob": "9411137c94a8816b13726133c7baae4c893f71e0"
+    },
+    {
+      "path": "apps/web/src/app/supply-chains/[id]/page.tsx",
+      "gitBlob": "06eb311b03831941b4f83d48217efc295c1e12ff"
+    },
+    {
+      "path": "apps/web/src/app/supply-chains/[id]/plans/page.tsx",
+      "gitBlob": "87bd02737c99d7956ece1556cf535e0a865df0ee"
+    },
+    {
+      "path": "apps/web/src/app/supply-chains/[id]/roles/page.tsx",
+      "gitBlob": "b4fd36afe672f7f1e26599d87b09e993b7b94aba"
+    },
+    {
+      "path": "apps/web/src/app/supply-chains/[id]/signing/page.tsx",
+      "gitBlob": "3e9673fbd6d6ec8aa2096d5f06dab8107e1460b9"
+    },
+    {
+      "path": "apps/web/src/app/supply-chains/new/page.tsx",
+      "gitBlob": "d26baae87af53a5673ecc0f43539c085e996a1e6"
+    },
+    {
+      "path": "apps/web/src/app/supply-chains/page.tsx",
+      "gitBlob": "7ab6023c946e34282b78f5298278c19989c6a7bc"
+    },
+    {
+      "path": "apps/web/src/app/terms/page.tsx",
+      "gitBlob": "b3640b1c42c5b510cd7ef4cd9e9a7d32825ce76a"
+    },
+    {
+      "path": "apps/web/src/app/trace/[lotId]/page.tsx",
+      "gitBlob": "d4c34b7bde34e13acff798e8ccddaeff5a9e6cfb"
+    },
+    {
+      "path": "apps/web/src/components/action-panel.tsx",
+      "gitBlob": "3f128e14f26d890acb31cadeebecd7b9492a4847"
+    },
+    {
+      "path": "apps/web/src/components/app-frame.tsx",
+      "gitBlob": "8a445c4af73a40a43440b25a1ea2baaa5813fb32"
+    },
+    {
+      "path": "apps/web/src/components/business-profile-panel.tsx",
+      "gitBlob": "c117453f120679000bb17ab83877d3ec3b4a4409"
+    },
+    {
+      "path": "apps/web/src/components/camera-scanner.tsx",
+      "gitBlob": "b8a5a75c790d079f8e5acc23d38a7ac894228e7b"
+    },
+    {
+      "path": "apps/web/src/components/data-form.tsx",
+      "gitBlob": "ae5878b5daed63df480ccd75017b45cf8f90b696"
+    },
+    {
+      "path": "apps/web/src/components/error-state.tsx",
+      "gitBlob": "2124ea597f8a09c6bcf0b9b27365edbb60b27a33"
+    },
+    {
+      "path": "apps/web/src/components/handover-panel.tsx",
+      "gitBlob": "e5db44c67a7c71feeb14797f3853d8f9c9e2403b"
+    },
+    {
+      "path": "apps/web/src/components/harvest-dialog.tsx",
+      "gitBlob": "56474085910f75927f1822c6b435e3cfa3d25c70"
+    },
+    {
+      "path": "apps/web/src/components/ledger-status-panel.tsx",
+      "gitBlob": "6417b106c725305260be32b1dae5e3b92e58a3ad"
+    },
+    {
+      "path": "apps/web/src/components/loading-state.tsx",
+      "gitBlob": "0be1d9bd3a6900a3b3df402924a957edc2d012fc"
+    },
+    {
+      "path": "apps/web/src/components/lot-picker.tsx",
+      "gitBlob": "d341d2297128280e0b602f94b97193e8846655c7"
+    },
+    {
+      "path": "apps/web/src/components/lot-table.tsx",
+      "gitBlob": "5e857e26a007c3e5a8f68825169a01051ccb5935"
+    },
+    {
+      "path": "apps/web/src/components/lot-warnings.tsx",
+      "gitBlob": "13159d59f8d342bc8d17ffe81a3e95180fe774ba"
+    },
+    {
+      "path": "apps/web/src/components/manage/admin-widgets.tsx",
+      "gitBlob": "92d9dee410f34d0e9d14c1fb7f160928a29524aa"
+    },
+    {
+      "path": "apps/web/src/components/manage/data-table.tsx",
+      "gitBlob": "728f81af08afc072a50c9adf69d0297d8c88e960"
+    },
+    {
+      "path": "apps/web/src/components/manage/index.ts",
+      "gitBlob": "d4fd802571b0ec711149afd68f269f9a463e2d2c"
+    },
+    {
+      "path": "apps/web/src/components/manage/info-dialog.tsx",
+      "gitBlob": "e8b9061e7cdc67dc5dad973d1c00fd2c59955f72"
+    },
+    {
+      "path": "apps/web/src/components/manage/layout.tsx",
+      "gitBlob": "9b134c72e514ea8ae98de2b9965758e8dca25875"
+    },
+    {
+      "path": "apps/web/src/components/manage/overview-chart.tsx",
+      "gitBlob": "faaff26a3f9b1fe80b3cb08ea8645a62d9c814b7"
+    },
+    {
+      "path": "apps/web/src/components/manage/page-header.tsx",
+      "gitBlob": "bc5d8403c8455e922efdfbd7711473b28a91dbff"
+    },
+    {
+      "path": "apps/web/src/components/manage/states.tsx",
+      "gitBlob": "9bea3627019b78974591678ad48e00aa233e39e1"
+    },
+    {
+      "path": "apps/web/src/components/manage/status-badge.tsx",
+      "gitBlob": "9b8dfa521438bfb2f96473135082c95598d92fe4"
+    },
+    {
+      "path": "apps/web/src/components/pending-commands-panel.tsx",
+      "gitBlob": "23eb4b24034735cb9ab11c08219bc41898d254fc"
+    },
+    {
+      "path": "apps/web/src/components/qr-code-card.tsx",
+      "gitBlob": "14345fbb0c864505682c0366f9a3dc0be3e47515"
+    },
+    {
+      "path": "apps/web/src/components/register-service-worker.tsx",
+      "gitBlob": "cb774e6dabe457d2d10a17e90308d8a504fce6d6"
+    },
+    {
+      "path": "apps/web/src/components/responsive-table.tsx",
+      "gitBlob": "f4591a9ca0a17288d6717043d313479d2e9bd6d5"
+    },
+    {
+      "path": "apps/web/src/components/shell/account-menu.tsx",
+      "gitBlob": "2f1e2be4a48bdad11ca82f8d7c20af81176c2c10"
+    },
+    {
+      "path": "apps/web/src/components/shell/back-button.tsx",
+      "gitBlob": "6d2ec3140a3caf595e93d12969dda994300422b8"
+    },
+    {
+      "path": "apps/web/src/components/shell/field-focus.tsx",
+      "gitBlob": "c2d83fb4d8b2d23b42ae6787a58a396ca9ec6a6d"
+    },
+    {
+      "path": "apps/web/src/components/shell/menu-search.tsx",
+      "gitBlob": "4fa0954181fcb51d8236a2f9926d9f22e9328571"
+    },
+    {
+      "path": "apps/web/src/components/shell/nav-groups.tsx",
+      "gitBlob": "adf3ee48c88ad71f8ae1e28d1a71911f30652406"
+    },
+    {
+      "path": "apps/web/src/components/shell/notifications-menu.tsx",
+      "gitBlob": "aa922ca8554edc51bcfeb280c03c986b6f258909"
+    },
+    {
+      "path": "apps/web/src/components/shell/system-notices.tsx",
+      "gitBlob": "7265ed261fbe685593658199ec04490d3d46c284"
+    },
+    {
+      "path": "apps/web/src/components/shell/typography-sync.tsx",
+      "gitBlob": "f7e80bccfbaeb39493f625ba708294f3257835b4"
+    },
+    {
+      "path": "apps/web/src/components/shell/use-shell-data.ts",
+      "gitBlob": "258ff54ced8dd851441029cd6b21e3cdd657de6e"
+    },
+    {
+      "path": "apps/web/src/components/shipment-plans-panel.tsx",
+      "gitBlob": "0642c338c18bc98292276bda2600de9f2a8c034b"
+    },
+    {
+      "path": "apps/web/src/components/signing-keys-panel.tsx",
+      "gitBlob": "468c2a7a9d02c0251536f4c257ad1c49f062585f"
+    },
+    {
+      "path": "apps/web/src/components/site/consumer-report-form.tsx",
+      "gitBlob": "14fa3426c3702bdee4ba0c1497094ffa7d358508"
+    },
+    {
+      "path": "apps/web/src/components/site/site-footer.tsx",
+      "gitBlob": "bf217d010737c84b91d5aecaa3d6fab8b9d6a528"
+    },
+    {
+      "path": "apps/web/src/components/site/site-header.tsx",
+      "gitBlob": "3f5f0d7d957b31c10331b77d50ef21fe86d10ab5"
+    },
+    {
+      "path": "apps/web/src/components/state-badge.tsx",
+      "gitBlob": "9d3d3e2c1193b92d3158a09125b7b5cc6a8aed76"
+    },
+    {
+      "path": "apps/web/src/components/timeline-item.tsx",
+      "gitBlob": "34ca34583064e50b873f70de2b63a8078a3d2e66"
+    },
+    {
+      "path": "apps/web/src/components/ui/brand-logo.tsx",
+      "gitBlob": "e788d20dc8a6620a64f5220474d67393e7cf1c57"
+    },
+    {
+      "path": "apps/web/src/components/ui/reveal.tsx",
+      "gitBlob": "8f1ede510ec4c507baa37ee9ed10d04460f25874"
+    },
+    {
+      "path": "apps/web/src/components/workspace/admin-organizations.tsx",
+      "gitBlob": "72e3f158a6807329010b79934f640e0a2625f1ae"
+    },
+    {
+      "path": "apps/web/src/components/workspace/admin-products.tsx",
+      "gitBlob": "eaeb64634311d22be20333b82e58d3e6dc0f3681"
+    },
+    {
+      "path": "apps/web/src/components/workspace/admin-users.tsx",
+      "gitBlob": "54e73fea589be6ee1889f4af58fad03803f6a1a9"
+    },
+    {
+      "path": "apps/web/src/components/workspace/capability-review.tsx",
+      "gitBlob": "3c14c38c313ace17bb65d64b029e6ac78adadafe"
+    },
+    {
+      "path": "apps/web/src/components/workspace/case-requests.tsx",
+      "gitBlob": "7514615aeb49db6c294c0e56c377264ce1d5b44b"
+    },
+    {
+      "path": "apps/web/src/components/workspace/chain-create.tsx",
+      "gitBlob": "07d9581806dfdef1f056a4780caa6b981003d5b2"
+    },
+    {
+      "path": "apps/web/src/components/workspace/chains.tsx",
+      "gitBlob": "b582d2b24917012247a779e0eb8c49ace6e1a55f"
+    },
+    {
+      "path": "apps/web/src/components/workspace/enterprise-products-panel.tsx",
+      "gitBlob": "d5b69488ce0f1cdc6e0f803d56391d38470c0901"
+    },
+    {
+      "path": "apps/web/src/components/workspace/entity-thumb.tsx",
+      "gitBlob": "2764b874b00080227d8f4c470c4f0cfb4f45734d"
+    },
+    {
+      "path": "apps/web/src/components/workspace/evidence-panel.tsx",
+      "gitBlob": "c5fae54e3c32d02ef83e5491e73eac2fbd398172"
+    },
+    {
+      "path": "apps/web/src/components/workspace/image-gallery.tsx",
+      "gitBlob": "6b1a30d08951b9faf74a5900169f9a997a7613ab"
+    },
+    {
+      "path": "apps/web/src/components/workspace/inbox-workspace.tsx",
+      "gitBlob": "57927f3b40e7671efda947f4c61f702c3ce09c7a"
+    },
+    {
+      "path": "apps/web/src/components/workspace/member-detail.tsx",
+      "gitBlob": "845df0a1062ce2a98089f60b18d312b6f14765cf"
+    },
+    {
+      "path": "apps/web/src/components/workspace/member-form.tsx",
+      "gitBlob": "fc62c465632681aae516d9b4a66736deb65fd21a"
+    },
+    {
+      "path": "apps/web/src/components/workspace/partner-create.tsx",
+      "gitBlob": "17a0192b013247dc6711b03ccbb1faed28b485d9"
+    },
+    {
+      "path": "apps/web/src/components/workspace/partner-invite-dialog.tsx",
+      "gitBlob": "4ffb4c20e3d1d78bedd02b7de856199cca5677f6"
+    },
+    {
+      "path": "apps/web/src/components/workspace/partner-lookup.tsx",
+      "gitBlob": "80b4cfea5b6c48765321c790ab6f330cf02ee31c"
+    },
+    {
+      "path": "apps/web/src/components/workspace/platform-enrollment.tsx",
+      "gitBlob": "35afed4ceaf7c895182ab52febc2fc1583566528"
+    },
+    {
+      "path": "apps/web/src/components/workspace/privacy-workspace.tsx",
+      "gitBlob": "4af26432cab9cec9661b16e40f2d0dd2515bda9c"
+    },
+    {
+      "path": "apps/web/src/components/workspace/product-detail.tsx",
+      "gitBlob": "cca3ba4fb18c355a2cc4e1eb83f9680dd73f1f51"
+    },
+    {
+      "path": "apps/web/src/components/workspace/production.tsx",
+      "gitBlob": "f54a45482732358700882d8acafbf391f77d53ae"
+    },
+    {
+      "path": "apps/web/src/components/workspace/profile-amendments.tsx",
+      "gitBlob": "941054b343f16ae8d0edff5d41c7fd930d5b15c6"
+    },
+    {
+      "path": "apps/web/src/components/workspace/receipt-returns.tsx",
+      "gitBlob": "c19f0e25190ba34622fff181bee146bfd0df5add"
+    },
+    {
+      "path": "apps/web/src/components/workspace/registration-email-otp.tsx",
+      "gitBlob": "e501151d787a502bb3156bfa8e71147a35e92b19"
+    },
+    {
+      "path": "apps/web/src/components/workspace/registration-form-page.tsx",
+      "gitBlob": "b51ed550fe54668bbeedf0902ee383506a87194c"
+    },
+    {
+      "path": "apps/web/src/components/workspace/registration-policy.tsx",
+      "gitBlob": "79feb547db66ae88789cb86216295153b946254f"
+    },
+    {
+      "path": "apps/web/src/components/workspace/registration-profile-details.tsx",
+      "gitBlob": "7465bfeb9ed5f4008939139efb20e456d61cb699"
+    },
+    {
+      "path": "apps/web/src/components/workspace/registration-review.tsx",
+      "gitBlob": "77f542c131ebd69d6d2fe6e944ca5206e7c898a1"
+    },
+    {
+      "path": "apps/web/src/components/workspace/resource-editor.tsx",
+      "gitBlob": "51c5ed7d9355d5946f4ae9165814b3cae9950b81"
+    },
+    {
+      "path": "apps/web/src/components/workspace/resources.tsx",
+      "gitBlob": "19c32af346b2d0d0731e8f7a9351278c2f5adbdc"
+    },
+    {
+      "path": "apps/web/src/components/workspace/role-form.tsx",
+      "gitBlob": "62d7a33fa72b8a121a98a82cff78569a74a89671"
+    },
+    {
+      "path": "apps/web/src/components/workspace/role-permission-editor.tsx",
+      "gitBlob": "7961b3bf7df0ac43d531f494f0badfa3ada29e27"
+    },
+    {
+      "path": "apps/web/src/components/workspace/service-context.tsx",
+      "gitBlob": "277cd3760072bd39780c327bb4f866d285fb1c91"
+    },
+    {
+      "path": "apps/web/src/components/workspace/settings-workspace.tsx",
+      "gitBlob": "eedf06138259d550f02a9b2cc72f1e396793275a"
+    },
+    {
+      "path": "apps/web/src/components/workspace/support.tsx",
+      "gitBlob": "29ab301774dba8c8ee06ef14e7bdf83f4218ead7"
+    },
+    {
+      "path": "apps/web/src/lib/appearance.ts",
+      "gitBlob": "ccc24accef481738726e28497b023d4511f53eec"
+    },
+    {
+      "path": "apps/web/src/lib/confirm.tsx",
+      "gitBlob": "49c2267e164b1ee7b9da6fb0d017cba0f92138d1"
+    },
+    {
+      "path": "apps/web/src/lib/management-routes.ts",
+      "gitBlob": "5c14cd5b03a6eee564d6fa05155296dca241d886"
+    },
+    {
+      "path": "apps/web/src/lib/typography.ts",
+      "gitBlob": "57cf212b7ec7117bf5c5eaa74b788df95e9635ea"
+    },
+    {
+      "path": "apps/web/src/styles/app.css",
+      "gitBlob": "1ff1c1f74eca395c2545357d30c6747fc9623292"
+    },
+    {
+      "path": "apps/web/src/styles/base.css",
+      "gitBlob": "daa42d30d6f511ef797f9f3ce605eae6cb8a13f6"
+    },
+    {
+      "path": "apps/web/src/styles/inbox.css",
+      "gitBlob": "98d7ab57560a2cd33a2bc19b569ac13d3043bf38"
+    },
+    {
+      "path": "apps/web/src/styles/manager.css",
+      "gitBlob": "fbb5e499e6951dcb9997e3967a46e9d0aebf184a"
+    },
+    {
+      "path": "apps/web/src/styles/motion.css",
+      "gitBlob": "0675ded00f2831b398ffae3b80aba39b38ebf9f6"
+    },
+    {
+      "path": "apps/web/src/styles/refinement.css",
+      "gitBlob": "f73cda762e4e9d692992210cd93cdf09ef1930f8"
+    },
+    {
+      "path": "apps/web/src/styles/registration.css",
+      "gitBlob": "863a5267e0415b486e0d2d63156f9630f2d13785"
+    },
+    {
+      "path": "apps/web/src/styles/settings.css",
+      "gitBlob": "678f1b53a8ea09f67dc45eb29b7458497954445d"
+    },
+    {
+      "path": "apps/web/src/styles/site.css",
+      "gitBlob": "3ef5304ddab9052a88e1e1a06edf552b504bd5fe"
+    },
+    {
+      "path": "apps/web/src/styles/tokens.css",
+      "gitBlob": "65365bc2d83bd0ab139515f34c0a772a00497b0c"
+    },
+    {
+      "path": "apps/web/src/styles/workspace.css",
+      "gitBlob": "7fe202c6a22557484492303a3c2c1ba372d8a02c"
+    }
+  ],
+  "protectedPaths": [
+    "apps/api/",
+    "blockchain/",
+    "deploy/",
+    "docs/openapi/",
+    "apps/web/src/lib/generated/api.d.ts"
+  ],
+  "note": "Route and legacy UI entries are metadata only. Task 1 audits the fetched baseline and filters render-free business metadata. legacyUi is a candidate denylist: proven non-rendering infrastructure may move to retainedHeadless with a source-backed reason; no renderer, style, navigation or appearance tokens may be exempted.",
+  "retainedHeadless": [
+    {
+      "path": "apps/web/src/components/register-service-worker.tsx",
+      "reason": "AST has no JSX/visible renderer; effect registers the baseline service worker and returns null. No design/navigation/tokens."
+    }
+  ],
+  "provenance": [
+    {
+      "target": "apps/web/public/brand/agritrace-logo-on-dark.png",
+      "source": "public/brand/agritrace-logo-on-dark.png",
+      "sourceSha256": "cd8b2e70c341545179f2aef1cfbbb42c00ccbd32e662449a51fa20e1de542ca7",
+      "targetSha256": "cd8b2e70c341545179f2aef1cfbbb42c00ccbd32e662449a51fa20e1de542ca7"
+    },
+    {
+      "target": "apps/web/public/brand/agritrace-logo.png",
+      "source": "public/brand/agritrace-logo.png",
+      "sourceSha256": "320f075cc764c2d4eb8a56a84053e88b12f8a07fc7475fd8b3d7c046def67e06",
+      "targetSha256": "320f075cc764c2d4eb8a56a84053e88b12f8a07fc7475fd8b3d7c046def67e06"
+    },
+    {
+      "target": "apps/web/public/brand/agritrace-mark.png",
+      "source": "public/brand/agritrace-mark.png",
+      "sourceSha256": "8ec4341d907e107ce305b212519311a375cd3627fef1d1ade19aed552e67ce73",
+      "targetSha256": "8ec4341d907e107ce305b212519311a375cd3627fef1d1ade19aed552e67ce73"
+    },
+    {
+      "target": "apps/web/src/app/globals.css",
+      "source": "src/app/globals.css",
+      "sourceSha256": "2ac0b5eeab76aaf73983246eed8d3e595e16597687de955916253160377cef19",
+      "targetSha256": "7f1866ab984cedc7954831b6571c9a801be67e6143a355a0547814da4b99403a",
+      "adaptations": [
+        "Task18: same shadcn@4.22.1 stylesheet vendored locally to remove the unused CLI dependency; no visual rule change"
+      ]
+    },
+    {
+      "target": "apps/web/src/app/icon.png",
+      "source": "src/app/icon.png",
+      "sourceSha256": "8ec4341d907e107ce305b212519311a375cd3627fef1d1ade19aed552e67ce73",
+      "targetSha256": "8ec4341d907e107ce305b212519311a375cd3627fef1d1ade19aed552e67ce73"
+    },
+    {
+      "target": "apps/web/src/components/ledger/brand.tsx",
+      "source": "src/components/brand.tsx",
+      "sourceSha256": "50e7d809c810600b94a7bcfa4c0807b722b9b39b1d2d6889d7307cd04132eba8",
+      "targetSha256": "ac47e47233b2713d79653a69884074e0bfc2c0ea88ec04bef743a7ae03d26576"
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/data-table.tsx",
+      "source": "src/components/kit/data-table.tsx",
+      "sourceSha256": "e737c06419897f9fef1c20f377945170c6a6e0f906d5e0036042237b01c7cec1",
+      "targetSha256": "fb29a72e1615ac736ee879be7f06822b4aa41d69b5eba8f6e67b0dc40b89466d"
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/filters.tsx",
+      "source": "src/components/kit/filters.tsx",
+      "sourceSha256": "5a8152cfe8eced5923e76e058335409c26e5af634a6dac71205147fd1daf0a11",
+      "targetSha256": "20e3d0e0b0b98879b0fc375241c6edb123b813a7d408597d9cc109d5b760f0bb"
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/form-fields.tsx",
+      "source": "src/components/kit/form-fields.tsx",
+      "sourceSha256": "f9b9ed8b85f79c05a76a0184eebb47e19b94bc4961d979a822112a9203c75b7b",
+      "targetSha256": "327d086f41cfac5cff7ce2a39482c406205b975bc7f1163ad330df0771dab7e1",
+      "adaptations": [
+        "Task18 verified regression: form validation/route state, sensor unit or mobile focus restoration; approved Ledger presentation retained",
+        "Optional SelectField change callback used for baseline sensor-unit synchronization."
+      ]
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/page.tsx",
+      "source": "src/components/kit/page.tsx",
+      "sourceSha256": "5dc9719fc8159ffd3732aaad69974a645773200fe9a9a15cd913f467e829a798",
+      "targetSha256": "0a3ae949df9b38274a0c415bf528f91a3a4754f9f1b98be1c9e4fd199f9917be"
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/status.tsx",
+      "source": "src/components/kit/status.tsx",
+      "sourceSha256": "0f64d4f9094ab43aad3eb3663afc947dbc8b354e00be4cac2d63052e9676631b",
+      "targetSha256": "5bf2a8fd2120c1f1088687e6c8cf43e07edfe7f654968f0fd34de68aac8d10dd"
+    },
+    {
+      "target": "apps/web/src/components/ledger/locale.tsx",
+      "source": "src/components/locale.tsx",
+      "sourceSha256": "8bc4925e24a9258c66508c6e7c51129209bebe78d915715b450a4e645b90ab39",
+      "targetSha256": "2c538428e38b25a5844c36cde05918381e8a6e6d21b9fc712c84eb125795328f"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/alert.tsx",
+      "source": "src/components/ui/alert.tsx",
+      "sourceSha256": "d03dcae5cdb63c381c1144ca9a0c49ba0e46466967d7deb94662034042acb034",
+      "targetSha256": "d03dcae5cdb63c381c1144ca9a0c49ba0e46466967d7deb94662034042acb034"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/badge.tsx",
+      "source": "src/components/ui/badge.tsx",
+      "sourceSha256": "13a9380dfff853ee730c14a52df49f22aecd31f40f2998d7c1e7ec458b6e1650",
+      "targetSha256": "13a9380dfff853ee730c14a52df49f22aecd31f40f2998d7c1e7ec458b6e1650"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/button.tsx",
+      "source": "src/components/ui/button.tsx",
+      "sourceSha256": "79dd6f75f8136394442202d6b8b922fb269eaad0a5dba579397c9d5b41f893bb",
+      "targetSha256": "79dd6f75f8136394442202d6b8b922fb269eaad0a5dba579397c9d5b41f893bb"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/checkbox.tsx",
+      "source": "src/components/ui/checkbox.tsx",
+      "sourceSha256": "ba0ac64064e2d8fa7299d53e9e84b9a4772fef8dd4cf6170c56d3030a1d69941",
+      "targetSha256": "ba0ac64064e2d8fa7299d53e9e84b9a4772fef8dd4cf6170c56d3030a1d69941"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/command.tsx",
+      "source": "src/components/ui/command.tsx",
+      "sourceSha256": "8063fbe58e0c7ca013403cb58871b7c2ce104dbf3d8f7b4162d4e7107db9abfa",
+      "targetSha256": "c925ee91347b27aabbaf0e35018ea690f68d22f71fcbaa9f708d44dbf1607fb2"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/dialog.tsx",
+      "source": "src/components/ui/dialog.tsx",
+      "sourceSha256": "0d2e82ed5e7040abda714a0471aff54535e05bad6249da049cc0c3bf3ae024e5",
+      "targetSha256": "667127b82c7477877207df27b4e76d6a9b6a636d06f0b744381aee2fd6c90350",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/dropdown-menu.tsx",
+      "source": "src/components/ui/dropdown-menu.tsx",
+      "sourceSha256": "d954efb735f13734751207ad22cb0cddd7f6ec53c59d16675d103dae08cb61fb",
+      "targetSha256": "ca7d3cb5700f4156469cf3f95804ef3068b097b80e46032d7aa764434ff23c10",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/input.tsx",
+      "source": "src/components/ui/input.tsx",
+      "sourceSha256": "0c9457181f6ddc80969bcf854e92c362903a55b6e889fbef3fd85343ecc4af5b",
+      "targetSha256": "0c9457181f6ddc80969bcf854e92c362903a55b6e889fbef3fd85343ecc4af5b"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/label.tsx",
+      "source": "src/components/ui/label.tsx",
+      "sourceSha256": "344bde38b8531615dbf8e14af3895517c24d8ef6ce56ddeda7e2e6fe4b5d0c00",
+      "targetSha256": "344bde38b8531615dbf8e14af3895517c24d8ef6ce56ddeda7e2e6fe4b5d0c00"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/popover.tsx",
+      "source": "src/components/ui/popover.tsx",
+      "sourceSha256": "3f99d3add6c9fa4f03721e81297ee10e1310785ee1d9d9d4c82a114d84ab0757",
+      "targetSha256": "5b7fe2cf745674db389aed6f1328891f1c7ed5c9814ec14befc96c2f918dfde1",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/radio-group.tsx",
+      "source": "src/components/ui/radio-group.tsx",
+      "sourceSha256": "cfc4f99ee68be2fbbd70de3ffad82e1462d5e8e0bb0aecfd190a4f5115325862",
+      "targetSha256": "cfc4f99ee68be2fbbd70de3ffad82e1462d5e8e0bb0aecfd190a4f5115325862"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/scroll-area.tsx",
+      "source": "src/components/ui/scroll-area.tsx",
+      "sourceSha256": "8b73bb9be51300079c7f561bafbe43ee10f6f464cf39c8c1b25123cd4edb94dd",
+      "targetSha256": "8b73bb9be51300079c7f561bafbe43ee10f6f464cf39c8c1b25123cd4edb94dd"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/select.tsx",
+      "source": "src/components/ui/select.tsx",
+      "sourceSha256": "962830436bd0b7ee50e556f0747e277d6a86869ed27d167516346b15f26309d8",
+      "targetSha256": "095a1dcf6d37d32ce93c2a9f30eed4b27a9570e619356335dfa0f960abb41d65",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/separator.tsx",
+      "source": "src/components/ui/separator.tsx",
+      "sourceSha256": "ad7d5403fe337160e41dbf04147896e448ae3a747b8d06660d627d74d60021bc",
+      "targetSha256": "ad7d5403fe337160e41dbf04147896e448ae3a747b8d06660d627d74d60021bc"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/sheet.tsx",
+      "source": "src/components/ui/sheet.tsx",
+      "sourceSha256": "ea473d38a26a9b0b879e5a13139899ad45e9782e896b3fa205c7763a6c506876",
+      "targetSha256": "bef20e54309433c0583ce2ba300f64c45667a8e750bc5abf2c5f32722067f7c6",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/skeleton.tsx",
+      "source": "src/components/ui/skeleton.tsx",
+      "sourceSha256": "f51ce0fcd31e5c31437382e80ea0af94b4fc3d64221d27091d36824546780a43",
+      "targetSha256": "f51ce0fcd31e5c31437382e80ea0af94b4fc3d64221d27091d36824546780a43"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/sonner.tsx",
+      "source": "src/components/ui/sonner.tsx",
+      "sourceSha256": "13ccc9b0fe4248e622f83a1d3b2f0566b72b5e04162d7d0c8db8945ecc71b55f",
+      "targetSha256": "13ccc9b0fe4248e622f83a1d3b2f0566b72b5e04162d7d0c8db8945ecc71b55f"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/switch.tsx",
+      "source": "src/components/ui/switch.tsx",
+      "sourceSha256": "743676f33f823ffa8008bbd5eb94cb68e227599447d60e132a202291a395f8e4",
+      "targetSha256": "743676f33f823ffa8008bbd5eb94cb68e227599447d60e132a202291a395f8e4"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/table.tsx",
+      "source": "src/components/ui/table.tsx",
+      "sourceSha256": "bd1a9fc83a5a2149e504038e274bb7e5a0351af59f6896df52ac4d5b439695ac",
+      "targetSha256": "bd1a9fc83a5a2149e504038e274bb7e5a0351af59f6896df52ac4d5b439695ac"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/tabs.tsx",
+      "source": "src/components/ui/tabs.tsx",
+      "sourceSha256": "e1df6e2f95ece373ca909c1d54b8ba8cf4c47dd425c1784bbb9a01c38dd0936b",
+      "targetSha256": "e1df6e2f95ece373ca909c1d54b8ba8cf4c47dd425c1784bbb9a01c38dd0936b"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/textarea.tsx",
+      "source": "src/components/ui/textarea.tsx",
+      "sourceSha256": "5cafcfeeee29534f449387a16b585f5923d2faab1a0cdc50a874416b175f59ce",
+      "targetSha256": "5cafcfeeee29534f449387a16b585f5923d2faab1a0cdc50a874416b175f59ce"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/tooltip.tsx",
+      "source": "src/components/ui/tooltip.tsx",
+      "sourceSha256": "611e4305879b2773eafe76bf3c5caa69d8e47367fd97887a71634a27828f4433",
+      "targetSha256": "535cb9b03382ed6e9f7abe777a83fb0e03334a73fff54ac080126ffb5e9b922f",
+      "adaptations": [
+        "Preserve preview primitive presentation; route its private portal into the admitted authorization boundary."
+      ]
+    },
+    {
+      "target": "apps/web/src/lib/ledger/format.ts",
+      "source": "src/lib/format.ts",
+      "sourceSha256": "2f3bbac912b0b3aea7b866af5b7b53ca9d807d6f36cc8204a460ac48bb9fe088",
+      "targetSha256": "2f3bbac912b0b3aea7b866af5b7b53ca9d807d6f36cc8204a460ac48bb9fe088"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/i18n-en.ts",
+      "source": "src/lib/i18n-en.ts",
+      "sourceSha256": "948583446f3e1404ae3325cc93bdffaf71f7381167da92957cd91fda5b499d54",
+      "targetSha256": "f8842696c9206b95d53e125bebc2a0b49c20a18c2c2bf021472b420555054db6"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/i18n.ts",
+      "source": "src/lib/i18n.ts",
+      "sourceSha256": "0cbd47445a174fd0fc06380a9a64ef3c8fbc2493afe14a018aa3a1760c7f7253",
+      "targetSha256": "0cbd47445a174fd0fc06380a9a64ef3c8fbc2493afe14a018aa3a1760c7f7253"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/labels.ts",
+      "source": "src/lib/labels.ts",
+      "sourceSha256": "22dcc55d3132cb6d9d8a6e6d37dd13e95362a4ed25cb6c4a0065c1b0a66e303f",
+      "targetSha256": "d066060f79bc94bf204b39a844f3924f84a03ca5d9d9a5d50786dd4b21c6fbfd"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/utils.ts",
+      "source": "src/lib/utils.ts",
+      "sourceSha256": "14300d758170c270c75b057f38fedb3793a5920ea872f0477e29fb131185e8a7",
+      "targetSha256": "14300d758170c270c75b057f38fedb3793a5920ea872f0477e29fb131185e8a7"
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/command-dialog.tsx",
+      "source": "src/components/kit/command-dialog.tsx",
+      "sourceSha256": "d837012ec5e5f478257a8c32b09da9128577c578636c63726449489e47882319",
+      "targetSha256": "10a90bda94a4377d6e8b7abb1bfa04b6d69284fa8f1d69cbf554a6bb52ea3af5"
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/grants-editor.tsx",
+      "source": "src/components/workspace/grants-editor.tsx",
+      "sourceSha256": "1d294bb7572cd4b86aa2908c7f5abc0fc6eaf34e876581af7852190bf93c037c",
+      "targetSha256": "e906e539ce6d260a111cfeb68a4b8fe6c4e2b33a48c1b97168aaabc3a2572124"
+    },
+    {
+      "target": "apps/web/src/app/layout.tsx",
+      "source": "src/app/layout.tsx",
+      "sourceSha256": "8a3e70d79d487c04046bd564d8bfc1242843c3cef43f0b7ece8ef5044413af2f",
+      "targetSha256": "48bbc9981c004fc396e9f990f721cc19bc71d9153abff0b5eec9b8aa4c5b679c",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/components/ledger/providers.tsx",
+      "source": "src/components/providers.tsx",
+      "sourceSha256": "6b4cd716c81408a0da423a6fe13d20ddeeac413e0ddf58890fe1147c0ca3ba27",
+      "targetSha256": "e5a2c438b7fa6cbe878b493e14b83a4137b6086aab01b2ac904d384c5bfca292",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/components/ledger/shell/app-shell.tsx",
+      "source": "src/components/shell/app-shell.tsx",
+      "sourceSha256": "7ff5a2e0f5b194ab8195cbe810888a70c81ed934b94da500e7ce95adec206201",
+      "targetSha256": "6f5b38ec683a38e1d6ee5d95949df6b0ab2e59056e7291ce4f29fdd2c89b18b5",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation.",
+      "adaptations": [
+        "Task18 verified regression: form validation/route state, sensor unit or mobile focus restoration; approved Ledger presentation retained",
+        "Keep admitted hidden forms mounted during permission recheck; restore mobile menu focus on Escape."
+      ]
+    },
+    {
+      "target": "apps/web/src/components/ledger/shell/sidebar.tsx",
+      "source": "src/components/shell/sidebar.tsx",
+      "sourceSha256": "e05f140725d29a41ae1927cf3b77b02ca4d9f4df4bb440de9fa53b831bb8109a",
+      "targetSha256": "cb5debea396584f2e34ce588859558c353f9ccfe36ebdbc2a91673eec957159c",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/components/ledger/shell/command-palette.tsx",
+      "source": "src/components/shell/command-palette.tsx",
+      "sourceSha256": "9a49632b1db2e00cb37701b8f62b605577eab1429acf9929249767489544685d",
+      "targetSha256": "27f3c216802b06c719212282e3054c6db72e6f4bb099c4be24406e7764a092bd",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/ws-shell.tsx",
+      "source": "src/components/workspace/ws-shell.tsx",
+      "sourceSha256": "cd9932127717bff88cbf386b1f25d3e7b8d6c587fce150a5f091f225c4d99232",
+      "targetSha256": "8c2129b4c6813b6435a1109690ad34085dd887f9fa6cf1e6c8eecb9ecd0a8dc8",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/navigation.ts",
+      "source": "src/components/shell/nav.ts",
+      "sourceSha256": "3a3e844bc282720612f23a073d4b9490e9d313576912eacdff23a5ed07e2c89a",
+      "targetSha256": "f32c53f61edee2e902a219fd726bc0384fdef40644376745d52cf2863fd16b3f",
+      "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation.",
+      "adaptations": [
+        "Map assigned incidents to existing /enterprise/inbox URL; no new route."
+      ]
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/login/screen.tsx",
+      "source": "src/app/login/page.tsx",
+      "sourceSha256": "89311d1c0580ea9241286d00ec0ed7bfa0e94ed21278b773b2625967018ee395",
+      "targetSha256": "f10faa2452d67fd1e27f444962f804185b20a752a506b94b02a81eb7e3ad87c1",
+      "adaptation": "Ledger auth presentation; baseline session/MFA/password policy and API, without preview accounts.",
+      "adaptations": [
+        "Approved domain split: business auth/workspace at nongtrace.site; customer/scan/QR remain at agritrace.dev. Presentation unchanged."
+      ]
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/account/password/screen.tsx",
+      "source": "src/components/shell/force-password.tsx",
+      "sourceSha256": "c271082e7d2ce6a5a1a9e69c9d259ef1dab73959ae6a84c9742013bbcd855628",
+      "targetSha256": "9eece8ba4c57f96884bfe6e753052107295be1b0bd8ec750f15264b3591f4fc6",
+      "adaptation": "Ledger auth presentation; baseline session/MFA/password policy and API, without preview accounts."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/approvals/[id]/screen.tsx",
+      "source": "src/app/(console)/approvals/[id]/page.tsx",
+      "sourceSha256": "3fc3d3583cdf28ffb753b5dcb6d9b73df3815be01e0c49c795eeed51b04e78fa",
+      "targetSha256": "e5af492a648bc624b59e7820a85d36b29cf1702d517bd3a6d903df17696bd08c",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
+      "source": "src/app/(console)/enterprises/[id]/page.tsx",
+      "sourceSha256": "78453590a6cd12810be6cf510315669daf0de4d8b398042269f10aa2db0e91bd",
+      "targetSha256": "cddd4efe20a1bd671a911341570de13809c46c921306bf0e2504955fc22be030",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/screen.tsx",
+      "source": "src/app/(console)/enterprises/page.tsx",
+      "sourceSha256": "327e7a1010427bd86ee3221503d03d4d36dfdd8e86983a6f4cc33672c1421c99",
+      "targetSha256": "d8538146ce3d8f14b5fdefbaeeda07bbb741d71f3869f3d73ae290188717023d",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/components/ledger/kit/guard.tsx",
+      "source": "src/components/kit/guard.tsx",
+      "sourceSha256": "d9ef1f31ac5afdc7ccb1d2a4453c00da37248eae82691732e9436f59a980e8ad",
+      "targetSha256": "6c5952c2be00b080ed351b6306ff4273c23df0837df51c910177eb78624ff47e",
+      "adaptation": "Ledger presentation/display only; baseline route policy and business timing remain authoritative."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/use-now.ts",
+      "source": "src/lib/use-now.ts",
+      "sourceSha256": "b38cb5afbd6fc5f0aa48d95446a52abfe22e8b780003bb12ba42fd21c139878b",
+      "targetSha256": "b38cb5afbd6fc5f0aa48d95446a52abfe22e8b780003bb12ba42fd21c139878b",
+      "adaptation": "Ledger presentation/display only; baseline route policy and business timing remain authoritative."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/inbox/screen.tsx",
+      "source": "src/app/(console)/inbox/page.tsx",
+      "sourceSha256": "1028feb71e5ac144e752c80cdc19edabfcfe8ed246f473e6f7dd324b2d56e5be",
+      "targetSha256": "438ba03014abef93ee7a5e7fb4ab15214426db0c71dd90f9158a7b3178b286c0",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/screen.tsx",
+      "source": "src/app/(console)/overview/page.tsx",
+      "sourceSha256": "832abac6a76b56cdf78e849555482d5661c960ee605ff93a90021332c5a2b891",
+      "targetSha256": "2b65170849357c0bdd62ee9e7a609286a8541329a8cd9fe47723077ebfe2ca10",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/approvals/screen.tsx",
+      "source": "src/app/(console)/approvals/page.tsx",
+      "sourceSha256": "1bb03ff50c71519077b78894e5e6b2867af921de4e81fac654e8660aa673443b",
+      "targetSha256": "e7b5290a863bac8219484e6da1b1d9baf74111d72c10423490cbabf08bd96503",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/audit-log/screen.tsx",
+      "source": "src/app/(console)/audit/page.tsx",
+      "sourceSha256": "776b8b33ffa78fe3e2133aff7300eb7d584b6d47deb48e270dddb47dab6d55a9",
+      "targetSha256": "e5fb86653f9604cfb5c55b2b6f19e9c926c31ea413cbf69b49000be8172ca744",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/amendments/[id]/screen.tsx",
+      "source": "src/app/(console)/enterprises/amendments/[id]/page.tsx",
+      "sourceSha256": "dbf2e2234ddc2e4cbd4fda55deb39772c5fed723c388b587cad69c1c26bbb584",
+      "targetSha256": "80bd404f61e532fd0791657572a951e155cbc26719f8f12e1213b4c84238750d",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/amendments/screen.tsx",
+      "source": "src/app/(console)/enterprises/amendments/page.tsx",
+      "sourceSha256": "b0aec13f5560eb02231f344cd5ffd13558b1f422484a89bf9683dd02eefbb3ce",
+      "targetSha256": "f3491957479b3b2f845a58d6300fbd0abdb387a5985eac908c7f09f0eadd171f",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/organizations/screen.tsx",
+      "source": "src/app/(console)/organizations/page.tsx",
+      "sourceSha256": "1e3ded6963684aece993e843cac1eba9b9db8b5a4033d9cf910a7aa527835467",
+      "targetSha256": "e30736f9bf5a1b85136fe2c29383660773d636ad5d4ad6b93e6b13a1026592aa",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/users/screen.tsx",
+      "source": "src/app/(console)/users/page.tsx",
+      "sourceSha256": "ddb657065753723d516b6b62ff628a53681b4fc2b299c2f4470e9159d857645d",
+      "targetSha256": "5cef94a4d96b8b6bac1aad8935e5154264cf490dc1cc8cab147d54d1b5124e11",
+      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/organizations/organization-detail.tsx",
+      "source": "src/app/(console)/organizations/[id]/page.tsx",
+      "sourceSha256": "140241081ef7fc6280d403847699735d697ea1cac4f798ca38ff5d2213002bbf",
+      "targetSha256": "347b0aada5b0ded21ff18bc650caeac7686702a48af6e091dc8092dd83466222",
+      "adaptation": "Approved Ledger detail presented within the baseline organizations query URL; real baseline aggregate, commands and authority."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/cases/screen.tsx",
+      "source": "src/app/(console)/cases/page.tsx",
+      "sourceSha256": "7d456ca90fc0b8b975f8b09e924606fff4196f7287d3d12f9db3f68bec6d2914",
+      "targetSha256": "4780feef1ef1d02ff15ee8f6a857cf9583c10bdd206a6496b19a1d176e7b1567",
+      "adaptation": "Task7 frozen Ledger case presentation; baseline DTOs, canonical routes, scoped queries, platform roles and memory-only recovery. New route uses preview creation dialog fields in a Ledger page."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
+      "source": "src/app/(console)/cases/[id]/page.tsx",
+      "sourceSha256": "eaa86f45bdd078525abcc59379cf4a44cb07369528038ee7d7687ade4d72e4a4",
+      "targetSha256": "a3f96533a38a9c715d3654011020c70ca78801e11618218a711dfc7ae729a35d",
+      "adaptation": "Task7 frozen Ledger case presentation; baseline DTOs, canonical routes, scoped queries, platform roles and memory-only recovery. New route uses preview creation dialog fields in a Ledger page."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
+      "source": "src/app/(console)/cases/page.tsx",
+      "sourceSha256": "7d456ca90fc0b8b975f8b09e924606fff4196f7287d3d12f9db3f68bec6d2914",
+      "targetSha256": "6803145b732b8bed0edb1ff404e5c23a7131bd0e88bb4ed5cb53ac6530f502c6",
+      "adaptation": "Task7 frozen Ledger case presentation; baseline DTOs, canonical routes, scoped queries, platform roles and memory-only recovery. New route uses preview creation dialog fields in a Ledger page."
+    },
+    {
+      "target": "apps/web/src/features/ledger/privacy/workspace.tsx",
+      "source": "src/app/(console)/privacy/page.tsx",
+      "sourceSha256": "f13aae359fcdc2a663942fb54cc8d910fc77a1b79d6bc7779559a976bf0ef957",
+      "targetSha256": "a8738f84f9115745ecf1c41cde9ff3a88fa29895cac29fa40e5211ded7760bae",
+      "adaptation": "Task7 frozen Ledger privacy inbox/detail/breach presentation; baseline rights enums, authenticated subject scope, optional MFA and memory-only commands. Self-service creation is newly composed from Ledger fields."
+    },
+    {
+      "target": "apps/web/src/features/ledger/support/workspace.tsx",
+      "source": "src/app/(console)/tickets/page.tsx",
+      "sourceSha256": "9fcc18b8b2ba75a6e0533d65952f749496df4abce7d7e94f093d22675dfa38e3",
+      "targetSha256": "b896d7598b20e73c4866d9e0bdcc49a6449ef1037bfbba2fec9c5f006986cde6",
+      "adaptation": "Task7 frozen Ledger support inbox/thread presentation; canonical baseline deep links, actual server status queries and DTOs, private pending reply locks. Removed preview KEEP state because the baseline server defaults external replies to WAITING_CUSTOMER; internal replies omit status."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
+      "source": "src/app/(console)/reports/page.tsx",
+      "sourceSha256": "5949eeef76de0620c10ccb3099ab691f2ddce9971aae67642cb293230c499938",
+      "targetSha256": "edc23e3598a6fe5711595c86aee3c2f7ba5ebabdb3e38dfdca50e8557d4e10fa",
+      "adaptation": "Task7 frozen Ledger presentation with canonical baseline URLs, generated request DTOs, server scope, version and original-command recovery; no preview API/auth/permission runtime."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
+      "source": "src/app/(console)/recall/page.tsx",
+      "sourceSha256": "f995d0ebda72fc1aa7fcae69a0d14c3dcf0f9741f943841ac85c45c573e1f94a",
+      "targetSha256": "36146350e48d9ea9c85c5ceded9a5c53b7bd621499fdb9d9d35f5869172962da",
+      "adaptation": "Task7 frozen Ledger presentation with canonical baseline URLs, generated request DTOs, server scope, version and original-command recovery; no preview API/auth/permission runtime."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/notices/screen.tsx",
+      "source": "src/app/(console)/notices/page.tsx",
+      "sourceSha256": "ba2213a286cf25476aca3b31a88fe9d148d560ed931b9eec1f8d5587ed95a44e",
+      "targetSha256": "74f65bd7392706c1784f4b923fe0c4eb4754c47ab09b8af7a401409385a85dd8",
+      "adaptation": "Task7 frozen Ledger presentation with canonical baseline URLs, generated request DTOs, server scope, version and original-command recovery; no preview API/auth/permission runtime."
+    },
+    {
+      "target": "apps/web/src/features/ledger/operations/workspace.tsx",
+      "source": "src/app/(console)/operations/page.tsx",
+      "sourceSha256": "eade067b1448e18b94fb4fcbba8412b26155d426a21732412ba51c9bda9bb83a",
+      "targetSha256": "9b95ed5c52ebff17f901233715a6a7649d228862f7116addd17d914f65f761dd"
+    },
+    {
+      "target": "apps/web/src/features/ledger/billing/overview.tsx",
+      "source": "src/app/(console)/billing/page.tsx",
+      "sourceSha256": "1db83643db956eb73afbc6e8000edf901c5b95c452903a908531afe232a89cb7",
+      "targetSha256": "53d7a7cdb5d61ae3ef799ca0ba27af44c13cab99a5cd67ced6fadc78ebee73c3"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
+      "source": "src/app/(console)/ledger/page.tsx",
+      "sourceSha256": "59ba9da60a39c73ff8d9fd6642094c834bdb1b6bcbb17cfd0f249b7b25b97021",
+      "targetSha256": "26cacb79b439be0b632aa26c55ab4561408c0b2ee7b2f2000680f31ce70b7dfc"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
+      "source": "src/app/(console)/trace-report/page.tsx",
+      "sourceSha256": "57cf359f931d026eef6969ae3d0c12b4c1b5f80f4e8537b347782669279a69ab",
+      "targetSha256": "90d735cf1c748e2dac50a5aa61a3a0133a21a20c2ee1161a4b9226dd5b14a135"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/chains/screen.tsx",
+      "source": "src/app/(console)/chains/page.tsx",
+      "sourceSha256": "b1a05c28bb6d161c7092b09dd923a51eff3a5b7456339d97221b3aaad6baaa79",
+      "targetSha256": "5d1e23bea4b03cef79038b15b39c895d0d8471566057dbaf2b5b2baf87ab7f70"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/lots/screen.tsx",
+      "source": "src/app/(console)/lots/page.tsx",
+      "sourceSha256": "a328a2012bbeb77992b3e3ac7f8c15f60f609a704f0561e1490121f5705d6684",
+      "targetSha256": "a6fd8db73271d53c0407e4db6ee826d2bfc12270ce9a597326d02f54e6c1855a"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/reference-data/screen.tsx",
+      "source": "src/app/(console)/reference/page.tsx",
+      "sourceSha256": "18e7afb339f0df8e56e9ca590bcf59178c69374a9730b7f266ca562559c8337e",
+      "targetSha256": "dd549e536697a6481bdb32d7a487ffd24b48599d9aadc91793bf11c5703df22d"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/billing/screen.tsx",
+      "source": "src/app/(console)/billing/plans/page.tsx",
+      "sourceSha256": "475032a15fbcc7e9b32ea8654f35ad1b391d1d2f7c1db8a386adc3374cdb7223",
+      "targetSha256": "40ffa027a478f1f2ebf9b032bf61bbe705fc516ecbb1795d416a576e670dcc18"
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/billing/invoices/screen.tsx",
+      "source": "src/app/(console)/billing/invoices/page.tsx",
+      "sourceSha256": "e17df58d487642eb9f0965a4c44faf6631df66b4de3d791183057e31ff8fdc41",
+      "targetSha256": "f5720a7d82591bf2a974583361c435736ed7f066b37380dca403b809901002d3"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/members.tsx",
+      "source": "src/app/(workspace)/w/members/page.tsx",
+      "sourceSha256": "63ca7768696333bb411bd23d8b8be41e0435f671071215b6db9101305c46ee78",
+      "targetSha256": "0c4a4c2e5e3d7fdda23b7021eda903a9a410ef15531b6ba02c942817da4a9060"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/roles.tsx",
+      "source": "src/app/(workspace)/w/roles/page.tsx",
+      "sourceSha256": "88dae16f14a40f283b12bba8e03e495c1862642ee019a4d61c77549092dd06a5",
+      "targetSha256": "e011e120054f4cc2560156b698a3a5e52aa64fdcd89da3305f08eed996546e82"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/ownership.tsx",
+      "source": "src/app/(workspace)/w/ownership/page.tsx",
+      "sourceSha256": "d01aafb1fa1ec0e32145c7d9d1efc013eaee681731b6a838e2e8f7e0f9295b6f",
+      "targetSha256": "b06a47f4cb6326cea8625071ad75f97edd0451ae0fc4c1bd5b6b7b7fe99446f5"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/profile.tsx",
+      "source": "src/app/(workspace)/w/profile/page.tsx",
+      "sourceSha256": "2f7ac14b6cfc4af090069cf8eba188c22352ac66b418d12d3aa0a9140539b604",
+      "targetSha256": "1f841971f5b9e3cf5de58cc6347c0dac18bdf136957b39506d09443cca1ef9b0"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/home.tsx",
+      "source": "src/app/(workspace)/w/page.tsx",
+      "sourceSha256": "38f616697f450ddfe4bab94beafcaf3906bffc8a58f9b9c1a63a9c91ea6d7f7f",
+      "targetSha256": "9dda0ecdeb0d939bdcf9320279bca007be0b5c47c084402880ea3975db00c913"
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/evidence-panel.tsx",
+      "source": "src/components/workspace/evidence-panel.tsx",
+      "sourceSha256": "24e5e41322158f05cc933b3c673d26fc2a7e772647dc9855c008537bc8fb7c3a",
+      "targetSha256": "2d06380a80ce3ade7b5c00b8306dff52fc55e9f25de3a761f2f58894887b0eb6"
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/evidence-pick.tsx",
+      "source": "src/components/workspace/evidence-pick.tsx",
+      "sourceSha256": "beaedbfc171c50a239c5247a2495ae7cdfbccafdcfdda47b4a4e9f8ee9714344",
+      "targetSha256": "b237df301465c4858c943aa0473315fe460e0d830d2398a81e072c90b26f5c28"
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/revision-history.tsx",
+      "source": "src/components/workspace/revision-history.tsx",
+      "sourceSha256": "ed4f4f15231cf0e746de76e4988b0f9d6538a078b1ea04f162ade028a6be59f1",
+      "targetSha256": "f51d26dafe9b0fff7232d4083a5344c8ce45c5d658c0a2f84b79f41fef512e82"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/products.tsx",
+      "source": "src/app/(workspace)/w/products/page.tsx",
+      "sourceSha256": "819bb92b58801d7a86ecb4a1f050ef59010583508976ff4017662aa79b27a403",
+      "targetSha256": "766d60ad0d739001b03bd6b0ee751e84b9f3f755abda2cdf4900f61d0c520cd9"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/areas.tsx",
+      "source": "src/app/(workspace)/w/areas/page.tsx",
+      "sourceSha256": "f265e249ed32db6ac7215891b012d33cb62f58c3c93dad94123abf7532a944fd",
+      "targetSha256": "bd0c02f0d78c67ef44a78fc92a152547b79e5dad0d0c648fa10b70acf42b47dd"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/materials.tsx",
+      "source": "src/app/(workspace)/w/materials/page.tsx",
+      "sourceSha256": "3c96e1dc845bdd40de15c444bc96e691bac0ec5461ce0051148407b48fc7d972",
+      "targetSha256": "f9deedd8f25d22770fae7f0ec61dd17bff31f3086f97d952789a69fb488d142f"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/sites.tsx",
+      "source": "src/app/(workspace)/w/sites/page.tsx",
+      "sourceSha256": "c268460273383adb9d91b56292ec438d4d40cd3a238da55840bb5e2787891917",
+      "targetSha256": "3eaba5d72edd7f4129d2420d782cc020ebe2dfe9470de9ba5dd495e65cfd6e43",
+      "adaptations": [
+        "Task18 verified regression: form validation/route state, sensor unit or mobile focus restoration; approved Ledger presentation retained",
+        "Open canonical vehicle-create dialog and return to canonical list on cancel/success."
+      ]
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/partners.tsx",
+      "source": "src/app/(workspace)/w/partners/page.tsx",
+      "sourceSha256": "9cc1b4b6a367e8fa897e1fda54042c64e50aa8756ef5e44ae6bdbc63b89f73ee",
+      "targetSha256": "e640e5d09ddc6476cbe7996849cc7a56ba809f461c6c7e35b1b2c50b483cc1cc"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/messages.tsx",
+      "source": "src/app/(workspace)/w/messages/page.tsx",
+      "sourceSha256": "d0139d133497e2cfb90caa2792628988a500cff7eefe3c2e39ed838f1a4352fc",
+      "targetSha256": "294bcc7d5ab106fd76e64ca117e94b3e59fffa0eedc258dbd7eb0699cbb85568"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/support.tsx",
+      "source": "src/app/(workspace)/w/support/page.tsx",
+      "sourceSha256": "a401167240b2de8cb314d7e36b73b30294f60d1066539eaeaf653fdb0ea376de",
+      "targetSha256": "13f6e08b0acb915b9549667f5527172c0f1c81a6dbd46b6f7e1e1d52567862ba"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/billing.tsx",
+      "source": "src/app/(workspace)/w/billing/page.tsx",
+      "sourceSha256": "8d8af688803067dd38ae95455a057882ee26c22a61b4a6b639948a9435e8ae8c",
+      "targetSha256": "c8a5338ca35cac5a2ebd2082a4898dca82e207535a04a5e980c4a31eb98fdbcf"
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/partner-profile.tsx",
+      "source": "src/components/workspace/partner-profile.tsx",
+      "sourceSha256": "9d09d2af886f0b8408416008884d545ff58b2f25608c107473cb39a03534f462",
+      "targetSha256": "9d3e9e33fbd747d8cf281bcb6c1b49a34d492a7eb7f90cfd1c2aac00778f6877"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/chains.tsx",
+      "source": "src/app/(workspace)/w/chains/page.tsx",
+      "sourceSha256": "b5a079c1575b2407d3e00b6d21d9a0adbf805c6e985559cced2576f2d8d477e9",
+      "targetSha256": "31cb9a74ff62689385b7d4a0c1e66a00b6fda8de9ca41844032cd4cc08041ebc"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/cycles.tsx",
+      "source": "src/app/(workspace)/w/cycles/page.tsx",
+      "sourceSha256": "53a7916f8966c914defd3a8fedc9da9b2ea0c5f1e13a5eed4edc66e6cacbf5c6",
+      "targetSha256": "c33057114fb682d7f6d2fe5fd4bedba64f9c017cf4ebef69e4aee10e5d3f35dc",
+      "adaptations": [
+        "Keep baseline independent reviewer scoped cycle reads, server write flags and separate enterprise evidence authority."
+      ]
+    },
+    {
+      "target": "apps/web/src/lib/ledger/ops-labels.ts",
+      "source": "src/lib/workspace/ops-labels.ts",
+      "sourceSha256": "d997eb51a44fb6fbc485d50b3391e1643443183aa5a4272a31ce95cb02655d62",
+      "targetSha256": "2d4fc8ddac55eaea5b31db31724fc1c7404806fd2a288708aa49ab2550e4c8f0"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/lots.tsx",
+      "source": "src/app/(workspace)/w/lots/page.tsx",
+      "sourceSha256": "8dea3ffe34ce1a70f522fd011b9630991432d928f8b9215e6d24f7708aa97aba",
+      "targetSha256": "98ddc6d16efdf8987dc4280592db0617c4cf1198c428ed20f1797731104a1e9f",
+      "adaptations": [
+        "Approved domain split: business auth/workspace at nongtrace.site; customer/scan/QR remain at agritrace.dev. Presentation unchanged."
+      ]
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/inventory.tsx",
+      "source": "src/app/(workspace)/w/inventory/page.tsx",
+      "sourceSha256": "b96cffd269a90c080a71872d0afd4d1d31c1010bdc8e473c62d5b6c81bc7560c",
+      "targetSha256": "15771ff9f5adac05c077c1d291efa12d6f05fb5a16ee226adb81706f9242d75e",
+      "adaptations": [
+        "Restore scoped SITE_TRANSFER/QUARANTINE evidence, receiver assignment and transfer/receipt notes using Ledger kit."
+      ]
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/distribution.tsx",
+      "source": "src/app/(workspace)/w/distribution/page.tsx",
+      "sourceSha256": "d99bb7593eaf0a2863a6d74f97575e8a55a5d8eb294a68593c0a5d0df294c130",
+      "targetSha256": "168e37388a2c29762bd1b62a76fe840ec84b92d887328b507732c5a0f51212e4"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/qr.tsx",
+      "source": "src/app/(workspace)/w/qr/page.tsx",
+      "sourceSha256": "71b081dfb056cdf50dcf348fd3b439ed18385989f9ed8c1d3415aa70f16208f4",
+      "targetSha256": "b0e9907b4f8b67208fa7fb1bb56539e43e94e0a4ce60455a59281e6586925940",
+      "adaptations": [
+        "Approved domain split: business auth/workspace at nongtrace.site; customer/scan/QR remain at agritrace.dev. Presentation unchanged."
+      ]
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/lineage-panel.tsx",
+      "source": "src/components/workspace/lineage-panel.tsx",
+      "sourceSha256": "c73604ff230f082a5497e1a00552ed2c3c71dca76791534462b603410ac14d17",
+      "targetSha256": "b722cbb72affdb40bb00a57fd56ff11b9da4044d54fe18dde86de3dd4334818d"
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/processing.tsx",
+      "source": "src/app/(workspace)/w/processing/page.tsx",
+      "sourceSha256": "9202873cd72e1ef4f2a26d47d754a65f98b37204dab4aa470eebc0e6a338c8fb",
+      "targetSha256": "9c9df9edf473ae0d28e17770e579e2edb72e60c31378a3359b7c62087ef7f84e"
+    }
+  ],
+  "newLedgerComposition": [
+    {
+      "target": "apps/web/src/components/ledger/confirm-provider.tsx",
+      "basis": "Approved Ledger Dialog/Button primitives; no legacy confirmation renderer."
+    },
+    {
+      "target": "apps/web/src/components/ledger/shell/public-shell.tsx",
+      "basis": "New public hierarchy from Ledger kit/tokens/brand; preview has no public shell."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/register/screen.tsx",
+      "basis": "New Ledger kit composition for baseline workflow absent from preview; no old presentation used."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/register/fields.tsx",
+      "basis": "New Ledger kit composition for baseline workflow absent from preview; no old presentation used."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/register/review.tsx",
+      "basis": "New Ledger kit composition for baseline workflow absent from preview; no old presentation used."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/join-organization/screen.tsx",
+      "basis": "New Ledger kit composition for baseline workflow absent from preview; no old presentation used."
+    },
+    {
+      "target": "apps/web/src/components/ledger/command-recovery.tsx",
+      "basis": "Ledger Callout/Button composition for baseline pending metadata, explicit journal inspection and exact retry; no old recovery renderer."
+    },
+    {
+      "target": "apps/web/src/components/ledger/auth-route-gate.tsx",
+      "basis": "New access boundary with Ledger states, identity-scoped private subtree and preserved forms during same-identity permission checks."
+    },
+    {
+      "target": "apps/web/src/components/ledger/route-screen.tsx",
+      "basis": "New Ledger kit composition for canonical baseline route/data/private-file behavior missing from the preview; no legacy UI source."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/document-download.tsx",
+      "basis": "New Ledger kit composition for canonical baseline route/data/private-file behavior missing from the preview; no legacy UI source."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/profile-details.tsx",
+      "basis": "New Ledger kit composition for canonical baseline route/data/private-file behavior missing from the preview; no legacy UI source."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/approvals/new/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/compliance-assignments/new/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/compliance-assignments/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/compliance-assignments/views.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/compliance-assignments/[id]/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/connection-detail.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/enrollment-products.tsx",
+      "basis": "Existing Ledger-only product read view composed in Task6; Task8 adds baseline catalogScope/status/variety behavior, with its default enrollment scope retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/inspectors/inspectors-view.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/inspectors/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/organizations/auditor-organizations.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/organizations/create-organization.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/organizations/new/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/roles/roles-view.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/roles/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/security/mfa-view.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/security/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/settings/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/settings/settings-view.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/users/new/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/users/[id]/screen.tsx",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/platform-api.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/platform-access.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/platform-role-labels.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/platform-routes.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/platform-approval-input.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/i18n-en-governance.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/data.ts",
+      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/cases-api.ts",
+      "basis": "Task7: baseline case DTO/transport/validation adapter; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/cases/schemas.ts",
+      "basis": "Task7: baseline case DTO/transport/validation adapter; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/privacy/schemas.ts",
+      "basis": "Task7 Ledger privacy route/DTO/date glue; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
+      "basis": "Task7 Ledger privacy route/DTO/date glue; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/account/privacy/screen.tsx",
+      "basis": "Task7 Ledger privacy route/DTO/date glue; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/privacy-api.ts",
+      "basis": "Task7 Ledger privacy route/DTO/date glue; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/support-api.ts",
+      "basis": "Task7 support route and typed baseline DTO/service response adapter; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/support/screen.tsx",
+      "basis": "Task7 support route and typed baseline DTO/service response adapter; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
+      "basis": "Task7 support route and typed baseline DTO/service response adapter; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/coordination-api.ts",
+      "basis": "Task7 baseline DTO/service views or system-notices active/dismissal logic rendered only with approved Ledger kit; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/components/ledger/system-notices.tsx",
+      "basis": "Task7 baseline DTO/service views or system-notices active/dismissal logic rendered only with approved Ledger kit; no legacy presentation input."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/backup/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/billing/revenue/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/billing/subscriptions/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/directory/[id]/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/directory/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/monitoring/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/products/[organizationId]/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/products/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/qr/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/security-alerts/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/admin/statistics/screen.tsx",
+      "basis": "Task8 canonical screen composed from approved Ledger kit/shell and the newly ported operations/billing/organization/product screens; baseline URL and permissions retained."
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/image-gallery.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/dashboard/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/inbox/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/members/[id]/edit/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/members/[id]/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/members/invitations/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/members/new/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/members/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/ownership/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/profile/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/roles/[id]/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/roles/new/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/roles/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/settings/screen.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/dashboard.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/settings.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/inbox.tsx",
+      "basis": "Task9 composition from approved Ledger shell/kit/workspace presentation; baseline APIs, canonical routes and non-rendering business metadata only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/products/[id]/edit/screen.tsx",
+      "basis": "Task10 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/products/[id]/screen.tsx",
+      "basis": "Task10 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/products/import/screen.tsx",
+      "basis": "Task10 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/products/new/screen.tsx",
+      "basis": "Task10 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/products/screen.tsx",
+      "basis": "Task10 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/areas/[id]/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/areas/new/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/areas/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/areas/plots/new/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/materials/[id]/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/materials/new/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/materials/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/sites/[id]/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/sites/new/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/sites/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/vehicles/[id]/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/vehicles/new/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/vehicles/screen.tsx",
+      "basis": "Task11 canonical route composition using approved Ledger workspace screen and shell; no baseline presentation."
+    },
+    {
+      "target": "apps/web/src/components/ledger/workspace/service-draft.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/app/enterprise/service/layout.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/service.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/connections.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/coordination.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/billing/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/connections/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/help/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/messages/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/notices/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/onboarding/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/partners/external/[id]/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/partners/new/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/partners/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/service/contract/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/service/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/service/payment/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/support/[id]/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/support/new/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/support/screen.tsx",
+      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/chain-signing.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/shipment-plans.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/signing/screen.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/supply-chains/[id]/business/screen.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/supply-chains/[id]/ledger/screen.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/supply-chains/[id]/members/screen.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/supply-chains/[id]/screen.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/supply-chains/[id]/plans/screen.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/supply-chains/[id]/roles/screen.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/supply-chains/[id]/signing/screen.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/supply-chains/new/screen.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/supply-chains/screen.tsx",
+      "basis": "Task13 Ledger chain hierarchy/kit composition; preserves baseline consent/plan/crypto/key-store logic only. Snapshot chain screen has a missing Plans implementation, supplied as a new Ledger composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/compliance.tsx",
+      "basis": "Task14: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/iot.tsx",
+      "basis": "Task14: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/compliance/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/iot-simulator/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/harvest/new/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/harvest/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/journal/new/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/journal/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/[id]/plant/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/drafts/[id]/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/new/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/production-cycles/screen.tsx",
+      "basis": "Task14 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/quantity-reports.tsx",
+      "basis": "Task15: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/distribution-signing.tsx",
+      "basis": "Task15: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/lot-handovers.tsx",
+      "basis": "Task15: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/workspace/harvest-recovery.tsx",
+      "basis": "Task15: new Ledger kit composition retaining only pinned baseline headless business metadata/helpers."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/distribution/[id]/journal/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/distribution/[id]/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/distribution/new/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/distribution/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/inventory/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/qr/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/reports/adjust/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/reports/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/lots/[lotId]/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/lots/screen.tsx",
+      "basis": "Task15 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/processing/[id]/screen.tsx",
+      "basis": "Task16 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/processing/conversions/screen.tsx",
+      "basis": "Task16 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/processing/new/screen.tsx",
+      "basis": "Task16 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/enterprise/processing/screen.tsx",
+      "basis": "Task16 Ledger canonical wrapper composition."
+    },
+    {
+      "target": "apps/web/src/features/ledger/public/home.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/public/legal.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/public/scan.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/public/trace.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/public/report.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/components/ledger/camera-scanner.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/app/error.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/app/not-found.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/app/global-error.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/app/loading.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/home/screen.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/privacy/screen.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/scan/screen.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/terms/screen.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/src/features/ledger/screens/trace/[lotId]/screen.tsx",
+      "basis": "Task17 Ledger kit/public shell composition; public pages absent in preview. Baseline legal text and nonrendering camera/protocol only."
+    },
+    {
+      "target": "apps/web/public/offline.html",
+      "basis": "Task18 Ledger offline presentation and vector icon composition with approved preview branding; no old UI asset fallback"
+    },
+    {
+      "target": "apps/web/public/icon.svg",
+      "basis": "Task18 Ledger offline presentation and vector icon composition with approved preview branding; no old UI asset fallback"
+    },
+    {
+      "target": "apps/web/src/components/ledger/ui/tailwind.css",
+      "basis": "Exact CSS from approved preview dependency shadcn@4.22.1; upstream SHA256 4c371f7a1ff5d219ae2f7ff28bd256b4346fd546fe46fbae22092e57db2f0fae; CLI omitted"
+    },
+    {
+      "target": "apps/web/src/lib/ledger/workspace-context.ts",
+      "basis": "Task18 independently reviewed baseline preservation fix: Retain scoped display permissions only while admitted tree is hidden for recheck; avoid enterprise API for independent roles."
+    },
+    {
+      "target": "apps/web/src/lib/ledger/dist-types.ts",
+      "basis": "Task18 independently reviewed baseline preservation fix: Include optional server-returned warehouse recipient/note metadata in typed consumer view."
+    },
+    {
+      "target": "apps/web/src/components/ledger/portal-scope.tsx",
+      "basis": "Task18 independently reviewed baseline preservation fix: Mount admitted private portals inside the same hidden/inert DOM boundary; public and standalone kit portals retain body defaults."
+    }
+  ]
+}

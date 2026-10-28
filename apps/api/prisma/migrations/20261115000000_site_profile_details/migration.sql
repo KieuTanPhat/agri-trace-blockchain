@@ -1,0 +1,17 @@
+ALTER TABLE enterprise_site
+  ADD COLUMN region varchar(255),
+  ADD COLUMN ward varchar(255),
+  ADD COLUMN area_m2 numeric(14,2),
+  ADD COLUMN cold_area_m2 numeric(14,2),
+  ADD COLUMN capacity_kg numeric(14,3),
+  ADD COLUMN expected_output_tons numeric(14,3),
+  ADD COLUMN manager varchar(255),
+  ADD COLUMN representative varchar(255),
+  ADD COLUMN phone varchar(30),
+  ADD COLUMN email varchar(255),
+  ADD COLUMN other_info varchar(2000),
+  ADD COLUMN evidence_complete boolean NOT NULL DEFAULT true,
+  ADD CONSTRAINT enterprise_site_area_chk CHECK (area_m2 IS NULL OR area_m2 > 0),
+  ADD CONSTRAINT enterprise_site_cold_area_chk CHECK (cold_area_m2 IS NULL OR cold_area_m2 > 0),
+  ADD CONSTRAINT enterprise_site_capacity_chk CHECK (capacity_kg IS NULL OR capacity_kg > 0),
+  ADD CONSTRAINT enterprise_site_output_chk CHECK (expected_output_tons IS NULL OR expected_output_tons > 0);

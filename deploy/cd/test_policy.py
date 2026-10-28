@@ -13,7 +13,7 @@ TARGET = dict(targets.TARGETS["production"], environment="production", project="
 
 
 def bundle(directory, extra=None, mutate=None):
-    files = {"docker-compose.app.yml": b"services: {}", "docker-compose.app-fabric.yml": b"services: {}",
+    files = {"docker-compose.app.yml": b"services: {}",
              "blockchain/chaincode/src/index.ts": b"export {}",
              "blockchain/chaincode/dist/index.js": b"module.exports={}", "apps/api/prisma/migrations/20260101000000_init/migration.sql": b"CREATE TABLE x (id INT);"}
     hashes = {name: sha256(data) for name, data in files.items()}
@@ -95,7 +95,8 @@ class Policies(unittest.TestCase):
 
     def test_commands(self):
         self.assertEqual(command(f"upgrade {SHA} {'b' * 64} 1")[0], "upgrade")
-        for value in ("bash", "status; id", "status\nwhoami", "rollback ../../etc", f"deploy {SHA} {'b' * 64} ;id", f"upgrade {SHA} {'b' * 64} 0"):
+        self.assertEqual(command(f"reinstall {SHA} {'b' * 64}")[0], "reinstall")
+        for value in ("bash", "status; id", "status\nwhoami", "rollback ../../etc", f"deploy {SHA} {'b' * 64} ;id", f"upgrade {SHA} {'b' * 64} 0", f"reinstall {SHA}", f"reinstall {SHA} invalid"):
             with self.subTest(value=value), self.assertRaises(PolicyError):
                 command(value)
 
@@ -112,9 +113,10 @@ class Policies(unittest.TestCase):
             with self.subTest(origin=origin):
                 self.assertFalse(valid_public_origin(origin))
 
-    def test_https_readiness_requires_both_domain_names(self):
+    def test_https_readiness_requires_customer_alias_and_business_origin(self):
         for origin in ("https://agritrace.dev", "https://www.agritrace.dev"):
-            self.assertEqual(https_origins(origin), ["https://agritrace.dev", "https://www.agritrace.dev"])
+            self.assertEqual(https_origins(origin), ["https://agritrace.dev", "https://www.agritrace.dev", "https://nongtrace.site"])
+        self.assertEqual(https_origins("https://other.example"), ["https://other.example", "https://www.other.example"])
         self.assertEqual(https_origins("http://13.140.170.166"), [])
         with self.assertRaises(PolicyError):
             https_origins("https://agritrace.dev/path")

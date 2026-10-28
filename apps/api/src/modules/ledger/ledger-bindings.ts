@@ -150,8 +150,7 @@ export async function revokeCredentialRecord(
 }
 
 /** Activation: the binding becomes the chain's active binding for NEW streams
- * and every currently valid chain grant is queued for ledger confirmation.
- * Existing release-A streams keep their route; nothing is migrated. */
+ * and every currently valid chain grant is queued for ledger confirmation. */
 export async function activateBinding(
   tx: Prisma.TransactionClient,
   digest: string,

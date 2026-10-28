@@ -2,15 +2,24 @@ import {
   CanActivate,
   ExecutionContext,
   Inject,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { isUUID } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthenticatedRequest, JwtPayload } from './auth.types.js';
 import { sessionFamilyWhere } from './session-family.js';
+import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
+import { enforcePasswordAge } from './password-age.js';
+
+const PASSWORD_CHANGE_ALLOWED = new Set([
+  '/auth/me',
+  '/auth/change-password',
+  '/auth/logout',
+  '/auth/logout-all',
+]);
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -60,6 +69,11 @@ export class JwtAuthGuard implements CanActivate {
         organizationId: true,
         organization: { select: { status: true } },
         accountStatus: true,
+        mustChangePassword: true,
+        passwordChangedAt: true,
+        createdAt: true,
+        enterpriseTier: true,
+        enterpriseRoles: { include: { role: true } },
       },
     });
 
@@ -72,6 +86,17 @@ export class JwtAuthGuard implements CanActivate {
 
     if (user.organizationId && user.organization?.status !== 'ACTIVE') {
       throw new UnauthorizedException('Tổ chức không còn hoạt động');
+    }
+    // A password older than the maximum age becomes a forced change mid-session.
+    if (await enforcePasswordAge(this.prisma, user))
+      user.mustChangePassword = true;
+    if (user.mustChangePassword) {
+      // A temporary password only unlocks the way to replace it.
+      const path = request.originalUrl
+        .split('?')[0]
+        .replace(/^\/api(?=\/)/, '');
+      if (!PASSWORD_CHANGE_ALLOWED.has(path))
+        throw new ForbiddenException('Cần đổi mật khẩu trước khi tiếp tục');
     }
 
     const activeSession = await this.prisma.refreshSession.findFirst({
@@ -108,7 +133,68 @@ export class JwtAuthGuard implements CanActivate {
       role: user.role.code,
       organizationId: user.organizationId,
       accountStatus: user.accountStatus,
+      ...(user.enterpriseTier && user.enterpriseTier > 1
+        ? {
+            enterpriseScope: {
+              roleScopes: user.enterpriseRoles.map((r) => ({
+                chainIds: r.chainIds,
+                siteIds: r.siteIds,
+                permissions: r.role.permissions,
+              })),
+              distributionChainIds: [
+                ...new Set(
+                  user.enterpriseRoles
+                    .filter((r) =>
+                      r.role.permissions.some((p) =>
+                        [
+                          'distribution.read',
+                          'distribution.write',
+                          'distribution.sign',
+                          'trace.read',
+                        ].includes(p),
+                      ),
+                    )
+                    .flatMap((r) => r.chainIds),
+                ),
+              ],
+              chainIds: [
+                ...new Set(
+                  user.enterpriseRoles
+                    .filter((r) =>
+                      r.role.permissions.some((p) =>
+                        [
+                          'production.read',
+                          'production.write',
+                          'trace.read',
+                        ].includes(p),
+                      ),
+                    )
+                    .flatMap((r) => r.chainIds),
+                ),
+              ],
+              farmIds: [
+                ...new Set(
+                  user.enterpriseRoles
+                    .filter((r) =>
+                      r.role.permissions.some((p) =>
+                        [
+                          'production.read',
+                          'production.write',
+                          'trace.read',
+                        ].includes(p),
+                      ),
+                    )
+                    .flatMap((r) => r.siteIds),
+                ),
+              ],
+              // Tier-3 employees work only on the cycles assigned to them.
+              cycleStaffOnly: user.enterpriseTier === 3,
+            },
+          }
+        : {}),
     };
+    if (user.enterpriseTier && user.enterpriseTier > 1)
+      await enterpriseAuthority(this.prisma, request.user, 'profile.read');
     return true;
   }
 }

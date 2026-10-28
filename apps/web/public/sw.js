@@ -1,4 +1,4 @@
-const CACHE_NAME = "agri-traceability-v3";
+const CACHE_NAME = "agri-traceability-ledger-v1";
 const APP_SHELL = ["/offline.html"];
 
 self.addEventListener("install", (event) => {

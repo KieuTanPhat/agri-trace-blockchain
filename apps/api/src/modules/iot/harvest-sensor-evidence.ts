@@ -47,12 +47,11 @@ export function sensorWindowEventMatches(
     data.status === window.status &&
     data.digestHash === window.digestHash &&
     data.readingCount === window.readingCount &&
-    data.schemaVersion === window.schemaVersion &&
-    data.reconciliationId === window.reconciliationId
+    data.schemaVersion === window.schemaVersion
   );
 }
 
-/** Legacy cycle-level digests keep their historical contract; new harvest events must bind the entire window. */
+/** Harvest and sensor-digest events must bind the entire sealed window. */
 export async function harvestSensorTraceEvidenceMatches(
   db: Prisma.TransactionClient,
   event: SensorTraceEvent,
@@ -61,27 +60,6 @@ export async function harvestSensorTraceEvidenceMatches(
     !['HARVEST_RECORDED', 'SENSOR_DIGEST_FINALIZED'].includes(event.eventType)
   )
     return true;
-  const object = businessObject(event.businessData);
-  if (
-    event.eventType === 'SENSOR_DIGEST_FINALIZED' &&
-    !event.lotId &&
-    !object?.windowId
-  ) {
-    const digest = await db.sensorDigest.findUnique({
-      where: { id: event.entityId },
-    });
-    return (
-      !!digest &&
-      event.entityType === 'SENSOR_DIGEST' &&
-      event.cycleId === digest.cycleId &&
-      digest.isFinal &&
-      object?.digestHash === digest.digestHash &&
-      object.periodStart === digest.periodStart.toISOString() &&
-      object.periodEnd === digest.periodEnd.toISOString() &&
-      object.readingCount === digest.readingCount &&
-      object.isFinal === true
-    );
-  }
   const window = await db.harvestSensorWindow.findUnique({
     where:
       event.eventType === 'HARVEST_RECORDED'
@@ -92,12 +70,7 @@ export async function harvestSensorTraceEvidenceMatches(
       harvest: { select: { cycleId: true, harvestTime: true } },
     },
   });
-  if (!window)
-    return (
-      event.eventType === 'HARVEST_RECORDED' &&
-      !object?.sensorWindowId &&
-      !object?.sensorEvidenceStatus
-    );
+  if (!window) return false;
   const lot = await db.lot.findUnique({
     where: { harvestId: window.harvestId },
     select: { id: true },

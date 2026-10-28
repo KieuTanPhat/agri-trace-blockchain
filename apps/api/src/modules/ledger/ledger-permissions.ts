@@ -5,6 +5,8 @@ import type { Prisma, ScopedRole } from '../../generated/prisma/client.js';
  * organization-level roles never reach the ledger. The list is registered with
  * each permission epoch so the chaincode enforces it independently. */
 const ROLE_ENTITY_TYPES: Partial<Record<ScopedRole, readonly string[]>> = {
+  DISTRIBUTOR: ['LOT'],
+  PROCESSOR: ['LOT'],
   FARM_STAFF: [
     'CARE',
     'CERTIFICATE',
@@ -267,6 +269,12 @@ export async function reserveEventPermission(
 ): Promise<CapturedPermission> {
   if (!actor.sub)
     throw new ConflictException('Sự kiện ledger cần người thực hiện có quyền');
+  // Only chain roles carry ledger permissions; any other role (for example a
+  // platform account) is refused instead of reaching the query.
+  if (!ledgerEntityTypes(actor.role as ScopedRole))
+    throw new ConflictException(
+      `Vai trò ${actor.role} không có quyền ghi ledger trong chuỗi`,
+    );
   const permission = await tx.ledgerPermission.findUnique({
     where: {
       bindingDigest_userId_role: {

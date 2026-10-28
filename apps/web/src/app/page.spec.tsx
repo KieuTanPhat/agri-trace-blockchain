@@ -1,56 +1,24 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
-import HomePage from "./page";
-import { SITE_CONTACT } from "@/lib/site-contact";
-
-vi.mock("next/image", () => ({ default: () => null }));
+import {cleanup,render,screen} from "@testing-library/react";
+import {afterEach,expect,it,vi} from "vitest";
+import Home from "@/features/ledger/public/home";
+import {SITE_CONTACT} from "@/lib/site-contact";
+vi.mock("next/navigation",()=>({useRouter:()=>({push:vi.fn()})}));
+vi.mock("next/image",()=>({default:({alt}:{alt:string})=><span role="img" aria-label={alt}/>}));
 afterEach(cleanup);
-
-it("presents general information and public scan navigation without demo QR or login links", () => {
-  const { container } = render(<HomePage />);
-  expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-    "Biến dữ liệu nông trại thành truy xuất nguồn gốc",
-  );
-  const links = screen.getAllByRole("link");
-  expect(links.some((link) => link.getAttribute("href") === "/scan")).toBe(
-    true,
-  );
-  expect(
-    links.some((link) =>
-      /login|dashboard|nongtrace/.test(link.getAttribute("href") ?? ""),
-    ),
-  ).toBe(false);
-  expect(container.textContent).not.toMatch(/demo|lô mẫu|dữ liệu minh họa/i);
-  expect(container.querySelector(".real-qr")).toBeNull();
+it("offers public scan and solutions without a demonstration lot or account buttons",()=>{
+ const {container}=render(<Home/>);expect(screen.getByRole("heading",{level:1})).toHaveTextContent("Hành trình nông sản");
+ const hrefs=screen.getAllByRole("link").map(a=>a.getAttribute("href"));
+ expect(hrefs).toEqual(expect.arrayContaining(["/scan","/solutions","/contact"]));
+ expect(hrefs).not.toContain("/register");
+ expect(hrefs).not.toContain("/login");
+ expect(hrefs.some(h=>h?.startsWith("/trace/"))).toBe(false);
+ expect(container.textContent).not.toMatch(/demo|lô mẫu|dữ liệu minh họa/i);
 });
-
-it("offers email and Zalo contact channels from the shared contact module", () => {
-  render(<HomePage />);
-  const hrefs = screen.getAllByRole("link").map((link) => link.getAttribute("href"));
-  expect(hrefs).toContain(SITE_CONTACT.emailUrl);
-  expect(hrefs).toContain(SITE_CONTACT.zaloUrl);
+it("keeps the shared email and Zalo contact destinations",()=>{
+ render(<Home/>);const hrefs=screen.getAllByRole("link").map(a=>a.getAttribute("href"));
+ expect(hrefs).toContain(SITE_CONTACT.emailUrl);expect(hrefs).toContain(SITE_CONTACT.zaloUrl);
 });
-
-it("lists the six steps of the journey in order", () => {
-  render(<HomePage />);
-  const steps = screen
-    .getByRole("heading", { name: /Xây dựng truy xuất khi sản xuất diễn ra/ })
-    .closest(".container")!
-    .querySelectorAll(".lp-steps li h3");
-  expect(Array.from(steps, (step) => step.textContent)).toEqual([
-    "Đăng ký nguồn",
-    "Ghi nhận sản xuất",
-    "Kiểm định, chứng nhận",
-    "Thu hoạch, tạo lô",
-    "Vận chuyển, bàn giao",
-    "Công khai truy xuất",
-  ]);
-});
-
-it("limits the organization-signature claim to signed handovers (ADR-004)", () => {
-  const { container } = render(<HomePage />);
-  const text = container.textContent ?? "";
-  expect(text).not.toMatch(/Dữ liệu nghiệp vụ được ký số/);
-  expect(text).not.toMatch(/Chữ ký số của tổ chức/);
-  expect(text).toMatch(/bàn giao có thêm chữ ký số/);
+it("describes public trace and separates ledger evidence from warnings and certificates",()=>{
+ const {container}=render(<Home/>);expect(container.textContent).toContain("Trạng thái sổ cái, cảnh báo và chứng nhận được trình bày riêng.");
+ expect(container.textContent).not.toMatch(/Dữ liệu nghiệp vụ được ký số|Chữ ký số của tổ chức/);
 });

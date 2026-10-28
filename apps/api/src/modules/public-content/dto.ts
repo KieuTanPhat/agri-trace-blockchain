@@ -34,6 +34,7 @@ export class PublicContentQueryDto {
   limit: number = 20;
 }
 export class PublicNewsDto {
+  @ApiProperty() hasCover!: boolean;
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ maxLength: 255 }) title!: string;
   @ApiProperty({ maxLength: 1000 }) summary!: string;

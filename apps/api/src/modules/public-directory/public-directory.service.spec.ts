@@ -28,6 +28,7 @@ describe('Public directory', () => {
         findFirst: vi.fn().mockResolvedValue(null),
       },
       lot: { findMany: vi.fn().mockResolvedValue([]) },
+      distributionLine:{findMany:vi.fn().mockResolvedValue([])},
       certificate: { findMany: vi.fn().mockResolvedValue([]) },
     };
     return {
@@ -64,8 +65,8 @@ describe('Public directory', () => {
   it('uses QR visibility, active records, stable order and lookahead pagination', async () => {
     const { db, service } = fixture();
     db.product.findMany.mockResolvedValue([{ id }, { id: next }]);
-    expect(await service.products({ limit: 1, cursor: id, q: '%' })).toEqual({
-      items: [{ id }],
+    expect(await service.products({ limit: 1, cursor: id, q: '%' })).toMatchObject({
+      items: [{ id, imageUrl:null,price:null }],
       hasMore: true,
       nextCursor: id,
     });

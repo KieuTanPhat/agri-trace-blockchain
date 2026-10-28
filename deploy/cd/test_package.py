@@ -22,7 +22,6 @@ class TrustedHelpers(unittest.TestCase):
             (root / '.gitattributes').write_bytes(b'* text eol=lf\n')
             files = {
                 "docker-compose.app.yml": "services: {}\n",
-                "docker-compose.app-fabric.yml": "services: {}\n",
                 "docker-compose.uat.yml": "services: {}\n",
                 "apps/api/prisma/migrations/20260101_init/migration.sql": "CREATE TABLE x (id INT);\n",
                 "blockchain/chaincode/src/index.ts": "export {};\n",

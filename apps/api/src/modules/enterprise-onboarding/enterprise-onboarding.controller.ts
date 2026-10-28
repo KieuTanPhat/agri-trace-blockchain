@@ -19,6 +19,8 @@ import {
   EnterpriseConnectionViewDto,
   EnterpriseEnrollmentViewDto,
   ReviewEnterpriseDto,
+  ActivateEnterpriseDto,
+  CapabilityRequestViewDto,
 } from './dto.js';
 import { EnterpriseOnboardingService } from './enterprise-onboarding.service.js';
 import { EnterpriseOnboardingGuard } from './enterprise-onboarding.guard.js';
@@ -42,6 +44,14 @@ export class EnterpriseOnboardingController {
   list(@Req() req: AuthenticatedRequest) {
     return this.service.list(req.user);
   }
+  @Get('enterprise-enrollments/:id')
+  @ApiDataResponse(EnterpriseEnrollmentViewDto)
+  find(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.find(req.user, id);
+  }
   @Post('enterprise-enrollments/:id/review')
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @ApiDataResponse(EnterpriseEnrollmentViewDto, 201)
@@ -62,6 +72,32 @@ export class EnterpriseOnboardingController {
         payload: { id, ...input },
       },
       () => this.service.review(req.user, id, input),
+    );
+  }
+  @Post('enterprise-enrollments/:id/activate') @ApiHeader({name:'Idempotency-Key',required:true}) @ApiDataResponse(EnterpriseEnrollmentViewDto,201)
+  activate(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() input:ActivateEnterpriseDto,@IdempotencyKey() key:string){
+    return this.idem.executeCommand({idempotencyKey:key,requesterId:req.user.sub,actor:req.user,responseStatus:201,operation:'ENTERPRISE_ACTIVATE',requestType:'COMMAND',payload:{id,...input}},()=>this.service.activate(req.user,id,input));
+  }
+  @Post('capability-requests/:id/review')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(CapabilityRequestViewDto, 201)
+  reviewCapability(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: ReviewEnterpriseDto,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.idem.executeCommand(
+      {
+        idempotencyKey: key,
+        requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
+        operation: 'ENTERPRISE_CAPABILITY_REVIEW',
+        requestType: 'COMMAND',
+        payload: { id, ...input },
+      },
+      () => this.service.reviewCapability(req.user, id, input),
     );
   }
   @Post('enterprise-connections')

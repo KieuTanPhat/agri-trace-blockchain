@@ -4,7 +4,14 @@ import { JwtService } from '@nestjs/jwt';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Test } from '@nestjs/testing';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { randomBytes, randomUUID } from 'node:crypto';
+import {
+  createHash,
+  generateKeyPairSync,
+  randomBytes,
+  randomUUID,
+  sign,
+} from 'node:crypto';
+import { canonicalize } from 'json-canonicalize';
 import request from 'supertest';
 import { vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
@@ -17,7 +24,10 @@ import { TraceService } from '../src/modules/trace/trace.service.js';
 import { LotHarvestService } from '../src/modules/lots/lot-harvest.service.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
+import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 import { provisionChain } from './support/chain-scope.js';
+import { confirmSimulatedPermissions } from '../src/modules/ledger/simulated-ledger.js';
+import { seedCycleEvidence } from './support/cycle-evidence.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 const prisma = new PrismaClient({
@@ -40,6 +50,13 @@ const prisma = new PrismaClient({
     let chainId: string;
     const users: Record<string, string> = {};
     const sessionIds: Record<string, string> = {};
+    const cycleEvidence = new Map<
+      string,
+      Awaited<ReturnType<typeof seedCycleEvidence>> & {
+        representativeUserId: string;
+        version: number;
+      }
+    >();
 
     beforeAll(async () => {
       await prisma.$queryRaw`SELECT 1`;
@@ -207,15 +224,42 @@ const prisma = new PrismaClient({
       user = 'farm',
       key = randomUUID(),
     ) {
+      const harvest = path.match(/^\/production-cycles\/([^/]+)\/harvests$/);
+      const care = path.match(/^\/production-cycles\/([^/]+)\/care$/);
+      const evidence = cycleEvidence.get(harvest?.[1] ?? care?.[1] ?? '');
+      const payload = evidence
+        ? {
+            ...(harvest
+              ? {
+                  version: evidence.version,
+                  lotName: 'Workflow harvest',
+                  representativeUserId: evidence.representativeUserId,
+                  evidenceRef: evidence.harvestEvidenceRef,
+                  lotImageEvidenceRef: evidence.lotImageEvidenceRef,
+                }
+              : {
+                  version: evidence.version,
+                  name: 'Workflow care record',
+                  evidenceRef: evidence.careEvidenceRef,
+                }),
+            ...body,
+          }
+        : body;
       return request(app.getHttpServer())
         .post('/api' + path)
         .set('Authorization', bearer(user))
         .set('Idempotency-Key', key)
-        .send(body);
+        .send(payload);
     }
-    async function plantedCycle(quantity = 1) {
+    const farmActor = () => ({
+      sub: users.farm,
+      organizationId: farmOrgId,
+      role: 'FARM_STAFF',
+    });
+
+    async function plantedCycle(quantity = 1, targetChainId = chainId) {
       const created = await post('/production-cycles', {
-        chainId,
+        chainId: targetChainId,
         farmId,
         productId,
         cycleCode: 'CYCLE-' + randomUUID(),
@@ -227,10 +271,19 @@ const prisma = new PrismaClient({
         version: 0,
         plantedAt: '2026-09-25T00:00:00.000Z',
       }).expect(201);
-      return cycle;
+      cycleEvidence.set(cycle.id, {
+        ...(await seedCycleEvidence(prisma, {
+          organizationId: farmOrgId,
+          cycleId: cycle.id,
+          actorId: users.farm,
+        })),
+        representativeUserId: users.farm,
+        version: 1,
+      });
+      return { ...cycle, version: 1 };
     }
-    async function harvestedLot(quantity = 1) {
-      const cycle = await plantedCycle(quantity);
+    async function harvestedLot(quantity = 1, targetChainId = chainId) {
+      const cycle = await plantedCycle(quantity, targetChainId);
       const result = await post(`/production-cycles/${cycle.id}/harvests`, {
         quantity,
         unit: 'kg',
@@ -309,9 +362,499 @@ const prisma = new PrismaClient({
       return fixture;
     }
 
+    it('uploads cycle photos through the bound PRODUCTION_CYCLE stream without duplicating evidence on replay', async () => {
+      const cycle = await plantedCycle();
+      const image = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=',
+        'base64',
+      );
+      const upload = (user: string, key = randomUUID()) =>
+        request(app.getHttpServer())
+          .post('/api/enterprise-workspace/evidence')
+          .set('Authorization', bearer(user))
+          .set('Idempotency-Key', key)
+          .field('entityType', 'CYCLE')
+          .field('entityId', cycle.id)
+          .field('kind', 'CARE_IMAGE')
+          .field('description', 'Cycle photo on an isolated simulated binding')
+          .attach('file', image, {
+            filename: 'cycle.png',
+            contentType: 'image/png',
+          });
+      const count = () =>
+        prisma.traceEvidence.count({ where: { entityId: cycle.id } });
+      const initialCount = await count();
+      expect([403, 404]).toContain((await upload('foreign')).status);
+      expect(await count()).toBe(initialCount);
+      expect(
+        await prisma.traceEvent.count({
+          where: { cycleId: cycle.id, eventType: 'EVIDENCE_ATTACHED' },
+        }),
+      ).toBe(0);
+
+      const key = randomUUID();
+      const uploaded = (await upload('farm', key).expect(201)).body.data.record;
+      const replay = (await upload('farm', key).expect(201)).body.data.record;
+      expect(replay).toEqual(uploaded);
+      expect(uploaded.sha256).toBe(
+        createHash('sha256').update(image).digest('hex'),
+      );
+      expect(await count()).toBe(initialCount + 1);
+      const events = await prisma.traceEvent.findMany({
+        where: { cycleId: cycle.id, eventType: 'EVIDENCE_ATTACHED' },
+        include: {
+          bindingContext: { include: { binding: true, permissions: true } },
+        },
+      });
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        entityType: 'PRODUCTION_CYCLE',
+        entityId: cycle.id,
+        actorUserId: users.farm,
+        businessData: { evidenceId: uploaded.id, sha256: uploaded.sha256 },
+        bindingContext: { binding: { chainId, network: 'simulated-ledger' } },
+      });
+      expect(privateTraceEvidenceMatches(events[0])).toBe(true);
+      expect(
+        await prisma.blockchainOutbox.count({
+          where: { eventId: events[0].id },
+        }),
+      ).toBe(1);
+    });
+
+    it('lets a PROCESSOR chain member sign a distribution slip with a bound LOT event and replay safely', async () => {
+      const processor = await prisma.organization.create({
+        data: { name: `Workflow processor ${randomUUID()}`, type: 'PROCESSOR' },
+      });
+      const role = await prisma.role.findUniqueOrThrow({
+        where: { code: 'PROCESSOR' },
+      });
+      users.processor = (
+        await prisma.user.create({
+          data: {
+            fullName: 'Workflow processor',
+            email: `processor-${randomUUID()}@example.test`,
+            roleId: role.id,
+            organizationId: processor.id,
+            passwordHash: 'not-a-login-fixture',
+          },
+        })
+      ).id;
+      sessionIds.processor = randomUUID();
+      await prisma.refreshSession.create({
+        data: {
+          id: sessionIds.processor,
+          familyId: sessionIds.processor,
+          userId: users.processor,
+          tokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 3_600_000),
+        },
+      });
+      const distributionChainId = await provisionChain(prisma, {
+        ownerOrganizationId: farmOrgId,
+        memberOrganizationIds: [processor.id, transporterOrgId],
+        grants: [
+          { userId: users.farm, organizationId: farmOrgId, role: 'FARM_STAFF' },
+          {
+            userId: users.processor,
+            organizationId: processor.id,
+            role: 'ORG_ADMIN',
+          },
+          {
+            userId: users.processor,
+            organizationId: processor.id,
+            role: 'PROCESSOR',
+          },
+          {
+            userId: users.transporter,
+            organizationId: transporterOrgId,
+            role: 'TRANSPORTER',
+          },
+        ],
+      });
+      for (const inviteeId of [processor.id, transporterOrgId])
+        await prisma.enterprisePartner.upsert({
+          where: { inviterId_inviteeId: { inviterId: farmOrgId, inviteeId } },
+          create: { inviterId: farmOrgId, inviteeId, status: 'ACTIVE' },
+          update: {},
+        });
+      const [senderSite, carrierSite, receiverSite] = await Promise.all(
+        [farmOrgId, transporterOrgId, processor.id].map((organizationId) =>
+          prisma.enterpriseSite.create({
+            data: {
+              organizationId,
+              name: 'Workflow depot',
+              kind: 'WAREHOUSE',
+              address: 'Isolated test depot',
+            },
+          }),
+        ),
+      );
+      const { lot } = await harvestedLot(1, distributionChainId);
+      await post('/distribution/allocations', {
+        lotId: lot.id,
+        siteId: senderSite.id,
+        quantity: '1.000',
+        unit: 'kg',
+        version: lot.version,
+        reason: 'Allocate source stock for processor signature regression',
+      }).expect(201);
+      const transfer = (
+        await post('/distribution/transfers', {
+          chainId: distributionChainId,
+          receiverId: processor.id,
+          carrierId: transporterOrgId,
+          senderSiteId: senderSite.id,
+          carrierSiteId: carrierSite.id,
+          receiverSiteId: receiverSite.id,
+          origin: 'Workflow farm depot',
+          destination: 'Workflow processor depot',
+          plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
+          lines: [{ lotId: lot.id, quantity: '0.500', unit: 'kg' }],
+        }).expect(201)
+      ).body.data.record;
+      const pair = generateKeyPairSync('ed25519');
+      const keyRef = randomUUID();
+      const publicKey = pair.publicKey
+        .export({ type: 'spki', format: 'der' })
+        .toString('base64url');
+      const keyBody = { id: keyRef, organizationId: processor.id, publicKey };
+      await post(
+        '/distribution/keys',
+        {
+          id: keyRef,
+          label: 'Isolated processor regression key',
+          publicKey,
+          popSignature: sign(
+            null,
+            Buffer.from(
+              `agritrace:distribution-key:1\0${canonicalize(keyBody)}`,
+            ),
+            pair.privateKey,
+          ).toString('base64url'),
+        },
+        'processor',
+      ).expect(201);
+      const challenge = (
+        await get(
+          `/distribution/transfers/${transfer.id}/challenge`,
+          'processor',
+        ).expect(200)
+      ).body.data;
+      const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
+      const body = {
+        snapshotDigest: challenge.snapshotDigest,
+        transferId: transfer.id,
+        phase: 'CONSENT',
+        organizationId: processor.id,
+        userId: users.processor,
+        keyRef,
+        version: String(transfer.version),
+        expiresAt,
+      };
+      const signature = sign(
+        null,
+        Buffer.from(`${challenge.domain}\0${canonicalize(body)}`),
+        pair.privateKey,
+      ).toString('base64url');
+      const input = {
+        version: transfer.version,
+        phase: 'CONSENT',
+        keyRef,
+        expiresAt,
+        signature,
+      };
+      const commandKey = randomUUID();
+      const path = `/distribution/transfers/${transfer.id}/sign`;
+      const signed = (
+        await post(path, input, 'processor', commandKey).expect(201)
+      ).body.data.record;
+      const replay = (
+        await post(path, input, 'processor', commandKey).expect(201)
+      ).body.data.record;
+      expect(replay).toEqual(signed);
+      expect(signed).toMatchObject({
+        status: 'PROPOSED',
+        version: transfer.version + 1,
+      });
+      expect(
+        await prisma.distributionAttestation.count({
+          where: { transferId: transfer.id },
+        }),
+      ).toBe(1);
+      const events = await prisma.traceEvent.findMany({
+        where: { lotId: lot.id, actorUserId: users.processor },
+        include: {
+          bindingContext: {
+            include: {
+              binding: true,
+              permissions: {
+                include: { permissionEpoch: { include: { permission: true } } },
+              },
+            },
+          },
+        },
+      });
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        entityType: 'LOT',
+        entityId: lot.id,
+        eventType: 'DISTRIBUTION_ATTESTED',
+        bindingContext: {
+          binding: {
+            chainId: distributionChainId,
+            network: 'simulated-ledger',
+          },
+        },
+      });
+      expect(
+        events[0].bindingContext?.permissions.map(
+          (p) => p.permissionEpoch.permission.role,
+        ),
+      ).toEqual(['PROCESSOR']);
+      expect(privateTraceEvidenceMatches(events[0])).toBe(true);
+      expect(
+        await prisma.blockchainOutbox.count({
+          where: { eventId: events[0].id },
+        }),
+      ).toBe(1);
+      const holding = await prisma.lotHolding.findUniqueOrThrow({
+        where: {
+          lotId_organizationId: { lotId: lot.id, organizationId: farmOrgId },
+        },
+      });
+      expect(holding.quantity.toFixed(3)).toBe('1.000');
+      expect(holding.reserved.toFixed(3)).toBe('0.500');
+    });
+
+    it('delivers by the sender itself: invites the receiver, joins on acceptance and needs only two signers', async () => {
+      const receiver = await prisma.organization.create({
+        data: { name: `Self delivery receiver ${randomUUID()}`, type: 'PROCESSOR' },
+      });
+      const role = await prisma.role.findUniqueOrThrow({ where: { code: 'PROCESSOR' } });
+      users.selfReceiver = (
+        await prisma.user.create({
+          data: {
+            fullName: 'Self delivery receiver',
+            email: `self-receiver-${randomUUID()}@example.test`,
+            roleId: role.id,
+            organizationId: receiver.id,
+            passwordHash: 'not-a-login-fixture',
+          },
+        })
+      ).id;
+      sessionIds.selfReceiver = randomUUID();
+      await prisma.refreshSession.create({
+        data: {
+          id: sessionIds.selfReceiver,
+          familyId: sessionIds.selfReceiver,
+          userId: users.selfReceiver,
+          tokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 3_600_000),
+        },
+      });
+      // The receiver is only a partner: it is not a member of the lot's chain.
+      const selfChainId = await provisionChain(prisma, {
+        ownerOrganizationId: farmOrgId,
+        memberOrganizationIds: [],
+        grants: [
+          { userId: users.farm, organizationId: farmOrgId, role: 'FARM_STAFF' },
+          { userId: users.farm, organizationId: farmOrgId, role: 'ORG_ADMIN' },
+          { userId: users.selfReceiver, organizationId: receiver.id, role: 'ORG_ADMIN' },
+        ],
+      });
+      await prisma.enterprisePartner.upsert({
+        where: { inviterId_inviteeId: { inviterId: farmOrgId, inviteeId: receiver.id } },
+        create: { inviterId: farmOrgId, inviteeId: receiver.id, status: 'ACTIVE' },
+        update: {},
+      });
+      const [senderSite, receiverSite] = await Promise.all(
+        [farmOrgId, receiver.id].map((organizationId) =>
+          prisma.enterpriseSite.create({
+            data: { organizationId, name: 'Self delivery depot', kind: 'WAREHOUSE', address: 'Isolated test depot' },
+          }),
+        ),
+      );
+      const { lot } = await harvestedLot(1, selfChainId);
+      await post('/distribution/allocations', {
+        lotId: lot.id,
+        siteId: senderSite.id,
+        quantity: '1.000',
+        unit: 'kg',
+        version: lot.version,
+        reason: 'Allocate source stock for self delivery regression',
+      }).expect(201);
+      // Platform carriers stay independent; a self delivery names no carrier.
+      await post('/distribution/transfers', {
+        transportMode: 'PLATFORM_CARRIER',
+        carrierId: receiver.id,
+        carrierSiteId: receiverSite.id,
+        receiverId: receiver.id,
+        senderSiteId: senderSite.id,
+        receiverSiteId: receiverSite.id,
+        origin: 'Self delivery farm',
+        destination: 'Self delivery receiver',
+        plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
+        lines: [{ lotId: lot.id, quantity: '0.600', unit: 'kg' }],
+      }).expect(422);
+      let transfer = (
+        await post('/distribution/transfers', {
+          transportMode: 'SELF_DELIVERY',
+          transportDetails: { registration: '51C-123.45', driverName: 'Tài xế nông trại' },
+          receiverId: receiver.id,
+          senderSiteId: senderSite.id,
+          receiverSiteId: receiverSite.id,
+          origin: 'Self delivery farm',
+          destination: 'Self delivery receiver',
+          plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
+          lines: [{ lotId: lot.id, quantity: '0.600', unit: 'kg' }],
+        }).expect(201)
+      ).body.data.record;
+      expect(transfer).toMatchObject({
+        chainId: selfChainId,
+        carrierId: farmOrgId,
+        carrierSiteId: senderSite.id,
+        transportMode: 'SELF_DELIVERY',
+      });
+      expect(
+        await prisma.chainMembership.findUniqueOrThrow({
+          where: { chainId_organizationId: { chainId: selfChainId, organizationId: receiver.id } },
+        }),
+      ).toMatchObject({ status: 'INVITED' });
+
+      const keys: Record<string, { keyRef: string; privateKey: ReturnType<typeof generateKeyPairSync>['privateKey'] }> = {};
+      for (const [actor, organizationId] of [['farm', farmOrgId], ['selfReceiver', receiver.id]] as const) {
+        const pair = generateKeyPairSync('ed25519');
+        const keyRef = randomUUID();
+        const publicKey = pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
+        await post(
+          '/distribution/keys',
+          {
+            id: keyRef,
+            label: 'Isolated self delivery key',
+            publicKey,
+            popSignature: sign(
+              null,
+              Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId, publicKey })}`),
+              pair.privateKey,
+            ).toString('base64url'),
+          },
+          actor,
+        ).expect(201);
+        keys[actor] = { keyRef, privateKey: pair.privateKey };
+      }
+      const signPhase = async (actor: 'farm' | 'selfReceiver', organizationId: string, phase: string) => {
+        const challengeResponse = await get(`/distribution/transfers/${transfer.id}/challenge`, actor);
+        if (challengeResponse.status !== 200) return challengeResponse;
+        const challenge = challengeResponse.body.data;
+        const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
+        const body = {
+          snapshotDigest: challenge.snapshotDigest,
+          transferId: transfer.id,
+          phase,
+          organizationId,
+          userId: users[actor],
+          keyRef: keys[actor].keyRef,
+          version: String(transfer.version),
+          expiresAt,
+        };
+        const signature = sign(null, Buffer.from(`${challenge.domain}\0${canonicalize(body)}`), keys[actor].privateKey).toString('base64url');
+        return post(`/distribution/transfers/${transfer.id}/sign`, { version: transfer.version, phase, keyRef: keys[actor].keyRef, expiresAt, signature }, actor);
+      };
+      // An invited receiver must accept the chain before it can sign.
+      const early = await signPhase('selfReceiver', receiver.id, 'CONSENT');
+      expect(early.status, JSON.stringify(early.body)).toBe(403);
+      const joinResponse = await post(`/distribution/transfers/${transfer.id}/join-chain`, { version: transfer.version }, 'selfReceiver');
+      expect(joinResponse.status, JSON.stringify(joinResponse.body)).toBe(201);
+      const joined = joinResponse.body.data.record;
+      expect(joined).toMatchObject({ membership: 'ACTIVE', roleGranted: true });
+      expect(
+        await prisma.scopedRoleGrant.count({
+          where: { chainId: selfChainId, userId: users.selfReceiver, role: 'PROCESSOR', revokedAt: null },
+        }),
+      ).toBe(1);
+      await confirmSimulatedPermissions(prisma, { guard: false });
+
+      for (const [actor, organizationId] of [['selfReceiver', receiver.id], ['farm', farmOrgId]] as const) {
+        const consent = await signPhase(actor, organizationId, 'CONSENT');
+        expect(consent.status, JSON.stringify(consent.body)).toBe(201);
+        transfer = consent.body.data.record;
+      }
+      expect(transfer.status).toBe('READY');
+      // The sender carries the goods: it alone signs the pickup.
+      const pickup = await signPhase('farm', farmOrgId, 'PICKUP');
+      expect(pickup.status, JSON.stringify(pickup.body)).toBe(201);
+      transfer = pickup.body.data.record;
+      expect(transfer.status).toBe('IN_TRANSIT');
+      const sent = await prisma.lotHolding.findUniqueOrThrow({
+        where: { lotId_organizationId: { lotId: lot.id, organizationId: farmOrgId } },
+      });
+      expect(sent.quantity.toFixed(3)).toBe('0.400');
+      await post(`/distribution/transfers/${transfer.id}/receipt`, {
+        version: transfer.version,
+        reason: 'Đã kiểm đếm đủ lượng giao tại kho nhận',
+        lines: [{ lotId: lot.id, received: '0.600', rejected: '0', quarantined: '0' }],
+      }, 'selfReceiver').expect(201);
+      transfer = (await get(`/distribution/transfers/${transfer.id}`, 'selfReceiver').expect(200)).body.data.record;
+      for (const [actor, organizationId] of [['farm', farmOrgId], ['selfReceiver', receiver.id]] as const) {
+        const delivery = await signPhase(actor, organizationId, 'DELIVERY');
+        expect(delivery.status, JSON.stringify(delivery.body)).toBe(201);
+        transfer = delivery.body.data.record;
+      }
+      expect(transfer.status).toBe('DELIVERED');
+      const received = await prisma.lotHolding.findUniqueOrThrow({
+        where: { lotId_organizationId: { lotId: lot.id, organizationId: receiver.id } },
+      });
+      expect(received.quantity.toFixed(3)).toBe('0.600');
+      expect(
+        await prisma.distributionAttestation.count({ where: { transferId: transfer.id } }),
+      ).toBe(5);
+
+      // The receiver asks to collect more; the sender turns one request into a
+      // pickup transfer and declines the other. Requests never reserve stock.
+      const ask = (note: string) =>
+        post('/distribution/pickup-requests', { senderId: farmOrgId, note }, 'selfReceiver').expect(201);
+      const wanted = (await ask('Lấy thêm 0,2 kg xoài')).body.data.record;
+      const extra = (await ask('Lấy thêm hàng tuần sau')).body.data.record;
+      const base = {
+        receiverId: receiver.id,
+        senderSiteId: senderSite.id,
+        receiverSiteId: receiverSite.id,
+        origin: 'Self delivery farm',
+        destination: 'Receiver collects',
+        plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
+        lines: [{ lotId: lot.id, quantity: '0.200', unit: 'kg' }],
+      };
+      await post('/distribution/transfers', { ...base, transportMode: 'EXTERNAL_CARRIER', externalHirer: 'RECEIVER' }).expect(422);
+      await post('/distribution/transfers', { ...base, transportMode: 'SELF_DELIVERY', pickupRequestId: wanted.id }).expect(409);
+      const collected = (
+        await post('/distribution/transfers', { ...base, transportMode: 'RECEIVER_PICKUP', pickupRequestId: wanted.id }).expect(201)
+      ).body.data.record;
+      expect(collected).toMatchObject({ carrierId: receiver.id, carrierSiteId: receiverSite.id, transportMode: 'RECEIVER_PICKUP' });
+      expect(await prisma.distributionPickupRequest.findUniqueOrThrow({ where: { id: wanted.id } })).toMatchObject({
+        status: 'ACCEPTED',
+        transferId: collected.id,
+      });
+      await post(`/distribution/pickup-requests/${extra.id}/decline`, { version: extra.version }, 'selfReceiver').expect(404);
+      await post(`/distribution/pickup-requests/${extra.id}/decline`, { version: extra.version, note: 'Hết hàng tuần sau' }).expect(201);
+      expect(await prisma.distributionPickupRequest.findUniqueOrThrow({ where: { id: extra.id } })).toMatchObject({ status: 'DECLINED' });
+      const hired = (
+        await post('/distribution/transfers', {
+          ...base,
+          lines: [{ lotId: lot.id, quantity: '0.100', unit: 'kg' }],
+          transportMode: 'EXTERNAL_CARRIER',
+          externalHirer: 'RECEIVER',
+          transportDetails: { carrierName: 'Xe tải Minh Phát', registration: '60C-555.66' },
+        }).expect(201)
+      ).body.data.record;
+      expect(hired).toMatchObject({ carrierId: receiver.id, transportDetails: { carrierName: 'Xe tải Minh Phát' } });
+    });
+
     it('keeps a linear hash chain when business timestamps are backdated or tied', async () => {
       const db = prisma as unknown as PrismaService;
       const trace = new TraceService(db, new OrganizationAccessService(db));
+      // Every event belongs to a bound cycle and an actor with a ledger grant.
+      const cycle = await plantedCycle();
       const entityId = randomUUID();
       const events = [];
       for (const eventTime of ['2026-09-28', '2026-09-25', '2026-09-25']) {
@@ -320,9 +863,10 @@ const prisma = new PrismaClient({
             trace.createInTransaction(tx, {
               entityType: 'LOT',
               entityId,
+              cycleId: cycle.id,
               eventType: 'TEST_CHECKPOINT',
               eventTime: new Date(eventTime),
-              actor: { sub: null, organizationId: null, role: 'SYSTEM_ACTOR' },
+              actor: farmActor(),
               businessData: { sequence: events.length },
             }),
           ),
@@ -512,6 +1056,7 @@ const prisma = new PrismaClient({
       const harvest = async (harvestTime: string) =>
         (
           await post(`/production-cycles/${cycle.id}/harvests`, {
+            version: harvestTime === '2026-09-26T00:00:00.000Z' ? 1 : 2,
             quantity: 0.5,
             unit: 'kg',
             harvestTime,
@@ -561,18 +1106,24 @@ const prisma = new PrismaClient({
         where: { OR: [{ lotId: lot.id }, { cycleId: cycle.id, lotId: null }] },
         orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
       });
-      const confirm = (event: (typeof events)[number]) =>
-        prisma.blockchainProof.create({
+      const confirm = async (event: (typeof events)[number]) => {
+        // A proof names the destination fixed by the event's own route.
+        const { definition } = await prisma.eventLedgerRoute.findUniqueOrThrow({
+          where: { eventId: event.id },
+          include: { definition: true },
+        });
+        return prisma.blockchainProof.create({
           data: {
             eventId: event.id,
             dataHash: event.dataHash,
-            network: 'audit-fixture',
+            network: definition.network,
             txId: randomBytes(32).toString('hex'),
-            channelId: process.env.FABRIC_CHANNEL_NAME ?? 'agritrace',
+            channelId: definition.channelId,
             recordedAt: new Date(),
             transactionStatus: 'CONFIRMED',
           },
         });
+      };
       await confirm(events.at(-1)!);
       const checkStatus = async (status: string) => {
         const detail = (await get(`/lots/${lot.id}`).expect(200)).body.data;
@@ -696,6 +1247,7 @@ const prisma = new PrismaClient({
 
     it('keeps concurrent trace appends on a single chain', async () => {
       const trace = app.get(TraceService);
+      const cycle = await plantedCycle();
       const entityId = randomUUID();
       await Promise.all(
         [0, 1, 2].map((sequence) =>
@@ -703,8 +1255,9 @@ const prisma = new PrismaClient({
             trace.createInTransaction(tx, {
               entityType: 'LOT',
               entityId,
+              cycleId: cycle.id,
               eventType: 'CONCURRENT_CHECKPOINT',
-              actor: { sub: null, organizationId: null, role: 'SYSTEM_ACTOR' },
+              actor: farmActor(),
               businessData: { sequence },
             }),
           ),
@@ -722,7 +1275,7 @@ const prisma = new PrismaClient({
       ).toHaveLength(1);
     });
 
-    it('records sensor readings only off-chain and anchors explicit digests', async () => {
+    it('records sensor readings only off-chain', async () => {
       const cycle = await plantedCycle();
       const device = (
         await post('/iot/devices', {
@@ -753,16 +1306,6 @@ const prisma = new PrismaClient({
       expect(
         await prisma.traceEvent.count({ where: { cycleId: cycle.id } }),
       ).toBe(before);
-      await post(`/iot/cycles/${cycle.id}/digests`, {
-        periodStart: new Date(
-          new Date(body.recordedAt).getTime() - 60_000,
-        ).toISOString(),
-        periodEnd: body.recordedAt,
-        isFinal: true,
-      }).expect(201);
-      expect(
-        await prisma.traceEvent.count({ where: { cycleId: cycle.id } }),
-      ).toBe(before + 1);
       await post(`/production-cycles/${cycle.id}/close`, { version: 1 }).expect(
         201,
       );
@@ -1094,7 +1637,6 @@ const prisma = new PrismaClient({
           '/certificates',
           '/inspections',
           '/iot/readings',
-          `/iot/cycles/${cycle.id}/digests`,
           ...['telemetry', 'devices', 'telemetry-digests'].map(
             (action) => `/iot/shipments/${shipment.id}/${action}`,
           ),
@@ -1108,7 +1650,6 @@ const prisma = new PrismaClient({
           shipments: await prisma.shipment.count(),
           movements: await prisma.quantityMovement.count(),
           readings: await prisma.sensorReading.count(),
-          digests: await prisma.sensorDigest.count(),
           telemetry: await prisma.shipmentTelemetry.count(),
           bindings: await prisma.shipmentTrackingBinding.count(),
           telemetryDigests: await prisma.shipmentTelemetryDigest.count(),
@@ -1220,12 +1761,21 @@ const prisma = new PrismaClient({
         where: { lotId, type: 'HARVEST_IN' },
       });
       expect(Number(movement.afterQty)).toBe(1);
-      expect(await prisma.traceEvent.count({ where: { lotId } })).toBe(2);
+      const lotEvents = await prisma.traceEvent.findMany({
+        where: { lotId },
+        select: { eventType: true },
+        orderBy: { eventType: 'asc' },
+      });
+      expect(lotEvents.map((event) => event.eventType)).toEqual([
+        'EVIDENCE_ATTACHED',
+        'HARVEST_RECORDED',
+        'SENSOR_DIGEST_FINALIZED',
+      ]);
       expect(
         await prisma.blockchainOutbox.count({
           where: { traceEvent: { lotId } },
         }),
-      ).toBe(2);
+      ).toBe(lotEvents.length);
       await expect(
         prisma.commandCommit.update({
           where: { id: journal.id },
@@ -1526,6 +2076,7 @@ const prisma = new PrismaClient({
       const nextReading = await read('2026-09-26T12:00:00.000Z', 27);
       const second = (
         await post(`/production-cycles/${cycle.id}/harvests`, {
+          version: 2,
           quantity: 1,
           unit: 'kg',
           harvestTime: '2026-09-27T00:00:00.000Z',
@@ -1957,6 +2508,15 @@ const prisma = new PrismaClient({
         { version: 0, plantedAt: '2026-09-25T00:00:00.000Z' },
         as,
       ).expect(201);
+      cycleEvidence.set(cycle.id, {
+        ...(await seedCycleEvidence(prisma, {
+          organizationId: org.id,
+          cycleId: cycle.id,
+          actorId: user.id,
+        })),
+        representativeUserId: user.id,
+        version: 1,
+      });
       const { lot } = (
         await post(
           `/production-cycles/${cycle.id}/harvests`,
@@ -2029,7 +2589,7 @@ const prisma = new PrismaClient({
     it('validates malformed identifiers and blank master-data names at the HTTP boundary', async () => {
       await get('/inspections?lotId=not-a-uuid').expect(400);
       await get('/certificates?cycleId=not-a-uuid').expect(400);
-      await post('/catalog/products', { productName: '   ' }, 'admin').expect(
+      await post('/catalog/products', { productName: '   ' }, 'farm').expect(
         400,
       );
       await post(
@@ -2042,12 +2602,83 @@ const prisma = new PrismaClient({
         {
           email: 'blank@example.test',
           fullName: '   ',
-          password: 'test-password-123',
           roleCode: 'FARM_STAFF',
           organizationId: farmOrgId,
         },
         'admin',
       ).expect(400);
+    });
+
+    it('keeps admin out of enterprise catalog writes and direct business-account creation', async () => {
+      await get('/catalog', 'admin').expect(200);
+      await post(
+        '/catalog/products',
+        { productName: 'Admin-only product' },
+        'admin',
+      ).expect(403);
+      await post(
+        '/catalog/farms',
+        { organizationId: farmOrgId, name: 'Admin-only farm' },
+        'admin',
+      ).expect(403);
+      await post(
+        '/catalog/plots',
+        { farmId, name: 'Admin-only plot' },
+        'admin',
+      ).expect(403);
+      await post(
+        '/organizations',
+        { name: 'Bypassed farm', type: 'FARM' },
+        'admin',
+      ).expect(400);
+      await post(
+        '/users',
+        {
+          email: `bypassed-${randomUUID()}@example.test`,
+          fullName: 'Bypassed employee',
+          roleCode: 'FARM_STAFF',
+          organizationId: farmOrgId,
+        },
+        'admin',
+      ).expect(403);
+      await request(app.getHttpServer())
+        .patch(`/api/users/${users.farm}/status`)
+        .set('Authorization', bearer('admin'))
+        .set('Idempotency-Key', randomUUID())
+        .send({
+          accountStatus: 'LOCKED',
+          version: 0,
+          reason: 'Thử khóa tài khoản doanh nghiệp từ nền tảng',
+        })
+        .expect(403);
+      const roles = await get('/users/roles', 'admin').expect(200);
+      expect(
+        roles.body.data.map((role: { code: string }) => role.code),
+      ).toEqual([
+        'COMPLIANCE_REVIEWER',
+        'PLATFORM_CASE_MANAGER',
+        'PLATFORM_OPERATOR',
+        'PLATFORM_PRIVACY_OFFICER',
+        'SYSTEM_ADMIN',
+      ]);
+      const auditor = await post(
+        '/organizations',
+        {
+          name: `Independent auditor ${randomUUID()}`,
+          type: 'AUDITOR',
+        },
+        'admin',
+      ).expect(201);
+      await post(
+        '/users',
+        {
+          email: `independent-reviewer-${randomUUID()}@example.test`,
+          fullName: 'Independent reviewer',
+          roleCode: 'COMPLIANCE_REVIEWER',
+          organizationId: auditor.body.data.id,
+        },
+        'admin',
+      ).expect(201);
     });
   },
 );

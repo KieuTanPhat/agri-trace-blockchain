@@ -58,6 +58,7 @@ const FINGERPRINT = 'ab'.repeat(32);
       });
       owner = { org: org.id, user: user.id };
       chainId = await provisionChain(prisma, {
+        simulatedLedger: false,
         ownerOrganizationId: org.id,
         memberOrganizationIds: [],
         grants: [

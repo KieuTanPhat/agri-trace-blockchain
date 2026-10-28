@@ -14,6 +14,7 @@ const newsSelect = {
   title: true,
   summary: true,
   coverUrl: true,
+  coverMimeType: true,
   publishedAt: true,
 } as const;
 @Injectable()
@@ -29,7 +30,7 @@ export class PublicContentService {
     const rows = await this.db.consumerNews.findMany({
       where: {
         AND: [
-          { isPublished: true, publishedAt: { lte: new Date() } },
+          { isPublished: true, archivedAt: null, publishedAt: { lte: new Date() } },
           ...(q
             ? [
                 {
@@ -72,7 +73,7 @@ export class PublicContentService {
   }
   async article(id: string) {
     const row = await this.db.consumerNews.findFirst({
-      where: { id, isPublished: true, publishedAt: { lte: new Date() } },
+      where: { id, isPublished: true, archivedAt: null, publishedAt: { lte: new Date() } },
       select: { ...newsSelect, body: true },
     });
     if (!row)
@@ -87,11 +88,13 @@ export class PublicContentService {
     summary: string;
     publishedAt: Date | null;
     coverUrl: string | null;
+    coverMimeType?: string | null;
   }) {
     return {
       id: row.id,
       title: row.title,
       summary: row.summary,
+      hasCover: !!row.coverMimeType || !!allowedCover(row.coverUrl,this.config.get<string>('PUBLIC_NEWS_IMAGE_HOSTS')),
       publishedAt: row.publishedAt!.toISOString(),
       coverUrl: allowedCover(
         row.coverUrl,

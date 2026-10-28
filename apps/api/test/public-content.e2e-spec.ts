@@ -131,7 +131,7 @@ describe('Public consumer content / isolated PostgreSQL and HTTP', () => {
     expect(response.body.data.items).toHaveLength(2);
     const item = response.body.data.items[0];
     expect(Object.keys(item).sort()).toEqual(
-      ['id', 'title', 'summary', 'coverUrl', 'publishedAt'].sort(),
+      ['id', 'title', 'summary', 'coverUrl', 'hasCover', 'publishedAt'].sort(),
     );
     expect(item.coverUrl).toBeNull();
     await get(`news/${draft}`).expect(404);

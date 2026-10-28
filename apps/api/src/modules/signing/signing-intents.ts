@@ -44,6 +44,7 @@ export type PreparedIntentView = {
 const EVENT_TYPE: Record<SigningOperation, string> = {
   HANDOVER_OFFER: 'HANDOVER_OFFERED',
   HANDOVER_CONFIRM: 'HANDOVER_CONFIRMED',
+  DISTRIBUTION_ATTEST: 'DISTRIBUTION_SIGNED_C2',
 };
 
 /** The organization's single ACTIVE key on a binding (or the named one). */

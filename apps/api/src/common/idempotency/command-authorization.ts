@@ -19,8 +19,24 @@ import {
 } from '../../modules/supply-chains/core-business-policy.js';
 import { lockChainScope } from '../../modules/supply-chains/chain-policy.js';
 import { authorizeEnterpriseCommand } from '../../modules/enterprise-onboarding/enterprise-onboarding.service.js';
+import {
+  authorizeWorkspaceCommand,
+  restrictEnterpriseBusiness,
+} from '../../modules/enterprise-workspace/enterprise-policy.js';
 
 export interface CommandActor {
+  enterpriseScope?: {
+    chainIds: string[];
+    farmIds: string[];
+    distributionChainIds?: string[];
+    /** Tier-3 employee: production cycles limited to those assigned. */
+    cycleStaffOnly?: boolean;
+    roleScopes: Array<{
+      chainIds: string[];
+      siteIds: string[];
+      permissions: string[];
+    }>;
+  };
   sub: string | null;
   organizationId: string | null;
   role: string;
@@ -223,12 +239,15 @@ export async function authorizeCommand(
   if (input.operation.startsWith('HYB_'))
     return authorizeChainCommand(db, input, lock);
   if (input.operation.startsWith('ENTERPRISE_'))
-    return authorizeEnterpriseCommand(db,input,lock);
+    return authorizeEnterpriseCommand(db, input, lock);
+  if (input.operation.startsWith('EW_') || input.operation.startsWith('DIST_'))
+    return authorizeWorkspaceCommand(db, input, lock);
 
   if (lock && actor.organizationId)
     await lockChainScope(db, `org:${actor.organizationId}`);
   const business = await authorizeCoreBusinessCommand(db, input, lock);
   if (business) {
+    await restrictEnterpriseBusiness(db, input, lock, business.actor.role);
     input.businessActor = business.actor;
     return business.scope;
   }
@@ -237,14 +256,67 @@ export async function authorizeCommand(
   // Only platform administration and organization-level device registration
   // remain outside chain scope. Business commands never reach this point.
   switch (input.operation) {
-    case 'CREATE_PRODUCT':
-    case 'CREATE_FARM':
-    case 'CREATE_PLOT':
     case 'CREATE_USERS':
     case 'CREATE_ORGANIZATIONS':
     case 'GRANT_COMPLIANCE_ASSIGNMENT':
     case 'REVOKE_COMPLIANCE_ASSIGNMENT':
+    // Platform governance: account and organization controls.
+    // Platform administration never creates business-actor authority.
+    case 'PLATFORM_USER_STATUS':
+    case 'PLATFORM_USER_UNLOCK':
+    case 'PLATFORM_USER_REVOKE_SESSIONS':
+    case 'PLATFORM_USER_RESET_PASSWORD':
+    case 'PLATFORM_ORG_UPDATE':
+    // Billing, organization/QR controls and platform configuration.
+    case 'PLATFORM_BILLING_PLAN_DRAFT':
+    case 'PLATFORM_BILLING_PLAN_PUBLISH':
+    case 'PLATFORM_BILLING_CONFIRM_PAYMENT':
+    case 'PLATFORM_BILLING_VOID_INVOICE':
+    case 'PLATFORM_BILLING_ISSUE_RENEWAL':
+    case 'PLATFORM_QR_BLOCK':
+    case 'PLATFORM_QR_UNBLOCK':
+    case 'PLATFORM_NOTICE_PUBLISH':
+    case 'PLATFORM_NOTICE_WITHDRAW':
+    case 'PLATFORM_NEWS_CREATE':
+    case 'PLATFORM_NEWS_UPDATE':
+    case 'PLATFORM_NEWS_STATUS':
+    case 'PLATFORM_SETTING_CHANGE':
+    case 'PLATFORM_REFERENCE_UPSERT':
       requireRole(actor, ['SYSTEM_ADMIN']);
+      break;
+    case 'PLATFORM_TICKET_ASSIGN':
+    case 'PLATFORM_TICKET_REPLY':
+    case 'PLATFORM_TICKET_CLOSE':
+    case 'PLATFORM_REPORT_TRIAGE':
+      requireRole(actor, ['SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER']);
+      break;
+    case 'PLATFORM_CASE_CREATE':
+    case 'PLATFORM_CASE_CLASSIFY':
+    case 'PLATFORM_CASE_ASSIGN':
+    case 'PLATFORM_CASE_LINK_LOT':
+    case 'PLATFORM_CASE_NOTE':
+    case 'PLATFORM_CASE_ESCALATE':
+    case 'PLATFORM_CASE_CLOSE':
+      requireRole(actor, ['SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER']);
+      break;
+    case 'PLATFORM_PRIVACY_BREACH_CREATE':
+    case 'PLATFORM_PRIVACY_UPDATE':
+      requireRole(actor, ['SYSTEM_ADMIN', 'PLATFORM_PRIVACY_OFFICER']);
+      break;
+    case 'PRIVACY_REQUEST_CREATE':
+      requireRole(actor, [
+        'SYSTEM_ADMIN',
+        'PLATFORM_OPERATOR',
+        'PLATFORM_CASE_MANAGER',
+        'PLATFORM_PRIVACY_OFFICER',
+        'COMPLIANCE_REVIEWER',
+        'AUDITOR',
+        'FARM_STAFF',
+        'TRANSPORTER',
+        'DISTRIBUTOR',
+        'PROCESSOR',
+        'RETAILER',
+      ]);
       break;
     case 'CREATE_IOT_DEVICE':
       requireRole(actor, ['SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER']);

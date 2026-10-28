@@ -1,0 +1,15 @@
+import {cleanup,fireEvent,render,screen,waitFor} from "@testing-library/react";
+import {afterEach,beforeEach,expect,it,vi} from "vitest";
+import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
+import {DistributionSignature} from "./distribution-signing";
+import type {TransferDetail} from "@/lib/ledger/dist-types";
+const m=vi.hoisted(()=>({prepare:vi.fn(),request:vi.fn(),retry:vi.fn()}));
+vi.mock("@/lib/auth-store",()=>({useAuth:()=>({user:{id:"user",organizationId:"org"}})}));
+vi.mock("@/lib/use-pending-commands",()=>({usePendingCommands:()=>false}));
+vi.mock("@/lib/distribution-c2",()=>({signDistributionC2:m.prepare}));
+vi.mock("@/lib/ledger/request",()=>({ledgerRequest:m.request}));
+vi.mock("@/lib/api-client",()=>({retryPendingCommand:m.retry}));
+vi.mock("@/lib/ledger/data",async()=>({useLedgerQueryClient:(await import("@tanstack/react-query")).useQueryClient}));
+const transfer:TransferDetail={id:"transfer",version:3,chainId:"chain",senderId:"org",carrierId:"carrier",receiverId:"receiver",senderSiteId:null,carrierSiteId:null,receiverSiteId:null,senderName:"Sender",carrierName:"Carrier",receiverName:"Receiver",origin:"Origin",destination:"Destination",vehicleId:null,transportMode:"PLATFORM_CARRIER",transportDetails:null,plannedPickupAt:null,plannedDeliveryAt:null,note:null,status:"PROPOSED",handoverMode:"DUAL_SIGNED",attestationEpoch:0,receiptDigest:null,lines:[],attestations:[],allowedActions:["CONSENT"],receipt:null,remainders:[],returns:[],observations:[]};
+beforeEach(()=>vi.resetAllMocks());afterEach(cleanup);
+it("an unresolved c2 preparation never announces or submits a completed signature",async()=>{m.prepare.mockRejectedValueOnce({status:503,code:"REQUEST_UNRESOLVED",message:"Chuẩn bị cần đối soát",recoveryId:"prepare-id"}).mockResolvedValueOnce({phase:"CONSENT",version:3,signatures:[{lotId:"lot",intentId:"intent",signature:"sig"}]});m.request.mockResolvedValue({record:{id:"transfer"}});const close=vi.fn();render(<QueryClientProvider client={new QueryClient()}><DistributionSignature transfer={transfer} phase="CONSENT" props={{open:true,onOpenChange:close}}/></QueryClientProvider>);fireEvent.click(screen.getByRole("button",{name:"Chuẩn bị chữ ký"}));await screen.findByText("Chuẩn bị cần đối soát");expect(close).not.toHaveBeenCalled();expect(m.request).not.toHaveBeenCalled();expect(screen.queryByRole("button",{name:"Ký và gửi"})).not.toBeInTheDocument();fireEvent.click(screen.getByRole("button",{name:"Đối soát bước chuẩn bị"}));fireEvent.click(await screen.findByRole("button",{name:"Ký và gửi"}));await waitFor(()=>expect(m.request).toHaveBeenCalledOnce());expect(m.prepare.mock.calls[1][4]).toEqual(expect.any(Function));expect(m.request.mock.calls[0][0]).toBe("/distribution/transfers/transfer/c2/submit");expect(JSON.parse(m.request.mock.calls[0][1].body)).toEqual({phase:"CONSENT",version:3,signatures:[{lotId:"lot",intentId:"intent",signature:"sig"}]});await waitFor(()=>expect(close).toHaveBeenCalledWith(false));});

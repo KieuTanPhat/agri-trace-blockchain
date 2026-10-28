@@ -36,6 +36,7 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
   let revokedOrgId: string;
   let approvedCertificateId: string;
   let replacementId: string;
+  let logoId:string;
 
   beforeAll(async () => {
     const org = async (
@@ -181,6 +182,13 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
         organizationId: reviewer.id,
       },
     });
+    const bytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=','base64');
+    const evidence=async(entityType:string,entityId:string,kind:string,isPublic:boolean)=>db.traceEvidence.create({data:{organizationId:farmOrgId,entityType,entityId,kind,public:isPublic,description:'Image publication fixture',fileName:'image.png',mediaType:'image/png',size:bytes.length,sha256:'ab'.repeat(32),content:bytes,actorId:submitter.id}});
+    await evidence('LOT',main.lot.id,'LOT_IMAGE',true);
+    logoId=(await evidence('PROFILE',farmOrgId,'OTHER',false)).id;
+    await evidence('PROFILE',farmOrgId,'BUSINESS_LICENSE',false);
+    await db.product.update({where:{id:publicId},data:{organizationId:farmOrgId,price:65000,category:'Trái cây tươi',ingredients:'100% trái cây',storageConditions:'Nơi khô thoáng',usageInstructions:'Rửa sạch trước khi dùng'}});
+    await db.publicDirectoryPublication.create({data:{id:randomUUID(),organizationId:farmOrgId,presentation:{publicDirectory:{published:true,catalogDetailsPublished:true,phone:'02873001234',province:'Lâm Đồng',address:'12 đường số 1',logoEvidenceId:logoId}}}});
     const certificate = async (options: {
       isPublic?: boolean;
       status?: 'APPROVED' | 'PENDING' | 'REJECTED';
@@ -262,6 +270,19 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
   });
   const get = (path: string) =>
     request(app.getHttpServer()).get(`/api/public/${path}`);
+  it('serves real published images and allowlisted contact/catalog details without exposing legal files',async()=>{
+    const detail=(await get(`products/${publicId}`).expect(200)).body.data;
+    expect(detail).toMatchObject({price:'65000',category:'Trái cây tươi',imageUrl:expect.stringContaining(`/public/products/${publicId}/image?v=`),traceCount:1});
+    const image=await get(`products/${publicId}/image`).expect(200);
+    expect(image.headers['content-type']).toContain('image/png');expect(image.body.length).toBeGreaterThan(20);
+    const org=(await get(`enterprises/${farmOrgId}`).expect(200)).body.data;
+    expect(org).toMatchObject({phone:'02873001234',province:'Lâm Đồng',logoUrl:`/public/enterprises/${farmOrgId}/logo?v=${logoId}`});
+    await get(`enterprises/${farmOrgId}/logo`).expect(200);
+    const other=(await get(`enterprises/${transporterId}`).expect(200)).body.data;
+    expect(other.phone).toBeNull();expect(other.logoUrl).toBeNull();
+    await get(`products/${privateId}/image`).expect(404);
+    await get(`enterprises/${privateOrgId}/logo`).expect(404);
+  });
   it('anonymous lists exclude non-QR, inactive-product and inactive-org data', async () => {
     const response = await get(`products?q=${tag}`).expect(200);
     expect(response.body.data.items).toHaveLength(2);
@@ -353,6 +374,23 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
       await get(`products?q=${encodeURIComponent(`${tag}%`)}`).expect(200)
     ).body.data;
     expect(literal.items).toEqual([]);
+  });
+  it('rechecks publication revocation and private superseding images on every file request',async()=>{
+    const snapshot=await db.publicDirectoryPublication.findFirstOrThrow({where:{organizationId:farmOrgId},orderBy:{createdAt:'desc'}});
+    await db.publicDirectoryPublication.create({data:{id:randomUUID(),organizationId:farmOrgId,presentation:{publicDirectory:{published:false}},createdAt:new Date(Date.now()+1000)}});
+    const org=(await get(`enterprises/${farmOrgId}`).expect(200)).body.data;
+    expect(org.phone).toBeNull();expect(org.logoUrl).toBeNull();
+    await get(`enterprises/${farmOrgId}/logo`).expect(404);
+    await get(`enterprises/${farmOrgId}/logo?v=${logoId}`).expect(404);
+    const product=(await get(`products/${publicId}`).expect(200)).body.data;
+    expect(product.price).toBeNull();
+    const image=await db.traceEvidence.findFirstOrThrow({where:{entityType:'LOT',kind:'LOT_IMAGE',public:true,organizationId:farmOrgId}});
+    await db.traceEvidence.create({data:{...image,id:randomUUID(),public:false,supersedesId:image.id,createdAt:new Date()}});
+    await get(`products/${publicId}/image`).expect(404);
+    await get(`products/${publicId}/image?v=${image.id}`).expect(404);
+    const after=(await get(`products/${publicId}`).expect(200)).body.data;
+    expect(after.imageUrl).toBeNull();
+    await db.publicDirectoryPublication.create({data:{id:randomUUID(),organizationId:farmOrgId,presentation:snapshot.presentation!,createdAt:new Date(Date.now()+2000)}});
   });
   it('rate-limits anonymous requests without returning private error data', async () => {
     let status = 200;

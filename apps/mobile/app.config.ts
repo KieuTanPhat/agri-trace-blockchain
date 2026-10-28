@@ -1,46 +1,58 @@
-import type { ExpoConfig } from "expo/config";
+import type { ConfigContext, ExpoConfig } from 'expo/config';
 
-const config: ExpoConfig = {
-  name: "ACheck",
-  slug: "agritrace-mobile",
-  version: "0.1.0",
-  scheme: "agritrace",
-  orientation: "portrait",
-  userInterfaceStyle: "light",
-  icon: "./assets/brand/appDaiDien.png",
-  ios: { bundleIdentifier: "dev.agritrace.consumer", supportsTablet: true },
-  android: {
-    package: "dev.agritrace.consumer",
-    googleServicesFile: "./google-services.json",
-    blockedPermissions: [
-      "android.permission.RECORD_AUDIO",
-      "android.permission.READ_MEDIA_IMAGES",
-      "android.permission.READ_MEDIA_VIDEO",
-      "android.permission.ACCESS_FINE_LOCATION",
-      "android.permission.ACCESS_COARSE_LOCATION",
-    ],
+/**
+ * One codebase, two store apps. EXPO_PUBLIC_APP_VARIANT picks the build:
+ * `consumer` is ACheck, `staff` is the AgriTrace field app. Unset only in a
+ * local dev server, where the root screen offers a chooser.
+ */
+const variant = process.env.EXPO_PUBLIC_APP_VARIANT;
+
+const VARIANTS = {
+  consumer: { name: 'ACheck', slug: 'acheck', id: 'vn.agritrace.consumer' },
+  staff: {
+    name: 'AgriTrace Nhân viên',
+    slug: 'agritrace-staff',
+    id: 'vn.agritrace.staff',
   },
-  plugins: [
-    "expo-router",
-    "@react-native-firebase/app",
-    "@react-native-firebase/auth",
-    ["expo-secure-store", { configureAndroidBackup: true }],
-    [
-      "expo-camera",
-      {
-        cameraPermission:
-          "ACheck dùng camera để quét mã QR truy xuất. Hình ảnh không được lưu hoặc tải lên.",
-        microphonePermission: false,
-        recordAudioAndroid: false,
+} as const;
+
+export default ({ config }: ConfigContext): ExpoConfig => {
+  const app = VARIANTS[variant === 'staff' ? 'staff' : 'consumer'];
+  return {
+    ...config,
+    name: app.name,
+    slug: app.slug,
+    scheme: app.slug,
+    version: '0.1.0',
+    orientation: 'portrait',
+    icon: './assets/brand/appDaiDien.png',
+    userInterfaceStyle: 'light',
+    ios: { bundleIdentifier: app.id, supportsTablet: false },
+    android: {
+      package: app.id,
+      // Credentials live in SecureStore; never restore them from a backup.
+      allowBackup: false,
+      adaptiveIcon: {
+        backgroundColor: '#ffffff',
+        foregroundImage: './assets/brand/appDaiDien.png',
       },
-    ],
-  ],
-  extra: {
-    eas: {
-      projectId: "042c1546-e76b-476d-9274-ea70cf376e8e",
     },
-  },
-  web: { output: "single", favicon: "./assets/brand/appDaiDien.png" },
+    web: { favicon: './assets/brand/appDaiDien.png', bundler: 'metro', output:'single' },
+    plugins: [
+      'expo-router',
+      'expo-secure-store',
+      'expo-font',
+      'expo-image',
+      [
+        'expo-camera',
+        {
+          cameraPermission:
+            'Camera chỉ dùng để quét mã QR trên tem nông sản. Bạn vẫn nhập mã tay được nếu từ chối.',
+          recordAudioAndroid: false,
+        },
+      ],
+    ],
+    experiments: { typedRoutes: false },
+    extra: { variant: variant ?? null },
+  };
 };
-
-export default config;

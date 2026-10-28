@@ -26,7 +26,7 @@ type AuthStore = {
   isAuthenticated: boolean;
   isLoading: boolean;
   privateAccessStatus?: "checking" | "ready" | "unavailable";
-  login(email: string, password: string): Promise<void>;
+  login(email: string, password: string, mfaCode?: string): Promise<void>;
   logout(): Promise<void>;
 };
 
@@ -64,9 +64,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    await loginRequest(email, password);
-  }, []);
+  const login = useCallback(
+    async (email: string, password: string, mfaCode?: string) => {
+      if (mfaCode) await loginRequest(email, password, mfaCode);
+      else await loginRequest(email, password);
+    },
+    [],
+  );
 
   const logout = useCallback(async () => {
     await revokeSession();

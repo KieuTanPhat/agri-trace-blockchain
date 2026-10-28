@@ -33,6 +33,7 @@ function run(file, args, { input, timeout = 300_000, encoding = 'utf8', quiet = 
 const checkpoint = step => { evidence.steps.push(step); console.log(`✔ ${step}`); };
 let environmentFile;
 let rehearsalDir;
+let ingressCreated = false;
 const compose = (...args) => ['compose', '--project-name', project, '--project-directory', repository, '--env-file', environmentFile,
   '-f', 'docker-compose.app.yml', '-f', 'deploy/ci/docker-compose.rehearsal.yml', ...args];
 const dc = (args, options) => run('docker', compose(...args), options);
@@ -47,8 +48,10 @@ function validateCaddy(file) {
 }
 
 function checkEvents(minimum) {
-  const output = dc(['run', '--rm', '--no-deps', '-T', '-e', 'CI_VALIDATOR_PATH=/validator/validation.js',
-    '-v', `${path.join(repository, 'blockchain/chaincode/dist')}:/validator:ro`, '--entrypoint', 'node', 'api', 'deploy/ci/check-events.mjs']);
+  // Mount inside /app so the compiled chaincode resolves its dependencies
+  // (json-canonicalize) from the image's node_modules.
+  const output = dc(['run', '--rm', '--no-deps', '-T', '-e', 'CI_CHAINCODE_DIST=/app/blockchain/chaincode/dist',
+    '-v', `${path.join(repository, 'blockchain/chaincode/dist')}:/app/blockchain/chaincode/dist:ro`, '--entrypoint', 'node', 'api', 'deploy/ci/check-events.mjs']);
   const result = JSON.parse(output.trim().split('\n').at(-1));
   assert.equal(result.result, 'passed');
   assert.ok(result.checked >= minimum, 'The event check must inspect the events the smoke created');
@@ -67,7 +70,8 @@ function fixtureFor() {
 
 async function main() {
   assert.equal(process.platform, 'linux', 'The rehearsal needs a Linux Docker runner');
-  assert.ok(existsSync(path.join(repository, 'blockchain/chaincode/dist/validation.js')), 'Build blockchain/chaincode before the rehearsal');
+  for (const module of ['binding', 'signing'])
+    assert.ok(existsSync(path.join(repository, `blockchain/chaincode/dist/${module}.js`)), 'Build blockchain/chaincode before the rehearsal');
   rehearsalDir = mkdtempSync(path.join(process.env.RUNNER_TEMP ?? os.tmpdir(), 'agritrace-rehearsal-'));
   environmentFile = path.join(rehearsalDir, 'rehearsal.env');
 
@@ -94,6 +98,7 @@ async function main() {
     PUBLIC_ORIGIN: origin, CORS_ORIGINS: origin, UPSTREAM_PREFIX: 'prod', DEPLOY_ENV: 'ci',
   }).map(([key, value]) => `${key}=${value}\n`).join(''), { mode: 0o600 });
   run('docker', ['network', 'create', '--label', `agritrace.ci-rehearsal=${project}`, ingress]);
+  ingressCreated = true;
 
   const labels = ['--label', `org.opencontainers.image.revision=${process.env.GITHUB_SHA ?? 'unknown'}`, '--label', `agritrace.ci-rehearsal=${project}`];
   run('docker', ['build', ...labels, '-t', apiImage, '-f', 'apps/api/Dockerfile', '.'], { timeout: 1_200_000 });
@@ -132,13 +137,21 @@ async function main() {
   assert.deepEqual(provision(), { result: 'passed', usersCreated: 0 });
   checkpoint('Production provisioning creates five accounts and replays idempotently');
 
+  // No Fabric runs here: bind the provisioned chain to a simulated ledger so the
+  // single B write path can be rehearsed. Events stay PENDING; never on production.
+  const simulate = () => JSON.parse(dc(['run', '--rm', '--no-deps', '-T', '-e', 'LEDGER_SIMULATION=1', 'api',
+    'node', 'apps/api/dist/operator/simulated-ledger.js']).trim().split('\n').at(-1));
+  assert.ok(simulate().boundChains >= 1, 'The rehearsal chain must receive a simulated binding');
+  assert.equal(simulate().boundChains, 0, 'Simulated binding must replay without creating another');
+  checkpoint('The rehearsal chain is bound to a simulated ledger (no Fabric) and replays idempotently');
+
   dc(['up', '-d', '--wait', '--wait-timeout', '240', 'api', 'web', 'proxy']);
   await waitForEdge(origin);
   const smoke = await runSmoke({ origin, fixture });
   evidence.smoke = { flows: smoke.flows, lots: smoke.lotIds.length };
   checkpoint(`Business and session flows pass through the production edge routing (${smoke.flows.length} flows)`);
   const checked = checkEvents(5);
-  checkpoint(`${checked} trace events are accepted by the compiled chaincode input validator`);
+  checkpoint(`${checked} trace events are binding commitments the compiled chaincode accepts and recomputes`);
 
   // Backup and restore into a brand-new volume; the database is never overwritten in place.
   dc(['stop', 'api', 'web', 'proxy']);
@@ -187,7 +200,7 @@ async function cleanup() {
     });
     attempt('compose-down', () => dc(['down', '--volumes', '--remove-orphans'], { quiet: true }));
   }
-  attempt('ingress-remove', () => {
+  if (ingressCreated) attempt('ingress-remove', () => {
     const label = run('docker', ['network', 'inspect', '--format', '{{index .Labels "agritrace.ci-rehearsal"}}', ingress], { quiet: true }).trim();
     assert.equal(label, project);
     run('docker', ['network', 'rm', ingress], { quiet: true });

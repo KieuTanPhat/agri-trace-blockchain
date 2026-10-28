@@ -5,8 +5,10 @@ import {
   Param,
   ParseUUIDPipe,
   Query,
+  Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags,ApiProduces,ApiOkResponse } from '@nestjs/swagger';
+import type {Response} from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { ApiDataResponse } from '../../common/api/openapi.js';
 import { PublicDirectoryService } from './public-directory.service.js';
@@ -26,6 +28,25 @@ import {
 @Controller('public')
 export class PublicDirectoryController {
   constructor(private readonly service: PublicDirectoryService) {}
+
+  @Get('products/:id/image')
+  @Throttle({default:{limit:240,ttl:60_000}})
+  @Header('Cache-Control','no-store')
+  @ApiProduces('image/jpeg','image/png')
+  @ApiOkResponse({description:'Published lot image, with the public directory visibility rechecked on every request.',schema:{type:'string',format:'binary'}})
+  async image(@Param('id',ParseUUIDPipe) id:string,@Res() response:Response) {
+    const file=await this.service.productImage(id);response.setHeader('X-Content-Type-Options','nosniff');
+    response.type(file.mediaType).send(Buffer.from(file.content));
+  }
+  @Get('enterprises/:id/logo')
+  @Throttle({default:{limit:240,ttl:60_000}})
+  @Header('Cache-Control','no-store')
+  @ApiProduces('image/jpeg','image/png')
+  @ApiOkResponse({description:'Only the organization logo explicitly selected for publication.',schema:{type:'string',format:'binary'}})
+  async logo(@Param('id',ParseUUIDPipe) id:string,@Res() response:Response) {
+    const file=await this.service.enterpriseLogo(id);response.setHeader('X-Content-Type-Options','nosniff');
+    response.type(file.mediaType).send(Buffer.from(file.content));
+  }
 
   @Get('products')
   @Header('Cache-Control', 'no-store')

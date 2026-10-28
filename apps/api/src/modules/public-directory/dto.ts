@@ -16,6 +16,8 @@ export const PUBLIC_ENTERPRISE_TYPES = [
   'TRANSPORTER',
   'RETAILER',
   'AUDITOR',
+  'PROCESSOR',
+  'DISTRIBUTOR',
 ] as const;
 
 export type PublicEnterpiseType = (typeof PUBLIC_ENTERPRISE_TYPES)[number];
@@ -71,6 +73,17 @@ export class PublicEnterprisesQueryDto extends PublicDirectoryQueryDto {
 }
 
 export class PublicDirectoryProductDto {
+  @ApiProperty({enum:['SELLING','NOT_SELLING'],description:'SELLING when any active retailer holds saleable stock in an eligible lot.'}) saleStatus!:'SELLING'|'NOT_SELLING';
+  @ApiProperty({type:String,nullable:true,description:'Only an explicitly published product image.'}) imageUrl!:string|null;
+  @ApiProperty({type:String,nullable:true,description:'Published indicative price in VND per defaultUnit; not a checkout price.'}) price!:string|null;
+  @ApiProperty({type:String,nullable:true}) category!:string|null;
+  @ApiProperty({type:String,nullable:true}) province!:string|null;
+  @ApiProperty({type:String,nullable:true}) gtin!:string|null;
+  @ApiProperty({type:String,nullable:true}) storageConditions!:string|null;
+  @ApiProperty({type:String,nullable:true}) ingredients!:string|null;
+  @ApiProperty({type:String,nullable:true}) usageInstructions!:string|null;
+  @ApiProperty({type:String,format:'date-time'}) createdAt!:string;
+  @ApiProperty({type:Number}) traceCount!:number;
   @ApiProperty({ type: String, maxLength: 255 })
   productName!: string;
   @ApiProperty({
@@ -101,6 +114,13 @@ export class PublicDirectoryProductDto {
 }
 
 export class PublicDirectoryEnterpriseDto {
+  @ApiProperty({type:String,nullable:true}) logoUrl!:string|null;
+  @ApiProperty({type:String,nullable:true,description:'Explicitly published business contact only.'}) phone!:string|null;
+  @ApiProperty({type:String,nullable:true}) address!:string|null;
+  @ApiProperty({type:String,nullable:true}) province!:string|null;
+  @ApiProperty({type:String,nullable:true}) ward!:string|null;
+  @ApiProperty({type:String,nullable:true}) website!:string|null;
+  @ApiProperty({type:String,nullable:true}) introduction!:string|null;
   @ApiProperty({
     type: String,
     format: 'uuid',
@@ -191,6 +211,10 @@ export class PublicEnterpriseDetailQueryDto extends PublicPageSizeDto {
   certificateCursor?: string;
 }
 export class PublicTraceLinkDto {
+  @ApiProperty({type:String,nullable:true}) lotName!:string|null;
+  @ApiProperty({type:String,nullable:true,format:'date'}) expiryDate!:string|null;
+  @ApiProperty({type:String}) state!:string;
+  @ApiProperty({type:String,format:'date-time'}) createdAt!:string;
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
   @ApiProperty({ type: String }) lotCode!: string;
   @ApiProperty({ type: String }) traceToken!: string;
@@ -219,6 +243,7 @@ export class PublicCertificatesPageDto {
   @ApiProperty({ type: Boolean }) hasMore!: boolean;
 }
 export class PublicProductDetailDto extends PublicDirectoryProductDto {
+  @ApiProperty({type:Number,description:'Actual QR scan counter across visible lots.'}) scanCount!:number;
   @ApiProperty({ type: () => PublicEnterprisesPageDto })
   enterprises!: PublicEnterprisesPageDto;
   @ApiProperty({ type: () => PublicTraceLinksPageDto })

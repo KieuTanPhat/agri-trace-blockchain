@@ -26,7 +26,6 @@ jobs:
     outputs:
       api: ${{ steps.changes.outputs.api }}
       web: ${{ steps.changes.outputs.web }}
-      mobile: ${{ steps.changes.outputs.mobile }}
       containers: ${{ steps.changes.outputs.containers }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,7 +34,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22.22.3'
+          node-version-file: .node-version
           package-manager-cache: false
       - name: Check shared agent setup and synchronization
         run: |
@@ -61,15 +60,11 @@ jobs:
           node deploy/ci/migrations-immutable.mjs
 
   api:
-    name: API / Node ${{ matrix.node }}
+    name: API / Node 24
     needs: changes
     if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ['22.22.3', '24.15.0', '26.0.0']
     env:
       DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
       TEST_DATABASE_URL: postgresql://test:test@localhost:5432/agri_trace_ci?schema=public
@@ -97,7 +92,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: ${{ matrix.node }}
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm install --global npm@12.1.0
@@ -114,22 +109,18 @@ jobs:
         run: node --test deploy/ci/bootstrap-production.test.mjs
 
   web:
-    name: Web / Node ${{ matrix.node }}
+    name: Web / Node 24
     needs: changes
     if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ['22.22.3', '24.15.0', '26.0.0']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: ${{ matrix.node }}
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm install --global npm@12.1.0
@@ -137,44 +128,33 @@ jobs:
       - run: npm run check --workspace apps/web
 
   mobile:
-    name: Mobile / Node ${{ matrix.node }}
+    name: Mobile / Expo 58
     needs: changes
-    if: needs.changes.outputs.mobile == 'true'
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ['22.22.3', '24.15.0', '26.0.0']
-    defaults:
-      run:
-        working-directory: apps/mobile
-    env:
-      EXPO_NO_TELEMETRY: '1'
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: ${{ matrix.node }}
-          cache: npm
-          cache-dependency-path: apps/mobile/package-lock.json
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with: {node-version-file: .node-version}
       - run: npm install --global npm@12.1.0
       - run: npm ci --no-audit --no-fund
-      - run: npm run check
-      # Bundle validation only, not an APK/IPA or hardware acceptance.
-      - run: npm run export:android
-      - run: npm run export:ios
-      - name: Install browser harness from the root lockfile
-        if: matrix.node == '22.22.3'
-        working-directory: .
-        run: |
-          npm ci --no-audit --no-fund
-          npm exec -- playwright install --with-deps chromium
-      - name: Check public mobile UI against isolated fixtures
-        if: matrix.node == '22.22.3'
-        run: npm run test:ui
+      - run: npm ci --prefix apps/mobile --workspaces=false --no-audit --no-fund
+      - run: node --import tsx --test apps/mobile/test/command-queue.test.ts apps/web/scripts/mobile-routing.test.mjs
+      - run: npm run check --prefix apps/mobile --workspaces=false
+      - run: node_modules/.bin/oxlint --max-warnings 0 apps/mobile/src/
+      - name: Audit mobile tooling and application dependencies
+        working-directory: apps/mobile
+        run: node ../../scripts/ci/mobile-audit.mjs
+      - name: Export consumer web application
+        if: ${{ !cancelled() }}
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_BASE_URL: /api
+          EXPO_PUBLIC_TRACE_ORIGIN: https://agritrace.dev
+          EXPO_PUBLIC_APP_VARIANT: consumer
+        run: node node_modules/expo/bin/cli export --platform web
 
   container-build:
     name: Production containers
@@ -201,7 +181,7 @@ jobs:
           curl --fail --retry 3 --output /dev/null http://localhost:3000/login
           docker compose exec -T web node --input-type=module -e "
             import assert from 'node:assert/strict';
-            const r = await fetch('http://127.0.0.1:3000/_next/image?url=%2Fagritrace%2Fbrand%2Fagritrace-logo.png&w=64&q=75', {
+            const r = await fetch('http://127.0.0.1:3000/_next/image?url=%2Fbrand%2Fagritrace-logo.png&w=64&q=75', {
               headers: { Accept: 'image/webp' }
             });
             assert.equal(r.status, 200);
@@ -241,7 +221,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22.22.3'
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm install --global npm@12.1.0

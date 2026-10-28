@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { classifyChanges, changedFiles } from './changes.mjs';
 import { gateErrors } from './gate.mjs';
+import { evaluateAudit } from './mobile-audit.mjs';
 import './hybrid-browser-login.test.mjs';
 import { approvalPolicy, verifyApprovedDefinition } from '../../blockchain/network/enterprise/peer.mjs';
 
@@ -29,25 +30,25 @@ test('enterprise approval recovery rejects a changed policy, package or definiti
     assert.throws(() => approvalPolicy({ ...spec, endorsementPolicy }));
 });
 
-test('Gateway changes run API, containers and real Fabric integration', () => {
-  assert.deepEqual(classifyChanges(['blockchain/gateway/src/adapter.ts']), {
-    api: true, web: false, mobile: false, containers: true, blockchain: true, fabric: true, hybrid: true,
+test('Gateway changes run API, containers and hybrid Fabric integration', () => {
+  assert.deepEqual(classifyChanges(['blockchain/gateway/src/connect.ts']), {
+    api: true, web: false, containers: true, blockchain: true, hybrid: true,
   });
 });
 
-test('API and Worker changes run real Fabric integration', () => {
+test('API and Worker changes run hybrid Fabric integration', () => {
   for (const file of ['apps/api/src/worker-main.ts', 'apps/api/prisma/schema.prisma']) {
     const selected = classifyChanges([file]);
     assert.equal(selected.api, true);
     assert.equal(selected.containers, true);
-    assert.equal(selected.fabric, true);
+    assert.equal(selected.hybrid, true);
   }
 });
 
 test('network and chaincode changes select blockchain integration', () => {
   for (const file of ['blockchain/network/network.sh', 'blockchain/chaincode/src/traceability-contract.ts']) {
     assert.equal(classifyChanges([file]).blockchain, true);
-    assert.equal(classifyChanges([file]).fabric, true);
+    assert.equal(classifyChanges([file]).hybrid, true);
   }
 });
 
@@ -59,8 +60,16 @@ test('manifests and CI changes select all checks', () => {
 
 test('Web changes select its checks and the production stack', () => {
   assert.deepEqual(classifyChanges(['apps/web/src/app/page.tsx']), {
-    api: false, web: true, mobile: false, containers: true, blockchain: false, fabric: false, hybrid: true,
+    api: false, web: true, containers: true, blockchain: false, hybrid: true,
   });
+});
+test('mobile source selects web, container and hybrid checks',()=>{
+  for(const file of ['apps/mobile/src/lib/queue.ts','apps/mobile/package-lock.json']){const checks=classifyChanges([file]);assert.equal(checks.web,true);assert.equal(checks.containers,true);assert.equal(checks.hybrid,true);}
+});
+test('application gate rejects skipped or failed mobile verification',()=>{
+  const needs={changes:{result:'success',outputs:{api:'true',web:'true',containers:'true'}},api:{result:'success'},web:{result:'success'},mobile:{result:'success'},'container-build':{result:'success'},rehearsal:{result:'success'}};
+  assert.deepEqual(gateErrors('application',needs),[]);
+  for(const result of ['failure','skipped','cancelled',undefined])assert(gateErrors('application',{...needs,mobile:{result}}).length>0);
 });
 
 test('edge routing, rehearsal scripts and the deployment template require all integration checks', () => {
@@ -70,17 +79,17 @@ test('edge routing, rehearsal scripts and the deployment template require all in
 });
 
 test('Compose overrides select production and Fabric integration', () => {
-  for (const file of ['docker-compose.yml', 'docker-compose.ci.yml']) {
+  for (const file of ['docker-compose.yml', 'docker-compose.app-hybrid.yml']) {
     assert.equal(classifyChanges([file]).containers, true);
-    assert.equal(classifyChanges([file]).fabric, true);
+    assert.equal(classifyChanges([file]).hybrid, true);
   }
 });
 
 test('documentation-only PRs skip expensive jobs without leaving gates pending', () => {
   assert.ok(Object.values(classifyChanges(['README.md', 'docs/ci.md'])).every(value => value === false));
   assert.deepEqual(gateErrors('application', {
-    changes: { result: 'success', outputs: { api: 'false', web: 'false', mobile: 'false', containers: 'false' } },
-    api: { result: 'skipped' }, web: { result: 'skipped' }, mobile: { result: 'skipped' }, 'container-build': { result: 'skipped' }, rehearsal: { result: 'skipped' },
+    changes: { result: 'success', outputs: { api: 'false', web: 'false', containers: 'false' } },
+    api: { result: 'skipped' }, web: { result: 'skipped' }, mobile:{result:'skipped'}, 'container-build': { result: 'skipped' }, rehearsal: { result: 'skipped' },
   }), []);
 });
 
@@ -97,10 +106,10 @@ test('agent-only PRs use the always-run setup check without selecting runtime jo
 });
 
 for (const [source, destination, checks] of [
-  ['apps/api/src/worker.ts', 'docs/worker.md', ['api', 'containers', 'fabric']],
-  ['apps/web/src/view.tsx', 'apps/api/src/view.tsx', ['web', 'api', 'containers', 'fabric']],
-  ['blockchain/gateway/src/adapter.ts', 'docs/adapter.md', ['api', 'blockchain', 'containers', 'fabric']],
-  ['blockchain/chaincode/src/contract.ts', 'docs/contract.md', ['blockchain', 'fabric']],
+  ['apps/api/src/worker.ts', 'docs/worker.md', ['api', 'containers', 'hybrid']],
+  ['apps/web/src/view.tsx', 'apps/api/src/view.tsx', ['web', 'api', 'containers', 'hybrid']],
+  ['blockchain/gateway/src/connect.ts', 'docs/connect.md', ['api', 'blockchain', 'containers', 'hybrid']],
+  ['blockchain/chaincode/src/contract.ts', 'docs/contract.md', ['blockchain', 'hybrid']],
 ]) {
   test(`moving ${source} to ${destination} checks both paths in the actual Git diff`, t => {
     const directory = mkdtempSync(path.join(tmpdir(), 'agri-trace-ci-diff-'));
@@ -164,8 +173,8 @@ test('main pushes with a valid baseline still require every check for the deploy
 test('gate rejects failures, cancellation and unexpected skips for selected jobs', () => {
   for (const result of ['failure', 'cancelled', 'skipped']) {
     assert.ok(gateErrors('blockchain', {
-      changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true', hybrid: 'true' } },
-      verify: { result: 'success' }, 'standalone-chaincode': { result: 'success' }, 'hybrid-fabric': { result: 'success' }, 'fabric-smoke': { result },
+      changes: { result: 'success', outputs: { blockchain: 'true', hybrid: 'true' } },
+      verify: { result: 'success' }, 'standalone-chaincode': { result: 'success' }, 'hybrid-fabric': { result },
     }).length > 0);
   }
 });
@@ -173,13 +182,13 @@ test('gate rejects failures, cancellation and unexpected skips for selected jobs
 test('gate fails closed on failed detection, absent outputs and missing jobs', () => {
   assert.ok(gateErrors('application', { changes: { result: 'failure' } }).length > 0);
   assert.ok(gateErrors('application', { changes: { result: 'success', outputs: {} } }).length > 0);
-  assert.ok(gateErrors('blockchain', { changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true' } } }).length > 0);
+  assert.ok(gateErrors('blockchain', { changes: { result: 'success', outputs: { blockchain: 'true' } } }).length > 0);
 });
 
 test('blockchain gate requires the selected standalone check and permits documentation skips', () => {
   const needs = {
-    changes: { result: 'success', outputs: { blockchain: 'true', fabric: 'true', hybrid: 'true' } },
-    verify: { result: 'success' }, 'fabric-smoke': { result: 'success' },
+    changes: { result: 'success', outputs: { blockchain: 'true', hybrid: 'true' } },
+    verify: { result: 'success' },
     'standalone-chaincode': { result: 'success' }, 'hybrid-fabric': { result: 'success' },
   };
   assert.deepEqual(gateErrors('blockchain', needs), []);
@@ -187,17 +196,17 @@ test('blockchain gate requires the selected standalone check and permits documen
     assert.ok(gateErrors('blockchain', { ...needs, 'standalone-chaincode': { result } }).length > 0);
   }
   assert.deepEqual(gateErrors('blockchain', {
-    changes: { result: 'success', outputs: { blockchain: 'false', fabric: 'false', hybrid: 'false' } },
-    verify: { result: 'skipped' }, 'fabric-smoke': { result: 'skipped' },
+    changes: { result: 'success', outputs: { blockchain: 'false', hybrid: 'false' } },
+    verify: { result: 'skipped' },
     'standalone-chaincode': { result: 'skipped' }, 'hybrid-fabric': { result: 'skipped' },
   }), []);
 });
 
 test('dependency gate requires both lockfile audits and the installed graph', () => {
-  const needs = { audit: { result: 'success' }, 'workspace-peers': { result: 'success' }, 'mobile-audit': { result: 'success' } };
+  const needs = { audit: { result: 'success' }, 'workspace-peers': { result: 'success' } };
   assert.deepEqual(gateErrors('dependency', needs), []);
   for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
-    for (const job of ['audit', 'workspace-peers', 'mobile-audit']) {
+    for (const job of ['audit', 'workspace-peers']) {
       assert.ok(gateErrors('dependency', { ...needs, [job]: { result } }).length > 0);
     }
   }
@@ -205,8 +214,8 @@ test('dependency gate requires both lockfile audits and the installed graph', ()
 
 test('application gate requires the production rehearsal whenever containers are selected', () => {
   const needs = {
-    changes: { result: 'success', outputs: { api: 'true', web: 'true', mobile: 'true', containers: 'true' } },
-    api: { result: 'success' }, web: { result: 'success' }, mobile: { result: 'success' }, 'container-build': { result: 'success' }, rehearsal: { result: 'success' },
+    changes: { result: 'success', outputs: { api: 'true', web: 'true', containers: 'true' } },
+    api: { result: 'success' }, web: { result: 'success' }, mobile:{result:'success'}, 'container-build': { result: 'success' }, rehearsal: { result: 'success' },
   };
   assert.deepEqual(gateErrors('application', needs), []);
   for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
@@ -214,24 +223,21 @@ test('application gate requires the production rehearsal whenever containers are
   }
 });
 
-test('mobile-only PR selects mobile without selecting business or Fabric jobs', () => {
-  assert.deepEqual(classifyChanges(['apps/mobile/app/(tabs)/scan.tsx']), {
-    api: false, web: false, mobile: true, containers: false, blockchain: false, fabric: false, hybrid: false,
-  });
-  assert.equal(classifyChanges(['apps/api/src/common/api/openapi.ts']).mobile, true);
-  const needs = {
-    changes: { result: 'success', outputs: { api: 'false', web: 'false', mobile: 'true', containers: 'false' } },
-    api: { result: 'skipped' }, web: { result: 'skipped' }, mobile: { result: 'success' },
-    'container-build': { result: 'skipped' }, rehearsal: { result: 'skipped' },
-  };
-  assert.deepEqual(gateErrors('application', needs), []);
-  for (const result of ['failure', 'cancelled', 'skipped', undefined])
-    assert.ok(gateErrors('application', { ...needs, mobile: { result } }).length > 0);
-});
-
 test('the local Compose stack passes an explicit business write mode to the API', () => {
   const compose = readFileSync(new URL('../../docker-compose.yml', import.meta.url), 'utf8');
   const api = compose.slice(compose.indexOf('\n  api:'), compose.indexOf('\n  worker:'));
   assert.match(api, /HYBRID_WRITES_MODE: \$\{HYBRID_WRITES_MODE:-OPEN\}/);
   assert.match(readFileSync(new URL('../../.env.docker.example', import.meta.url), 'utf8'), /^HYBRID_WRITES_MODE=OPEN$/m);
+});
+
+test('mobile audit allows only listed, unexpired advisories', () => {
+  const advisory = (name, id, severity = 'high') => ({ name, severity, title: 't', url: `https://github.com/advisories/${id}` });
+  const report = vias => ({ vulnerabilities: { x: { via: vias } } });
+  const allowed = [{ id: 'GHSA-a', package: 'forge', expires: '2026-11-26' }];
+  const before = new Date('2026-11-25T23:59:59Z'), after = new Date('2026-11-26T00:00:00Z');
+  assert.deepEqual(evaluateAudit(report(['forge', advisory('forge', 'GHSA-a')]), before, allowed), []);
+  assert.equal(evaluateAudit(report([advisory('forge', 'GHSA-a')]), after, allowed).length, 1);
+  assert.equal(evaluateAudit(report([advisory('other', 'GHSA-a')]), before, allowed).length, 1);
+  assert.equal(evaluateAudit(report([advisory('forge', 'GHSA-b', 'moderate')]), before, allowed).length, 1);
+  assert.deepEqual(evaluateAudit(report([advisory('forge', 'GHSA-c', 'low')]), before, allowed), []);
 });

@@ -3,8 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import { BlockchainProofQueryService } from '../blockchain-adapter/blockchain-proof-query.service.js';
 import { scopedTraceEventReadWhere } from '../supply-chains/business-read-scope.js';
-import { fixtureRoute } from '../../../test/support/ledger-route-fixture.js';
-import { calculateTraceEventHash } from './trace-hash.js';
+import { bindingEvent } from '../../../test/support/binding-event-fixture.js';
 import { TraceService } from './trace.service.js';
 
 const actor = {
@@ -33,8 +32,7 @@ function fixture(endpoint: 'proof' | 'verify', diagnostic: string | null) {
     canonicalizationVersion: 'RFC8785',
   };
   const event = {
-    ...body,
-    dataHash: calculateTraceEventHash(body),
+    ...bindingEvent(body),
     blockchainProof: null,
     blockchainOutbox: {
       status: 'DEAD_LETTER',
@@ -42,10 +40,6 @@ function fixture(endpoint: 'proof' | 'verify', diagnostic: string | null) {
       nextAttemptAt: null,
       lastError: diagnostic,
       leaseToken: 'private-lease-sentinel',
-    },
-    ledgerRoute: {
-      definitionDigest: fixtureRoute.digest,
-      definition: fixtureRoute,
     },
   };
   const findFirst = vi.fn().mockResolvedValue(event);

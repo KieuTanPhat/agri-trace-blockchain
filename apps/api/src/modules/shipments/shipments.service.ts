@@ -1,3 +1,4 @@
+import { harvestOf } from '../lots/lot-origin.js';
 import {
   assertBusinessActor,
   FARM_WRITE_ROLES,
@@ -592,7 +593,7 @@ export class ShipmentsService {
       throw new ConflictException('Trạng thái chuyến hàng đã thay đổi');
     const previousTime =
       fromShipment === 'CREATED'
-        ? lot.harvest.harvestTime
+        ? harvestOf(lot).harvestTime
         : currentShipment.pickupTime;
     if (!previousTime)
       throw new ConflictException('Chưa có mốc bàn giao trước đó hợp lệ');

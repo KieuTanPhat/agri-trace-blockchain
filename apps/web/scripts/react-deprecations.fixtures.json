@@ -1,0 +1,1083 @@
+{
+  "baseline": "eslint-plugin-react@7.37.5 with ESLint 9.39.5; React 19.3.0 unless overridden",
+  "fixtures": [
+    {
+      "name": "member React.renderComponent",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.renderComponent;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.renderComponent is deprecated since React 0.12.0, use React.render instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 235,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.renderComponentToString",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.renderComponentToString;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.renderComponentToString is deprecated since React 0.12.0, use React.renderToString instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 243,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.renderComponentToStaticMarkup",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.renderComponentToStaticMarkup;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.renderComponentToStaticMarkup is deprecated since React 0.12.0, use React.renderToStaticMarkup instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 249,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.isValidComponent",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.isValidComponent;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.isValidComponent is deprecated since React 0.12.0, use React.isValidElement instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 236,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.PropTypes.component",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.PropTypes.component;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.PropTypes.component is deprecated since React 0.12.0, use React.PropTypes.element instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 239,
+          "severity": 2
+        },
+        {
+          "messageId": "deprecated",
+          "message": "React.PropTypes is deprecated since React 15.5.0, use the npm module prop-types instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 229,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.PropTypes.renderable",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.PropTypes.renderable;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.PropTypes.renderable is deprecated since React 0.12.0, use React.PropTypes.node instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 240,
+          "severity": 2
+        },
+        {
+          "messageId": "deprecated",
+          "message": "React.PropTypes is deprecated since React 15.5.0, use the npm module prop-types instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 229,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.isValidClass",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.isValidClass;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.isValidClass is deprecated since React 0.12.0",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 232,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member this.transferPropsTo",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = this.transferPropsTo;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "this.transferPropsTo is deprecated since React 0.12.0, use spread operator ({...}) instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 234,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.addons.classSet",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.addons.classSet;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.addons.classSet is deprecated since React 0.13.0, use the npm module classnames instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 235,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.addons.cloneWithProps",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.addons.cloneWithProps;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.addons.cloneWithProps is deprecated since React 0.13.0, use React.cloneElement instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 241,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.render",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.render;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.render is deprecated since React 0.14.0, use ReactDOM.render instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 226,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.unmountComponentAtNode",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.unmountComponentAtNode;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.unmountComponentAtNode is deprecated since React 0.14.0, use ReactDOM.unmountComponentAtNode instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 242,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.findDOMNode",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.findDOMNode;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.findDOMNode is deprecated since React 0.14.0, use ReactDOM.findDOMNode instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 231,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.renderToString",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.renderToString;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.renderToString is deprecated since React 0.14.0, use ReactDOMServer.renderToString instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 234,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.renderToStaticMarkup",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.renderToStaticMarkup;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.renderToStaticMarkup is deprecated since React 0.14.0, use ReactDOMServer.renderToStaticMarkup instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 240,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.addons.LinkedStateMixin",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.addons.LinkedStateMixin;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.addons.LinkedStateMixin is deprecated since React 15.0.0",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 243,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member ReactPerf.printDOM",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = ReactPerf.printDOM;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactPerf.printDOM is deprecated since React 15.0.0, use ReactPerf.printOperations instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 232,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member Perf.printDOM",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = Perf.printDOM;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "Perf.printDOM is deprecated since React 15.0.0, use Perf.printOperations instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 227,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member ReactPerf.getMeasurementsSummaryMap",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = ReactPerf.getMeasurementsSummaryMap;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactPerf.getMeasurementsSummaryMap is deprecated since React 15.0.0, use ReactPerf.getWasted instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 249,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member Perf.getMeasurementsSummaryMap",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = Perf.getMeasurementsSummaryMap;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "Perf.getMeasurementsSummaryMap is deprecated since React 15.0.0, use Perf.getWasted instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 244,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.createClass",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.createClass;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.createClass is deprecated since React 15.5.0, use the npm module create-react-class instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 231,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.addons.TestUtils",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.addons.TestUtils;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.addons.TestUtils is deprecated since React 15.5.0, use ReactDOM.TestUtils instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 236,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.PropTypes",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.PropTypes;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.PropTypes is deprecated since React 15.5.0, use the npm module prop-types instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 229,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member React.DOM",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = React.DOM;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.DOM is deprecated since React 15.6.0, use the npm module react-dom-factories instead",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 223,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member ReactDOM.render",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = ReactDOM.render;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOM.render is deprecated since React 18.0.0, use createRoot instead, see https://reactjs.org/link/switch-to-createroot",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 229,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member ReactDOM.hydrate",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = ReactDOM.hydrate;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOM.hydrate is deprecated since React 18.0.0, use hydrateRoot instead, see https://reactjs.org/link/switch-to-createroot",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 230,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member ReactDOM.unmountComponentAtNode",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = ReactDOM.unmountComponentAtNode;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOM.unmountComponentAtNode is deprecated since React 18.0.0, use root.unmount instead, see https://reactjs.org/link/switch-to-createroot",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 245,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "member ReactDOMServer.renderToNodeStream",
+      "source": "import React from 'react'; import ReactDOM from 'react-dom'; import ReactDOMServer from 'react-dom/server'; import ReactPerf from 'react-addons-perf'; import Perf from 'react-addons-perf'; export const oldValue = ReactDOMServer.renderToNodeStream;",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOMServer.renderToNodeStream is deprecated since React 18.0.0, use renderToPipeableStream instead, see https://reactjs.org/docs/react-dom-server.html#rendertonodestream",
+          "line": 1,
+          "column": 214,
+          "endLine": 1,
+          "endColumn": 247,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillMount extends React.Component",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends React.Component { componentWillMount() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillMount is deprecated since React 16.9.0, use UNSAFE_componentWillMount instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillmount. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 99,
+          "endLine": 1,
+          "endColumn": 117,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillMount extends React.PureComponent",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends React.PureComponent { componentWillMount() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillMount is deprecated since React 16.9.0, use UNSAFE_componentWillMount instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillmount. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 103,
+          "endLine": 1,
+          "endColumn": 121,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillMount extends Component",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends Component { componentWillMount() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillMount is deprecated since React 16.9.0, use UNSAFE_componentWillMount instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillmount. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 93,
+          "endLine": 1,
+          "endColumn": 111,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillMount extends PureComponent",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends PureComponent { componentWillMount() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillMount is deprecated since React 16.9.0, use UNSAFE_componentWillMount instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillmount. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 97,
+          "endLine": 1,
+          "endColumn": 115,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillMount class expression",
+      "source": "import React from 'react'; export const Old = class extends React.Component { componentWillMount = () => {}; render(){return null;} };",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillMount is deprecated since React 16.9.0, use UNSAFE_componentWillMount instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillmount. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 79,
+          "endLine": 1,
+          "endColumn": 97,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillMount createClass",
+      "source": "import React from 'react'; export const Old=React.createClass({componentWillMount(){},render(){return null;}});",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.createClass is deprecated since React 15.5.0, use the npm module create-react-class instead",
+          "line": 1,
+          "column": 45,
+          "endLine": 1,
+          "endColumn": 62,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillMount named factory",
+      "source": "export const Old=createReactClass({componentWillMount(){},render(){return null;}});",
+      "settings": {
+        "createClass": "createReactClass"
+      },
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillMount is deprecated since React 16.9.0, use UNSAFE_componentWillMount instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillmount. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 36,
+          "endLine": 1,
+          "endColumn": 54,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillMount plain class",
+      "source": "export class Fine { componentWillMount(){} }",
+      "expected": []
+    },
+    {
+      "name": "componentWillReceiveProps extends React.Component",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends React.Component { componentWillReceiveProps() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillReceiveProps is deprecated since React 16.9.0, use UNSAFE_componentWillReceiveProps instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillreceiveprops. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 99,
+          "endLine": 1,
+          "endColumn": 124,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillReceiveProps extends React.PureComponent",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends React.PureComponent { componentWillReceiveProps() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillReceiveProps is deprecated since React 16.9.0, use UNSAFE_componentWillReceiveProps instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillreceiveprops. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 103,
+          "endLine": 1,
+          "endColumn": 128,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillReceiveProps extends Component",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends Component { componentWillReceiveProps() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillReceiveProps is deprecated since React 16.9.0, use UNSAFE_componentWillReceiveProps instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillreceiveprops. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 93,
+          "endLine": 1,
+          "endColumn": 118,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillReceiveProps extends PureComponent",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends PureComponent { componentWillReceiveProps() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillReceiveProps is deprecated since React 16.9.0, use UNSAFE_componentWillReceiveProps instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillreceiveprops. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 97,
+          "endLine": 1,
+          "endColumn": 122,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillReceiveProps class expression",
+      "source": "import React from 'react'; export const Old = class extends React.Component { componentWillReceiveProps = () => {}; render(){return null;} };",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillReceiveProps is deprecated since React 16.9.0, use UNSAFE_componentWillReceiveProps instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillreceiveprops. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 79,
+          "endLine": 1,
+          "endColumn": 104,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillReceiveProps createClass",
+      "source": "import React from 'react'; export const Old=React.createClass({componentWillReceiveProps(){},render(){return null;}});",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.createClass is deprecated since React 15.5.0, use the npm module create-react-class instead",
+          "line": 1,
+          "column": 45,
+          "endLine": 1,
+          "endColumn": 62,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillReceiveProps named factory",
+      "source": "export const Old=createReactClass({componentWillReceiveProps(){},render(){return null;}});",
+      "settings": {
+        "createClass": "createReactClass"
+      },
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillReceiveProps is deprecated since React 16.9.0, use UNSAFE_componentWillReceiveProps instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillreceiveprops. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 36,
+          "endLine": 1,
+          "endColumn": 61,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillReceiveProps plain class",
+      "source": "export class Fine { componentWillReceiveProps(){} }",
+      "expected": []
+    },
+    {
+      "name": "componentWillUpdate extends React.Component",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends React.Component { componentWillUpdate() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillUpdate is deprecated since React 16.9.0, use UNSAFE_componentWillUpdate instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillupdate. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 99,
+          "endLine": 1,
+          "endColumn": 118,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillUpdate extends React.PureComponent",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends React.PureComponent { componentWillUpdate() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillUpdate is deprecated since React 16.9.0, use UNSAFE_componentWillUpdate instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillupdate. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 103,
+          "endLine": 1,
+          "endColumn": 122,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillUpdate extends Component",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends Component { componentWillUpdate() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillUpdate is deprecated since React 16.9.0, use UNSAFE_componentWillUpdate instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillupdate. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 93,
+          "endLine": 1,
+          "endColumn": 112,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillUpdate extends PureComponent",
+      "source": "import React, {Component, PureComponent} from 'react'; export class Old extends PureComponent { componentWillUpdate() {} render(){return null;} }",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillUpdate is deprecated since React 16.9.0, use UNSAFE_componentWillUpdate instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillupdate. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 97,
+          "endLine": 1,
+          "endColumn": 116,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillUpdate class expression",
+      "source": "import React from 'react'; export const Old = class extends React.Component { componentWillUpdate = () => {}; render(){return null;} };",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillUpdate is deprecated since React 16.9.0, use UNSAFE_componentWillUpdate instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillupdate. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 79,
+          "endLine": 1,
+          "endColumn": 98,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillUpdate createClass",
+      "source": "import React from 'react'; export const Old=React.createClass({componentWillUpdate(){},render(){return null;}});",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.createClass is deprecated since React 15.5.0, use the npm module create-react-class instead",
+          "line": 1,
+          "column": 45,
+          "endLine": 1,
+          "endColumn": 62,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillUpdate named factory",
+      "source": "export const Old=createReactClass({componentWillUpdate(){},render(){return null;}});",
+      "settings": {
+        "createClass": "createReactClass"
+      },
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillUpdate is deprecated since React 16.9.0, use UNSAFE_componentWillUpdate instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillupdate. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 1,
+          "column": 36,
+          "endLine": 1,
+          "endColumn": 55,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "componentWillUpdate plain class",
+      "source": "export class Fine { componentWillUpdate(){} }",
+      "expected": []
+    },
+    {
+      "name": "named import react/createClass",
+      "source": "import {createClass as oldValue} from 'react'; export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.createClass is deprecated since React 15.5.0, use the npm module create-react-class instead",
+          "line": 1,
+          "column": 9,
+          "endLine": 1,
+          "endColumn": 32,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "destructured require react/createClass",
+      "source": "const {createClass:oldValue}=require('react'); export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.createClass is deprecated since React 15.5.0, use the npm module create-react-class instead",
+          "line": 1,
+          "column": 8,
+          "endLine": 1,
+          "endColumn": 28,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "named import react/PropTypes",
+      "source": "import {PropTypes as oldValue} from 'react'; export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.PropTypes is deprecated since React 15.5.0, use the npm module prop-types instead",
+          "line": 1,
+          "column": 9,
+          "endLine": 1,
+          "endColumn": 30,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "destructured require react/PropTypes",
+      "source": "const {PropTypes:oldValue}=require('react'); export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.PropTypes is deprecated since React 15.5.0, use the npm module prop-types instead",
+          "line": 1,
+          "column": 8,
+          "endLine": 1,
+          "endColumn": 26,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "named import react-dom/render",
+      "source": "import {render as oldValue} from 'react-dom'; export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOM.render is deprecated since React 18.0.0, use createRoot instead, see https://reactjs.org/link/switch-to-createroot",
+          "line": 1,
+          "column": 9,
+          "endLine": 1,
+          "endColumn": 27,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "destructured require react-dom/render",
+      "source": "const {render:oldValue}=require('react-dom'); export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOM.render is deprecated since React 18.0.0, use createRoot instead, see https://reactjs.org/link/switch-to-createroot",
+          "line": 1,
+          "column": 8,
+          "endLine": 1,
+          "endColumn": 23,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "named import react-dom/hydrate",
+      "source": "import {hydrate as oldValue} from 'react-dom'; export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOM.hydrate is deprecated since React 18.0.0, use hydrateRoot instead, see https://reactjs.org/link/switch-to-createroot",
+          "line": 1,
+          "column": 9,
+          "endLine": 1,
+          "endColumn": 28,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "destructured require react-dom/hydrate",
+      "source": "const {hydrate:oldValue}=require('react-dom'); export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOM.hydrate is deprecated since React 18.0.0, use hydrateRoot instead, see https://reactjs.org/link/switch-to-createroot",
+          "line": 1,
+          "column": 8,
+          "endLine": 1,
+          "endColumn": 24,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "named import react-dom/unmountComponentAtNode",
+      "source": "import {unmountComponentAtNode as oldValue} from 'react-dom'; export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOM.unmountComponentAtNode is deprecated since React 18.0.0, use root.unmount instead, see https://reactjs.org/link/switch-to-createroot",
+          "line": 1,
+          "column": 9,
+          "endLine": 1,
+          "endColumn": 43,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "destructured require react-dom/unmountComponentAtNode",
+      "source": "const {unmountComponentAtNode:oldValue}=require('react-dom'); export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOM.unmountComponentAtNode is deprecated since React 18.0.0, use root.unmount instead, see https://reactjs.org/link/switch-to-createroot",
+          "line": 1,
+          "column": 8,
+          "endLine": 1,
+          "endColumn": 39,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "named import react-dom/server/renderToNodeStream",
+      "source": "import {renderToNodeStream as oldValue} from 'react-dom/server'; export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOMServer.renderToNodeStream is deprecated since React 18.0.0, use renderToPipeableStream instead, see https://reactjs.org/docs/react-dom-server.html#rendertonodestream",
+          "line": 1,
+          "column": 9,
+          "endLine": 1,
+          "endColumn": 39,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "destructured require react-dom/server/renderToNodeStream",
+      "source": "const {renderToNodeStream:oldValue}=require('react-dom/server'); export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "ReactDOMServer.renderToNodeStream is deprecated since React 18.0.0, use renderToPipeableStream instead, see https://reactjs.org/docs/react-dom-server.html#rendertonodestream",
+          "line": 1,
+          "column": 8,
+          "endLine": 1,
+          "endColumn": 35,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "destructure React object",
+      "source": "import React from 'react'; const {PropTypes:oldValue}=React; export {oldValue};",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "React.PropTypes is deprecated since React 15.5.0, use the npm module prop-types instead",
+          "line": 1,
+          "column": 35,
+          "endLine": 1,
+          "endColumn": 53,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "explicit React JSDoc",
+      "source": "/** @extends React.Component */\nexport class Old extends Base {componentWillMount(){} render(){return null;}}",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillMount is deprecated since React 16.9.0, use UNSAFE_componentWillMount instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillmount. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 2,
+          "column": 32,
+          "endLine": 2,
+          "endColumn": 50,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "computed lifecycle",
+      "source": "import React from 'react'; export class Old extends React.Component {['componentWillMount'](){} render(){return null;}}",
+      "expected": []
+    },
+    {
+      "name": "custom pragma",
+      "source": "import R from 'react'; export const oldValue=R.PropTypes;",
+      "settings": {
+        "pragma": "R"
+      },
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "R.PropTypes is deprecated since React 15.5.0, use the npm module prop-types instead",
+          "line": 1,
+          "column": 46,
+          "endLine": 1,
+          "endColumn": 57,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "lifecycle before deprecation",
+      "source": "import React from 'react'; export class Fine extends React.Component {componentWillMount(){} render(){return null;}}",
+      "settings": {
+        "version": "16.8.0"
+      },
+      "expected": []
+    },
+    {
+      "name": "modern APIs",
+      "source": "import React from 'react'; import {createRoot} from 'react-dom/client'; export class Fine extends React.Component {UNSAFE_componentWillMount(){} render(){return null;}} export const root=createRoot(document.body);",
+      "expected": []
+    },
+    {
+      "name": "unrelated object and class",
+      "source": "export const value=model.render; export class Fine extends Base {componentWillMount(){} render(){return null;}}",
+      "expected": []
+    },
+    {
+      "name": "JSDoc on a variable class expression",
+      "source": "/** @extends React.Component */\nconst Old = class extends Base { componentWillMount() {} }; export { Old };",
+      "expected": [
+        {
+          "messageId": "deprecated",
+          "message": "componentWillMount is deprecated since React 16.9.0, use UNSAFE_componentWillMount instead, see https://reactjs.org/docs/react-component.html#unsafe_componentwillmount. Use https://github.com/reactjs/react-codemod#rename-unsafe-lifecycles to automatically update your components.",
+          "line": 2,
+          "column": 34,
+          "endLine": 2,
+          "endColumn": 52,
+          "severity": 2
+        }
+      ]
+    },
+    {
+      "name": "JSDoc on an exported variable class expression",
+      "source": "/** @extends React.Component */\nexport const Old = class extends Base { componentWillMount() {} };",
+      "expected": []
+    },
+    {
+      "name": "string lifecycle method name",
+      "source": "export class Old extends React.Component { \"componentWillMount\"() {} }",
+      "expected": []
+    },
+    {
+      "name": "computed literal lifecycle method name",
+      "source": "export class Old extends React.Component { [\"componentWillMount\"]() {} }",
+      "expected": []
+    },
+    {
+      "name": "JSDoc braced React type",
+      "source": "/** @extends {React.Component} */\nexport class Old extends Base { componentWillMount() {} }",
+      "expected": []
+    },
+    {
+      "name": "ordinary variable block comment",
+      "source": "/* @extends React.Component */\nconst Fine = class extends Base { componentWillMount() {} }; export { Fine };",
+      "expected": []
+    },
+    {
+      "name": "distant JSDoc does not mark a React component",
+      "source": "/** @extends React.Component */\n\nexport class Fine extends Base { componentWillMount() {} }",
+      "expected": []
+    },
+    {
+      "name": "ordinary object JSDoc does not mark a React class",
+      "source": "/** @extends React.Component */\nexport const Fine = { componentWillMount() {} };",
+      "expected": []
+    }
+  ]
+}

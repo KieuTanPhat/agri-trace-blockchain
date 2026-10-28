@@ -13,10 +13,73 @@ import { getAllowedLotCommands } from './lot-action.policy.js';
 import { lotEvidence } from './lot-evidence.js';
 import { resolveLotCustodian } from './lot-custody.js';
 
+type ProvenanceRun = NonNullable<InternalLot['processingRun']>;
+/** Inputs consumed to make a processed lot. Private farms stay anonymous. */
+export function processingProvenance(
+  run: ProvenanceRun | null,
+  processorName: string,
+  publicView: boolean,
+) {
+  if (!run) return null;
+  return {
+    ...(publicView ? {} : { runId: run.id }),
+    code: run.code,
+    processType: run.processType,
+    completedAt: run.completedAt,
+    processorName,
+    inputTotal: run.inputTotal === null ? null : Number(run.inputTotal),
+    outputTotal: run.outputTotal === null ? null : Number(run.outputTotal),
+    lossTotal: run.lossTotal === null ? null : Number(run.lossTotal),
+    baseUnit: run.baseUnit,
+    inputs: run.inputs.map((input) => ({
+      ...(publicView ? {} : { lotId: input.lotId }),
+      lotCode: input.lot.lotCode,
+      productName: input.lot.product.productName,
+      quantity: Number(input.quantity),
+      unit: input.unit,
+      originType: input.lot.originType,
+      producerName:
+        input.lot.harvest && publicView && input.lot.harvest.cycle.farm.privacy !== 'PUBLIC'
+          ? 'Vùng sản xuất riêng tư'
+          : input.lot.organization.name,
+      harvestTime: input.lot.harvest?.harvestTime ?? null,
+    })),
+    // Material bought outside AgriTrace: declared by the processor, not traced further.
+    externalInputs: run.externalInputs.map((input) => ({
+      materialName: input.receipt.materialName,
+      supplierName: input.receipt.supplierName,
+      ...(publicView ? {} : { documentNo: input.receipt.documentNo }),
+      receivedAt: input.receipt.receivedAt,
+      quantity: Number(input.quantity),
+      unit: input.unit,
+      selfDeclared: true,
+    })),
+    // The public log never names the staff member who recorded a step.
+    steps: run.logs.map((log) => ({
+      ...(publicView ? {} : { id: log.id, recordedBy: log.recordedBy }),
+      step: log.step,
+      occurredAt: log.occurredAt,
+      note: log.note,
+      correction: log.correctsId !== null,
+    })),
+  };
+}
+const cycleSummary = (
+  cycle: { id: string; cycleCode: string; currentState: string; startDate: Date | null } | undefined,
+) =>
+  cycle
+    ? {
+        cycleId: cycle.id,
+        cycleCode: cycle.cycleCode,
+        currentState: cycle.currentState,
+        startDate: cycle.startDate,
+      }
+    : null;
+
 export function toInternalLotDto(lot: InternalLot, actor: Actor) {
   const traceEvents = [
     ...lot.traceEvents,
-    ...lot.harvest.cycle.traceEvents,
+    ...(lot.harvest?.cycle.traceEvents ?? []),
   ].sort(
     (a, b) =>
       a.eventTime.getTime() - b.eventTime.getTime() ||
@@ -26,11 +89,18 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
   const latest = traceEvents.at(-1);
   return {
     lotId: lot.id,
-    chainId: lot.harvest.cycle.chainId,
+    chainId: lot.harvest?.cycle.chainId ?? lot.processingRun?.chainId ?? null,
+    originType: lot.originType,
+    processing: processingProvenance(lot.processingRun, lot.organization.name, false),
     traceToken: lot.traceQr?.traceToken,
     lotCode: lot.lotCode,
+    lotName: lot.lotName,
+    packageCount: lot.packageCount,
+    packaging: lot.packaging,
+    packedAt: lot.packedAt?.toISOString().slice(0, 10) ?? null,
+    initialStorageSiteId: lot.initialStorageSiteId,
     productName: lot.product.productName,
-    harvestTime: lot.harvest.harvestTime,
+    harvestTime: lot.harvest?.harvestTime ?? lot.processingRun?.completedAt ?? lot.createdAt,
     initialQuantity: Number(lot.initialQuantity),
     availableQuantity: Number(lot.availableQuantity),
     unit: lot.unit,
@@ -52,12 +122,7 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
       .filter((m) => m.type === 'DAMAGE_OUT')
       .reduce((sum, m) => sum.add(m.quantity), new Prisma.Decimal(0))
       .toNumber(),
-    productionCycle: {
-      cycleId: lot.harvest.cycle.id,
-      cycleCode: lot.harvest.cycle.cycleCode,
-      currentState: lot.harvest.cycle.currentState,
-      startDate: lot.harvest.cycle.startDate,
-    },
+    productionCycle: cycleSummary(lot.harvest?.cycle),
     farmOrg: {
       organizationId: lot.organization.id,
       name: lot.organization.name,
@@ -75,8 +140,7 @@ export function toInternalLotDto(lot: InternalLot, actor: Actor) {
       actor,
     ),
     proofStatus:
-      evidence.sensorEvidence.status === 'INTEGRITY_WARNING' ||
-      evidence.sensorEvidence.status === 'LEGACY_UNVERIFIED'
+      evidence.sensorEvidence.status === 'INTEGRITY_WARNING'
         ? 'INTEGRITY_WARNING'
         : aggregateLotProofStatus(traceEvents),
     timeline: traceEvents.map((event) => ({
@@ -137,28 +201,31 @@ export function toPublicLotDto(
     lotId: lot.id,
     traceToken,
     lotCode: lot.lotCode,
+    lotName: lot.lotName,
     productName: lot.product.productName,
-    harvestTime: lot.harvest.harvestTime,
+    harvestTime: lot.harvest?.harvestTime ?? lot.processingRun?.completedAt ?? lot.createdAt,
     initialQuantity: Number(lot.initialQuantity),
     availableQuantity: Number(lot.availableQuantity),
     unit: lot.unit,
     currentState: lot.currentState,
     ...evidence,
-    productionCycle: {
-      cycleId: lot.harvest.cycle.id,
-      cycleCode: lot.harvest.cycle.cycleCode,
-      currentState: lot.harvest.cycle.currentState,
-      startDate: lot.harvest.cycle.startDate,
-    },
-    farmOrg: {
-      organizationId: lot.harvest.cycle.farm.organizationId,
-      name: lot.harvest.cycle.farm.name,
-      type: 'FARM',
-    },
+    originType: lot.originType,
+    processing: processingProvenance(lot.processingRun, lot.organization?.name ?? '', true),
+    productionCycle: cycleSummary(lot.harvest?.cycle),
+    farmOrg: lot.harvest
+      ? {
+          organizationId: lot.harvest.cycle.farm.organizationId,
+          name: lot.harvest.cycle.farm.privacy === 'PUBLIC' ? lot.harvest.cycle.farm.name : 'Vùng sản xuất riêng tư',
+          type: 'FARM',
+        }
+      : {
+          organizationId: lot.organization.id,
+          name: lot.organization.name,
+          type: lot.organization.type,
+        },
     allowedCommands: [],
     proofStatus:
-      evidence.sensorEvidence.status === 'INTEGRITY_WARNING' ||
-      evidence.sensorEvidence.status === 'LEGACY_UNVERIFIED'
+      evidence.sensorEvidence.status === 'INTEGRITY_WARNING'
         ? 'INTEGRITY_WARNING'
         : aggregateLotProofStatus(traceEvents),
     timeline: traceEvents.map((event) => ({
@@ -180,7 +247,7 @@ export function toPublicLotDto(
         }
       : undefined,
     shipment: lot.shipment,
-    certificates: [...lot.certificates, ...lot.harvest.cycle.certificates].map(
+    certificates: [...lot.certificates, ...(lot.harvest?.cycle.certificates ?? [])].map(
       publicCertificate,
     ),
   };
@@ -197,9 +264,24 @@ function publicCertificate(certificate: PublicLot['certificates'][number]) {
   };
 }
 
-function eventSummary(eventType: string) {
+export function eventSummary(eventType: string) {
   const summaries: Record<string, string> = {
-    PRODUCTION_CYCLE_CREATED: 'Khởi tạo chu kỳ sản xuất.',
+    EVIDENCE_ATTACHED: 'Bổ sung hình ảnh và hồ sơ cho giai đoạn này.',
+    EVIDENCE_WITHDRAWN: 'Gỡ tài liệu đã công khai.',
+    DISTRIBUTION_SITE_ALLOCATED: 'Sắp xếp hàng vào địa điểm bảo quản.',
+    PROCESSING_RUN_CREATED: 'Chuẩn bị chế biến.',
+    PROCESSING_RUN_COMPLETED: 'Hoàn thành chế biến và tạo lô thành phẩm.',
+    PROCESSING_COMPLETED: 'Hoàn thành chế biến và đóng gói.',
+    SITE_TRANSFER_COMPLETED: 'Chuyển hàng sang địa điểm mới.',
+    DISTRIBUTION_PROPOSED: 'Chuẩn bị giao hàng.',
+    DISTRIBUTION_ATTESTED: 'Xác nhận thông tin giao nhận.',
+    DISTRIBUTION_READY: 'Hàng đã sẵn sàng bàn giao.',
+    DISTRIBUTION_IN_TRANSIT: 'Đã bàn giao cho đơn vị vận chuyển.',
+    DISTRIBUTION_DELIVERED: 'Điểm nhận đã nhận hàng.',
+    DISTRIBUTION_CANCELLED: 'Hủy giao nhận trước khi bàn giao hàng.',
+    DISTRIBUTION_QUANTITY_RECORDED:
+      'Ghi nhận thay đổi số lượng của lô (bán, hao hụt hoặc chế biến).',
+    PRODUCTION_CYCLE_CREATED: 'Mở mùa vụ trồng mới.',
     CYCLE_PLANTED: 'Ghi nhận gieo trồng.',
     CARE_RECORDED: 'Ghi nhận hoạt động chăm sóc.',
     SENSOR_READING_RECORDED: 'Ghi nhận dữ liệu cảm biến.',
@@ -224,5 +306,5 @@ function eventSummary(eventType: string) {
     RECALL_RECORDED: 'Lô hàng đã được thu hồi.',
     LOT_EXPIRED: 'Ghi nhận lô hàng hết hạn sử dụng.',
   };
-  return summaries[eventType] ?? eventType.replaceAll('_', ' ').toLowerCase();
+  return summaries[eventType] ?? 'Cập nhật nhật ký của lô hàng.';
 }

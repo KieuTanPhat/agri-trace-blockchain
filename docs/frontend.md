@@ -1,78 +1,221 @@
 # Giao diện AgriTrace
 
-Nhận diện: logo chữ A có ngôi sao (xanh lục + cam/vàng), khẩu hiệu "Truy xuất nguồn gốc nông sản Việt". Liên hệ công khai: contact@agritrace.dev và Zalo +84 377 599 221; hai giá trị này chỉ khai báo trong `apps/web/src/lib/site-contact.ts`.
+Web dùng Next.js 16.4.2, React 19.3.0 và Tailwind 4. Chạy bằng Node 24.22.1,
+npm 12.1.0 theo README. `scripts/run-next.mjs` chạy Next native SWC/Turbopack;
+production build và start từ chối các cờ mock. API client không có fallback dữ liệu mẫu.
 
-Trang tên miền gốc `/` là trang thông tin tiếng Việt: hero, dải công nghệ, bốn giá trị, ba hàng tính năng, hành trình sáu bước, vai trò trong chuỗi, toàn vẹn dữ liệu, FAQ và dải liên hệ (email, Zalo). Font Be Vietnam Pro được phục vụ tại `/fonts` kèm giấy phép OFL. Không tải font, script hoặc ảnh từ domain ngoài khi mở trang.
+## Nguồn giao diện và cấu trúc
 
-Người tiêu dùng mở `/scan` từ nút Quét QR, dùng camera, ảnh QR hoặc mã/đường dẫn truy xuất. Ảnh được giải mã trên thiết bị; chỉ token hợp lệ được điều hướng tới `/trace/<token>` cùng origin. URL QR cũ được lấy token, không điều hướng sang website ngoài. Không bật camera tự động. HTTPS và quyền camera cần thiết khi chạy ngoài localhost; camera tắt khi rời trang hoặc chuyển ứng dụng.
+Danh mục mobile ở `apps/mobile/src/app/consumer` dùng ảnh, giá tham khảo theo đơn
+vị, liên hệ doanh nghiệp và lô QR từ API công khai. Hai danh sách có tìm kiếm
+tiếng Việt, lọc theo vùng/danh mục/loại hình và sắp xếp giá; trang chi tiết cho
+phép mở rộng giới thiệu, xem doanh nghiệp và chọn đúng lô trên tem để truy xuất.
+Nhãn có mã truy xuất không thay thế chứng nhận chất lượng hay proof Fabric.
+Giá, liên hệ và logo chỉ được chiếu từ bản xuất bản riêng trong
+`public_directory_publication`; không đọc ra hồ sơ pháp lý riêng tư. Endpoint
+ảnh kiểm lại khả năng hiển thị công khai và trả JPEG/PNG với `no-store`.
 
-Trang giới thiệu chỉ có nội dung tổng quát, không có QR/lô mẫu và không dẫn tới đăng nhập. Mockup điện thoại ở hero là hình minh họa trừu tượng, không có mã lô hay QR thật. Nhập trực tiếp `/login` để vào hệ thống quản lý; đích mặc định sau đăng nhập là `/dashboard`. Các đường dẫn được bảo vệ vẫn yêu cầu phiên đăng nhập và phân quyền hiện có. Việc không đặt link login trên landing không thay thế kiểm soát truy cập.
+Ledger UI theo snapshot preview đã duyệt trong
+[inventory](superpowers/specs/2026-10-22-ledger-ui-migration.inventory.json).
+[Spec](superpowers/specs/2026-10-22-ledger-ui-migration-design.md) và
+[plan](superpowers/plans/2026-10-22-ledger-ui-migration.md) ghi quyết định và acceptance.
+Baseline nghiệp vụ được pin trong inventory; không dùng presentation của baseline làm mẫu hoặc fallback.
 
-## Hệ thống thiết kế
-
-Đăng ký doanh nghiệp dùng `/register`, chọn AgriTrace quản lý peer hoặc peer tự
-quản trên VPS. `/enterprise` hiển thị hồ sơ, phản hồi xét duyệt, các chuỗi thuộc
-doanh nghiệp và yêu cầu kết nối. `/admin/enterprises` dành cho SYSTEM_ADMIN.
-Mật khẩu đăng ký chỉ ở bộ nhớ trang; khi mất phản hồi, nút thử lại giữ nguyên UUID
-và nội dung. Các lệnh xét duyệt/kết nối cũng giữ nguyên idempotency key. Peer tự
-quản chỉ nhập endpoint, tên TLS, MSP và chứng thư CA công khai; không nhận khóa
-riêng hoặc tài khoản SSH. “Đã duyệt” vẫn chờ vận hành, “Đã kiểm chứng kết nối” là
-kết quả giao dịch Fabric tại thời điểm kiểm tra. Admission API mặc định đóng;
-mở demo theo [runbook](hybrid-fabric-runbook.md#12-đăng-ký-và-kết-nối-doanh-nghiệp-v1).
-
-Mã nằm ở `apps/web/src/styles`, nạp theo thứ tự trong `app/layout.tsx`:
-
-| File | Nội dung |
+| Vị trí trong `apps/web` | Trách nhiệm |
 | --- | --- |
-| `tokens.css` | Nguồn token duy nhất: màu (xanh lục, amber, trung tính, trạng thái), chữ, khoảng cách theo thang 4 px, bo góc, bóng, easing/thời lượng, kích thước khung |
-| `base.css` | Reset, kiểu chữ, focus, `.sr-only`, `.skip-link`, eyebrow, cụm nhấn trong tiêu đề |
-| `motion.css` | Keyframes và lớp chuyển động; tắt toàn bộ khi `prefers-reduced-motion: reduce` |
-| `app.css` | Thành phần dùng chung: panel, nút, form, notice, badge, bảng/thẻ dữ liệu, timeline, hộp thoại, khung quản lý, dashboard, trace, scanner |
-| `site.css` | Header/footer công khai, landing (`lp-*`), đăng nhập |
+| `src/app/**/page.tsx` | Wrapper giữ 143 URL; await params/searchParams qua `resolveLedgerRouteInput` |
+| `src/features/ledger/screens` | Screen tương ứng từng URL, chọn composition và shell |
+| `src/features/ledger/workspace` | Doanh nghiệp, sản xuất, phân phối và chế biến |
+| `src/features/ledger/public` | Landing, legal, scanner, trace và phản ánh công khai |
+| `src/components/ledger/ui`, `kit`, `shell`, `workspace` | Primitives, biểu mẫu, bảng, dialog, navigation, evidence |
+| `src/lib/ledger` | Typed API adapters, quyền, scope query, labels, i18n và hook không giao diện |
+| `src/app/globals.css` | Tailwind và token Ledger từ preview |
+| `ledger-migration.matrix.json` | URL/action, implementation và phương pháp kiểm tra |
 
-Cam/vàng chỉ làm điểm nhấn (CTA, vệt gạch chân, số bước, trạng thái đang chọn). Trạng thái lỗi/cảnh báo/thành công dùng màu trạng thái riêng, không dùng màu thương hiệu. Icon chỉ dùng `lucide-react`. Logo và biểu tượng PWA nằm ở `public/agritrace/brand` và `public/icons`; favicon/apple icon ở `src/app/icon.png`, `src/app/apple-icon.png`.
+Không dùng CSS/component/navigation của giao diện cũ. Auth, permission, command journal,
+signer, QR/parser, evidence và service worker không có giao diện giữ contract hiện hành.
+`register-service-worker.tsx` chỉ đăng ký worker và trả `null`.
 
-Breakpoint dùng thống nhất: 600 px (điện thoại), 900 px (máy tính bảng, sidebar chuyển thành ngăn kéo và thanh điều hướng dưới), 1200 px (rộng). Khi thêm style, dùng token thay vì mã màu hoặc cỡ chữ viết cứng.
+Shell hỗ trợ desktop/mobile, sáng/tối và tiếng Việt/Anh. Theme lưu trên thiết bị tại
+`agt-admin.theme`; locale tại `agt-admin.locale`. Tùy chọn bảng màu/typography/chiều rộng
+của UI cũ không được nạp. Dialog dùng Radix với keyboard, focus trap/restore và Escape
+phù hợp trạng thái yêu cầu. Chuyển động tôn trọng `prefers-reduced-motion`.
 
-## Chuyển động
+## Phiên, quyền và command
 
-Chuyển động nhẹ, chỉ dùng `transform` và `opacity`, 200–600 ms, easing `cubic-bezier(0.22, 1, 0.36, 1)`. Gồm: hero vào trang theo lớp `.enter`, mockup nổi nhẹ, `Reveal` (`components/ui/reveal.tsx`) làm nội dung dưới màn hình hiện dần khi cuộn, vẽ cung và bật số trong hành trình sáu bước, marquee công nghệ (dừng khi hover), nâng thẻ khi hover, accordion FAQ, header thu nhỏ khi cuộn, fade nhẹ khi chuyển trang quản lý và skeleton khi đang tải.
+`LedgerProviders` giữ auth/cache theo authorization scope. Trong lúc kiểm tra lại quyền,
+nội dung riêng bị chặn; đổi subject/organization/revision loại dữ liệu cũ. Navigation
+lọc theo quyền/capability thực; API quyết định quyền cuối cùng. Tài khoản mật khẩu tạm
+hoặc quá hạn vào `/account/password`; không gọi enterprise API để vượt gate.
 
-`Reveal` chỉ ẩn nội dung nằm dưới màn hình sau khi JavaScript chạy; không có JavaScript hoặc không có `IntersectionObserver` thì nội dung luôn hiển thị. Không đặt chuyển động lên cảnh báo thu hồi/hết hạn/toàn vẹn và không gắn vào biểu mẫu đang nhập liệu hoặc ký lệnh.
+Dialog/sheet/select/menu riêng tư dùng portal trong cùng vùng `hidden/inert` của
+trang đã được xác minh. Kiểm tra lại quyền cùng tài khoản giữ form trong bộ nhớ;
+chỉ cho tương tác lại sau khi xác minh. Lỗi kiểm tra quyền vẫn có nút thử lại, không
+tự hủy bản nháp. Quyền hiển thị lấy từ cache đúng scope để giữ cây giao diện ẩn;
+query và command vẫn dùng gate/transport/API hiện hành. Auditor và Compliance Reviewer
+đọc vụ/nhật ký/thu hoạch theo projection của API sản xuất, không gọi enterprise-access
+để cấp quyền doanh nghiệp hoặc hiện lệnh ghi.
 
-## Desktop và mobile
+API client dùng API thật. `NEXT_PUBLIC_API_BASE_URL` là địa chỉ public;
+`NEXT_PUBLIC_API_SAME_ORIGIN=true` dùng `/api` trong browser. Reverse proxy môi trường
+phải chuyển `/api` tới NestJS và phần còn lại tới web; standalone Next không tự cung cấp
+NestJS. `API_INTERNAL_BASE_URL` dành cho request phía server khi cần. Cookie/refresh,
+CSRF và session coordination giữ baseline.
 
-Form đăng nhập giữ input và nút submit ở trạng thái disabled trong HTML ban đầu,
-cho đến khi React đã gắn handler và hoàn tất khôi phục phiên. Bài trình duyệt chờ
-nút sẵn sàng, kiểm POST login trả 201 rồi mới kiểm điều hướng; lỗi giữ response
-status/timing, console, ảnh đã che input và trace đã loại credential trong artifact.
+`CommandForm`/`CommandDialog` dùng command journal hiện có. Giữ body/version/idempotency
+key gốc khi phản hồi chưa rõ; đối soát trước yêu cầu mới. Không hiện thành công do đóng
+dialog, invalidate query hoặc hoàn thành prepare. 409/422 giữ dữ liệu nhập; không tự
+đổi version/key để vượt từ chối. Mật khẩu/OTP/nội dung riêng/phản ánh người tiêu dùng
+chỉ giữ trong bộ nhớ khi luồng yêu cầu như vậy.
 
-Khung quản lý dùng sidebar nhóm theo công việc (Vận hành, Tuân thủ, Hệ thống; chỉ hiện mục vai trò được truy cập) trên desktop. Từ 900 px trở xuống là thanh điều hướng dưới với bốn mục đầu và nút "Thêm" mở ngăn kéo dạng hộp thoại có quản lý focus và Escape. Bảng lô, vụ trồng, danh mục quản trị và lịch sử số lượng dùng cùng dữ liệu cho bảng desktop và thẻ mobile ở 600 px trở xuống. Bộ lọc và phân trang áp dụng cho cả hai. Biểu mẫu chuyển về một cột, input 16 px, thao tác tối thiểu 44 px, hộp thoại có chiều cao theo viewport và cuộn nội dung.
+## Các luồng chính
 
-Dashboard mở bằng số liệu và "Việc cần làm" (cảnh báo và thao tác khả dụng của lô nổi bật), không có banner giới thiệu.
+`/register` xác thực OTP trước hồ sơ, giữ sáu vai trò và giấy tờ theo loại tổ chức.
+`/join-organization` dùng token mời. Hồ sơ chờ duyệt xem `/enterprise/onboarding`;
+dịch vụ/hợp đồng/thanh toán mô phỏng local ở `/enterprise/service`, sau đó yêu cầu kết nối
+`/enterprise/connections`. Peer tự quản chỉ nhập endpoint/MSP/TLS/chứng thư công khai;
+không nhận khóa riêng/SSH. Duyệt hồ sơ không có nghĩa Fabric đã kiểm chứng.
 
-Trang truy xuất công khai ưu tiên điện thoại: cảnh báo thu hồi/hết hạn/toàn vẹn ở trên cùng, rồi tên lô và trạng thái, thông tin lô, chứng nhận, lịch sử và bằng chứng chuỗi khối. Tên dài và mã băm tự xuống dòng.
+Admin giữ hồ sơ/capability/điều chỉnh/kết nối, người dùng/phân công, maker/checker, MFA,
+cases/support/privacy/notices, billing và vận hành. `/admin/products` và trang theo
+organization chỉ đọc. Không cấp Admin/Auditor quyền ghi nghiệp vụ để làm hiện nút.
+Audit CSV, recall JSON và báo cáo giữ projection/limit/quyền baseline; decimal string
+không được làm tròn qua Number.
 
-Các trạng thái thu hồi/hết hạn vẫn hiển thị trước phần bằng chứng. Thao tác ghi dữ liệu theo `allowedCommands` từ API; kiểm toán viên chỉ đọc theo hợp đồng hiện hành. Service worker vẫn chỉ lưu trang giải thích offline, không lưu trang nghiệp vụ, tài khoản hoặc phản hồi API.
+Doanh nghiệp giữ member/role/ownership, profile amendment, sites/vehicles/materials/areas,
+catalog/revision/import, evidence, đối tác/inbox/support và dịch vụ. File riêng được xin
+quyền khi tải/xem, Blob URL được thu hồi; hash evidence vẫn được kiểm. 403 không biến
+thành ảnh public dự phòng.
 
-Giả lập IoT gửi `/iot/readings` qua cùng sổ command recovery với các lệnh nghiệp vụ
-(`INGEST_SENSOR_READING`, một yêu cầu chờ cho mỗi thiết bị). Mất phản hồi, phản
-hồi không đọc được hoặc lỗi 5xx hiện "Chưa rõ kết quả"; "Gửi lại" chỉ gửi/đối
-soát đúng body và key gốc, kể cả sau khi sửa form. Sau khi tải lại trang, yêu cầu
-gốc nằm trong mục yêu cầu đang chờ; bản đo khác cho cùng thiết bị bị chặn tới khi
-đối soát xong. Chỉ phản hồi từ chối 4xx của máy chủ mới là kết quả cuối.
+Mô hình nghiệp vụ là `ProductionCycle → HarvestEvent → Lot → Shipment`. Sản xuất giữ
+assignment/evidence/version/harvest recovery. Lot giữ `allowedCommands`, quantity/custody
+và cảnh báo recall/expiry/integrity độc lập proof. Phân phối cũ và distribution C2 có
+contract riêng; prepare/review/Ed25519 trên thiết bị/signed submit không gộp thành fake
+success. Khóa riêng không extractable, lưu IndexedDB, không gửi API. Kế hoạch giao nhận
+giữ revision/payload digest và đồng thuận từng bên. Phiếu chuyển kho giữ người nhận
+dự kiến, ghi chú khi tạo/nhận và chứng cứ SITE_TRANSFER; phiếu cách ly giữ chứng cứ
+QUARANTINE. Đọc/quản lý chứng cứ giữ quyền evidence.read/evidence.manage hiện hành.
+
+Chế biến giữ input/output decimal, packaging, conversions bất biến và version complete/cancel.
+Cân bằng UI chỉ là ước tính; API quyết định base quantity/tồn kho/output lot. Không hiện
+output thành công trước response. IoT dùng journal `INGEST_SENSOR_READING`, chặn bản đo
+mới cùng thiết bị khi yêu cầu cũ chưa rõ; đối soát đúng body/key gốc. Đổi loại cảm biến
+đồng bộ đơn vị °C/%; JSON yêu cầu/phản hồi và nút sao chép chỉ giữ snapshot bản ghi
+trong bộ nhớ trang, không thay body/key của yêu cầu đang chờ.
+
+## Công khai, camera và PWA
+
+Trang khách hàng nằm trong nhóm route `app/(site)`; `layout.tsx` của nhóm dựng
+`LedgerPublicShell` một lần để header/footer không dựng lại khi chuyển trang. `/` có ô tra cứu
+mã, vai trò trong chuỗi, quy trình truy xuất và liên hệ từ `lib/site-contact.ts`. `/about`,
+`/solutions` (gồm bảng giá `#bang-gia` và link đăng ký sang domain doanh nghiệp) và `/contact`
+là trang tĩnh, nội dung và ảnh (Unsplash, nguồn trong `PHOTO_CREDITS`) ở
+`features/ledger/public/content.ts`; chỉ mô tả năng lực đã có, không đặt số liệu, khách hàng hay
+giá chưa xác nhận. Trang chủ chưa có khối số liệu vì API chưa có endpoint thống kê công khai.
+Header công khai không có nút đăng nhập/đăng ký; đăng ký nằm trong menu Giải pháp.
+Trang công khai và `/login` chỉ có nền sáng: token riêng trong
+`components/ledger/shell/public-site.css` (lớp `.pub-site`, tông xanh lá và cam nhấn) và
+`useForceLight()` tạm gỡ `.dark` của khu quản lý. Hiệu ứng hiện dần khi cuộn (`Reveal`) tắt
+khi người dùng chọn giảm chuyển động. Bản tiếng Anh nằm trong `lib/ledger/public-i18n-en.ts`,
+đọc qua `pt()`; chuỗi thiếu rơi về `t()` rồi về tiếng Việt. `/privacy`, `/terms`
+giữ nội dung pháp lý/version hiện có. `/scan` giải mã QR trên thiết bị từ camera/ảnh/mã/URL.
+Chỉ bật camera sau đồng ý; tắt khi ẩn/rời trang, kể cả stream đến trễ. URL trace ngoài được
+lấy token, chuẩn hóa `/trace/<token>` cùng origin; scheme nguy hiểm và URL quản trị bị từ chối.
+Param `lotId` là trace token, không suy ra UUID riêng tư.
+
+Trace gọi public API/photo evidence, không tải private lot. VERIFIED vẫn đi cùng cảnh báo
+recall/expiry khi API trả như vậy, không chứng minh chất lượng/an toàn thực phẩm. Phản ánh
+giữ request ID/body khi thử lại kết quả chưa rõ, chỉ gửi contact khi consent, không lưu
+payload riêng vào localStorage. Service worker chỉ lưu trang giải thích offline, không
+cache trang nghiệp vụ/tài khoản/API. Camera thật/PWA cần thiết bị và HTTPS theo AGT-028.
+
+## Tách domain khách hàng và doanh nghiệp
+
+Build web với `NEXT_PUBLIC_BUSINESS_ORIGIN=https://nongtrace.site` và
+`NEXT_PUBLIC_CUSTOMER_ORIGIN=https://agritrace.dev`. Hai biến phải cùng có giá trị,
+là origin HTTPS khác nhau, không chứa path/query/credentials. Để trống cả hai
+giữ chế độ một hostname cho development/rehearsal. Dockerfile nhận hai build arg
+cùng tên; publisher production truyền hai origin này, chưa có thao tác deploy.
+
+`src/proxy.ts` chuyển GET/HEAD của login/register/join-organization và các trang
+quản lý trên domain khách hàng sang domain doanh nghiệp, giữ path/query. Root
+doanh nghiệp vào `/login`; `/scan`, `/trace/...` và các trang thông tin trong
+`CUSTOMER_PAGES` (`lib/site-origins.ts`) quay về domain khách hàng.
+API, assets và trang pháp lý giữ origin hiện tại. API browser dùng `/api` khi
+tách domain; cookie/token không chuyển giữa hai domain. Host lạ không được dùng
+để tạo đích redirect. `next` sau đăng nhập vẫn qua kiểm quyền và chống open redirect.
+
+Nút đăng nhập/đăng ký ở trang khách hàng đi thẳng sang doanh nghiệp; link quay
+về trang khách hàng và QR tạo từ màn lô/in tem dùng customer origin. Giữ
+`PUBLIC_TRACE_BASE_URL=https://agritrace.dev/trace` của API để QR/API đã phát hành
+và QR mới cùng dùng domain khách hàng. Không đổi token hoặc dữ liệu lô.
+
+Kiểm local hai hostname bằng cặp `http://nongtrace.localhost:<port>` và
+`http://agritrace.localhost:<port>`, reverse proxy cả hai tới cùng web candidate
+và `/api` tới API local có `CORS_ORIGIN` chứa đủ hai origin. Không dùng tài khoản
+production; không cần sửa hosts/DNS thật.
+
+Trước cutover production, hoàn tất các command đang chưa rõ kết quả trên origin
+cũ bằng body/key gốc. Session, bản nháp/recovery và khóa ký IndexedDB là dữ liệu
+theo origin, không tự chuyển sang domain mới. Khóa riêng không extractable không
+được xuất/chuyển qua URL; người ký cần đăng ký khóa thiết bị trên origin mới theo
+quyền hiện hành trước khi sử dụng. Domain mới yêu cầu đăng nhập lại.
 
 ## Kiểm tra
 
-Chạy `npm run check --workspace apps/web` trên Node/npm được ghi trong README. Kiểm tra trình duyệt ở 320, 390, 768 và 1440 px: landing, scan, login, dashboard, lô/chi tiết, vụ trồng/chi tiết, chuỗi và đối tác, admin/phân công, kiểm định, giả lập IoT và các trạng thái lỗi. Kiểm thêm tên dài, mã băm, bộ lọc đổi trang, bàn phím/Escape, camera bị từ chối, ảnh QR sai và `prefers-reduced-motion`.
+### Bản tin và hành trình người tiêu dùng
 
-Dữ liệu fixture khi kiểm tra local không phải bằng chứng nghiệm thu nghiệp vụ trên production. AGT-028 vẫn cần nghiệm thu theo issue, gồm thiết bị camera thật và người được phân công.
+- Admin mở `/admin/news` để tạo bản nháp, tải ảnh bìa, xem trước, sửa, đăng,
+  ẩn hoặc lưu trữ bản tin. Chỉ `SYSTEM_ADMIN` có quyền quản lý. Nội dung là
+  plain text; ảnh JPG/PNG/WebP tối đa 384 KB, mỗi chiều tối đa 2048 px.
+  Mọi thay đổi dùng version, idempotency và platform audit.
+- Logo và ảnh sản phẩm dùng tham số `v` theo evidence công khai hiện hành;
+  endpoint vẫn kiểm quyền công khai/thu hồi trên mọi request, kể cả URL phiên bản cũ.
+  Mobile lưu URL ảnh công khai cùng lịch sử xem, tải lại danh mục khi quay về màn
+  hình và chỉ tự thử lại ảnh lỗi một lần; lỗi kéo dài có nút tải lại thủ công.
+- Mobile đọc cùng nguồn `/public/news`; bản nháp, tin đã ẩn/lưu trữ và tin hẹn
+  giờ chưa đến hạn không được trả về. Danh sách cập nhật khi trở lại màn hình;
+  người dùng cũng có thể kéo để tải lại bảng tin.
+- Web và mobile nhóm hành trình theo từng địa điểm, thiếu địa điểm thì nhóm
+  theo doanh nghiệp. Mở từng nhóm để xem nhật ký, ảnh, liên hệ và chứng nhận
+  công khai còn hiệu lực. Các sự kiện đính kèm kỹ thuật được thay bằng thư viện ảnh.
+- Nút doanh nghiệp trên trang truy xuất mobile mở hồ sơ bằng organization ID,
+  không tìm theo tên vùng trồng hoặc nhãn riêng tư. Từ khóa tìm kiếm của danh
+  sách phải hiển thị rõ; xóa bộ lọc cũng xóa tham số URL để tải lại không lọc ngầm.
+- `PublicDirectoryPublication` là snapshot công khai tách khỏi hồ sơ pháp lý.
+  `publicDirectory.traceSites`, `traceMedia` (ràng buộc `lotId`, `evidenceId`,
+  `groupKey`, caption) và `traceDetailsPublished` cho phép công khai tường minh.
+  Endpoint ảnh kiểm lại snapshot mới nhất, chủ sở hữu, phạm vi lô/vụ/địa điểm,
+  thu hồi ảnh và supersession trên mỗi request. Giấy đất/đăng ký pháp lý không
+  được suy ra là ảnh công khai. Nhóm vùng trồng riêng tư giữ ẩn vị trí và ảnh.
+- Với bộ trái cây local đã được chủ dữ liệu cho phép, chạy
+  `node scripts/demo/publish-fruit-presentation.mjs` sau khi chuẩn bị asset và
+  nạp dữ liệu; script lấy logo từ `Data/logoDoanhNghiep`, upload qua API và
+  tạo snapshot. `node scripts/demo/publish-fruit-news.mjs` thêm ảnh bìa bằng
+  API admin. Cả hai kiểm đúng container/DB local trước khi ghi.
 
-### Giới hạn nghiệm thu
+`npm run check --workspace apps/web` gồm typecheck, Vitest, lint-contract, image-optimizer
+và production build; build đã chạy ESLint/Oxlint. Browser contract suite từ gốc repo:
 
-Kiểm camera thật, cài PWA và permission/offline trên thiết bị HTTPS theo AGT-028;
-fixtures không thay cho camera phần cứng hoặc UAT nghiệp vụ. Scanner camera,
-upload và nhập mã dùng cùng route trace local đã validation; không điều hướng
-ra URL ngoài hoặc bật camera tự động. Giữ warning priority, auditor read-only,
-server allowedCommands và service worker network-only cho dữ liệu nghiệp vụ.
-Thay đổi chỉ về giao diện phải giữ API/schema/business policy.
+```powershell
+npm exec --workspace apps/web -- playwright test --config playwright.ledger.config.ts --project=contract --reporter=dot
+```
+
+Fixture chỉ ở test, không import vào runtime. Gate trong plan kiểm baseline scope,
+provenance, 143 wrapper/screen và evidence action; source-review khác browser/live acceptance.
+Kiểm ảnh đại diện 1440/390, spot-check 320/768, sáng-VI/tối-EN và một flow keyboard/focus/
+Escape/reduced-motion. Thay đổi nhỏ chạy subset bị ảnh hưởng.
+
+Dockerfile tạo `.next/standalone`, user `node`. Smoke dùng image/container cách ly và
+config API thật, kiểm startup/login/public trace/assets/image và reverse proxy `/api`;
+không thay container triển khai. Fixture xanh không chứng minh API/DB/Worker/Fabric
+production hoặc camera phần cứng đã nghiệm thu.
+
+Khi smoke dùng cổng riêng, origin của browser (ví dụ `http://localhost:3190`)
+phải có trong `CORS_ORIGIN` của API dùng cho smoke. Auth kiểm tra origin ở các
+POST login/refresh; health HTTP 200 chưa chứng minh đăng nhập đã hoạt động.
+Có thể chạy API cách ly từ image và cấu hình local hiện có, bổ sung origin smoke,
+không chạy lại migration/seed hay Worker. Proxy `/api` tới API cách ly và các đường
+còn lại tới web candidate; kiểm đăng nhập bằng tài khoản local và public trace
+có dữ liệu thật. Giữ log/ảnh/receipt trong artifact local được ignore; dọn các
+container và network smoke sau kiểm tra, giữ nguyên ứng dụng local đang chạy.

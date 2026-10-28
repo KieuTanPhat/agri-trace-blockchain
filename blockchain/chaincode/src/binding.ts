@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { canonicalize } from "json-canonicalize";
 
 import { contractError } from "./errors";
-import { ENTITY_TYPES, EVENT_TYPES } from "./types";
+import { ENTITY_TYPES, EVENT_TYPES, type EntityType } from "./types";
 
 /** Release B protocol constants. They must match the API encoder byte for
  * byte; shared vectors in test/binding.spec.ts lock both implementations. */
@@ -116,6 +116,12 @@ export function requireUuid(value: unknown, label: string): string {
   if (typeof value !== "string" || !UUID.test(value))
     throw contractError("INVALID_INPUT", `${label} must be a lowercase UUID`);
   return value;
+}
+
+export function requireEntityType(value: unknown): EntityType {
+  if (typeof value !== "string" || !(ENTITY_TYPES as readonly string[]).includes(value))
+    throw contractError("INVALID_INPUT", "entityType is not supported");
+  return value as EntityType;
 }
 
 export function requireName(value: unknown, label: string): string {

@@ -1,0 +1,2 @@
+"use client";import{Directory}from"../organizations/screen";import{Guard}from"@/components/ledger/kit/guard";function Content(){return <Guard permission="directory.read"><Directory detailBase="/admin/directory/"/></Guard>;}
+import type{LedgerScreenProps}from"@/lib/ledger/route-input";import{LedgerRouteScreen}from"@/components/ledger/route-screen";import{useLocale}from"@/components/ledger/locale";export default function LedgerScreen({route}:LedgerScreenProps){useLocale();return <LedgerRouteScreen route={route} name="admin-directory"><Content/></LedgerRouteScreen>;}

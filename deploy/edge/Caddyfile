@@ -18,7 +18,7 @@
     }
 }
 
-agritrace.dev, www.agritrace.dev {
+agritrace.dev, www.agritrace.dev, nongtrace.site {
     import application prod-api prod-web
 }
 

@@ -125,7 +125,7 @@ describe('Mobile consumer auth / isolated PostgreSQL', () => {
     if (app) await app.close();
     // Only exact fixture users, never reset/truncate shared tables.
     await db.user.deleteMany({
-      where: { phone: { in: [...phones] }, fullName: `Fixture ${tag}` },
+      where: { loginPhone: { in: [...phones] }, fullName: `Fixture ${tag}` },
     });
     await db.user.deleteMany({ where: { email: `${tag}@fixture.invalid` } });
     await db.$disconnect();
@@ -144,7 +144,7 @@ describe('Mobile consumer auth / isolated PostgreSQL', () => {
       'ward',
     ]);
     const user = await db.user.findUniqueOrThrow({
-      where: { phone: value },
+      where: { loginPhone: value },
       include: { consumerProfile: true },
     });
     expect(user.email).toBe(`${value.slice(1)}@phone.invalid`);
@@ -174,7 +174,7 @@ describe('Mobile consumer auth / isolated PostgreSQL', () => {
     } finally {
       jwt.sign = original;
     }
-    expect(await db.user.findUnique({ where: { phone: value } })).toBeNull();
+    expect(await db.user.findUnique({ where: { loginPhone: value } })).toBeNull();
     expect(
       await db.consumerPhoneProof.findUnique({
         where: { tokenHash: proofs.get(body.firebaseIdToken)!.tokenHash },
@@ -190,9 +190,9 @@ describe('Mobile consumer auth / isolated PostgreSQL', () => {
       post('register', body),
     ]);
     expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
-    expect(await db.user.count({ where: { phone: value } })).toBe(1);
+    expect(await db.user.count({ where: { loginPhone: value } })).toBe(1);
     const account = await db.user.findUniqueOrThrow({
-      where: { phone: value },
+      where: { loginPhone: value },
     });
     expect(
       await db.consumerProfile.count({ where: { userId: account.id } }),
@@ -209,7 +209,7 @@ describe('Mobile consumer auth / isolated PostgreSQL', () => {
     );
     await post('register', { ...body, wardCode: 'not-a-code' }).expect(400);
     await post('register', { ...body, password: 'ậ'.repeat(25) }).expect(400);
-    expect(await db.user.findUnique({ where: { phone: value } })).toBeNull();
+    expect(await db.user.findUnique({ where: { loginPhone: value } })).toBeNull();
   });
   it('reset revokes all old families/JWTs, changes password, consumes proof and returns no new session', async () => {
     const value = phone();
@@ -275,6 +275,12 @@ describe('Mobile consumer auth / isolated PostgreSQL', () => {
       for (const method of ['get', 'post', 'patch', 'put', 'delete'] as const) {
         if (!item[method]) continue;
         const route = path.replace(/\{[^}]+\}/g, randomUUID());
+        // Anonymous reference data (addresses, plans) needs no account at all;
+        // only routes that refuse an anonymous caller are private.
+        const anonymous = await request(app.getHttpServer())
+          [method](route)
+          .send({});
+        if (![401, 403].includes(anonymous.status)) continue;
         const response = await request(app.getHttpServer())
           [method](route)
           .set('Authorization', `Bearer ${session.accessToken}`)
@@ -334,7 +340,7 @@ describe('Mobile consumer auth / isolated PostgreSQL', () => {
     await post('login', { phone: value, password })
       .set('Origin', 'https://attacker.invalid')
       .expect(403);
-    expect(await db.user.findUnique({ where: { phone: value } })).toBeNull();
+    expect(await db.user.findUnique({ where: { loginPhone: value } })).toBeNull();
   });
   it('enforces a persistent per-phone limit and Retry-After without storing raw phone identifiers', async () => {
     const value = phone();

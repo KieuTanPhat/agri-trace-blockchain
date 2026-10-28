@@ -30,9 +30,13 @@ export class NewsImageService {
   async cover(id: string) {
     // Recheck publication/allowlist even on cache hits; no cached private articles.
     const row = await this.db.consumerNews.findFirst({
-      where: { id, isPublished: true, publishedAt: { lte: new Date() } },
-      select: { coverUrl: true },
+      where: { id, isPublished: true, archivedAt: null, publishedAt: { lte: new Date() } },
+      select: { coverUrl: true, coverContent:true, coverMimeType:true },
     });
+    if(row?.coverContent&&row.coverMimeType){
+      const bytes=Buffer.from(row.coverContent);
+      return {mimeType:row.coverMimeType as PublicNewsImageDto['mimeType'],dataBase64:bytes.toString('base64'),...imageDimensions({bytes,contentType:row.coverMimeType})};
+    }
     const url =
       row &&
       allowedCover(

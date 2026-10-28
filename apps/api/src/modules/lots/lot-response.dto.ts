@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import {PublicJourneyGroupDto} from './public-journey.dto.js';
 import { ROLE_CODES } from '../auth/role-codes.js';
 import { LOT_COMMANDS } from './lot-action.policy.js';
 import {
@@ -47,7 +48,8 @@ export class CycleSummaryDto {
 }
 export class SensorEvidenceDto {
   @ApiProperty({
-    enum: ['FINALIZED', 'NO_DATA', 'LEGACY_UNVERIFIED', 'INTEGRITY_WARNING'],
+    enum: ['FINALIZED', 'NO_DATA', 'INTEGRITY_WARNING', 'NOT_APPLICABLE'],
+    description: 'NOT_APPLICABLE for lots created by processing',
   })
   status!: string;
   @ApiProperty() readingCount!: number;
@@ -149,16 +151,68 @@ class CustodianDto {
   role!: string;
   @ApiProperty({ format: 'uuid' }) organizationId!: string;
 }
+export class ProcessingInputSummaryDto {
+  @ApiProperty({ type: String, format: 'uuid', required: false }) lotId?: string;
+  @ApiProperty() lotCode!: string;
+  @ApiProperty() productName!: string;
+  @ApiProperty() quantity!: number;
+  @ApiProperty() unit!: string;
+  @ApiProperty({ enum: ['HARVEST', 'TRANSFORMATION'] }) originType!: string;
+  @ApiProperty() producerName!: string;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' })
+  harvestTime!: string | null;
+}
+export class ProcessingProvenanceDto {
+  @ApiProperty({ type: String, format: 'uuid', required: false }) runId?: string;
+  @ApiProperty() code!: string;
+  @ApiProperty() processType!: string;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' })
+  completedAt!: string | null;
+  @ApiProperty() processorName!: string;
+  @ApiProperty({ type: Number, nullable: true }) inputTotal!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) outputTotal!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) lossTotal!: number | null;
+  @ApiProperty() baseUnit!: string;
+  @ApiProperty({ type: [ProcessingInputSummaryDto] })
+  inputs!: ProcessingInputSummaryDto[];
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: true,
+    isArray: true,
+    description: 'Nguyên liệu nhập ngoài AgriTrace, doanh nghiệp tự khai (selfDeclared = true)',
+  })
+  externalInputs!: Record<string, unknown>[];
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: true,
+    isArray: true,
+    description: 'Nhật ký các bước chế biến; bản công khai không có người ghi',
+  })
+  steps!: Record<string, unknown>[];
+}
 class LotBaseDto {
+  @ApiProperty({ enum: ['HARVEST', 'TRANSFORMATION'] }) originType!: string;
+  @ApiProperty({
+    type: ProcessingProvenanceDto,
+    nullable: true,
+    description: 'Inputs consumed by the processing run that created this lot',
+  })
+  processing!: ProcessingProvenanceDto | null;
   @ApiProperty({ format: 'uuid' }) lotId!: string;
   @ApiProperty() lotCode!: string;
+  @ApiProperty({ type: String, nullable: true, required: false }) lotName?: string | null;
   @ApiProperty() productName!: string;
   @ApiProperty({ format: 'date-time' }) harvestTime!: string;
   @ApiProperty() initialQuantity!: number;
   @ApiProperty() availableQuantity!: number;
   @ApiProperty() unit!: string;
   @ApiProperty({ enum: LotState }) currentState!: string;
-  @ApiProperty({ type: CycleSummaryDto }) productionCycle!: CycleSummaryDto;
+  @ApiProperty({
+    type: CycleSummaryDto,
+    nullable: true,
+    description: 'Null for lots created by processing',
+  })
+  productionCycle!: CycleSummaryDto | null;
   @ApiProperty({ type: OrganizationSummaryDto })
   farmOrg!: OrganizationSummaryDto;
   @ApiProperty({ enum: PROOF_STATUSES }) proofStatus!: string;
@@ -173,6 +227,11 @@ class LotBaseDto {
   @ApiProperty({ type: SensorEvidenceDto }) sensorEvidence!: SensorEvidenceDto;
 }
 export class InternalLotDto extends LotBaseDto {
+  @ApiProperty({ type: Number, nullable: true, required: false }) packageCount?: number | null;
+  @ApiProperty({ type: String, nullable: true, required: false }) packaging?: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date', required: false }) packedAt?: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'uuid', required: false }) initialStorageSiteId?: string | null;
+  @ApiProperty({ type: Boolean, required: false }) distributionMode?: boolean;
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   chainId!: string | null;
   @ApiProperty({ required: false }) traceToken?: string;
@@ -190,7 +249,33 @@ export class InternalLotDto extends LotBaseDto {
   @ApiProperty({ type: CustodianDto, nullable: true })
   custodian!: CustodianDto | null;
 }
+export class PublicDistributionLegDto {
+  @ApiProperty({type:String,nullable:true,description:'Accepted quantity after completed handover only'}) receivedQuantity!:string|null;
+  @ApiProperty({type:String,nullable:true,description:'Current unresolved carrier custody for this lot only'}) pendingQuantity!:string|null;
+  @ApiProperty({type:String,nullable:true}) returnedQuantity!:string|null;
+  @ApiProperty({enum:['PLANNED','CARRIER','RECEIVER','RECEIVER_WITH_REMAINDER']}) custodyStage!:string;
+  @ApiProperty() senderName!: string;
+  @ApiProperty() carrierName!: string;
+  @ApiProperty() receiverName!: string;
+  @ApiProperty({ description: 'Quantity for this source lot only' })
+  quantity!: string;
+  @ApiProperty() unit!: string;
+  @ApiProperty() status!: string;
+  @ApiProperty({ format: 'date-time' }) recordedAt!: string;
+}
+export class PublicTraceNoticeDto {
+  @ApiProperty({ enum: ['WARNING', 'RECALL'] }) kind!: string;
+  @ApiProperty() message!: string;
+  @ApiProperty({ format: 'date-time' }) createdAt!: string;
+}
 export class PublicLotDto extends LotBaseDto {
+  @ApiProperty({type:[PublicJourneyGroupDto]}) journey!:PublicJourneyGroupDto[];
+  @ApiProperty() imageUrl!:string;
+  @ApiProperty({type:String,isArray:true,required:false,description:'Advisory based on declared production journal, not a certification'}) productionWarnings?:string[];
+  @ApiProperty({ type: [PublicTraceNoticeDto], required: false })
+  notices?: PublicTraceNoticeDto[];
+  @ApiProperty({ type: [PublicDistributionLegDto], required: false })
+  distributionJourney?: PublicDistributionLegDto[];
   @ApiProperty() traceToken!: string;
   @ApiProperty({ type: [String], maxItems: 0 }) allowedCommands!: [];
   @ApiProperty({ type: [PublicTimelineDto] }) timeline!: PublicTimelineDto[];

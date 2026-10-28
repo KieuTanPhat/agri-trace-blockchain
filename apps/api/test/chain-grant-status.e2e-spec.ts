@@ -10,6 +10,7 @@ import { ApiResponseInterceptor } from '../src/common/api/api-response.intercept
 import { GlobalExceptionFilter } from '../src/common/exception/global-exception.filter.js';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { newSessionIds } from './support/session.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -38,7 +39,7 @@ async function recipient() {
     },
   });
   const session = await prisma.refreshSession.create({
-    data: {
+    data: { ...newSessionIds(),
       userId: user.id,
       tokenHash: randomUUID(),
       expiresAt: new Date(Date.now() + 3600000),
@@ -112,7 +113,7 @@ describe('Grant issuance versus recipient disable with real PostgreSQL locks', (
     });
     adminId = admin.id;
     const session = await prisma.refreshSession.create({
-      data: {
+      data: { ...newSessionIds(),
         userId: admin.id,
         tokenHash: randomUUID(),
         expiresAt: new Date(Date.now() + 3600000),

@@ -159,10 +159,13 @@ export const DESIGN_BINDING_DIGEST = "f34a78fd87c5dd0ef133144774c919732c8c810959
 export function designSignedEvent() {
   const signer = testKey(7);
   const intentDigest = "aa".repeat(32);
+  const payloadDigest = "bb".repeat(32);
+  const metadataDigest = "ee".repeat(32);
   const assertion: SignatureAssertion = {
     algorithm: "Ed25519",
     keyRef: u(20),
     intentDigest,
+    payloadDigest,
     signature: signer.sign(
       intentSignedMessage({
         intentDigest,
@@ -173,12 +176,14 @@ export function designSignedEvent() {
         eventType: "HANDOVER_OFFERED",
         bindingDigest: DESIGN_BINDING_DIGEST,
         keyRef: u(20),
+        payloadDigest,
       }),
     ),
   };
+  const signature = { keyRef: u(20), intentDigest, assertionDigest: assertionDigest(assertion), payloadDigest, metadataDigest };
   const base: SignedBindingEventInput = {
-    envelopeVersion: "5.0.0",
-    schemaVersion: "4.0.0",
+    envelopeVersion: "6.0.0",
+    schemaVersion: "5.0.0",
     canonicalizationVersion: "RFC8785",
     eventId: u(1),
     nonce: u(1),
@@ -189,12 +194,12 @@ export function designSignedEvent() {
     eventType: "HANDOVER_OFFERED",
     eventTime: "2026-10-13T00:00:00.000Z",
     previousEventHash: null,
-    privateBodyDigest: "cd".repeat(32),
+    privateBodyDigest: signedPrivateBodyDigest(signature),
     bindingDigest: DESIGN_BINDING_DIGEST,
     chainRef: u(3),
     permissions: [{ permissionRef: u(5), epoch: "1", ordinal: "1" }],
     dataHash: "",
-    signature: { keyRef: u(20), intentDigest, assertionDigest: assertionDigest(assertion) },
+    signature,
   };
   return { signer, assertion, event: { ...base, dataHash: signedBindingEventCommitment(base) } };
 }
@@ -214,9 +219,10 @@ describe("Release C commitment vectors (ledger side)", () => {
       }),
     );
     expect(pop).toMatchInlineSnapshot(`"CMhZFan-e2_lrh2vVmrPuTt8S1GaROSKEqtHANDyTtoBJRLJiX8mygXGIh4JByrfIjQoGp4fhu-Pji7kC7CnCg"`);
-    expect(assertion.signature).toMatchInlineSnapshot(`"vTr8BYI5j0z1tMW7R35pw7Nq1duFt5pfKvETCM8HHnWYg6oVOXGMb_MGvG4pQYGUMJNKCx-7YuOFtEI6C7JyCA"`);
-    expect(assertionDigest(assertion)).toMatchInlineSnapshot(`"e7134283211249c385eeea22d98e92dbe6443a33420c7d43b3acc8a5662391bb"`);
-    expect(event.dataHash).toMatchInlineSnapshot(`"3c7b39789afc0f7d3ac1da7dd5c593c0d5f3c022a60160489db7c7cc9cd43c65"`);
+    expect(assertion.signature).toMatchInlineSnapshot(`"XwjfPEMwbLJhTyTaaRcqIuKWb8LK2ZbXoKFM8YPNy-EcyYcY_uBmX6hZFob1QsF6QFQmfnNu2g1OD_HBAW5lBg"`);
+    expect(assertionDigest(assertion)).toMatchInlineSnapshot(`"ef432bddc600b6b101ac9a49f9e0f1c318a8a1a03be5d2ea6a3559098307b6f3"`);
+    expect(event.privateBodyDigest).toMatchInlineSnapshot(`"0d3f1e6e4ec443d64d9b10228ad2f25ca97eda43c2bea1040d45aaeaf1c01b9f"`);
+    expect(event.dataHash).toMatchInlineSnapshot(`"d254ca47c3f9a0497ef096c612abbb912b5fc99fcff2bc383e6d13da748ce5f5"`);
   });
 
   it("commits to the signature so the signed dataHash differs from the unsigned B commitment", () => {
@@ -415,7 +421,7 @@ describe("RecordSignedBindingEvent", () => {
     await expect(tamper({ ...changed, dataHash: signedBindingEventCommitment(changed) }, changedAssertion)).rejects.toThrow("SIGNATURE_INVALID");
   });
 
-  it('disables legacy c1 writes while preserving their commitment vectors', async () => {
+  it('rejects the retired c1 signed envelope', async () => {
     const net = await readySigningNetwork();
     await registerKey(net);
     const built = signedEvent({ envelopeVersion: '5.0.0', schemaVersion: '4.0.0' });

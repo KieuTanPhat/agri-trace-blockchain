@@ -39,19 +39,21 @@ export class MobileAuthGuard implements CanActivate {
   ) {}
   canActivate(context: ExecutionContext) {
     this.service.enabled();
-    const request = context.switchToHttp().getRequest<Request>();
-    const trusted = (
-      this.config.get<string>('CORS_ORIGIN') ?? 'http://localhost:3000'
-    )
-      .split(',')
-      .map((value) => value.trim());
-    if (
-      request.headers['sec-fetch-site'] === 'cross-site' ||
-      (request.headers.origin && !trusted.includes(request.headers.origin))
-    )
-      throw new ForbiddenException('Nguồn yêu cầu không được phép');
+    assertNativeOrigin(context.switchToHttp().getRequest<Request>(), this.config);
     return true;
   }
+}
+
+/** Native apps send no Origin; a browser may call only from a trusted origin. */
+export function assertNativeOrigin(request: Request, config: ConfigService) {
+  const trusted = (config.get<string>('CORS_ORIGIN') ?? 'http://localhost:3000')
+    .split(',')
+    .map((value) => value.trim());
+  if (
+    request.headers['sec-fetch-site'] === 'cross-site' ||
+    (request.headers.origin && !trusted.includes(request.headers.origin))
+  )
+    throw new ForbiddenException('Nguồn yêu cầu không được phép');
 }
 
 @Controller('auth/mobile')

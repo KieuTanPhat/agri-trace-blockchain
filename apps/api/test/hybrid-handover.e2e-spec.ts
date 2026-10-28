@@ -24,6 +24,7 @@ import type { IntentBody } from '../src/modules/trace/signed-commitment.js';
 import { signedMessageForIntent } from '../src/modules/trace/signed-commitment.js';
 import { TraceService } from '../src/modules/trace/trace.service.js';
 import { provisionChain } from './support/chain-scope.js';
+import { seedCycleEvidence } from './support/cycle-evidence.js';
 import {
   generateSignerKey,
   registrationBody,
@@ -162,6 +163,7 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
         })
       ).id;
       chainId = await provisionChain(prisma, {
+        simulatedLedger: false,
         name: 'HO chain',
         ownerOrganizationId: orgs.farm,
         memberOrganizationIds: [orgs.transporter, orgs.retailer],
@@ -265,8 +267,18 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
         version: 0,
         plantedAt: '2026-09-25T00:00:00.000Z',
       }).expect(201);
+      const evidence = await seedCycleEvidence(prisma, {
+        organizationId: orgs.farm,
+        cycleId: cycle.id,
+        actorId: users.farm,
+      });
       const harvested = (
         await post('farm', `/production-cycles/${cycle.id}/harvests`, {
+          version: 1,
+          lotName: 'Handover fixture harvest',
+          representativeUserId: users.farm,
+          evidenceRef: evidence.harvestEvidenceRef,
+          lotImageEvidenceRef: evidence.lotImageEvidenceRef,
           quantity,
           unit: 'kg',
           harvestTime: '2026-09-26T00:00:00.000Z',

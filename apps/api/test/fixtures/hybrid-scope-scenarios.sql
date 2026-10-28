@@ -107,11 +107,13 @@ DO $$
 DECLARE v_plan uuid := pg_temp.fixture('plan'); v_party text;
 BEGIN
   PERFORM pg_temp.reject('accept-for-other-party',format(
-    'INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision) VALUES (%L,0,%L,%L,%L,%L,0)',
-    v_plan,'TRANSPORTER',pg_temp.fixture('producer'),pg_temp.fixture('producer_user'),pg_temp.fixture('producer_grant')),'Cannot accept for another party');
+    'INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision,membership_id,membership_version,capability_revision)
+       SELECT %L,0,%L,%L,%L,%L,0,m.membership_id,m.version,c.revision FROM chain_membership m JOIN organization_capability c ON c.organization_id=m.organization_id AND c.code=''FARM'' WHERE m.chain_id=%L AND m.organization_id=%L',
+    v_plan,'TRANSPORTER',pg_temp.fixture('producer'),pg_temp.fixture('producer_user'),pg_temp.fixture('producer_grant'),pg_temp.fixture('chain_a'),pg_temp.fixture('producer')),'Cannot accept for another party');
   PERFORM pg_temp.reject('accept-with-other-users-grant',format(
-    'INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision) VALUES (%L,0,%L,%L,%L,%L,0)',
-    v_plan,'PRODUCER',pg_temp.fixture('producer'),pg_temp.fixture('producer_user'),pg_temp.fixture('transporter_grant')),'Acceptance requires the current organization admin grant');
+    'INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision,membership_id,membership_version,capability_revision)
+       SELECT %L,0,%L,%L,%L,%L,0,m.membership_id,m.version,c.revision FROM chain_membership m JOIN organization_capability c ON c.organization_id=m.organization_id AND c.code=''FARM'' WHERE m.chain_id=%L AND m.organization_id=%L',
+    v_plan,'PRODUCER',pg_temp.fixture('producer'),pg_temp.fixture('producer_user'),pg_temp.fixture('transporter_grant'),pg_temp.fixture('chain_a'),pg_temp.fixture('producer')),'Acceptance requires the current organization admin grant');
   PERFORM pg_temp.reject('acceptance-requires-snapshot',format(
     'INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision) VALUES (%L,0,%L,%L,%L,%L,0)',
     v_plan,'PRODUCER',pg_temp.fixture('producer'),pg_temp.fixture('producer_user'),pg_temp.fixture('producer_grant')),'current membership and capability snapshot');
@@ -147,8 +149,9 @@ BEGIN
   PERFORM pg_temp.reject('revise-invalidates-old-acceptances',format(
     'UPDATE shipment_plan SET status=%L,shipment_id=%L,version=2 WHERE plan_id=%L','FINALIZED',v_shipment,v_plan),'Missing current party acceptance');
   PERFORM pg_temp.reject('stale-revision-acceptance-denied',format(
-    'INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision) VALUES (%L,0,%L,%L,%L,%L,0)',
-    v_plan,'PRODUCER',pg_temp.fixture('producer'),pg_temp.fixture('producer_user'),pg_temp.fixture('producer_grant')),'Plan acceptance is stale');
+    'INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision,membership_id,membership_version,capability_revision)
+       SELECT %L,0,%L,%L,%L,%L,0,m.membership_id,m.version,c.revision FROM chain_membership m JOIN organization_capability c ON c.organization_id=m.organization_id AND c.code=''FARM'' WHERE m.chain_id=%L AND m.organization_id=%L',
+    v_plan,'PRODUCER',pg_temp.fixture('producer'),pg_temp.fixture('producer_user'),pg_temp.fixture('producer_grant'),pg_temp.fixture('chain_a'),pg_temp.fixture('producer')),'Plan acceptance is stale');
   FOR v_party IN SELECT unnest(ARRAY['producer','transporter','retailer']) LOOP
     PERFORM pg_temp.accept(v_plan,1,v_party);
   END LOOP;
@@ -204,13 +207,7 @@ DECLARE v_plan uuid := pg_temp.fixture('plan');
 BEGIN
   PERFORM pg_temp.accept(v_plan,3,'producer');
   PERFORM pg_temp.accept(v_plan,3,'transporter');
-  -- Simulate a row accepted before the snapshot migration (NULL epoch).
-  SET LOCAL session_replication_role = replica;
-  INSERT INTO shipment_plan_acceptance(plan_id,revision,party,organization_id,user_id,grant_id,grant_revision)
-    VALUES (v_plan,3,'RETAILER',pg_temp.fixture('retailer'),pg_temp.fixture('retailer_user'),pg_temp.fixture('retailer_grant'),0);
-  SET LOCAL session_replication_role = origin;
-  PERFORM pg_temp.reject('legacy-consent-without-snapshot-never-finalizes',format(
-    'UPDATE shipment_plan SET status=%L,shipment_id=%L,version=4 WHERE plan_id=%L','FINALIZED',pg_temp.fixture('shipment'),v_plan),'Accepting membership or capability changed');
+  PERFORM pg_temp.accept(v_plan,3,'retailer');
 END;
 $$;
 

@@ -21,15 +21,20 @@ vi.mock("./api-client", () => ({
 }));
 const cycleId = "59c1b564-2736-4ea7-bdb5-701e20423f23";
 const originalUser = {
-  id: "87247bd2-c19b-4f9c-ab44-fd2ea5f96fa",
+  id: "87247bd2-c19b-4f9c-ab44-fd2ea5f96fa0",
   role: { code: "FARM_STAFF", name: "Farm" },
   organizationId: "173f44c2-06ef-4221-8c75-f68e292415b0",
   accountStatus: "ACTIVE",
 } as LoginResponse["user"];
 const scope = getAuthorizationScope(originalUser);
 const input = {
+  version: 0,
   quantity: 10,
   unit: "kg",
+  lotName: "Test harvest lot",
+  representativeUserId: "87247bd2-c19b-4f9c-ab44-fd2ea5f96fa0",
+  evidenceRef: "b42eb5f4-b7c2-4d68-84b7-4f42fe0a0021",
+  lotImageEvidenceRef: "f8c20f73-d564-47de-a183-48ee75db763b",
   lotCode: undefined,
   expiryDate: undefined,
 };

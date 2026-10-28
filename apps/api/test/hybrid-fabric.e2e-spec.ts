@@ -35,6 +35,7 @@ import {
 } from '../src/modules/ledger/ledger-signing.js';
 import type { IntentBody } from '../src/modules/trace/signed-commitment.js';
 import { provisionChain } from './support/chain-scope.js';
+import { seedCycleEvidence } from './support/cycle-evidence.js';
 import { TestSigner } from './support/signer.js';
 import {
   CHAINCODE,
@@ -76,27 +77,64 @@ interface World {
     let app: INestApplication;
     let jwt: JwtService;
     let productId: string;
+    let serviceActivatorId: string;
     let delivery: BindingDeliveryService;
     let control: LedgerControlService;
     let pool: BindingConnectionPool;
     let config: ConfigService;
     let service: PrismaService;
     const worlds: Record<string, World> = {};
+    const cycleEvidence = new Map<
+      string,
+      Awaited<ReturnType<typeof seedCycleEvidence>> & {
+        representativeUserId: string;
+        version: number;
+      }
+    >();
 
     const post = (
       w: World,
       path: string,
       body: object,
       who: keyof World['users'] = 'farm',
-    ) =>
-      request(app.getHttpServer())
+    ) => {
+      const harvest = path.match(/^\/production-cycles\/([^/]+)\/harvests$/);
+      const care = path.match(/^\/production-cycles\/([^/]+)\/care$/);
+      const evidence = cycleEvidence.get(harvest?.[1] ?? care?.[1] ?? '');
+      const payload = evidence
+        ? {
+            ...(harvest
+              ? {
+                  version: evidence.version,
+                  lotName: 'Hybrid fixture harvest',
+                  representativeUserId: evidence.representativeUserId,
+                  evidenceRef: evidence.harvestEvidenceRef,
+                  lotImageEvidenceRef: evidence.lotImageEvidenceRef,
+                }
+              : {
+                  version: evidence.version,
+                  name: 'Hybrid fixture care record',
+                  evidenceRef: evidence.careEvidenceRef,
+                }),
+            ...body,
+          }
+        : body;
+      return request(app.getHttpServer())
         .post('/api' + path)
         .set(
           'Authorization',
           `Bearer ${jwt.sign({ sub: w.users[who], sid: w.sessions[who] })}`,
         )
         .set('Idempotency-Key', randomUUID())
-        .send(body);
+        .on('response', (response) => {
+          if (response.status === 403)
+            console.error('Hybrid HTTP denial', {
+              path,
+              error: response.body?.error?.message ?? response.body?.message,
+            });
+        })
+        .send(payload);
+    };
     const get = (w: World, path: string, who: keyof World['users'] = 'farm') =>
       request(app.getHttpServer())
         .get('/api' + path)
@@ -187,6 +225,7 @@ interface World {
         data: { organizationId: orgs.farm.id, name: `${label} farm` },
       });
       const chainId = await provisionChain(prisma, {
+        simulatedLedger: false,
         name: `${label} chain`,
         ownerOrganizationId: orgs.farm.id,
         memberOrganizationIds: [orgs.transporter.id, orgs.retailer.id],
@@ -328,6 +367,21 @@ interface World {
 
     beforeAll(async () => {
       process.env.ENTERPRISE_ONBOARDING_ENABLED = 'true';
+      const administratorRole = await prisma.role.upsert({
+        where: { code: 'SYSTEM_ADMIN' },
+        create: { code: 'SYSTEM_ADMIN', name: 'SYSTEM_ADMIN' },
+        update: {},
+      });
+      serviceActivatorId = (
+        await prisma.user.create({
+          data: {
+            fullName: 'Fabric fixture service administrator',
+            email: `fabric-service-admin-${randomUUID()}@example.test`,
+            roleId: administratorRole.id,
+            passwordHash: 'not-a-login-fixture',
+          },
+        })
+      ).id;
       productId = (
         await prisma.product.create({
           data: { productName: 'Hybrid B vegetables', defaultUnit: 'kg' },
@@ -397,6 +451,15 @@ interface World {
           harvestUnit: 'kg',
         }).expect(201)
       ).body.data;
+      cycleEvidence.set(cycle.id, {
+        ...(await seedCycleEvidence(prisma, {
+          organizationId: w.orgs.farm,
+          cycleId: cycle.id,
+          actorId: w.users.farm,
+        })),
+        representativeUserId: w.users.farm,
+        version: 1,
+      });
       return cycle as { id: string };
     }
 
@@ -411,6 +474,11 @@ interface World {
           registrationDigest: 'a'.repeat(64),
           hostingMode: 'SELF_MANAGED_ORG',
           status: 'APPROVED',
+          // This ledger suite starts after service activation; the HTTP
+          // admission/activation lifecycle is covered by its own E2E suite.
+          serviceActivatedAt: new Date(),
+          serviceActivatedBy: serviceActivatorId,
+          serviceActivationReason: 'Approved for real Fabric integration acceptance',
         },
       });
       const port = 11051 + Number(process.env.AGRI_FABRIC_PORT_OFFSET ?? 0);
@@ -546,6 +614,9 @@ interface World {
             registrationDigest: 'b'.repeat(64),
             hostingMode: 'MANAGED_ORG',
             status: 'APPROVED',
+            serviceActivatedAt: new Date(),
+            serviceActivatedBy: serviceActivatorId,
+            serviceActivationReason: 'Approved for real Fabric integration acceptance',
           },
         });
         const id = randomUUID();
@@ -1453,6 +1524,15 @@ interface World {
               plantedAt: '2026-09-25T00:00:00.000Z',
             },
           ).expect(201);
+          cycleEvidence.set(cycle.id, {
+            ...(await seedCycleEvidence(prisma, {
+              organizationId: w.orgs.farm,
+              cycleId: cycle.id,
+              actorId: w.users.farm,
+            })),
+            representativeUserId: w.users.farm,
+            version: planted.body.data.version,
+          });
           lanes.push({ w, id: cycle.id, version: planted.body.data.version });
         }
         await settle(

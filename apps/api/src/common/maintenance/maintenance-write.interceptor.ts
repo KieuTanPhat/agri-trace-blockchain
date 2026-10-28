@@ -8,6 +8,7 @@ const SESSION_AND_READ_POSTS = new Set([
   '/command-requests/status',
 ]);
 const CONSUMER_POSTS = new Set(['register', 'login', 'password-reset', 'refresh', 'logout'].map(action => `/auth/mobile/${action}`));
+const STAFF_SESSION_POSTS = new Set(['login', 'refresh', 'logout'].map(action => `/auth/staff/${action}`));
 
 /** Runs after authentication guards. The canary list grants no domain rights;
  * the normal current-session/scope checks still authorize every command. */
@@ -25,6 +26,7 @@ export class MaintenanceWriteInterceptor implements NestInterceptor {
     const path = request.originalUrl.split('?')[0].replace(/^\/api(?=\/)/, '');
     if (method === 'POST' && SESSION_AND_READ_POSTS.has(path)) return next.handle();
     if (method === 'POST' && CONSUMER_POSTS.has(path) && this.config.get('CONSUMER_AUTH_ENABLED') === 'true') return next.handle();
+    if (method === 'POST' && STAFF_SESSION_POSTS.has(path) && this.config.get('STAFF_APP_AUTH_ENABLED') === 'true') return next.handle();
     const configured = this.config.get<string>('HYBRID_WRITES_MODE');
     const mode = configured ?? (this.config.get<string>('NODE_ENV') === 'production' ? 'CLOSED' : 'OPEN');
     if (mode === 'OPEN') return next.handle();

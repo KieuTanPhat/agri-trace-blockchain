@@ -1,7 +1,6 @@
 import { ApiDataResponse } from '../../common/api/openapi.js';
 import {
   IotDeviceRecordDto,
-  SensorDigestRecordDto,
   ShipmentTrackingBindingRecordDto,
   ShipmentTelemetryDigestRecordDto,
 } from '../../common/api/record.dto.js';
@@ -35,7 +34,6 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { CommandPolicy } from '../auth/command-policy.decorator.js';
 import { DeviceKeyGuard } from './device-key.guard.js';
 import {
-  CreateSensorDigestDto,
   CreateTelemetryDigestDto,
   BindShipmentDeviceDto,
   CreateIotDeviceDto,
@@ -130,27 +128,6 @@ export class IotController {
       `device:${input.deviceId}`,
       input,
       () => this.service.ingest(input),
-    );
-  }
-
-  @ApiDataResponse(SensorDigestRecordDto, 201)
-  @ApiBearerAuth()
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(...FARM_WRITE_ROLES)
-  @Post('cycles/:cycleId/digests')
-  createSensorDigest(
-    @Param('cycleId', ParseUUIDPipe) cycleId: string,
-    @Body() input: CreateSensorDigestDto,
-    @Headers('idempotency-key') key: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.run(
-      'CREATE_SENSOR_DIGEST',
-      key,
-      request.user,
-      { cycleId, ...input },
-      () => this.service.createSensorDigest(cycleId, input, request.user),
     );
   }
 

@@ -8,7 +8,7 @@ on:
       operation:
         description: Publish a verified bundle or deliver to the prepared production target
         type: choice
-        options: [publish, deploy, upgrade, forward, rollback, recover]
+        options: [publish, deploy, reinstall, upgrade, forward, rollback, recover]
         default: deploy
       rollback_sha: {description: Previously verified full SHA for rollback, type: string, required: false}
       expected_sequence: {description: Current Fabric sequence for upgrade, type: string, required: false}

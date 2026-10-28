@@ -10,6 +10,10 @@ import {
   MobileAuthGuard,
 } from './mobile-auth.controller.js';
 import { MobileAuthService } from './mobile-auth.service.js';
+import {
+  StaffSessionController,
+  StaffSessionGuard,
+} from './staff-session.controller.js';
 import { FirebasePhoneVerifier } from './firebase-phone-verifier.js';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../../prisma/prisma.module.js';
@@ -19,6 +23,7 @@ import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { RolesGuard } from './roles.guard.js';
 import { OrganizationAccessService } from './organization-access.service.js';
+import { PlatformMfaService } from '../platform-governance/platform-mfa.service.js';
 
 @Module({
   imports: [
@@ -37,17 +42,30 @@ import { OrganizationAccessService } from './organization-access.service.js';
       }),
     }),
   ],
-  controllers: [AuthController, MobileAuthController, ConsumerController],
+  controllers: [
+    AuthController,
+    MobileAuthController,
+    ConsumerController,
+    StaffSessionController,
+  ],
   providers: [
     AuthService,
     JwtAuthGuard,
     RolesGuard,
     OrganizationAccessService,
+    PlatformMfaService,
     MobileAuthService,
     MobileAuthGuard,
     FirebasePhoneVerifier,
+    StaffSessionGuard,
   ],
-  exports: [JwtAuthGuard, JwtModule, RolesGuard, OrganizationAccessService],
+  exports: [
+    JwtAuthGuard,
+    JwtModule,
+    RolesGuard,
+    OrganizationAccessService,
+    PlatformMfaService,
+  ],
 })
 export class AuthModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
@@ -57,6 +75,6 @@ export class AuthModule implements NestModule {
         response.setHeader('Cache-Control', 'no-store');
         next();
       })
-      .forRoutes(MobileAuthController, ConsumerController);
+      .forRoutes(MobileAuthController, ConsumerController, StaffSessionController);
   }
 }

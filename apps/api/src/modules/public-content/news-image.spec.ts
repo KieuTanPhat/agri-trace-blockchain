@@ -242,7 +242,7 @@ describe('news image service', () => {
     expect(f.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ isPublished: true }),
-        select: { coverUrl: true },
+        select: { coverUrl: true,coverContent:true,coverMimeType:true },
       }),
     );
     f.findFirst.mockResolvedValue(null);

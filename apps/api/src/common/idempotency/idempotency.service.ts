@@ -17,6 +17,7 @@ import {
   type CommandActor,
 } from './command-authorization.js';
 import { commandContext, commandResponseJson } from './command-transaction.js';
+import { MfaStepUpException } from '../../modules/platform-governance/platform-errors.js';
 
 export interface CommandRequestInspection {
   status:
@@ -206,6 +207,14 @@ export class IdempotencyService {
     } catch (error) {
       // Unknown infrastructure failures may have happened after commit.
       // Leave them PROCESSING for reconciliation instead of risking a replay.
+      if (error instanceof MfaStepUpException) {
+        // Rolled back before any commit: let the same key be retried with a
+        // corrected second factor instead of replaying this failure forever.
+        await this.prisma.idempotencyRecord.delete({
+          where: { id: started.recordId },
+        });
+        throw error;
+      }
       if (error instanceof HttpException) {
         await this.fail(started.recordId, error.getStatus(), {
           message: error.message,

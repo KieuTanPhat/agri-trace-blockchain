@@ -30,8 +30,9 @@ Mạng pilot:
 | `hybrid-self` | Org1 + Org3 | `AND(Org1 peer, Org3 peer)` |
 
 Mỗi nhóm cộng tác có channel riêng nên lịch sử không liên quan không bao giờ
-chia sẻ. Channel pilot **không** chứa lịch sử legacy; chuỗi legacy tiếp tục dùng
-route bản A.
+chia sẻ. Mọi chuỗi ghi qua binding của nó; route bản A và giao thức c1 đã gỡ,
+chaincode không còn hàm `RecordTraceEvent`. Khởi tạo channel bắt buộc
+`allowLegacyV3Writes=false` (trường giữ trong định dạng policy đã lưu).
 
 ## 2. Dựng mạng
 
@@ -76,12 +77,18 @@ bash blockchain/network/hybrid/hybrid-network.sh rotate-relayer r2
 
 ## 3. Cấu hình API/Worker
 
-API vẫn chạy được không có Fabric. Worker chỉ nối tới binding khi được cấu hình:
+API vẫn chạy được không có Fabric, nhưng mọi vụ sản xuất mới cần chuỗi có binding
+`ACTIVE`. Local, test và CI rehearsal không chạy Fabric dùng binding giả lập:
+`LEDGER_SIMULATION=1 node apps/api/dist/operator/simulated-ledger.js [--watch <ms>]`
+(service `ledger-simulator` trong `docker-compose.yml`). Công cụ gắn binding
+`simulated-ledger` cho chuỗi chưa có binding, xác nhận quyền đã yêu cầu và từ chối
+database có binding thật; sự kiện đứng `PENDING`. Không bao giờ chạy trên production.
+
+Worker chỉ nối tới binding khi được cấu hình:
 
 | Biến | Ý nghĩa |
 | --- | --- |
 | `FABRIC_BINDINGS_CONFIG` | Đường dẫn file JSON `version: 1` liệt kê kết nối theo `bindingDigest` |
-| `FABRIC_LEGACY_WRITER` | `false` để Worker không chạy writer legacy bản A |
 
 File cấu hình chỉ chứa **chi tiết kết nối** (peer, TLS, đường dẫn cert/khóa
 của relayer/controller/admin). Channel, chaincode, contract, writer MSP lấy từ
@@ -135,6 +142,23 @@ khi registry trên ledger đã xác nhận. Các lệnh còn lại:
 | `pause` / `resume` | Tạm dừng/tiếp tục gửi event của binding |
 | `resolve-hold --hold <uuid> --resolution "<text>"` | Đóng một delivery hold sau khi rà soát |
 | `status [--chain <uuid>]` | Quyền, outbox, hold, control job theo binding |
+
+### Chuỗi riêng của doanh nghiệp
+
+Từ 26/10/2026, kích hoạt doanh nghiệp sản xuất tạo sẵn một chuỗi riêng
+(`supply_chain.personal = true`). API không đăng ký binding cho chuỗi này: mỗi
+chuỗi riêng mới vẫn đi qua `register-binding` → `onboard` → `activate` như trên.
+Khi binding `ACTIVE`, các grant đã ghi lúc kích hoạt được xếp hàng xác nhận quyền.
+Môi trường local dùng `ledger-simulator` tự gắn binding giả lập trong vài giây.
+
+Bổ sung chuỗi riêng cho các doanh nghiệp đã kích hoạt trước đó (idempotent; chạy
+`--dry-run` trước để xem danh sách tổ chức):
+
+```bash
+cd apps/api
+node dist/operator/personal-chains.js --dry-run
+node dist/operator/personal-chains.js
+```
 
 ## 5. Vòng đời quyền ledger
 
@@ -271,9 +295,10 @@ npx tsx scripts/org-signer.ts sign --key org-key.pem --intent intent.json   # in
   `"agritrace:intent-signature:c2" 0x00 JCS({intentDigest, chainRef, eventId, entityType, entityId, eventType, bindingDigest, keyRef, payloadDigest})`;
   assertion dùng `agritrace:signature-assertion:c2`. Chữ ký không thể chuyển sang
   sự kiện, thực thể, chuỗi, binding, khóa hoặc payload khác.
-- Domain c1 (envelope `5.0.0`, hash `4.0.0`, không có `payloadDigest`) chỉ còn để
-  đọc/xác minh lịch sử. Parser ghi mới từ chối thông điệp c1 (`INVALID_INPUT`);
-  Worker không ghi lại attempt c1 mà chỉ đối soát.
+- Giao thức c1 (envelope `5.0.0`, hash `4.0.0`, không có `payloadDigest`) đã gỡ:
+  API và chaincode không đọc hay ghi c1; parser từ chối thông điệp c1
+  (`INVALID_INPUT`) và database từ chối `commitment_version = 'c1'`. Chỉ domain
+  proof-of-possession của khóa vẫn là `agritrace:signing-key-pop:c1` vì c2 dùng chung.
 - Chaincode kiểm: khóa `ACTIVE` trong registry, chữ ký Ed25519, assertion khớp
   commitment, intent chỉ dùng một lần, hash chain, quyền, fence. Sự kiện
   `HANDOVER_OFFERED/CONFIRMED` **không thể** ghi bằng đường không chữ ký.
@@ -348,11 +373,16 @@ Chủ dự án đã cho phép dùng production và VPS doanh nghiệp để nghi
 [quy trình production hai máy](production-runbook.md#nghiệm-thu-peer-doanh-nghiệp-trên-vps-thứ-hai).
 Các lệnh pilot ở dưới chỉ dành cho demo cách ly, không thay quy trình đó.
 
-Doanh nghiệp mở `/register`, chọn hoạt động chính và chế độ peer. Đăng ký tạo
-account, tổ chức và receipt atomically, chưa cấp quyền nghiệp vụ. Đại diện đăng
-nhập vào `/enterprise`; SYSTEM_ADMIN xét duyệt ở `/admin/enterprises`. Duyệt hồ
-sơ cấp capability hoạt động, ORG_ADMIN và CREATE_CHAIN; các write vẫn cần quyền
-đúng scope. Đại diện tạo chuỗi rồi gửi yêu cầu kết nối. Chế độ managed không nhận
+Doanh nghiệp mở `/register`, hoàn thiện hồ sơ và xác thực OTP email trước khi
+gửi. Đăng ký tạo account, tổ chức và receipt atomically, chưa cấp quyền nghiệp
+vụ. Đại diện theo dõi ở `/enterprise/onboarding`; SYSTEM_ADMIN xét duyệt ở
+`/admin/enterprises`. Hồ sơ mới được duyệt nhận email để chọn gói/mô hình peer,
+xem hợp đồng và hoàn tất thanh toán mô phỏng local ở `/enterprise/service`.
+Settlement cấp capability hoạt động, ORG_ADMIN và CREATE_CHAIN trong cùng
+transaction với journal/email outbox; hồ sơ lịch sử giữ chính sách cũ. Chưa có
+cổng thanh toán thật hoặc nghiệm thu hợp đồng thương mại. Các write vẫn cần
+quyền đúng scope. Đại diện tạo chuỗi rồi gửi yêu cầu tại `/enterprise/connections`.
+Chế độ managed không nhận
 cấu hình peer từ doanh nghiệp. Chế độ self chỉ nhận endpoint, tên TLS, MSP và CA
 công khai. Không gửi SSH credentials, CA/admin/signing private key lên web.
 
@@ -506,3 +536,20 @@ tra cùng host, không đóng acceptance TLS/WAN hoặc cấu hình VPS tối th
 
 Tài liệu Fabric gốc: [Fabric CA identity attributes](https://hyperledger-fabric-ca.readthedocs.io/en/latest/users-guide.html#attribute-based-access-control)
 và [chaincode as an external service](https://hyperledger-fabric.readthedocs.io/en/release-2.5/cc_service.html).
+
+## Hạn chứng thư và rủi ro thu hồi nhầm (chỉ đọc trên bảng vận hành)
+
+Trang `/admin/operations`, tab "Chứng thư & khóa ký", chỉ cảnh báo; không có nút thu
+hồi hay thay chứng thư. Quy trình xử lý thuộc operator:
+
+- Cảnh báo ≤ 30/14/7 ngày dựa trên lần kiểm tra gần nhất của Worker; một kết nối
+  Worker không kiểm tra được (`stale`/`unknownExpiry`) cần kiểm tra thủ công, đừng
+  suy ra là còn hạn.
+- **Không thu hồi chứng thư admin của kênh (channel/MSP admin) theo cảnh báo hạn.**
+  Thu hồi nhầm có thể khóa mọi thay đổi cấu hình kênh và cần khôi phục ngoài hệ
+  thống. Trước khi thu hồi hoặc thay: xác định rõ định danh (Worker relayer hay admin
+  kênh), có chứng thư thay thế đã được duyệt và kiểm chứng trên kênh cách ly, rồi
+  mới thu hồi bản cũ; giữ nguyên lịch sử thu hồi.
+- Thu hồi khóa ký (`SIGNING_KEY_REVOKE`) đi qua job điều khiển sổ cái; theo dõi job
+  lỗi ở tab "Tác vụ điều khiển sổ cái" và không tạo yêu cầu mới thay cho kết quả
+  chưa rõ.

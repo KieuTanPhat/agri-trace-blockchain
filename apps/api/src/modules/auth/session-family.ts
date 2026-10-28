@@ -1,9 +1,7 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 
-// Nullable family_id lets the previous API keep creating sessions after an
-// application rollback. A legacy session starts its family at its own ID.
 export function sessionFamilyWhere(familyId: string) {
-  return { OR: [{ familyId }, { id: familyId, familyId: null }] };
+  return { familyId };
 }
 
 export async function lockSessionOwner(

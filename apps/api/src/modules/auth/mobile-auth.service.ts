@@ -108,7 +108,7 @@ export class MobileAuthService {
     return this.db.$transaction(async (tx) => {
       await this.lockPhone(tx, input.phone);
       await this.useProof(tx, proof);
-      if (await tx.user.findUnique({ where: { phone: input.phone } }))
+      if (await tx.user.findUnique({ where: { loginPhone: input.phone } }))
         throw new ConflictException(
           'Số điện thoại đã đăng ký, vui lòng đăng nhập',
         );
@@ -119,7 +119,7 @@ export class MobileAuthService {
         );
       const user = await tx.user.create({
         data: {
-          phone: input.phone,
+          loginPhone: input.phone,
           email: `${input.phone.slice(1)}@phone.invalid`,
           passwordHash,
           fullName: input.fullName,
@@ -159,12 +159,12 @@ export class MobileAuthService {
   }
   async refresh(refreshToken: string) {
     this.enabled();
-    const session = await this.auth.refresh({ refreshToken }, true);
+    const session = await this.auth.refresh({ refreshToken }, 'consumer');
     return { ...session, user: await this.profile(this.db, session.user.id) };
   }
   async logout(refreshToken: string) {
     this.enabled();
-    return this.auth.logout({ refreshToken }, true);
+    return this.auth.logout({ refreshToken }, 'consumer');
   }
   async reset(input: MobileResetDto) {
     this.enabled();
@@ -176,7 +176,7 @@ export class MobileAuthService {
     const passwordHash = await hash(input.newPassword, 12);
     await this.db.$transaction(async (tx) => {
       await this.lockPhone(tx, input.phone);
-      const owner = await tx.user.findUnique({ where: { phone: input.phone } });
+      const owner = await tx.user.findUnique({ where: { loginPhone: input.phone } });
       if (!owner)
         throw new UnauthorizedException(
           'Không thể đặt lại mật khẩu với thông tin này',
@@ -197,7 +197,14 @@ export class MobileAuthService {
           'Không thể đặt lại mật khẩu với thông tin này',
         );
       await this.useProof(tx, proof);
-      await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          passwordChangedAt: new Date(),
+          version: { increment: 1 },
+        },
+      });
       await tx.refreshSession.updateMany({
         where: { userId: user.id, revokedAt: null },
         data: { revokedAt: new Date() },
@@ -219,7 +226,7 @@ export class MobileAuthService {
       user.role.code !== 'CONSUMER' ||
       user.organizationId !== null ||
       user.accountStatus !== 'ACTIVE' ||
-      !user.phone ||
+      !user.loginPhone ||
       !user.consumerProfile
     )
       throw new UnauthorizedException('Tài khoản không hợp lệ');
@@ -227,7 +234,7 @@ export class MobileAuthService {
     return {
       id: user.id,
       fullName: user.fullName,
-      phone: user.phone,
+      phone: user.loginPhone,
       province: profile.provinceName,
       ward: profile.wardName,
       ...(profile.contactEmail ? { contactEmail: profile.contactEmail } : {}),

@@ -94,7 +94,7 @@ describe('Custody stage for an enterprise performing multiple stages', () => {
     ).toBeNull();
   });
 
-  it('retains legacy organization-only evidence when the party has exactly one stage', () => {
+  it('does not infer a stage from organization-only evidence', () => {
     expect(
       resolveLotCustodian({
         farmOrgId: 'farm',
@@ -105,6 +105,6 @@ describe('Custody stage for an enterprise performing multiple stages', () => {
         },
         traceEvents: [{ ...event({}), actorOrganizationId: 'carrier' }],
       }),
-    ).toEqual({ organizationId: 'carrier', role: 'TRANSPORTER' });
+    ).toBeNull();
   });
 });

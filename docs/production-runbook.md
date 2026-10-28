@@ -23,6 +23,19 @@ runbook của controller cũ đã bị gỡ khỏi source; lịch sử nằm tro
 
 Edge chuyển HTTP trên địa chỉ IP sang HTTPS `agritrace.dev` bằng 308, giữ nguyên
 path/query. Không phục vụ form đăng nhập qua HTTP. Kiểm route này sau reload.
+
+Cấu hình tách domain đã chuẩn bị: `nongtrace.site` phục vụ login/register và
+khu vực quản lý; `agritrace.dev` giữ trang khách hàng/scan/trace. Khi rollout được
+ủy quyền, `CORS_ORIGINS` của application phải chứa `https://nongtrace.site` cùng
+các origin khách hàng hiện có; API vẫn đi qua `/api` trên từng hostname. Giữ
+`PUBLIC_ORIGIN=https://agritrace.dev` và public trace base trên `agritrace.dev`.
+Publisher truyền cặp build arg BUSINESS/CUSTOMER của frontend; xem frontend guide
+về xử lý command chưa rõ kết quả và khóa ký theo origin trước cutover. Kiểm health
+cả ba origin trong Edge helper và login/refresh/logout thực trên domain mới.
+Policy `https_origins` giữ allowlist cụ thể của production gồm ba origin này;
+controller đang cài phải được cập nhật bằng quy trình digest đã review trước
+cutover, cùng file môi trường private. Không đổi `PUBLIC_ORIGIN` sang domain doanh nghiệp.
+Thay đổi này chưa tự cấp quyền reload Edge, cập nhật DNS, publish image hay deploy.
 `deploy/edge/admin.py` có ba thao tác: `prepare` (kiểm file môi trường Edge đã duyệt và hai
 volume chứng chỉ có sẵn, cập nhật compose/Caddyfile, validate), `start` và `reload`. Hai volume
 Caddy mang tên lịch sử `agri-trace-uat_caddy-data` và `agri-trace-uat_caddy-config` đang giữ chứng
@@ -67,6 +80,68 @@ reset DB. Khóa giải mã backup nằm ngoài VPS/GitHub; snapshot mã hóa ph�
 khi CD đổi bản chạy. Không khôi phục DB riêng sau khi ledger đã commit.
 Luồng `forward` mở phiên smoke của đúng candidate sau migrate, đóng cờ phiên
 trong `finally`; smoke lỗi vẫn giữ journal và dừng writers để đối soát.
+
+## Cài lại có chủ đích, không giữ dữ liệu trước đó
+
+Quyết định ngày 24/10/2026 cho lần phát hành gỡ A/c1: chủ dự án cho phép bỏ dữ
+liệu AgriTrace/Fabric cũ không backup, cài mạng ba Org trên VPS nền tảng và gỡ
+Fabric cũ tại VPS doanh nghiệp. Ngoại lệ này chỉ áp dụng lần cài lại đã xác định;
+deploy, rollback và first-install thông thường vẫn cần archive theo runbook.
+
+Chuẩn bị release trên đúng main SHA, đủ ba CI push gates và immutable images
+trước khi dừng production. Root operator kiểm kê container/volume/network/bind
+mount và ownership trên cả hai host, khóa delivery/host, dừng writers rồi xóa
+đúng danh sách đã xác minh. Không prune toàn host, xóa lock đang giữ hoặc dùng
+artifact restore giả. Tài nguyên quan sát, quản trị VPS và dịch vụ khác nằm ngoài
+phạm vi này. Nếu thay cả trạng thái Edge, chuẩn bị volume/cấu hình/chứng chỉ HTTPS
+mới; không xóa volume có tên lịch sử khi Edge còn sử dụng chúng.
+
+Operator dựng network mới bằng bộ cài production, tạo DB volume trống, private
+configuration và deployment state mới (`current=null`, `previous=null`). Project
+vẫn là `agritrace-prod`; network instance/root và CA/MSP/ledger được tạo mới.
+Deployment state ghi `installation_generation` là 32 ký tự hex của lần cài này.
+
+Root config có `reinstall_ack` pin protocol `agritrace-destructive-reinstall/1`,
+`sha`, SHA-256 của JSON manifest canonical (`manifest_sha256`), `generation` và
+`receipt_sha256`. Receipt `/opt/agri-trace/cd/reinstall-receipt.json` thuộc root,
+mode 0600, không là symlink; nó chứa cùng protocol/SHA/manifest/generation và
+`removed_old_resources=true`, `backup=null`, `retained_previous_data=false`.
+Chỉ ghi receipt sau khi kiểm kê xác nhận việc bỏ tài nguyên cũ đã hoàn tất.
+`fresh_release_ack`, migration checksum review và mọi image/governance/mount/quota
+gate vẫn áp dụng. Không sửa state/receipt để biến một rollout lỗi thành cài mới.
+
+Dispatch Production CD với operation `reinstall`. Command chỉ cài trên target
+rỗng đã chuẩn bị; delivery identity không được xóa tài nguyên hay cài lại release
+đang hoạt động. Controller xác minh receipt trước migration, chạy bootstrap và
+smoke như first-install, rồi mới mở ghi. Workflow không yêu cầu archive trước
+thay thế cho operation này và ghi rõ không có khả năng khôi phục dữ liệu cũ.
+Nếu gián đoạn, giữ journal và `recover` đúng candidate/generation; không xóa lại
+network/DB mới hoặc chuyển candidate để vượt lỗi. Sau verified, `reinstall` lặp
+lại bị từ chối vì target đã có current release.
+
+### Nạp bộ dữ liệu 28 sản phẩm sau khi cài lại
+
+Chỉ dùng cho bản cài lại vừa verified, khi ghi đã mở (`open_after_smoke`). Trên
+máy có `.codex/fruit-assets`, checkout đúng SHA đang chạy rồi đóng gói:
+`node scripts/demo/production-dataset-bundle.mjs --out <thư mục trống>`. Gói chứa
+script `scripts/demo` lấy từ commit và ảnh đã chuẩn bị, không chứa ảnh gốc hay tài
+liệu tham chiếu. Chép gói lên VPS, rồi chạy bằng root:
+`python3 -I scripts/demo/production-dataset-run.py --bundle <gói>`.
+
+Runner giữ delivery/host lock, ghim `installation_generation` và 5 tài khoản kỹ
+thuật vào `shared/dataset/<generation>/run/target.json`. Nó chạy seed qua API
+production trong container một lần từ image API của release. Khi chuỗi mới cần
+binding, seed dừng với mã 75; runner gọi `bootstrap-production.mjs` thao tác
+`dataset-ledger` bằng operator container của controller đã cài, thêm Worker
+inventory bằng `add_worker_binding`, activate rồi chạy tiếp. Worker xác nhận quyền
+trên Fabric trước mỗi bước. Sau seed, runner đăng ảnh giới thiệu, ảnh bìa tin và
+chạy `verify-seed.mjs` (binding thật, mỗi event có proof). Lỗi giữa chừng thì sửa
+nguyên nhân rồi chạy lại với `--resume`; checkpoint giữ khóa và body gốc. Mật khẩu
+tài khoản demo nằm trong `run/accounts.json` (root-only), không gửi qua kênh chung.
+
+App mobile (ACheck và app nhân viên) đăng nhập vào production khi private env đặt
+`CONSUMER_AUTH_ENABLED=true` và `STAFF_APP_AUTH_ENABLED=true`. Đăng ký consumer
+vẫn tắt trên production.
 
 ## Delivery và smoke trên VPS
 
@@ -124,24 +199,50 @@ Chỉ merge PR đổi controller sau khi bước cập nhật hoàn tất; bản
 
 ## Recovery, tài nguyên và bàn giao
 
-### Nâng giao thức chữ ký c1 lên c2
+### Xoay khóa mã hóa nền tảng
 
-Bản sửa ràng buộc nội dung dùng intent protocol 2, envelope 6.0.0 / private hash
-5.0.0. Review migration append-only `20261019000000_signed_content_commitment`
-và checksum theo quy trình hiện hành. Giữ writers đóng khi nâng chaincode, API,
-Worker và Web; kiểm HealthCheck có write version 6.0.0 trước khi mở lại. Worker
-từ chối writer chỉ hỗ trợ c1. Khóa Ed25519/PoP và binding không đổi.
+`PLATFORM_SECRET_KEY` tách khỏi JWT/Fabric keys. Compose truyền biến này cho API;
+operator cấu hình riêng trước khi dùng MFA/hộp thư riêng tư. Không thay giá trị
+trực tiếp khi còn ciphertext dùng khóa cũ.
 
-Trước rollout, kiểm kê intent c1 PENDING, outbox c1 và delivery attempts. Intent
-chưa gửi cần chuẩn bị lại; command đã gửi/kết quả chưa rõ phải giữ original key,
-đối soát proof/attempt/fence. Worker có thể xác nhận proof c1 đã commit và khớp
-toàn bộ bằng chứng; c1 chưa commit sau đối soát dừng ở dead letter, cần rà soát.
-Không rehash, sửa payload/chữ ký lịch sử hoặc tự gửi lại bằng event/key mới.
-Kiểm bằng chứng lịch sử không còn khớp nội dung và xử lý theo quy trình reconcile.
+Sau backup đã xác minh và dừng API/Worker, chạy từ `apps/api` bằng user operator.
+Hai file khóa phải là đường dẫn tuyệt đối, file thường private (0600 trên Linux),
+không nằm trong Git. Khóa không được truyền bằng nội dung trên command line.
 
-Smoke bản mới phải gồm đổi quantity nhưng giữ chữ ký, tính lại commitment, thử
-ghi c1 và ghi B không chữ ký cho handover: tất cả phải bị từ chối. Một bàn giao
-offer/confirm đúng phải có proof c2 trùng payloadDigest/metadataDigest và VALID.
+```bash
+node dist/operator/rotate-platform-secret.js --old-key-file /private/platform-old.key --new-key-file /private/platform-new.key
+```
+
+Mặc định chỉ kiểm giải mã, round trip và báo số lượng. Để áp, thêm cả ba cờ
+`--apply --services-stopped --invalidate-recovery-codes`. Công cụ khóa audit,
+kiểm tất cả seed MFA/nội dung riêng tư trước khi ghi, mã hóa lại cùng transaction,
+giữ nguyên AAD/metadata/lịch sử và append audit chỉ chứa số lượng. HMAC mã khôi
+phục không thể chuyển sang khóa khác nên bị thu hồi; người dùng cấp lại ở
+`/admin/security` với TOTP hợp lệ, kể cả khi mode REQUIRED. Endpoint
+`POST /auth/mfa/recovery-codes` tiêu thụ factor một lần, thay toàn bộ HMAC và trả
+mã mới đúng một lần; không lưu secret vào journal/audit và không tắt MFA.
+Không sửa TOTP seed/trạng thái của người dùng khi xoay khóa.
+
+Sau commit, cấu hình API dùng khóa mới, kiểm MFA/đọc hồ sơ riêng tư trên môi
+trường cách ly rồi mới khởi động dịch vụ. Giữ cả hai khóa và backup đến khi đã
+đối soát. Nếu kết quả COMMIT chưa rõ, giữ dịch vụ dừng, dùng chế độ chỉ kiểm với
+từng cặp khóa để xác định khóa đang giải mã được; không tự đổi lại env hoặc
+restore riêng database sau khi ledger đã có ghi. Không chạy công cụ này tự động
+trong CD hoặc qua route quản trị.
+
+### Gỡ bản A, c1 và legacy nghiệp vụ
+
+Nhánh gỡ bản A/c1 (xem [kế hoạch](plans/retire-release-a-and-legacy-2026-10-24.md))
+thêm sáu migration `20261213000000`..`20261213000005`. Bốn migration đầu **từ chối**
+database còn dữ liệu A/c1, hồ sơ doanh nghiệp không cần kích hoạt, digest cảm biến theo vụ,
+đối soát mốc cảm biến hoặc consent kế hoạch thiếu snapshot; không tự xóa hay sửa lịch sử.
+Migration `...04` ghi rõ family của refresh session cũ bằng chính ID của nó rồi đặt bắt buộc;
+`...05` thêm vai trò chuỗi `PROCESSOR`.
+Trước release, chủ dự án làm sạch hoặc dựng lại database production theo quyết định
+riêng, có backup phối hợp hai host. Chaincode mới bỏ `RecordTraceEvent` và đọc A/c1 nên
+cần lifecycle review trên mạng hosted. Controller đã cài phải cập nhật theo quy trình
+digest trước release đầu tiên: controller mới không còn yêu cầu `FABRIC_LEGACY_WRITER`
+và `docker-compose.app-fabric.yml`.
 
 ### Recovery thông thường
 

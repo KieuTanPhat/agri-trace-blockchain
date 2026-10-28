@@ -25,7 +25,6 @@ import type {
 } from '../shipments/dto.js';
 import type {
   IngestSensorReadingDto,
-  CreateSensorDigestDto,
   IngestShipmentTelemetryDto,
   BindShipmentDeviceDto,
   CreateTelemetryDigestDto,
@@ -65,7 +64,6 @@ describe('Business service authorization before persistence', () => {
         () => shipments.reject('id', {} as RejectShipmentDto, actor),
         () => shipments.damage('id', {} as DamageShipmentDto, actor),
         () => iot.ingest({} as IngestSensorReadingDto, actor),
-        () => iot.createSensorDigest('id', {} as CreateSensorDigestDto, actor),
         () =>
           iot.ingestShipmentTelemetry(
             'id',
