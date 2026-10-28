@@ -6,6 +6,8 @@ import { LotQueryService } from './lot-query.service.js';
 import type { PublicLot } from './lot-query.types.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { bindingEvent } from '../../../test/support/binding-event-fixture.js';
+import { aggregateLotProofStatus } from './lot-proof-status.js';
+import { publicLotInclude } from './lot-query.types.js';
 
 function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
   const lotId = randomUUID();
@@ -140,6 +142,62 @@ function publicFixture(cycleCertificates: PublicLot['certificates'] = []) {
 }
 
 describe('Public lot proof projection', () => {
+  it('allows only public shipment fields even when the loaded object contains secrets', async () => {
+    const { service, database } = publicFixture();
+    const qr = await database.traceQr.findUnique();
+    qr.lot.shipment = {
+      status: 'CREATED', origin: 'Farm', destination: 'Shop',
+      pickupTime: null, arrivalTime: null, receivedTime: null,
+      driverPhone: 'private-phone', internalNote: 'private-note',
+    };
+    const result = await service.getPublic('test-token');
+    expect(result.shipment).toEqual({
+      status: 'CREATED', origin: 'Farm', destination: 'Shop',
+      pickupTime: null, arrivalTime: null, receivedTime: null,
+    });
+    expect(JSON.stringify(result)).not.toContain('private-phone');
+    expect(JSON.stringify(result)).not.toContain('private-note');
+  });
+
+  it('retains recall and expiry warnings alongside verified evidence', async () => {
+    const { service, database } = publicFixture();
+    const qr = await database.traceQr.findUnique();
+    qr.lot.currentState = 'RECALLED';
+    qr.lot.expiryDate = new Date('2000-01-01');
+    const result = await service.getPublic('test-token');
+    expect(result.proofStatus).toBe('VERIFIED');
+    expect(result.warnings.slice(0, 2)).toEqual(['RECALLED', 'EXPIRED']);
+    expect(result.isExpired).toBe(true);
+  });
+
+  it('applies certificate validity at the Vietnam date boundary on lot and cycle', () => {
+    const include = publicLotInclude(new Date('2026-10-27T17:00:00Z'));
+    const certificates = include.certificates;
+    expect(certificates.where).toEqual({
+      isPublic: true, status: 'APPROVED',
+      replacements: { none: { status: 'APPROVED' } },
+      issueDate: { lte: new Date('2026-10-28T00:00:00Z') },
+      OR: [{ expiryDate: null }, { expiryDate: { gte: new Date('2026-10-28T00:00:00Z') } }],
+    });
+    expect(include.harvest.include.cycle.include.certificates).toEqual(certificates);
+  });
+
+  it('treats empty history as pending and preserves priority independently of event order', () => {
+    const { events } = publicFixture();
+    const pending = { ...events[0], blockchainProof: null };
+    const unavailable = { ...pending, blockchainOutbox: { status: 'DEAD_LETTER' } };
+    const corrupt = { ...events[0], dataHash: 'corrupt' };
+    expect(aggregateLotProofStatus([])).toBe('PENDING');
+    for (const reverse of [false, true]) {
+      for (const [history, expected] of [
+        [[pending, events[1]], 'PENDING'],
+        [[unavailable, pending, events[1]], 'BLOCKCHAIN_UNAVAILABLE'],
+        [[corrupt, unavailable, pending, events[1]], 'INTEGRITY_WARNING'],
+      ] as const) {
+        expect(aggregateLotProofStatus(reverse ? [...history].reverse() : [...history])).toBe(expected);
+      }
+    }
+  });
   it('includes approved public cycle certificates using an explicit field allowlist', async () => {
     const certificate = {
       type: 'VietGAP',
@@ -219,6 +277,9 @@ describe('Public lot proof projection', () => {
   it('keeps sibling harvests out of the query and rejects unknown tokens', async () => {
     const { service, database, events } = publicFixture();
     await service.getPublic('test-token');
+    expect(database.traceQr.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { traceToken: 'test-token' } }),
+    );
     expect(database.traceEvent.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {

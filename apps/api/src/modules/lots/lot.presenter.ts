@@ -246,7 +246,16 @@ export function toPublicLotDto(
           recordedAt: latest.blockchainProof.recordedAt,
         }
       : undefined,
-    shipment: lot.shipment,
+    shipment: lot.shipment
+      ? {
+          status: lot.shipment.status,
+          origin: lot.shipment.origin,
+          destination: lot.shipment.destination,
+          pickupTime: lot.shipment.pickupTime,
+          arrivalTime: lot.shipment.arrivalTime,
+          receivedTime: lot.shipment.receivedTime,
+        }
+      : null,
     certificates: [...lot.certificates, ...(lot.harvest?.cycle.certificates ?? [])].map(
       publicCertificate,
     ),

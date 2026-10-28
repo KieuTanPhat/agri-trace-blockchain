@@ -143,7 +143,7 @@ export class PublicTraceController {
   @Header('Cache-Control', 'no-store')
   @Get(':token')
   @ApiDataResponse(PublicLotDto)
-  get(@Param('token') token: string) {
+  get(@Param('token', new ParseTraceTokenPipe()) token: string) {
     return this.query.getPublic(token);
   }
 }

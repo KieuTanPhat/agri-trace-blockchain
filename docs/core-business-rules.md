@@ -55,6 +55,12 @@ is still undergoing validation; the rules below are requirements to preserve.
   without Fabric use a simulated binding, never a separate write path.
 - Public and authenticated readers fail closed for unsupported versions or scope.
   Show recall/expiry/integrity/missing-sensor warnings alongside proof state.
+  Public trace tokens use 8–128 URL-safe ASCII letters, digits, `_` or `-`;
+  malformed tokens return 400 and unknown valid tokens return 404. The timeline
+  contains only the requested Lot and shared cycle events (`lotId IS NULL`).
+  Proof aggregates the entire selected history: integrity warning takes precedence
+  over unavailable delivery, then pending, then verified; empty history is pending.
+  Public shipment fields are explicitly projected, never serialized wholesale.
 - API contains no signer private key. Web signer retains a non-extractable device
   key and original signed command until outcome is known. Signer outage cannot
   downgrade a C shipment to an unsigned custody transfer.
