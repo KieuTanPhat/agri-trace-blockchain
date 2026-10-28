@@ -9,11 +9,20 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import sharp from 'sharp';
 
-const { values } = parseArgs({ options: { out: { type: 'string' } } });
+const { values } = parseArgs({ options: { out: { type: 'string' }, release: { type: 'string' } } });
 assert.ok(values.out, '--out <empty directory> is required');
 assert.ok(!existsSync(values.out) || readdirSync(values.out).length === 0, 'Output directory must be empty');
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
-const sha = git('rev-parse', 'HEAD');
+const head = git('rev-parse', 'HEAD');
+// Seed scripts may be newer than the installed release only by a commit that
+// descends from it and changes nothing outside scripts/demo (no image change).
+const sha = values.release ?? head;
+assert.match(sha, /^[a-f0-9]{40}$/);
+if (sha !== head) {
+  execFileSync('git', ['merge-base', '--is-ancestor', sha, head]);
+  for (const name of git('diff', '--name-only', sha, head).split('\n').filter(Boolean))
+    assert.ok(name.startsWith('scripts/demo/'), `${name} changed after the release; publish a new release instead`);
+}
 assert.equal(git('status', '--porcelain', '--', 'scripts/demo'), '', 'Seed scripts must match the committed release');
 const files = {};
 const put = (name, bytes) => {
@@ -37,5 +46,5 @@ for (const name of ['land-1.jpg', 'land-2.jpg', 'land-3.jpg', 'inspect.jpg'])
 for (const photo of ['care', 'warehouse1', 'harvest', 'lot', 'warehouse3', 'water'])
   put(`assets/news-${photo}.jpg`, await sharp(`${assets}/${photo}.jpg`)
     .resize({ width: 1000, withoutEnlargement: true }).jpeg({ quality: 75 }).toBuffer());
-writeFileSync(join(values.out, 'bundle.json'), JSON.stringify({ protocol: 'agritrace-production-dataset-bundle/1', sha, files }, null, 2));
+writeFileSync(join(values.out, 'bundle.json'), JSON.stringify({ protocol: 'agritrace-production-dataset-bundle/1', sha, scripts: head, files }, null, 2));
 console.log(`Bundle for ${sha}: ${Object.keys(files).length} files`);
