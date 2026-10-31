@@ -24,6 +24,7 @@ await withHybridStack(async ({ env, root, evidenceDir, receipt, npm }) => {
   env.ENTERPRISE_ONBOARDING_ENABLED = 'true';
   // Isolated stack only (NODE_ENV=test): a paying producer settles its first
   // invoice through the local payment simulation before activation.
+  env.ENTERPRISE_PAYMENTS_ENABLED = 'true';
   env.ENTERPRISE_PAYMENT_SIMULATION_ENABLED = 'true';
   env.NEXT_PUBLIC_API_BASE_URL = '/api';
   env.NEXT_PUBLIC_USE_MOCK_API = 'false';

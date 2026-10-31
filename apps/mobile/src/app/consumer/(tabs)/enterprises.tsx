@@ -1,5 +1,5 @@
 import {router,useLocalSearchParams} from 'expo-router';
-import {useEffect,useState} from 'react';
+import {useState} from 'react';
 import {FlatList,Pressable,View} from 'react-native';
 import {DirectoryHeader,DirectoryFilter} from '../../../components/DirectoryHeader';
 import {DirectoryEnterpriseCard} from '../../../components/DirectoryCards';
@@ -10,9 +10,9 @@ import {ORG_TYPE} from '../../../lib/labels';
 
 export default function Enterprises(){
   const params=useLocalSearchParams<{q?:string}>();
-  const [query,setQuery]=useState(params.q??''),[type,setType]=useState(''),[province,setProvince]=useState('');
-  useEffect(()=>{setQuery(params.q??'');},[params.q]);
-  const changeQuery=(value:string)=>{setQuery(value);router.setParams({q:value});};
+  const query=params.q??'';
+  const [type,setType]=useState(''),[province,setProvince]=useState('');
+  const changeQuery=(value:string)=>{router.setParams({q:value});};
   const clearFilters=()=>{changeQuery('');setType('');setProvince('');};
   const page=useLoad(()=>loadDirectory<DirectoryEnterprise>('enterprises'));
   useReloadOnFocus(page.reload);

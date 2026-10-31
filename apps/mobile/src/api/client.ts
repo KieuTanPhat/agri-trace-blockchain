@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import type { components } from './generated/api';
 
 export type Schemas = components['schemas'];
@@ -33,6 +34,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
+      cache: 'no-store',
       method: options.method ?? (options.body !== undefined || options.form ? 'POST' : 'GET'),
       headers,
       body: options.form ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
@@ -68,10 +70,5 @@ export const errorText = (error: unknown) =>
 
 /** A fresh key per user action; a retry of an unknown outcome reuses it. */
 export function newIdempotencyKey() {
-  const bytes = new Uint8Array(16);
-  globalThis.crypto.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  return randomUUID();
 }

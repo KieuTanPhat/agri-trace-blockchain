@@ -119,6 +119,8 @@ export class CapabilityRequestViewDto {
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
 }
 export class EnterpriseEnrollmentViewDto {
+  @ApiProperty({ description: 'Whether service payment collection is currently enabled; false allows administrator activation for temporary use without settlement' })
+  paymentsEnabled!: boolean;
   @ApiProperty({ enum: ['SINGLE', 'SUPPLY_CHAIN_ENTERPRISE'] })
   participationModel!: string;
   @ApiProperty({

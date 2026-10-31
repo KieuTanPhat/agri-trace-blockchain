@@ -29,7 +29,7 @@ export function commandIdentity(command: Pick<QueuedCommand, "path" | "body">) {
     },
   };
 }
-export function commandRecovery(result: { status: string }) {
+export function commandRecovery(result: { status: string; result?: unknown }) {
   return result.status === "COMMITTED"
     ? "committed"
     : result.status === "REJECTED"

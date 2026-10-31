@@ -391,7 +391,7 @@ describe('Platform incident cases (real PostgreSQL)', () => {
     expect(replay.body.data.id).toBe(first.body.data.id);
     expect(
       await prisma.platformCase.count({
-        where: { title: 'Hồ sơ kiểm thử idempotency' },
+        where: { title: 'Hồ sơ kiểm thử idempotency', createdBy: admin.id },
       }),
     ).toBe(1);
     await post(admin, `platform-cases/${first.body.data.id}/classify`, {

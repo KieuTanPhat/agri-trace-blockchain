@@ -534,6 +534,7 @@ model TraceScanDaily {
   lotId String   @map("lot_id") @db.Uuid
   day   DateTime @db.Date
   scans Int      @default(0)
+  lot Lot @relation(fields: [lotId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "trace_scan_daily_lot_id_fkey")
 
   @@id([lotId, day])
   @@index([day], map: "ix_trace_scan_daily_day")
@@ -1039,6 +1040,7 @@ model DistributionLine {
   quantity Decimal @db.Decimal(14,3)
   unit String @db.VarChar(30)
   transfer DistributionTransfer @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  lot Lot @relation(fields: [lotId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "distribution_line_lot_id_fkey")
   @@unique([transferId, lotId])
   @@index([lotId])
   @@map("distribution_line")
@@ -1952,6 +1954,8 @@ model Lot {
   shipmentPlans     ShipmentPlan[]
   traceEvents       TraceEvent[]
   traceQr           TraceQr?
+  distributionLines DistributionLine[]
+  scanDaily         TraceScanDaily[]
 
   @@index([farmOrgId], map: "ix_lot_farm_org")
   @@index([productId], map: "ix_lot_product")

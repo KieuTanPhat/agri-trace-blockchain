@@ -39,10 +39,13 @@ export function publicLotWhere(
     ],
   };
 }
-export function relatedLotWhere(organizationId: string,distributedLotIds:string[]=[]): Prisma.LotWhereInput {
+export function relatedLotWhere(organizationId: string): Prisma.LotWhereInput {
   return {
     OR: [
-      {id:{in:distributedLotIds}},
+      { distributionLines: { some: { transfer: {
+        status: { not: 'CANCELLED' },
+        OR: [{ senderId: organizationId }, { carrierId: organizationId }, { receiverId: organizationId }],
+      } } } },
       { farmOrgId: organizationId },
       {
         shipment: {
@@ -59,12 +62,12 @@ export function relatedLotWhere(organizationId: string,distributedLotIds:string[
 }
 export function relatedEnterpriseWhere(
   lots: Prisma.LotWhereInput,
-  distributedOrgIds:string[]=[],
+  distributedOrgIds: string[] = [],
 ): Prisma.OrganizationWhereInput {
   return {
     status: 'ACTIVE',
     OR: [
-      {id:{in:distributedOrgIds}},
+      { id: { in: distributedOrgIds } },
       { lots: { some: lots } },
       { shipmentsAsTransporter: { some: { lot: { is: lots } } } },
       { shipmentsAsRetailer: { some: { lot: { is: lots } } } },

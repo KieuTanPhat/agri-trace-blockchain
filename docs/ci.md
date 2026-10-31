@@ -3,9 +3,16 @@
 CI chạy trên PR vào `main`, push lên `main`, merge queue và thao tác
 `workflow_dispatch`. Push lên nhánh làm việc được kiểm tra qua PR để tránh
 chạy lặp cùng thay đổi bằng cả push và PR. Node lấy từ `.node-version` (24.22.1), npm cố định 12.1.0.
-PostgreSQL local, service CI, Fabric smoke và rehearsal cùng dùng image 18 đã pin digest.
+Service CI, Fabric smoke và rehearsal dùng PostgreSQL 18 đã pin digest. DB UI local
+có thể đang dùng PostgreSQL 17; lượt integration trước commit phải chạy trên DB
+PostgreSQL 18 cách ly, không dùng DB UI để thay thế.
 Runner cố định `ubuntu-24.04`;
 actions được cố định bằng SHA và cập nhật qua Dependabot.
+
+Các script demo trong `scripts/demo/` chọn nhóm API/container/Hybrid; API CI chạy
+`npm run test:ci` để kiểm target guards và fixture trước migration/E2E. Test
+phone/session logic của mobile chạy trong mobile job. Push nhánh review chỉ lưu
+code; CI đầy đủ chạy khi có PR vào `main` hoặc dispatch, không tự deploy nhánh.
 
 ## Các điều kiện merge
 
@@ -244,6 +251,16 @@ npm audit --package-lock-only --omit=dev --audit-level=moderate
 npm run audit:dependencies -- workspace dependency-evidence
 npm run check:chaincode:standalone -- dependency-evidence
 ```
+
+Dependency tooling được pin `minimatch@11.0.3` và mobile `glob@14.0.3` để vá
+GHSA-g3hv-75wg-m249/GHSA-3g3m-2fjr-6pw4. Các consumer callable cũ
+(ESLint/import/React, Redocly) dùng adapter có source tại
+`apps/mobile/compat/minimatch-legacy`; matching vẫn chạy engine upstream 11.
+`makeRe(...).test()` là predicate an toàn, không sinh lại RegExp đã bị upstream
+loại bỏ. `npm run check --prefix apps/mobile --workspaces=false` kiểm adapter và
+rule ESLint thật. Docker phải copy adapter trước npm ci; thay adapter chọn mọi
+gate. Ngoại lệ node-forge cũ đã gỡ vì lockfile có 1.4.2; mobile audit không còn
+ngoại lệ advisory nào. Đây không phải bỏ qua audit bằng đổi tên phiên bản.
 
 Audit standalone dùng `npm audit --workspaces=false --package-lock-only
 --audit-level=moderate` trong `blockchain/chaincode`.

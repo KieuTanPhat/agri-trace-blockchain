@@ -12,6 +12,7 @@ import type {
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { payingParticipant } from '../enterprise-onboarding/registration-profile.dto.js';
+import { enterprisePaymentsEnabled } from '../enterprise-onboarding/payment-policy.js';
 import { appendPlatformAudit } from '../platform-governance/platform-audit.js';
 
 type Db = Prisma.TransactionClient;
@@ -195,14 +196,14 @@ export async function entitlementFor(db: Db, organizationId: string) {
   const reviewed = org._count.capabilityRequests > 0;
   const paying =
     !!subscription || payingParticipant(org.participationModel, codes);
-  if (!reviewed && !subscription)
+  if ((!reviewed && !subscription) || (paying && !enterprisePaymentsEnabled()))
     return {
       applies: false,
       paying,
       status: 'UNRESTRICTED' as string,
       limits: null as Limits | null,
       periodStart: null as Date | null,
-      subscription: null as typeof subscription,
+      subscription,
     };
   const graceDays = await settingNumber(db, 'billing.graceDays', 15);
   if (!paying)

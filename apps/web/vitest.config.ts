@@ -9,6 +9,7 @@ export default defineConfig({
     jsx: "automatic",
   },
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: {
       "@": path.resolve(projectRoot, "src"),
     },

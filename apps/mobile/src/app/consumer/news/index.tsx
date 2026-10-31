@@ -13,7 +13,8 @@ export default function News() {
   const [tab, setTab] = useState<'news' | 'notices'>('news');
   const news = useLoad(() => api<Schemas['PublicNewsPageDto']>('/public/news?limit=20'));
   const notices = useLoad(() => api<Schemas['PublicAnnouncementsPageDto']>('/public/announcements?limit=20'));
-  useFocusEffect(useCallback(()=>{void news.reload();void notices.reload();},[news.reload,notices.reload]));
+  const reloadNews = news.reload, reloadNotices = notices.reload;
+  useFocusEffect(useCallback(()=>{void reloadNews();void reloadNotices();},[reloadNews,reloadNotices]));
   const current = tab === 'news' ? news : notices;
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>

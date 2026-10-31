@@ -15,7 +15,15 @@ export const dateTime = (iso?: string | null) =>
     ? `${date(iso)} · ${new Date(iso).toLocaleTimeString('vi-VN', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false })}`
     : '—';
 
-const TRACE_ORIGIN = process.env.EXPO_PUBLIC_TRACE_ORIGIN ?? 'http://localhost:3000';
+// Docker passes the public trace base URL (including /trace), while Metro uses
+// an origin. Compare origins consistently and fail closed for bad configuration.
+const TRACE_ORIGIN = (() => {
+  try {
+    const url = new URL(process.env.EXPO_PUBLIC_TRACE_ORIGIN ?? 'http://localhost:3000');
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password
+      ? url.origin : null;
+  } catch { return null; }
+})();
 const TOKEN = /^[A-Za-z0-9_-]{8,128}$/;
 
 /**

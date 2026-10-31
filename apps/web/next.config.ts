@@ -9,6 +9,14 @@ const monorepoRoot = path.resolve(
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Exact dev hostnames only; set the current LAN IP when testing on devices.
+  allowedDevOrigins: [
+    "127.0.0.1",
+    ...(process.env.NEXT_DEV_ALLOWED_HOSTS ?? "")
+      .split(",")
+      .map((host) => host.trim())
+      .filter(Boolean),
+  ],
   poweredByHeader: false,
   agentRules: false,
   output: "standalone",

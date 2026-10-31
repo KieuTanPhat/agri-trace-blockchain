@@ -1,8 +1,8 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, View } from "react-native";
-import { errorText, type Schemas } from "../../api/client";
-import { commandIdentity, commandRecovery } from "../../lib/command-queue";
+import { type Schemas } from "../../api/client";
+import { retryCommand } from "../../lib/staff-command";
 import { useSession } from "../../auth/session";
 import {
   Button,
@@ -18,7 +18,6 @@ import { dateTime } from "../../lib/format";
 import {
   readQueue,
   removeQueued,
-  updateQueued,
   type QueuedCommand,
 } from "../../lib/queue";
 import { color } from "../../theme/tokens";
@@ -47,26 +46,7 @@ export default function Sync() {
       return;
     setBusy(item.key);
     try {
-      const inspected = await call<Schemas["CommandRequestStatusDto"]>(
-        "/command-requests/status",
-        { body: commandIdentity(item), idempotencyKey: item.key },
-      );
-      const state = commandRecovery(inspected);
-      if (state === "failed") {
-        await updateQueued(user, item.key, {
-          state: "failed",
-          error: "Máy chủ xác nhận lệnh bị từ chối; có thể bỏ lệnh và tạo lại.",
-        });
-        return;
-      }
-      if (state !== "committed")
-        await call(item.path, { body: item.body, idempotencyKey: item.key });
-      await removeQueued(user, item.key);
-    } catch (e) {
-      await updateQueued(user, item.key, {
-        state: "unknown",
-        error: errorText(e),
-      });
+      await retryCommand(call, user, item);
     } finally {
       setBusy(null);
       load();
@@ -84,15 +64,15 @@ export default function Sync() {
           items.length ? (
             <Notice
               kind="warn"
-              title="Có lệnh chưa xác nhận"
-              body="Bấm Gửi lại khi có mạng. Máy dùng lại đúng mã lệnh cũ, không tạo lệnh mới."
+              title="Lệnh cần xử lý"
+              body="Đối soát lệnh chưa rõ kết quả bằng đúng mã cũ. Lệnh đã bị từ chối hiển thị lý do riêng; chỉ khi đó mới được bỏ và tạo lại."
             />
           ) : undefined
         }
         ListEmptyComponent={
           <Empty
             title="Không còn lệnh nào chờ gửi"
-            body="Mọi nhật ký và thu hoạch đã lên máy chủ."
+            body="Không còn lệnh nào cần đối soát trên thiết bị."
             icon="check"
           />
         }
@@ -134,7 +114,7 @@ export default function Sync() {
             <View style={{ flexDirection: "row", gap: 10 }}>
               {item.state !== "failed" && (
                 <Button
-                  label="Gửi lại"
+                  label="Đối soát / gửi lại"
                   style={{ flex: 1, height: 46 }}
                   loading={busy === item.key}
                   onPress={() => void retry(item)}

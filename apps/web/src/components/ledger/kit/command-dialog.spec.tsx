@@ -75,6 +75,10 @@ async function renderCommandScenario(
     | "not-found"
     | "rejected"
     | "known-conflict"
+    | "conflict-rejected"
+    | "conflict-not-found"
+    | "conflict-inspection-failed"
+    | "conflict-committed"
     | "validation-rejected",
 ) {
   const requests: Wire[] = [],
@@ -108,7 +112,7 @@ async function renderCommandScenario(
             },
             { status: 422 },
           );
-        if (outcome === "known-conflict")
+        if (outcome === "known-conflict" || outcome.startsWith("conflict-"))
           return Response.json(
             {
               success: false,
@@ -123,13 +127,17 @@ async function renderCommandScenario(
           data: { record: { id: productId, version: 2 } },
         });
       }
-      if (path === "/command-requests/status")
+      if (path === "/command-requests/status") {
+        if (outcome === "conflict-inspection-failed")
+          throw new TypeError("Inspector unavailable");
         return Response.json({
           success: true,
           data:
-            outcome === "not-found" || outcome === "validation-rejected"
+            outcome === "not-found" || outcome === "validation-rejected" || outcome === "conflict-not-found"
               ? { status: "NOT_FOUND" }
-              : outcome === "rejected"
+              : outcome === "known-conflict"
+                ? { status: "PROCESSING" }
+              : outcome === "rejected" || outcome === "conflict-rejected"
                 ? {
                     status: "REJECTED",
                     responseStatus: 409,
@@ -141,6 +149,7 @@ async function renderCommandScenario(
                     result: { record: { id: productId, version: 2 } },
                   },
         });
+      }
       throw new Error(`Unexpected command path ${path}`);
     }),
   );
@@ -226,11 +235,47 @@ it("serializes double click and retries NOT_FOUND with the exact original body a
   expect(sends).toHaveLength(2);
   expect(sends[1]).toEqual(sends[0]);
 });
-it("keeps a journaled 409 frozen until the baseline inspector confirms rejection", async () => {
-  await renderCommandScenario("known-conflict");
+it("keeps a journaled 409 frozen when automatic inspection returns PROCESSING", async () => {
+  const { requests, done } = await renderCommandScenario("known-conflict");
   fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
   await screen.findByTestId("ledger-command-pending");
   expect(screen.getByLabelText("Tên sản phẩm")).toBeDisabled();
+  expect(requests.filter((r) => r.path === "/command-requests/status")).toHaveLength(1);
+  expect(requests.filter((r) => r.path === endpoint)).toHaveLength(1);
+  expect(done).not.toHaveBeenCalled();
+});
+it("unlocks a 409 only after automatic journal inspection confirms REJECTED", async () => {
+  const { requests, done } = await renderCommandScenario("conflict-rejected");
+  fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
+  await screen.findByText("Version changed");
+  await waitFor(() => expect(screen.getByLabelText("Tên sản phẩm")).toBeEnabled());
+  expect(screen.queryByTestId("ledger-command-pending")).not.toBeInTheDocument();
+  const sent = requests.filter((r) => r.path === endpoint);
+  const inspections = requests.filter((r) => r.path === "/command-requests/status");
+  expect(sent).toHaveLength(1);
+  expect(inspections).toHaveLength(1);
+  expect(inspections[0].key).toBe(sent[0].key);
+  expect(done).not.toHaveBeenCalled();
+});
+it.each(["conflict-not-found", "conflict-inspection-failed"] as const)(
+  "does not resend or unlock a 409 when inspection is %s",
+  async (outcome) => {
+    const { requests, done } = await renderCommandScenario(outcome);
+    fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
+    await screen.findByTestId("ledger-command-pending");
+    expect(screen.getByLabelText("Tên sản phẩm")).toBeDisabled();
+    expect(requests.filter((r) => r.path === endpoint)).toHaveLength(1);
+    expect(done).not.toHaveBeenCalled();
+  },
+);
+it("uses the committed journal result after a 409 without resending or losing onDone", async () => {
+  const { requests, done } = await renderCommandScenario("conflict-committed");
+  fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
+  await waitFor(() => expect(done).toHaveBeenCalledTimes(1));
+  expect(done).toHaveBeenCalledWith({ record: { id: productId, version: 2 } });
+  expect(screen.queryByText("Version changed")).not.toBeInTheDocument();
+  expect(requests.filter((r) => r.path === endpoint)).toHaveLength(1);
+  expect(screen.queryByTestId("ledger-command-pending")).not.toBeInTheDocument();
 });
 it("unlocks a confirmed rejection without reporting success", async () => {
   const { done } = await renderCommandScenario("rejected");

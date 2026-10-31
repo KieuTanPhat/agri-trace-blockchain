@@ -1,20 +1,15 @@
 import * as ImagePicker from "expo-image-picker";
-import { Platform } from "react-native";
-import { newIdempotencyKey, errorText } from "../api/client";
-import {
-  enqueue,
-  removeQueued,
-  updateQueued,
-  type CommandOwner,
-} from "./queue";
-import { commandIdentity, commandRecovery } from "./command-queue";
+import { appendPhoto } from "./photo-file";
+import type { Photo } from "./photo";
+import { newIdempotencyKey } from "../api/client";
+export { sendCommand } from "./staff-command";
+
+export type { Photo } from "./photo";
 
 type Call = <T>(
   path: string,
   init?: { body?: unknown; form?: FormData; idempotencyKey?: string },
 ) => Promise<T>;
-
-export type Photo = { uri: string; name: string; type: string; file?: File };
 
 /** Camera first; the library is the fallback (web preview, denied camera). */
 export async function takePhoto(
@@ -60,61 +55,10 @@ export async function uploadCycleImage(
   form.append("entityId", cycleId);
   form.append("kind", kind);
   form.append("description", description);
-  if (Platform.OS === "web" && photo.file)
-    form.append("file", photo.file, photo.name);
-  else
-    form.append("file", {
-      uri: photo.uri,
-      name: photo.name,
-      type: photo.type,
-    } as unknown as Blob);
+  appendPhoto(form, photo);
   const result = await call<{ record: { id: string } }>(
     "/enterprise-workspace/evidence",
     { form, idempotencyKey: newIdempotencyKey() },
   );
   return result.record.id;
-}
-
-/**
- * Sends a business command once. Without a connection it is queued with the
- * same key; an answer lost mid-flight is queued as "unknown" and re-asked
- * with that key, never re-created under a new one.
- */
-export async function sendCommand(
-  call: Call,
-  owner: CommandOwner,
-  command: { path: string; body: object; label: string; detail: string },
-) {
-  const key = newIdempotencyKey();
-  await enqueue(owner, { ...command, key });
-  try {
-    const result = await call(command.path, {
-      body: command.body,
-      idempotencyKey: key,
-    });
-    await removeQueued(owner, key);
-    return { sent: true as const, result };
-  } catch (error) {
-    try {
-      const inspected = await call<{ status: string; result?: unknown }>(
-        "/command-requests/status",
-        { body: commandIdentity(command), idempotencyKey: key },
-      );
-      const status = commandRecovery(inspected);
-      if (status === "committed") {
-        await removeQueued(owner, key);
-        return { sent: true as const, result: inspected.result };
-      }
-      await updateQueued(owner, key, {
-        state: status === "failed" ? "failed" : "unknown",
-        error: errorText(error),
-      });
-    } catch {
-      await updateQueued(owner, key, {
-        state: "unknown",
-        error: errorText(error),
-      });
-    }
-    return { sent: false as const };
-  }
 }

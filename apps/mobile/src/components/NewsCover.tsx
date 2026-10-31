@@ -11,13 +11,16 @@ export function NewsCover({
     "id" | "title" | "hasCover" | "coverUrl"
   >;
 }) {
+  return <CoverImage key={`${article.id}:${article.hasCover}:${article.coverUrl ?? ''}`} article={article}/>;
+}
+function CoverImage({article}:{article: Pick<Schemas['PublicNewsDto'], 'id' | 'title' | 'hasCover' | 'coverUrl'>}) {
   const [uri, setUri] = useState<string | null>(null);
+  const { id, hasCover, coverUrl } = article;
   useEffect(() => {
     let active = true;
-    setUri(null);
-    if (article.hasCover || article.coverUrl)
+    if (hasCover || coverUrl)
       void api<Schemas["PublicNewsImageDto"]>(
-        `/public/news/${article.id}/cover`,
+        `/public/news/${id}/cover`,
       )
         .then((v) => {
           if (active) setUri(`data:${v.mimeType};base64,${v.dataBase64}`);
@@ -26,7 +29,7 @@ export function NewsCover({
     return () => {
       active = false;
     };
-  }, [article]);
+  }, [id, hasCover, coverUrl]);
   return uri ? (
     <Image
       source={{ uri }}

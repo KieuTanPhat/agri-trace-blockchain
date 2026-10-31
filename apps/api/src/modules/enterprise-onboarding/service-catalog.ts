@@ -1,4 +1,6 @@
+import { enterprisePaymentsEnabled } from './payment-policy.js';
 export const simulationEnabled = () =>
+  enterprisePaymentsEnabled() &&
   process.env.ENTERPRISE_PAYMENT_SIMULATION_ENABLED === 'true' &&
   process.env.NODE_ENV !== 'production';
 /** Static terms around the DB-backed, versioned plan list. QR usage is quoted
