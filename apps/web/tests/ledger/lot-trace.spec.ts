@@ -1,0 +1,30 @@
+import {test,expect} from "./fixtures";
+import {registerScenario} from "./fixtures/scenarios";
+import {mockLots} from "../../src/test/domain-fixtures";
+import {resolve} from "node:path";
+const lot=mockLots[0];
+registerScenario("lots.permissions",{handle(r,state){
+  if(r.method!=="GET")return;
+  const p=new URL("http://fixture"+r.path).pathname;
+  const data={...lot,currentState:state.actor==="retailer"?"RETAIL_RECEIVED":lot.currentState,allowedCommands:state.actor==="retailer"?["markForSale","recall"]:[],timeline:lot.timeline.map(e=>({...e,proofStatus:"BLOCKCHAIN_UNAVAILABLE"}))};
+  if(p==="/lots")return {data:[data]};
+  if(p===`/lots/${lot.lotId}`)return {data};
+  if(p==="/organizations")return {data:[]};
+  if(p.includes("/lineage/"))return {data:{upstream:[],downstream:[]}};
+  if(p==="/enterprise-access")return {data:{stage:"ACTIVE",permissions:["trace.read"],capabilities:["RETAILER"],tier:1,owner:false,primary:false}};
+}});
+for(const actor of ["auditor","retailer"] as const)test(`${actor} reads lot state quantity and proof with only server allowed commands`,async({page,api})=>{
+  await api.useActor(actor);await api.scenario("lots.permissions");await page.goto(`/lots/${lot.lotId}`);
+  const sheet=page.getByRole("dialog");
+  await expect(sheet.getByText("Biến động số lượng",{exact:true})).toBeVisible();
+  await expect(sheet.getByText("Bằng chứng sổ cái",{exact:true})).toBeVisible();
+  await expect(sheet.getByText(/Sổ cái chưa khả dụng/).first()).toBeVisible();
+  for(const name of ["Bày bán","Thu hồi lô"])await expect(sheet.getByRole("button",{name,exact:true})).toHaveCount(actor==="retailer"?1:0);
+  for(const name of ["Ghi đã bán","Ghi hư hỏng","Tạo chuyến hàng"])await expect(sheet.getByRole("button",{name,exact:true})).toHaveCount(0);
+  await page.setViewportSize({width:390,height:844});
+  expect(await sheet.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);
+  await page.screenshot({path:resolve(test.info().project.outputDir,`../phi-${actor}-lot.png`),animations:"disabled"});
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+  expect(api.requests().filter(r=>r.method!=="GET"&& !r.path.startsWith("/auth/"))).toEqual([]);
+});

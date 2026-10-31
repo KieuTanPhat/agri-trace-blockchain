@@ -38,6 +38,7 @@ for (const name of ["membership.baseline", "membership.identity"]) registerScena
     if (path === `/enterprise-workspace/evidence/${evidence.id}/content`) return { status: 403, error: { code: "FORBIDDEN", message: "Không được tải nội dung chứng cứ này" } };
     if (path.startsWith("/enterprise-workspace/revisions/")) return { data: { items: [] } };
     if (path === "/reference-data/addresses") return { data: [{ code: "79", name: "Hồ Chí Minh", wards: [{ code: "00001", name: "Phường" }] }] satisfies S["AddressProvinceView"][] };
+    if (path === "/enterprise-messages") return { data: { items: [], counts: { unread: 0 }, canSend: false } };
     if (path === "/enterprise-cases") return { data: { items: [] } };
     if (path === "/distribution/tasks") return { data: { counts: { transfers: 0, stock: 0, ownership: 0, total: 0 }, transfers: [], stock: [] } satisfies S["DistributionTasksDto"] };
   }

@@ -8,6 +8,10 @@ function worker() {
   const handlers = new Map<string, (event: unknown) => void>();
   const fetch = vi.fn().mockRejectedValue(new Error("offline"));
   const match = vi.fn().mockResolvedValue("public-offline-page");
+  const addAll = vi.fn().mockResolvedValue(undefined);
+  const open = vi.fn().mockResolvedValue({ match, addAll });
+  const remove = vi.fn().mockResolvedValue(true);
+  const globalMatch = vi.fn().mockResolvedValue("stale-account-data");
   runInNewContext(script, {
     URL,
     Promise,
@@ -17,12 +21,24 @@ function worker() {
       addEventListener: (type: string, handler: (event: unknown) => void) =>
         handlers.set(type, handler),
     },
-    caches: { match },
+    caches: { open, match: globalMatch, delete: remove, keys: async () => ["agri-traceability-old", "agri-traceability-ledger-v1", "unrelated"] },
+    Response,
   });
-  return { fetch, match, onFetch: handlers.get("fetch")! };
+  return { fetch, match, open, globalMatch, addAll, remove, handlers, onFetch: handlers.get("fetch")! };
 }
 
 describe("service worker request isolation", () => {
+  it("installs only a static offline page and removes retired app caches", async () => {
+    const {handlers,addAll,remove}=worker();
+    const waitUntil=vi.fn();
+    handlers.get("install")!({waitUntil});
+    await waitUntil.mock.calls[0][0];
+    expect(addAll).toHaveBeenCalledWith(["/offline.html"]);
+    waitUntil.mockClear();
+    handlers.get("activate")!({waitUntil});
+    await waitUntil.mock.calls[0][0];
+    expect(remove.mock.calls).toEqual([["agri-traceability-old"]]);
+  });
   it.each([
     ["https://api.test/api/lots", "cors"],
     ["https://agritrace.test/api/lots", "navigate"],
@@ -35,13 +51,13 @@ describe("service worker request isolation", () => {
     expect(respondWith).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
-  it("only falls back to the static explanation for offline navigation", async () => {
-    const { onFetch, match } = worker();
+  it.each(["/lots", "/dashboard", "/trace/public-token"])("only falls back to the static explanation for offline navigation to %s", async (path) => {
+    const { onFetch, match, open, globalMatch } = worker();
     const respondWith = vi.fn();
     onFetch({
       request: {
         method: "GET",
-        url: "https://agritrace.test/lots",
+        url: `https://agritrace.test${path}`,
         mode: "navigate",
       },
       respondWith,
@@ -50,5 +66,7 @@ describe("service worker request isolation", () => {
       "public-offline-page",
     );
     expect(match).toHaveBeenCalledWith("/offline.html");
+    expect(open).toHaveBeenCalledWith("agri-traceability-ledger-v1");
+    expect(globalMatch).not.toHaveBeenCalled();
   });
 });

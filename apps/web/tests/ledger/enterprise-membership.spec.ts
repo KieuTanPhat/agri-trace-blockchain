@@ -9,7 +9,7 @@ test("same-account permission recheck hides the real member draft and restores i
  const name=page.getByRole("dialog").getByLabel("Họ tên",{exact:true});await name.fill("Bản nháp đang nhập");
  let continueCheck!:()=>void;const held=new Promise<void>(resolve=>{continueCheck=resolve;});
  await page.route("**/api/chain-permissions",async route=>{await held;await route.fallback();});
- await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
+ await page.evaluate(()=>window.dispatchEvent(new Event("business-permissions-changed")));
  await expect(name).toBeHidden();expect(api.requests().some(r=>r.method==="POST"&&r.path==="/enterprise-workspace/members")).toBe(false);
  continueCheck();await expect(name).toBeVisible();await expect(name).toHaveValue("Bản nháp đang nhập");
  await page.unroute("**/api/chain-permissions");await api.scenario("membership.permission-unavailable");

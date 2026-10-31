@@ -119,3 +119,29 @@ it.each([
     expect(screen.getByRole("status")).toHaveTextContent("Chưa tìm thấy");
   }
 });
+
+it("stops a pending camera stream when the page becomes hidden", async () => {
+  let finish!: (value: MediaStream) => void;
+  const stop = vi.fn();
+  const getUserMedia = vi.fn(() => new Promise<MediaStream>(resolve => { finish = resolve; }));
+  Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
+  render(<CameraScanner onTrace={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Mở camera" }));
+  await waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
+  vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+  fireEvent(document, new Event("visibilitychange"));
+  await act(async () => { finish({ getTracks: () => [{ stop }] } as unknown as MediaStream); });
+  expect(stop).toHaveBeenCalledOnce();
+  expect(screen.getByRole("button", { name: "Mở camera" })).toBeEnabled();
+  expect(screen.getByRole("status")).toHaveTextContent("Camera đã tắt");
+});
+
+it("offers manual input without requesting camera on insecure origins", () => {
+  const getUserMedia = vi.fn();
+  Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
+  Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
+  render(<CameraScanner onTrace={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Mở camera" }));
+  expect(getUserMedia).not.toHaveBeenCalled();
+  expect(screen.getByRole("status")).toHaveTextContent("Camera cần kết nối HTTPS");
+});

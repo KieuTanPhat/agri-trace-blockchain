@@ -44,6 +44,8 @@ const COMMAND_LABEL: Record<LotCommand, string> = localized({
   recall: "Thu hồi lô",
   expire: "Ghi hết hạn",
 });
+const PROOF_LABEL = localized({ VERIFIED: "Đã xác nhận trên sổ cái", PENDING: "Đang chờ xác nhận sổ cái", INTEGRITY_WARNING: "Cảnh báo tính toàn vẹn", BLOCKCHAIN_UNAVAILABLE: "Sổ cái chưa khả dụng" });
+const PROOF_TONE = { VERIFIED: "ok", PENDING: "info", INTEGRITY_WARNING: "danger", BLOCKCHAIN_UNAVAILABLE: "warn" } as const;
 const reason = z.string().trim().min(1, { error: () => tr("Không được để trống") }).max(1000);
 const qty = z.coerce.number<number>({ error: () => tr("Nhập số") }).positive({ error: () => tr("Phải là số dương") });
 const shipmentSchema = z.object({
@@ -154,14 +156,14 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
               </SheetDescription>
             </SheetHeader>
             <div className="flex flex-col gap-5 px-4 pb-6">
-              <div className="flex flex-wrap gap-1.5">
-                <Badge tone={LOT_STATE_TONE[l.currentState] ?? "neutral"}>{LOT_STATE_LABEL[l.currentState] ?? l.currentState}</Badge>
-                <Badge tone={l.proofStatus === "VERIFIED" ? "ok" : "info"} dot={false}>{l.proofStatus === "VERIFIED" ? tr("Đã xác nhận trên sổ cái") : l.proofStatus==="PENDING"?tr("Đang chờ xác nhận sổ cái"):l.proofStatus==="INTEGRITY_WARNING"?tr("Cảnh báo tính toàn vẹn"):tr("Sổ cái chưa khả dụng")}</Badge>
-                {l.custodian && <Badge tone="neutral" dot={false}>{tr("Đang giữ")}: {orgName(l.custodian.organizationId)}</Badge>}
-              </div>
               {l.warnings.map((warning,i)=><Callout key={i} tone="warn">{warning}</Callout>)}
               {l.isExpired&&<Callout tone="danger">{tr("Lô đã hết hạn sử dụng")}</Callout>}
               {(!l.quantityReconciled||!l.stateReconciled||l.proofStatus==="INTEGRITY_WARNING")&&<Callout tone="danger">{tr("Lô cần đối soát tính toàn vẹn")}</Callout>}
+              <div className="flex flex-wrap gap-1.5">
+                <Badge tone={LOT_STATE_TONE[l.currentState] ?? "neutral"}>{LOT_STATE_LABEL[l.currentState] ?? l.currentState}</Badge>
+                <Badge tone={PROOF_TONE[l.proofStatus]} dot={false}>{PROOF_LABEL[l.proofStatus]}</Badge>
+                {l.custodian && <Badge tone="neutral" dot={false}>{tr("Đang giữ")}: {orgName(l.custodian.organizationId)}</Badge>}
+              </div>
               {s?.handoverMode==="DUAL_SIGNED"&&l.chainId&&<LotHandovers lot={l}/>}
               {l.allowedCommands.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
@@ -190,7 +192,7 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
                   .map(([k, v]) => (
                     <div key={k as string} className="contents">
                       <dt className="text-ink-2">{k}</dt>
-                      <dd>{v}</dd>
+                      <dd className="min-w-0 break-words [overflow-wrap:anywhere]">{v}</dd>
                     </div>
                   ))}
               </dl>
@@ -247,8 +249,8 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
                   {l.timeline.map((e) => (
                     <li key={e.eventId} className="text-[13px]">
                       <span className="font-medium">{e.summary}</span> <span className="text-ink-2">· {e.actor.organizationName} ({ROLE_LABEL_BUSINESS[e.actor.role] ?? e.actor.role})</span>
-                      <span className="flex gap-2 font-mono text-[11px] text-ink-2">
-                        {fmtDateTime(e.eventTime)} · {e.eventType} · {e.proofStatus === "VERIFIED" ? tr("đã xác nhận") : tr("chờ xác nhận")}
+                      <span className="flex flex-wrap gap-2 break-all font-mono text-[11px] text-ink-2">
+                        {fmtDateTime(e.eventTime)} · {e.eventType} · {PROOF_LABEL[e.proofStatus]}
                       </span>
                     </li>
                   ))}

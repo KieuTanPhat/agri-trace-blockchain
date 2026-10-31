@@ -124,10 +124,15 @@ lấy token, chuẩn hóa `/trace/<token>` cùng origin; scheme nguy hiểm và 
 Param `lotId` là trace token, không suy ra UUID riêng tư.
 
 Trace gọi public API/photo evidence, không tải private lot. VERIFIED vẫn đi cùng cảnh báo
-recall/expiry khi API trả như vậy, không chứng minh chất lượng/an toàn thực phẩm. Phản ánh
+recall/expiry khi API trả như vậy, không chứng minh chất lượng/an toàn thực phẩm.
+Cảnh báo thu hồi/hết hạn/toàn vẹn xuất hiện trước khối proof; timeline nội bộ
+giữ đủ bốn trạng thái proof, không gọi lỗi sổ cái là đang chờ xác nhận.
+Thông báo thu hồi độc lập vẫn đổi nhãn trạng thái lô sang màu cảnh báo;
+tên/mã lô dài không có khoảng trắng phải xuống dòng, không bị cắt trên mobile. Phản ánh
 giữ request ID/body khi thử lại kết quả chưa rõ, chỉ gửi contact khi consent, không lưu
 payload riêng vào localStorage. Service worker chỉ lưu trang giải thích offline, không
-cache trang nghiệp vụ/tài khoản/API. Camera thật/PWA cần thiết bị và HTTPS theo AGT-028.
+cache trang nghiệp vụ/tài khoản/API; fallback chỉ đọc offline.html từ cache
+đúng phiên bản của worker, không tìm trong cache khác. Camera thật/PWA cần thiết bị và HTTPS theo AGT-028.
 
 ## Tách domain khách hàng và doanh nghiệp
 

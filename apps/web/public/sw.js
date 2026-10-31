@@ -37,6 +37,6 @@ self.addEventListener("fetch", (event) => {
   // Business pages and API responses always come from the network. The only
   // offline response is a static explanation without any trace or account data.
   event.respondWith(fetch(event.request).catch(async () =>
-    (await caches.match("/offline.html")) ?? Response.error(),
+    (await (await caches.open(CACHE_NAME)).match("/offline.html")) ?? Response.error(),
   ));
 });

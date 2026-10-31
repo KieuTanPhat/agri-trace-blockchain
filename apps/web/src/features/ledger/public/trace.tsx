@@ -24,16 +24,16 @@ const proofPanel={ok:"bg-ok-bg text-ok",info:"bg-info-bg text-info",danger:"bg-d
 const card="rounded-2xl";
 export function PublicTraceContent({lot,photo}:{lot:PublicLotTrace;photo?:string|null}){const[label,tone]=proof[lot.proofStatus];const ProofIcon=proofIcon[tone];
 return <>
-<PhotoHero image={PHOTOS.heroRiceTerraces} eyebrow={t("Kết quả truy xuất")} title={lot.lotName??lot.productName} description={`${lot.productName} · ${lot.lotCode}`}><div className="flex flex-wrap gap-2"><Badge tone={LOT_STATE_TONE[lot.currentState]??"neutral"}>{LOT_STATE_LABEL[lot.currentState]??lot.currentState}</Badge></div></PhotoHero>
-<Container className="grid min-w-0 gap-6 py-8 lg:grid-cols-[360px_minmax(0,1fr)]">
+<div className="[overflow-wrap:anywhere]"><PhotoHero image={PHOTOS.heroRiceTerraces} eyebrow={t("Kết quả truy xuất")} title={lot.lotName??lot.productName} description={`${lot.productName} · ${lot.lotCode}`}><div className="flex flex-wrap gap-2"><Badge tone={lot.isExpired||lot.notices?.some(n=>n.kind==="RECALL")?"danger":LOT_STATE_TONE[lot.currentState]??"neutral"}>{LOT_STATE_LABEL[lot.currentState]??lot.currentState}</Badge></div></PhotoHero></div>
+<Container className="grid min-w-0 break-words [overflow-wrap:anywhere] gap-6 py-8 lg:grid-cols-[360px_minmax(0,1fr)]">
 <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
-{photo&&<div className="relative aspect-[4/3] min-w-0 overflow-hidden rounded-2xl border border-line bg-card"><Image src={photo} alt={lot.productName} fill unoptimized sizes="(max-width: 1024px) 100vw, 360px" className="object-cover"/></div>}
-<div className={cn("flex flex-col gap-3 p-5",card,proofPanel[tone])}><div className="flex items-center gap-3"><ProofIcon className="size-8 shrink-0" aria-hidden/><Badge tone={tone} dot={false} className="h-auto bg-transparent px-0 text-[16px] font-semibold">{t(label)}</Badge></div><p className="text-sm text-ink-2">{t("Xác nhận sổ cái chứng minh dữ liệu đã ghi, không thay thế chứng nhận chất lượng hoặc kiểm định an toàn.")}</p></div>
 {lot.isExpired&&<Callout tone="danger" title={t("Lô đã hết hạn sử dụng")}>{fmtDate(lot.expiryDate)}</Callout>}
 {(!lot.quantityReconciled||!lot.stateReconciled||lot.proofStatus==="INTEGRITY_WARNING")&&<Callout tone="danger">{t("Thông tin lô cần được đối soát tính toàn vẹn.")}</Callout>}
 {lot.notices?.map((n,i)=><Callout key={i} tone={n.kind==="RECALL"?"danger":"warn"} title={n.kind==="RECALL"?t("Thông báo thu hồi"):t("Cảnh báo")}>{n.message}</Callout>)}
 {lot.warnings.map((w,i)=><Callout key={i} tone="warn">{w}</Callout>)}
 {lot.productionWarnings?.map((w,i)=><Callout key={i} tone="warn">{w}</Callout>)}
+<div className={cn("flex flex-col gap-3 p-5",card,proofPanel[tone])}><div className="flex items-center gap-3"><ProofIcon className="size-8 shrink-0" aria-hidden/><Badge tone={tone} dot={false} className="h-auto bg-transparent px-0 text-[16px] font-semibold">{t(label)}</Badge></div><p className="text-sm text-ink-2">{t("Xác nhận sổ cái chứng minh dữ liệu đã ghi, không thay thế chứng nhận chất lượng hoặc kiểm định an toàn.")}</p></div>
+{photo&&<div className="relative aspect-[4/3] min-w-0 overflow-hidden rounded-2xl border border-line bg-card"><Image src={photo} alt={lot.productName} fill unoptimized sizes="(max-width: 1024px) 100vw, 360px" className="object-cover"/></div>}
 <div className={cn("flex flex-col gap-3 border border-line bg-card p-5",card)}><p className="text-[13px] text-ink-2">{t("Thông tin chưa đúng hoặc nghi hàng giả? Gửi phản ánh để doanh nghiệp và AgriTrace kiểm tra.")}</p><div className="flex flex-wrap items-center gap-3"><ConsumerReport key={lot.traceToken} traceToken={lot.traceToken}/><Button asChild variant="ghost"><Link href="/scan">{t("Quét mã khác")}</Link></Button></div></div>
 </aside>
 <div className="flex min-w-0 flex-col gap-5">
