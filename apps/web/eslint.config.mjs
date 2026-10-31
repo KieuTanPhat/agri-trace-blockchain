@@ -11,7 +11,7 @@ const policy = JSON.parse(
 
 export default [
   {
-    files: ["src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}"],
+    files: ["src/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}", "test-mobile/**/*.{ts,tsx}"],
     languageOptions: {
       parser: typescriptParser,
       ecmaVersion: "latest",
@@ -41,7 +41,7 @@ export default [
     ),
   },
   {
-    files: ["src/**/*.{ts,tsx,mts,cts}"],
+    files: ["src/**/*.{ts,tsx,mts,cts}", "test-mobile/**/*.{ts,tsx}"],
     rules: Object.fromEntries(
       policy.typescriptOnlyRules.map((name) => [name, policy.rules[name]]),
     ),

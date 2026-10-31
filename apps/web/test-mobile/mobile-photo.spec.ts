@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { convertFormDataAsync } from '../../../mobile/node_modules/expo/build/winter/fetch/convertFormData';
+import { convertFormDataAsync } from '../../mobile/node_modules/expo/build/winter/fetch/convertFormData';
 const state = vi.hoisted(() => ({ exists: true, size: 4, type: 'image/jpeg' }));
-vi.mock('../../../mobile/node_modules/expo-file-system', () => ({
+vi.mock('../../mobile/node_modules/expo-file-system', () => ({
   File: class {
     readonly name = 'camera.jpg';
     readonly exists = state.exists;
@@ -10,9 +10,9 @@ vi.mock('../../../mobile/node_modules/expo-file-system', () => ({
     async bytes() { return new Uint8Array([255, 216, 255, 219]); }
   },
 }));
-import { appendPhoto as appendNative } from '../../../mobile/src/lib/photo-file.native';
-import { appendPhoto as appendWeb } from '../../../mobile/src/lib/photo-file';
-import { MAX_PHOTO_BYTES, type Photo } from '../../../mobile/src/lib/photo';
+import { appendPhoto as appendNative } from '../../mobile/src/lib/photo-file.native';
+import { appendPhoto as appendWeb } from '../../mobile/src/lib/photo-file';
+import { MAX_PHOTO_BYTES, type Photo } from '../../mobile/src/lib/photo';
 
 // Expo patches RN FormData to expose these entries. Keep native file objects
 // intact instead of JSDOM's browser-only string coercion, then use the real SDK serializer.

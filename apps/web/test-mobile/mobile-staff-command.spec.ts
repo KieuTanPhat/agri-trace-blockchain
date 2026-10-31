@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '../../../mobile/src/api/client';
-import { createCommandQueue, type QueuedCommand } from '../../../mobile/src/lib/command-queue';
+import { ApiError } from '../../mobile/src/api/client';
+import { createCommandQueue, type QueuedCommand } from '../../mobile/src/lib/command-queue';
 const storage = vi.hoisted(() => ({ rows: new Map<string, string>() }));
-vi.mock('../../../mobile/src/lib/queue', async () => {
-  const { createCommandQueue } = await import('../../../mobile/src/lib/command-queue');
+vi.mock('../../mobile/src/lib/queue', async () => {
+  const { createCommandQueue } = await import('../../mobile/src/lib/command-queue');
   const queue = createCommandQueue({
     getItem: async (key: string) => storage.rows.get(key) ?? null,
     setItem: async (key: string, value: string) => { storage.rows.set(key, value); },
   });
   return { enqueue: queue.enqueue, removeQueued: queue.remove, updateQueued: queue.update };
 });
-import { retryCommand, sendCommand } from '../../../mobile/src/lib/staff-command';
+import { retryCommand, sendCommand } from '../../mobile/src/lib/staff-command';
 
 const owner = { id: 'staff', organizationId: 'farm' };
 const command = { path: '/production-cycles/cycle/care', body: {

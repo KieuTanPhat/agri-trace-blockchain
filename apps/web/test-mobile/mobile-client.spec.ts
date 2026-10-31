@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 const native = vi.hoisted(() => ({ randomUUID: vi.fn() }));
-vi.mock('../../../mobile/node_modules/expo-crypto', () => native);
-import { api, newIdempotencyKey } from '../../../mobile/src/api/client';
+vi.mock('../../mobile/node_modules/expo-crypto', () => native);
+import { api, newIdempotencyKey } from '../../mobile/src/api/client';
 
 afterEach(() => { vi.unstubAllGlobals(); native.randomUUID.mockReset(); });
 describe('native mobile command identifiers', () => {

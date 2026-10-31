@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currentAttestations, transferStatus, type TransferDetail } from '../../../mobile/src/lib/transfers';
+import { currentAttestations, transferStatus, type TransferDetail } from '../../mobile/src/lib/transfers';
 const transfer: TransferDetail = {
   id: 'transfer', status: 'READY', origin: 'Farm', destination: 'Store', createdAt: '2026-10-29T01:00:00.000Z',
   senderId: 'farm', carrierId: 'carrier', receiverId: 'store',

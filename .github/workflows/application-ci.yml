@@ -143,6 +143,8 @@ jobs:
       - run: npm install --global npm@12.1.0
       - run: npm ci --no-audit --no-fund
       - run: npm ci --prefix apps/mobile --workspaces=false --no-audit --no-fund
+      - name: Check mobile logic with Web test tooling
+        run: npm run test:mobile:web
       - run: npm run test:mobile:auth
       - run: node --import tsx --test apps/mobile/test/command-queue.test.ts apps/web/scripts/mobile-routing.test.mjs
       - run: npm run check --prefix apps/mobile --workspaces=false

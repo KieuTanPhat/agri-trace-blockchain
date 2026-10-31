@@ -207,6 +207,20 @@ helper của Next.js. `npm ls --all` phải thành công sau khi cài sạch.
 Dependabot kiểm dependency và action hàng tuần, không tự merge và không
 đề xuất nâng major npm trong cấu hình này.
 
+## Tách kiểm thử Web và mobile
+
+`npm run check --workspace apps/web` chỉ kiểm Web và chạy được sau khi cài
+root workspace, không cần dependency Expo/React Native. Các bài hồi quy mobile
+dùng JSDOM/SDK thật nằm ở `apps/web/test-mobile`, có cấu hình TypeScript/Vitest
+riêng và không thuộc phạm vi typecheck hoặc build production của Next.js.
+
+Job Mobile cài root workspace và lockfile riêng của mobile, sau đó chạy
+`npm run test:mobile:web` trước các bước mobile check/export. Lệnh này kiểm kiểu,
+lint và chạy đầy đủ các bài native crypto, upload ảnh, session/resource,
+command recovery, giao nhận và QR Web → mobile. Không bỏ hoặc skip các bài
+mobile để làm job Web xanh. Docker Web chỉ cần bản export từ stage mobile;
+stage build Next.js không cần source hoặc node_modules của mobile.
+
 ## Hợp đồng lint Web
 
 `apps/web/scripts/lint-policy.json` ghi lại 71 rule TypeScript và 67 rule

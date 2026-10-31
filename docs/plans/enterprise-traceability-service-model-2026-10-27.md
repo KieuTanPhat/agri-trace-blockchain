@@ -175,6 +175,12 @@ mật khẩu tạm bắt đổi lần đầu; thu hoạch nhiều đợt và đ�
 - SDK online đề nghị thêm Expo 58.0.22, dev-client 58.0.18, router 58.0.29; đã cập nhật manifest/lockfile bằng Expo CLI. Mobile typecheck/lint/compat/SDK check/audit không có ngoại lệ, export staff Android và consumer Web đạt. Nghiệm thu thiết bị ở trên thuộc APK trước ba bản vá native này; bản build APK tiếp theo cần smoke lại.
 - Push chỉ lên nhánh review đã đặt tên, không merge main, dispatch CI hay triển khai. Required remote CI vẫn cần PR/dispatch riêng; local test không thay Fabric thật.
 
+### Sửa ranh giới test CI Web/mobile — 31/10/2026
+
+- PR #134 ở 29baabc báo TS2307 vì test Web import source/SDK mobile nhưng job Web và stage Next.js Docker không cài/copy mobile. Tách test mobile sang test-mobile với TypeScript/Vitest/setup riêng, giữ đầy đủ lint và chạy trong job Mobile sau hai bước npm ci.
+- Web còn 323 bài, mobile harness 38 bài: tổng 361 bài giữ nguyên. Bản copy source sạch chỉ npm ci root, không có Expo/React Native, đã qua nguyên lệnh npm run check --workspace apps/web, gồm 164 lint-contract, 4 image-optimizer và build Turbopack. Type graph Web có 0 file source/dependency mobile.
+- Đây là bằng chứng local về ranh giới dependency; GitHub Actions, container và rehearsal phải chạy lại trên commit sửa. Không tắt test, skip gate hoặc thêm Expo vào dependency Web production.
+
 ### Bằng chứng và giới hạn hiện tại
 
 - API: 280 unit; 36 test HTTP/PostgreSQL về onboarding/consumer/directory.

@@ -58,7 +58,8 @@
     "test:enterprise:peer": "node scripts/ci/enterprise-peer.mjs",
     "test:ci": "node --test scripts/ci/ci.test.mjs scripts/demo/verification-initialization.test.mjs scripts/demo/seed-target.test.mjs scripts/demo/ui-workflow-plan.test.mjs deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs && node --import tsx --test blockchain/network/hybrid/acceptance/export-check.test.mts",
     "check": "npm run agents:check && npm run test:agents && npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present",
-    "demo:ui:workflow": "node scripts/demo/seed-ui-workflow.mjs"
+    "demo:ui:workflow": "node scripts/demo/seed-ui-workflow.mjs",
+    "test:mobile:web": "npm run test:mobile --workspace apps/web"
   },
   "workspaces": [
     "apps/api",
