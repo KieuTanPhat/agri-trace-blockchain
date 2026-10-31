@@ -37,6 +37,9 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
   let approvedCertificateId: string;
   let replacementId: string;
   let logoId:string;
+  let publicLotId: string;
+  let privateLotId: string;
+  let directoryChainId: string;
 
   beforeAll(async () => {
     const org = async (
@@ -88,6 +91,7 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
       ],
       grants: [],
     });
+    directoryChainId = chainId;
     const makeLot = async (
       productId: string,
       organizationId: string,
@@ -135,6 +139,14 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
       return { lot, cycle };
     };
     const main = await makeLot(publicId, farmOrg.id, farm.id, true);
+    publicLotId = main.lot.id;
+    const privateScanLot = await makeLot(publicId, farmOrg.id, farm.id, false);
+    privateLotId = privateScanLot.lot.id;
+    await db.traceScanDaily.createMany({ data: [
+      { lotId: publicLotId, day: new Date('2026-10-01'), scans: 5 },
+      { lotId: publicLotId, day: new Date('2026-10-02'), scans: 7 },
+      { lotId: privateLotId, day: new Date('2026-10-01'), scans: 100 },
+    ] });
     await makeLot(secondId, farmOrg.id, farm.id, true);
     await makeLot(privateId, farmOrg.id, farm.id, false);
     await makeLot(inactiveId, farmOrg.id, farm.id, true);
@@ -290,6 +302,12 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
     for (const id of [privateId, inactiveId, hiddenOrgProduct, randomUUID()])
       await get(`products/${id}`).expect(404);
   });
+  it('aggregates all public daily scans without counting private lots of the same product', async () => {
+    const detail = (await get(`products/${publicId}`).expect(200)).body.data;
+    expect(detail.scanCount).toBe(12);
+    expect(detail.traceCount).toBe(1);
+    expect(detail.lots.items.map((lot: { id: string }) => lot.id)).toEqual([publicLotId]);
+  });
   it('paginates lists and detail links without duplicates', async () => {
     const first = (await get(`products?q=${tag}&limit=1`).expect(200)).body
       .data;
@@ -391,6 +409,40 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
     const after=(await get(`products/${publicId}`).expect(200)).body.data;
     expect(after.imageUrl).toBeNull();
     await db.publicDirectoryPublication.create({data:{id:randomUUID(),organizationId:farmOrgId,presentation:snapshot.presentation!,createdAt:new Date(Date.now()+2000)}});
+  });
+  it('relational distribution filters expose all three active parties only for non-cancelled public lots', async () => {
+    const group = async (label: string, lotId: string, status: string) => {
+      const parties = await Promise.all(['sender', 'carrier', 'receiver'].map((part) =>
+        db.organization.create({ data: { name: `${tag}-${label}-${part}`, type: 'FARM' } }),
+      ));
+      await db.distributionTransfer.create({ data: {
+        chainId: directoryChainId, senderId: parties[0].id, carrierId: parties[1].id,
+        receiverId: parties[2].id, origin: 'Fixture origin', destination: 'Fixture destination', status,
+        lines: { create: { lotId, quantity: '0.1', unit: 'kg' } },
+      } });
+      return parties;
+    };
+    const active = await group('active-distribution', publicLotId, 'PROPOSED');
+    const cancelled = await group('cancelled-distribution', publicLotId, 'CANCELLED');
+    const hidden = await group('private-distribution', privateLotId, 'PROPOSED');
+    const ids = (await get(`enterprises?q=${tag}`).expect(200)).body.data.items
+      .map((org: { id: string }) => org.id);
+    const related = (await get(`products/${publicId}`).expect(200)).body.data.enterprises.items
+      .map((org: { id: string }) => org.id);
+    for (const org of active) {
+      expect(ids).toContain(org.id);
+      expect(related).toContain(org.id);
+      const detail = (await get(`enterprises/${org.id}`).expect(200)).body.data;
+      expect(detail.products.items.map((product: { id: string }) => product.id)).toContain(publicId);
+    }
+    for (const org of [...cancelled, ...hidden]) {
+      expect(ids).not.toContain(org.id);
+      expect(related).not.toContain(org.id);
+      await get(`enterprises/${org.id}`).expect(404);
+      await get(`enterprises/${org.id}/logo`).expect(404);
+    }
+    await db.organization.update({ where: { id: active[2].id }, data: { status: 'INACTIVE' } });
+    await get(`enterprises/${active[2].id}`).expect(404);
   });
   it('rate-limits anonymous requests without returning private error data', async () => {
     let status = 200;

@@ -3,12 +3,9 @@
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
-export const exceptions = [
-  // node-forge <=1.4.0 has no patched release. Expo CLI uses it only for
-  // Expo Updates code signing on build machines; it is not in the app bundle
-  // or on any server. Owner accepted a 30-day exception on 27/10/2026.
-  { id: 'GHSA-86w9-cpqp-85rv', package: 'node-forge', expires: '2026-11-26' },
-];
+// The SDK lockfile now contains patched node-forge 1.4.2; its former dated
+// exception is retired. Any new moderate-or-higher advisory fails by default.
+export const exceptions = [];
 
 const rank = { info: 0, low: 1, moderate: 2, high: 3, critical: 4 };
 

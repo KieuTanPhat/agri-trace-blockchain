@@ -331,6 +331,24 @@ export function retrySavedCommand(
   id: string,
   transport: Transport,
 ) {
+  return resolveSavedCommand(context, id, transport, true);
+}
+
+/** Read the journal without executing the saved command, including NOT_FOUND. */
+export function inspectSavedCommand(
+  context: Context,
+  id: string,
+  transport: Transport,
+) {
+  return resolveSavedCommand(context, id, transport, false);
+}
+
+function resolveSavedCommand(
+  context: Context,
+  id: string,
+  transport: Transport,
+  retryMissing: boolean,
+) {
   return locked(context, async () => {
     const ledger = read(context),
       entry = ledger.entries[id];
@@ -356,7 +374,7 @@ export function retrySavedCommand(
     );
     if (status.status === "COMMITTED") return status.result;
     if (status.status === "REJECTED") throw rejection(status);
-    if (status.status === "NOT_FOUND")
+    if (status.status === "NOT_FOUND" && retryMissing)
       return send(context, transport, ledger, id, entry, command);
     throw pendingError(
       id,

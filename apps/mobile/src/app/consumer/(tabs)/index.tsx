@@ -43,7 +43,8 @@ export default function Home() {
   );
   const weather = useLoad(async () => api<Schemas['PublicWeatherDto']>(`/public/weather?province=${await readProvince()}`));
   const news = useLoad(() => api<Schemas['PublicNewsPageDto']>('/public/news?limit=5'));
-  useFocusEffect(useCallback(()=>{void news.reload();},[news.reload]));
+  const reloadNews = news.reload;
+  useFocusEffect(useCallback(()=>{void reloadNews();},[reloadNews]));
   const slideWidth = width - 52;
 
   return (

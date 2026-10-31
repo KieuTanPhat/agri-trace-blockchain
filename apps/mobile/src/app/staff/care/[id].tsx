@@ -2,12 +2,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { errorText, type Schemas } from '../../../api/client';
-import { useSession } from '../../../auth/session';
+import type { Schemas } from '../../../api/client';
+import { useSession, useSessionScope } from '../../../auth/session';
 import { PhotoSlot } from '../../../components/PhotoSlot';
 import { Button, Card, Field, GreenHeader, Loading, Notice, T } from '../../../components/ui';
 import { sendCommand, uploadCycleImage, type Photo } from '../../../lib/staffApi';
+import type { CommandOutcome } from '../../../lib/staff-command';
 import { useLoad } from '../../../lib/useApi';
+import { useSubmission } from '../../../lib/use-submission';
 import { color } from '../../../theme/tokens';
 
 /** Same list as the Web journal (apps/web/src/lib/ledger/ops-labels.ts). */
@@ -15,32 +17,43 @@ const CARE_TYPES = ['Tưới nước', 'Bón phân', 'Phun thuốc', 'Làm cỏ'
 
 export default function Care() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const scope = useSessionScope();
+  return <CareForm key={JSON.stringify([scope, id])} id={id} />;
+}
+
+function CareForm({ id }: { id: string }) {
   const insets = useSafeAreaInsets();
   const { user, call } = useSession<Schemas['AuthUserDto']>();
-  const { data: cycle } = useLoad(() => call<Schemas['CycleDetailDto']>(`/production-cycles/${id}`), [id]);
+  const { data: cycle, loading, error: loadError, reload } = useLoad(() => call<Schemas['CycleDetailDto']>(`/production-cycles/${id}`), [id]);
   const [careType, setCareType] = useState(CARE_TYPES[0]);
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
   const [photo, setPhoto] = useState<Photo | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<'sent' | 'queued' | null>(null);
+  const { run, busy, error } = useSubmission();
+  const [done, setDone] = useState<CommandOutcome | null>(null);
 
   if (!cycle)
     return (
       <View style={{ flex: 1 }}>
         <GreenHeader title="Ghi nhật ký" back />
-        <Loading />
+        {loading ? <Loading /> : (
+          <View style={{ padding: 16, gap: 12 }}>
+            <Notice kind="error" title={loadError ?? 'Không tìm thấy mùa vụ'} />
+            <Button label="Thử tải lại" onPress={() => void reload()} />
+          </View>
+        )}
       </View>
     );
-  const ready = name.trim().length > 0 && !!photo && !!user;
+  const writable = cycle.canWriteProduction === true && ['PLANTED', 'GROWING'].includes(cycle.currentState);
+  const ready = writable && name.trim().length > 0 && !!photo && !!user;
 
   const submit = async () => {
     if (!ready || !user) return;
-    setBusy(true);
-    setError(null);
-    try {
+    await run(async (isCurrent) => {
+      // Capture the report once; retries keep this exact body and server-time intent.
+      const timing = { eventTimeSource: 'SERVER_RECEIVED' as const, eventTime: new Date().toISOString() };
       const evidenceRef = await uploadCycleImage(call, cycle.id, photo!, 'CARE_IMAGE', `Ảnh nhật ký ${careType.toLowerCase()} – ${name.trim()}`.slice(0, 1000));
+      if (!isCurrent()) return;
       const outcome = await sendCommand(call, user, {
         path: `/production-cycles/${cycle.id}/care`,
         label: `Nhật ký: ${careType}`,
@@ -49,18 +62,14 @@ export default function Care() {
           version: cycle.version,
           careType,
           name: name.trim(),
-          eventTime: new Date().toISOString(),
+          ...timing,
           evidenceRef,
           performerUserId: user.id,
           ...(note.trim() ? { note: note.trim() } : {}),
         },
       });
-      setDone(outcome.sent ? 'sent' : 'queued');
-    } catch (e) {
-      setError(errorText(e));
-    } finally {
-      setBusy(false);
-    }
+      if (isCurrent()) setDone(outcome);
+    });
   };
 
   if (done)
@@ -68,8 +77,9 @@ export default function Care() {
       <View style={{ flex: 1, backgroundColor: color.bg }}>
         <GreenHeader title="Ghi nhật ký" back />
         <View style={{ padding: 16, gap: 14 }}>
-          {done === 'sent' ? <Notice kind="success" title="Đã ghi nhật ký" body={`${careType} · ${name}`} /> : <Notice kind="warn" title="Lệnh đang chờ đối soát" body="Lệnh đã lưu trên máy và sẽ gửi lại bằng đúng mã lệnh." />}
-          <Button label={done === 'queued' ? 'Xem lệnh chờ gửi' : 'Về mùa vụ'} onPress={() => (done === 'queued' ? router.replace('/staff/sync') : router.back())} />
+          {done.sent ? <Notice kind="success" title="Đã ghi nhật ký" body={`${careType} · ${name}`} />
+            : <Notice kind={done.state === 'failed' ? 'error' : 'warn'} title={done.state === 'failed' ? 'Nhật ký bị từ chối' : 'Lệnh đang chờ đối soát'} body={done.error} />}
+          <Button label={done.sent ? 'Về mùa vụ' : 'Xem lệnh chờ gửi'} onPress={() => (done.sent ? router.back() : router.replace('/staff/sync'))} />
         </View>
       </View>
     );
@@ -105,6 +115,7 @@ export default function Care() {
             </T>
             <PhotoSlot label="Ảnh công việc" photo={photo} onChange={setPhoto} />
           </Card>
+          {!writable && <Notice kind="warn" title="Không thể ghi vào vụ này" body="Vụ chưa bắt đầu, đã kết thúc hoặc bạn không còn quyền ghi. Quay lại mùa vụ để kiểm tra phân công." />}
           {error && <Notice kind="error" title={error} />}
         </View>
       </ScrollView>

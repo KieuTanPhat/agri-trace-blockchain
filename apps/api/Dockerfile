@@ -3,6 +3,7 @@ FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d
 WORKDIR /app
 
 COPY package.json package-lock.json .npmrc .node-version ./
+COPY apps/mobile/compat/minimatch-legacy apps/mobile/compat/minimatch-legacy
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY blockchain/chaincode/package.json blockchain/chaincode/package.json
@@ -21,6 +22,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 COPY package.json package-lock.json .npmrc .node-version ./
+COPY apps/mobile/compat/minimatch-legacy apps/mobile/compat/minimatch-legacy
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY blockchain/chaincode/package.json blockchain/chaincode/package.json

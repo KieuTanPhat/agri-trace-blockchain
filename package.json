@@ -18,7 +18,12 @@
     "brace-expansion@^2.0.0": "2.1.7",
     "brace-expansion@^4.0.0": "5.0.12",
     "fast-uri@^3.0.0": "3.1.9",
-    "sharp": "0.35.5"
+    "sharp": "0.35.5",
+    "minimatch@<9": "$minimatch",
+    "minimatch@>=9 <11": "11.0.3",
+    "@redocly/openapi-core": {
+      "minimatch": "$minimatch"
+    }
   },
   "allowScripts": {
     "@swc/core@1.16.18": true,
@@ -35,6 +40,7 @@
     "agents:sync": "node scripts/sync-agent-skills.mjs",
     "agents:check": "node scripts/check-agent-setup.mjs",
     "test:agents": "node --test scripts/agent-setup.test.mjs",
+    "test:mobile:auth": "node --import tsx --test scripts/ci/mobile-phone.test.mts",
     "api-contract:generate": "npm run build --workspace apps/api && node scripts/generate-api-contract.mjs",
     "api-contract:check": "npm run build --workspace apps/api && node scripts/generate-api-contract.mjs --check",
     "audit:dependencies": "node scripts/audit-dependencies.mjs",
@@ -50,8 +56,10 @@
     "test:e2e": "npm run test:e2e --workspace apps/api",
     "test:hybrid:browser": "node scripts/ci/hybrid-browser.mjs",
     "test:enterprise:peer": "node scripts/ci/enterprise-peer.mjs",
-    "test:ci": "node --test scripts/ci/ci.test.mjs scripts/demo/verification-initialization.test.mjs scripts/demo/seed-target.test.mjs deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs && node --import tsx --test blockchain/network/hybrid/acceptance/export-check.test.mts",
-    "check": "npm run agents:check && npm run test:agents && npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present"
+    "test:ci": "node --test scripts/ci/ci.test.mjs scripts/demo/verification-initialization.test.mjs scripts/demo/seed-target.test.mjs scripts/demo/ui-workflow-plan.test.mjs deploy/ci/lib.test.mjs deploy/ci/migrations-immutable.test.mjs deploy/cd/gate.test.mjs deploy/cd/publish.test.mjs deploy/cd/send.test.mjs deploy/cd/session-auth.test.mjs && node --import tsx --test blockchain/network/hybrid/acceptance/export-check.test.mts",
+    "check": "npm run agents:check && npm run test:agents && npm run test:ci && npm run build --workspace blockchain/gateway && npm run check --workspaces --if-present",
+    "demo:ui:workflow": "node scripts/demo/seed-ui-workflow.mjs",
+    "test:mobile:web": "npm run test:mobile --workspace apps/web"
   },
   "workspaces": [
     "apps/api",
@@ -61,6 +69,7 @@
   ],
   "devDependencies": {
     "openapi-typescript": "7.13.0",
-    "playwright": "1.62.1"
+    "playwright": "1.62.1",
+    "minimatch": "file:apps/mobile/compat/minimatch-legacy"
   }
 }

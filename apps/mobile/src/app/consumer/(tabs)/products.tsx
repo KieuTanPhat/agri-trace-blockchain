@@ -1,5 +1,5 @@
-import {useLocalSearchParams} from 'expo-router';
-import {useEffect,useMemo,useState} from 'react';
+import {router,useLocalSearchParams} from 'expo-router';
+import {useState} from 'react';
 import {FlatList,Pressable,View} from 'react-native';
 import {DirectoryHeader,DirectoryFilter} from '../../../components/DirectoryHeader';
 import {DirectoryProductCard} from '../../../components/DirectoryCards';
@@ -10,16 +10,15 @@ import {useLoad} from '../../../lib/useApi';
 
 export default function Products(){
   const params=useLocalSearchParams<{q?:string}>();
-  const [query,setQuery]=useState(params.q??''),[province,setProvince]=useState(''),[category,setCategory]=useState(''),[sort,setSort]=useState('default');
-  useEffect(()=>{if(params.q!==undefined)setQuery(params.q);},[params.q]);
+  const query=params.q??'';
+  const setQuery=(value:string)=>router.setParams({q:value});
+  const [province,setProvince]=useState(''),[category,setCategory]=useState(''),[sort,setSort]=useState('default');
   const page=useLoad(()=>loadDirectory<DirectoryProduct>('products'));
   const all=page.data??[];
   const provinces=[...new Set(all.map(p=>p.province).filter((s):s is string=>!!s))].sort();
   const categories=[...new Set(all.map(p=>p.category).filter((s):s is string=>!!s))].sort();
-  const items=useMemo(()=>{
-    const rows=all.filter(p=>(!query||normalized(`${p.productName} ${p.variety??''}`).includes(normalized(query)))&&(!province||p.province===province)&&(!category||p.category===category));
-    return rows.sort((a,b)=>sort==='newest'?Date.parse(b.createdAt)-Date.parse(a.createdAt):sort==='name'?a.productName.localeCompare(b.productName,'vi'):sort==='price-asc'?(a.price==null?Infinity:Number(a.price))-(b.price==null?Infinity:Number(b.price)):sort==='price-desc'?(b.price==null?-Infinity:Number(b.price))-(a.price==null?-Infinity:Number(a.price)):a.productName.localeCompare(b.productName,'vi'));
-  },[all,query,province,category,sort]);
+  const items=all.filter(p=>(!query||normalized(`${p.productName} ${p.variety??''}`).includes(normalized(query)))&&(!province||p.province===province)&&(!category||p.category===category));
+  items.sort((a,b)=>sort==='newest'?Date.parse(b.createdAt)-Date.parse(a.createdAt):sort==='name'?a.productName.localeCompare(b.productName,'vi'):sort==='price-asc'?(a.price==null?Infinity:Number(a.price))-(b.price==null?Infinity:Number(b.price)):sort==='price-desc'?(b.price==null?-Infinity:Number(b.price))-(a.price==null?-Infinity:Number(a.price)):a.productName.localeCompare(b.productName,'vi'));
   return <View style={{flex:1,backgroundColor:dc.bg}}>
     <DirectoryHeader title="Sản phẩm" query={query} onQuery={setQuery}/>
     <View style={{backgroundColor:'#fff',flexDirection:'row',borderBottomWidth:1,borderColor:dc.line}}>

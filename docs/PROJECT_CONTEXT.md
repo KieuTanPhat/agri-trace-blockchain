@@ -36,11 +36,24 @@ integrity, recall, expiry and missing-sensor warnings independently of proof.
 
 ## Hybrid source and release
 
+Processing from external receipts pins its chain/binding on the run rather than
+inventing a production-cycle origin. Migration
+`20261222000000_external_processing_event_scope` updates the two event scope
+guards for this case; cycle-derived events keep their original context checks.
+It changes no historical event/hash. An isolated PostgreSQL 18 regression covers
+completion/replay, mass-balance rejection, reservation concurrency/cancellation
+and correction logs; this does not establish real Fabric acceptance.
+
 The local extension includes five-step v2 registration with conditional legal
 profiles, genuine private supporting documents, service preferences, separate
 policy acknowledgements, catalog-bound two-level addresses and email OTP.
 Producer households/individuals may omit tax identifiers; production supports
-CROP only. Administrator review precedes service/peer-model selection,
+CROP only. Collection is deferred by default as of 28/10/2026: unless
+`ENTERPRISE_PAYMENTS_ENABLED=true`, admin reviews the enrollment and all
+capabilities, then explicitly activates temporary use without a paid plan.
+No payment/subscription records are fabricated. Paid-plan creation limits are
+deferred; free-participant limits and business authority checks remain.
+When collection is explicitly enabled, administrator review precedes service/peer-model selection,
 contract preview and simulated settlement. Settlement marks the order
 `PAID_SIMULATED` and queues its email; a separate platform-admin activation grants
 new business authority before the enterprise can configure a peer. The Worker

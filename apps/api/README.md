@@ -1,5 +1,29 @@
 # Agri Trace API
 
+## Bộ 100 sản phẩm có workflow trên Web/API local
+
+Bộ nạp bổ sung `npm run demo:ui:workflow` chạy từ root repo, có xác nhận đúng
+DB `agri_trace_ui_test`, backup và checkpoint. Bộ này tạo 70 luồng sản xuất,
+30 luồng chế biến và 100 QR qua API, dùng ảnh DEMO/ledger mô phỏng. Không reset
+dữ liệu cũ, không phải biên nhận Fabric thật. Xem
+[hướng dẫn và tài khoản local](../../docs/testing/ui-workflow-100.md).
+
+## Catalog kiểm thử rộng trên database cách ly
+
+`npm run db:seed:catalog --workspace apps/api -- --dry-run` chỉ xem quy mô:
+30 tổ chức thuộc 5 hoạt động, 100 sản phẩm có chủ sở hữu. Seed này tách khỏi
+workflow seed hiện hành; mọi bản ghi đều ghi rõ DEMO, INACTIVE và sản phẩm chưa
+có bằng chứng. Không sinh tài khoản, lô, QR, chữ ký hoặc proof Fabric; không dùng
+để tuyên bố danh mục người tiêu dùng đã có 100 sản phẩm truy xuất được.
+
+Muốn ghi, trước hết tạo và migrate một DB test cục bộ do bạn sở hữu, tên
+`agritrace_demo_*`. Đặt `NODE_ENV=test`, `DATABASE_URL` và `TEST_DATABASE_URL`
+cùng trỏ chính DB đó, `AGRI_DEMO_SEED_CONFIRM` bằng đúng tên DB, rồi chạy script
+không có `--dry-run`. Không dùng URL thật trong source/tài liệu. Script từ chối
+DB có account/nghiệp vụ hoặc catalog không thuộc fixture, không xóa/ghi đè dữ
+liệu đã sửa; chạy lại giữ 30/100 bản ghi. Dataset workflow công khai 28 sản phẩm
+vẫn thuộc `scripts/demo/full-seed.mjs` và các quy trình backup/target riêng.
+
 Xem [phục hồi yêu cầu thu hoạch](../../docs/harvest-recovery.md) cho API đối soát
 journal và cách retry sau khi mất phản hồi.
 

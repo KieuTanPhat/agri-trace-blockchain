@@ -42,3 +42,8 @@ yarn-error.*
 
 # Local assistant settings are not application source.
 .claude/
+
+# Firebase config and local test reports are supplied per build, never committed.
+google-services.json
+GoogleService-Info.plist
+.audit/

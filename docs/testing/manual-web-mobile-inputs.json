@@ -1,0 +1,194 @@
+{
+  "kind": "manual-ui-inputs-not-a-database-seed",
+  "loaded": false,
+  "runSuffix": "R01",
+  "timeRule": "Use current Vietnam time T; start=T-2 days, plannedHarvest=T+7 days; no future event timestamps",
+  "accounts": [
+    {
+      "alias": "A0",
+      "email": "ui.admin@example.test",
+      "organization": null,
+      "enterpriseTier": null,
+      "role": "SYSTEM_ADMIN",
+      "password": "PRIVATE_LOCAL_FILE_NOT_INCLUDED",
+      "created": true
+    },
+    {
+      "alias": "F1",
+      "email": "ui.farm.owner@example.test",
+      "organization": "FARM_A",
+      "enterpriseTier": 1,
+      "role": "FARM_STAFF",
+      "password": "ISSUED_BY_INVITATION_NOT_AN_EXISTING_CREDENTIAL"
+    },
+    {
+      "alias": "F2",
+      "email": "ui.farm.manager@example.test",
+      "organization": "FARM_A",
+      "enterpriseTier": 2,
+      "role": "FARM_STAFF",
+      "password": "ISSUED_BY_INVITATION_NOT_AN_EXISTING_CREDENTIAL"
+    },
+    {
+      "alias": "F3",
+      "email": "ui.farm.worker@example.test",
+      "organization": "FARM_A",
+      "enterpriseTier": 3,
+      "role": "FARM_STAFF",
+      "password": "ISSUED_BY_INVITATION_NOT_AN_EXISTING_CREDENTIAL"
+    },
+    {
+      "alias": "FX",
+      "email": "ui.other.worker@example.test",
+      "organization": "FARM_B",
+      "enterpriseTier": 3,
+      "role": "FARM_STAFF",
+      "password": "ISSUED_BY_INVITATION_NOT_AN_EXISTING_CREDENTIAL"
+    },
+    {
+      "alias": "T1",
+      "email": "ui.carrier.owner@example.test",
+      "organization": "CARRIER",
+      "enterpriseTier": 1,
+      "role": "TRANSPORTER",
+      "password": "ISSUED_BY_INVITATION_NOT_AN_EXISTING_CREDENTIAL"
+    },
+    {
+      "alias": "D1",
+      "email": "ui.distributor.owner@example.test",
+      "organization": "DISTRIBUTOR",
+      "enterpriseTier": 1,
+      "role": "DISTRIBUTOR",
+      "password": "ISSUED_BY_INVITATION_NOT_AN_EXISTING_CREDENTIAL"
+    },
+    {
+      "alias": "R1",
+      "email": "ui.retail.owner@example.test",
+      "organization": "RETAILER",
+      "enterpriseTier": 1,
+      "role": "RETAILER",
+      "password": "ISSUED_BY_INVITATION_NOT_AN_EXISTING_CREDENTIAL"
+    },
+    {
+      "alias": "P1",
+      "email": "ui.processor.owner@example.test",
+      "organization": "PROCESSOR",
+      "enterpriseTier": 1,
+      "role": "PROCESSOR",
+      "password": "ISSUED_BY_INVITATION_NOT_AN_EXISTING_CREDENTIAL"
+    }
+  ],
+  "organizations": [
+    {
+      "alias": "FARM_A",
+      "name": "[UI-TEST] HTX Rau A",
+      "capability": "FARM"
+    },
+    {
+      "alias": "FARM_B",
+      "name": "[UI-TEST] HTX Rau B",
+      "capability": "FARM"
+    },
+    {
+      "alias": "CARRIER",
+      "name": "[UI-TEST] Vận chuyển T",
+      "capability": "TRANSPORTER"
+    },
+    {
+      "alias": "DISTRIBUTOR",
+      "name": "[UI-TEST] Phân phối D",
+      "capability": "DISTRIBUTOR"
+    },
+    {
+      "alias": "RETAILER",
+      "name": "[UI-TEST] Bán lẻ R",
+      "capability": "RETAILER"
+    },
+    {
+      "alias": "PROCESSOR",
+      "name": "[UI-TEST] Chế biến P",
+      "capability": "PROCESSOR"
+    }
+  ],
+  "cycle": {
+    "name": "[UI-TEST-R01] Vụ cải A",
+    "cycleCode": "UI-R01-A",
+    "farm": "[UI-TEST-R01] Vườn rau A",
+    "plot": "[UI-TEST-R01] Thửa A1",
+    "product": "[UI-TEST-R01] Cải xanh",
+    "cultivatedArea": 100,
+    "maxHarvestQuantity": 100,
+    "harvestUnit": "kg",
+    "staff": [
+      "F3"
+    ]
+  },
+  "care": {
+    "careType": "Tưới nước",
+    "name": "Tưới nhỏ giọt 30 phút",
+    "note": "[UI-TEST-R01] Ghi nhận thử nghiệm",
+    "image": "User-selected test JPEG/PNG; obtain real evidence ID from upload"
+  },
+  "harvests": [
+    {
+      "alias": "L1",
+      "quantity": 20,
+      "unit": "kg"
+    },
+    {
+      "alias": "L2",
+      "quantity": 30,
+      "unit": "kg"
+    }
+  ],
+  "transfers": [
+    {
+      "alias": "G1",
+      "lot": "L1",
+      "quantity": "12.000",
+      "unit": "kg",
+      "sender": "FARM_A",
+      "carrier": "CARRIER",
+      "receiver": "DISTRIBUTOR",
+      "actualReceived": "12.000",
+      "damaged": "0.000"
+    },
+    {
+      "alias": "G2",
+      "lot": "L2",
+      "quantity": "5.000",
+      "unit": "kg",
+      "testOutcome": "Cancel before pickup; release reservation"
+    }
+  ],
+  "processing": {
+    "receipt": "[UI-TEST-R01] NL-P",
+    "inputQuantity": "10.000",
+    "outputQuantity": "8.000",
+    "lossQuantity": "2.000",
+    "unit": "kg",
+    "outputProduct": "[UI-TEST-R01] Rau sơ chế"
+  },
+  "expectedBalance": {
+    "harvestTotalKg": 50,
+    "L1_after_delivery": {
+      "farmKg": 8,
+      "distributorKg": 12,
+      "globalKg": 20
+    },
+    "L2_after_cancelKg": 30,
+    "processing": {
+      "consumedKg": 10,
+      "outputKg": 8,
+      "lossKg": 2
+    }
+  },
+  "warning": "No real SMS numbers, credentials, signing keys or invented UUID/QR. Create records through reviewed app flows after environment readiness.",
+  "preparation": {
+    "database": "agri_trace_ui_test",
+    "migrationsApplied": 93,
+    "adminCreated": true,
+    "otherAccountsCreated": false,
+    "businessDataLoaded": false
+  }
+}

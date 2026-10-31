@@ -34,7 +34,7 @@ export default function CycleDetail() {
   const harvested = cycle.harvestEvents.reduce((s, h) => s + Number(h.quantity), 0);
   const planned = Number(cycle.maxHarvestQuantity ?? cycle.plannedHarvest ?? 0);
   const pct = planned > 0 ? Math.min(100, Math.round((harvested / planned) * 100)) : null;
-  const writable = cycle.canWriteProduction !== false && !['COMPLETED', 'CANCELLED'].includes(cycle.currentState);
+  const writable = cycle.canWriteProduction === true && ['PLANTED', 'GROWING'].includes(cycle.currentState);
   const assigned = (cycle.staffUserIds ?? []).length === 0 || (!!user && (cycle.staffUserIds ?? []).includes(user.id));
   const log = [
     ...cycle.harvestEvents.map((h) => ({ id: h.id, at: h.harvestTime, title: `Thu hoạch ${qty(h.quantity, h.unit)}`, who: h.representative, icon: 'basket' as const, bg: color.orangeTint, fg: color.orange })),

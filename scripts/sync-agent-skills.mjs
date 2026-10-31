@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
   existsSync, lstatSync, mkdirSync, readFileSync, readdirSync,
-  renameSync, rmdirSync, unlinkSync, writeFileSync,
+  realpathSync, renameSync, rmdirSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -248,7 +248,7 @@ export function syncSkills(root, { check = false } = {}) {
   return { skills: new Set([...expected.keys()].map(file => file.split('/')[0])).size, written: writes.length, removed: removals.length };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   try {
     const args = process.argv.slice(2);
     if (args.length > 1 || args.some(arg => arg !== '--check')) throw new Error('Usage: node scripts/sync-agent-skills.mjs [--check]');

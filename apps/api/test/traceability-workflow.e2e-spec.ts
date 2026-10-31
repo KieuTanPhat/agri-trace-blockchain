@@ -362,6 +362,55 @@ const prisma = new PrismaClient({
       return fixture;
     }
 
+    it('records server-time care once despite a fast device clock, preserving time audit and journal replay', async () => {
+      const cycle = await plantedCycle();
+      const key = randomUUID();
+      const input = {
+        eventTimeSource: 'SERVER_RECEIVED',
+        eventTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        careType: 'Tưới nước',
+      };
+      const before = Date.now();
+      const saved = (await post(`/production-cycles/${cycle.id}/care`, input, 'farm', key).expect(201)).body.data;
+      expect(new Date(saved.care.eventTime).getTime()).toBeGreaterThanOrEqual(before);
+      expect(new Date(saved.care.eventTime).getTime()).toBeLessThanOrEqual(Date.now());
+      expect(saved.care.createdAt).toBe(saved.care.eventTime);
+      const event = await prisma.traceEvent.findFirstOrThrow({ where: { entityId: saved.care.id, eventType: 'CARE_RECORDED' } });
+      expect(event.businessData).toMatchObject({
+        eventTimeSource: 'SERVER_RECEIVED', reportedEventTime: input.eventTime,
+        receivedAt: saved.care.createdAt,
+        reportedTimeOffsetMs: expect.any(Number),
+      });
+      expect((await post(`/production-cycles/${cycle.id}/care`, input, 'farm', key).expect(201)).body.data).toEqual(saved);
+      await post(`/production-cycles/${cycle.id}/care`, { ...input, eventTimeSource: 'DEVICE' }, 'farm', key).expect(409);
+      expect(await prisma.careRecord.count({ where: { cycleId: cycle.id } })).toBe(1);
+      expect(await prisma.traceEvent.count({ where: { cycleId: cycle.id, eventType: 'CARE_RECORDED' } })).toBe(1);
+    });
+
+    it('keeps historical care time and positively journals excessive future-clock rejections without writes', async () => {
+      const cycle = await plantedCycle();
+      const key = randomUUID();
+      const evidence = cycleEvidence.get(cycle.id)!;
+      const input = {
+        version: 1, name: 'Rejected future care', evidenceRef: evidence.careEvidenceRef,
+        eventTimeSource: 'DEVICE', eventTime: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        careType: 'Tưới nước',
+      };
+      const failed = await post(`/production-cycles/${cycle.id}/care`, input, 'farm', key).expect(422);
+      expect(failed.body.error.message).toContain('quá 2 phút');
+      const inspected = await post('/command-requests/status', {
+        operation: 'RECORD_CARE', payload: { id: cycle.id, ...input },
+      }, 'farm', key).expect(200);
+      expect(inspected.body.data).toMatchObject({ status: 'REJECTED', responseStatus: 422 });
+      expect(await prisma.careRecord.count({ where: { cycleId: cycle.id } })).toBe(0);
+      expect((await prisma.productionCycle.findUniqueOrThrow({ where: { id: cycle.id } })).version).toBe(1);
+      expect(await prisma.traceEvent.count({ where: { cycleId: cycle.id, eventType: 'CARE_RECORDED' } })).toBe(0);
+      const historical = { ...input, eventTime: '2026-09-26T08:00:00.123Z' };
+      const saved = (await post(`/production-cycles/${cycle.id}/care`, historical).expect(201)).body.data;
+      expect(saved.care.eventTime).toBe(historical.eventTime);
+      expect(new Date(saved.care.createdAt).getTime()).toBeGreaterThan(new Date(saved.care.eventTime).getTime());
+    });
+
     it('uploads cycle photos through the bound PRODUCTION_CYCLE stream without duplicating evidence on replay', async () => {
       const cycle = await plantedCycle();
       const image = Buffer.from(
