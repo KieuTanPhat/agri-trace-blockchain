@@ -38,7 +38,7 @@ export const TIMELINE: Record<string, { icon: IconName; bg: string }> = {
 };
 
 export const ORG_TYPE: Record<string, { label: string; icon: IconName; t: Tone }> = {
-  FARM: { label: 'Nông hộ / HTX', icon: 'leaf', t: 'green' },
+  FARM: { label: 'Sản xuất (DN/HTX)', icon: 'leaf', t: 'green' },
   TRANSPORTER: { label: 'Vận chuyển', icon: 'truck', t: 'blue' },
   RETAILER: { label: 'Bán lẻ', icon: 'store', t: 'purple' },
   PROCESSOR: { label: 'Chế biến', icon: 'box', t: 'orange' },

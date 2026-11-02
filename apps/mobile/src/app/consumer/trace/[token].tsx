@@ -121,6 +121,31 @@ export default function Trace() {
                 </View>
               ))}
             </Card>
+            {lot.brand && (
+              <Card style={{ padding: 16, gap: 6 }}>
+                <T size={17} weight="heavy">
+                  Thương hiệu sản phẩm
+                </T>
+                <T size={15} weight="bold">
+                  {lot.brand.productName} · {lot.brand.organizationName}
+                </T>
+                {lot.brand.story ? <T size={14} c={color.muted}>{lot.brand.story}</T> : null}
+                <T size={12} c={color.muted}>
+                  Bản công bố đã được AgriTrace duyệt; chủ chuỗi chịu trách nhiệm về thông tin đứng tên.
+                </T>
+              </Card>
+            )}
+            {lot.sourceTrust && (
+              <Card style={{ padding: 16, gap: 4 }}>
+                <T size={17} weight="heavy">
+                  Mức tin cậy nguồn nguyên liệu
+                </T>
+                <Row label="TỰ GHI TRÊN AGRITRACE" value={String(lot.sourceTrust.selfRecorded)} />
+                <Row label="NHÀ CUNG CẤP XÁC NHẬN" value={String(lot.sourceTrust.supplierConfirmed)} />
+                <Row label="CÓ CHỨNG TỪ" value={String(lot.sourceTrust.evidenced)} />
+                <Row label="CHỈ KHAI BÁO" value={String(lot.sourceTrust.declared)} />
+              </Card>
+            )}
             <TraceJourney groups={lot.journey??[]}/>
             {lot.shipment && (
               <Card style={{ padding: 16, gap: 4 }}>
