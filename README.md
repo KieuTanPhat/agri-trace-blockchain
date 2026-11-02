@@ -38,6 +38,7 @@ docs/
   PROJECT_CONTEXT.md   Bản đồ đọc và bối cảnh hiện hành
   plans/backlog.md     Việc/acceptance còn mở, có nguồn lịch sử
   adr-001-modular-monolith-dedicated-worker.md
+  adr-005-chain-owner-service-model.md
 ```
 
 Các file cấu hình ở gốc được chia theo nơi sử dụng:

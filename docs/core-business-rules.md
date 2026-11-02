@@ -161,8 +161,10 @@ farms or plots. Enterprise administrators and delegated staff use current
 system administrators and independent compliance reviewers; enterprise staff
 must be created inside the approved enterprise hierarchy. Direct platform
 organization creation is limited to independent auditor organizations.
-Registration requires the five-step legal/account/activity/service profile. Admission
-grants only reviewed capabilities, ORG_ADMIN and CREATE_CHAIN; it never grants
+Registration requires the five-step legal/account/activity/service profile and is
+open only to `ENTERPRISE` and `COOPERATIVE` organizations. Admission grants only
+reviewed capabilities and ORG_ADMIN; CREATE_CHAIN follows an ACTIVE chain-owner
+subscription ([ADR-005](adr-005-chain-owner-service-model.md)). It never grants
 business access to another chain. Historical incomplete profiles remain flagged
 for reviewers; new API registrations require the complete profile and OTP proofs.
 Capability changes remain platform-reviewed.
@@ -488,21 +490,20 @@ Việc còn mở: [backlog](plans/backlog.md).
   `20261213000005_processor_chain_role`, quyền ledger cho `LOT`) để nhà chế biến
   ghi sự kiện phân phối/chế biến qua binding như các khâu khác. Vai trò không
   thuộc chuỗi bị từ chối 409 khi ghi ledger.
-- Đăng ký chọn mô hình `SINGLE` (đúng một
-  hoạt động) hoặc `SUPPLY_CHAIN_ENTERPRISE` (tổ chức có đăng ký, ít nhất hai năng
-  lực). Mỗi hoạt động tạo một `capability_request`; admin duyệt/từ chối riêng.
+- Đăng ký chọn số năng lực tùy ý và tư cách `MEMBER` hoặc `CHAIN_OWNER`
+  ([ADR-005](adr-005-chain-owner-service-model.md)). Mỗi năng lực tạo một
+  `capability_request`; admin duyệt/từ chối riêng. Tổ chức đã kích hoạt xin thêm
+  năng lực qua `POST /capability-requests`.
   Đăng ký không cấp năng lực. Duyệt sau khi đã kích hoạt cấp năng lực ngay trong
   cùng lệnh có audit; trước kích hoạt thì bước kích hoạt cấp các năng lực đã duyệt.
   Hồ sơ cũ không có yêu cầu năng lực giữ hành vi cấp theo `activities`.
 - Năng lực chế biến cần loại hình chế biến, số và hạn giấy chứng nhận cơ sở đủ điều
   kiện ATTP (còn hiệu lực lúc đăng ký và lúc duyệt) cùng tài liệu `CERTIFICATE`.
-- Phân loại thương mại hiện hành (khi bật thu phí): có năng lực `FARM` hoặc mô hình doanh nghiệp chuỗi. Chỉ họ mua
-  gói, được cấp `CREATE_CHAIN` và phải có subscription `ACTIVE` trước khi kích hoạt.
-  Vận chuyển, chế biến, phân phối, bán lẻ tham gia miễn phí, chỉ có `ORG_ADMIN`,
-  ghi nghiệp vụ trong chuỗi được mời, theo hạn mức `billing.participantLimits`.
-  Trong giai đoạn hoãn thanh toán, không yêu cầu subscription để admin kích hoạt;
-  phân loại này vẫn giữ riêng với quyền nghiệp vụ. Yêu cầu đưa PROCESSOR độc lập
-  vào nhóm trả phí còn để sau khi tích hợp thanh toán, không đổi ngầm ở đợt này.
+- Chỉ `CHAIN_OWNER` mua gói. Kích hoạt (admin, sau khi duyệt năng lực) cấp
+  `ORG_ADMIN`; `CREATE_CHAIN` cấp khi subscription chuyển `ACTIVE`. `MEMBER` ghi
+  nghiệp vụ trong chuỗi được mời hoặc nhận lô, theo `billing.participantLimits`.
+  Gói theo quy mô với hạn mức `products`, `chains`, `partners`, `members`; vượt hạn
+  mức chặn tạo mới, không hạ gói thấp hơn mức đang dùng.
 - Bảng giá lưu `service_plan_version`; bản đã công bố bất biến, báo giá ghi
   `planVersionId`. Chấp nhận hợp đồng tạo subscription `PENDING_PAYMENT` và hóa
   đơn `INITIAL`; thanh toán (mô phỏng local hoặc admin xác nhận chuyển khoản) đổi
@@ -514,6 +515,22 @@ Việc còn mở: [backlog](plans/backlog.md).
   `RESTRICTED` chặn kích hoạt sản phẩm, tạo chuỗi và thêm thành viên,
   nhưng không chặn giao nhận đang dở, đọc dữ liệu hay trang QR công khai. Hạn mức
   kiểm trong cùng transaction của lệnh tạo.
+- Chủ chuỗi hết hạn (`RESTRICTED`) không tạo vụ, lô hay lệnh chế biến mới trong
+  chuỗi của mình; lô và giao nhận đang dở vẫn hoàn tất.
+
+## Chủ chuỗi, đối tác và nguồn nguyên liệu (02/11/2026)
+
+Quyết định đầy đủ ở [ADR-005](adr-005-chain-owner-service-model.md).
+
+- Sản phẩm gắn vào chuỗi phải thuộc chủ chuỗi. Trang thương hiệu trên trang quét chỉ
+  hiện khi admin đã duyệt sản phẩm và tổ chức đã công bố hồ sơ.
+- Chủ chuỗi "loại" đối tác: `closing_at` chặn bàn giao mới; chỉ tạm ngừng khi đối tác
+  hết hàng và không còn giao nhận mở. Đối tác tự rời theo cùng điều kiện.
+- Bên giữ hàng cách ly ngay. Thu hồi công khai chỉ chủ chuỗi của lô phát động; đối
+  tác gửi đề xuất thu hồi. Lô có đầu vào liên chuỗi báo thêm chủ chuỗi gốc.
+- Phiếu nhập ngoài chọn nhà cung cấp trong danh bạ của tổ chức, có mức tin cậy
+  `DECLARED`/`EVIDENCED`/`SUPPLIER_CONFIRMED`; lô AgriTrace là `SELF_RECORDED`.
+- Bên giữ hàng ghi `EXTERNAL_DISPATCH` khi giao cho đơn vị ngoài hệ thống.
 
 ## Chế biến (biến đổi lô)
 
@@ -527,8 +544,10 @@ nghiệm thu Fabric hoặc nguyên liệu có chứng nhận độc lập.
 
 - Lệnh chế biến do tổ chức có năng lực `PROCESSOR` lập tại cơ sở loại
   `PROCESSING`/`PACKING`, trong một chuỗi; quyền `processing.write` theo chuỗi và
-  cơ sở. Lô đầu vào phải cùng chuỗi, cùng đơn vị cơ sở, đang được tổ chức giữ tại
-  cơ sở (trừ phần giữ chỗ và cách ly), không hết hạn/thu hồi/khóa và đã đối soát.
+  cơ sở. Lô đầu vào cùng đơn vị cơ sở, đang được tổ chức giữ tại cơ sở (trừ phần
+  giữ chỗ và cách ly), không hết hạn/thu hồi/khóa và đã đối soát. Lô của chuỗi khác
+  được dùng khi tổ chức là thành viên `ACTIVE` của chuỗi gốc; lệnh khi đó ghim binding
+  của chuỗi lệnh và lưu liên kết kiểm chứng (ADR-005 mục 5).
 - Cân bằng khối lượng: Σ đầu vào = Σ lượng quy đổi của thành phẩm/phụ phẩm + Σ hao
   hụt, sai lệch tối đa `processing.massBalanceTolerancePercent` (mặc định 0%). API
   và constraint trigger DB cùng kiểm.
@@ -549,7 +568,8 @@ nghiệm thu Fabric hoặc nguyên liệu có chứng nhận độc lập.
   Lệnh hoàn tất hoặc hủy là bất biến; sai thì lập lệnh điều chỉnh mới.
 - Lô chế biến có `origin_type = TRANSFORMATION`, `harvest_id` rỗng và
   `processing_run_id`. Chuỗi và binding sổ cái của sự kiện lấy theo
-  `origin_cycle_id` của lệnh; các đầu vào không được thuộc binding khác nhau.
+  `origin_cycle_id` của lệnh; các đầu vào cùng chuỗi không được thuộc binding khác
+  nhau. Lệnh có đầu vào liên chuỗi không có `origin_cycle_id` và dùng binding đã ghim.
   Luồng gắn với vụ (shipment, kế hoạch giao hàng, chứng nhận vụ) không nhận lô
   chế biến.
 - Trang QR công khai của lô chế biến hiện lô nguyên liệu, nhà sản xuất (ẩn tên
@@ -635,13 +655,12 @@ Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lện
 
 ## Chuỗi riêng, nhân viên của vụ và ràng buộc diện tích (26/10/2026)
 
-- **Chuỗi riêng.** Khi admin kích hoạt doanh nghiệp được cấp `CREATE_CHAIN` (có
-  năng lực `FARM` hoặc mô hình doanh nghiệp chuỗi), cùng lệnh kích hoạt tạo một
-  chuỗi `personal = true` (migration `20261215000000_personal_supply_chain`, tối
-  đa một chuỗi mỗi tổ chức). Chuỗi có hồ sơ nghiệp vụ `ACTIVE`, chủ doanh nghiệp là
-  thành viên, `CHAIN_MANAGER` và vai trò nghiệp vụ theo từng năng lực đã duyệt.
-  Chuỗi riêng không tính vào hạn mức `chains` của gói. Binding vẫn do vận hành
-  đăng ký ngoài API (xem Hybrid runbook); trước khi binding `ACTIVE`, chuỗi chưa
+- **Sổ ghi nông trại** (chuỗi `personal = true`, ADR-005 mục 4). Tạo trong cùng lệnh
+  khi năng lực `FARM` của tổ chức có hiệu lực (kích hoạt hoặc duyệt năng lực sau kích
+  hoạt), tối đa một sổ mỗi tổ chức, cho cả thành viên lẫn chủ chuỗi. Sổ có hồ sơ
+  nghiệp vụ `ACTIVE`, tổ chức là thành viên, `CHAIN_MANAGER` và vai trò theo năng lực.
+  Sổ không tính vào hạn mức gói, chịu hạn mức năm `billing.farmLedgerLimits`. Binding
+  được cấp tự động qua `ledger_provisioning_job`; trước khi binding `ACTIVE`, sổ chưa
   nhận lệnh sản xuất. Doanh nghiệp đã kích hoạt trước đó được bổ sung bằng
   `node dist/operator/personal-chains.js`. Đối tác vào chuỗi qua phiếu giao như
   mọi chuỗi khác. Form tạo vụ ẩn ô chuỗi khi doanh nghiệp chỉ có một chuỗi và mặc

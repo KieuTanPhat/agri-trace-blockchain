@@ -17,6 +17,15 @@ nhận một mục, đối chiếu source/Issue/evidence mới nhất; không á
 | Chế biến | HTTP/DB guard trên DB cách ly: receipts chứng từ, reservation concurrency, bổ sung/hủy/complete/replay, conversion/mass balance, corrections, nguồn ngoài không có vụ và privacy lineage; UI và Fabric thật nghiệm thu riêng. | PROCESSING, ADMIN |
 | Seed production | Công cụ seed local không cấp quyền ghi VPS. Nếu có yêu cầu mới: adapter xác minh target/generation, shared platform template, tách demo identities, rehearsal ledger thật, ảnh/logo/privacy và checkpoint recovery; không nhập local hash/proof/journal. Kiểm dependency advisory/CI hiện tại trước khi dùng kế hoạch phát hành cũ. | FRUIT |
 
+## Để sau theo ADR-005
+
+| Mục | Điều kiện giữ lại | Nguồn lịch sử |
+| --- | --- | --- |
+| Tem từng bao | Mã định danh từng đơn vị, phát hiện quét bất thường, tính phí theo sản lượng tem (`qrReference`). | ADR-005 |
+| Chuyển nhượng chủ chuỗi | Bán nhãn hàng cần quy trình duyệt hai bên; hiện sản phẩm giữ cho chủ cũ. | ADR-005 |
+| Gói tài trợ, thanh toán thật | Gói chương trình (tỉnh/OCOP), cổng thanh toán, hóa đơn điện tử thật qua nhà cung cấp. | ADR-005 |
+| Cảm biến kho/chuyến | Nhiệt độ/độ ẩm theo chuyến và kho lạnh, cảnh báo. | ADR-005 |
+
 ## Khoảng trống cũ cần đối chiếu trước khi sửa
 
 Các mục dưới được giữ vì plan cũ chưa có kết luận cuối. Chưa tái hiện ở HEAD
