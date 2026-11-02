@@ -14,10 +14,14 @@ export async function partnerHasWork(
   chainId: string,
   organizationId: string,
 ) {
+  const holdings = await tx.lotHolding.findMany({
+    where: { organizationId, quantity: { gt: 0 } },
+    select: { lotId: true },
+  });
   const [held, transfers] = await Promise.all([
-    tx.lotHolding.count({
-      where: { organizationId, quantity: { gt: 0 }, lot: inChain(chainId) },
-    }),
+    holdings.length
+      ? tx.lot.count({ where: { id: { in: holdings.map((h) => h.lotId) }, ...inChain(chainId) } })
+      : Promise.resolve(0),
     tx.distributionTransfer.count({
       where: {
         chainId,

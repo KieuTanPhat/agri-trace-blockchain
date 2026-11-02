@@ -49,6 +49,7 @@ const prisma = new PrismaClient({
           Math.floor(Math.random() * 10),
         ).join(''),
         organizationType: 'FARM',
+        participationStatus: 'CHAIN_OWNER',
         details: {
           formVersion: 2,
           legalForm: 'ENTERPRISE',
@@ -268,7 +269,7 @@ const prisma = new PrismaClient({
       input: unknown;
     }) => {
       const input = {
-        planCode: 'TRACE_5',
+        planCode: 'OWNER_START',
         billingEmail: 'billing@example.test',
         billingName: 'Đơn vị kiểm thử',
         billingAddress: '123 Địa chỉ kiểm thử',
@@ -606,10 +607,16 @@ const prisma = new PrismaClient({
         { details: { ...form().details, website: 'javascript:alert(1)' } },
       ])
         await post('/auth/register', { ...form(), ...patch }).expect(400);
+      // ADR-005: only enterprises and cooperatives register; a transporter
+      // cannot register as a chain owner.
       const household = await verifiedForm();
       household.details.legalForm = 'HOUSEHOLD_BUSINESS';
-      household.businessId = '00' + household.businessId;
-      await post('/auth/register', household).expect(201);
+      await post('/auth/register', household).expect(400);
+      const carrier = await verifiedForm();
+      carrier.organizationType = 'TRANSPORTER';
+      carrier.details.activities = ['TRANSPORTER'];
+      delete (carrier.details as { production?: unknown }).production;
+      await post('/auth/register', carrier).expect(400);
     });
     it('locks OTP after five wrong attempts and rejects resend bursts and expired codes', async () => {
       const input = form(),
@@ -694,6 +701,50 @@ const prisma = new PrismaClient({
         vi.stubEnv('ENTERPRISE_PAYMENTS_ENABLED', 'true');
       }
     });
+    it('activates a member without chain authority, keeps its farm ledger and upgrades it to chain owner (ADR-005)', async () => {
+      const input = await verifiedForm();
+      input.participationStatus = 'MEMBER';
+      await post('/auth/register', input).expect(201);
+      const token = (await claim(input.email)).body.data.accessToken as string;
+      const enrollment = (await get('/enterprise-enrollments/mine', token).expect(200)).body.data;
+      expect(enrollment.participationStatus).toBe('MEMBER');
+      await approve(enrollment.id).expect(201);
+      const memberQuote = { planCode: 'OWNER_START', billingEmail: 'billing@example.test', billingName: 'Thành viên', billingAddress: '123 Địa chỉ thành viên', catalogVersion: await catalogVersion(token) };
+      await post('/enterprise-service/preview', memberQuote, token).expect(403);
+      await activateService({ token, enrollment });
+      const row = await prisma.enterpriseEnrollment.findUniqueOrThrow({ where: { id: enrollment.id } });
+      const roles = async () =>
+        (await prisma.scopedRoleGrant.findMany({ where: { organizationId: row.organizationId, scope: 'ORGANIZATION', revokedAt: null } }))
+          .map((g) => g.role)
+          .sort();
+      expect(await roles()).toEqual(['ORG_ADMIN']);
+      // The free farm ledger follows the FARM capability, for members too.
+      expect(await prisma.supplyChain.count({ where: { ownerOrganizationId: row.organizationId, personal: true } })).toBe(1);
+      const current = (await get('/enterprise-enrollments/mine', token).expect(200)).body.data;
+      await post('/enterprise-service/upgrade', { version: current.version }, token).expect(201);
+      expect((await prisma.organization.findUniqueOrThrow({ where: { id: row.organizationId } })).participationStatus).toBe('CHAIN_OWNER');
+      // Collection is enabled here: chain creation waits for the paid plan.
+      expect(await roles()).toEqual(['ORG_ADMIN']);
+      const quote = {
+        planCode: 'OWNER_START',
+        billingEmail: 'billing@example.test',
+        billingName: 'Đơn vị nâng cấp',
+        billingAddress: '123 Địa chỉ nâng cấp',
+        catalogVersion: await catalogVersion(token),
+      };
+      const preview = (await post('/enterprise-service/preview', quote, token).expect(201)).body.data;
+      const order = (
+        await post('/enterprise-service/orders', { ...quote, accepted: true, contractDigest: preview.contractDigest }, token).expect(201)
+      ).body.data;
+      await post(
+        '/enterprise-service/payment-simulation',
+        { version: order.version, contractDigest: order.contractDigest, method: 'LOCAL_DEMO' },
+        token,
+      ).expect(201);
+      expect(await roles()).toEqual(['CREATE_CHAIN', 'ORG_ADMIN']);
+      const invoice = await prisma.invoice.findFirstOrThrow({ where: { organizationId: row.organizationId } });
+      expect(invoice.subtotal! + invoice.vatAmount!).toBe(invoice.amount);
+    });
     it('serializes approval and grants organization authority through separate platform activation', async () => {
       const a = await register();
       const key = randomUUID();
@@ -769,7 +820,7 @@ const prisma = new PrismaClient({
       const a = await register(),
         other = await register();
       const input = {
-        planCode: 'TRACE_10',
+        planCode: 'OWNER_GROWTH',
         billingName: 'Doanh nghiệp thanh toán',
         billingEmail: a.input.email,
         billingAddress: '123 Đường thanh toán',
@@ -788,9 +839,9 @@ const prisma = new PrismaClient({
       const preview = (
         await post('/enterprise-service/preview', input, a.token).expect(201)
       ).body.data;
-      // Priced from the currently published TRACE_10 version, which an
+      // Priced from the currently published OWNER_GROWTH version, which an
       // administrator may have re-priced since the 10.5M seed.
-      const plan = catalog.plans.find((p) => p.code === 'TRACE_10')!;
+      const plan = catalog.plans.find((p) => p.code === 'OWNER_GROWTH')!;
       expect(preview.quotation.total).toBe(
         plan.version.setupFee + plan.version.annualFee,
       );

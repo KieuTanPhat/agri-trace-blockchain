@@ -193,7 +193,8 @@ export class LotQueryService {
       ON CONFLICT (lot_id, day) DO UPDATE SET scans = trace_scan_daily.scans + 1`.catch(() => undefined);
     return {
       ...toPublicLotDto(qr.lot, traceToken, traceEvents),
-      ...(await publicBrandAndTrust(this.prisma, qr.lot)),
+      // Brand and trust are additive; a failure never blocks the public page.
+      ...(await publicBrandAndTrust(this.prisma, qr.lot).catch(() => ({ brand: null, sourceTrust: null }))),
       journey:await this.journey.build(qr.lot,traceEvents,lines,traceToken),
       imageUrl:await this.journey.thumbnailUrl(traceToken,qr.lot.id),
       notices,
