@@ -186,7 +186,7 @@ it("freezes an unknown registration result and retries the original consented bo
 it("uploads the required processor certificate even when FARM is not requested", async () => {
   const draft: RegistrationDraft = {
     ...registrationDefaults,
-    registrationRole: "PROCESSOR",
+    participationStatus: "MEMBER",
     legalForm: "ENTERPRISE",
     organizationName: "Công ty chế biến kiểm thử",
     businessId: "0123456789",

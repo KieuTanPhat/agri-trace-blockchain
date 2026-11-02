@@ -111,7 +111,7 @@ export function OrganizationDetailView({ id }: { id: string }) {
         description={
           <>
             {ORG_TYPE_LABEL[o.type]} ·{" "}
-            {o.participationModel ? MODEL_LABEL[o.participationModel] : "—"} ·{" "}
+            {o.participationStatus ? MODEL_LABEL[o.participationStatus] : "—"} ·{" "}
             {o.profile?.province ?? "—"} · tham gia {fmtDate(o.createdAt)} ·{" "}
             <span className="font-mono">version {o.version}</span>
           </>

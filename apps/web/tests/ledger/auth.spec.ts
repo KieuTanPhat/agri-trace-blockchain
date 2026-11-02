@@ -100,7 +100,7 @@ test("otp_expiry_preserves_registration without sending an unverified profile", 
   ).toBeVisible();
   await page.getByRole("button", { name: "Đóng", exact: true }).click();
   await expect(
-    page.getByText("Hộ sản xuất kiểm thử", { exact: true }),
+    page.getByText("HTX sản xuất kiểm thử", { exact: true }),
   ).toBeVisible();
   expect(
     api.requests().filter((r) => r.path === "/auth/register"),

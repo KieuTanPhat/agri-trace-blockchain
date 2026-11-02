@@ -22,6 +22,7 @@ const draftSchema = z.object({
   annualFee: int(0, 1e10),
   termMonths: int(1, 60),
   chains: int(0, 1000),
+  partners: int(0, 100000),
   members: int(1, 100000),
   products: int(0, 100000),
   note: z.string().trim().min(10, { error: () => tr("Tối thiểu 10 ký tự") }).max(1000),
@@ -43,7 +44,7 @@ function Plans() {
   const publish = useDialog<PlanVersion>();
   const invalidate = [["plans"], ["inbox"]];
   if (q.error) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
-  const base = draft.target?.versions.find((v) => v.status === "PUBLISHED") ?? draft.target?.versions[0] ?? {setupFee:0,annualFee:0,termMonths:12,limits:{products:5,chains:1,members:10}};
+  const base = draft.target?.versions.find((v) => v.status === "PUBLISHED") ?? draft.target?.versions[0] ?? {setupFee:0,annualFee:0,termMonths:12,limits:{products:5,chains:1,partners:10,members:10}};
 
   return (
     <>
@@ -77,7 +78,7 @@ function Plans() {
                         <th className="h-9 px-4 font-semibold">{tr("Phiên bản")}</th>
                         <th className="px-3 text-right font-semibold">{tr("Khởi tạo")}</th>
                         <th className="px-3 text-right font-semibold">{tr("Phí năm")}</th>
-                        <th className="px-3 font-semibold">{tr("Hạn mức (chuỗi · thành viên · SP · tem)")}</th>
+                        <th className="px-3 font-semibold">{tr("Hạn mức (chuỗi · đối tác · nhân viên · SP)")}</th>
 
                         <th className="px-3 font-semibold">{tr("Đang dùng")}</th>
                         <th className="px-4 font-semibold">{tr("Trạng thái")}</th>
@@ -91,7 +92,7 @@ function Plans() {
                           </td>
                           <td className="px-3 text-right font-mono text-[12px]">{fmtMoney(v.setupFee)}</td>
                           <td className="px-3 text-right font-mono text-[12px]">{fmtMoney(v.annualFee)}</td>
-                          <td className="px-3 font-mono text-[12px]">{v.limits.chains} · {fmtNumber(v.limits.members)} · {fmtNumber(v.limits.products)}</td>
+                          <td className="px-3 font-mono text-[12px]">{v.limits.chains} · {fmtNumber(v.limits.partners ?? 0)} · {fmtNumber(v.limits.members)} · {fmtNumber(v.limits.products)}</td>
 
                           <td className="px-3 font-mono text-[12px]">{v.activeSubscriptions}</td>
                           <td className="px-4">
@@ -122,7 +123,7 @@ function Plans() {
           submitLabel={tr("Lưu bản nháp")}
           invalidate={invalidate}
           wide
-          run={(v, cmd) => api.billing.draftVersion(draft.target!.code, { setupFee: v.setupFee, annualFee: v.annualFee, termMonths: v.termMonths, limits: { chains: v.chains, members: v.members, products: v.products }, note: v.note }, cmd)}
+          run={(v, cmd) => api.billing.draftVersion(draft.target!.code, { setupFee: v.setupFee, annualFee: v.annualFee, termMonths: v.termMonths, limits: { chains: v.chains, partners: v.partners, members: v.members, products: v.products }, note: v.note }, cmd)}
         >
           {(f) => (
             <>
@@ -133,7 +134,8 @@ function Plans() {
               </div>
               <div className="grid gap-3 sm:grid-cols-4">
                 <TextField control={f.control} name="chains" label={tr("Chuỗi")} type="number" />
-                <TextField control={f.control} name="members" label={tr("Thành viên")} type="number" />
+                <TextField control={f.control} name="partners" label={tr("Đối tác trong chuỗi")} type="number" />
+                <TextField control={f.control} name="members" label={tr("Nhân viên")} type="number" />
                 <TextField control={f.control} name="products" label={tr("Sản phẩm")} type="number" />
               </div>
 

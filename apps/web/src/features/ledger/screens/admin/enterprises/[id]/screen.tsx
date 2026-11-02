@@ -183,8 +183,8 @@ function EnrollmentDetail() {
         }
         description={
           <>
-            {MODEL_LABEL[e.participationModel]} ·{" "}
-            {e.payingParticipant ? tr("Trả phí") : tr("Miễn phí")}{" "}
+            {MODEL_LABEL[e.participationStatus]} ·{" "}
+            {e.participationStatus === "CHAIN_OWNER" ? tr("Trả phí khi tạo chuỗi") : tr("Miễn phí")}{" "}
             · MST <span className="font-mono">{e.businessId ?? "—"}</span>{" "}
             {tr("· nộp")} {fmtDateTime(e.createdAt)}
           </>
@@ -302,20 +302,20 @@ function Stepper({ e }: { e: Enrollment }) {
       current: e.status === "PENDING_REVIEW",
     },
     {
-      label: deferred ? tr("Sử dụng tạm — chưa thu phí") : e.payingParticipant
-        ? tr("Doanh nghiệp chọn gói & hợp đồng")
-        : tr("Không cần gói (miễn phí)"),
+      label: deferred ? tr("Sử dụng tạm — chưa thu phí") : e.participationStatus === "CHAIN_OWNER"
+        ? tr("Chủ chuỗi chọn gói & hợp đồng (quyền tạo chuỗi)")
+        : tr("Thành viên — không cần gói"),
       done:
         e.status === "APPROVED" &&
-        (deferred || !e.payingParticipant || !!e.serviceActivatedAt),
+        (deferred || e.participationStatus !== "CHAIN_OWNER" || !!e.serviceActivatedAt),
       current:
-        !deferred && e.onboardingStage === "AWAITING_ACTIVATION" && e.payingParticipant,
+        !deferred && e.onboardingStage === "AWAITING_ACTIVATION" && e.participationStatus === "CHAIN_OWNER",
     },
     {
       label: deferred ? tr("Thanh toán đang tạm hoãn") : tr("Thanh toán"),
       done:
         deferred || !!e.serviceActivatedAt ||
-        (e.status === "APPROVED" && !e.payingParticipant),
+        (e.status === "APPROVED" && e.participationStatus !== "CHAIN_OWNER"),
       current: false,
     },
     {
@@ -648,14 +648,16 @@ function ActivatePanel({
       label: tr("Có ít nhất một năng lực được duyệt"),
     },
     {
-      ok: e.paymentsEnabled === false || !caps.length || !e.payingParticipant || subscriptionActive,
-      label: e.paymentsEnabled === false ? tr("Sử dụng tạm — không yêu cầu thanh toán") : !caps.length
-        ? tr("Hồ sơ không có yêu cầu năng lực — không cần gói")
-        : e.payingParticipant
-          ? orgLoaded
-            ? tr("Có gói dịch vụ ACTIVE (tổ chức trả phí)")
-            : tr("Đang kiểm tra gói dịch vụ…")
-          : tr("Tổ chức miễn phí — không cần gói"),
+      // ADR-005: activation never waits for a plan; a chain owner's plan only
+      // gates chain creation, granted once the subscription is ACTIVE.
+      ok: true,
+      label: e.participationStatus !== "CHAIN_OWNER"
+        ? tr("Thành viên — không cần gói")
+        : e.paymentsEnabled === false
+          ? tr("Chủ chuỗi — thu phí tạm hoãn, được tạo chuỗi ngay khi kích hoạt")
+          : orgLoaded && subscriptionActive
+            ? tr("Chủ chuỗi — gói ACTIVE, được tạo chuỗi khi kích hoạt")
+            : tr("Chủ chuỗi — tạo chuỗi được sau khi thanh toán gói"),
     },
   ];
   const ready = checks.every((c) => c.ok);
@@ -709,7 +711,7 @@ function ActivatePanel({
       ) : (
         <Callout tone="warn">
           {tr("Chưa đủ điều kiện kích hoạt — API sẽ trả 409.")}{" "}
-          {e.paymentsEnabled !== false && e.payingParticipant && !subscriptionActive && (
+          {e.paymentsEnabled !== false && e.participationStatus === "CHAIN_OWNER" && !subscriptionActive && (
             <Link
               className="underline"
               href={`/admin/billing/invoices?organizationId=${e.organizationId}`}

@@ -106,12 +106,12 @@ function Enrollments() {
     },
     {
       key: "model",
-      header: tr("Mô hình"),
+      header: tr("Tư cách"),
       hideBelow: "md",
       cell: (e) => (
         <span className="text-ink-2">
-          {MODEL_LABEL[e.participationModel]}
-          {e.payingParticipant ? tr(" · trả phí") : tr(" · miễn phí")}
+          {MODEL_LABEL[e.participationStatus]}
+          {e.participationStatus === "CHAIN_OWNER" ? tr(" · trả phí") : tr(" · miễn phí")}
         </span>
       ),
     },

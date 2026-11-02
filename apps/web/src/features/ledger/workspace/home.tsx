@@ -35,7 +35,7 @@ export default function WorkspaceHome() {
         meta={<Badge tone={d.organization.status === "ACTIVE" ? "ok" : "neutral"}>{d.organization.status === "ACTIVE" ? tr("Hoạt động") : tr("Ngừng hoạt động")}</Badge>}
         description={
           <>
-            {tr("Mã AgriTrace")} <span className="font-mono">{d.organization.code}</span> · MST <span className="font-mono">{d.organization.businessId ?? "—"}</span> · {d.organization.participationModel ? MODEL_LABEL[d.organization.participationModel] : "—"}
+            {tr("Mã AgriTrace")} <span className="font-mono">{d.organization.code}</span> · MST <span className="font-mono">{d.organization.businessId ?? "—"}</span> · {d.organization.participationStatus ? MODEL_LABEL[d.organization.participationStatus] : "—"}
           </>
         }
       />

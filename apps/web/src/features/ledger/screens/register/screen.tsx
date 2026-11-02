@@ -8,10 +8,11 @@ import { t } from "@/lib/ledger/i18n";
 import type { LedgerScreenProps } from "@/lib/ledger/route-input";
 import {
   REGISTRATION_STEPS,
-  REGISTRATION_ROLES,
+  PARTICIPATION_STATUS_OPTIONS,
+  ACTIVITY_OPTIONS,
+  LEGAL_FORM_OPTIONS,
+  mayOwnChains,
   registrationDefaults,
-  registrationRoleFields,
-  legalFormsFor,
   registeredLegalForm,
   validateRegistrationStep,
   PROCESSING_TYPE_OPTIONS,
@@ -59,7 +60,7 @@ type TextKey = {
     ? K
     : never;
 }[keyof RegistrationDraft];
-const DRAFT_KEY = "agritrace:enterprise-registration-draft:v5";
+const DRAFT_KEY = "agritrace:enterprise-registration-draft:v6";
 export default function LedgerScreen(_props: LedgerScreenProps) {
   void _props;
   useLocale();
@@ -128,6 +129,10 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
     } catch {
       /* Corrupt or unavailable drafts do not bypass validation. */
     }
+    // A partner invitation link carries a one-time token; it never leaves this form.
+    const invitation = new URLSearchParams(window.location.search).get("invitation");
+    if (invitation && /^[A-Za-z0-9_-]{20,200}$/.test(invitation))
+      setDraft((current) => ({ ...current, invitationToken: invitation, participationStatus: "MEMBER" }));
   }, []);
   useEffect(() => {
     if (!otpOpen) return;
@@ -367,34 +372,41 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                   >
                     {step === 0 && (
                       <>
-                        <RegistrationSelect
-                          name="registrationRole"
-                          label={t("Vai trò đăng ký")}
-                          value={draft.registrationRole}
-                          options={REGISTRATION_ROLES.map(([value, label]) => [
-                            value,
-                            label,
-                          ])}
-                          error={errors.registrationRole}
-                          onChange={(value) => {
-                            update("registrationRole", value);
-                            setDraft((current) => ({
-                              ...current,
-                              ...registrationRoleFields(value),
-                              legalForm: legalFormsFor(value).some(
-                                ([code]) => code === current.legalForm,
-                              )
-                                ? current.legalForm
-                                : "ENTERPRISE",
-                            }));
-                          }}
-                        />
-                        {text("organizationName", "Tên tổ chức / chủ thể")}
+                        <div className="flex flex-col gap-2 sm:col-span-2">
+                          <span className="text-[13px] font-medium">{t("Tư cách tham gia AgriTrace")}</span>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {PARTICIPATION_STATUS_OPTIONS.map(([value, label, hint]) => (
+                              <label
+                                key={value}
+                                className={`flex cursor-pointer flex-col gap-1 rounded-md border p-3 text-[13px] ${draft.participationStatus === value ? "border-primary bg-primary/5" : "border-line"}`}
+                              >
+                                <span className="flex items-center gap-2 font-medium">
+                                  <input
+                                    type="radio"
+                                    name="participationStatus"
+                                    value={value}
+                                    checked={draft.participationStatus === value}
+                                    onChange={() => update("participationStatus", value)}
+                                  />
+                                  {t(label)}
+                                </span>
+                                <span className="text-muted-foreground">{t(hint)}</span>
+                              </label>
+                            ))}
+                          </div>
+                          {errors.participationStatus && (
+                            <p className="text-[12px] text-destructive">{t(errors.participationStatus)}</p>
+                          )}
+                          {draft.invitationToken && (
+                            <Callout>{t("Bạn đăng ký theo lời mời của một chủ chuỗi; sau khi kích hoạt, lời mời vào chuỗi sẽ hiện trong tài khoản.")}</Callout>
+                          )}
+                        </div>
+                        {text("organizationName", "Tên tổ chức")}
                         <RegistrationSelect
                           name="legalForm"
-                          label={t("Loại chủ thể")}
+                          label={t("Loại hình tổ chức")}
                           value={draft.legalForm}
-                          options={legalFormsFor(draft.registrationRole)}
+                          options={LEGAL_FORM_OPTIONS.map(([value, label]) => [value, label])}
                           error={errors.legalForm}
                           onChange={(value) => update("legalForm", value)}
                         />
@@ -500,12 +512,45 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                     )}
                     {step === 2 && (
                       <>
-                        <div className="sm:col-span-2">
-                          <Callout>
-                            {t("Năng lực yêu cầu")}:{" "}
-                            {draft.activities.join(", ")}
-                          </Callout>
+                        <div className="flex flex-col gap-2 sm:col-span-2">
+                          <span className="text-[13px] font-medium">{t("Năng lực của tổ chức (mỗi năng lực được xét duyệt riêng)")}</span>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {ACTIVITY_OPTIONS.map(([value, label]) => (
+                              <RegistrationCheck
+                                key={value}
+                                name={`activity-${value}`}
+                                label={t(label)}
+                                checked={draft.activities.includes(value)}
+                                onChange={(checked) =>
+                                  setDraft((current) => {
+                                    const activities = checked
+                                      ? [...current.activities, value]
+                                      : current.activities.filter((a) => a !== value);
+                                    return {
+                                      ...current,
+                                      activities,
+                                      organizationType: activities.includes(current.organizationType)
+                                        ? current.organizationType
+                                        : (activities[0] ?? ""),
+                                    };
+                                  })
+                                }
+                              />
+                            ))}
+                          </div>
+                          {errors.activities && <p className="text-[12px] text-destructive">{t(errors.activities)}</p>}
+                          {draft.participationStatus === "CHAIN_OWNER" && !mayOwnChains(draft.activities) && (
+                            <Callout tone="warn">{t("Chủ chuỗi cần ít nhất một năng lực sở hữu hàng; tổ chức chỉ vận chuyển đăng ký với tư cách thành viên.")}</Callout>
+                          )}
                         </div>
+                        <RegistrationSelect
+                          name="organizationType"
+                          label={t("Hoạt động chính")}
+                          value={draft.organizationType}
+                          options={ACTIVITY_OPTIONS.filter(([value]) => draft.activities.includes(value)).map(([value, label]) => [value, label])}
+                          error={errors.organizationType}
+                          onChange={(value) => update("organizationType", value)}
+                        />
                         {producer && (
                           <>
                             {text(
@@ -603,24 +648,26 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                             onChange={() => {}}
                           />
                         </div>
-                        <RegistrationSelect
-                          name="planCode"
-                          label={t("Gói quan tâm")}
-                          value={draft.planCode || "UNDECIDED"}
-                          options={[
-                            ["UNDECIDED", "Chưa quyết định"],
-                            ["TRACE_5", "Trace 5"],
-                            ["TRACE_10", "Trace 10"],
-                            ["TRACE_20", "Trace 20"],
-                            ["CHAIN_PRO", "Chain Pro"],
-                          ]}
-                          onChange={(value) =>
-                            update(
-                              "planCode",
-                              value === "UNDECIDED" ? "" : value,
-                            )
-                          }
-                        />
+                        {draft.participationStatus === "CHAIN_OWNER" && (
+                          <RegistrationSelect
+                            name="planCode"
+                            label={t("Gói chủ chuỗi quan tâm")}
+                            value={draft.planCode || "UNDECIDED"}
+                            options={[
+                              ["UNDECIDED", "Chưa quyết định"],
+                              ["OWNER_START", "Khởi đầu"],
+                              ["OWNER_GROWTH", "Tăng trưởng"],
+                              ["OWNER_SCALE", "Mở rộng"],
+                              ["OWNER_ENTERPRISE", "Doanh nghiệp"],
+                            ]}
+                            onChange={(value) =>
+                              update(
+                                "planCode",
+                                value === "UNDECIDED" ? "" : value,
+                              )
+                            }
+                          />
+                        )}
                         <RegistrationSelect
                           name="expectedProducts"
                           label={t("Số sản phẩm dự kiến")}

@@ -231,7 +231,7 @@ function Overview() {
               <Section title={tr("Năng lực đang hiệu lực")}>
                 <Bars data={d.organizations.capabilities} />
                 <div className="border-t border-line/70">
-                  <Bars data={d.organizations.byModel} />
+                  <Bars data={d.organizations.byParticipation} />
                 </div>
               </Section>
               <div className="flex flex-col gap-5">

@@ -23,13 +23,10 @@ import { RevisionHistory } from "@/components/ledger/workspace/revision-history"
 export const LEGAL_FORM_LABEL: Record<string, string> = localized({
   ENTERPRISE: "Doanh nghiệp",
   COOPERATIVE: "Hợp tác xã",
-  HOUSEHOLD_BUSINESS: "Hộ kinh doanh",
-  PRODUCER_HOUSEHOLD: "Hộ sản xuất",
-  INDIVIDUAL_PRODUCER: "Cá nhân sản xuất",
 });
 const AMENDMENT_LABEL: Record<string, string> = localized({ PENDING: "Chờ nền tảng duyệt", APPROVED: "Đã duyệt", REJECTED: "Bị từ chối", WITHDRAWN: "Đã rút" });
 const AMENDMENT_TONE: Record<string, "info" | "ok" | "danger" | "neutral"> = { PENDING: "info", APPROVED: "ok", REJECTED: "danger", WITHDRAWN: "neutral" };
-const REGISTERED = ["ENTERPRISE", "COOPERATIVE", "HOUSEHOLD_BUSINESS"];
+const REGISTERED = ["ENTERPRISE", "COOPERATIVE"];
 const ACTIVITIES = ["FARM", "TRANSPORTER", "DISTRIBUTOR", "RETAILER"];
 const CERTS = ["VIETGAP", "GLOBALGAP", "ORGANIC", "OTHER"];
 const reason = z.string().trim().min(10, { error: () => tr("Tối thiểu 10 ký tự") }).max(1000);
@@ -46,7 +43,7 @@ const contactSchema = z.object({
 const legalSchema = z
   .object({
     name: z.string().trim().min(2, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 2 }) }).max(255),
-    legalForm: z.enum(["ENTERPRISE", "COOPERATIVE", "HOUSEHOLD_BUSINESS", "PRODUCER_HOUSEHOLD", "INDIVIDUAL_PRODUCER"]),
+    legalForm: z.enum(["ENTERPRISE", "COOPERATIVE"]),
     businessId: z.string().trim().max(40).optional(),
     registrationNumber: z.string().trim().max(100).optional(),
     representativeTitle: z.string().trim().max(100).optional(),
@@ -63,14 +60,12 @@ const legalSchema = z
   })
   .superRefine((v, ctx) => {
     const id = (v.businessId ?? "").replace(/[-\s]/g, "");
-    if (id && !/^(?:\d{10}|\d{12}|\d{13})$/.test(id)) ctx.addIssue({ code: "custom", path: ["businessId"], message: tr("Mã pháp lý gồm 10, 12 hoặc 13 chữ số") });
+    if (id && !/^(?:\d{10}|\d{13})$/.test(id)) ctx.addIssue({ code: "custom", path: ["businessId"], message: tr("Mã số thuế gồm 10 hoặc 13 chữ số") });
     if (REGISTERED.includes(v.legalForm)) {
       if (!id) ctx.addIssue({ code: "custom", path: ["businessId"], message: tr("Bắt buộc với loại hình đã đăng ký") });
       if (!v.registrationNumber?.trim()) ctx.addIssue({ code: "custom", path: ["registrationNumber"], message: tr("Bắt buộc với loại hình đã đăng ký") });
       if (!v.representativeTitle?.trim()) ctx.addIssue({ code: "custom", path: ["representativeTitle"], message: tr("Bắt buộc với loại hình đã đăng ký") });
     }
-    if (["ENTERPRISE", "COOPERATIVE"].includes(v.legalForm) && id.length === 12) ctx.addIssue({ code: "custom", path: ["businessId"], message: tr("Mã số 12 chữ số chỉ dành cho hộ kinh doanh") });
-    if (["PRODUCER_HOUSEHOLD", "INDIVIDUAL_PRODUCER"].includes(v.legalForm) && !v.activities.includes("FARM")) ctx.addIssue({ code: "custom", path: ["activities"], message: tr("Hộ/cá nhân sản xuất cần năng lực sản xuất") });
     const groups = (v.productGroups ?? "").split(",").map((x) => x.trim()).filter(Boolean);
     if (v.activities.includes("FARM") && (groups.length < 1 || groups.length > 10)) ctx.addIssue({ code: "custom", path: ["productGroups"], message: tr("Khai 1–10 nhóm sản phẩm, cách nhau bằng dấu phẩy") });
   });

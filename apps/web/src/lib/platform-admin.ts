@@ -31,8 +31,8 @@ export const capabilityLabels: Record<string, string> = {
   AUDITOR: "Kiểm định",
 };
 export const participationLabels: Record<string, string> = {
-  SINGLE: "Một vai trò",
-  SUPPLY_CHAIN_ENTERPRISE: "Doanh nghiệp chuỗi cung ứng",
+  MEMBER: "Thành viên",
+  CHAIN_OWNER: "Chủ chuỗi",
 };
 export const subscriptionLabels: Record<string, string> = {
   ACTIVE: "Đang hiệu lực",

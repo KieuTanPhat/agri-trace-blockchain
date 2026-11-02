@@ -183,9 +183,10 @@ export const CAPABILITY_LABEL: Record<string, string> = localized({
   AUDITOR: "Kiểm định",
 });
 export const ORG_TYPE_LABEL: Record<string, string> = CAPABILITY_LABEL;
+/** Participation status (ADR-005): free member or paying chain owner. */
 export const MODEL_LABEL: Record<string, string> = localized({
-  SINGLE: "Một hoạt động",
-  SUPPLY_CHAIN_ENTERPRISE: "Doanh nghiệp chuỗi",
+  MEMBER: "Thành viên",
+  CHAIN_OWNER: "Chủ chuỗi",
   NONE: "Không áp dụng",
 });
 export const INBOX_KIND_LABEL: Record<string, string> = localized({

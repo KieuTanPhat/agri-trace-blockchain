@@ -13,7 +13,7 @@ export type DirectoryItem = {
   type: string;
   status: string;
   version: number;
-  participationModel: string;
+  participationStatus: string;
   capabilities: string[];
   pendingCapabilities: string[];
   enrollmentId: string | null;
@@ -71,7 +71,7 @@ export type LedgerDashboard = {
   organizations: {
     byType: Record<string, number>;
     byStatus: Record<string, number>;
-    byModel: Record<string, number>;
+    byParticipation: Record<string, number>;
     capabilities: Record<string, number>;
   };
   pending: LedgerInbox["summary"];
@@ -212,7 +212,7 @@ export type PlatformOrganization = {
   type: string;
   status: "ACTIVE" | "INACTIVE";
   version: number;
-  participationModel: string;
+  participationStatus: string;
   createdAt: string;
   profile: S["EnterpriseProfileRecordDto"] | null;
   capabilities: {
