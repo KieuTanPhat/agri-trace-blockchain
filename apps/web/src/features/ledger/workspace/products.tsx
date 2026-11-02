@@ -352,7 +352,7 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
               </CommandDialog>
             )}
             {approval.target && (
-              <CommandDialog {...approval.props} title={tr("Gửi duyệt trang thương hiệu · {p0}", { p0: p.productName })} endpoint={`POST /catalog/products/${p.id}/approval-request`} description={tr("Dành cho chủ chuỗi. Tải bản công bố sản phẩm hoặc giấy chứng nhận chất lượng ở mục hồ sơ bên dưới trước khi gửi. Việc ghi lô không phải chờ duyệt.")} schema={emptySchema} defaultValues={{}} version={p.version} submitLabel={tr("Gửi duyệt")} invalidate={[["ws-catalog"]]} run={(_, cmd) => wapi.requestApproval(p.id, { version: p.version }, cmd)}>
+              <CommandDialog {...approval.props} title={tr("Gửi duyệt trang thương hiệu · {p0}", { p0: p.productName })} endpoint={`POST /catalog/products/${p.id}/approval-request`} description={tr("Dành cho chủ chuỗi. Tải bản công bố sản phẩm hoặc giấy chứng nhận chất lượng ở mục hồ sơ bên dưới trước khi gửi. Việc ghi lô không phải chờ duyệt.")} schema={emptySchema} defaultValues={{}} version={currentVersion(p.version)} submitLabel={tr("Gửi duyệt")} invalidate={[["ws-catalog"]]} run={(_, cmd) => wapi.requestApproval(p.id, { version: currentVersion(p.version) }, cmd)}>
                 {() => null}
               </CommandDialog>
             )}
