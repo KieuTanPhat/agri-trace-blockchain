@@ -34,6 +34,7 @@ import { recordHandoverReceipt } from '../processing/processing-receipts.js';
 import { prepareC2,consumeC2 } from './distribution-c2.js';
 import { BUSINESS_CAPABILITIES, lockChainScope } from '../supply-chains/chain-policy.js';
 import { requestLedgerGrant } from '../ledger/ledger-permissions.js';
+import { assertPartnerSlot } from '../supply-chains/chain-membership-rules.js';
 import type {
   TransferInput,
   TransferSignature,
@@ -332,7 +333,10 @@ export class DistributionService {
       });
       const membership = org?.chainMemberships[0]?.status;
       // Partners join the lot's chain when they consent; a suspended or
-      // revoked membership is never revived by a transfer.
+      // revoked membership is never revived by a transfer, and a partner the
+      // owner is closing out receives no new handover (ADR-005).
+      if (org?.chainMemberships[0]?.closingAt)
+        throw new ForbiddenException('Chủ chuỗi đang ngừng hợp tác với đối tác này; không tạo giao nhận mới');
       const member =
         membership === 'ACTIVE' ||
         (mayJoin && (!membership || membership === 'INVITED'));
@@ -418,6 +422,7 @@ export class DistributionService {
       });
       if (!member || member.status !== 'INVITED')
         throw new ConflictException('Không có lời mời vào chuỗi đang chờ');
+      await assertPartnerSlot(tx, t.chainId, org);
       const active = await tx.chainMembership.update({
         where: { id: member.id },
         data: { status: 'ACTIVE', version: { increment: 1 }, updatedAt: new Date() },
@@ -425,12 +430,16 @@ export class DistributionService {
       await tx.chainAudit.create({
         data: { chainId: t.chainId, actorUserId: actor.sub!, operation: 'MEMBER_ACTIVE', subjectId: member.id, revision: active.version },
       });
-      const chain = await tx.supplyChain.findUniqueOrThrow({ where: { id: t.chainId } });
       const role = actor.role as keyof typeof BUSINESS_CAPABILITIES;
       const capability = BUSINESS_CAPABILITIES[role];
       let granted = false;
+      // Business roles follow a handover from any ACTIVE member of the lot's
+      // chain, so lots reach processors through traders too (ADR-005).
+      const senderActive = await tx.chainMembership.findFirst({
+        where: { chainId: t.chainId, organizationId: t.senderId, status: 'ACTIVE' },
+      });
       if (
-        chain.ownerOrganizationId === t.senderId &&
+        !!senderActive &&
         capability &&
         (await tx.organizationCapability.findFirst({ where: { organizationId: org, code: capability, revokedAt: null } })) &&
         !(await tx.scopedRoleGrant.findFirst({ where: { userId: actor.sub!, organizationId: org, chainId: t.chainId, role, revokedAt: null } }))

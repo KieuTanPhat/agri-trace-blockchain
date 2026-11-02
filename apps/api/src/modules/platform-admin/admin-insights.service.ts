@@ -66,7 +66,7 @@ export class AdminInsightsService {
     ] = await Promise.all([
       this.db.organization.groupBy({ by: ['type'], _count: { _all: true } }),
       this.db.organization.groupBy({ by: ['status'], _count: { _all: true } }),
-      this.db.organization.groupBy({ by: ['participationModel'], _count: { _all: true } }),
+      this.db.organization.groupBy({ by: ['participationStatus'], _count: { _all: true } }),
       this.db.organizationCapability.groupBy({ by: ['code'], where: { revokedAt: null }, _count: { _all: true } }),
       this.inbox(),
       this.db.lot.count(),
@@ -96,7 +96,7 @@ export class AdminInsightsService {
       organizations: {
         byType: count(orgByType, 'type'),
         byStatus: count(orgByStatus, 'status'),
-        byModel: count(orgByModel, 'participationModel'),
+        byParticipation: count(orgByModel, 'participationStatus'),
         capabilities: count(capabilities, 'code'),
       },
       pending: inbox.summary,
@@ -192,7 +192,7 @@ export class AdminInsightsService {
       type: { not: 'AUDITOR' },
       ...(query.q ? { name: { contains: query.q, mode: 'insensitive' } } : {}),
       ...(query.status ? { status: query.status as 'ACTIVE' | 'INACTIVE' } : {}),
-      ...(query.model ? { participationModel: query.model } : {}),
+      ...(query.participation ? { participationStatus: query.participation } : {}),
       ...(query.capability ? { capabilities: { some: { code: query.capability as never, revokedAt: null } } } : {}),
     };
     const orgs = await this.db.organization.findMany({
@@ -220,7 +220,7 @@ export class AdminInsightsService {
         type: o.type,
         status: o.status,
         version: o.version,
-        participationModel: o.participationModel,
+        participationStatus: o.participationStatus,
         capabilities: o.capabilities.map((c) => c.code),
         pendingCapabilities: o.capabilityRequests.map((c) => c.code),
         enrollmentId: o.enterpriseEnrollment?.id ?? null,
@@ -271,7 +271,7 @@ export class AdminInsightsService {
       type: org.type,
       status: org.status,
       version: org.version,
-      participationModel: org.participationModel,
+      participationStatus: org.participationStatus,
       createdAt: org.createdAt.toISOString(),
       profile: org.profile,
       capabilities: org.capabilities.map((c) => ({ code: c.code, revokedAt: iso(c.revokedAt), revision: c.revision, createdAt: c.createdAt.toISOString() })),

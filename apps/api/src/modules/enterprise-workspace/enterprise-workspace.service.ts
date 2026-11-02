@@ -132,7 +132,7 @@ export class EnterpriseWorkspaceService {
         type: org.type,
         status: org.status,
         capabilities: org.capabilities.map((c) => c.code),
-        participationModel: org.participationModel,
+        participationStatus: org.participationStatus,
         businessId: org.enterpriseEnrollment?.businessId ?? null,
       },
       profile: org.profile,

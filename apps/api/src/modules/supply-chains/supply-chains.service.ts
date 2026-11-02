@@ -22,6 +22,7 @@ import { SUPPLY_STAGES } from './dto.js';
 import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import { assertBusinessActivationReady } from './business-profile.commands.js';
 import { bindingObservation } from '../ledger/binding-observation.js';
+import { assertPartnerSlot, partnerHasWork } from './chain-membership-rules.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -559,6 +560,7 @@ export class SupplyChainsService {
     organizationId: string,
     version: number,
     status: ChangeMemberDto['status'] | 'ACTIVE',
+    mode: 'OWNER' | 'LEAVE' = 'OWNER',
   ) {
     return this.transaction(async (tx) => {
       const chain = await tx.supplyChain.findUniqueOrThrow({
@@ -574,6 +576,27 @@ export class SupplyChainsService {
       if (!member) throw new NotFoundException('Không tìm thấy thành viên');
       if (member.version !== version)
         throw new ConflictException('Version thành viên đã thay đổi');
+      if (status === 'ACTIVE') await assertPartnerSlot(tx, chainId, organizationId);
+      // ADR-005: a partner still holding goods or open handovers is not cut
+      // off. The owner marks it closing (no new handover); leaving waits.
+      if (
+        member.status === 'ACTIVE' &&
+        status !== 'ACTIVE' &&
+        status !== 'INVITED' &&
+        (await partnerHasWork(tx, chainId, organizationId))
+      ) {
+        if (mode === 'LEAVE')
+          throw new ConflictException(
+            'Doanh nghiệp còn giữ hàng hoặc giao nhận chưa xong trong chuỗi; bàn giao hết trước khi rời',
+          );
+        if (member.closingAt) return member;
+        const closing = await tx.chainMembership.update({
+          where: { id: member.id },
+          data: { closingAt: new Date(), version: { increment: 1 }, updatedAt: new Date() },
+        });
+        await this.audit(tx, actor, 'MEMBER_CLOSING', member.id, closing.version, chainId);
+        return closing;
+      }
       const allowed =
         status === 'ACTIVE'
           ? member.status === 'INVITED'

@@ -26,6 +26,7 @@ import { OrganizationAccessService } from '../auth/organization-access.service.j
 import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
 import { activeChainBindingDigest } from '../ledger/ledger-permissions.js';
 import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
+import { assertChainCreatesWork } from '../billing/billing-core.js';
 import {
   scopedCycleReadWhere,
   scopedLotReadWhere,
@@ -268,6 +269,7 @@ export class ProductionCyclesService {
     return commandTransaction(this.prisma, async (tx) => {
       await authorizeBusinessCommand(tx, actor, { chainId: input.chainId, role: 'FARM_STAFF' }, true);
       await enterpriseAuthority(tx, actor, 'production.write', input.chainId, input.farmId, true);
+      await assertChainCreatesWork(tx, input.chainId, 'cycles');
       if (input.seedMaterialId && !(await tx.productionMaterial.findFirst({ where: { id: input.seedMaterialId, organizationId: actor.organizationId!, kind: 'SEED', status: 'ACTIVE', evidenceComplete: true } })))
         throw new UnprocessableEntityException('Giống không thuộc doanh nghiệp hoặc chưa hoạt động');
       if (input.responsibleUserId && !(await tx.user.findFirst({ where: { id: input.responsibleUserId, organizationId: actor.organizationId!, accountStatus: 'ACTIVE' } })))

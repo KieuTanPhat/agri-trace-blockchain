@@ -3,7 +3,6 @@ import type {
   CapabilityRequest,
   Prisma,
 } from '../../generated/prisma/client.js';
-import { payingParticipant } from './registration-profile.dto.js';
 
 /** Collection is deferred unless an operator explicitly enables the billing flow.
  * This never changes invoices, payment history, capabilities or chain authority. */
@@ -22,7 +21,6 @@ export async function assertActivationReady(
   row: {
     organizationId: string;
     organization: {
-      participationModel?: string;
       capabilityRequests?: Pick<CapabilityRequest, 'status' | 'code'>[];
     };
   },
@@ -33,22 +31,9 @@ export async function assertActivationReady(
   const approved = requests.filter((r) => r.status === 'APPROVED');
   if (requests.length && !approved.length)
     throw new ConflictException('Chưa có năng lực nào được phê duyệt');
-  if (
-    !enterprisePaymentsEnabled() ||
-    !requests.length ||
-    !payingParticipant(
-      row.organization.participationModel ?? 'SINGLE',
-      approved.map((r) => r.code),
-    )
-  )
-    return;
-  const subscription = await tx.subscription.findFirst({
-    where: { organizationId: row.organizationId, status: 'ACTIVE' },
-  });
-  if (!subscription)
-    throw new ConflictException(
-      'Tổ chức trả phí cần thanh toán gói dịch vụ trước khi kích hoạt',
-    );
+  // Activation is about reviewed capabilities. A chain owner's plan only
+  // gates CREATE_CHAIN (ADR-005), so no subscription is required here.
+  void tx;
 }
 
 export function serviceWorkspaceStage(base: string) {

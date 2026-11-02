@@ -28,6 +28,11 @@ export class PlanLimitsInput {
   @Min(0)
   @Max(1000)
   chains!: number;
+  @ApiProperty({ minimum: 0, maximum: 100000, description: 'Distinct partner organizations active in the owner chains' })
+  @IsInt()
+  @Min(0)
+  @Max(100000)
+  partners!: number;
   @ApiProperty({ minimum: 1, maximum: 100000 })
   @IsInt()
   @Min(1)

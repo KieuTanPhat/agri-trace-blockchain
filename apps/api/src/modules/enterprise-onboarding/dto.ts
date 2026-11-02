@@ -50,13 +50,11 @@ export class CapabilityRequestViewDto {
 export class EnterpriseEnrollmentViewDto {
   @ApiProperty({ description: 'Whether service payment collection is currently enabled; false allows administrator activation for temporary use without settlement' })
   paymentsEnabled!: boolean;
-  @ApiProperty({ enum: ['SINGLE', 'SUPPLY_CHAIN_ENTERPRISE'] })
-  participationModel!: string;
   @ApiProperty({
-    description:
-      'True for producers/cooperatives and supply-chain enterprises, which buy a service plan and may own chains',
+    enum: ['MEMBER', 'CHAIN_OWNER'],
+    description: 'MEMBER takes part free; CHAIN_OWNER buys a plan and may own chains',
   })
-  payingParticipant!: boolean;
+  participationStatus!: string;
   @ApiProperty({ type: [CapabilityRequestViewDto] })
   capabilityRequests!: CapabilityRequestViewDto[];
   @ApiProperty({type:String,format:'date-time',nullable:true}) serviceActivatedAt!: string|null;

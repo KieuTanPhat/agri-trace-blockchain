@@ -14,14 +14,16 @@ import { simulationEnabled } from '../enterprise-onboarding/service-catalog.js';
 import { assertEnterprisePaymentsEnabled } from '../enterprise-onboarding/payment-policy.js';
 import {
   addMonths,
-  audienceFor,
   effectiveSubscriptionStatus,
   entitlementFor,
   invoiceView,
   issueInvoiceTx,
+  normalizeLimits,
   planVersionView,
   publishedCatalog,
   publishPlanVersionTx,
+  RESOURCE_LABELS,
+  RESOURCES,
   settingNumber,
   settleInvoiceTx,
   subscriptionView,
@@ -63,7 +65,6 @@ export class BillingService {
       items: plans.map((p) => ({
         code: p.code,
         name: p.name,
-        audience: p.audience,
         description: p.description,
         status: p.status,
         versions: p.versions.map((v) => ({
@@ -257,7 +258,6 @@ export class BillingService {
     await enterpriseAuthority(this.db, actor, 'profile.read');
     const organizationId = actor.organizationId!;
     const e = await entitlementFor(this.db, organizationId);
-    const org = await this.db.organization.findUniqueOrThrow({ where: { id: organizationId } });
     const invoices = await this.db.invoice.findMany({
       where: { organizationId },
       orderBy: { issuedAt: 'desc' },
@@ -273,7 +273,7 @@ export class BillingService {
         ? await subscriptionView(this.db, { ...e.subscription, organization: null })
         : null,
       invoices: invoices.map(invoiceView),
-      plans: e.paying ? await publishedCatalog(this.db, audienceFor(org.participationModel)) : [],
+      plans: e.paying ? await publishedCatalog(this.db) : [],
       simulationEnabled: simulationEnabled(),
     };
   }
@@ -333,7 +333,6 @@ export async function renewalInvoiceTx(
   createdBy: string | null,
 ) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`billing:${organizationId}`},0))`;
-  const org = await tx.organization.findUniqueOrThrow({ where: { id: organizationId } });
   const subscription = await tx.subscription.findFirst({
     where: { organizationId, status: 'ACTIVE' },
   });
@@ -347,10 +346,20 @@ export async function renewalInvoiceTx(
       `Kỳ ${current.planCode} còn hiệu lực đến ${subscription.endsAt.toISOString().slice(0, 10)}; gia hạn cùng gói, hoặc đổi gói sau khi kỳ hiện tại kết thúc (trong thời gian ân hạn)`,
     );
   const version = await tx.servicePlanVersion.findFirst({
-    where: { planCode, status: 'PUBLISHED', plan: { status: 'ACTIVE', audience: audienceFor(org.participationModel) } },
+    where: { planCode, status: 'PUBLISHED', plan: { status: 'ACTIVE' } },
     include: { plan: true },
   });
-  if (!version) throw new NotFoundException('Gói không phù hợp mô hình tham gia của tổ chức');
+  if (!version) throw new NotFoundException('Không tìm thấy gói đang mở bán');
+  if (current.planCode !== planCode) {
+    // Never move to a plan below current usage (ADR-005).
+    const limits = normalizeLimits(version.limits);
+    const usage = await usageFor(tx, organizationId);
+    const over = RESOURCES.filter((r) => usage[r] > limits[r]);
+    if (over.length)
+      throw new ConflictException(
+        `Gói ${version.plan.name} thấp hơn mức đang dùng (${over.map((r) => `${RESOURCE_LABELS[r]} ${usage[r]}/${limits[r]}`).join(', ')}); giảm mức dùng trước khi đổi gói`,
+      );
+  }
   return issueInvoiceTx(tx, {
     organizationId,
     subscriptionId: subscription.id,

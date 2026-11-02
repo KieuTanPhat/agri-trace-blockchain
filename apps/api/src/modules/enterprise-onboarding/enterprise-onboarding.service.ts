@@ -29,7 +29,11 @@ import type { RegisterDto } from '../auth/dto/register.dto.js';
 import type { ReviewEnterpriseDto, ActivateEnterpriseDto } from './dto.js';
 import { VIETNAM_ADDRESSES } from './address-catalog.js';
 import { serviceStage } from './enterprise-service.service.js';
-import { grantEnterpriseBusiness } from './service-activation.js';
+import {
+  ensureFarmLedger,
+  grantChainCreation,
+  grantEnterpriseBusiness,
+} from './service-activation.js';
 import { assertActivationReady, enterprisePaymentsEnabled } from './payment-policy.js';
 export { assertActivationReady } from './payment-policy.js';
 import { settingValue } from '../billing/billing-core.js';
@@ -44,7 +48,8 @@ import {
 import {
   REGISTERED_FORMS,
   REGISTRATION_POLICY_VERSION,
-  payingParticipant,
+  chainOwner,
+  mayOwnChains,
 } from './registration-profile.dto.js';
 import { registrationDocumentSelect } from './registration-document.dto.js';
 import {
@@ -81,13 +86,6 @@ export async function registerEnterprise(
     businessId: input.businessId?.trim().replace('-', '') || null,
   };
   const details = input.details;
-  if (
-    /^\d{12}$/.test(normalized.businessId ?? '') &&
-    ['ENTERPRISE', 'COOPERATIVE'].includes(details?.legalForm)
-  )
-    throw new BadRequestException(
-      'Mã 12 số chỉ dành cho hộ kinh doanh sử dụng số định danh thay mã số thuế',
-    );
   const province = VIETNAM_ADDRESSES.find(
     (p) => p.code === details?.provinceCode,
   );
@@ -112,27 +110,13 @@ export async function registerEnterprise(
     throw new BadRequestException(
       'Tổ chức có đăng ký cần mã số thuế, số giấy đăng ký và chức vụ người đại diện',
     );
-  if (
-    ['PRODUCER_HOUSEHOLD', 'INDIVIDUAL_PRODUCER'].includes(details.legalForm) &&
-    !details.activities.includes('FARM')
-  )
+  const participationStatus = input.participationStatus;
+  if (chainOwner(participationStatus) && !mayOwnChains(details.activities))
     throw new BadRequestException(
-      'Hộ/cá nhân sản xuất cần chọn hoạt động sản xuất',
+      'Chủ chuỗi cần ít nhất một năng lực sở hữu hàng (sản xuất, chế biến, phân phối hoặc bán lẻ)',
     );
-  const participationModel =
-    input.participationModel ??
-    (details.activities.length > 1 ? 'SUPPLY_CHAIN_ENTERPRISE' : 'SINGLE');
-  if (participationModel === 'SINGLE' && details.activities.length !== 1)
-    throw new BadRequestException(
-      'Mô hình một vai trò chỉ đăng ký đúng một hoạt động; chọn Doanh nghiệp chuỗi cung ứng để đăng ký nhiều năng lực',
-    );
-  if (
-    participationModel === 'SUPPLY_CHAIN_ENTERPRISE' &&
-    (details.activities.length < 2 || !registered)
-  )
-    throw new BadRequestException(
-      'Doanh nghiệp chuỗi cung ứng cần là tổ chức có đăng ký và chọn ít nhất hai năng lực',
-    );
+  if (!chainOwner(participationStatus) && details.services?.planCode)
+    throw new BadRequestException('Chỉ chủ chuỗi chọn gói dịch vụ');
   if (details.activities.includes('PROCESSOR') !== !!details.processing)
     throw new BadRequestException(
       'Khai báo thông tin chế biến khi và chỉ khi đăng ký năng lực chế biến',
@@ -301,7 +285,7 @@ export async function registerEnterprise(
         data: {
           name: normalized.organizationName,
           type: input.organizationType,
-          participationModel,
+          participationStatus,
         },
       });
       // Legacy operator provisioning seeds a primary capability by SQL trigger.
@@ -379,7 +363,7 @@ export async function registerEnterprise(
                 registrantRelationship,
                 production,
                 processing,
-                participationModel,
+                participationStatus,
                 services,
                 termsAccepted,
                 privacyAcknowledged,
@@ -527,7 +511,7 @@ export const enrollmentView = (
     organization: {
       name: string;
       type: string;
-      participationModel?: string;
+      participationStatus?: string;
       profile?: unknown;
       registrationDocuments?: unknown[];
       capabilityRequests?: CapabilityRequest[];
@@ -540,15 +524,8 @@ export const enrollmentView = (
   organizationId: row.organizationId,
   organizationName: row.organization.name,
   organizationType: row.organization.type,
-  participationModel: row.organization.participationModel ?? 'SINGLE',
+  participationStatus: row.organization.participationStatus ?? 'MEMBER',
   paymentsEnabled: enterprisePaymentsEnabled(),
-  payingParticipant: payingParticipant(
-    row.organization.participationModel ?? 'SINGLE',
-    (row.organization.capabilityRequests?.length
-      ? row.organization.capabilityRequests.map((r) => r.code)
-      : (row.organization.profile as { activities?: string[] } | null)
-          ?.activities) ?? [row.organization.type],
-  ),
   capabilityRequests: (row.organization.capabilityRequests ?? []).map(
     capabilityRequestView,
   ),
@@ -580,7 +557,8 @@ export class EnterpriseOnboardingService {
       await assertActivationReady(tx,row);
       await tx.enterpriseEnrollment.update({where:{id},data:{serviceActivatedAt:new Date(),serviceActivatedBy:actor.sub!,serviceActivationReason:input.reason,version:{increment:1}}});
       await grantEnterpriseBusiness(tx,row);
-      await appendPlatformAudit(tx,{actor,action:'ENTERPRISE_SERVICE_ACTIVATED',subjectType:'ENTERPRISE_ENROLLMENT',subjectId:id,organizationId:row.organizationId,reason:input.reason,details:{manual:true,temporaryAccess:!enterprisePaymentsEnabled(),paymentVerified:false,peerVerified:false}});
+      const createChain=await grantChainCreation(tx,row.organizationId);
+      await appendPlatformAudit(tx,{actor,action:'ENTERPRISE_SERVICE_ACTIVATED',subjectType:'ENTERPRISE_ENROLLMENT',subjectId:id,organizationId:row.organizationId,reason:input.reason,details:{manual:true,temporaryAccess:!enterprisePaymentsEnabled(),paymentVerified:false,peerVerified:false,participationStatus:row.organization.participationStatus,createChain}});
       return enrollmentView(await tx.enterpriseEnrollment.findUniqueOrThrow({where:{id},include:INCLUDE}));
     });
   }
@@ -689,12 +667,9 @@ export class EnterpriseOnboardingService {
               input.decision === 'APPROVE'
                 ? !enterprisePaymentsEnabled()
                   ? `Hồ sơ ${row.organization.name} đã được quản trị phê duyệt. Thanh toán đang tạm hoãn. Quản trị sẽ kích hoạt sử dụng tạm sau khi xét duyệt các năng lực; bạn không cần mua gói hoặc xác nhận thanh toán. Ghi chú: ${input.note}`
-                  : payingParticipant(
-                    row.organization.participationModel,
-                    row.organization.capabilityRequests.map((r) => r.code),
-                  )
-                  ? `Hồ sơ ${row.organization.name} đã được quản trị phê duyệt. Đăng nhập tài khoản cấp 1 tại ${url.href} để chọn mô hình peer, gói dịch vụ, điền thông tin thanh toán và xem trước hợp đồng. Đây là môi trường local; chưa thu tiền thật. Ghi chú: ${input.note}`
-                  : `Hồ sơ ${row.organization.name} đã được quản trị phê duyệt. Tổ chức tham gia chuỗi không cần mua gói; tài khoản được kích hoạt sau khi quản trị xét duyệt năng lực. Bạn chỉ ghi nghiệp vụ trong chuỗi đã được mời. Ghi chú: ${input.note}`
+                  : chainOwner(row.organization.participationStatus)
+                  ? `Hồ sơ ${row.organization.name} đã được quản trị phê duyệt. Sau khi các năng lực được xét duyệt và tài khoản được kích hoạt, đăng nhập tài khoản cấp 1 tại ${url.href} để chọn gói chủ chuỗi, xem trước hợp đồng và thanh toán; quyền tạo chuỗi có hiệu lực khi thanh toán xong. Đây là môi trường local; chưa thu tiền thật. Ghi chú: ${input.note}`
+                  : `Hồ sơ ${row.organization.name} đã được quản trị phê duyệt. Thành viên không cần mua gói; tài khoản được kích hoạt sau khi quản trị xét duyệt năng lực. Bạn ghi nghiệp vụ trong chuỗi được mời hoặc khi nhận lô. Ghi chú: ${input.note}`
                 : `Hồ sơ ${row.organization.name} cần xử lý: ${input.note}. Đăng nhập để xem kết quả. Không cần thanh toán khi hồ sơ chưa được duyệt.`,
           },
         });
@@ -790,6 +765,11 @@ export async function reviewCapabilityTx(
       await tx.organizationCapability.update({
         where: key,
         data: { revokedAt: null, revision: { increment: 1 } },
+      });
+    if (request.code === 'FARM')
+      await ensureFarmLedger(tx, {
+        organizationId: request.organizationId,
+        ownerId: enrollment.ownerId,
       });
     granted = true;
   }

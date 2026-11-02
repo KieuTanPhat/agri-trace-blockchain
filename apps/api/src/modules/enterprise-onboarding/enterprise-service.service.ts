@@ -16,13 +16,12 @@ import type {
 } from '../../generated/prisma/client.js';
 import { serviceCatalog, simulationEnabled } from './service-catalog.js';
 import {
-  audienceFor,
   catalogDigest,
   issueInvoiceTx,
   publishedCatalog,
   settleInvoiceTx,
 } from '../billing/billing-core.js';
-import { payingParticipant } from './registration-profile.dto.js';
+import { chainOwner } from './registration-profile.dto.js';
 import { assertEnterprisePaymentsEnabled, serviceWorkspaceStage } from './payment-policy.js';
 import { lockPlatformAudit } from '../platform-governance/platform-audit.js';
 import type {
@@ -60,23 +59,9 @@ export const serviceStage = (r: {
     : r.serviceActivatedAt
       ? 'ACTIVE'
       : 'AWAITING_ACTIVATION';
-/** Paying participants are producers/cooperatives and supply-chain enterprises. */
-export async function payingEnrollment(
-  db: Prisma.TransactionClient,
-  organizationId: string,
-  participationModel: string,
-) {
-  const requests = await db.capabilityRequest.findMany({
-    where: { organizationId, status: { in: ['PENDING', 'APPROVED'] } },
-    select: { code: true },
-  });
-  // Enrollments created before per-capability review keep the paid flow.
-  if (!requests.length) return true;
-  return payingParticipant(
-    participationModel,
-    requests.map((r) => r.code),
-  );
-}
+/** Only chain owners buy a plan (ADR-005). */
+export const payingEnrollment = (participationStatus: string) =>
+  chainOwner(participationStatus);
 export async function enrollmentOwner(
   db: Prisma.TransactionClient,
   actor: CommandActor,
@@ -99,14 +84,14 @@ export async function enrollmentOwner(
     await db.$queryRaw`SELECT id FROM enterprise_enrollment WHERE id=${row.id}::uuid FOR UPDATE`;
   return row;
 }
-/** Prices come from the published plan version for the organization's
- * participation model; the quotation records that version id. */
+/** Prices come from the published plan version; the quotation records that
+ * version id. */
 export async function previewService(
   db: Prisma.TransactionClient,
-  org: { name: string; businessId: string | null; participationModel: string },
+  org: { name: string; businessId: string | null },
   input: ServiceQuoteInput,
 ) {
-  const plans = await publishedCatalog(db, audienceFor(org.participationModel));
+  const plans = await publishedCatalog(db);
   const SERVICE_CATALOG_VERSION = catalogDigest(plans);
   const plan = plans.find((p) => p.code === input.planCode);
   if (!plan || input.catalogVersion !== SERVICE_CATALOG_VERSION)
@@ -206,21 +191,17 @@ export class EnterpriseServiceService {
       },
       orderBy: { createdAt: 'asc' },
     });
-    const plans = await publishedCatalog(
-      this.db,
-      audienceFor(row.organization.participationModel),
-    );
-    const paying = await payingEnrollment(
-      this.db,
-      row.organizationId,
-      row.organization.participationModel,
-    );
+    const plans = await publishedCatalog(this.db);
+    const paying = payingEnrollment(row.organization.participationStatus);
     // Deferred collection has its own presentation; it never claims settlement.
+    // A chain owner chooses and pays a plan before or after activation; only
+    // CREATE_CHAIN waits for an ACTIVE subscription.
     const base = serviceWorkspaceStage(serviceStage(row));
+    const open = ['AWAITING_ACTIVATION', 'ACTIVE'].includes(base);
     const stage =
-      base === 'AWAITING_ACTIVATION' && paying && !row.serviceOrder
+      open && paying && !row.serviceOrder
         ? 'SELECT_SERVICE'
-        : base === 'AWAITING_ACTIVATION' && paying && row.serviceOrder?.status === 'AWAITING_PAYMENT'
+        : open && paying && row.serviceOrder?.status === 'AWAITING_PAYMENT'
           ? 'AWAITING_PAYMENT'
           : base;
     return {
@@ -238,22 +219,13 @@ export class EnterpriseServiceService {
       throw new ForbiddenException(
         'Hồ sơ phải được quản trị phê duyệt trước khi chọn dịch vụ',
       );
-    if (
-      !(await payingEnrollment(
-        this.db,
-        row.organizationId,
-        row.organization.participationModel,
-      ))
-    )
-      throw new ForbiddenException(
-        'Tổ chức tham gia chuỗi không cần mua gói dịch vụ',
-      );
+    if (!payingEnrollment(row.organization.participationStatus))
+      throw new ForbiddenException('Thành viên không cần mua gói dịch vụ');
     return previewService(
       this.db,
       {
         name: row.organization.name,
         businessId: row.businessId,
-        participationModel: row.organization.participationModel,
       },
       input,
     );
@@ -266,22 +238,13 @@ export class EnterpriseServiceService {
         throw new ForbiddenException('Hồ sơ chưa được duyệt');
       if (row.serviceOrder)
         throw new ConflictException('Hồ sơ đã có hợp đồng dịch vụ');
-      if (
-        !(await payingEnrollment(
-          tx,
-          row.organizationId,
-          row.organization.participationModel,
-        ))
-      )
-        throw new ForbiddenException(
-          'Tổ chức tham gia chuỗi không cần mua gói dịch vụ',
-        );
+      if (!payingEnrollment(row.organization.participationStatus))
+        throw new ForbiddenException('Thành viên không cần mua gói dịch vụ');
       const snapshot = await previewService(
         tx,
         {
           name: row.organization.name,
           businessId: row.businessId,
-          participationModel: row.organization.participationModel,
         },
         input,
       );

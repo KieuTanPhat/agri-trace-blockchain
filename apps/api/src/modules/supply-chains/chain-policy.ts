@@ -160,6 +160,14 @@ export async function authorizeChainCommand(
       if (!['INVITED', 'ACTIVE'].includes(access.membership.status))
         throw new ForbiddenException('Lời mời không còn hiệu lực');
       permission = access.admin;
+    } else if (input.operation === 'HYB_LEAVE_MEMBERSHIP') {
+      if (payload.organizationId !== actor.organizationId)
+        throw new ForbiddenException('Chỉ đối tác tự rời chuỗi của mình');
+      if (access.chain.ownerOrganizationId === actor.organizationId)
+        throw new ForbiddenException('Chủ chuỗi không rời chuỗi của mình');
+      if (access.membership.status !== 'ACTIVE')
+        throw new ForbiddenException('Doanh nghiệp không còn hoạt động trong chuỗi');
+      permission = access.admin;
     } else if (
       [
         'HYB_INVITE_MEMBERSHIP',

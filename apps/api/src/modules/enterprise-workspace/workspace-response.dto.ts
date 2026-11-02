@@ -38,8 +38,8 @@ export class WorkspaceOrganizationDto {
   status!: Enums.OrganizationStatus;
   @ApiProperty({ enum: Enums.OrganizationType, isArray: true })
   capabilities!: Enums.OrganizationType[];
-  @ApiProperty({ type: String, required: false, description: 'SINGLE or SUPPLY_CHAIN_ENTERPRISE' })
-  participationModel?: string;
+  @ApiProperty({ type: String, required: false, enum: ['MEMBER', 'CHAIN_OWNER'] })
+  participationStatus?: string;
   @ApiProperty({ type: String, nullable: true, required: false, description: 'Tax identifier from registration' })
   businessId?: string | null;
 }

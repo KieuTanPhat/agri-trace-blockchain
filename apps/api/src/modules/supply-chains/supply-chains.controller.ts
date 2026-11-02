@@ -212,6 +212,33 @@ export class SupplyChainsController {
     );
   }
 
+  @Post('supply-chains/:chainId/memberships/:organizationId/leave')
+  @ApiDataResponse(MemberRecordDto, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  leave(
+    @Req() req: AuthenticatedRequest,
+    @Param('chainId', ParseUUIDPipe) chainId: string,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Body() input: ChainVersionDto,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.command(
+      req,
+      key,
+      'HYB_LEAVE_MEMBERSHIP',
+      { ...input, chainId, organizationId },
+      () =>
+        this.service.changeMember(
+          req.user,
+          chainId,
+          organizationId,
+          input.version,
+          'REVOKED',
+          'LEAVE',
+        ),
+    );
+  }
+
   @Post('supply-chains/:chainId/memberships/:organizationId/status')
   @ApiDataResponse(MemberRecordDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })

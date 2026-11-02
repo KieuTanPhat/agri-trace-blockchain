@@ -42,10 +42,10 @@ export class VersionReasonInput extends ReasonInput {
 export class DirectoryQuery {
   @ApiPropertyOptional({ maxLength: 100 }) @IsOptional() @IsString() @MaxLength(100) q?: string;
   @ApiPropertyOptional({ enum: ['ACTIVE', 'INACTIVE'] }) @IsOptional() @IsIn(['ACTIVE', 'INACTIVE']) status?: string;
-  @ApiPropertyOptional({ enum: ['SINGLE', 'SUPPLY_CHAIN_ENTERPRISE'] })
+  @ApiPropertyOptional({ enum: ['MEMBER', 'CHAIN_OWNER'] })
   @IsOptional()
-  @IsIn(['SINGLE', 'SUPPLY_CHAIN_ENTERPRISE'])
-  model?: string;
+  @IsIn(['MEMBER', 'CHAIN_OWNER'])
+  participation?: string;
   @ApiPropertyOptional({ enum: ['FARM', 'TRANSPORTER', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'] })
   @IsOptional()
   @IsIn(['FARM', 'TRANSPORTER', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'])

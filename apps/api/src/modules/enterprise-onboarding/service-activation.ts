@@ -1,13 +1,68 @@
 import { ConflictException } from '@nestjs/common';
 import type { OrganizationType, Prisma } from '../../generated/prisma/client.js';
-import { payingParticipant } from './registration-profile.dto.js';
+import { chainOwner } from './registration-profile.dto.js';
+import { enterprisePaymentsEnabled } from './payment-policy.js';
 import { ensurePersonalChain } from '../supply-chains/personal-chain.js';
 
-/** Called only within the approval/settlement journal transaction. Grants the
+async function grantOrganizationRole(
+  tx: Prisma.TransactionClient,
+  organizationId: string,
+  userId: string,
+  role: 'ORG_ADMIN' | 'CREATE_CHAIN',
+) {
+  if (
+    !(await tx.scopedRoleGrant.findFirst({
+      where: { userId, organizationId, scope: 'ORGANIZATION', role, revokedAt: null },
+    }))
+  )
+    await tx.scopedRoleGrant.create({
+      data: { userId, organizationId, scope: 'ORGANIZATION', role },
+    });
+}
+
+/** CREATE_CHAIN belongs to an activated chain owner whose subscription is
+ * ACTIVE, or to any activated chain owner while collection is deferred
+ * (ADR-005). Idempotent; called by activation and by invoice settlement. */
+export async function grantChainCreation(
+  tx: Prisma.TransactionClient,
+  organizationId: string,
+) {
+  const org = await tx.organization.findUniqueOrThrow({
+    where: { id: organizationId },
+    include: { enterpriseEnrollment: true },
+  });
+  const enrollment = org.enterpriseEnrollment;
+  if (!chainOwner(org.participationStatus) || !enrollment?.serviceActivatedAt)
+    return false;
+  if (
+    enterprisePaymentsEnabled() &&
+    !(await tx.subscription.findFirst({
+      where: { organizationId, status: 'ACTIVE' },
+    }))
+  )
+    return false;
+  await grantOrganizationRole(tx, organizationId, enrollment.ownerId, 'CREATE_CHAIN');
+  return true;
+}
+
+/** The free farm ledger follows an effective FARM capability, for members and
+ * owners alike. Idempotent. */
+export async function ensureFarmLedger(
+  tx: Prisma.TransactionClient,
+  row: { organizationId: string; ownerId: string },
+) {
+  if (
+    await tx.organizationCapability.findFirst({
+      where: { organizationId: row.organizationId, code: 'FARM', revokedAt: null },
+    })
+  )
+    await ensurePersonalChain(tx, row);
+}
+
+/** Called only within the activation journal transaction. Grants the
  * capabilities an administrator approved one by one; enrollments created before
- * per-capability review keep their registered activities. Only paying
- * participants (producers/cooperatives and supply-chain enterprises) may own
- * supply chains, so only they receive CREATE_CHAIN and a personal chain. */
+ * per-capability review keep their registered activities. Activation gives
+ * ORG_ADMIN; chain creation follows the participation status. */
 export async function grantEnterpriseBusiness(
   tx: Prisma.TransactionClient,
   row: { organizationId: string; ownerId: string },
@@ -33,30 +88,6 @@ export async function grantEnterpriseBusiness(
       await tx.organizationCapability.create({
         data: { organizationId: org.id, code },
       });
-  const chainOwner =
-    !reviewed || payingParticipant(org.participationModel, codes);
-  const roles = chainOwner
-    ? (['ORG_ADMIN', 'CREATE_CHAIN'] as const)
-    : (['ORG_ADMIN'] as const);
-  for (const role of roles)
-    if (
-      !(await tx.scopedRoleGrant.findFirst({
-        where: {
-          userId: row.ownerId,
-          organizationId: org.id,
-          scope: 'ORGANIZATION',
-          role,
-          revokedAt: null,
-        },
-      }))
-    )
-      await tx.scopedRoleGrant.create({
-        data: {
-          userId: row.ownerId,
-          organizationId: org.id,
-          scope: 'ORGANIZATION',
-          role,
-        },
-      });
-  if (chainOwner) await ensurePersonalChain(tx, row);
+  await grantOrganizationRole(tx, org.id, row.ownerId, 'ORG_ADMIN');
+  await ensureFarmLedger(tx, row);
 }
