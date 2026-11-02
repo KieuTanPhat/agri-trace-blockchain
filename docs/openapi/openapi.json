@@ -9312,6 +9312,12 @@
             "format": "uuid",
             "type": "string"
           },
+          "closingAt": {
+            "description": "Owner stopped new handovers; suspension follows once the partner holds nothing (ADR-005)",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -12883,6 +12889,20 @@
       },
       "ProductRecordDto": {
         "properties": {
+          "approvalNote": {
+            "nullable": true,
+            "type": "string"
+          },
+          "approvalStatus": {
+            "description": "Platform approval gating the public brand page (ADR-005)",
+            "enum": [
+              "NONE",
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ],
+            "type": "string"
+          },
           "carrier": {
             "nullable": true,
             "type": "string"

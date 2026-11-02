@@ -7881,6 +7881,11 @@ export interface components {
         MemberRecordDto: {
             /** Format: uuid */
             chainId: string;
+            /**
+             * Format: date-time
+             * @description Owner stopped new handovers; suspension follows once the partner holds nothing (ADR-005)
+             */
+            closingAt?: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -8883,6 +8888,12 @@ export interface components {
             order: string[];
         };
         ProductRecordDto: {
+            approvalNote?: string | null;
+            /**
+             * @description Platform approval gating the public brand page (ADR-005)
+             * @enum {string}
+             */
+            approvalStatus?: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
             carrier?: string | null;
             category: string | null;
             /** Format: date-time */

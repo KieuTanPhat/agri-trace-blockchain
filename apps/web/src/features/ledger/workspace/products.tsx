@@ -266,6 +266,7 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
   const qc = useQueryClient();
   const edit = useDialog();
   const complete = useDialog();
+  const approval = useDialog();
   const [ordering, setOrdering] = useState(false);
   const p = product;
   const lots=useQuery({queryKey:["ws-product-lots"],queryFn:wapi.lots,enabled:!!p});
@@ -284,12 +285,15 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
               <div className="flex flex-wrap gap-1.5">
                 <Badge tone={p.status === "ACTIVE" ? "ok" : "neutral"}>{p.status === "ACTIVE" ? tr("Đang bán") : tr("Ngừng")}</Badge>
                 {p.evidenceComplete ? <Badge tone="ok">{tr("Hồ sơ ảnh đã hoàn tất")}</Badge> : <Badge tone="warn">{tr("Chưa hoàn tất hồ sơ ảnh")}</Badge>}
+                {p.approvalStatus && p.approvalStatus !== "NONE" && <Badge tone={p.approvalStatus === "APPROVED" ? "ok" : p.approvalStatus === "REJECTED" ? "danger" : "info"}>{{ PENDING: tr("Chờ duyệt thương hiệu"), APPROVED: tr("Trang thương hiệu đã duyệt"), REJECTED: tr("Thương hiệu bị từ chối") }[p.approvalStatus]}</Badge>}
               </div>
+              {p.approvalStatus === "REJECTED" && p.approvalNote && <Callout tone="warn">{tr("Lý do từ chối")}: {p.approvalNote}</Callout>}
               {canManage && (
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onClick={() => router.push(`/enterprise/products/${p.id}/edit`)}>{tr("Sửa thông tin")}</Button>
                   <Button size="sm" variant="outline" onClick={() => setOrdering(true)}>{tr("Sắp xếp ảnh")}</Button>
                   {!p.evidenceComplete && <Button size="sm" onClick={() => complete.open(true)}>{tr("Hoàn tất hồ sơ ảnh")}</Button>}
+                  {p.status === "ACTIVE" && (!p.approvalStatus || ["NONE", "REJECTED"].includes(p.approvalStatus)) && <Button size="sm" variant="outline" onClick={() => approval.open(true)}>{tr("Gửi duyệt trang thương hiệu")}</Button>}
                 </div>
               )}
               <dl className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
@@ -315,6 +319,7 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
                   ))}
               </dl>
               <EvidencePanel entityType="PRODUCT" entityId={p.id} canManage={canEvidence} required={[{ kind: "PRODUCT_IMAGE", min: 1 }]} title={tr("Ảnh sản phẩm")} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
+              <EvidencePanel entityType="PRODUCT" entityId={p.id} canManage={canEvidence} required={[{ kind: "PRODUCT_DECLARATION", min: 1 }]} title={tr("Công bố sản phẩm / chứng nhận chất lượng")} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
               <section className="flex flex-col gap-2"><h3 className="text-[13px] font-semibold">{tr("Lô liên quan")}</h3>{lots.error ? <ErrorState error={lots.error} onRetry={()=>lots.refetch()}/> : <p className="text-sm text-ink-2">{lots.data?.filter(l=>l.productName===p.productName).length ?? "…"} {tr("lô")}</p>}</section>
               <section className="flex flex-col gap-2">
                 <h3 className="text-[13px] font-semibold">{tr("Lịch sử phiên bản")}</h3>
@@ -344,6 +349,11 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
                     <TextAreaField control={f.control} name="reason" label={tr("Lý do thay đổi")} max={1000} />
                   </>
                 )}
+              </CommandDialog>
+            )}
+            {approval.target && (
+              <CommandDialog {...approval.props} title={tr("Gửi duyệt trang thương hiệu · {p0}", { p0: p.productName })} endpoint={`POST /catalog/products/${p.id}/approval-request`} description={tr("Dành cho chủ chuỗi. Tải bản công bố sản phẩm hoặc giấy chứng nhận chất lượng ở mục hồ sơ bên dưới trước khi gửi. Việc ghi lô không phải chờ duyệt.")} schema={emptySchema} defaultValues={{}} version={p.version} submitLabel={tr("Gửi duyệt")} invalidate={[["ws-catalog"]]} run={(_, cmd) => wapi.requestApproval(p.id, { version: p.version }, cmd)}>
+                {() => null}
               </CommandDialog>
             )}
             {complete.target && (

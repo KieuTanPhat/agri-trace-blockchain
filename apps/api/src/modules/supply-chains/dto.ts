@@ -218,6 +218,8 @@ export class MemberRecordDto {
   status!: string;
   @ApiProperty({ type: Number }) version!: number;
   @ApiProperty({ type: Number }) invitationRevision!: number;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true, required: false, description: 'Owner stopped new handovers; suspension follows once the partner holds nothing (ADR-005)' })
+  closingAt?: string | null;
 }
 export class GrantRecordDto {
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;

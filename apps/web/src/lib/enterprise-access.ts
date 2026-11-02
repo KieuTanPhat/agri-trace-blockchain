@@ -60,12 +60,8 @@ export function canUseEnterpriseRoute(
   if (within("/enterprise/notifications")) return has("profile.read");
   if (within("/enterprise/settings")) return has("profile.read");
   if (within("/enterprise/help")) return has("profile.read");
-  if (within("/enterprise/notices"))
-    return (
-      (access.capabilities.includes("FARM") ||
-        access.capabilities.includes("PROCESSOR")) &&
-      has("distribution.write")
-    );
+  // ADR-005: owners recall, every partner may propose a recall.
+  if (within("/enterprise/notices")) return has("distribution.write");
   if (within("/enterprise/processing/conversions"))
     return access.capabilities.includes("PROCESSOR") && has("catalog.read");
   if (within("/enterprise/processing"))

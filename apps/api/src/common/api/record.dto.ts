@@ -70,6 +70,9 @@ export class PlotRecordDto {
 }
 
 export class ProductRecordDto {
+  @ApiProperty({ enum: ['NONE', 'PENDING', 'APPROVED', 'REJECTED'], required: false, description: 'Platform approval gating the public brand page (ADR-005)' })
+  approvalStatus?: string;
+  @ApiProperty({ type: String, nullable: true, required: false }) approvalNote?: string | null;
   @ApiProperty({ type: String, nullable: true }) category!: string | null;
   @ApiProperty({ type: String, format: 'uuid', nullable: true }) originFarmId!: string | null;
   @ApiProperty({ type: String, nullable: true }) price!: string | null;

@@ -217,6 +217,9 @@ function ChainSheet({ id, onClose, names,view }: { id: string | null; onClose: (
   const useEvidencePermission=access.can("evidence.manage");
   const memberAct = useDialog<MemberAct>();
   const invite = useDialog();
+  const inviteLink = useDialog();
+  const leave = useDialog<MemberRecord>();
+  const [sentLink, setSentLink] = useState<string | null>(null);
   const prof = useDialog<"ACTIVATE" | "SUSPEND">();
   const c = chain.data;
   const owner = c?.ownerOrganizationId === me;
@@ -269,7 +272,10 @@ function ChainSheet({ id, onClose, names,view }: { id: string | null; onClose: (
               <section className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-[13px] font-semibold">{manager ? tr("Thành viên") : tr("Tư cách thành viên của bạn")}</h3>
-                  {manager && <Button size="xs" variant="outline" onClick={() => invite.open(true)} disabled={!invitable.length}><Plus /> {tr("Mời thành viên")}</Button>}
+                  <span className="flex gap-1">
+                    {manager && <Button size="xs" variant="outline" onClick={() => invite.open(true)} disabled={!invitable.length || c.personal}><Plus /> {tr("Mời thành viên")}</Button>}
+                    {manager && !c.personal && <Button size="xs" variant="outline" onClick={() => inviteLink.open(true)}>{tr("Mời qua email")}</Button>}
+                  </span>
                 </div>
                 {manager && !invitable.length && (
                   <p className="text-[12.5px] text-ink-2">
@@ -283,6 +289,8 @@ function ChainSheet({ id, onClose, names,view }: { id: string | null; onClose: (
                     <li key={m.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[13px]">
                       <span className="min-w-0 flex-1">{names.name(m.organizationId)}{m.organizationId === c.ownerOrganizationId ? ` · ${tr("chủ chuỗi")}` : ""}</span>
                       <Badge tone={MEMBER_TONE[m.status]}>{MEMBER_LABEL[m.status]}</Badge>
+                      {m.closingAt && <Badge tone="warn">{tr("Đang ngừng hợp tác")}</Badge>}
+                      {!owner && m.organizationId === me && m.status === "ACTIVE" && orgAdmin && <Button size="xs" variant="outline" onClick={() => leave.open(m)}>{tr("Rời chuỗi")}</Button>}
                       {manager && m.organizationId !== c.ownerOrganizationId && (
                         <span className="flex gap-1">
                           {m.status !== "REVOKED" && m.status !== "SUSPENDED" && m.status !== "INVITED" && <Button size="xs" variant="outline" onClick={() => memberAct.open({ m, status: "SUSPENDED" })}>{tr("Tạm ngừng")}</Button>}
@@ -331,6 +339,19 @@ function ChainSheet({ id, onClose, names,view }: { id: string | null; onClose: (
                 <p className="text-[11.5px] text-ink-2">{tr("Chỉ đọc; gắn kết sổ cái do nền tảng quản lý.")}</p>
               </section>
             </div>
+            {sentLink && <Callout tone="info" title={tr("Link mời (đã gửi email, chỉ hiện một lần)")}><span className="break-all font-mono text-[12px]">{sentLink}</span></Callout>}
+            {inviteLink.target && (
+              <CommandDialog {...inviteLink.props} title={tr("Mời doanh nghiệp chưa có tài khoản")} endpoint="POST /supply-chains/:id/invitations" description={tr("Email kèm link đăng ký được gửi tới doanh nghiệp. Sau khi hồ sơ được duyệt và kích hoạt, lời mời vào chuỗi hiện trong tài khoản của họ.")} schema={z.object({ email: z.email({ error: () => tr("Email không hợp lệ") }).max(255), organizationName: z.string().trim().min(2).max(255) })} defaultValues={{ email: "", organizationName: "" }} submitLabel={tr("Gửi lời mời")} invalidate={invalidate}
+                run={async (v, cmd) => { const result = await chainApi.inviteByLink(c.id, v, cmd); setSentLink(result.link); return result; }}>
+                {(f) => <><TextField control={f.control} name="organizationName" label={tr("Tên doanh nghiệp")} /><TextField control={f.control} name="email" label={tr("Email")} type="email" /></>}
+              </CommandDialog>
+            )}
+            {leave.target && (
+              <CommandDialog {...leave.props} title={tr("Rời chuỗi {p0}", { p0: c.name })} endpoint="POST /supply-chains/:id/memberships/:organizationId/leave" description={tr("Chỉ rời được khi doanh nghiệp không còn giữ hàng và không còn giao nhận mở trong chuỗi. Lịch sử đã ghi vẫn được giữ.")} schema={z.object({})} defaultValues={{}} version={leave.target.version} submitLabel={tr("Rời chuỗi")} tone="danger" invalidate={invalidate}
+                run={(_, cmd) => chainApi.leave(c.id, leave.target!.organizationId, { version: leave.target!.version }, cmd)}>
+                {() => null}
+              </CommandDialog>
+            )}
             {invite.target && (
               <CommandDialog {...invite.props} title={tr("Mời thành viên")} endpoint="POST /supply-chains/:id/memberships" description={tr("Doanh nghiệp được mời phải đang hoạt động và tự chấp nhận lời mời.")} schema={z.object({ organizationId: z.string().min(1, { error: () => tr("Chọn tổ chức") }) })} defaultValues={{ organizationId: "" }} submitLabel={tr("Gửi lời mời")} invalidate={invalidate} run={(v, cmd) => chainApi.invite(c.id, v, cmd)}>
                 {(f) => <SelectField control={f.control} name="organizationId" label={tr("Đối tác")} options={invitable.map((o) => ({ value: o.id, label: o.name }))} />}
