@@ -180,8 +180,8 @@ model Organization {
   name                    String                    @db.VarChar(255)
   type                    OrganizationType
   status                  OrganizationStatus        @default(ACTIVE)
-  /// SINGLE: one registered activity. SUPPLY_CHAIN_ENTERPRISE: several reviewed capabilities.
-  participationModel      String                    @default("SINGLE") @map("participation_model") @db.VarChar(30)
+  /// MEMBER takes part free of charge; CHAIN_OWNER buys a plan and may own chains (ADR-005).
+  participationStatus     String                    @default("MEMBER") @map("participation_status") @db.VarChar(20)
   createdAt               DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime                  @default(now()) @map("updated_at") @db.Timestamptz(6)
   users                   User[]
@@ -263,7 +263,6 @@ model CapabilityRequest {
 model ServicePlan {
   code        String               @id @db.VarChar(30)
   name        String               @db.VarChar(120)
-  audience    String               @db.VarChar(30)
   description String?              @db.VarChar(1000)
   status      String               @default("ACTIVE") @db.VarChar(20)
   sortOrder   Int                  @default(0) @map("sort_order")
@@ -333,6 +332,17 @@ model Invoice {
   provider          String?             @db.VarChar(20)
   providerReference String?             @map("provider_reference") @db.VarChar(120)
   simulated         Boolean             @default(false)
+  /// VAT e-invoice fields (Decree 123/2020), fixed at issue; still simulated.
+  templateCode      String?             @map("template_code") @db.VarChar(11)
+  series            String?             @db.VarChar(10)
+  sellerName        String?             @map("seller_name") @db.VarChar(255)
+  sellerTaxCode     String?             @map("seller_tax_code") @db.VarChar(20)
+  buyerName         String?             @map("buyer_name") @db.VarChar(255)
+  buyerTaxCode      String?             @map("buyer_tax_code") @db.VarChar(20)
+  buyerAddress      String?             @map("buyer_address") @db.VarChar(500)
+  subtotal          BigInt?
+  vatRate           Decimal?            @map("vat_rate") @db.Decimal(5, 2)
+  vatAmount         BigInt?             @map("vat_amount")
   voidReason        String?             @map("void_reason") @db.VarChar(1000)
   createdBy         String?             @map("created_by") @db.Uuid
   version           Int                 @default(0)
@@ -394,6 +404,7 @@ model ProcessingRun {
   outputs         ProcessingOutput[]
   losses          ProcessingLoss[]
   externalInputs  ProcessingExternalInput[]
+  crossChainInputs ProcessingCrossChainInput[]
   logs            ProcessingLog[]
   product         Product?           @relation("ProcessingRunProduct", fields: [productId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   lots            Lot[]              @relation("ProcessingRunLots")
@@ -465,6 +476,8 @@ model MaterialReceipt {
   lotId          String?   @map("lot_id") @db.Uuid
   materialName   String    @map("material_name") @db.VarChar(255)
   supplierName   String    @map("supplier_name") @db.VarChar(255)
+  supplierId     String?   @map("supplier_id") @db.Uuid
+  growingAreaCode String?  @map("growing_area_code") @db.VarChar(60)
   documentNo     String?   @map("document_no") @db.VarChar(100)
   receivedAt     DateTime  @map("received_at") @db.Timestamptz(6)
   quantity       Decimal   @db.Decimal(14, 3)
@@ -477,9 +490,65 @@ model MaterialReceipt {
   version        Int       @default(0)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   runInputs      ProcessingExternalInput[]
+  supplier       EnterpriseExternalPartner? @relation(fields: [supplierId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  confirmations  SupplierConfirmation[]
 
   @@index([organizationId, siteId, createdAt(sort: Desc)], map: "ix_material_receipt_org_site")
   @@map("material_receipt")
+}
+
+/// One-time supplier confirmation of an external receipt; only the token hash is kept.
+model SupplierConfirmation {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receiptId     String          @map("receipt_id") @db.Uuid
+  tokenHash     String          @unique @map("token_hash") @db.VarChar(64)
+  status        String          @default("PENDING") @db.VarChar(20)
+  expiresAt     DateTime        @map("expires_at") @db.Timestamptz(6)
+  respondedAt   DateTime?       @map("responded_at") @db.Timestamptz(6)
+  responderName String?         @map("responder_name") @db.VarChar(120)
+  createdBy     String          @map("created_by") @db.Uuid
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  version       Int             @default(0)
+  receipt       MaterialReceipt @relation(fields: [receiptId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([receiptId], map: "ix_supplier_confirmation_receipt")
+  @@map("supplier_confirmation")
+}
+
+/// A lot of another chain consumed by a pinned run, linked by event hash.
+model ProcessingCrossChainInput {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  runId         String        @map("run_id") @db.Uuid
+  lotId         String        @map("lot_id") @db.Uuid
+  sourceChainId String        @map("source_chain_id") @db.Uuid
+  eventId       String        @unique @map("event_id") @db.Uuid
+  dataHash      String        @map("data_hash") @db.VarChar(64)
+  bindingDigest String        @map("binding_digest") @db.VarChar(64)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  run           ProcessingRun @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([runId, lotId])
+  @@map("processing_cross_chain_input")
+}
+
+/// Invitation of an organization without an account into a chain; hash only.
+model PartnerInvitation {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chainId                String    @map("chain_id") @db.Uuid
+  inviterOrganizationId  String    @map("inviter_organization_id") @db.Uuid
+  email                  String    @db.VarChar(255)
+  organizationName       String    @map("organization_name") @db.VarChar(255)
+  tokenHash              String    @unique @map("token_hash") @db.VarChar(64)
+  status                 String    @default("PENDING") @db.VarChar(20)
+  expiresAt              DateTime  @map("expires_at") @db.Timestamptz(6)
+  acceptedOrganizationId String?   @map("accepted_organization_id") @db.Uuid
+  acceptedAt             DateTime? @map("accepted_at") @db.Timestamptz(6)
+  createdBy              String    @map("created_by") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  version                Int       @default(0)
+
+  @@index([chainId, status], map: "ix_partner_invitation_chain")
+  @@map("partner_invitation")
 }
 
 model ProcessingExternalInput {
@@ -897,6 +966,7 @@ model EnterpriseExternalPartner {
   note           String?  @db.VarChar(1000)
   version        Int      @default(0)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  receipts       MaterialReceipt[]
   @@unique([organizationId, businessId])
   @@index([organizationId, name])
   @@map("enterprise_external_partner")
@@ -1356,6 +1426,8 @@ model ChainMembership {
   status             ChainMembershipStatus @default(INVITED)
   version            Int                   @default(0)
   invitationRevision Int                   @default(0) @map("invitation_revision")
+  /// Set by the chain owner to stop new handovers; suspension follows once empty.
+  closingAt          DateTime?             @map("closing_at") @db.Timestamptz(6)
   createdAt          DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime              @default(now()) @map("updated_at") @db.Timestamptz(6)
   chain              SupplyChain           @relation(fields: [chainId], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -1666,6 +1738,12 @@ model Product {
   ingredients String? @db.VarChar(2000)
   usageInstructions String? @map("usage_instructions") @db.VarChar(2000)
   evidenceComplete Boolean @default(true) @map("evidence_complete")
+  /// Platform approval of the product declaration; gates the public brand page only.
+  approvalStatus String @default("NONE") @map("approval_status") @db.VarChar(20)
+  approvalRequestedAt DateTime? @map("approval_requested_at") @db.Timestamptz(6)
+  approvedBy String? @map("approved_by") @db.Uuid
+  approvedAt DateTime? @map("approved_at") @db.Timestamptz(6)
+  approvalNote String? @map("approval_note") @db.VarChar(1000)
   version Int @default(0)
   id          String             @id @default(dbgenerated("gen_random_uuid()")) @map("product_id") @db.Uuid
   productName String             @map("product_name") @db.VarChar(255)
