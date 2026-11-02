@@ -33,6 +33,6 @@ export function verifyExport(exportDir: string, protectedDir: string): string {
   if (!protectedPrivate.length) throw new Error("Protected private material could not be read for comparison");
   const exported = files(exportDir);
   if (exported.some((f) => { const bytes = readFileSync(f); return protectedPrivate.some((k) => k.equals(bytes)); }))
-    throw new Error("Protected private key bytes found in export");
+    throw new Error("protected owner private key bytes found in export");
   return `${exported.length} exported files match the reviewed layout; none carry CA/orderer private keys`;
 }
