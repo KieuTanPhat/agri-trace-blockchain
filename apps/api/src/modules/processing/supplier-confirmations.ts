@@ -8,7 +8,7 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
-import { ApiProperty, ApiTags } from '@nestjs/swagger';
+import { ApiHeader, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Transform } from 'class-transformer';
 import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
@@ -131,12 +131,19 @@ export class PublicSupplierConfirmationController {
 
   @Post(':token')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    description: 'Retry identifier. The one-time token already makes a repeated identical answer return the recorded result.',
+  })
   @ApiDataResponse(PublicSupplierConfirmationView, 201)
   respond(@Param('token') token: string, @Body() input: SupplierConfirmationDecision) {
     if (!TOKEN.test(token)) throw new NotFoundException('Mã xác nhận không hợp lệ');
     return commandTransaction(this.db, async (tx) => {
       const row = await this.find(tx, token);
       await tx.$queryRaw`SELECT id FROM supplier_confirmation WHERE id=${row.id}::uuid FOR UPDATE`;
+      // A lost response is retried with the same answer and gets the result.
+      if (row.status === input.decision && row.responderName === input.responderName) return this.view(tx, row);
       if (row.status !== 'PENDING') throw new ConflictException('Phiếu đã được trả lời');
       if (row.expiresAt <= new Date()) throw new GoneException('Mã xác nhận đã hết hạn');
       const done = await tx.supplierConfirmation.update({

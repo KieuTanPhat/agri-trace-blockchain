@@ -964,6 +964,74 @@
         ],
         "type": "object"
       },
+      "CapabilityAddInput": {
+        "properties": {
+          "code": {
+            "enum": [
+              "FARM",
+              "TRANSPORTER",
+              "PROCESSOR",
+              "DISTRIBUTOR",
+              "RETAILER"
+            ],
+            "type": "string"
+          },
+          "evidenceIds": {
+            "description": "PROFILE certificates of the organization",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "processing": {
+            "$ref": "#/components/schemas/RegistrationProcessingDetails"
+          },
+          "production": {
+            "$ref": "#/components/schemas/RegistrationProductionDetails"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
+      "CapabilityAddView": {
+        "properties": {
+          "code": {
+            "enum": [
+              "FARM",
+              "TRANSPORTER",
+              "PROCESSOR",
+              "DISTRIBUTOR",
+              "RETAILER"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "status",
+          "version"
+        ],
+        "type": "object"
+      },
       "CapabilityDto": {
         "properties": {
           "code": {
@@ -1922,7 +1990,7 @@
             "type": "string"
           },
           "personal": {
-            "description": "Chuỗi riêng tạo khi kích hoạt doanh nghiệp sản xuất",
+            "description": "Free farm ledger created when the FARM capability takes effect (ADR-005)",
             "type": "boolean"
           },
           "plannedStartDate": {
@@ -2596,6 +2664,11 @@
             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
             "type": "string"
           },
+          "growingAreaCode": {
+            "description": "Mã số vùng trồng hoặc cơ sở đóng gói của nguồn",
+            "maxLength": 60,
+            "type": "string"
+          },
           "materialName": {
             "maxLength": 255,
             "type": "string"
@@ -2617,8 +2690,9 @@
             "format": "uuid",
             "type": "string"
           },
-          "supplierName": {
-            "maxLength": 255,
+          "supplierId": {
+            "description": "Supplier from the private address book (ADR-005)",
+            "format": "uuid",
             "type": "string"
           },
           "unit": {
@@ -2629,7 +2703,7 @@
         "required": [
           "siteId",
           "materialName",
-          "supplierName",
+          "supplierId",
           "documentNo",
           "receivedAt",
           "quantity",
@@ -4458,16 +4532,13 @@
           "organizationType": {
             "type": "string"
           },
-          "participationModel": {
+          "participationStatus": {
+            "description": "MEMBER takes part free; CHAIN_OWNER buys a plan and may own chains",
             "enum": [
-              "SINGLE",
-              "SUPPLY_CHAIN_ENTERPRISE"
+              "MEMBER",
+              "CHAIN_OWNER"
             ],
             "type": "string"
-          },
-          "payingParticipant": {
-            "description": "True for producers/cooperatives and supply-chain enterprises, which buy a service plan and may own chains",
-            "type": "boolean"
           },
           "paymentsEnabled": {
             "description": "Whether service payment collection is currently enabled; false allows administrator activation for temporary use without settlement",
@@ -4501,8 +4572,7 @@
         },
         "required": [
           "paymentsEnabled",
-          "participationModel",
-          "payingParticipant",
+          "participationStatus",
           "capabilityRequests",
           "serviceActivatedAt",
           "serviceActivationReason",
@@ -4561,6 +4631,7 @@
             "type": "string"
           },
           "taxCode": {
+            "description": "Mã số thuế hoặc số định danh 12 số của hộ",
             "maxLength": 14,
             "type": "string"
           }
@@ -4570,11 +4641,7 @@
           "name",
           "kind",
           "address",
-          "phone",
-          "email",
-          "taxCode",
-          "representative",
-          "note"
+          "phone"
         ],
         "type": "object"
       },
@@ -5103,7 +5170,7 @@
       "EnterpriseRegistrationDetails": {
         "properties": {
           "activities": {
-            "description": "SINGLE participation registers exactly one activity; SUPPLY_CHAIN_ENTERPRISE registers two or more. Each activity is reviewed separately.",
+            "description": "Any number of activities; each is reviewed separately. A chain owner needs at least one goods-owning activity (not only TRANSPORTER).",
             "items": {
               "enum": [
                 "FARM",
@@ -5155,10 +5222,7 @@
           "legalForm": {
             "enum": [
               "ENTERPRISE",
-              "COOPERATIVE",
-              "HOUSEHOLD_BUSINESS",
-              "PRODUCER_HOUSEHOLD",
-              "INDIVIDUAL_PRODUCER"
+              "COOPERATIVE"
             ],
             "type": "string"
           },
@@ -5901,7 +5965,12 @@
               "CHAIN_IMAGE",
               "QUARANTINE_IMAGE",
               "RECEIPT_DOCUMENT",
-              "PROCESSING_IMAGE"
+              "PROCESSING_IMAGE",
+              "INVOICE",
+              "PURCHASE_LIST",
+              "WEIGHING_SLIP",
+              "LAB_TEST",
+              "PRODUCT_DECLARATION"
             ],
             "type": "string"
           },
@@ -6998,14 +7067,21 @@
       },
       "HoldingDispositionInput": {
         "properties": {
+          "documentNo": {
+            "description": "Delivery document number, required for EXTERNAL_DISPATCH",
+            "maxLength": 100,
+            "type": "string"
+          },
           "fromQuarantine": {
             "description": "Only DAMAGE, explicitly consume quarantined stock at a site",
             "type": "boolean"
           },
           "kind": {
+            "description": "SALE to consumers; EXTERNAL_DISPATCH hands goods to an organization outside AgriTrace (ADR-005)",
             "enum": [
               "SALE",
-              "DAMAGE"
+              "DAMAGE",
+              "EXTERNAL_DISPATCH"
             ],
             "type": "string"
           },
@@ -7024,6 +7100,11 @@
           },
           "reason": {
             "maxLength": 500,
+            "type": "string"
+          },
+          "recipientName": {
+            "description": "Required for EXTERNAL_DISPATCH",
+            "maxLength": 255,
             "type": "string"
           },
           "siteId": {
@@ -7298,9 +7379,14 @@
               "DIST_CANCEL",
               "DIST_OBSERVE",
               "EW_TRACE_NOTICE",
+              "EW_SUPPLIER_CONFIRMATION_CREATE",
+              "EW_PRODUCT_APPROVAL_REQUEST",
               "EW_DISPOSITION",
+              "PLATFORM_PRODUCT_REVIEW",
               "ENTERPRISE_REVIEW",
               "ENTERPRISE_ACTIVATE",
+              "ENTERPRISE_UPGRADE_OWNER",
+              "ENTERPRISE_CAPABILITY_REQUEST",
               "CREATE_PRODUCTION_CYCLE",
               "EW_CREATE_CYCLE_DRAFT",
               "EW_LINK_CYCLE_DRAFT",
@@ -7336,6 +7422,8 @@
               "HYB_INVITE_MEMBERSHIP",
               "HYB_ACCEPT_MEMBERSHIP",
               "HYB_CHANGE_MEMBERSHIP",
+              "HYB_LEAVE_MEMBERSHIP",
+              "HYB_INVITE_BY_LINK",
               "HYB_GRANT_ROLE",
               "HYB_REVOKE_ROLE",
               "HYB_SET_CAPABILITY",
@@ -8421,10 +8509,7 @@
           "legalForm": {
             "enum": [
               "ENTERPRISE",
-              "COOPERATIVE",
-              "HOUSEHOLD_BUSINESS",
-              "PRODUCER_HOUSEHOLD",
-              "INDIVIDUAL_PRODUCER"
+              "COOPERATIVE"
             ],
             "type": "string"
           },
@@ -10282,6 +10367,38 @@
         ],
         "type": "object"
       },
+      "ParticipationUpgradeInput": {
+        "properties": {
+          "version": {
+            "description": "Current enrollment version",
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "type": "object"
+      },
+      "ParticipationUpgradeView": {
+        "properties": {
+          "organizationId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "participationStatus": {
+            "enum": [
+              "CHAIN_OWNER"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "organizationId",
+          "participationStatus"
+        ],
+        "type": "object"
+      },
       "PartnerDirectoryProfileDto": {
         "properties": {
           "activities": {
@@ -10389,6 +10506,46 @@
           "activities",
           "linkStatus",
           "linkDirection"
+        ],
+        "type": "object"
+      },
+      "PartnerInvitationInput": {
+        "properties": {
+          "email": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "organizationName": {
+            "maxLength": 255,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "organizationName"
+        ],
+        "type": "object"
+      },
+      "PartnerInvitationView": {
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "link": {
+            "description": "Registration link; shown once, only its hash is stored",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "link",
+          "expiresAt"
         ],
         "type": "object"
       },
@@ -10650,6 +10807,12 @@
             "minimum": 1,
             "type": "number"
           },
+          "partners": {
+            "description": "Distinct partner organizations active in the owner chains",
+            "maximum": 100000,
+            "minimum": 0,
+            "type": "number"
+          },
           "products": {
             "maximum": 100000,
             "minimum": 0,
@@ -10659,6 +10822,7 @@
         "required": [
           "products",
           "chains",
+          "partners",
           "members"
         ],
         "type": "object"
@@ -12079,6 +12243,44 @@
         ],
         "type": "object"
       },
+      "ProductApprovalRequestInput": {
+        "properties": {
+          "version": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "type": "object"
+      },
+      "ProductApprovalReviewInput": {
+        "properties": {
+          "decision": {
+            "enum": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 1000,
+            "minLength": 5,
+            "type": "string"
+          },
+          "version": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "version",
+          "decision",
+          "note"
+        ],
+        "type": "object"
+      },
       "ProductBriefDto": {
         "properties": {
           "id": {
@@ -13358,6 +13560,26 @@
         ],
         "type": "object"
       },
+      "PublicBrandDto": {
+        "properties": {
+          "organizationName": {
+            "type": "string"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "story": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "organizationName",
+          "productName",
+          "story"
+        ],
+        "type": "object"
+      },
       "PublicCertificateDto": {
         "properties": {
           "documentHash": {
@@ -13852,6 +14074,16 @@
           "blockchainProof": {
             "$ref": "#/components/schemas/LotProofDto"
           },
+          "brand": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicBrandDto"
+              }
+            ],
+            "description": "Chain-owner brand, only for an approved product (ADR-005)",
+            "nullable": true,
+            "type": "object"
+          },
           "certificates": {
             "items": {
               "$ref": "#/components/schemas/PublicCertificateDto"
@@ -13982,6 +14214,16 @@
                 "$ref": "#/components/schemas/PublicShipmentDto"
               }
             ],
+            "nullable": true,
+            "type": "object"
+          },
+          "sourceTrust": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicSourceTrustDto"
+              }
+            ],
+            "description": "Trust levels of the material sources of a processed lot",
             "nullable": true,
             "type": "object"
           },
@@ -14349,6 +14591,76 @@
           "pickupTime",
           "arrivalTime",
           "receivedTime"
+        ],
+        "type": "object"
+      },
+      "PublicSourceTrustDto": {
+        "properties": {
+          "declared": {
+            "type": "number"
+          },
+          "evidenced": {
+            "type": "number"
+          },
+          "selfRecorded": {
+            "description": "AgriTrace lots recorded by the supplier itself",
+            "type": "number"
+          },
+          "supplierConfirmed": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "selfRecorded",
+          "supplierConfirmed",
+          "evidenced",
+          "declared"
+        ],
+        "type": "object"
+      },
+      "PublicSupplierConfirmationView": {
+        "properties": {
+          "buyerName": {
+            "type": "string"
+          },
+          "documentNo": {
+            "nullable": true,
+            "type": "string"
+          },
+          "materialName": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "string"
+          },
+          "receivedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "DECLINED"
+            ],
+            "type": "string"
+          },
+          "supplierName": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "buyerName",
+          "materialName",
+          "supplierName",
+          "quantity",
+          "unit",
+          "receivedAt",
+          "documentNo",
+          "status"
         ],
         "type": "object"
       },
@@ -15071,8 +15383,8 @@
       "RegisterDto": {
         "properties": {
           "businessId": {
-            "description": "Tax identifier when applicable. Registered entities require it; producer households/individuals may omit it. Operator verification remains required.",
-            "pattern": "^(?:[0-9]{10}(?:-?[0-9]{3})?|[0-9]{12})$",
+            "description": "Enterprise or cooperative tax identifier. Operator verification remains required.",
+            "pattern": "^[0-9]{10}(?:-?[0-9]{3})?$",
             "type": "string"
           },
           "details": {
@@ -15099,6 +15411,11 @@
             "maxLength": 255,
             "type": "string"
           },
+          "invitationToken": {
+            "description": "Partner invitation token received by email; joins the inviting chain after activation.",
+            "maxLength": 200,
+            "type": "string"
+          },
           "organizationName": {
             "maxLength": 255,
             "type": "string"
@@ -15113,11 +15430,11 @@
             ],
             "type": "string"
           },
-          "participationModel": {
-            "description": "Defaults to SINGLE for one activity and SUPPLY_CHAIN_ENTERPRISE for several.",
+          "participationStatus": {
+            "description": "MEMBER takes part free of charge; CHAIN_OWNER buys a plan and may own chains. A member may upgrade later.",
             "enum": [
-              "SINGLE",
-              "SUPPLY_CHAIN_ENTERPRISE"
+              "MEMBER",
+              "CHAIN_OWNER"
             ],
             "type": "string"
           },
@@ -15133,7 +15450,9 @@
           "email",
           "fullName",
           "organizationName",
+          "businessId",
           "organizationType",
+          "participationStatus",
           "details"
         ],
         "type": "object"
@@ -15538,11 +15857,12 @@
             "type": "string"
           },
           "planCode": {
+            "description": "Chain owners only",
             "enum": [
-              "TRACE_5",
-              "TRACE_10",
-              "TRACE_20",
-              "CHAIN_PRO"
+              "OWNER_START",
+              "OWNER_GROWTH",
+              "OWNER_SCALE",
+              "OWNER_ENTERPRISE"
             ],
             "type": "string"
           }
@@ -18121,6 +18441,45 @@
         ],
         "type": "object"
       },
+      "SupplierConfirmationDecision": {
+        "properties": {
+          "decision": {
+            "enum": [
+              "CONFIRMED",
+              "DECLINED"
+            ],
+            "type": "string"
+          },
+          "responderName": {
+            "description": "Name of the person confirming",
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "responderName"
+        ],
+        "type": "object"
+      },
+      "SupplierConfirmationView": {
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "link": {
+            "description": "Link printed as a QR code on the weighing slip or purchase list; shown once",
+            "type": "string"
+          }
+        },
+        "required": [
+          "link",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
       "SuspendChainDto": {
         "properties": {
           "reason": {
@@ -18510,9 +18869,11 @@
       "TraceNoticeInput": {
         "properties": {
           "kind": {
+            "description": "RECALL by the chain owner; RECALL_PROPOSAL from a partner, private to the chain",
             "enum": [
               "WARNING",
-              "RECALL"
+              "RECALL",
+              "RECALL_PROPOSAL"
             ],
             "type": "string"
           },
@@ -19527,8 +19888,11 @@
           "name": {
             "type": "string"
           },
-          "participationModel": {
-            "description": "SINGLE or SUPPLY_CHAIN_ENTERPRISE",
+          "participationStatus": {
+            "enum": [
+              "MEMBER",
+              "CHAIN_OWNER"
+            ],
             "type": "string"
           },
           "status": {
@@ -23739,6 +24103,175 @@
         ]
       }
     },
+    "/api/capability-requests": {
+      "post": {
+        "operationId": "EnterpriseServiceController_requestCapability",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CapabilityAddInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CapabilityAddView"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "enterprise-service"
+        ]
+      }
+    },
     "/api/capability-requests/{id}/review": {
       "post": {
         "operationId": "EnterpriseOnboardingController_reviewCapability",
@@ -24579,6 +25112,178 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ProductDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ProductRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "tags": [
+          "Catalog"
+        ]
+      }
+    },
+    "/api/catalog/products/{id}/approval-request": {
+      "post": {
+        "operationId": "CatalogController_requestApproval",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductApprovalRequestInput"
               }
             }
           },
@@ -36715,6 +37420,175 @@
                   "properties": {
                     "data": {
                       "$ref": "#/components/schemas/ServicePreviewView"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "enterprise-service"
+        ]
+      }
+    },
+    "/api/enterprise-service/upgrade": {
+      "post": {
+        "operationId": "EnterpriseServiceController_upgrade",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParticipationUpgradeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ParticipationUpgradeView"
                     },
                     "requestId": {
                       "type": "string"
@@ -53652,12 +54526,12 @@
           },
           {
             "in": "query",
-            "name": "model",
+            "name": "participation",
             "required": false,
             "schema": {
               "enum": [
-                "SINGLE",
-                "SUPPLY_CHAIN_ENTERPRISE"
+                "MEMBER",
+                "CHAIN_OWNER"
               ],
               "type": "string"
             }
@@ -53853,6 +54727,333 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "platform-admin"
+        ]
+      }
+    },
+    "/api/platform-admin/product-approvals": {
+      "get": {
+        "operationId": "PlatformAdminController_productApprovals",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminListDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "platform-admin"
+        ]
+      }
+    },
+    "/api/platform-admin/product-approvals/{productId}/review": {
+      "post": {
+        "operationId": "PlatformAdminController_reviewProduct",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "productId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductApprovalReviewInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -65593,6 +66794,173 @@
         ]
       }
     },
+    "/api/processing-runs/receipts/{id}/confirmations": {
+      "post": {
+        "operationId": "ProcessingController_confirmReceipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SupplierConfirmationView"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "processing"
+        ]
+      }
+    },
     "/api/processing-runs/stock": {
       "get": {
         "operationId": "ProcessingController_stock",
@@ -70311,6 +71679,331 @@
         ]
       }
     },
+    "/api/public/supplier-confirmations/{token}": {
+      "get": {
+        "operationId": "PublicSupplierConfirmationController_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicSupplierConfirmationView"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "tags": [
+          "public"
+        ]
+      },
+      "post": {
+        "operationId": "PublicSupplierConfirmationController_respond",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Retry identifier. The one-time token already makes a repeated identical answer return the recorded result.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierConfirmationDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicSupplierConfirmationView"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "tags": [
+          "public"
+        ]
+      }
+    },
     "/api/public/trace/{token}": {
       "get": {
         "operationId": "PublicTraceController_get",
@@ -74613,6 +76306,183 @@
         ]
       }
     },
+    "/api/supply-chains/{chainId}/invitations": {
+      "post": {
+        "operationId": "SupplyChainsController_inviteByLink",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chainId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartnerInvitationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PartnerInvitationView"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "supply-chains"
+        ]
+      }
+    },
     "/api/supply-chains/{chainId}/ledger-status": {
       "get": {
         "operationId": "SupplyChainsController_ledgerStatus",
@@ -75112,6 +76982,191 @@
     "/api/supply-chains/{chainId}/memberships/{organizationId}/accept": {
       "post": {
         "operationId": "SupplyChainsController_accept",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chainId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "organizationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChainVersionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MemberRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "supply-chains"
+        ]
+      }
+    },
+    "/api/supply-chains/{chainId}/memberships/{organizationId}/leave": {
+      "post": {
+        "operationId": "SupplyChainsController_leave",
         "parameters": [
           {
             "in": "path",
