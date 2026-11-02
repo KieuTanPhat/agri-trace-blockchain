@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "test-mobile/**/*.ts",
+    "test-mobile/**/*.tsx",
+    "src/test/setup.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

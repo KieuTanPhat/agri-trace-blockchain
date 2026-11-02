@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm test && npm run lint:contract && npm run test:image-optimizer && npm run build"
+    "check": "npm run typecheck && npm test && npm run lint:contract && npm run test:image-optimizer && npm run build",
+    "test:mobile": "tsc -p tsconfig.mobile-tests.json --noEmit && eslint --max-warnings 0 test-mobile/ && oxlint --max-warnings 0 --config .oxlintrc.json test-mobile/ && vitest run --config vitest.mobile.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.2",

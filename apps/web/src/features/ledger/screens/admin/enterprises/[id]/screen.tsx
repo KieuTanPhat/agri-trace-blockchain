@@ -299,6 +299,7 @@ function EnrollmentDetail() {
 }
 
 function Stepper({ e }: { e: Enrollment }) {
+  const deferred = e.paymentsEnabled === false;
   const steps = [
     {
       label: tr("Xét duyệt hồ sơ"),
@@ -307,19 +308,19 @@ function Stepper({ e }: { e: Enrollment }) {
       current: e.status === "PENDING_REVIEW",
     },
     {
-      label: e.payingParticipant
+      label: deferred ? tr("Sử dụng tạm — chưa thu phí") : e.payingParticipant
         ? tr("Doanh nghiệp chọn gói & hợp đồng")
         : tr("Không cần gói (miễn phí)"),
       done:
         e.status === "APPROVED" &&
-        (!e.payingParticipant || !!e.serviceActivatedAt),
+        (deferred || !e.payingParticipant || !!e.serviceActivatedAt),
       current:
-        e.onboardingStage === "AWAITING_ACTIVATION" && e.payingParticipant,
+        !deferred && e.onboardingStage === "AWAITING_ACTIVATION" && e.payingParticipant,
     },
     {
-      label: tr("Thanh toán"),
+      label: deferred ? tr("Thanh toán đang tạm hoãn") : tr("Thanh toán"),
       done:
-        !!e.serviceActivatedAt ||
+        deferred || !!e.serviceActivatedAt ||
         (e.status === "APPROVED" && !e.payingParticipant),
       current: false,
     },
@@ -740,8 +741,8 @@ function ActivatePanel({
       label: tr("Có ít nhất một năng lực được duyệt"),
     },
     {
-      ok: !caps.length || !e.payingParticipant || subscriptionActive,
-      label: !caps.length
+      ok: e.paymentsEnabled === false || !caps.length || !e.payingParticipant || subscriptionActive,
+      label: e.paymentsEnabled === false ? tr("Sử dụng tạm — không yêu cầu thanh toán") : !caps.length
         ? tr("Hồ sơ không có yêu cầu năng lực — không cần gói")
         : e.payingParticipant
           ? orgLoaded
@@ -801,7 +802,7 @@ function ActivatePanel({
       ) : (
         <Callout tone="warn">
           {tr("Chưa đủ điều kiện kích hoạt — API sẽ trả 409.")}{" "}
-          {e.payingParticipant && !subscriptionActive && (
+          {e.paymentsEnabled !== false && e.payingParticipant && !subscriptionActive && (
             <Link
               className="underline"
               href={`/admin/billing/invoices?organizationId=${e.organizationId}`}

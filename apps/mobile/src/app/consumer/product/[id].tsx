@@ -1,5 +1,5 @@
 import {router,useLocalSearchParams} from 'expo-router';
-import {useEffect,useState,type ReactNode} from 'react';
+import {useState,type ReactNode} from 'react';
 import {Pressable,ScrollView,View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
@@ -17,12 +17,15 @@ function DetailSection({title,children}:{title:string;children:ReactNode}) {
 }
 const traceOrigin=(process.env.EXPO_PUBLIC_TRACE_ORIGIN??'http://localhost:3000').replace(/\/trace\/?$/,'');
 export default function Product(){
-  const {id}=useLocalSearchParams<{id:string}>(),insets=useSafeAreaInsets();
+  const {id}=useLocalSearchParams<{id:string}>();
+  return <ProductDetail key={id} id={id}/>;
+}
+function ProductDetail({id}:{id:string}){
+  const insets=useSafeAreaInsets();
   const [expanded,setExpanded]=useState(false),[moreLots,setMoreLots]=useState<Schemas['PublicTraceLinkDto'][]>([]),[loadingMore,setLoadingMore]=useState(false),[nextCursor,setNextCursor]=useState<string|null|undefined>(undefined);
   const {data,error,loading,reload}=useLoad(()=>api<Schemas['PublicProductDetailDto']>(`/public/products/${encodeURIComponent(id??'')}?limit=20`),[id]);
   useReloadOnFocus(reload);
   const related=useLoad(()=>loadDirectory<DirectoryProduct>('products'));
-  useEffect(()=>{setExpanded(false);setMoreLots([]);setNextCursor(undefined);},[id]);
   if(!data||data.id!==id)return <View style={{flex:1,backgroundColor:dc.bg}}><GreenHeader title="Sản phẩm" back/>{loading?<Loading/>:<View style={{padding:16}}><Notice kind="error" title={error??'Không tìm thấy sản phẩm'}/></View>}</View>;
   const lots=[...data.lots.items,...moreLots],firstLot=data.lots.items[0],recommendations=(related.data??[]).filter(p=>p.id!==id&&p.category===data.category).slice(0,6);
   const cursor=nextCursor===undefined?data.lots.nextCursor:nextCursor;

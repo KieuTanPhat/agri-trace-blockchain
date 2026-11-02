@@ -29,6 +29,7 @@ describe('Public directory', () => {
       },
       lot: { findMany: vi.fn().mockResolvedValue([]) },
       distributionLine:{findMany:vi.fn().mockResolvedValue([])},
+      distributionTransfer: { findMany: vi.fn().mockResolvedValue([]) },
       certificate: { findMany: vi.fn().mockResolvedValue([]) },
     };
     return {

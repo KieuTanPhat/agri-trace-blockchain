@@ -11,6 +11,7 @@ import { commandTransaction } from '../../common/idempotency/command-transaction
 import { appendPlatformAudit, lockPlatformAudit } from '../platform-governance/platform-audit.js';
 import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
 import { simulationEnabled } from '../enterprise-onboarding/service-catalog.js';
+import { assertEnterprisePaymentsEnabled } from '../enterprise-onboarding/payment-policy.js';
 import {
   addMonths,
   audienceFor,
@@ -162,6 +163,7 @@ export class BillingService {
   }
 
   confirmPayment(actor: CommandActor, invoiceId: string, input: ConfirmPaymentInput) {
+    assertEnterprisePaymentsEnabled();
     return commandTransaction(this.db, async (tx) => {
       await lockPlatformAudit(tx);
       return {
@@ -185,6 +187,7 @@ export class BillingService {
   }
 
   issueRenewal(actor: CommandActor, organizationId: string, input: IssueRenewalInput) {
+    assertEnterprisePaymentsEnabled();
     return commandTransaction(this.db, async (tx) => {
       await lockPlatformAudit(tx);
       const invoice = await renewalInvoiceTx(tx, organizationId, input.planCode, actor.sub);
@@ -276,6 +279,7 @@ export class BillingService {
   }
 
   requestRenewal(actor: CommandActor, input: EnterpriseRenewalInput) {
+    assertEnterprisePaymentsEnabled();
     return commandTransaction(this.db, async (tx) => {
       const auth = await enterpriseAuthority(tx, actor, 'profile.manage', undefined, undefined, true);
       if (!auth.primary)

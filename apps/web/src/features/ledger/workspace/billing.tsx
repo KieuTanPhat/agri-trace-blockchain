@@ -30,10 +30,10 @@ export default function WsBillingPage() {
     <>
       <PageHeader
         title={tr("Gói dịch vụ & hóa đơn")}
-        description={b.paying ? tr("Doanh nghiệp trả phí theo gói. Hết hạn sẽ qua giai đoạn ân hạn rồi bị hạn chế tạo mới (giao nhận đang dở và trang QR công khai không bị chặn).") : tr("Doanh nghiệp tham gia miễn phí theo hạn mức chung của nền tảng.")}
+        description={!b.applies ? tr("Chưa áp dụng thu phí; doanh nghiệp sử dụng theo năng lực và quyền đã được quản trị kích hoạt.") : b.paying ? tr("Doanh nghiệp trả phí theo gói. Hết hạn sẽ qua giai đoạn ân hạn rồi bị hạn chế tạo mới (giao nhận đang dở và trang QR công khai không bị chặn).") : tr("Doanh nghiệp tham gia miễn phí theo hạn mức chung của nền tảng.")}
         meta={<Status group="subscription" value={b.status === "PARTICIPANT" ? "FREE" : b.status} />}
         actions={
-          primary && b.paying && s && (
+          primary && b.applies && b.paying && s && (
             <Button size="sm" onClick={() => renew.open(true)}>
               {tr("Gia hạn gói")}
             </Button>
@@ -51,7 +51,7 @@ export default function WsBillingPage() {
             </Fields>
           </Section>
         )}
-        <Section title={tr("Mức sử dụng")} aside={b.paying ? tr("Theo hạn mức gói") : "Theo billing.participantLimits"}>
+        <Section title={tr("Mức sử dụng")} aside={!b.applies ? tr("Theo quyền đã duyệt") : b.paying ? tr("Theo hạn mức gói") : "Theo billing.participantLimits"}>
           <div className="grid grid-cols-2 gap-x-6 gap-y-4 px-4 py-4 sm:grid-cols-4 sm:px-5">
             {(["members", "products", "chains"] as const).map((k) => {
               const lim = b.limits?.[k];

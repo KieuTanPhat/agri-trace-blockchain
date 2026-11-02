@@ -99,6 +99,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       # The API consumes Gateway's compiled workspace exports.
       - run: npm run build --workspace blockchain/gateway
+      - name: Check CI helpers and guarded demo loaders
+        run: npm run test:ci
       - run: npm run db:migrate --workspace apps/api
       - run: npm run check --workspace apps/api
       - name: Require Swagger and generated Web types to match the current API
@@ -141,6 +143,9 @@ jobs:
       - run: npm install --global npm@12.1.0
       - run: npm ci --no-audit --no-fund
       - run: npm ci --prefix apps/mobile --workspaces=false --no-audit --no-fund
+      - name: Check mobile logic with Web test tooling
+        run: npm run test:mobile:web
+      - run: npm run test:mobile:auth
       - run: node --import tsx --test apps/mobile/test/command-queue.test.ts apps/web/scripts/mobile-routing.test.mjs
       - run: npm run check --prefix apps/mobile --workspaces=false
       - run: node_modules/.bin/oxlint --max-warnings 0 apps/mobile/src/

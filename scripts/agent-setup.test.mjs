@@ -300,6 +300,10 @@ test('case-colliding resources are rejected on case-sensitive filesystems', { sk
   const f = fixture(t);
   f.put('.agents/skills/agritrace-one/references/Guide.md', 'First');
   f.put('.agents/skills/agritrace-one/references/guide.md', 'Second');
+  if (readdirSync(path.join(f.root, '.agents/skills/agritrace-one/references')).length !== 2) {
+    t.skip('Filesystem folds case; two distinct colliding entries cannot be created');
+    return;
+  }
   assert.throws(() => syncSkills(f.root), /collision/);
   assert.ok(!existsSync(path.join(f.root, '.claude')));
 });

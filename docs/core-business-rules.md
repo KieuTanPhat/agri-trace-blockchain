@@ -38,7 +38,17 @@ is still undergoing validation; the rules below are requirements to preserve.
 - Business calendar dates use Asia/Ho_Chi_Minh. Expiry prevents sale after the
   recorded expiry date even before an expiry event. Do not invent missing dates.
   Business timestamps require an explicit timezone, millisecond precision and
-  valid ordering; reject impossible/future instants.
+  valid ordering; reject impossible/future instants. Care journals alone allow
+  an explicit device/work instant up to two minutes ahead to tolerate clock
+  skew; retain that instant unchanged. `SERVER_RECEIVED` is explicit "just done"
+  intent: use server processing time on first execution and retain the reported
+  device instant, source, reported-to-receipt offset and receipt time in immutable
+  CARE_RECORDED data. This offset includes upload delay; it is not a clock-sync measurement.
+  Care `createdAt` is receipt time, distinct from `eventTime`; planting order
+  still applies. Replay returns the journal, never recomputes time. A delayed
+  first submission of SERVER_RECEIVED records receipt, not offline work time;
+  historical/offline work must use DEVICE. Harvest/sensor/signed timestamp
+  policies remain strict.
 - B captures an immutable binding/authority/permission epoch on each event.
   Registry permission confirmation precedes writes; revoke has drain/barrier or
   immediate emergency hold. Stale leases/epochs cannot overwrite newer state.
@@ -120,6 +130,17 @@ offers QR_LABELS (label printing was retired on 26/10/2026), while the API still
 accepts it from drafts saved earlier. Other capabilities remain separate from signup preferences. A
 rate-limited, no-store public email availability check returns only a boolean;
 it never reserves an email or replaces atomic uniqueness at final registration.
+
+Payment collection is deferred by default (`ENTERPRISE_PAYMENTS_ENABLED=false`,
+28/10/2026 decision). Approval alone does not grant business authority: every
+capability must be reviewed and SYSTEM_ADMIN explicitly activates temporary use
+in the same audited grant transaction. No order, invoice, subscription or paid
+status is created by this activation. While deferred, commercial participants
+are not blocked by missing/expired paid plans; basic participants retain their
+existing limits. Account, organization, chain, capability and assignment checks
+remain mandatory. Existing payment history stays unchanged. The service screen
+shows temporary use and refuses quotation/order/payment commands. The optional
+flow below applies only after an operator explicitly enables collection.
 
 Approval alone does not grant business authority for new enrollments. An owner
 previews and acknowledges an immutable service quotation/contract, then local
@@ -476,10 +497,13 @@ Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-proc
   Hồ sơ cũ không có yêu cầu năng lực giữ hành vi cấp theo `activities`.
 - Năng lực chế biến cần loại hình chế biến, số và hạn giấy chứng nhận cơ sở đủ điều
   kiện ATTP (còn hiệu lực lúc đăng ký và lúc duyệt) cùng tài liệu `CERTIFICATE`.
-- Tổ chức trả phí: có năng lực `FARM` hoặc mô hình doanh nghiệp chuỗi. Chỉ họ mua
+- Phân loại thương mại hiện hành (khi bật thu phí): có năng lực `FARM` hoặc mô hình doanh nghiệp chuỗi. Chỉ họ mua
   gói, được cấp `CREATE_CHAIN` và phải có subscription `ACTIVE` trước khi kích hoạt.
   Vận chuyển, chế biến, phân phối, bán lẻ tham gia miễn phí, chỉ có `ORG_ADMIN`,
   ghi nghiệp vụ trong chuỗi được mời, theo hạn mức `billing.participantLimits`.
+  Trong giai đoạn hoãn thanh toán, không yêu cầu subscription để admin kích hoạt;
+  phân loại này vẫn giữ riêng với quyền nghiệp vụ. Yêu cầu đưa PROCESSOR độc lập
+  vào nhóm trả phí còn để sau khi tích hợp thanh toán, không đổi ngầm ở đợt này.
 - Bảng giá lưu `service_plan_version`; bản đã công bố bất biến, báo giá ghi
   `planVersionId`. Chấp nhận hợp đồng tạo subscription `PENDING_PAYMENT` và hóa
   đơn `INITIAL`; thanh toán (mô phỏng local hoặc admin xác nhận chuyển khoản) đổi
@@ -493,6 +517,14 @@ Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-proc
   kiểm trong cùng transaction của lệnh tạo.
 
 ## Chế biến (biến đổi lô)
+
+SQL guard của event phải phân biệt hai nguồn: lô thu hoạch/lô chế biến có vụ gốc
+giữ context của vụ; lô chế biến chỉ dùng nguyên liệu ngoài giữ chain/binding đã
+ghim bất biến trên mẻ. Migration `20261222000000_external_processing_event_scope`
+bổ sung nhánh thứ hai để tránh lỗi 500 khi ra thành phẩm, không sửa event/hash
+hiện có. Cả hai nhánh vẫn từ chối khác chuỗi/binding; không được gán một vụ trồng
+giả cho nguyên liệu mua ngoài. Test HTTP/DB dùng binding mô phỏng, chưa chứng minh
+nghiệm thu Fabric hoặc nguyên liệu có chứng nhận độc lập.
 
 - Lệnh chế biến do tổ chức có năng lực `PROCESSOR` lập tại cơ sở loại
   `PROCESSING`/`PACKING`, trong một chuỗi; quyền `processing.write` theo chuỗi và

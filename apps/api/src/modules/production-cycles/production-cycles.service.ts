@@ -18,6 +18,7 @@ import {
 } from '../../common/idempotency/command-transaction.js';
 import { quantity } from '../../common/quantity.js';
 import { businessTimestamp } from '../../common/timestamp.js';
+import { careTimestamp } from './care-time.js';
 import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import { assertCultivatedArea } from '../../common/area.js';
 import type { Prisma } from '../../generated/prisma/client.js';
@@ -437,10 +438,12 @@ export class ProductionCyclesService {
         throw new ConflictException(
           'Chu kỳ cần mốc trồng trước khi ghi chăm sóc',
         );
-      const eventTime = businessTimestamp(
+      const receivedAt = new Date();
+      const { eventTime, audit } = careTimestamp(
         input.eventTime,
-        'Thời điểm chăm sóc',
-        { notBefore: plantedAt },
+        input.eventTimeSource,
+        plantedAt,
+        receivedAt,
       );
       const updated = await tx.productionCycle.updateMany({
         where: {
@@ -486,6 +489,7 @@ export class ProductionCyclesService {
           journalCode: `NK-${randomUUID().slice(0, 12).toUpperCase()}`,
           careType: input.careType,
           eventTime,
+          createdAt: receivedAt,
             materialId:material?.id,
             materialVersion:material?.version,
             materialName: material?.name ?? input.materialName,
@@ -509,6 +513,7 @@ export class ProductionCyclesService {
         actor,
         eventTime: care.eventTime,
         businessData: {
+          ...audit,
           journalCode: care.journalCode,
           name: care.name,
           careType: care.careType,

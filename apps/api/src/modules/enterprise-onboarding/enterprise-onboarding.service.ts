@@ -32,6 +32,8 @@ import type { EnterpriseConnectionDto, ReviewEnterpriseDto, ActivateEnterpriseDt
 import { VIETNAM_ADDRESSES } from './address-catalog.js';
 import { serviceStage } from './enterprise-service.service.js';
 import { grantEnterpriseBusiness } from './service-activation.js';
+import { assertActivationReady, enterprisePaymentsEnabled } from './payment-policy.js';
+export { assertActivationReady } from './payment-policy.js';
 import { settingValue } from '../billing/billing-core.js';
 import {
   consumeRegistrationProofs,
@@ -623,6 +625,7 @@ export const enrollmentView = (
   organizationName: row.organization.name,
   organizationType: row.organization.type,
   participationModel: row.organization.participationModel ?? 'SINGLE',
+  paymentsEnabled: enterprisePaymentsEnabled(),
   payingParticipant: payingParticipant(
     row.organization.participationModel ?? 'SINGLE',
     (row.organization.capabilityRequests?.length
@@ -663,7 +666,7 @@ export class EnterpriseOnboardingService {
       await assertActivationReady(tx,row);
       await tx.enterpriseEnrollment.update({where:{id},data:{serviceActivatedAt:new Date(),serviceActivatedBy:actor.sub!,serviceActivationReason:input.reason,version:{increment:1}}});
       await grantEnterpriseBusiness(tx,row);
-      await appendPlatformAudit(tx,{actor,action:'ENTERPRISE_SERVICE_ACTIVATED',subjectType:'ENTERPRISE_ENROLLMENT',subjectId:id,organizationId:row.organizationId,reason:input.reason,details:{manual:true,paymentVerified:false,peerVerified:false}});
+      await appendPlatformAudit(tx,{actor,action:'ENTERPRISE_SERVICE_ACTIVATED',subjectType:'ENTERPRISE_ENROLLMENT',subjectId:id,organizationId:row.organizationId,reason:input.reason,details:{manual:true,temporaryAccess:!enterprisePaymentsEnabled(),paymentVerified:false,peerVerified:false}});
       return enrollmentView(await tx.enterpriseEnrollment.findUniqueOrThrow({where:{id},include:INCLUDE}));
     });
   }
@@ -770,7 +773,9 @@ export class EnterpriseOnboardingService {
                 : 'AgriTrace — Kết quả xét duyệt hồ sơ',
             text:
               input.decision === 'APPROVE'
-                ? payingParticipant(
+                ? !enterprisePaymentsEnabled()
+                  ? `Hồ sơ ${row.organization.name} đã được quản trị phê duyệt. Thanh toán đang tạm hoãn. Quản trị sẽ kích hoạt sử dụng tạm sau khi xét duyệt các năng lực; bạn không cần mua gói hoặc xác nhận thanh toán. Ghi chú: ${input.note}`
+                  : payingParticipant(
                     row.organization.participationModel,
                     row.organization.capabilityRequests.map((r) => r.code),
                   )
@@ -861,41 +866,6 @@ export class EnterpriseOnboardingService {
       return reviewConnectionTx(tx, actor, id, input);
     });
   }
-}
-
-/** Paying participants need an active service subscription; every registered
- * capability must have been reviewed and at least one approved. */
-export async function assertActivationReady(
-  tx: Prisma.TransactionClient,
-  row: {
-    organizationId: string;
-    organization: {
-      participationModel?: string;
-      capabilityRequests?: CapabilityRequest[];
-    };
-  },
-) {
-  const requests = row.organization.capabilityRequests ?? [];
-  if (requests.some((r) => r.status === 'PENDING'))
-    throw new ConflictException('Còn năng lực chưa được xét duyệt');
-  const approved = requests.filter((r) => r.status === 'APPROVED');
-  if (requests.length && !approved.length)
-    throw new ConflictException('Chưa có năng lực nào được phê duyệt');
-  if (
-    !requests.length ||
-    !payingParticipant(
-      row.organization.participationModel ?? 'SINGLE',
-      approved.map((r) => r.code),
-    )
-  )
-    return;
-  const subscription = await tx.subscription.findFirst({
-    where: { organizationId: row.organizationId, status: 'ACTIVE' },
-  });
-  if (!subscription)
-    throw new ConflictException(
-      'Tổ chức trả phí cần thanh toán gói dịch vụ trước khi kích hoạt',
-    );
 }
 
 /** Reviews one registered capability. Approval after activation creates the

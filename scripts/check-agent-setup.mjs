@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { lstatSync, readFileSync } from 'node:fs';
+import { lstatSync, realpathSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -127,7 +127,7 @@ export function checkSetup(root) {
   return result;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   try {
     if (process.argv.length !== 2) throw new Error('Usage: node scripts/check-agent-setup.mjs');
     checkSetup(repositoryRoot);

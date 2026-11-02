@@ -314,6 +314,8 @@ const prisma = new PrismaClient({
         key,
       );
     beforeAll(async () => {
+      // These existing scenarios exercise the optional billing flow explicitly.
+      vi.stubEnv('ENTERPRISE_PAYMENTS_ENABLED', 'true');
       process.env.ENTERPRISE_ONBOARDING_ENABLED = 'true';
       process.env.ENTERPRISE_PAYMENT_SIMULATION_ENABLED = 'true';
       throttleBypass = vi
@@ -373,6 +375,7 @@ const prisma = new PrismaClient({
       admin = jwt.sign({ sub: user.id, sid });
     });
     afterAll(async () => {
+      vi.unstubAllEnvs();
       throttleBypass?.mockRestore();
       await app?.close();
       await prisma.$disconnect();
@@ -670,6 +673,28 @@ const prisma = new PrismaClient({
         },
       });
       await post('/auth/register', expired).expect(400);
+    });
+    it('activates approved authority without payment while collection is deferred', async () => {
+      vi.stubEnv('ENTERPRISE_PAYMENTS_ENABLED', 'false');
+      try {
+        const a = await register();
+        await approve(a.enrollment.id, 0).expect(201);
+        const workspace = (await get('/enterprise-service', a.token).expect(200)).body.data;
+        expect(workspace.stage).toBe('AWAITING_TEMPORARY_ACTIVATION');
+        expect(workspace.catalog.simulationEnabled).toBe(false);
+        // Review is still separate from activation; the owner cannot bypass it.
+        await activateService(a);
+        const access = (await get('/enterprise-access', a.token).expect(200)).body.data;
+        expect(access.stage).toBe('ACTIVE');
+        expect(access.capabilities).toContain('FARM');
+        expect((await get('/enterprise-service', a.token).expect(200)).body.data.stage).toBe('TEMPORARY_ACCESS');
+        const organizationId = a.enrollment.organizationId;
+        expect(await prisma.subscription.count({ where: { organizationId } })).toBe(0);
+        expect(await prisma.invoice.count({ where: { organizationId } })).toBe(0);
+        expect(await prisma.enterpriseServiceOrder.count({ where: { enrollmentId: a.enrollment.id } })).toBe(0);
+      } finally {
+        vi.stubEnv('ENTERPRISE_PAYMENTS_ENABLED', 'true');
+      }
     });
     it('serializes approval and grants organization authority through separate platform activation', async () => {
       const a = await register();

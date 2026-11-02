@@ -2,13 +2,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { errorText, type Schemas } from '../../../api/client';
-import { useSession } from '../../../auth/session';
+import type { Schemas } from '../../../api/client';
+import { useSession, useSessionScope } from '../../../auth/session';
 import { PhotoSlot } from '../../../components/PhotoSlot';
 import { Button, Card, Field, GreenHeader, Loading, Notice, T } from '../../../components/ui';
 import { qty } from '../../../lib/format';
 import { sendCommand, uploadCycleImage, type Photo } from '../../../lib/staffApi';
 import { useLoad } from '../../../lib/useApi';
+import { useSubmission } from '../../../lib/use-submission';
 import { color, font, noOutline } from '../../../theme/tokens';
 
 type Cycle = Schemas['CycleDetailDto'];
@@ -17,22 +18,31 @@ type Result = Schemas['HarvestResultDto'];
 /** One decision per screen, big number field, unit locked to the cycle plan. */
 export default function Harvest() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const scope = useSessionScope();
+  return <HarvestForm key={JSON.stringify([scope, id])} id={id} />;
+}
+
+function HarvestForm({ id }: { id: string }) {
   const insets = useSafeAreaInsets();
   const { user, call } = useSession<Schemas['AuthUserDto']>();
-  const { data: cycle } = useLoad(() => call<Cycle>(`/production-cycles/${id}`), [id]);
+  const { data: cycle, loading, error: loadError, reload } = useLoad(() => call<Cycle>(`/production-cycles/${id}`), [id]);
   const [amount, setAmount] = useState('');
   const [harvestPhoto, setHarvestPhoto] = useState<Photo | null>(null);
   const [lotPhoto, setLotPhoto] = useState<Photo | null>(null);
   const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { run, busy, error } = useSubmission();
   const [done, setDone] = useState<Result | 'queued' | null>(null);
 
   if (!cycle)
     return (
       <View style={{ flex: 1 }}>
         <GreenHeader title="Ghi thu hoạch" back />
-        <Loading />
+        {loading ? <Loading /> : (
+          <View style={{ padding: 16, gap: 12 }}>
+            <Notice kind="error" title={loadError ?? 'Không tìm thấy mùa vụ'} />
+            <Button label="Thử tải lại" onPress={() => void reload()} />
+          </View>
+        )}
       </View>
     );
 
@@ -41,17 +51,18 @@ export default function Harvest() {
   const harvested = cycle.harvestEvents.reduce((s, h) => s + Number(h.quantity), 0);
   const cap = cycle.maxHarvestQuantity ? Number(cycle.maxHarvestQuantity) - harvested : null;
   const over = cap !== null && quantity > cap;
-  const ready = quantity > 0 && !over && !!harvestPhoto && !!lotPhoto && !!user;
+  const writable = cycle.canWriteProduction === true && ['PLANTED', 'GROWING'].includes(cycle.currentState);
+  const ready = writable && quantity > 0 && !over && !!harvestPhoto && !!lotPhoto && !!user;
 
   const submit = async () => {
     if (!ready || !user) return;
-    setBusy(true);
-    setError(null);
-    try {
+    await run(async (isCurrent) => {
       const when = new Date();
       const day = when.toLocaleDateString('vi-VN');
       const evidenceRef = await uploadCycleImage(call, cycle.id, harvestPhoto!, 'HARVEST_IMAGE', `Ảnh thu hoạch ${cycle.product.productName} ngày ${day}`);
+      if (!isCurrent()) return;
       const lotImageEvidenceRef = await uploadCycleImage(call, cycle.id, lotPhoto!, 'LOT_IMAGE', `Ảnh lô ${cycle.product.productName} ngày ${day}`);
+      if (!isCurrent()) return;
       const outcome = await sendCommand(call, user, {
         path: `/production-cycles/${cycle.id}/harvests`,
         label: `Thu hoạch ${qty(quantity, unit)}`,
@@ -68,12 +79,8 @@ export default function Harvest() {
           ...(note.trim() ? { note: note.trim() } : {}),
         },
       });
-      setDone(outcome.sent ? (outcome.result as Result) : 'queued');
-    } catch (e) {
-      setError(errorText(e));
-    } finally {
-      setBusy(false);
-    }
+      if (isCurrent()) setDone(outcome.sent ? (outcome.result as Result) : 'queued');
+    });
   };
 
   if (done)
@@ -156,6 +163,7 @@ export default function Harvest() {
           <Card style={{ padding: 16 }}>
             <Field label="Ghi chú" value={note} onChangeText={setNote} placeholder="Không bắt buộc" />
           </Card>
+          {!writable && <Notice kind="warn" title="Không thể ghi vào vụ này" body="Vụ chưa bắt đầu, đã kết thúc hoặc bạn không còn quyền ghi. Quay lại mùa vụ để kiểm tra phân công." />}
           {error && <Notice kind="error" title={error} />}
         </View>
       </ScrollView>

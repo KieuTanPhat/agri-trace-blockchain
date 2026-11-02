@@ -24,10 +24,10 @@ export function classifyChanges(files, force = false) {
     if (file.startsWith('docs/openapi/') || file === 'apps/web/src/lib/generated/api.d.ts') {
       result.api = result.web = result.containers = result.hybrid = true;
     }
-    if (sharedFiles.has(file) || file.startsWith('.github/') || file.startsWith('scripts/ci/') || file.startsWith('deploy/')) {
+    if (sharedFiles.has(file) || file.startsWith('apps/mobile/compat/') || file.startsWith('.github/') || file.startsWith('scripts/ci/') || file.startsWith('deploy/')) {
       for (const key of Object.keys(result)) result[key] = true;
     }
-    if (file.startsWith('apps/api/') || file.startsWith('blockchain/gateway/')) {
+    if (file.startsWith('apps/api/') || file.startsWith('blockchain/gateway/') || file.startsWith('scripts/demo/')) {
       result.api = result.containers = result.hybrid = true;
     }
     if (file.startsWith('apps/web/')||file.startsWith('apps/mobile/')) result.web = result.containers = result.hybrid = true;

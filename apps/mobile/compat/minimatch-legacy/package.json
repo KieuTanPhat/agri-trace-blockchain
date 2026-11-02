@@ -1,0 +1,10 @@
+{
+  "name": "@agritrace/minimatch-legacy",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.cjs",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "minimatch-engine": "npm:minimatch@11.0.3"
+  }
+}

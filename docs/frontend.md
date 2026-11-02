@@ -4,7 +4,88 @@ Web dùng Next.js 16.4.2, React 19.3.0 và Tailwind 4. Chạy bằng Node 24.22.
 npm 12.1.0 theo README. `scripts/run-next.mjs` chạy Next native SWC/Turbopack;
 production build và start từ chối các cờ mock. API client không có fallback dữ liệu mẫu.
 
+Khi mở Next dev qua IP LAN, truyền `NEXT_DEV_ALLOWED_HOSTS=<IP-Mac>` (hostname/IP,
+không có protocol/port) cùng lệnh `npm run dev --workspace apps/web -- --hostname
+0.0.0.0`. Next chỉ cho phép các host dev được chỉ định và loopback; không dùng
+wildcard toàn mạng. Thay IP cần khởi động lại dev server. Lỗi `/_next/hmr` trả
+`Unauthorized`/invalid HTTP response là cổng HMR; trang/API/dữ liệu phải kiểm riêng.
+
+Route `/enterprise/areas/plots/new` mở form thêm lô đất riêng, đóng panel chi
+tiết vùng trong lúc nhập để tránh hai Radix dialog cùng mount và panel che form.
+Hủy/quay lại về chi tiết vùng; giữ nguyên schema, quyền và command tạo lô đất.
+Test React kiểm một dialog, không còn sheet, nhập/focus và điều hướng Hủy;
+`tests/ledger/areas-plot.spec.ts` bổ sung browser regression ở 1440/390 px.
+
 ## Nguồn giao diện và cấu trúc
+
+### Mobile nhân viên: nhật ký và thu hoạch
+
+Form nhật ký/thu hoạch tách theo session và ID vụ: đổi tài khoản hoặc đổi vụ sẽ
+xóa bản nháp/ảnh của form trước. Chỉ mở ghi khi API trả `canWriteProduction=true`
+và vụ đang PLANTED/GROWING; API vẫn là nơi kiểm quyền và version cuối cùng.
+Lỗi tải vụ có thông báo và nút thử lại, không quay tải vô hạn. Khóa gửi đặt trước
+khi tải ảnh để chặn bấm liên tiếp; đã gửi hoặc đưa vào hàng đợi thì form không tạo
+lệnh mới. Nếu form bị tháo khi tải ảnh, không phát lệnh nghiệp vụ tiếp theo;
+ảnh đã upload không bị xóa để che lịch sử. Lệnh đã phát vẫn giữ cơ chế đối soát
+bằng body/key gốc trong hàng đợi.
+
+Kiểm tra React: `npm test --workspace apps/web -- src/lib/mobile-submission.spec.tsx
+src/lib/mobile-load.spec.tsx`. Camera, chọn ảnh, thu hồi quyền khi đang mở màn hình
+và toàn vòng trên APK vẫn cần nghiệm thu thiết bị; test hook không thay bước đó.
+
+Bản APK `staff` đăng nhập email/API, không dùng Firebase Phone Auth.
+`apps/mobile/react-native.config.js` loại RN Firebase app/auth khỏi autolinking
+Android/iOS chỉ khi `EXPO_PUBLIC_APP_VARIANT=staff`. Tắt config plugin không đủ
+để loại module RN đã cài. Đã kiểm tra kết quả Expo autolinking Android: staff
+không link hai module, consumer vẫn link. Log EAS trước sửa có firebase-auth
+25.0.0 Kotlin metadata 2.4 nhưng compiler đọc 2.2; loại module không dùng giải
+quyết đường build staff, chưa chứng minh build consumer tương thích Kotlin.
+Sau thay đổi cần build APK staff mới; lint/typecheck không thay compile Gradle.
+
+### Mobile nhân viên: giao nhận
+
+Danh sách dùng đúng lifecycle API PROPOSED/READY/IN_TRANSIT/DELIVERED/CANCELLED,
+hiển thị số dòng hàng thay vì cộng kg, lít hoặc đơn vị khác thành một tổng.
+`/staff/transfer/[id]` tải record riêng qua API có kiểm quyền, xem từng lô nguồn,
+nơi giao/nhận và đơn vị tham gia. Danh sách/chi tiết tải lại khi quay về màn hình;
+lỗi đọc có thử lại. Chỉ chữ ký cùng `attestationEpoch` hiện hành được hiển thị,
+không suy ra đủ chữ ký từ trạng thái DELIVERED và không coi metadata API là proof
+Fabric. Ký thật vẫn thực hiện trên Web với khóa tổ chức; mobile không tạo chữ ký
+giả hoặc hạ cấp bàn giao. Test presentation và Web recovery:
+`npm test --workspace apps/web -- src/lib/mobile-transfers.spec.ts
+src/features/ledger/workspace/distribution-signing.spec.tsx`.
+
+### ACheck: xác minh điện thoại trên bản development
+
+UI đăng ký/quên mật khẩu dùng Firebase native để nhận token xác minh và gửi
+`firebaseIdToken` tới API; không có mã OTP giả hoặc SMS tự gửi khi mở màn hình.
+Tạo tài khoản xong giữ phiên bằng SecureStore; đổi mật khẩu xong yêu cầu đăng nhập
+lại. Mất phản hồi sau khi gửi yêu cầu thì thử đăng nhập, không tự gửi lại command.
+Cooldown tồn tại khi quay lại bước trước; lỗi giới hạn Firebase không được né
+bằng đổi IP. Refresh trả chậm sau đăng xuất không được khôi phục phiên cũ.
+Các lần tải dữ liệu được gắn audience/session ID và tham số trang. Đổi phiên hoặc
+đổi ID ẩn dữ liệu cũ ngay; phản hồi và callback cập nhật của phiên cũ bị loại bỏ.
+Fetch dùng `no-store`; tải lại chỉ công bố kết quả của request mới nhất. Ảnh tin,
+tab chi tiết và phân trang khởi tạo lại theo ID, không đồng bộ lại state bằng
+effect sau khi đã vẽ nội dung trước đó. Đây là kiểm tra ở mức React/HTTP, không
+thay cho nghiệm thu trên điện thoại. Test hồi quy: `npm test --workspace apps/web
+-- src/lib/mobile-load.spec.tsx`.
+
+Để bật SMS Android, đăng ký app `vn.agritrace.consumer` trong Firebase, cung cấp
+SHA-1/SHA-256 của APK và tải file cấu hình đúng package. File cũ có package
+`dev.agritrace.consumer` không dùng cho app trên main. Đặt file local
+`apps/mobile/google-services.json` (Git ignore) hoặc `GOOGLE_SERVICES_JSON`, bật
+`EXPO_PUBLIC_CONSUMER_PHONE_AUTH_ENABLED=true` và build lại development APK.
+Build config từ chối file lệch package. Expo Go/Web chỉ hiện hướng dẫn, không
+giả vờ xác minh. Thiết lập native iOS và nghiệm thu thiết bị thật là bước riêng.
+Xem [React Native Firebase Phone Auth](https://rnfirebase.io/auth/phone-auth).
+
+API local cần `CONSUMER_AUTH_ENABLED=true`, đúng `FIREBASE_PROJECT_ID` và
+`CONSUMER_DEV_REGISTRATION_ENABLED=true`. Consent thử nghiệm là
+`DEV-CONSUMER-TEST-20261020`; đăng ký production vẫn đóng khi chính sách chưa duyệt.
+Thông tin gửi Google và khả năng phát sinh phí SMS được hiển thị trước thao tác.
+Test tự động dùng provider fixture, không gửi SMS thật. Chạy
+`npm run test:mobile:auth` ở root và `npm run check` trong `apps/mobile`.
 
 Danh mục mobile ở `apps/mobile/src/app/consumer` dùng ảnh, giá tham khảo theo đơn
 vị, liên hệ doanh nghiệp và lô QR từ API công khai. Hai danh sách có tìm kiếm
@@ -64,16 +145,23 @@ CSRF và session coordination giữ baseline.
 
 `CommandForm`/`CommandDialog` dùng command journal hiện có. Giữ body/version/idempotency
 key gốc khi phản hồi chưa rõ; đối soát trước yêu cầu mới. Không hiện thành công do đóng
-dialog, invalidate query hoặc hoàn thành prepare. 409/422 giữ dữ liệu nhập; không tự
+dialog, invalidate query hoặc hoàn thành prepare. Khi nhận 400/409/422 có yêu cầu
+đã lưu, form tự đọc journal bằng key/body gốc, không tự gửi lại command. Journal
+`REJECTED` mới mở lại form; `COMMITTED` dùng kết quả đã lưu để hoàn tất;
+`NOT_FOUND` (trừ validation đã bị từ chối), `PROCESSING`, kết quả chưa rõ hoặc lỗi
+đối soát vẫn khóa form và giữ nút đối soát thủ công. 409/422 giữ dữ liệu nhập; không tự
 đổi version/key để vượt từ chối. Mật khẩu/OTP/nội dung riêng/phản ánh người tiêu dùng
 chỉ giữ trong bộ nhớ khi luồng yêu cầu như vậy.
 
 ## Các luồng chính
 
 `/register` xác thực OTP trước hồ sơ, giữ sáu vai trò và giấy tờ theo loại tổ chức.
-`/join-organization` dùng token mời. Hồ sơ chờ duyệt xem `/enterprise/onboarding`;
-dịch vụ/hợp đồng/thanh toán mô phỏng local ở `/enterprise/service`, sau đó yêu cầu kết nối
-`/enterprise/connections`. Peer tự quản chỉ nhập endpoint/MSP/TLS/chứng thư công khai;
+`/join-organization` dùng token mời. Hồ sơ chờ duyệt xem `/enterprise/onboarding`.
+Mặc định hoãn thanh toán: admin xét từng năng lực rồi kích hoạt dùng tạm; trang
+`/enterprise/service` hiển thị tiến độ, không bắt mua gói hoặc tạo hóa đơn giả.
+Hợp đồng/thanh toán mô phỏng local chỉ mở khi operator bật
+`ENTERPRISE_PAYMENTS_ENABLED=true`. Kết nối peer tại `/enterprise/connections`
+vẫn có điều kiện riêng. Peer tự quản chỉ nhập endpoint/MSP/TLS/chứng thư công khai;
 không nhận khóa riêng/SSH. Duyệt hồ sơ không có nghĩa Fabric đã kiểm chứng.
 
 Admin giữ hồ sơ/capability/điều chỉnh/kết nối, người dùng/phân công, maker/checker, MFA,
@@ -122,6 +210,14 @@ giữ nội dung pháp lý/version hiện có. `/scan` giải mã QR trên thi�
 Chỉ bật camera sau đồng ý; tắt khi ẩn/rời trang, kể cả stream đến trễ. URL trace ngoài được
 lấy token, chuẩn hóa `/trace/<token>` cùng origin; scheme nguy hiểm và URL quản trị bị từ chối.
 Param `lotId` là trace token, không suy ra UUID riêng tư.
+
+Mobile chỉ nhận URL QR có origin khớp `EXPO_PUBLIC_TRACE_ORIGIN`. Khi test Web
+ở `http://localhost:3000`, cấu hình mobile cũng đặt origin này; camera lấy token
+và gọi `EXPO_PUBLIC_API_BASE_URL` bằng IP LAN, không truy cập localhost của điện
+thoại. Nếu Web mở bằng IP LAN thì origin QR và cấu hình này phải cùng địa chỉ,
+kể cả cổng. Cấu hình base URL có đuôi `/trace` từ Docker được chuẩn hóa về origin;
+cấu hình không hợp lệ không nhận URL QR. Release dùng customer origin HTTPS. Sau khi đổi `.env`, khởi động
+lại Metro rồi reload app; không đổi token, dữ liệu lô hoặc nới bộ quét cho mọi domain.
 
 Trace gọi public API/photo evidence, không tải private lot. VERIFIED vẫn đi cùng cảnh báo
 recall/expiry khi API trả như vậy, không chứng minh chất lượng/an toàn thực phẩm. Phản ánh
@@ -201,6 +297,18 @@ và production build; build đã chạy ESLint/Oxlint. Browser contract suite t�
 npm exec --workspace apps/web -- playwright test --config playwright.ledger.config.ts --project=contract --reporter=dot
 ```
 
+Mobile staff ghi chăm sóc tự gửi `SERVER_RECEIVED` (giờ máy chủ xử lý lần đầu),
+không yêu cầu người dùng chọn nguồn giờ hoặc nhập ngày giờ. Form chỉ gồm công
+việc, ghi chú và ảnh. Giờ điện thoại gốc được chụp trước upload để đối chiếu;
+hàng đợi giữ nguyên source/body/key. Nếu lệnh nhận muộn, nhật ký ghi giờ nhận,
+không suy ra đây là thời điểm thực hiện ngoại tuyến. API vẫn giữ DEVICE cho
+consumer nhập thời điểm công việc rõ ràng như form Web hiện hành; mobile không
+mở tính năng ghi bù. Ghi ảnh ngoại tuyến hoàn toàn chưa được triển khai.
+422 có xác nhận REJECTED hiển thị nguyên nhân và cho bỏ lệnh; không mô tả là
+mất mạng. Nếu chưa đối soát được thì giữ unknown. Nút đối soát chỉ gửi lại khi
+API trả NOT_FOUND; PROCESSING/RECONCILIATION_REQUIRED không thực thi lại.
+Care và thời điểm nhận được ghi cùng trace/outbox/journal, không sửa lịch sử cũ.
+
 Fixture chỉ ở test, không import vào runtime. Gate trong plan kiểm baseline scope,
 provenance, 143 wrapper/screen và evidence action; source-review khác browser/live acceptance.
 Kiểm ảnh đại diện 1440/390, spot-check 320/768, sáng-VI/tối-EN và một flow keyboard/focus/
@@ -219,3 +327,16 @@ không chạy lại migration/seed hay Worker. Proxy `/api` tới API cách ly v
 còn lại tới web candidate; kiểm đăng nhập bằng tài khoản local và public trace
 có dữ liệu thật. Giữ log/ảnh/receipt trong artifact local được ignore; dọn các
 container và network smoke sau kiểm tra, giữ nguyên ứng dụng local đang chạy.
+
+### Ảnh nhật ký/thu hoạch trên Expo 58
+
+Expo 58 mặc định cài `expo/fetch` vào global fetch. Multipart của nó nhận
+Blob hoặc đối tượng có `bytes()`, không nhận object React Native cũ chỉ có
+`uri/name/type`. `uploadCycleImage` dùng adapter theo platform: native tạo
+`expo-file-system.File` từ URI của picker, Web giữ File gốc của browser.
+Không tự đặt Content-Type multipart hoặc boundary. File mất/quá 5 MB/sai loại
+JPG/PNG có lỗi rõ trước transport; không đổi đuôi để giả định dạng.
+Test `mobile-photo.spec.ts` dùng chính converter của SDK để tái hiện lỗi cũ và
+kiểm payload mới, với lớp đọc file native được mock; vẫn cần thử trên điện thoại.
+File-system đã là dependency native của Expo, nay khai báo trực tiếp để import
+rõ ràng. Không đổi key/body hay retry command khi kết quả chưa rõ.

@@ -3,6 +3,7 @@ FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d
 WORKDIR /app
 
 COPY package.json package-lock.json .npmrc .node-version ./
+COPY apps/mobile/compat/minimatch-legacy apps/mobile/compat/minimatch-legacy
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY blockchain/chaincode/package.json blockchain/chaincode/package.json
@@ -12,6 +13,7 @@ RUN npm install --global npm@12.1.0 && npm ci
 FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS mobile
 WORKDIR /app/apps/mobile
 COPY apps/mobile/package.json apps/mobile/package-lock.json ./
+COPY apps/mobile/compat ./compat
 RUN npm install --global npm@12.1.0 && npm ci --workspaces=false --no-audit --no-fund
 COPY apps/mobile ./
 ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api

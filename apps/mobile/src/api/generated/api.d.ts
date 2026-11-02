@@ -5514,6 +5514,11 @@ export interface components {
             cropCondition?: string;
             /** Format: date-time */
             eventTime: string;
+            /**
+             * @description DEVICE (mặc định): giữ thời điểm đã thực hiện, cho phép nhanh tối đa 2 phút. SERVER_RECEIVED: vừa thực hiện, lấy giờ máy chủ xử lý lần đầu; eventTime gốc vẫn lưu để đối chiếu. Gửi lại giữ nguyên nguồn và thời điểm gốc.
+             * @enum {string}
+             */
+            eventTimeSource?: "DEVICE" | "SERVER_RECEIVED";
             /** Format: uuid */
             evidenceRef: string;
             /** Format: uuid */
@@ -6523,6 +6528,8 @@ export interface components {
             participationModel: "SINGLE" | "SUPPLY_CHAIN_ENTERPRISE";
             /** @description True for producers/cooperatives and supply-chain enterprises, which buy a service plan and may own chains */
             payingParticipant: boolean;
+            /** @description Whether service payment collection is currently enabled; false allows administrator activation for temporary use without settlement */
+            paymentsEnabled: boolean;
             representativeEmail: string;
             representativeName: string;
             reviewNote?: string | null;

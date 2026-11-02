@@ -1,11 +1,15 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '../../components/Icon';
 import { LocationPicker, PROVINCES } from '../../components/LocationPicker';
 import { Button, Field, IconButton, Notice, T } from '../../components/ui';
 import { color, font, noOutline } from '../../theme/tokens';
+import { api, ApiError, errorText } from '../../api/client';
+import { useSession } from '../../auth/session';
+import { requestPhoneVerification } from '../../auth/firebase-phone';
+import { PhoneChallenge, phoneError } from '../../auth/phone-challenge';
 
 type Unit = { code: string; label: string };
 const bytes = (s: string) => new TextEncoder().encode(s).length;
@@ -13,8 +17,8 @@ const phoneOk = (s: string) => /^(0|\+84)(3|5|7|8|9)\d{8}$/.test(s.replace(/\s+/
 
 /**
  * Registration (two steps + OTP) and password reset in one screen, so going
- * back keeps what was typed. SMS verification needs Firebase (phase B): until
- * then the OTP step explains that no account is created.
+ * back keeps what was typed. Only native Firebase proof can create/reset an
+ * account. SMS is sent only by an explicit user action, never by mounting UI.
  */
 export default function Register() {
   const insets = useSafeAreaInsets();
@@ -30,12 +34,68 @@ export default function Register() {
   const [business, setBusiness] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [touched, setTouched] = useState(false);
+  const { signIn, signOut } = useSession();
+  const [challenge] = useState(() => new PhoneChallenge(requestPhoneVerification));
+  const [seconds, setSeconds] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [uncertain, setUncertain] = useState(false);
+  useEffect(() => {
+    const timer = setInterval(() => setSeconds(challenge.seconds), 500);
+    return () => { clearInterval(timer); void challenge.clear(); };
+  }, [challenge]);
+  const sendCode = async () => {
+    if (busy) return;
+    setBusy(true); setError(null);
+    try { await challenge.request(phone); setStep(3); }
+    catch (e) { setError(phoneError(e)); }
+    finally { setSeconds(challenge.seconds); setBusy(false); }
+  };
+  const verify = async (digits: string) => {
+    if (busy || uncertain) return;
+    Keyboard.dismiss();
+    setBusy(true); setError(null);
+    let submitted = false;
+    try {
+      const firebaseIdToken = await challenge.confirm(digits);
+      submitted = true;
+      if (reset) {
+        await api('/auth/mobile/password-reset', { body: { phone: challenge.phone, newPassword: password, firebaseIdToken } });
+        await signOut();
+        setSuccess('Đã đổi mật khẩu. Đăng nhập bằng mật khẩu mới.');
+      } else {
+        await signIn('/auth/mobile/register', {
+          phone: challenge.phone, password, firebaseIdToken, fullName: fullName.trim(),
+          ...(email.trim() ? { contactEmail: email.trim().toLowerCase() } : {}),
+          provinceCode: province!.code, wardCode: ward!.code,
+          ...(business.trim() ? { businessAddress: business.trim() } : {}),
+          consentVersion: 'DEV-CONSUMER-TEST-20261020',
+        });
+        setSuccess('Đã đăng ký và lưu phiên đăng nhập.');
+      }
+      setPassword(''); setConfirm('');
+      await challenge.clear();
+    } catch (e) {
+      if (submitted) {
+        await challenge.clear();
+        if (!(e instanceof ApiError) || e.status === 0 || e.status >= 500) {
+          setUncertain(true);
+          setError('Chưa xác nhận được kết quả. Thử đăng nhập bằng số điện thoại và mật khẩu vừa nhập; không gửi lại yêu cầu đăng ký/đổi mật khẩu.');
+        } else {
+          setError(errorText(e)); setStep(reset ? 1 : 2);
+        }
+      } else setError(phoneError(e));
+    } finally { setBusy(false); }
+  };
 
   const pwError =
-    password && bytes(password) < 12 ? 'Mật khẩu cần ít nhất 12 ký tự' : bytes(password) > 72 ? 'Mật khẩu tối đa 72 byte' : null;
+    password && (password.length < 12 || bytes(password) < 12) ? 'Mật khẩu cần ít nhất 12 ký tự' : bytes(password) > 72 ? 'Mật khẩu tối đa 72 byte' : null;
   const step1Ok = phoneOk(phone) && !!password && !pwError && password === confirm;
   const step2Ok = fullName.trim().length > 1 && !!province && !!ward && agreed;
-  const back = () => (step > 1 ? setStep((step - 1) as 1 | 2) : router.canGoBack() ? router.back() : router.replace('/consumer'));
+  const back = () => { if (busy) return; if (step === 3) void challenge.clear(); if (step > 1) setStep((step - 1) as 1 | 2); else if (router.canGoBack()) router.back(); else router.replace('/consumer'); };
+
+  if (success || uncertain) return <View style={{ flex: 1, paddingTop: insets.top + 24, padding: 24, gap: 20 }}><Notice kind={success ? 'info' : 'warn'} title={success ?? error ?? ''} /><Button label={success && !reset ? 'Vào tài khoản' : 'Đăng nhập'} onPress={() => router.replace(success && !reset ? '/consumer/account' : '/consumer/login')} /></View>;
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -61,15 +121,17 @@ export default function Register() {
             <T size={28} weight="heavy">
               {reset ? 'Quên mật khẩu' : 'Tạo tài khoản'}
             </T>
+            {reset && <Notice kind="warn" title="Xác minh số của bạn" body="Google xử lý số điện thoại để xác minh/chống lạm dụng. Chỉ gửi mã cho số của bạn; SMS có thể phát sinh phí cho dự án." />}
             <Field label="Số điện thoại" required icon="phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" autoCorrect={false} placeholder="09xx xxx xxx" error={touched && !phoneOk(phone) ? 'Số điện thoại Việt Nam chưa đúng' : null} />
             <Field label={reset ? 'Mật khẩu mới' : 'Mật khẩu'} required icon="lock" value={password} onChangeText={setPassword} secure autoComplete="new-password" textContentType="newPassword" error={pwError} hint="Từ 12 ký tự trở lên; có thể dùng cả câu dễ nhớ." />
             <Field label="Nhập lại mật khẩu" required icon="lock" value={confirm} onChangeText={setConfirm} secure autoComplete="new-password" error={confirm && confirm !== password ? 'Hai mật khẩu chưa khớp' : null} />
             <Button
               label={reset ? 'Gửi mã xác minh' : 'Tiếp tục'}
-              disabled={!step1Ok}
+              loading={busy}
+              disabled={!step1Ok || busy || (reset && seconds > 0)}
               onPress={() => {
                 setTouched(true);
-                if (step1Ok) setStep(reset ? 3 : 2);
+                if (step1Ok) { if (reset) void sendCode(); else setStep(2); }
               }}
             />
           </>
@@ -113,28 +175,25 @@ export default function Register() {
                 <T c={color.red}> *</T>
               </T>
             </Pressable>
-            <Button label="Đăng ký" disabled={!step2Ok} onPress={() => setStep(3)} />
+            <Notice kind="warn" title="Thử nghiệm xác minh điện thoại" body="Chỉ dùng số của bạn và hồ sơ thử nghiệm. Google xử lý số điện thoại để xác minh/chống lạm dụng; SMS có thể phát sinh phí cho dự án. Văn bản chính thức đang được hoàn thiện." />
+            <Button label="Gửi mã đăng ký" loading={busy} disabled={!step2Ok || busy || seconds > 0} onPress={() => void sendCode()} />
             <T size={14} c={color.muted} style={{ textAlign: 'center' }}>
               Mã xác minh sẽ gửi qua SMS tới số của bạn.
             </T>
           </>
         )}
 
-        {step === 3 && <OtpStep phone={phone} onChangePhone={() => setStep(1)} reset={reset} />}
+        {error && <Notice kind="error" title={error} />}
+        {step !== 3 && seconds > 0 && <T size={14} c={color.muted}>Có thể yêu cầu mã mới sau {seconds} giây.</T>}
+        {step === 3 && <OtpStep phone={phone} seconds={seconds} busy={busy} onVerify={digits => void verify(digits)} onResend={() => void sendCode()} onChangePhone={() => { if (!busy) { void challenge.clear(); setStep(1); } }} />}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-function OtpStep({ phone, onChangePhone, reset }: { phone: string; onChangePhone: () => void; reset: boolean }) {
+function OtpStep({ phone, onChangePhone, seconds, busy, onVerify, onResend }: { phone: string; onChangePhone: () => void; seconds: number; busy: boolean; onVerify: (digits: string) => void; onResend: () => void }) {
   const [digits, setDigits] = useState('');
-  const [seconds, setSeconds] = useState(60);
-  const [notice, setNotice] = useState(false);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
-  useEffect(() => {
-    const id = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
-    return () => clearInterval(id);
-  }, []);
   const masked = phone.replace(/\s+/g, '').replace(/^(\+84|0)(\d{3})\d{3}(\d{3})$/, '0$2 *** $3');
   return (
     <>
@@ -172,14 +231,8 @@ function OtpStep({ phone, onChangePhone, reset }: { phone: string; onChangePhone
           Đổi số điện thoại
         </T>
       </Pressable>
-      {notice && (
-        <Notice
-          kind="warn"
-          title="Bản chạy thử chưa nối SMS"
-          body={`Xác minh OTP qua Firebase thuộc giai đoạn B, chưa cấu hình nên ${reset ? 'mật khẩu chưa được đổi' : 'tài khoản chưa được tạo'}. Dữ liệu bạn nhập không gửi lên máy chủ.`}
-        />
-      )}
-      <Button label="Xác minh" disabled={digits.length !== 6} onPress={() => setNotice(true)} />
+      <Button label="Gửi lại mã" kind="soft" disabled={seconds > 0 || busy} onPress={() => { setDigits(''); onResend(); }} />
+      <Button label="Xác minh" loading={busy} disabled={digits.length !== 6 || busy} onPress={() => onVerify(digits)} />
     </>
   );
 }

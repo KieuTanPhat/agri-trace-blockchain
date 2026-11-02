@@ -4,6 +4,7 @@ import {
   COMMAND_STORAGE_PREFIX,
   recoverableCommand,
   retrySavedCommand,
+  inspectSavedCommand,
   pendingSavedCommands,
   type SavedCommand,
 } from "./command-recovery";
@@ -145,6 +146,43 @@ afterEach(() => {
 });
 
 describe("Command reconciliation across remount and tabs", () => {
+  it.each(["NOT_FOUND", "PROCESSING", "RECONCILIATION_REQUIRED"])(
+    "inspection alone keeps %s pending without resending or changing the original request",
+    async (status) => {
+      const wire = transport();
+      wire.send.mockRejectedValueOnce({ status: 409 });
+      await recoverableCommand(context(), command(), wire).catch(() => {});
+      const before = stored();
+      const [pending] = await pendingSavedCommands(context());
+      wire.inspect.mockResolvedValue({ status });
+      await expect(inspectSavedCommand(context(), pending.id, wire))
+        .rejects.toMatchObject({ code: "REQUEST_UNRESOLVED" });
+      expect(wire.send).toHaveBeenCalledTimes(1);
+      expect(wire.inspect.mock.calls[0][0]).toEqual(command());
+      expect(stored()).toBe(before);
+    },
+  );
+
+  it("inspection rechecks current authority and cannot read another account's pending request", async () => {
+    const wire = transport();
+    wire.send.mockRejectedValueOnce({ status: 409 });
+    await recoverableCommand(context(), command(), wire).catch(() => {});
+    const [pending] = await pendingSavedCommands(context());
+    const before = stored();
+    await expect(inspectSavedCommand(
+      { owner: "other-principal", assertCurrent() {} }, pending.id, wire,
+    )).rejects.toMatchObject({ code: "RECOVERY_REFRESH" });
+    const changed = context();
+    changed.assertCurrent.mockImplementation(() => {
+      throw { status: 401, code: "SESSION_CHANGED" };
+    });
+    await expect(inspectSavedCommand(changed, pending.id, wire))
+      .rejects.toMatchObject({ code: "SESSION_CHANGED" });
+    expect(wire.inspect).not.toHaveBeenCalled();
+    expect(wire.send).toHaveBeenCalledTimes(1);
+    expect(stored()).toBe(before);
+  });
+
   it("lists only owner-bound pending metadata after remount and never sends a command while listing", async () => {
     const wire = transport();
     wire.send.mockRejectedValueOnce({ status: 0, message: "Lost response" });

@@ -19,7 +19,7 @@ import {
   newLedgerCommandKey as newIdempotencyKey,
 } from "@/lib/ledger/command-context";
 import type { LedgerCommandContext as Cmd } from "@/lib/ledger/command-context";
-import { retryPendingCommand } from "@/lib/api-client";
+import { inspectPendingCommand, retryPendingCommand } from "@/lib/api-client";
 import { useLocale } from "../locale";
 import { Button } from "@/components/ledger/ui/button";
 import {
@@ -196,31 +196,35 @@ function Body<S extends z.ZodType<FieldValues>>({
       const err = ledgerCommandError(cause);
       setError(err);
       recoveryId.current = err.recoveryId ?? recoveryId.current;
-      // A validation rejection is reconciled at once: the journal confirms
-      // nothing was committed, so the form unlocks instead of waiting on a click.
+      // A response alone cannot release the original request. Inspect the
+      // journal for validation/conflict failures without resending a command.
       let reconciled = false;
-      if (err.recoveryId && [400, 422].includes(err.status))
+      let committed = false;
+      if (err.recoveryId && [400, 409, 422].includes(err.status))
         try {
-          await retryPendingCommand(err.recoveryId);
+          result = await inspectPendingCommand(err.recoveryId);
+          committed = true;
         } catch (check) {
           reconciled = ledgerCommandError(check).canRestart;
         }
-      const known =
-        reconciled ||
-        err.canRestart ||
-        err.code === "RECOVERY_REFRESH" ||
-        (!recoveryId.current &&
-          err.status >= 400 &&
-          err.status < 500 &&
-          ![408, 429].includes(err.status));
-      if (known) {
-        original.current = null;
-        recoveryId.current = undefined;
-        lock(false);
-        setIdemKey(newIdempotencyKey());
-        if (err.isStepUp) setMfaError(err.message);
-      } else lock(true);
-      return;
+      if (!committed) {
+        const known =
+          reconciled ||
+          err.canRestart ||
+          err.code === "RECOVERY_REFRESH" ||
+          (!recoveryId.current &&
+            err.status >= 400 &&
+            err.status < 500 &&
+            ![408, 429].includes(err.status));
+        if (known) {
+          original.current = null;
+          recoveryId.current = undefined;
+          lock(false);
+          setIdemKey(newIdempotencyKey());
+          if (err.isStepUp) setMfaError(err.message);
+        } else lock(true);
+        return;
+      }
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -228,6 +232,7 @@ function Body<S extends z.ZodType<FieldValues>>({
     original.current = null;
     recoveryId.current = undefined;
     lock(false);
+    setError(null);
     await Promise.all(
       invalidate.map((queryKey) => qc.invalidateQueries({ queryKey })),
     );

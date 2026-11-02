@@ -45,6 +45,15 @@ test('API and Worker changes run hybrid Fabric integration', () => {
   }
 });
 
+test('demo loader changes select API and its target-safety tests', () => {
+  const selected = classifyChanges(['scripts/demo/ui-workflow-plan.mjs']);
+  assert.equal(selected.api, true);
+  assert.equal(selected.containers, true);
+  assert.equal(selected.hybrid, true);
+  const workflow = readFileSync(new URL('../../.github/workflows/application-ci.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /run: npm run test:ci/);
+});
+
 test('network and chaincode changes select blockchain integration', () => {
   for (const file of ['blockchain/network/network.sh', 'blockchain/chaincode/src/traceability-contract.ts']) {
     assert.equal(classifyChanges([file]).blockchain, true);
@@ -55,6 +64,15 @@ test('network and chaincode changes select blockchain integration', () => {
 test('manifests and CI changes select all checks', () => {
   for (const file of ['package-lock.json', 'blockchain/chaincode/package.json', '.github/workflows/dependency-audit.yml', 'scripts/ci/gate.mjs', 'scripts/audit-dependencies.mjs', 'scripts/check-standalone-chaincode.mjs']) {
     assert.ok(Object.values(classifyChanges([file])).every(Boolean), file);
+  }
+});
+
+test('shared dependency adapter selects every consuming gate and ships before Docker installs', () => {
+  assert.ok(Object.values(classifyChanges(['apps/mobile/compat/minimatch-legacy/index.cjs'])).every(Boolean));
+  for (const file of ['apps/api/Dockerfile', 'apps/web/Dockerfile']) {
+    const source = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
+    const copy = source.indexOf('COPY apps/mobile/compat/minimatch-legacy apps/mobile/compat/minimatch-legacy');
+    assert.ok(copy >= 0 && copy < source.indexOf('npm ci'), file);
   }
 });
 
@@ -240,4 +258,5 @@ test('mobile audit allows only listed, unexpired advisories', () => {
   assert.equal(evaluateAudit(report([advisory('other', 'GHSA-a')]), before, allowed).length, 1);
   assert.equal(evaluateAudit(report([advisory('forge', 'GHSA-b', 'moderate')]), before, allowed).length, 1);
   assert.deepEqual(evaluateAudit(report([advisory('forge', 'GHSA-c', 'low')]), before, allowed), []);
+  assert.equal(evaluateAudit(report([advisory('node-forge', 'GHSA-86w9-cpqp-85rv', 'moderate')]), before).length, 1);
 });

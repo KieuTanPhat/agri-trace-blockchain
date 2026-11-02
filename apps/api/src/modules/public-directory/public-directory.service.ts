@@ -46,13 +46,15 @@ function search(q: string | undefined) {
 @Injectable()
 export class PublicDirectoryService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
-  private async distributedOrgs(lots:Prisma.LotWhereInput){
-    const rows=await this.db.lot.findMany({where:lots,select:{id:true}});
-    if(!rows.length)return [];
-    const lines=await this.db.distributionLine.findMany({where:{lotId:{in:rows.map(r=>r.id)},transfer:{status:{not:'CANCELLED'}}},select:{transfer:{select:{senderId:true,carrierId:true,receiverId:true}}}});
-    return [...new Set(lines.flatMap(l=>[l.transfer.senderId,l.transfer.carrierId,l.transfer.receiverId]))];
+  private async distributedOrgs(lots: Prisma.LotWhereInput) {
+    // Filter at the database: do not materialize every public lot ID first.
+    const transfers = await this.db.distributionTransfer.findMany({
+      where: { status: { not: 'CANCELLED' }, lines: { some: { lot: { is: lots } } } },
+      select: { senderId: true, carrierId: true, receiverId: true },
+      distinct: ['senderId', 'carrierId', 'receiverId'],
+    });
+    return [...new Set(transfers.flatMap(t => [t.senderId, t.carrierId, t.receiverId]))];
   }
-
   private async presentProducts(rows:Prisma.ProductGetPayload<{select:typeof PUBLIC_PRODUCT_SELECT}>[]) {
     const selling=await sellingLots(this.db,rows.map(r=>r.id));
     const marketLots=await this.db.lot.findMany({where:{id:{in:[...selling]}},select:{productId:true}});
@@ -75,8 +77,8 @@ export class PublicDirectoryService {
     return this.db.traceEvidence.findUniqueOrThrow({where:{id:visible.id},select:{content:true,mediaType:true,sha256:true}});
   }
   async enterpriseLogo(id:string) {
-    const related=await this.distributedOrgs(publicLotWhere());
-    const row=await this.db.organization.findFirst({where:{AND:[{id},relatedEnterpriseWhere(publicLotWhere(),related)]},select:PUBLIC_ENTERPRISE_SELECT});
+    const related = await this.distributedOrgs(publicLotWhere());
+    const row=await this.db.organization.findFirst({where:{AND:[{id},relatedEnterpriseWhere(publicLotWhere(), related)]},select:PUBLIC_ENTERPRISE_SELECT});
     if(!row)throw new NotFoundException();
     const {logoEvidenceId}=publicContact(row.directoryPublications?.[0]?.presentation);
     if(!logoEvidenceId)throw new NotFoundException();
@@ -120,11 +122,11 @@ export class PublicDirectoryService {
   async enterprises(query: PublicEnterprisesQueryDto) {
     const limit = size(query.limit);
     const q = search(query.q);
-    const related=await this.distributedOrgs(publicLotWhere());
+    const related = await this.distributedOrgs(publicLotWhere());
     const rows = await this.db.organization.findMany({
       where: {
         AND: [
-          relatedEnterpriseWhere(publicLotWhere(),related),
+          relatedEnterpriseWhere(publicLotWhere(), related),
           ...(q
             ? [{ name: { contains: q, mode: 'insensitive' as const } }]
             : []),
@@ -148,12 +150,12 @@ export class PublicDirectoryService {
     });
     if (!product)
       throw new NotFoundException('Không tìm thấy sản phẩm công khai');
-    const related=await this.distributedOrgs(lots);
+    const related = await this.distributedOrgs(lots);
     const [enterprises, links] = await Promise.all([
       this.db.organization.findMany({
         where: {
           AND: [
-            relatedEnterpriseWhere(lots,related),
+            relatedEnterpriseWhere(lots, related),
             ...(query.enterpriseCursor
               ? [{ id: { gt: query.enterpriseCursor } }]
               : []),
@@ -180,8 +182,7 @@ export class PublicDirectoryService {
         take: limit + 1,
       }),
     ]);
-    const scanLots=await this.db.lot.findMany({where:lots,select:{id:true}});
-    const scans=await this.db.traceScanDaily.aggregate({where:{lotId:{in:scanLots.map(l=>l.id)}},_sum:{scans:true}});
+    const scans=await this.db.traceScanDaily.aggregate({where:{lot:{is:lots}},_sum:{scans:true}});
     return {
       ...(await this.presentProducts([product]))[0],scanCount:scans._sum.scans??0,
       enterprises: directoryPage(enterprises.map(row=>this.presentEnterprise(row)), limit),
@@ -199,11 +200,10 @@ export class PublicDirectoryService {
 
   async enterprise(id: string, query: PublicEnterpriseDetailQueryDto) {
     const limit = size(query.limit);
-    const lines=await this.db.distributionLine.findMany({where:{transfer:{status:{not:'CANCELLED'},OR:[{senderId:id},{carrierId:id},{receiverId:id}]}},select:{lotId:true}});
-    const lots = publicLotWhere(relatedLotWhere(id,lines.map(l=>l.lotId)));
-    const related=await this.distributedOrgs(lots);
+    const lots = publicLotWhere(relatedLotWhere(id));
+    const related = await this.distributedOrgs(lots);
     const enterprise = await this.db.organization.findFirst({
-      where: { AND: [{ id }, relatedEnterpriseWhere(lots,related)] },
+      where: { AND: [{ id }, relatedEnterpriseWhere(lots, related)] },
       select: PUBLIC_ENTERPRISE_SELECT,
     });
     if (!enterprise)

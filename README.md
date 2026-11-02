@@ -112,12 +112,15 @@ Frontend chạy ở `http://localhost:3000`; API chạy ở
 Truy cập trực tiếp `/login` để đăng nhập; sau đăng nhập mở `/dashboard`.
 Trang giới thiệu không có liên kết đăng nhập hoặc lô/QR mẫu.
 Doanh nghiệp vào `/register` (chọn vai trò, năm bước, OTP email đăng nhập; mật khẩu tạm gửi qua email), theo dõi hồ sơ ở
-`/enterprise/onboarding`. Admin duyệt trước; doanh nghiệp chọn mô hình peer và
-gói tham khảo tại `/enterprise/service`, xem hợp đồng ở `/enterprise/service/contract`,
-hoàn tất thanh toán mô phỏng local ở `/enterprise/service/payment`; thao tác này
-chỉ ghi nhận `PAID_SIMULATED` và xếp hàng email hợp đồng. Quản trị nền tảng phải
-kích hoạt dịch vụ riêng trước khi cấp quyền nghiệp vụ hoặc cho phép yêu cầu peer
-tại `/enterprise/connections`. Hợp đồng và kết
+`/enterprise/onboarding`. Mặc định hoãn thanh toán (`ENTERPRISE_PAYMENTS_ENABLED=false`):
+admin xét hồ sơ và từng năng lực, sau đó kích hoạt sử dụng tạm riêng; doanh nghiệp
+theo dõi ở `/enterprise/service`. Luồng này không tạo hóa đơn, thanh toán hoặc
+subscription giả. Quyền ghi truy xuất vẫn yêu cầu binding và quyền chuỗi hợp lệ.
+Khi operator chủ động bật thanh toán, doanh nghiệp chọn mô hình peer/gói dịch vụ,
+xem hợp đồng ở `/enterprise/service/contract` và thanh toán mô phỏng local ở
+`/enterprise/service/payment`; luồng mô phỏng chỉ ghi `PAID_SIMULATED` và xếp hàng
+email hợp đồng, không thu tiền thật. Kích hoạt dịch vụ vẫn là quyết định riêng
+trước khi cấp quyền nghiệp vụ hoặc yêu cầu peer tại `/enterprise/connections`. Hợp đồng và kết
 quả xét duyệt gửi bằng Worker mail; SMTP dùng file private, test dùng Mailpit.
 Chưa tích hợp thu tiền NAPAS/QR hoặc chữ ký số hợp đồng có chứng thư.
 Quản trị xét duyệt tại `/admin/enterprises`. API và Worker mặc định đóng admission

@@ -7,6 +7,8 @@ import {
   IsArray,
   IsDateString,
   IsInt,
+  IsIn,
+  ValidateIf,
   IsNumber,
   IsOptional,
   IsPositive,
@@ -156,6 +158,14 @@ export class PlantCycleDto extends VersionedCommandDto {
 }
 
 export class CareRecordDto extends VersionedCommandDto {
+  @ApiProperty({
+    required: false,
+    enum: ['DEVICE', 'SERVER_RECEIVED'],
+    description: 'DEVICE (mặc định): giữ thời điểm đã thực hiện, cho phép nhanh tối đa 2 phút. SERVER_RECEIVED: vừa thực hiện, lấy giờ máy chủ xử lý lần đầu; eventTime gốc vẫn lưu để đối chiếu. Gửi lại giữ nguyên nguồn và thời điểm gốc.',
+  })
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsIn(['DEVICE', 'SERVER_RECEIVED'])
+  eventTimeSource?: 'DEVICE' | 'SERVER_RECEIVED';
   @ApiProperty({type:String,maxLength:255}) @IsString() @MinLength(1) @MaxLength(255) name!:string;
   @ApiProperty({required:false,format:'uuid'}) @IsOptional() @IsUUID() materialId?:string;
   @ApiProperty({required:false,maxLength:255}) @IsOptional() @IsString() @MaxLength(255) activeIngredient?:string;

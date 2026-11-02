@@ -23,6 +23,7 @@ import {
   settleInvoiceTx,
 } from '../billing/billing-core.js';
 import { payingParticipant } from './registration-profile.dto.js';
+import { assertEnterprisePaymentsEnabled, serviceWorkspaceStage } from './payment-policy.js';
 import { lockPlatformAudit } from '../platform-governance/platform-audit.js';
 import type {
   ServiceOrderInput,
@@ -215,9 +216,8 @@ export class EnterpriseServiceService {
       row.organizationId,
       row.organization.participationModel,
     );
-    // A paying organization must buy a plan before the platform may activate
-    // it (assertActivationReady), so its owner first sees the purchase steps.
-    const base = serviceStage(row);
+    // Deferred collection has its own presentation; it never claims settlement.
+    const base = serviceWorkspaceStage(serviceStage(row));
     const stage =
       base === 'AWAITING_ACTIVATION' && paying && !row.serviceOrder
         ? 'SELECT_SERVICE'
@@ -234,6 +234,7 @@ export class EnterpriseServiceService {
   }
   async preview(actor: CommandActor, input: ServiceQuoteInput) {
     const row = await enrollmentOwner(this.db, actor);
+    assertEnterprisePaymentsEnabled();
     if (row.status !== 'APPROVED')
       throw new ForbiddenException(
         'Hồ sơ phải được quản trị phê duyệt trước khi chọn dịch vụ',
@@ -261,6 +262,7 @@ export class EnterpriseServiceService {
   create(actor: CommandActor, input: ServiceOrderInput) {
     return commandTransaction(this.db, async (tx) => {
       const row = await enrollmentOwner(tx, actor, true);
+      assertEnterprisePaymentsEnabled();
       if (row.status !== 'APPROVED')
         throw new ForbiddenException('Hồ sơ chưa được duyệt');
       if (row.serviceOrder)

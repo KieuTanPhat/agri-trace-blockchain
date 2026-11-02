@@ -207,11 +207,11 @@ function FarmSheet({ farm, plots, materials, sites, onClose, canManage, canEvide
   const router=useRouter();
   const qc = useQueryClient();
   const complete = useDialog();
-  const addPlot = useDialog();
   const f = farm;
   const name = (ids: string[]) => ids.map((id) => materials.find((m) => m.id === id)?.name ?? id.slice(0, 8)).join(", ");
   return (
-    <Sheet open={!!f} onOpenChange={(o) => !o && onClose()}>
+    <>
+    <Sheet open={!!f && !initialPlot} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
         {f && (
           <>
@@ -287,8 +287,13 @@ function FarmSheet({ farm, plots, materials, sites, onClose, canManage, canEvide
                 {() => null}
               </CommandDialog>
             )}
-            {canManage && f.status==="ACTIVE" && (initialPlot || addPlot.target) && (
-              <CommandDialog {...addPlot.props} open={initialPlot || addPlot.props.open} onOpenChange={o=>{addPlot.props.onOpenChange(o);if(!o && initialPlot)router.push(`/enterprise/areas/${f.id}`);}} title={tr("Thêm lô đất · {p0}", { p0: f.name })} endpoint="POST /catalog/plots" description={tr("Tên lô đất không trùng trong cùng vùng sản xuất.")} schema={plotSchema} defaultValues={{ name: "", area: "", unit: "m2", location: "" }} submitLabel={tr("Thêm")} invalidate={[["ws-catalog"]]} run={(v, cmd) => wapi.createPlot({ farmId: f.id, name: v.name, area: blank(v.area) as number | undefined, unit: v.unit, location: blank(v.location) }, cmd)}>
+
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+            {f && canManage && f.status==="ACTIVE" && initialPlot && (
+              <CommandDialog open={initialPlot} onOpenChange={o=>{if(!o)router.push(`/enterprise/areas/${f.id}`);}} title={tr("Thêm lô đất · {p0}", { p0: f.name })} endpoint="POST /catalog/plots" description={tr("Tên lô đất không trùng trong cùng vùng sản xuất.")} schema={plotSchema} defaultValues={{ name: "", area: "", unit: "m2", location: "" }} submitLabel={tr("Thêm")} invalidate={[["ws-catalog"]]} run={(v, cmd) => wapi.createPlot({ farmId: f.id, name: v.name, area: blank(v.area) as number | undefined, unit: v.unit, location: blank(v.location) }, cmd)}>
                 {(form) => (
                   <>
                     <TextField control={form.control} name="name" label={tr("Tên lô đất")} max={255} />
@@ -301,9 +306,6 @@ function FarmSheet({ farm, plots, materials, sites, onClose, canManage, canEvide
                 )}
               </CommandDialog>
             )}
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
+    </>
   );
 }

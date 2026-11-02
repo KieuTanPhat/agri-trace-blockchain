@@ -1,0 +1,437 @@
+{
+  "kind": "manual-ui-test-results",
+  "status": "NOT_RUN",
+  "environment": {
+    "webUrl": null,
+    "apiUrl": null,
+    "database": "agri_trace_ui_test",
+    "gitHead": "7cf81b5 + uncommitted working tree",
+    "apkVersion": null,
+    "runAt": null
+  },
+  "records": {
+    "organizations": {},
+    "users": {},
+    "cycles": {},
+    "lots": {},
+    "transfers": {},
+    "processingRuns": {}
+  },
+  "userReportedWebSmoke": {
+    "reportedOn": "2026-10-29",
+    "webUrl": "http://localhost:3000",
+    "source": "User confirmations and screenshots in the local manual test conversation",
+    "cycleCode": "VU-1E264CCD-907",
+    "productName": "Rau Salad",
+    "harvestUnit": "g",
+    "maxHarvestQuantity": "84",
+    "binding": "SIMULATED",
+    "simulatorOutput": {
+      "boundChains": 1,
+      "requestedGrants": 0,
+      "confirmedPermissions": 3
+    },
+    "reportedWorking": [
+      "Create production cycle after binding setup",
+      "Plant and record a care journal",
+      "Harvest and generate lot QR",
+      "Open public trace from QR",
+      "Reject a harvest above the configured maximum"
+    ],
+    "limitations": "User-reported Web smoke only. The planned mobile cases, kg balances, cross-organization flows and real Fabric receipts have not been verified by these confirmations. Original case statuses remain NOT_RUN."
+  },
+  "cases": [
+    {
+      "id": "W01",
+      "action": "Tạo hồ sơ HTX A; dùng liên hệ demo và tài liệu có nhãn TEST, không giả mã số thuế/giấy phép thật",
+      "expected": "Hồ sơ ở trạng thái chờ đúng bước; không tự hoạt động, không đánh dấu thanh toán",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "W02",
+      "action": "OTP email → nhận mật khẩu tạm → đăng nhập lần đầu",
+      "expected": "Đúng OTP từ sink mới qua; bắt đổi mật khẩu trước khi vào chức năng nghiệp vụ; mật khẩu tạm cũ không đăng nhập được sau đổi",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "W03",
+      "action": "A0 từ chối với lý do `Bổ sung ảnh giấy tờ thử nghiệm`; F1 sửa và gửi lại",
+      "expected": "F1 thấy lý do, sửa được phần cho phép; có lịch sử lần nộp; không biến hồ sơ bị từ chối thành active tự động",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "W04",
+      "action": "A0 duyệt hồ sơ/năng lực rồi kích hoạt dùng tạm",
+      "expected": "Dùng dịch vụ theo quyền; không yêu cầu mua gói, không tạo hóa đơn/paid giả",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "W05",
+      "action": "F1 mời F2/F3, cấp nhóm quyền và giao vụ A cho F3",
+      "expected": "F3 chỉ thấy/phát lệnh trên vụ được giao; không mở quản lý thành viên/nhóm quyền; F2 chỉ thao tác phần được cấp",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "W06",
+      "action": "F3/FX mở URL vụ B hoặc vụ của tổ chức khác đã ghi từ phiên chủ",
+      "expected": "Bị từ chối hoặc không tìm thấy; không lộ nhật ký, ảnh riêng hay dữ liệu vụ khác",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "W07",
+      "action": "A0 thử URL ghi nhật ký/thu hoạch của HTX",
+      "expected": "Không được ghi thay HTX chỉ vì là admin nền tảng",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M01",
+      "action": "F1 tạo vùng/thửa/sản phẩm, tạo vụ A/B, nối chuỗi và bắt đầu vụ A; F3 mở mobile",
+      "expected": "F3 thấy vụ A; đúng sản phẩm, mã vụ, vùng và phân công; vụ chưa bắt đầu không mở ghi",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M02",
+      "action": "Nhật ký thiếu tên việc hoặc thiếu ảnh",
+      "expected": "Không gửi được; không thêm nhật ký/lệnh chờ",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M03",
+      "action": "Từ chối quyền camera rồi thử chọn ảnh thư viện có chủ ý",
+      "expected": "Không crash; chỉ gửi khi đã chọn được ảnh; kiểm thực tế theo hộp thoại OS",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M04",
+      "action": "Nhập nhật ký ở bảng dữ liệu, chọn ảnh rồi bấm Lưu liên tiếp",
+      "expected": "Chỉ một nhật ký; Web của F1 thấy đúng nội dung, ảnh riêng tư đúng vụ; không nhân đôi do bấm nhanh",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M05",
+      "action": "Đang mở form/tải ảnh thì đăng xuất/đổi tài khoản",
+      "expected": "Draft/ảnh không sang tài khoản mới; form cũ đã đóng không phát tiếp command; lệnh đã gửi trước đó vẫn cần đối soát",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M06",
+      "action": "Thu hoạch 20 kg với hai ảnh bắt buộc",
+      "expected": "Tạo đúng L1 và QR; vụ vẫn mở; tổng thu 20/100 kg; Web và mobile cùng dữ liệu",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M07",
+      "action": "Thu hoạch tiếp 30 kg",
+      "expected": "Tạo L2 khác L1, QR khác; tổng 50/100 kg; không đóng vụ tự động",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M08",
+      "action": "Nhập lần tiếp 51 kg hoặc 0/âm/không hợp lệ",
+      "expected": "Bị chặn; không tạo thêm lô, tổng vẫn 50 kg. Ghi nhận lỗi validation thực tế, không yêu cầu đúng nguyên văn",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M09",
+      "action": "F1 đóng vụ sau đợt cuối",
+      "expected": "Vụ kết thúc; không ghi thêm nhật ký/thu hoạch; L1/L2 và QR vẫn tồn tại",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M10",
+      "action": "F1 thu hồi phân công/quyền F3 khi F3 đang mở vụ",
+      "expected": "Lần ghi tiếp bị API từ chối, không thêm sự kiện; tải lại không có quyền ghi; không thử lách bằng reload",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M11",
+      "action": "Tắt mạng **sau khi tải ảnh thành công**, gửi nhật ký trên vụ test còn mở; phục hồi mạng, mở Lệnh chờ gửi và đối soát",
+      "expected": "Giữ body/key gốc; khi đã commit chỉ hiện đúng một sự kiện; không tự tạo key mới. Nếu tắt mạng trước tải ảnh thì chỉ là lỗi upload, chưa phải bài queue",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "M12",
+      "action": "Lỗi đọc vụ / API tạm không tới được",
+      "expected": "Có thông báo và nút thử lại; không quay loading vô hạn; không hiện dữ liệu của phiên cũ",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "G01",
+      "action": "F1 tạo G1 12 kg từ L1; F1/T1/D1 đồng thuận từng bên",
+      "expected": "PROPOSED trước đủ đồng thuận, READY sau đủ theo luồng; chưa coi là đã giao; không giảm tồn toàn cục do chỉ giữ chỗ",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "G02",
+      "action": "Thử tạo thêm chuyến 9 kg từ L1 trong lúc G1 đang giữ 12/20 kg",
+      "expected": "Bị chặn vì chỉ còn 8 kg chưa giữ chỗ; không tạo/chốt chuyến vượt tồn",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "G03",
+      "action": "Trên Web, các bên đúng vai trò ký lấy hàng G1",
+      "expected": "Chỉ sau đủ chữ ký của bước mới chuyển IN_TRANSIT; F1 không thể ký thay T1; còn giữ nguyên mã lô L1",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "G04",
+      "action": "D1 ghi thực nhận 12 kg, hỏng 0, thiếu 0; các bên ký giao đúng bước",
+      "expected": "DELIVERED; D giữ 12 kg tại cơ sở nhận, A còn 8 kg; global L1 vẫn 20 kg nếu không bán/hỏng; không tạo lô nguồn mới",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "G05",
+      "action": "Mobile T1/D1 → Chuyến hàng → Xem chuyến hàng → Xem lô nguồn",
+      "expected": "Đúng nơi gửi/nhận, bên tham gia, 12 kg và mã L1; chữ ký metadata hiện đúng; không có nút ký giả trên mobile",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "G06",
+      "action": "Tạo G2 5 kg từ L2 rồi F1 hủy trước lấy hàng",
+      "expected": "CANCELLED; trả phần giữ chỗ, L2 vẫn 30 kg; không có chữ ký giao hàng giả",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "G07",
+      "action": "Trên chuyến phụ chưa lấy hàng, yêu cầu đồng thuận lại với lý do `Thay đổi lịch lấy hàng thử nghiệm`",
+      "expected": "Epoch tăng; cần ký lại đúng lượt; mobile không coi chữ ký lượt cũ là chữ ký hiện tại",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "G08",
+      "action": "Xem chuyến có dòng kg và dòng lít từ hai nguồn hợp lệ, nếu môi trường có đủ nguồn",
+      "expected": "Hiện số dòng hàng/từng dòng đúng đơn vị; không hiển thị tổng kg+lít. Thiếu nguồn hợp lệ: BLOCKED, không đổi unit của lô để dựng bài",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "G09",
+      "action": "Đăng nhập FX hoặc tổ chức không tham gia, mở link G1",
+      "expected": "Không đọc được record/ảnh/chữ ký ngoài phạm vi; không ký hoặc nhận hàng được",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "P01",
+      "action": "P1 tạo NL-P 10 kg với chứng từ/ảnh thử nghiệm và cơ sở Xưởng P",
+      "expected": "Nguồn 10 kg có bằng chứng, đúng doanh nghiệp; không gắn vụ trồng bịa",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "P02",
+      "action": "Tạo/bắt đầu mẻ P, giữ 10 kg; thử mẻ khác cùng nguồn thêm 1 kg",
+      "expected": "Mẻ thứ hai không được giữ vượt phần còn khả dụng; không âm tồn",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "P03",
+      "action": "Ra thành phẩm 8 kg, hao hụt 1 kg (tổng 9)",
+      "expected": "Từ chối vì chưa cân bằng 10; chưa tạo thành phẩm/QR; có thể sửa dữ liệu đầu vào theo UI rồi thử lại",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "P04",
+      "action": "Ra thành phẩm 8 kg, hao hụt 2 kg",
+      "expected": "Hoàn tất, có một lô thành phẩm và QR; nguồn/mẻ/chain đúng; không lỗi 500 do thiếu vụ gốc",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "P05",
+      "action": "Reload rồi xem lại kết quả; không tạo mẻ thứ hai để thử replay",
+      "expected": "Vẫn đúng một lô/QR; không trừ nguyên liệu hai lần",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "P06",
+      "action": "Trên nguồn/mẻ phụ, bắt đầu rồi hủy trước hoàn tất",
+      "expected": "Giải phóng phần giữ nguyên liệu; lịch sử hủy còn; không sinh thành phẩm",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "C01",
+      "action": "Khách quét QR thật của L1/L2",
+      "expected": "Mở đúng lô, hai QR khác nhau; không lộ email/password/ảnh chứng từ riêng; dữ liệu chưa xuất bản không bị tự công khai",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "C02",
+      "action": "Mã QR không tồn tại hoặc URL ngoài origin cấu hình",
+      "expected": "Báo không hợp lệ/không tìm thấy; không tự mở website lạ",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "C03",
+      "action": "Consumer C0 đăng ký qua Firebase test number đúng config hoặc số của chính bạn",
+      "expected": "OTP hợp lệ mới tạo phiên; không dùng OTP giả; nếu chưa có APK Firebase đúng package thì BLOCKED",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "C04",
+      "action": "Đăng xuất rồi reload/đóng mở app",
+      "expected": "Vẫn ở khách/đăng nhập; refresh cũ không khôi phục phiên",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "C05",
+      "action": "Quên mật khẩu, xác minh rồi đặt mật khẩu mới",
+      "expected": "Yêu cầu đăng nhập lại; mật khẩu cũ thất bại, mật khẩu mới thành công; không lẫn phiên nhân viên",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "C06",
+      "action": "Đổi consumer A → B rồi đổi trang sản phẩm; kiểm tương tự với hai phiên staff và vụ/chuyến",
+      "expected": "Không chớp dữ liệu riêng của A hoặc kết quả request cũ; ảnh/draft không đi theo tài khoản mới",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    },
+    {
+      "id": "C07",
+      "action": "Nhấn gửi OTP nhiều lần/quay lại bước trước",
+      "expected": "Có cooldown, không tự gửi SMS; too-many-requests thì dừng theo hướng dẫn, không đổi IP để né",
+      "status": "NOT_RUN",
+      "actual": null,
+      "evidence": [],
+      "notes": null
+    }
+  ],
+  "preparation": {
+    "adminCreated": true,
+    "httpLoginVerified": true,
+    "mustChangePassword": true,
+    "uiCasesExecuted": false,
+    "mailpitReady": true,
+    "mailboxUrl": "http://localhost:8025",
+    "workerHealthPort": 8085,
+    "registrationOtpLocalDeliveryVerified": true
+  },
+  "userReportedMobileSmoke": {
+    "reportedOn": "2026-10-31",
+    "source": "User confirmations during local Android device testing; not an automated browser/device run",
+    "productName": "Bưởi 01",
+    "binding": "SIMULATED",
+    "reportedWorking": [
+      "Capture a care photo and save the journal; new entry visible on Web with correct server time",
+      "Record a harvest on mobile",
+      "Scan the Web lot QR after aligning the configured local trace origin",
+      "Open lot data permitted to the employee account"
+    ],
+    "limitations": "Positive-path mobile smoke only. Does not establish all original 41 cases, negative cross-organization authorization, cold account-switch/cache isolation, offline submission or real Fabric receipts. Original case statuses remain NOT_RUN."
+  }
+}

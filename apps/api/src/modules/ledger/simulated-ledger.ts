@@ -58,7 +58,7 @@ export async function simulateChainBinding(
  * ever reaches a simulated ledger, so there is nothing to drain. */
 export async function confirmSimulatedPermissions(
   tx: Prisma.TransactionClient,
-  { guard = true } = {},
+  { guard = true, bindingDigests }: { guard?: boolean; bindingDigests?: string[] } = {},
 ) {
   if (guard) await assertSimulationAllowed(tx);
   const jobs = await tx.ledgerControlJob.findMany({
@@ -66,6 +66,7 @@ export async function confirmSimulatedPermissions(
       status: 'PENDING',
       operation: { in: ['PERMISSION_GRANT', 'PERMISSION_REVOKE'] },
       binding: { network: SIMULATED_NETWORK },
+      ...(bindingDigests ? { bindingDigest: { in: bindingDigests } } : {}),
     },
     orderBy: { createdAt: 'asc' },
   });
