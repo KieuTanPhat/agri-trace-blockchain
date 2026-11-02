@@ -79,6 +79,7 @@ async function main() {
         name: 'Hợp tác xã Rau sạch Tân Phú',
         type: 'FARM',
         status: 'ACTIVE',
+        participationStatus: 'CHAIN_OWNER',
       },
     }));
 

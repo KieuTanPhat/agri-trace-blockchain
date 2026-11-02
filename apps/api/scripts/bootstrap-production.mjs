@@ -74,7 +74,7 @@ export async function provisionBusinessCatalog(db, input) {
       const account = byRole[code];
       const existing = await tx.organization.findUnique({ where: { id: account.organizationId } });
       if (existing) assert.equal(existing.type, type, 'Existing bootstrap organization differs');
-      else await tx.organization.create({ data: { id: account.organizationId, name: `Production smoke ${type}`, type } });
+      else await tx.organization.create({ data: { id: account.organizationId, name: `Production smoke ${type}`, type, participationStatus: account.role === 'FARM_STAFF' ? 'CHAIN_OWNER' : 'MEMBER' } });
     }
     for (const account of input.accounts) {
       const role = await tx.role.upsert({ where: { code: account.role }, create: { code: account.role, name: account.role }, update: {} });

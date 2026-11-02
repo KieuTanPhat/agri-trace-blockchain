@@ -82,7 +82,7 @@ async function bootstrap(){
   for(const org of plan.organizations){
    const roleCode=org.type==='FARM'?'FARM_STAFF':org.type;
    const role=await tx.role.upsert({where:{code:roleCode},create:{code:roleCode,name:roleCode},update:{}});
-   await tx.organization.create({data:{id:org.id,name:org.name,type:org.type,status:'ACTIVE'}});
+   await tx.organization.create({data:{id:org.id,name:org.name,type:org.type,status:'ACTIVE',participationStatus:['FARM','PROCESSOR'].includes(org.type)?'CHAIN_OWNER':'MEMBER'}});
    const owner=userFor(org,1),manager=userFor(org,2);
    for(const c of credentials.filter(c=>c.organizationId===org.id))await tx.user.create({data:{
     id:c.id,email:c.email,passwordHash:hashes.get(c.id),fullName:c.fullName,roleId:role.id,organizationId:org.id,

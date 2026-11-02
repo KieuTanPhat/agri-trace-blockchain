@@ -326,8 +326,9 @@ const bootstrap = await step("bootstrap", async () => {
         );
       for (let i = 0; i < orgDefs.length; i++) {
         const [key, name, type, roleCode, province, ward] = orgDefs[i];
+        // ADR-005: the cooperative owns the product chains; partners are members.
         const organization = await tx.organization.create({
-          data: { name, type, status: "ACTIVE" },
+          data: { name, type, status: "ACTIVE", participationStatus: type === "FARM" ? "CHAIN_OWNER" : "MEMBER" },
         });
         const owner = await makeUser(
           tx,
@@ -427,7 +428,7 @@ const bootstrap = await step("bootstrap", async () => {
             registrationData: {
               schemaVersion: 2,
              synthetic: true,
-              registrationRole: type,
+              participationStatus: type === "FARM" ? "CHAIN_OWNER" : "MEMBER",
               legalForm: type === "FARM" ? "COOPERATIVE" : "ENTERPRISE",
               activities: caps,
               production:
@@ -439,7 +440,7 @@ const bootstrap = await step("bootstrap", async () => {
                       method: "Canh tác quản lý tổng hợp",
                     }
                   : undefined,
-              servicePreferences: ["TRACEABILITY", "QR_LABELS"],
+              servicePreferences: ["TRACEABILITY"],
               termsAccepted: true,
               privacyAccepted: true,
               accuracyAccepted: true,
@@ -494,7 +495,7 @@ const bootstrap = await step("bootstrap", async () => {
         result.users[`${key}Staff`] = staff;
         // Migration-provided plan versions are authoritative; do not invent a price catalog.
         const plan = await tx.servicePlanVersion.findFirst({
-          where: { status: "PUBLISHED", planCode: "TRACE_20" },
+          where: { status: "PUBLISHED", planCode: "OWNER_SCALE" },
           orderBy: { createdAt: "desc" },
         });
         if (type === "FARM" && plan)
@@ -1848,20 +1849,20 @@ await step("compliance", async () => {
 
 await step("billing-reference-correction", async () => {
   const plan = await db.servicePlanVersion.findFirstOrThrow({
-    where: { planCode: "TRACE_20", status: "PUBLISHED" },
+    where: { planCode: "OWNER_SCALE", status: "PUBLISHED" },
   });
   await db.$transaction(async (tx) => {
     await lockPlatformAudit(tx);
     const invalid = await tx.subscription.findMany({
       where: {
         status: "ACTIVE",
-        planVersion: { planCode: "CHAIN_PRO" },
-        organization: { participationModel: "SINGLE" },
+        planVersion: { planCode: "OWNER_ENTERPRISE" },
+        organization: { participationStatus: "MEMBER" },
       },
     });
     for (const old of invalid) {
       const reason =
-        "Điều chỉnh gói khởi tạo theo mô hình SINGLE: hủy snapshot gói không phù hợp và tạo snapshot đúng, không ghi thanh toán thật.";
+        "Điều chỉnh gói khởi tạo: thành viên không giữ gói chủ chuỗi; hủy snapshot không phù hợp và tạo snapshot đúng, không ghi thanh toán thật.";
       await tx.subscription.update({
         where: { id: old.id },
         data: {
@@ -1890,7 +1891,7 @@ await step("billing-reference-correction", async () => {
         details: {
          synthetic: true,
           cancelledSnapshotId: old.id,
-          planCode: "TRACE_20",
+          planCode: "OWNER_SCALE",
         },
       });
     }
@@ -2008,7 +2009,7 @@ await step("administration", async () => {
     await api(
       actors[key],
       "/enterprise-billing/renewals",
-      { planCode: "TRACE_20" },
+      { planCode: "OWNER_SCALE" },
       `renewal-invoice-valid:${key}`,
     );
   return true;
@@ -2073,11 +2074,11 @@ await step("onboarding-profiles", async () => {
     const password = `Agri!${randomBytes(18).toString("base64url")}9a`,
       passwordHash = await hash(password, 10);
     const plan = await db.servicePlanVersion.findFirstOrThrow({
-      where: { planCode: "TRACE_20", status: "PUBLISHED" },
+      where: { planCode: "OWNER_SCALE", status: "PUBLISHED" },
     });
     const user = await db.$transaction(async (tx) => {
       const org = await tx.organization.create({
-        data: { name: `HTX ${stage} `, type: "FARM" },
+        data: { name: `HTX ${stage} `, type: "FARM", participationStatus: "CHAIN_OWNER" },
       });
       await tx.organizationCapability.deleteMany({
         where: { organizationId: org.id },
