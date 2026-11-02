@@ -63,8 +63,16 @@ export function classifyFabricError(error: unknown): FabricFailure {
       ? { kind: "CHAINCODE", chaincodeCode: code, message: detail || message, unknownOutcome: false }
       : { kind: "ENDORSEMENT", message: detail || message, unknownOutcome: false };
   }
-  if (error instanceof GatewayError)
+  if (error instanceof GatewayError) {
+    // Evaluate returns the base GatewayError, rather than EndorseError. Only
+    // explicit peer chaincode rejection is evidence of absence; transport errors
+    // and subclasses representing an uncertain submit remain unknown.
+    const detail = (error.details ?? []).map((item) => item.message).join(" ");
+    const code = CHAINCODE_CODE.exec(detail)?.[1];
+    if (error.constructor === GatewayError && code && /chaincode response|transaction returned with failure|Error:/i.test(detail))
+      return { kind: "CHAINCODE", chaincodeCode: code, message: detail, unknownOutcome: false };
     return { kind: "UNKNOWN", message, unknownOutcome: true };
+  }
   return { kind: "UNKNOWN", message, unknownOutcome: true };
 }
 

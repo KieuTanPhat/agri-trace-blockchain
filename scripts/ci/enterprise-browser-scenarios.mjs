@@ -75,7 +75,7 @@ export async function runEnterpriseBrowserScenarios(options) {
     step('admin-login');
     await login(admin, options.operator.admin, 'enterprise-admin');
     let sequence = 201;
-    for (const mode of ['MANAGED_ORG', 'SELF_MANAGED_ORG']) {
+    for (const mode of ['platform-a', 'platform-b']) {
       activeMode = mode;
       const ownerContext = await context(sequence++);
       const owner = await ownerContext.newPage();
@@ -116,8 +116,7 @@ export async function runEnterpriseBrowserScenarios(options) {
       await owner.locator('#productGroups').fill('Rau');
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
       // Step 4: service and hosting mode.
-      await choose(owner, owner.locator('#hostingMode'),
-        mode === 'MANAGED_ORG' ? 'AgriTrace quản lý peer' : 'Tự vận hành peer trên VPS');
+      assert.equal(await owner.locator('#hostingMode').count(), 0);
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
       // Step 5: review and consents.
       await owner.getByRole('checkbox', { name: 'Xác nhận thông tin chính xác', exact: true }).check();
@@ -186,12 +185,6 @@ export async function runEnterpriseBrowserScenarios(options) {
       // The page header and the embedded profile section share this title.
       await owner.getByRole('heading', { name: 'Hồ sơ đăng ký', exact: true }).first().waitFor({ timeout });
       await owner.getByText('PENDING_REVIEW', { exact: true }).first().waitFor({ timeout });
-      // Before approval the owner has no connection workspace; the shell sends
-      // a blocked page to the owner's landing page (plan selection).
-      await owner.goto(`${options.origin}/enterprise/connections`, { waitUntil: 'domcontentloaded' });
-      await owner.waitForURL(url => url.pathname === '/enterprise/service', { timeout });
-      await owner.getByText('Chủ hồ sơ đăng ký được chọn dịch vụ sau khi hồ sơ được duyệt.', { exact: true }).waitFor({ timeout });
-      assert.equal(await owner.getByRole('heading', { name: 'Kết nối doanh nghiệp', exact: true }).count(), 0);
       await bothLayouts(owner);
       await until(() => authorization, 'owner authentication');
       const denied = await ownerContext.request.post(`${options.origin}/api/supply-chains`, {
@@ -226,8 +219,7 @@ export async function runEnterpriseBrowserScenarios(options) {
       activePage = owner;
       step('owner-service-purchase');
       await owner.goto(`${options.origin}/enterprise/service`, { waitUntil: 'domcontentloaded' });
-      await choose(owner, owner.getByRole('combobox', { name: 'Hình thức vận hành', exact: true }),
-        mode === 'MANAGED_ORG' ? 'AgriTrace quản lý peer' : 'Tự vận hành peer');
+      assert.equal(await owner.getByRole('combobox', { name: 'Hình thức vận hành', exact: true }).count(), 0);
       await owner.getByLabel('Địa chỉ hóa đơn', { exact: true }).fill('123 Địa chỉ hóa đơn cách ly');
       const previewed = owner.waitForResponse(response => new URL(response.url()).pathname === '/api/enterprise-service/preview' &&
         response.request().method() === 'POST', { timeout });
@@ -257,64 +249,30 @@ export async function runEnterpriseBrowserScenarios(options) {
       const chain = await command(owner, '/supply-chains', () =>
         create.getByRole('button', { name: 'Tạo chuỗi', exact: true }).click());
       assert.equal(chain.ownerOrganizationId, pending.organizationId);
-      step('owner-connection-request');
-      await owner.goto(`${options.origin}/enterprise/connections`, { waitUntil: 'domcontentloaded' });
-      await choose(owner, owner.getByRole('combobox', { name: 'Chuỗi', exact: true }), chain.name);
-      if (mode === 'SELF_MANAGED_ORG') {
-        const peer = options.operator.publicPeer;
-        await owner.getByLabel('Peer host', { exact: true }).fill(peer.peerHost);
-        await owner.getByLabel('Peer port', { exact: true }).fill(String(peer.peerPort));
-        await owner.getByLabel('TLS server name', { exact: true }).fill(peer.peerServerName);
-        await owner.getByLabel('MSP ID', { exact: true }).fill(peer.mspId);
-        await owner.getByLabel('Chứng thư TLS công khai (PEM)', { exact: true }).fill(peer.tlsCaPem);
-      } else assert.equal(await owner.getByLabel('Peer host', { exact: true }).count(), 0);
-      await bothLayouts(owner);
-      const connection = await command(owner, '/enterprise-connections', () => owner.getByRole('button', { name: 'Yêu cầu kết nối', exact: true }).click());
-      // The requested chain leaves the choice; the owner's personal chain stays eligible.
-      await owner.getByText(chain.name, { exact: true }).first().waitFor({ timeout });
-      await owner.getByRole('combobox', { name: 'Chuỗi', exact: true }).click();
-      await owner.getByRole('option').first().waitFor({ timeout });
-      assert.equal(await owner.getByRole('option', { name: chain.name, exact: true }).count(), 0);
-      await owner.keyboard.press('Escape');
-      activePage = admin;
-      step('admin-connection-review');
-      await admin.goto(`${options.origin}/admin/enterprises/${enrollmentId}/connections/${connection.id}`, { waitUntil: 'domcontentloaded' });
-      await admin.getByRole('button', { name: 'Xét kết nối', exact: true }).click();
-      const review = admin.getByRole('dialog', { name: 'Xét kết nối peer', exact: true });
-      await review.getByLabel('Ghi chú', { exact: true }).fill('Đã đối chiếu thông tin peer công khai');
-      await command(admin, `/enterprise-connections/${connection.id}/review`, () =>
-        review.getByRole('button', { name: 'Ghi quyết định', exact: true }).click());
-      const approved = await options.operator.db.enterpriseConnection.findUniqueOrThrow({ where: { id: connection.id } });
-      assert.equal(approved.status, 'APPROVED', 'Admin review alone must never report CONNECTED');
-      assert.equal(approved.txId, null);
-      // Test-only provisioning performs real registry approvals and updates the
-      // operator-owned inventories; it never edits the connection result.
-      step('operator-provision');
-      await options.operator.provision(enrollmentId, chain.id, connection.id);
-      step('worker-proof');
-      await until(async () => {
-        const value = await options.operator.db.enterpriseConnection.findUniqueOrThrow({ where: { id: connection.id } });
-        assert.ok(!['FAILED', 'REJECTED'].includes(value.status), 'Real connection probe failed');
-        return value.status === 'CONNECTED';
-      }, 'real Fabric connection proof', 120_000);
-      const proof = await options.operator.verifyProbe(connection.id);
-      activePage = owner;
-      step('owner-connected');
-      await owner.reload({ waitUntil: 'domcontentloaded' });
-      await owner.getByText('Đã kiểm chứng kết nối', { exact: true }).first().waitFor({ timeout });
-      await owner.getByText(proof.txId, { exact: true }).waitFor({ timeout });
+      step('automatic-ledger-provisioning');
+      await until(async () => (await options.operator.db.ledgerProvisioningJob.findUniqueOrThrow({ where: { chainId: chain.id } })).status === 'COMPLETED', 'automatic chain provisioning', 120_000);
+      const proof = await options.operator.verifyProvisioning(enrollmentId, chain.id);
+      const personal = await options.operator.db.supplyChain.findFirstOrThrow({ where: { ownerOrganizationId: pending.organizationId, personal: true } });
+      await until(async () => (await options.operator.db.ledgerProvisioningJob.findUniqueOrThrow({ where: { chainId: personal.id } })).status === 'COMPLETED', 'automatic personal chain provisioning', 120_000);
+      await options.operator.verifyProvisioning(enrollmentId, personal.id);
+      assert.equal(await owner.getByLabel('Peer host', { exact: true }).count(), 0);
+      await owner.goto(`${options.origin}/supply-chains/${chain.id}/ledger`, { waitUntil: 'domcontentloaded' });
+      await owner.getByText(/Sổ cái của chuỗi đã sẵn sàng/).waitFor({ timeout });
       await bothLayouts(owner);
       await noPasswordStorage(owner, options.operator.password);
       results.push({ mode, viewports: [1365, 390], registrationRetries: registrations,
-        signupWithoutGrants: true, reviewBeforeProbe: true, ...proof });
+        signupWithoutGrants: true, automaticPersonalAndCreatedChain: true, ...proof });
     }
     return { passed: results.length, failed: 0, skipped: 0, browser: 'Chromium desktop/mobile viewport; not physical iOS acceptance', flows: results };
   } catch (error) {
     const alerts = await activePage?.getByRole('alert').allTextContents().catch(() => []) ?? [];
     const main = await activePage?.locator('main').first().innerText({ timeout: 2000 }).catch(() => '') ?? '';
+    const dialogs = await activePage?.getByRole('dialog').allTextContents().catch(() => []) ?? [];
+    const screens = await activePage?.locator('[data-testid^="ledger-screen-"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-testid'))).catch(() => []) ?? [];
     console.error(JSON.stringify({ suite: 'enterprise-browser', mode: activeMode, phase,
       path: activePage ? new URL(activePage.url()).pathname : undefined,
       alerts: alerts.map(value => redactDiagnostic(value, options.secrets)),
+      screens, dialogs: dialogs.map(value => redactDiagnostic(value.replace(/\s+/g, ' ').slice(0, 3000), options.secrets)),
       main: redactDiagnostic(main.replace(/\s+/g, ' ').slice(0, 1200), options.secrets) }));
     throw error;
   } finally {

@@ -1,4 +1,4 @@
-import { CommitError, CommitStatusError, EndorseError } from "@hyperledger/fabric-gateway";
+import { CommitError, CommitStatusError, EndorseError, GatewayError } from "@hyperledger/fabric-gateway";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -11,9 +11,15 @@ import {
 import { RegistryOperator } from "../src/registry-ops.js";
 
 const grpc = { code: 10, details: [], cause: {} as never, transactionId: "tx" };
-const detail = (message: string) => ({ address: "peer0", message, mspId: "Org1MSP" });
+const detail = (message: string) => ({ address: "peer0", message, mspId: "AgritraceMSP" });
 
 describe("classifyFabricError", () => {
+  it("recognizes explicit evaluate rejection without treating a transport failure as absence", () => {
+    const absent = new GatewayError({ ...grpc, details: [detail("chaincode response 500, NOT_FOUND: signing key is not registered")], message: "evaluate failed" });
+    expect(classifyFabricError(absent)).toMatchObject({ kind: "CHAINCODE", chaincodeCode: "NOT_FOUND", unknownOutcome: false });
+    const unavailable = new GatewayError({ ...grpc, code: 14, details: [], message: "unavailable" });
+    expect(classifyFabricError(unavailable)).toMatchObject({ kind: "UNKNOWN", unknownOutcome: true });
+  });
   it("separates a chaincode rejection from an endorsement outage", () => {
     const rejected = new EndorseError({
       ...grpc,

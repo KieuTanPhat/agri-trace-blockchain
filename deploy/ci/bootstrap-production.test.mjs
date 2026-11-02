@@ -23,8 +23,8 @@ function bootstrapInput() {
       password: randomBytes(24).toString('base64url'), ...(role === 'SYSTEM_ADMIN' ? {} : { organizationId: organizations[role] }),
     })),
     catalog: { chainId: randomUUID(), farmId: randomUUID(), productId: randomUUID(), plotId: randomUUID() },
-    network: 'hosted', channel: 'hybrid-b', chaincode: 'agritrace', writerAuthority: 'operator',
-    connections: { relayer: { certPath: '/operator/relayer/cert.pem', keyDir: '/operator/relayer/keys', tlsCertPath: '/operator/tls.pem' } },
+    network: 'hosted', channel: 'agritrace', chaincode: 'agritrace', writerAuthority: 'operator',
+    connections: Object.fromEntries(['relayer', 'controller', 'admin'].map(name => [name, { mspId: 'AgritraceMSP', certPath: `/operator/${name}/cert.pem`, keyDir: `/operator/${name}/keys`, tlsCertPath: '/operator/tls.pem' }])),
     operation: 'provision',
   };
 }

@@ -121,7 +121,6 @@ export const registrationDefaults = {
   facilityCount: "",
   certifications: [] as string[],
   interests: ["TRACEABILITY"] as string[],
-  hostingMode: "MANAGED_ORG",
   planCode: "",
   expectedProducts: "UNDECIDED",
   expectedLotsPerMonth: "",

@@ -205,7 +205,6 @@ export type Invoice = {
 };
 export type Enrollment = S["EnterpriseEnrollmentViewDto"];
 export type CapabilityRequest = S["CapabilityRequestViewDto"];
-export type EnterpriseConnection = S["EnterpriseConnectionViewDto"];
 /** Aggregate fields supplied by AdminInsightsService.organization at the pinned baseline. */
 export type PlatformOrganization = {
   id: string;
@@ -227,14 +226,7 @@ export type PlatformOrganization = {
     id: string;
     status: string;
     stage: string;
-    hostingMode: string;
     createdAt: string;
-    connections: {
-      id: string;
-      chainId: string;
-      status: string;
-      createdAt: string;
-    }[];
   } | null;
   billing: {
     applies: boolean;
@@ -394,16 +386,6 @@ export const api = {
     ) =>
       write<CapabilityRequest>(
         `/capability-requests/${encodeURIComponent(id)}/review`,
-        input,
-        cmd,
-      ),
-    reviewConnection: (
-      id: string,
-      input: S["ReviewEnterpriseDto"],
-      cmd: LedgerCommandContext,
-    ) =>
-      write<EnterpriseConnection>(
-        `/enterprise-connections/${encodeURIComponent(id)}/review`,
         input,
         cmd,
       ),

@@ -80,7 +80,7 @@ export class EnterpriseWorkspaceService {
       include: {
         profile: true,
         capabilities: { where: { revokedAt: null } },
-        enterpriseEnrollment: { select: { businessId: true, hostingMode: true } },
+        enterpriseEnrollment: { select: { businessId: true } },
       },
     });
     const has = (permission: string) =>
@@ -134,7 +134,6 @@ export class EnterpriseWorkspaceService {
         capabilities: org.capabilities.map((c) => c.code),
         participationModel: org.participationModel,
         businessId: org.enterpriseEnrollment?.businessId ?? null,
-        hostingMode: org.enterpriseEnrollment?.hostingMode ?? null,
       },
       profile: org.profile,
       member: {

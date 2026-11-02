@@ -24,7 +24,6 @@ export interface ApprovalRule {
 }
 export interface ChannelGovernance {
   writerMsp: string;
-  ownerMsp: string;
   approvals: Record<RegistryKind, ApprovalRule>;
 }
 

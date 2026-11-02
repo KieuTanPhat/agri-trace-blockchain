@@ -1062,12 +1062,6 @@
       "targetScreen": "apps/web/src/features/ledger/screens/admin/directory/screen.tsx"
     },
     {
-      "route": "/admin/enterprises/[id]/connections/[connectionId]",
-      "sourceFile": "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx",
-      "task": 6,
-      "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx"
-    },
-    {
       "route": "/admin/enterprises/[id]",
       "sourceFile": "apps/web/src/app/admin/enterprises/[id]/page.tsx",
       "task": 6,
@@ -1324,12 +1318,6 @@
       "sourceFile": "apps/web/src/app/enterprise/billing/page.tsx",
       "task": 12,
       "targetScreen": "apps/web/src/features/ledger/screens/enterprise/billing/screen.tsx"
-    },
-    {
-      "route": "/enterprise/connections",
-      "sourceFile": "apps/web/src/app/enterprise/connections/page.tsx",
-      "task": 12,
-      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/connections/screen.tsx"
     },
     {
       "route": "/enterprise/help",
@@ -1882,10 +1870,6 @@
       "gitBlob": "ac355bb80397688148b2c9280ff5e384a6ced3bc"
     },
     {
-      "path": "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx",
-      "gitBlob": "4a5691f0304308d8b71aade5529a2eaecb534814"
-    },
-    {
       "path": "apps/web/src/app/admin/enterprises/[id]/page.tsx",
       "gitBlob": "f531d2bb6c5d5c0dc4fc5664af7019949af99bc7"
     },
@@ -2056,10 +2040,6 @@
     {
       "path": "apps/web/src/app/enterprise/billing/page.tsx",
       "gitBlob": "970af60cca665ba2253b2f8fb7c66998d2b3f283"
-    },
-    {
-      "path": "apps/web/src/app/enterprise/connections/page.tsx",
-      "gitBlob": "9c57009b6cd4f08adcdf6d1e48e33ac02c58ba1e"
     },
     {
       "path": "apps/web/src/app/enterprise/help/page.tsx",
@@ -2773,7 +2753,7 @@
     "docs/openapi/",
     "apps/web/src/lib/generated/api.d.ts"
   ],
-  "note": "Route and legacy UI entries are metadata only. Task 1 audits the fetched baseline and filters render-free business metadata. legacyUi is a candidate denylist: proven non-rendering infrastructure may move to retainedHeadless with a source-backed reason; no renderer, style, navigation or appearance tokens may be exempted.",
+  "note": "Route and legacy UI entries are metadata only. Task 1 audits the fetched baseline and filters render-free business metadata. legacyUi is a candidate denylist: proven non-rendering infrastructure may move to retainedHeadless with a source-backed reason; no renderer, style, navigation or appearance tokens may be exempted. Current platform topology retires the enterprise peer-request and peer-review routes; historical baseline remains in Git.",
   "retainedHeadless": [
     {
       "path": "apps/web/src/components/register-service-worker.tsx",
@@ -3102,7 +3082,7 @@
       "target": "apps/web/src/lib/ledger/navigation.ts",
       "source": "src/components/shell/nav.ts",
       "sourceSha256": "3a3e844bc282720612f23a073d4b9490e9d313576912eacdff23a5ed07e2c89a",
-      "targetSha256": "f32c53f61edee2e902a219fd726bc0384fdef40644376745d52cf2863fd16b3f",
+      "targetSha256": "5abedd8464d5e77b2578da90bdde99a5d1cad7619e8adb09673ef18c788dbb99",
       "adaptation": "Presentation from frozen preview; baseline transport/identity/authority, canonical URLs and cache isolation.",
       "adaptations": [
         "Map assigned incidents to existing /enterprise/inbox URL; no new route."
@@ -3126,17 +3106,10 @@
       "adaptation": "Ledger auth presentation; baseline session/MFA/password policy and API, without preview accounts."
     },
     {
-      "target": "apps/web/src/features/ledger/screens/admin/approvals/[id]/screen.tsx",
-      "source": "src/app/(console)/approvals/[id]/page.tsx",
-      "sourceSha256": "3fc3d3583cdf28ffb753b5dcb6d9b73df3815be01e0c49c795eeed51b04e78fa",
-      "targetSha256": "e5af492a648bc624b59e7820a85d36b29cf1702d517bd3a6d903df17696bd08c",
-      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
-    },
-    {
       "target": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/screen.tsx",
       "source": "src/app/(console)/enterprises/[id]/page.tsx",
       "sourceSha256": "78453590a6cd12810be6cf510315669daf0de4d8b398042269f10aa2db0e91bd",
-      "targetSha256": "cddd4efe20a1bd671a911341570de13809c46c921306bf0e2504955fc22be030",
+      "targetSha256": "0256dbb113dca20d4bb97e11cad0077b84c44a5fed6e465b9afe2274de6b77f7",
       "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
     },
     {
@@ -3172,13 +3145,6 @@
       "source": "src/app/(console)/overview/page.tsx",
       "sourceSha256": "832abac6a76b56cdf78e849555482d5661c960ee605ff93a90021332c5a2b891",
       "targetSha256": "2b65170849357c0bdd62ee9e7a609286a8541329a8cd9fe47723077ebfe2ca10",
-      "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
-    },
-    {
-      "target": "apps/web/src/features/ledger/screens/admin/approvals/screen.tsx",
-      "source": "src/app/(console)/approvals/page.tsx",
-      "sourceSha256": "1bb03ff50c71519077b78894e5e6b2867af921de4e81fac654e8660aa673443b",
-      "targetSha256": "e7b5290a863bac8219484e6da1b1d9baf74111d72c10423490cbabf08bd96503",
       "adaptation": "Frozen Ledger presentation; canonical async route, baseline DTO/transport/authority and journal recovery."
     },
     {
@@ -3295,7 +3261,7 @@
       "target": "apps/web/src/features/ledger/screens/admin/ledger/screen.tsx",
       "source": "src/app/(console)/ledger/page.tsx",
       "sourceSha256": "59ba9da60a39c73ff8d9fd6642094c834bdb1b6bcbb17cfd0f249b7b25b97021",
-      "targetSha256": "26cacb79b439be0b632aa26c55ab4561408c0b2ee7b2f2000680f31ce70b7dfc"
+      "targetSha256": "eac2014659398d9451c516bfa14a2a550abc65123b29d7f266f00f8e41ec37fb"
     },
     {
       "target": "apps/web/src/features/ledger/screens/admin/trace-report/screen.tsx",
@@ -3346,12 +3312,6 @@
       "targetSha256": "e011e120054f4cc2560156b698a3a5e52aa64fdcd89da3305f08eed996546e82"
     },
     {
-      "target": "apps/web/src/features/ledger/workspace/ownership.tsx",
-      "source": "src/app/(workspace)/w/ownership/page.tsx",
-      "sourceSha256": "d01aafb1fa1ec0e32145c7d9d1efc013eaee681731b6a838e2e8f7e0f9295b6f",
-      "targetSha256": "b06a47f4cb6326cea8625071ad75f97edd0451ae0fc4c1bd5b6b7b7fe99446f5"
-    },
-    {
       "target": "apps/web/src/features/ledger/workspace/profile.tsx",
       "source": "src/app/(workspace)/w/profile/page.tsx",
       "sourceSha256": "2f7ac14b6cfc4af090069cf8eba188c22352ac66b418d12d3aa0a9140539b604",
@@ -3361,7 +3321,7 @@
       "target": "apps/web/src/features/ledger/workspace/home.tsx",
       "source": "src/app/(workspace)/w/page.tsx",
       "sourceSha256": "38f616697f450ddfe4bab94beafcaf3906bffc8a58f9b9c1a63a9c91ea6d7f7f",
-      "targetSha256": "9dda0ecdeb0d939bdcf9320279bca007be0b5c47c084402880ea3975db00c913"
+      "targetSha256": "91328380d8880f17350d0ea84b5389a81df9e8d9d007a9cff20165fbe239e187"
     },
     {
       "target": "apps/web/src/components/ledger/workspace/evidence-panel.tsx",
@@ -3443,7 +3403,7 @@
       "target": "apps/web/src/features/ledger/workspace/chains.tsx",
       "source": "src/app/(workspace)/w/chains/page.tsx",
       "sourceSha256": "b5a079c1575b2407d3e00b6d21d9a0adbf805c6e985559cced2576f2d8d477e9",
-      "targetSha256": "31cb9a74ff62689385b7d4a0c1e66a00b6fda8de9ca41844032cd4cc08041ebc"
+      "targetSha256": "4584a64607c769c238251046d91bfce0d8b4b0290e8f376b47633423e108e563"
     },
     {
       "target": "apps/web/src/features/ledger/workspace/cycles.tsx",
@@ -3578,10 +3538,6 @@
     {
       "target": "apps/web/src/features/ledger/screens/admin/enterprises/enrollment-products.tsx",
       "basis": "Existing Ledger-only product read view composed in Task6; Task8 adds baseline catalogScope/status/variety behavior, with its default enrollment scope retained."
-    },
-    {
-      "target": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
-      "basis": "Task6: new Ledger kit composition for baseline governance workflows, DTO transport, permissions or display copy absent from the frozen presentation. No legacy UI input."
     },
     {
       "target": "apps/web/src/features/ledger/screens/admin/inspectors/inspectors-view.tsx",
@@ -3921,10 +3877,6 @@
     },
     {
       "target": "apps/web/src/features/ledger/screens/enterprise/billing/screen.tsx",
-      "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
-    },
-    {
-      "target": "apps/web/src/features/ledger/screens/enterprise/connections/screen.tsx",
       "basis": "Task12 composition from approved Ledger workspace hierarchy/kit and existing Ledger-only profile/document producers, baseline business metadata only. Service context retains state with no legacy renderer."
     },
     {

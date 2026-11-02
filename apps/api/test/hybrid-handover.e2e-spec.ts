@@ -210,7 +210,7 @@ const PARTIES: Party[] = ['farm', 'transporter', 'retailer'];
           chaincodeName: 'agritrace',
           contractName: 'AgriTraceContract',
           writerAuthority: 'agritrace-relayer-b',
-          writerMspId: 'Org1MSP',
+          writerMspId: 'AgritraceMSP',
           governanceDigest: '11'.repeat(32),
           profile: 'SERVICE',
         }),

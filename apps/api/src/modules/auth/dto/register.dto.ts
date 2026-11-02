@@ -18,7 +18,6 @@ import {
   IsDefined,
   IsUrl,
 } from 'class-validator';
-import { HOSTING_MODES } from '../../enterprise-onboarding/dto.js';
 import { RegistrationEmailProof } from '../../enterprise-onboarding/registration-otp.dto.js';
 import {
   BUSINESS_ACTIVITIES,
@@ -173,7 +172,4 @@ export class RegisterDto {
   @ValidateNested()
   @Type(() => EnterpriseRegistrationDetails)
   details!: EnterpriseRegistrationDetails;
-  @ApiProperty({ enum: HOSTING_MODES })
-  @IsIn(HOSTING_MODES)
-  hostingMode!: (typeof HOSTING_MODES)[number];
 }

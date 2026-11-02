@@ -5,7 +5,7 @@
  *
  *   node dist/operator/ledger-operator.js register-binding --chain <uuid> \
  *     --network <name> --channel <id> --writer-authority <id> --writer-msp <MSP> \
- *     --governance-digest <sha256> --profile SERVICE|MANAGED_ORG|SELF_MANAGED_ORG
+ *     --governance-digest <sha256> --profile SERVICE
  *   node dist/operator/ledger-operator.js onboard --binding <digest> --config operator.json
  *   node dist/operator/ledger-operator.js activate --binding <digest>
  *   node dist/operator/ledger-operator.js pause|resume --binding <digest>
@@ -49,10 +49,6 @@ import {
   onboardBindingOnLedger,
 } from '../modules/ledger/ledger-onboarding.js';
 import { bindingObservation } from '../modules/ledger/binding-observation.js';
-import {
-  AwaitingOwnerApproval,
-  ExternalOwnerRegistryOperator,
-} from '../modules/ledger/external-owner-operator.js';
 
 interface Conn {
   mspId: string;
@@ -154,13 +150,6 @@ async function main() {
         const binding = await prisma.fabricNetworkBinding.findUniqueOrThrow({
           where: { digest },
         });
-        if (
-          options['external-owner'] === 'true' &&
-          Object.keys(config.admins).some((msp) => msp !== binding.writerMspId)
-        )
-          throw new Error(
-            'External-owner mode accepts only the platform admin; enterprise keys stay on its VPS',
-          );
         const open1 = (c: Conn) =>
           client(
             c,
@@ -175,14 +164,7 @@ async function main() {
         const relayer = await open1(config.relayer);
         const reader = await open1(config.reader);
         const steps = await onboardBindingOnLedger({
-          operator:
-            options['external-owner'] === 'true'
-              ? new ExternalOwnerRegistryOperator(
-                  controller.client,
-                  admins,
-                  binding,
-                )
-              : new RegistryOperator(controller.client, admins),
+          operator: new RegistryOperator(controller.client, admins),
           reader: reader.client,
           channelId: binding.channelId,
           approvers: Object.keys(config.admins),
@@ -211,8 +193,7 @@ async function main() {
         break;
       }
       case 'register-signing-key': {
-        // The owner MSP admin approves too (SIGNING_KEY_REGISTER needs writer
-        // and owner). External mode waits for approval from the owner's VPS.
+        // Recovery tool: only the reviewed platform registry admin approves.
         const keyRef = need(options, 'key');
         const config = JSON.parse(
           readFileSync(need(options, 'config'), 'utf8'),
@@ -226,15 +207,6 @@ async function main() {
           include: { binding: true },
         });
         if (key.status === 'REVOKED') throw new Error('The key is revoked');
-        if (
-          options['external-owner'] === 'true' &&
-          Object.keys(config.admins).some(
-            (msp) => msp !== key.binding.writerMspId,
-          )
-        )
-          throw new Error(
-            'External-owner mode accepts only the platform admin',
-          );
         const open1 = (c: Conn) =>
           client(
             c,
@@ -248,14 +220,7 @@ async function main() {
           admins[msp] = (await open1(conn)).client;
         const reader = await open1(config.reader);
         const ledger = await registerSigningKeyOnLedger({
-          operator:
-            options['external-owner'] === 'true'
-              ? new ExternalOwnerRegistryOperator(
-                  controller.client,
-                  admins,
-                  key.binding,
-                )
-              : new RegistryOperator(controller.client, admins),
+          operator: new RegistryOperator(controller.client, admins),
           reader: reader.client,
           approvers: Object.keys(config.admins),
           key,
@@ -405,17 +370,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  if (error instanceof AwaitingOwnerApproval) {
-    console.log(
-      JSON.stringify(
-        { status: 'AWAITING_OWNER_APPROVAL', ...error.review },
-        null,
-        2,
-      ),
-    );
-    process.exitCode = 2;
-    return;
-  }
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });

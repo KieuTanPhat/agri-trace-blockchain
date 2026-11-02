@@ -15,8 +15,6 @@ import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorat
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import {
-  EnterpriseConnectionDto,
-  EnterpriseConnectionViewDto,
   EnterpriseEnrollmentViewDto,
   ReviewEnterpriseDto,
   ActivateEnterpriseDto,
@@ -98,49 +96,6 @@ export class EnterpriseOnboardingController {
         payload: { id, ...input },
       },
       () => this.service.reviewCapability(req.user, id, input),
-    );
-  }
-  @Post('enterprise-connections')
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiDataResponse(EnterpriseConnectionViewDto, 201)
-  connect(
-    @Req() req: AuthenticatedRequest,
-    @Body() input: EnterpriseConnectionDto,
-    @IdempotencyKey() key: string,
-  ) {
-    return this.idem.executeCommand(
-      {
-        idempotencyKey: key,
-        requesterId: req.user.sub,
-        actor: req.user,
-        responseStatus: 201,
-        operation: 'ENTERPRISE_CONNECT',
-        requestType: 'COMMAND',
-        payload: input,
-      },
-      () => this.service.connect(req.user, input),
-    );
-  }
-  @Post('enterprise-connections/:id/review')
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiDataResponse(EnterpriseConnectionViewDto, 201)
-  reviewConnection(
-    @Req() req: AuthenticatedRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() input: ReviewEnterpriseDto,
-    @IdempotencyKey() key: string,
-  ) {
-    return this.idem.executeCommand(
-      {
-        idempotencyKey: key,
-        requesterId: req.user.sub,
-        actor: req.user,
-        responseStatus: 201,
-        operation: 'ENTERPRISE_CONNECTION_REVIEW',
-        requestType: 'COMMAND',
-        payload: { id, ...input },
-      },
-      () => this.service.reviewConnection(req.user, id, input),
     );
   }
 }

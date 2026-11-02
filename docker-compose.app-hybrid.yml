@@ -15,7 +15,6 @@ services:
       FABRIC_BINDINGS_CONFIG: /hosted-config/bindings.json
       FABRIC_WORKER_INTERVAL_MS: "2000"
       ENTERPRISE_ONBOARDING_ENABLED: ${ENTERPRISE_ONBOARDING_ENABLED:-false}
-      ENTERPRISE_CONNECTIONS_CONFIG: /hosted-config/enterprise-connections.json
     user: ${WORKER_UID:?Set signer UID}:${WORKER_GID:?Set signer GID}
     volumes:
       - type: bind

@@ -5,14 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { createHmac, X509Certificate } from 'node:crypto';
-import { isIP } from 'node:net';
+import { createHmac } from 'node:crypto';
 import { hash } from 'bcrypt';
 import { canonicalize } from 'json-canonicalize';
 import {
   Prisma,
   type EnterpriseEnrollment,
-  type EnterpriseConnection,
   type CapabilityRequest,
   type OrganizationType,
 } from '../../generated/prisma/client.js';
@@ -28,7 +26,7 @@ import {
   lockChainScope,
 } from '../supply-chains/chain-policy.js';
 import type { RegisterDto } from '../auth/dto/register.dto.js';
-import type { EnterpriseConnectionDto, ReviewEnterpriseDto, ActivateEnterpriseDto } from './dto.js';
+import type { ReviewEnterpriseDto, ActivateEnterpriseDto } from './dto.js';
 import { VIETNAM_ADDRESSES } from './address-catalog.js';
 import { serviceStage } from './enterprise-service.service.js';
 import { grantEnterpriseBusiness } from './service-activation.js';
@@ -62,7 +60,6 @@ const INCLUDE = {
     },
   },
   owner: { select: { fullName: true, email: true } },
-  connections: { orderBy: { createdAt: 'desc' as const }, take: 100 },
   serviceOrder: true,
 };
 const receipt = (id: string) => ({
@@ -333,7 +330,6 @@ export async function registerEnterprise(
           ownerId: user.id,
           registrationDigest: digest,
           businessId: normalized.businessId,
-          hostingMode: input.hostingMode,
         },
       });
       // Encrypted like OTP mail; the Worker clears the ciphertext once sent.
@@ -447,8 +443,7 @@ export async function authorizeEnterpriseCommand(
 ) {
   const actor = input.actor!;
   if (
-    input.operation === 'ENTERPRISE_REVIEW' || input.operation === 'ENTERPRISE_ACTIVATE' || input.operation === 'ENTERPRISE_PROFILE_REVIEW' || input.operation === 'ENTERPRISE_CAPABILITY_REVIEW' ||
-    input.operation === 'ENTERPRISE_CONNECTION_REVIEW'
+    input.operation === 'ENTERPRISE_REVIEW' || input.operation === 'ENTERPRISE_ACTIVATE' || input.operation === 'ENTERPRISE_PROFILE_REVIEW' || input.operation === 'ENTERPRISE_CAPABILITY_REVIEW'
   ) {
     if (actor.role !== 'SYSTEM_ADMIN')
       throw new ForbiddenException('Chỉ quản trị nền tảng được duyệt');
@@ -481,7 +476,6 @@ export async function authorizeEnterpriseCommand(
     });
   }
   if (
-    input.operation !== 'ENTERPRISE_CONNECT' &&
     !['ENTERPRISE_SERVICE_ORDER', 'ENTERPRISE_SERVICE_PAY'].includes(
       input.operation,
     )
@@ -517,83 +511,6 @@ export async function authorizeEnterpriseCommand(
   });
 }
 
-export function connectionPublicConfig(
-  input: EnterpriseConnectionDto,
-  mode: string,
-) {
-  if (mode === 'MANAGED_ORG') {
-    if (
-      [
-        input.peerHost,
-        input.peerPort,
-        input.peerServerName,
-        input.mspId,
-        input.tlsCaPem,
-      ].some((value) => value !== undefined)
-    )
-      throw new BadRequestException(
-        'Peer do AgriTrace quản lý không nhận cấu hình từ phía doanh nghiệp',
-      );
-    return {};
-  }
-  const host = (value: string | undefined) =>
-    !!value &&
-    (isIP(value) > 0 ||
-      /^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/.test(
-        value,
-      ));
-  if (
-    !host(input.peerHost) ||
-    !host(input.peerServerName) ||
-    !input.peerPort ||
-    !/^[A-Za-z][A-Za-z0-9]{0,99}$/.test(input.mspId ?? '')
-  )
-    throw new BadRequestException(
-      'Cần hostname/IP, cổng, tên TLS và MSP hợp lệ',
-    );
-  if (
-    !input.tlsCaPem ||
-    !/^-----BEGIN CERTIFICATE-----\r?\n[A-Za-z0-9+/=\r\n]+-----END CERTIFICATE-----\s*$/.test(
-      input.tlsCaPem,
-    )
-  )
-    throw new BadRequestException(
-      'Chỉ nhận một chứng thư TLS CA công khai dạng PEM',
-    );
-  try {
-    const certificate = new X509Certificate(input.tlsCaPem);
-    if (
-      !certificate.ca ||
-      Date.parse(certificate.validTo) <= Date.now() ||
-      Date.parse(certificate.validFrom) > Date.now()
-    )
-      throw new Error('invalid CA');
-    return {
-      peerHost: input.peerHost!,
-      peerPort: input.peerPort,
-      peerServerName: input.peerServerName!,
-      mspId: input.mspId!,
-      tlsCaPem: certificate.toString(),
-    };
-  } catch {
-    throw new BadRequestException('Chứng thư CA không hợp lệ hoặc đã hết hạn');
-  }
-}
-
-export const connectionView = (row: EnterpriseConnection) => ({
-  publicConfig: row.publicConfig,
-  id: row.id,
-  chainId: row.chainId,
-  hostingMode: row.hostingMode,
-  status: row.status,
-  version: row.version,
-  reviewNote: row.reviewNote,
-  errorCode: row.errorCode,
-  txId: row.txId,
-  evidence: row.evidence,
-  createdAt: row.createdAt.toISOString(),
-  checkedAt: row.checkedAt?.toISOString() ?? null,
-});
 export const capabilityRequestView = (row: CapabilityRequest) => ({
   id: row.id,
   code: row.code,
@@ -616,8 +533,7 @@ export const enrollmentView = (
       capabilityRequests?: CapabilityRequest[];
     };
     owner: { fullName: string; email: string };
-    connections: EnterpriseConnection[];
-    serviceOrder?: { status: string; hostingMode: string } | null;
+    serviceOrder?: { status: string } | null;
   },
 ) => ({
   id: row.id,
@@ -641,7 +557,6 @@ export const enrollmentView = (
   businessId: row.businessId,
   details: row.organization.profile ?? null,
   documents: row.organization.registrationDocuments ?? [],
-  hostingMode: row.serviceOrder?.hostingMode ?? row.hostingMode,
   onboardingStage: serviceStage(row),
   serviceActivatedAt: row.serviceActivatedAt?.toISOString() ?? null,
   serviceActivationReason: row.serviceActivationReason,
@@ -649,7 +564,6 @@ export const enrollmentView = (
   version: row.version,
   createdAt: row.createdAt.toISOString(),
   reviewNote: row.reviewNote,
-  connections: row.connections.map(connectionView),
 });
 
 @Injectable()
@@ -793,61 +707,6 @@ export class EnterpriseOnboardingService {
       );
     });
   }
-  connect(actor: CommandActor, input: EnterpriseConnectionDto) {
-    return commandTransaction(this.prisma, async (tx) => {
-      const enrollment = await tx.enterpriseEnrollment.findUniqueOrThrow({
-        where: { ownerId: actor.sub! },
-        include: { serviceOrder: true },
-      });
-      if (!enrollment.serviceActivatedAt)
-        throw new ForbiddenException(
-          'Dịch vụ cần được admin kích hoạt trước khi cấu hình peer',
-        );
-      const hostingMode =
-        enrollment.serviceOrder?.hostingMode ?? enrollment.hostingMode;
-      const chain = await tx.supplyChain.findUnique({
-        where: { id: input.chainId },
-      });
-      if (chain?.ownerOrganizationId !== actor.organizationId)
-        throw new NotFoundException('Không tìm thấy chuỗi thuộc doanh nghiệp');
-      const publicConfig = connectionPublicConfig(input, hostingMode);
-      const existing = await tx.enterpriseConnection.findUnique({
-        where: { id: input.id },
-      });
-      if (existing) {
-        if (
-          existing.enrollmentId !== enrollment.id ||
-          existing.chainId !== input.chainId ||
-          canonicalize(existing.publicConfig) !== canonicalize(publicConfig)
-        )
-          throw new ConflictException('Mã kết nối đã dùng cho yêu cầu khác');
-        return connectionView(existing);
-      }
-      if (
-        await tx.enterpriseConnection.findFirst({
-          where: {
-            enrollmentId: enrollment.id,
-            chainId: chain.id,
-            status: { notIn: ['REJECTED', 'FAILED'] },
-          },
-        })
-      )
-        throw new ConflictException(
-          'Chuỗi đã có yêu cầu kết nối đang hoạt động',
-        );
-      return connectionView(
-        await tx.enterpriseConnection.create({
-          data: {
-            id: input.id,
-            enrollmentId: enrollment.id,
-            chainId: chain.id,
-            hostingMode,
-            publicConfig,
-          },
-        }),
-      );
-    });
-  }
   reviewCapability(
     actor: CommandActor,
     requestId: string,
@@ -855,15 +714,6 @@ export class EnterpriseOnboardingService {
   ) {
     return commandTransaction(this.prisma, (tx) => {
       return reviewCapabilityTx(tx, actor, requestId, input);
-    });
-  }
-  reviewConnection(
-    actor: CommandActor,
-    id: string,
-    input: ReviewEnterpriseDto,
-  ) {
-    return commandTransaction(this.prisma, (tx) => {
-      return reviewConnectionTx(tx, actor, id, input);
     });
   }
 }
@@ -958,51 +808,4 @@ export async function reviewCapabilityTx(
   return capabilityRequestView(
     await tx.capabilityRequest.findUniqueOrThrow({ where: { id: requestId } }),
   );
-}
-
-/** Connection review body shared by the direct command and an approved proposal. */
-export async function reviewConnectionTx(
-  tx: Prisma.TransactionClient,
-  actor: CommandActor,
-  id: string,
-  input: ReviewEnterpriseDto,
-) {
-  {
-    {
-      if (actor.role !== 'SYSTEM_ADMIN') throw new ForbiddenException();
-      await lockPlatformAudit(tx);
-      const changed = await tx.enterpriseConnection.updateMany({
-        where: { id, version: input.version, status: 'PENDING_REVIEW' },
-        data: {
-          status: input.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED',
-          reviewedBy: actor.sub,
-          reviewNote: input.note,
-          version: { increment: 1 },
-          updatedAt: new Date(),
-        },
-      });
-      if (changed.count !== 1)
-        throw new ConflictException(
-          'Yêu cầu đã được xử lý; tải lại trạng thái',
-        );
-      const connection = await tx.enterpriseConnection.findUniqueOrThrow({
-        where: { id },
-        include: { enrollment: { select: { organizationId: true } } },
-      });
-      await appendPlatformAudit(tx, {
-        actor: { sub: actor.sub, role: actor.role },
-        action:
-          input.decision === 'APPROVE'
-            ? 'CONNECTION_APPROVED'
-            : 'CONNECTION_REJECTED',
-        subjectType: 'ENTERPRISE_CONNECTION',
-        subjectId: id,
-        organizationId: connection.enrollment.organizationId,
-        reason: input.note,
-        details: { chainId: connection.chainId, version: input.version },
-      });
-      const { enrollment: _enrollment, ...plain } = connection;
-      return connectionView(plain);
-    }
-  }
 }

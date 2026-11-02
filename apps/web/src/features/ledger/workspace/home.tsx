@@ -93,7 +93,7 @@ export default function WorkspaceHome() {
                 <Field label={tr("Địa chỉ")}>{d.profile?.address}</Field>
                 <Field label={tr("Liên hệ")}>{d.profile ? `${d.profile.contactEmail} · ${d.profile.phone}` : "—"}</Field>
                 <Field label={tr("Lưu trữ sổ cái")} mono>
-                  {d.organization.hostingMode ?? "—"}
+                  {tr("AgriTrace quản lý")}
                 </Field>
               </Fields>
             </Section>

@@ -10,7 +10,7 @@ import { PrismaClient } from '../../apps/api/dist/generated/prisma/client.js';
 import { connectGateway, BindingLedgerClient, RegistryOperator, certificateFingerprint } from '../../blockchain/gateway/dist/index.js';
 import { registerBinding, activateBinding } from '../../apps/api/dist/modules/ledger/ledger-bindings.js';
 import { onboardBindingOnLedger, mirrorCredential } from '../../apps/api/dist/modules/ledger/ledger-onboarding.js';
-import { activateSigningKey, registerSigningKeyOnLedger, setHandoverMode as changeMode } from '../../apps/api/dist/modules/ledger/ledger-signing.js';
+import { setHandoverMode as changeMode } from '../../apps/api/dist/modules/ledger/ledger-signing.js';
 
 export async function createBrowserFixture(env, origin, label = 'browser', { waitForWorker = true } = {}) {
   const database = new URL(env.DATABASE_URL);
@@ -79,34 +79,27 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
   };
   const client = async (org, name) => {
     const material = identity(org, name);
-    const connection = await connectGateway({ channelName: 'hybrid-b', chaincodeName: 'agritrace', contractName: 'AgriTraceContract',
-      mspId: org === 'org1' ? 'Org1MSP' : 'Org2MSP', peerEndpoint: `127.0.0.1:${(org === 'org1' ? 7051 : 9051) + offset}`,
+    const connection = await connectGateway({ channelName: 'agritrace', chaincodeName: 'agritrace', contractName: 'AgriTraceContract',
+      mspId: 'AgritraceMSP', peerEndpoint: `127.0.0.1:${7051 + offset}`,
       peerHostAlias: `peer0.${org}.example.com`, tlsCertPath: material.tlsCertPath, identityCertPath: material.certPath, identityKeyDirectory: material.keyDir });
     connections.push(connection);
-    return { reader: new BindingLedgerClient(connection.gateway, { channelName: 'hybrid-b', chaincodeName: 'agritrace', contractName: 'AgriTraceContract' }),
+    return { reader: new BindingLedgerClient(connection.gateway, { channelName: 'agritrace', chaincodeName: 'agritrace', contractName: 'AgriTraceContract' }),
       fingerprint: certificateFingerprint(connection.identityCertificate) };
   };
   const relayer = await client('org1', 'relayer');
   const controller = await client('org1', 'controller');
   const admin1 = await client('org1', 'Admin');
-  const admin2 = await client('org2', 'Admin');
-  const operator = new RegistryOperator(controller.reader, { Org1MSP: admin1.reader, Org2MSP: admin2.reader });
-  const approvers = ['Org1MSP', 'Org2MSP'];
+  const operator = new RegistryOperator(controller.reader, { AgritraceMSP: admin1.reader });
+  const approvers = ['AgritraceMSP'];
   const health = await relayer.reader.health();
   const binding = await db.$transaction(tx => registerBinding(tx, { chainId: chain.id, network: env.AGRI_FABRIC_INSTANCE,
-    channelId: 'hybrid-b', chaincodeName: 'agritrace', contractName: 'AgriTraceContract', writerAuthority: 'agritrace-relayer-b',
-    writerMspId: 'Org1MSP', governanceDigest: health.governanceDigest, profile: 'MANAGED_ORG' }));
-  await onboardBindingOnLedger({ operator, reader: relayer.reader, channelId: 'hybrid-b', approvers,
+    channelId: 'agritrace', chaincodeName: 'agritrace', contractName: 'AgriTraceContract', writerAuthority: 'agritrace-relayer-b',
+    writerMspId: 'AgritraceMSP', governanceDigest: health.governanceDigest, profile: 'SERVICE' }));
+  await onboardBindingOnLedger({ operator, reader: relayer.reader, channelId: 'agritrace', approvers,
     binding: { digest: binding.digest, network: env.AGRI_FABRIC_INSTANCE, chaincodeName: 'agritrace', contractName: 'AgriTraceContract',
-      chainRef: binding.chainRef, writerAuthority: 'agritrace-relayer-b', writerMspId: 'Org1MSP', governanceDigest: health.governanceDigest },
+      chainRef: binding.chainRef, writerAuthority: 'agritrace-relayer-b', writerMspId: 'AgritraceMSP', governanceDigest: health.governanceDigest },
     relayerFingerprint: relayer.fingerprint });
   await db.$transaction(tx => mirrorCredential(tx, binding.digest, relayer.fingerprint));
-  const config = JSON.parse(readFileSync(env.FABRIC_BINDINGS_CONFIG, 'utf8'));
-  const reference = name => ({ certPath: identity('org1', name).certPath, keyDir: identity('org1', name).keyDir });
-  config.bindings.push({ bindingDigest: binding.digest, peerEndpoint: `127.0.0.1:${7051 + offset}`, peerHostAlias: 'peer0.org1.example.com',
-    tlsCertPath: identity('org1', 'relayer').tlsCertPath, mspId: 'Org1MSP',
-    relayer: reference('relayer'), controller: reference('controller'), admin: reference('Admin') });
-  writeFileSync(env.FABRIC_BINDINGS_CONFIG, JSON.stringify(config), { mode: 0o600 });
   await db.$transaction(tx => activateBinding(tx, binding.digest));
   const fixture = { chainId: chain.id, chainName: chain.name, bindingDigest: binding.digest, chainRef: binding.chainRef,
     farmId: farm.id, productId: product.id, users, password };
@@ -174,10 +167,13 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
       await wait(async () => (await db.ledgerPermissionSync.count({ where: { permission: { binding: { digest: binding.digest } }, state: { not: 'ACTIVE' } } })) === 0);
       return result;
     },
-    activateKey: async keyRef => {
+    waitForKey: async keyRef => {
+      await wait(async () => (await db.signingKey.findUniqueOrThrow({ where: { keyRef } })).status === 'ACTIVE');
       const key = await db.signingKey.findUniqueOrThrow({ where: { keyRef } });
-      await registerSigningKeyOnLedger({ operator, reader: relayer.reader, approvers, key });
-      return activateSigningKey(db, keyRef);
+      const registered = await relayer.reader.getRegistrySigningKey(binding.digest, keyRef);
+      assert.equal(registered.status, 'ACTIVE');
+      assert.equal(registered.orgRef, key.organizationId);
+      assert.equal(registered.publicKey, key.publicKey);
     },
     setHandoverMode: mode => changeMode(db, chain.id, mode),
     waitForProofs: () => wait(async () => (await db.blockchainOutbox.count({ where: { status: { not: 'COMPLETED' }, traceEvent: { chainContext: { chainId: chain.id } } } })) === 0),

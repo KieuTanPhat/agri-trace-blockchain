@@ -37,7 +37,6 @@ const labels: Partial<Record<keyof RegistrationDraft, string>> = {
   processingFacilityCode: "Mã cơ sở chế biến",
   dailyCapacityKg: "Công suất (kg/ngày)",
   processingCertifications: "Chứng nhận chế biến",
-  hostingMode: "Mô hình peer quan tâm",
   interests: "Dịch vụ quan tâm",
   planCode: "Gói quan tâm",
   expectedProducts: "Số sản phẩm dự kiến",

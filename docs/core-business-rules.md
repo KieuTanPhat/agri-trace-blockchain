@@ -1,8 +1,8 @@
 # Current business rules and acceptance boundaries
 
-Updated 2026-10-16. Use current source, SQL guards and generated Swagger for the
-implemented API, and current AGT issues for acceptance. The hosted Hybrid release
-is still undergoing validation; the rules below are requirements to preserve.
+Use current source, SQL guards and generated Swagger for the implemented API,
+and current AGT issues for acceptance. These rules preserve implementation
+boundaries; deployment acceptance requires exact-SHA runtime evidence.
 
 - A current authenticated account and session, organization, capability,
   membership, grant and accepted assignment authorize business actions. Check
@@ -71,7 +71,7 @@ is still undergoing validation; the rules below are requirements to preserve.
 
 Release tests must exercise these invariants on the exact candidate, including
 concurrency, restart, restore and direct ledger verification. See
-[the current release gates](plans/hybrid-production-readiness-2026-10-13.md).
+[the current release gates](production-runbook.md#cổng-nghiệm-thu-phát-hành).
 
 ## Enterprise workspace and source-preserving distribution
 
@@ -151,8 +151,7 @@ activation command grants the approved business authority and records
 never the submitted client. Real payment and qualified contract signatures remain
 unimplemented. Existing enrollments retain their previous admission policy. SMTP
 is Worker-only, requires TLS, and never relays reserved test recipients externally.
-A self-managed connection request follows service activation; neither approval,
-simulated settlement nor activation claims Fabric connection success.
+There is no enterprise peer hosting mode or connection request. Chain creation atomically enqueues shared-platform ledger provisioning. Approval, settlement and service activation do not claim ledger readiness: registry, credential and permission confirmation remain mandatory. Enterprises keep independent signing keys; AgritraceMSP operates peers, and OrdererMSP operates ordering on the shared agritrace channel.
 
 The enterprise extension keeps production → harvest → source Lot unchanged.
 New products are organization-owned; legacy shared products remain readable.
@@ -483,7 +482,7 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
 
 ## Mô hình tham gia, nhà chế biến và gói dịch vụ (19/10/2026)
 
-Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-processor-plan-2026-10-19.md).
+Việc còn mở: [backlog](plans/backlog.md).
 
 - Năng lực tổ chức thêm `PROCESSOR`, kèm vai trò chuỗi `PROCESSOR` (migration
   `20261213000005_processor_chain_role`, quyền ledger cho `LOT`) để nhà chế biến
@@ -559,7 +558,7 @@ nghiệm thu Fabric hoặc nguyên liệu có chứng nhận độc lập.
 
 ### Phiếu nhập và vòng đời lệnh (27/10/2026)
 
-Kế hoạch: [processing-receipts-lifecycle](plans/processing-receipts-lifecycle-2026-10-27.md).
+Đối chiếu contract `/api/processing-runs` sinh từ NestJS; việc còn mở ở [backlog](plans/backlog.md).
 Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lệnh lập từ ngày này.
 
 - **Phiếu nhập nguyên liệu** (`material_receipt`, không sửa/xóa):

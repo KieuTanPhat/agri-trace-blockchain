@@ -16,7 +16,6 @@ export function buildLedgerRegistration(draft:RegistrationDraft,registrationId:s
             draft.organizationType as Registration["organizationType"],
           participationModel:
             draft.participationModel as Registration["participationModel"],
-          hostingMode: draft.hostingMode as Registration["hostingMode"],
           emailVerifications: [
             {
               verificationId: ownerProof.verificationId,

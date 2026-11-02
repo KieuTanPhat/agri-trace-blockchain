@@ -208,7 +208,10 @@ function ChainSheet({ id, onClose, names,view }: { id: string | null; onClose: (
   const chain = useQuery({ queryKey: ["chain", id], queryFn: () => chainApi.chain(id!), enabled: !!id });
   const members = useQuery({ queryKey: ["chain-members", id], queryFn: () => chainApi.members(id!), enabled: !!id });
   const profile = useQuery({ queryKey: ["chain-profile", id], queryFn: () => chainApi.profile(id!), enabled: !!id });
-  const ledger = useQuery({ queryKey: ["chain-ledger", id], queryFn: () => chainApi.ledger(id!), enabled: !!id });
+  const ledger = useQuery({
+    queryKey: ["chain-ledger", id], queryFn: () => chainApi.ledger(id!), enabled: !!id,
+    refetchInterval: query => query.state.data && query.state.data.preparationStatus !== "READY" ? 3000 : false,
+  });
   const ctxQ = useQuery({ queryKey: ["chain-context"], queryFn: chainApi.context, enabled: !!id });
   const access=useWorkspaceAccess();
   const useEvidencePermission=access.can("evidence.manage");
@@ -322,6 +325,7 @@ function ChainSheet({ id, onClose, names,view }: { id: string | null; onClose: (
                   <LoadingRows rows={2} />
                 )}
                 {ledger.data && <dl className="grid grid-cols-[minmax(0,170px)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">{[[tr("Quyền đang giữ"),ledger.data.permissions.held],[tr("Lệnh điều khiển chờ"),ledger.data.pendingControlJobs],[tr("Đang thử ghi lại"),ledger.data.delivery.retry],[tr("Cần xử lý ghi sổ"),ledger.data.delivery.deadLetter],[tr("Tuổi yêu cầu chờ (giây)"),ledger.data.delivery.pendingAgeSeconds ?? "—"],[tr("Chờ lâu nhất từ"),ledger.data.delivery.oldestPendingAt?fmtDateTime(ledger.data.delivery.oldestPendingAt):"—"],[tr("Lỗi điều khiển gần nhất"),ledger.data.lastControlFailureAt?fmtDateTime(ledger.data.lastControlFailureAt):"—"],[tr("Hạn chứng thư"),ledger.data.worker.certificateExpiresAt?fmtDateTime(ledger.data.worker.certificateExpiresAt):"—"],[tr("Worker hoạt động lần cuối"),ledger.data.worker.lastHealthyAt?fmtDateTime(ledger.data.worker.lastHealthyAt):"—"]].map(([label,value])=><div key={label} className="contents"><dt className="text-ink-2">{label}</dt><dd className="min-w-0 break-words font-mono text-[12px]">{value}</dd></div>)}</dl>}
+                {ledger.data && <Callout tone={ledger.data.preparationStatus === "NEEDS_ATTENTION" ? "warn" : "info"}>{ledger.data.preparationStatus === "READY" ? tr("Sổ cái của chuỗi đã sẵn sàng. Quyền ghi còn phụ thuộc phân quyền nghiệp vụ.") : ledger.data.preparationStatus === "NEEDS_ATTENTION" ? tr("Chuỗi cần hỗ trợ chuẩn bị sổ cái; hệ thống đang đối soát.") : tr("AgriTrace đang tự động chuẩn bị sổ cái và đồng bộ quyền cho chuỗi.")}</Callout>}
                 {ledger.data && !ledger.data.worker.healthy && <Callout tone="warn">{tr("Chưa xác nhận Worker đang hoạt động bình thường")}</Callout>}
                 {ledger.data?.worker.certificateExpired && <Callout tone="danger">{tr("Chứng thư sổ cái đã hết hạn")}</Callout>}{ledger.data?.worker.heartbeatStale && <Callout tone="warn">{tr("Chưa nhận được heartbeat Worker mới")}</Callout>}{ledger.data?.worker.lastErrorCode && <Callout tone="warn">{ledger.data.worker.lastErrorCode}</Callout>}
                 <p className="text-[11.5px] text-ink-2">{tr("Chỉ đọc; gắn kết sổ cái do nền tảng quản lý.")}</p>

@@ -8,34 +8,35 @@ Không gian doanh nghiệp hiện có đăng ký năm bước, xét duyệt, th�
 vụ/nhật ký/thu hoạch độc lập. Phân phối giữ nguyên lô nguồn, hỗ trợ nhiều dòng,
 nhiều chặng, lượng giao từng phần, ký hai phía và báo cáo đối soát; xem
 [nghiệp vụ](docs/core-business-rules.md#enterprise-workspace-and-source-preserving-distribution)
-và [các route giao diện](docs/frontend.md#không-gian-doanh-nghiệp-và-phân-phối).
+và [các luồng giao diện](docs/frontend.md#các-luồng-chính).
 Luồng phân phối mới chưa mở cho binding bắt buộc signed intent c2; các chuỗi đó
 giữ luồng Shipment đã ký hiện hành cho đến khi có integration/acceptance riêng.
 Kiểm thử local không phải nghiệm thu Fabric hoặc quyền của doanh nghiệp thật.
 
-Bản Hybrid A/B/C thực hiện theo [kế hoạch cài mới production](docs/plans/fresh-install-cleanup-2026-10-13.md).
-Đọc [PROJECT_CONTEXT](docs/PROJECT_CONTEXT.md), [quy tắc nghiệp vụ](docs/core-business-rules.md),
-[ADR-004](docs/adr-004-hybrid-binding-and-signatures.md) và [runbook production](docs/production-runbook.md).
+Scope/binding/chữ ký B/c2 theo [ADR-004](docs/adr-004-hybrid-binding-and-signatures.md);
+nghiệm thu phát hành theo [runbook production](docs/production-runbook.md#cổng-nghiệm-thu-phát-hành).
+Đọc [PROJECT_CONTEXT](docs/PROJECT_CONTEXT.md) để chọn tài liệu theo tác vụ;
+không cần nạp toàn bộ business rules, ADR và runbook cho mọi thay đổi.
 CI/source completion và nghiệm thu runtime là các cổng riêng; kiểm SHA/receipt trong PR và controller state.
 
 ## Cấu trúc
 
-Hybrid A phân quyền theo chuỗi; B pin binding/authority/permission epoch và ledger
-registry; C dùng khóa Ed25519 tổ chức và bàn giao hai bên. Chữ ký độc lập bắt buộc
-ở bàn giao khác tổ chức; care/harvest giữ xác thực hiện hành. Một mạng có channel
-theo nhóm hợp tác. Hosted technical identities không chứng minh quyền của đối tác
-bên ngoài; external partner authority vẫn NotEvaluated, không tuyên bố HA.
+Hệ thống phân quyền theo chuỗi; B pin binding/authority/permission epoch và ledger
+registry; C c2 dùng khóa Ed25519 tổ chức và bàn giao hai bên. Chữ ký độc lập bắt buộc
+ở bàn giao khác tổ chức; care/harvest giữ xác thực hiện hành. Một mạng dùng chung channel `agritrace`: peer/client/admin thuộc `AgritraceMSP`, orderer thuộc `OrdererMSP`. Doanh nghiệp tách bằng organization/chain scope và khóa ký Ed25519 riêng, không có Fabric MSP/peer riêng. Worker tự chuẩn bị binding và đồng bộ quyền cho mọi chuỗi. Một VPS/orderer không chứng minh HA.
 
 ```text
 apps/
   api/                 NestJS API + dedicated blockchain worker entrypoint
   web/                 Next.js PWA
+  mobile/              Expo/React Native consumer và nhân viên
 blockchain/
   chaincode/           Smart contract Hyperledger Fabric
   gateway/             Adapter kết nối Fabric Gateway
   network/             Script dựng mạng Fabric local
 docs/
-  archive/business-specification-v1.2.md
+  PROJECT_CONTEXT.md   Bản đồ đọc và bối cảnh hiện hành
+  plans/backlog.md     Việc/acceptance còn mở, có nguồn lịch sử
   adr-001-modular-monolith-dedicated-worker.md
 ```
 
@@ -59,7 +60,7 @@ rollback tới image verified tương thích migration.
 Mọi sự kiện truy xuất đi qua binding Fabric của chuỗi (bản B, bản C có chữ ký c2).
 Luồng ghi bản A (route chung, envelope 3.0.0) và giao thức chữ ký c1 đã gỡ khỏi
 API, Worker, chaincode và Gateway; migration `20261213000000_retire_release_a_and_c1`
-từ chối database còn dữ liệu A/c1. Xem [kế hoạch gỡ](docs/plans/retire-release-a-and-legacy-2026-10-24.md).
+từ chối database còn dữ liệu A/c1. Xem [protocol hiện hành](docs/adr-004-hybrid-binding-and-signatures.md#phiên-bản-hiện-hành).
 
 Môi trường UAT cũ (schema 2, project `agri-trace-uat`) đã retire: stack, bootstrap và
 mẫu môi trường của nó không còn trong repo. Application CI kiểm ứng dụng bằng
@@ -125,7 +126,7 @@ quả xét duyệt gửi bằng Worker mail; SMTP dùng file private, test dùng
 Chưa tích hợp thu tiền NAPAS/QR hoặc chữ ký số hợp đồng có chứng thư.
 Quản trị xét duyệt tại `/admin/enterprises`. API và Worker mặc định đóng admission
 (`ENTERPRISE_ONBOARDING_ENABLED=false`). Demo cách ly bật `true` ở cả hai process;
-xem [kế hoạch v1](docs/plans/enterprise-onboarding.md) và
+xem [quy tắc đăng ký](docs/core-business-rules.md#enterprise-workspace-and-source-preserving-distribution) và
 [hướng dẫn kết nối](docs/hybrid-fabric-runbook.md#12-đăng-ký-và-kết-nối-doanh-nghiệp-v1).
 Xem [frontend và bố cục mobile](docs/frontend.md) để kiểm tra giao diện.
 
@@ -164,7 +165,7 @@ schema-3 controller, project `agritrace-prod`, PostgreSQL `agri_trace_prod` và 
 hosted mới sau encrypted backup + isolated restore. Dữ liệu trước đó đều là test,
 được giữ trong bản lưu; không backfill account/history/proof/QR vào production mới.
 Ngoại lệ cài lại được chủ dự án chọn ngày 24/10/2026 bỏ dataset cũ không backup,
-gom ba Org về VPS nền tảng và gỡ Fabric cũ trên VPS doanh nghiệp. Operation
+dựng mạng nền tảng hai MSP trên VPS AgriTrace. Source hiện hành yêu cầu cài mới database và Fabric; thay đổi source không xác nhận VPS đã chuyển đổi. Operation
 `reinstall` cần target rỗng và root receipt đúng SHA/manifest/generation; xem
 [quy trình cài lại](docs/production-runbook.md#cài-lại-có-chủ-đích-không-giữ-dữ-liệu-trước-đó).
 
@@ -174,8 +175,7 @@ cycle cần ACTIVE binding; không tạo legacy fallback. Domain/journal/trace/o
 và quyền/version/idempotency vẫn cùng transaction. Admin/Auditor không ghi thay
 business actors.
 
-API không có signing key. Worker nhận technical identity read-only; owner MSP
-chỉ dùng trong one-off operator. Production bootstrap chỉ dùng cấu hình riêng tư. Sau
+API không có signing key. Worker mount technical relayer/controller/registry admin của AgritraceMSP readonly; khóa ký doanh nghiệp ở bên ký. Production bootstrap chỉ dùng cấu hình riêng tư. Sau
 build, operator chạy `node dist/operator/ledger-operator.js`, signer độc lập chạy
 `node dist/operator/org-signer.js`, và restore checker chạy
 `node dist/operator/verify-evidence.js` từ `apps/api`.
@@ -192,7 +192,7 @@ liên tục 24 giờ; sự cố sau bàn giao do chủ dự án vận hành.
 
 ## Seed đầy đủ trên database local hiện tại
 
-Quy trình tại [kế hoạch seed](docs/plans/full-current-database-seed-2026-10-20.md)
+Quy trình dưới đây dùng `scripts/demo/seed-current.ps1`,
 chỉ dành cho stack local `agri-trace-demo-local`, database `agri_trace` cổng 5433.
 Nó **thay toàn bộ dữ liệu** sau backup; không tạo database khác. Các tài khoản,
 khóa ký demo, khóa mã hóa local, checkpoint và backup nằm trong `.codex/`, không
@@ -264,10 +264,10 @@ bằng chứng của đúng SHA. Xem [chính sách CI](docs/ci.md) và
 
 Mạng Fabric local cần thêm Docker; xem script trong `blockchain/network`.
 
-Mô hình dữ liệu core hiện tại tách rõ `ProductionCycle`, `HarvestEvent`, `Lot`
-và `Shipment`. Tài liệu `docs/archive/business-specification-v1.2.md` chỉ còn là baseline
-lịch sử; Prisma schema được đồng bộ với database PostgreSQL `agri_traceDB` tại
-`apps/api/prisma/schema.prisma`.
+Mô hình core là `ProductionCycle → HarvestEvent → Lot → Shipment`; chế biến và
+distribution mở rộng theo [business rules](docs/core-business-rules.md). Đối chiếu
+`apps/api/prisma/schema.prisma`, migration/SQL guards và Swagger sinh từ NestJS.
+Đặc tả Batch/plan đã thay thế được tra qua Git, không dùng làm contract hiện hành.
 
 ## Audit dependency
 

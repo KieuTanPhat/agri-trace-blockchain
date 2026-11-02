@@ -6,13 +6,13 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 
 const hash = (s) => createHash('sha256').update(s).digest('hex');
-test('all 143 canonical URLs have a Ledger wrapper, screen and reconciled action evidence',()=>{
+test('all 141 canonical URLs have a Ledger wrapper, screen and reconciled action evidence',()=>{
   const root=new URL('../../',import.meta.url);
   const read=p=>readFileSync(new URL(p,root),'utf8');
   const inventory=JSON.parse(read('docs/superpowers/specs/2026-10-22-ledger-ui-migration.inventory.json'));
   const matrix=JSON.parse(read('apps/web/ledger-migration.matrix.json'));
-  assert.equal(matrix.routes.length,143);
-  assert.equal(new Set(matrix.routes.map(r=>r.route)).size,143);
+  assert.equal(matrix.routes.length,141);
+  assert.equal(new Set(matrix.routes.map(r=>r.route)).size,141);
   assert.deepEqual(matrix.routes.map(r=>r.route).sort(),inventory.routes.map(r=>r.route).sort());
   for(const row of matrix.routes){
     assert.equal(row.status,'verified',row.route);

@@ -4,7 +4,9 @@ import { randomUUID } from 'node:crypto';
 import {
   RegistryOperator,
   classifyFabricError,
+  type BindingLedgerClient,
 } from '@agri-trace/fabric-gateway';
+import { reconcileSigningKeyForRevocation } from './ledger-signing.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
@@ -147,6 +149,7 @@ export class LedgerControlService {
     operator: RegistryOperator,
     client: {
       getDeliveryFence(chainRef: string, eventId: string): Promise<unknown>;
+      getRegistrySigningKey?: BindingLedgerClient['getRegistrySigningKey'];
     },
   ): Promise<Record<string, unknown> | 'DEFER'> {
     const msp = job.binding.writerMspId;
@@ -178,7 +181,13 @@ export class LedgerControlService {
     }
     if (job.operation === 'SIGNING_KEY_REVOKE') {
       // The DB revoked the key first, so no new intent can use it; this
-      // withdraws it from the ledger registry. Either MSP may revoke.
+      // withdraws it from the ledger registry, even after uncertain registration.
+      if (!client.getRegistrySigningKey) throw new Error('Signing registry reader is required');
+      const key = await this.prisma.signingKey.findUniqueOrThrow({ where: { keyRef: job.signingKeyRef! } });
+      if (key.status !== 'REVOKED' || key.bindingDigest !== job.bindingDigest) throw new Error('Signing key revocation scope mismatch');
+      const alreadyRevoked = await reconcileSigningKeyForRevocation({ operator,
+        reader: { getRegistrySigningKey: client.getRegistrySigningKey.bind(client) }, approvers: [msp], key });
+      if (alreadyRevoked) return { outcome: 'ALREADY_REVOKED' };
       const view = await operator.apply(
         'SIGNING_KEY_REVOKE',
         { bindingDigest: job.bindingDigest, keyRef: job.signingKeyRef! },

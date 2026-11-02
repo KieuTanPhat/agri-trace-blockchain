@@ -217,6 +217,7 @@ export class SupplyChainsService {
       include: { activeBinding: { include: { state: true } } },
     });
     const binding = profile?.activeBinding ?? null;
+    const provisioning = await this.prisma.ledgerProvisioningJob.findUnique({ where: { chainId } });
     const empty = {
       permissions: { active: 0, pending: 0, revoking: 0, held: 0 },
       delivery: {
@@ -232,6 +233,7 @@ export class SupplyChainsService {
       return {
         chainId,
         profile: 'UNBOUND',
+        preparationStatus: provisioning?.lastError ? 'NEEDS_ATTENTION' : 'PREPARING',
         bindingStatus: null,
         channelId: null,
         ...empty,
@@ -306,6 +308,7 @@ export class SupplyChainsService {
     return {
       chainId,
       profile: binding.profile,
+      preparationStatus: binding.state?.status === 'ACTIVE' && !syncs.some(s => s.state !== 'ACTIVE' && s.state !== 'REVOKED') ? 'READY' : 'PREPARING',
       bindingStatus: binding.state?.status ?? null,
       channelId: binding.channelId,
       permissions: {

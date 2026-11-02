@@ -96,15 +96,14 @@ Giá, liên hệ và logo chỉ được chiếu từ bản xuất bản riêng 
 `public_directory_publication`; không đọc ra hồ sơ pháp lý riêng tư. Endpoint
 ảnh kiểm lại khả năng hiển thị công khai và trả JPEG/PNG với `no-store`.
 
-Ledger UI theo snapshot preview đã duyệt trong
-[inventory](superpowers/specs/2026-10-22-ledger-ui-migration.inventory.json).
-[Spec](superpowers/specs/2026-10-22-ledger-ui-migration-design.md) và
-[plan](superpowers/plans/2026-10-22-ledger-ui-migration.md) ghi quyết định và acceptance.
-Baseline nghiệp vụ được pin trong inventory; không dùng presentation của baseline làm mẫu hoặc fallback.
+Ledger UI có [inventory](superpowers/specs/2026-10-22-ledger-ui-migration.inventory.json)
+và `apps/web/ledger-migration.matrix.json` dùng trực tiếp bởi kiểm tra route/provenance.
+Chỉ tra mục route/action hoặc hash bị ảnh hưởng; không nạp toàn bộ inventory vào
+context mặc định. Spec/plan migration cũ có thể tra qua Git và [backlog](plans/backlog.md).
 
 | Vị trí trong `apps/web` | Trách nhiệm |
 | --- | --- |
-| `src/app/**/page.tsx` | Wrapper giữ 143 URL; await params/searchParams qua `resolveLedgerRouteInput` |
+| `src/app/**/page.tsx` | Wrapper cho route hiện hành; await params/searchParams qua `resolveLedgerRouteInput` |
 | `src/features/ledger/screens` | Screen tương ứng từng URL, chọn composition và shell |
 | `src/features/ledger/workspace` | Doanh nghiệp, sản xuất, phân phối và chế biến |
 | `src/features/ledger/public` | Landing, legal, scanner, trace và phản ánh công khai |
@@ -160,11 +159,9 @@ chỉ giữ trong bộ nhớ khi luồng yêu cầu như vậy.
 Mặc định hoãn thanh toán: admin xét từng năng lực rồi kích hoạt dùng tạm; trang
 `/enterprise/service` hiển thị tiến độ, không bắt mua gói hoặc tạo hóa đơn giả.
 Hợp đồng/thanh toán mô phỏng local chỉ mở khi operator bật
-`ENTERPRISE_PAYMENTS_ENABLED=true`. Kết nối peer tại `/enterprise/connections`
-vẫn có điều kiện riêng. Peer tự quản chỉ nhập endpoint/MSP/TLS/chứng thư công khai;
-không nhận khóa riêng/SSH. Duyệt hồ sơ không có nghĩa Fabric đã kiểm chứng.
+`ENTERPRISE_PAYMENTS_ENABLED=true`. Không chọn hosting mode, nhập peer/MSP/CA hoặc gửi yêu cầu kết nối. Chuỗi tự chuẩn bị blockchain sau khi tạo; trang ledger của chuỗi hiển thị tiến độ và lỗi cần hỗ trợ. Duyệt hồ sơ/kích hoạt dịch vụ không đồng nghĩa chuỗi đã sẵn sàng ghi.
 
-Admin giữ hồ sơ/capability/điều chỉnh/kết nối, người dùng/phân công, maker/checker, MFA,
+Admin giữ hồ sơ/capability/điều chỉnh, người dùng/phân công, MFA,
 cases/support/privacy/notices, billing và vận hành. `/admin/products` và trang theo
 organization chỉ đọc. Không cấp Admin/Auditor quyền ghi nghiệp vụ để làm hiện nút.
 Audit CSV, recall JSON và báo cáo giữ projection/limit/quyền baseline; decimal string
@@ -340,3 +337,25 @@ Test `mobile-photo.spec.ts` dùng chính converter của SDK để tái hiện l
 kiểm payload mới, với lớp đọc file native được mock; vẫn cần thử trên điện thoại.
 File-system đã là dependency native của Expo, nay khai báo trực tiếp để import
 rõ ràng. Không đổi key/body hay retry command khi kết quả chưa rõ.
+
+
+## Hợp đồng kiểm tra Ledger
+
+- Giữ route/deep link/query và các action hiện hành, có implementation và test
+  hoặc source-review phù hợp. Inventory/matrix còn baseline 143 URL và đã lệch
+  với route approvals bị gỡ; xem [backlog](plans/backlog.md#metadata-ledger-cần-đối-soát).
+  Không coi số route hoặc HTTP 200 là bằng chứng đầy đủ; không phục hồi route đã
+  retire chỉ để khớp snapshot cũ.
+- UI dùng primitives/tokens/shell Ledger hiện có. Không đưa renderer/CSS/navigation
+  cũ hoặc auth/API/mock của preview vào runtime; nguồn preview chỉ dùng trình bày.
+- Inventory giữ source/provenance hashes mà script/test đang kiểm. Khi thay nguồn
+  UI/asset phải đối chiếu delta và cập nhật bằng chứng thực, không bỏ gate để xanh.
+- Giữ allowedCommands, scope, body/key/signature/recovery, payload validation và
+  quantity/custody. Test hiện có giữ assertion nghiệp vụ; không nới quyền/skip để
+  port giao diện. Pure presentation không cần tạo test trùng implementation.
+- Chọn workflow browser theo rủi ro và layout đại diện: desktop/mobile, sáng/tối,
+  VI/EN, keyboard/focus/Escape/reduced-motion. Không cần tích Descartes mọi tổ hợp.
+- Typed fixture/interception tách khỏi runtime, chặn API ngoài fixture và page errors.
+  Browser fixture không chứng minh API/DB/Fabric hoặc camera/native/SMS thật.
+- Chạy subset test bị ảnh hưởng rồi gate Web/CI phù hợp; chỉ chạy lại sau thay đổi
+  hoặc failure chưa giải quyết. Quyền vận hành/production theo tác vụ và runbook.

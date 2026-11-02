@@ -16,27 +16,13 @@ export const serviceCatalog = (plans: unknown[], version: string) => ({
   sourceDate: '2026-08-07',
   checkedAt: '2026-10-17',
   disclaimer:
-    'Bảng giá AgriTrace tham khảo cấu trúc và mức phí iCheck. Chỉ dùng trải nghiệm local; chưa phải báo giá hay hóa đơn chính thức. Chưa xác định thuế. Phí QR và hạ tầng peer chưa bao gồm.',
+    'Bảng giá AgriTrace tham khảo cấu trúc và mức phí iCheck. Chỉ dùng trải nghiệm local; chưa phải báo giá hay hóa đơn chính thức. Chưa xác định thuế. Hạ tầng blockchain do AgriTrace vận hành; phí QR chưa bao gồm.',
   plans,
   qrReference: [
     { min: 10_000, max: 49_999, unitPrice: 300 },
     { min: 50_000, max: 199_999, unitPrice: 200 },
     { min: 200_000, max: 999_999, unitPrice: 150 },
     { min: 1_000_000, max: null, unitPrice: 90 },
-  ],
-  hosting: [
-    {
-      code: 'MANAGED_ORG',
-      name: 'AgriTrace quản lý peer',
-      description:
-        'AgriTrace vận hành hạ tầng. Doanh nghiệp không nhập endpoint hay khóa riêng. Chi phí hạ tầng cần báo giá riêng.',
-    },
-    {
-      code: 'SELF_MANAGED_ORG',
-      name: 'Doanh nghiệp tự quản lý peer',
-      description:
-        'Doanh nghiệp tự chịu chi phí máy chủ và vận hành. Sau thanh toán mới gửi cấu hình peer để quản trị kiểm chứng.',
-    },
   ],
   simulationEnabled: simulationEnabled(),
 });

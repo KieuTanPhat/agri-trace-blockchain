@@ -3,7 +3,6 @@ import { Transform } from 'class-transformer';
 import {
   Equals,
   IsEmail,
-  IsIn,
   IsInt,
   IsString,
   Matches,
@@ -11,7 +10,6 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { HOSTING_MODES } from './dto.js';
 export class ServiceQuoteInput {
   @ApiProperty({
     pattern: '^[A-Z][A-Z0-9_]{1,29}$',
@@ -19,9 +17,6 @@ export class ServiceQuoteInput {
   })
   @Matches(/^[A-Z][A-Z0-9_]{1,29}$/)
   planCode!: string;
-  @ApiProperty({ enum: HOSTING_MODES })
-  @IsIn(HOSTING_MODES)
-  hostingMode!: (typeof HOSTING_MODES)[number];
   @ApiProperty({ format: 'email', maxLength: 255 })
   @Transform(({ value }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
@@ -80,7 +75,6 @@ export class ServicePaymentInput {
 export class ServiceOrderView {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty() planCode!: string;
-  @ApiProperty() hostingMode!: string;
   @ApiProperty() billingEmail!: string;
   @ApiProperty() billingName!: string;
   @ApiProperty() billingAddress!: string;
@@ -146,8 +140,6 @@ export class ServiceCatalogView {
   >;
   @ApiProperty({ type: Object, additionalProperties: true, isArray: true })
   qrReference!: Array<Record<string, unknown>>;
-  @ApiProperty({ type: Object, additionalProperties: true, isArray: true })
-  hosting!: Array<Record<string, unknown>>;
   @ApiProperty() simulationEnabled!: boolean;
 }
 export class ServicePlanLimitsView {

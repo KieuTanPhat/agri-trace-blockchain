@@ -92,8 +92,8 @@ async function bootstrap(){
    }});
    await tx.organizationCapability.upsert({where:{organizationId_code:{organizationId:org.id,code:org.type}},create:{organizationId:org.id,code:org.type},update:{}});
    await tx.enterpriseEnrollment.create({data:{id:workflowId(`enrollment:${org.key}`,0),organizationId:org.id,ownerId:owner.id,
+    status:'APPROVED',reviewedBy:admin.id,reviewNote:'Synthetic local dataset; not legal review',
     registrationDigest:fingerprint({namespace:UI_WORKFLOW_NAMESPACE,id:org.id}),businessId:`DEMO100-${org.key.toUpperCase()}`,
-    hostingMode:'MANAGED_ORG',status:'APPROVED',reviewedBy:admin.id,reviewNote:'Synthetic local dataset; not legal review',
     serviceActivatedAt:new Date(state.startedAt),serviceActivatedBy:admin.id,serviceActivationReason:'Owner-authorized local UI dataset; temporary access, no payment',
    }});
    await tx.enterpriseProfile.create({data:{organizationId:org.id,legalForm:org.type==='FARM'?'COOPERATIVE':'ENTERPRISE',

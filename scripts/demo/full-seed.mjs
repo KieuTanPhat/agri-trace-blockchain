@@ -393,7 +393,6 @@ const bootstrap = await step("bootstrap", async () => {
             ownerId: owner.id,
             registrationDigest: digest(`demo:${organization.id}`),
             businessId: `AGT-2026-${String(i + 1).padStart(4, "0")}`,
-            hostingMode: i % 2 ? "SELF_MANAGED_ORG" : "MANAGED_ORG",
             status: "APPROVED",
             serviceActivatedAt: now,
             serviceActivatedBy: result.users.admin.id,
@@ -535,7 +534,6 @@ const bootstrap = await step("bootstrap", async () => {
             id: randomUUID(),
             ownerId: owner.id,
             organizationId: org.id,
-            hostingMode: "MANAGED_ORG",
             registrationDigest: digest(org.id),
             businessId: `AGT-${key}`,
             status,
@@ -2107,7 +2105,6 @@ await step("onboarding-profiles", async () => {
           ownerId: user.id,
           registrationDigest: digest(org.id),
           businessId: `AGT-${stage}`,
-          hostingMode: "MANAGED_ORG",
           status: "APPROVED",
           reviewedBy: actors.admin.id,
           reviewNote:
@@ -2141,7 +2138,6 @@ await step("onboarding-profiles", async () => {
           data: {
             enrollmentId: enrollment.id,
             planCode: plan.planCode,
-            hostingMode: "MANAGED_ORG",
             billingEmail: email,
             billingName: org.name,
             billingAddress: "Đức Trọng, Lâm Đồng ",

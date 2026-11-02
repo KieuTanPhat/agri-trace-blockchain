@@ -1,4 +1,4 @@
-# Runbook Hybrid Fabric (bản B và C) — mạng pilot 3 Org local
+# Runbook Fabric nền tảng — hai MSP và channel chung
 
 Tài liệu vận hành cho nền tảng **bản B**: mỗi chuỗi cung ứng có thể gắn với một
 *binding* Fabric riêng (channel, chaincode, writer authority, governance).
@@ -9,30 +9,28 @@ production; authority thật của doanh nghiệp đối tác vẫn là **NotEva
 
 | Thành phần | Vai trò |
 | --- | --- |
-| `blockchain/network/hybrid/hybrid-network.sh` | Dựng/dừng mạng 3 Org bằng `docker run` (không cần compose plugin) |
+| `blockchain/network/hybrid/hybrid-network.sh` | Dựng/dừng mạng hai MSP bằng `docker run` (không cần compose plugin) |
 | `blockchain/chaincode` | Registry binding, governance, `RecordBindingEvent`, quyền theo epoch |
 | `blockchain/gateway` | Client Fabric Gateway (`BindingLedgerClient`, `RegistryOperator`) |
 | `apps/api/src/modules/ledger` | Binding, đồng bộ quyền ledger, delivery theo binding, control worker |
 | `apps/api/scripts/ledger-operator.ts` | CLI vận hành (không phải HTTP) |
 | `GET /api/supply-chains/:chainId/ledger-status` | Trạng thái ledger cho người dùng nghiệp vụ (chỉ đọc) |
 
-Mạng pilot:
+Topology source hiện hành:
 
-| Org | MSP | Vai trò |
-| --- | --- | --- |
-| Org1 | `Org1MSP` | AgriTrace: orderer Raft, peer, relayer/controller/admin kỹ thuật |
-| Org2 | `Org2MSP` | Chủ chuỗi do AgriTrace vận hành hộ (`MANAGED_ORG`) |
-| Org3 | `Org3MSP` | Chủ chuỗi tự quản (`SELF_MANAGED_ORG`): CA, peer, thư mục khóa riêng |
+| MSP | Danh tính và trách nhiệm |
+| --- | --- |
+| `AgritraceMSP` | Peer, technical relayer/controller và registry admin của AgriTrace |
+| `OrdererMSP` | Orderer của AgriTrace |
 
-| Channel | Thành viên | Endorsement |
-| --- | --- | --- |
-| `hybrid-b` | Org1 + Org2 | `AND(Org1 peer, Org2 peer)` |
-| `hybrid-self` | Org1 + Org3 | `AND(Org1 peer, Org3 peer)` |
+Channel `agritrace` dùng endorsement `OR('AgritraceMSP.peer')`. Tất cả doanh nghiệp
+chia sẻ hạ tầng; mỗi chuỗi có `chainRef`, binding `SERVICE`, permission epoch và
+khóa ký doanh nghiệp riêng. Không có peer/MSP riêng cho doanh nghiệp. API kiểm
+quyền read/list/count/export/proof; peer nền tảng giữ toàn bộ metadata công khai
+của channel. Không coi chữ ký peer là chữ ký chấp thuận nghiệp vụ của doanh nghiệp.
 
-Mỗi nhóm cộng tác có channel riêng nên lịch sử không liên quan không bao giờ
-chia sẻ. Mọi chuỗi ghi qua binding của nó; route bản A và giao thức c1 đã gỡ,
-chaincode không còn hàm `RecordTraceEvent`. Khởi tạo channel bắt buộc
-`allowLegacyV3Writes=false` (trường giữ trong định dạng policy đã lưu).
+Topology mới yêu cầu database và mạng mới, không chuyển đổi lịch sử/hash/proof cũ.
+Source không chứng minh đã triển khai hoặc nghiệm thu VPS. Lịch sử thiết kế ở Git.
 
 ## 2. Dựng mạng
 
@@ -55,9 +53,7 @@ bash blockchain/network/hybrid/hybrid-network.sh export   # chỉ tạo material
 
 `export [dir]` ghi vào `blockchain/.fabric/runtime` (đã gitignore) hoặc thư mục chỉ
 định. Acceptance AC-13 tự export vào một thư mục tạm dưới root của instance, kiểm
-đúng danh sách identity được phép và xóa sau khi kiểm; thiếu export là FAIL. Material của
-Org3 **không bao giờ** được export vào API/Worker; harness test chỉ đọc nó để
-đóng vai operator của chủ chuỗi.
+đúng danh sách identity được phép và xóa sau khi kiểm; thiếu export là FAIL. Worker chỉ nhận technical identities của AgritraceMSP; export không chứa CA/orderer private keys hoặc khóa ký nghiệp vụ doanh nghiệp.
 
 Sau khi WSL/Docker khởi động lại (container có `--restart unless-stopped`
 nhưng WSL tự tắt khi idle):
@@ -84,81 +80,78 @@ API vẫn chạy được không có Fabric, nhưng mọi vụ sản xuất mớ
 `simulated-ledger` cho chuỗi chưa có binding, xác nhận quyền đã yêu cầu và từ chối
 database có binding thật; sự kiện đứng `PENDING`. Không bao giờ chạy trên production.
 
-Worker chỉ nối tới binding khi được cấu hình:
-
-| Biến | Ý nghĩa |
-| --- | --- |
-| `FABRIC_BINDINGS_CONFIG` | Đường dẫn file JSON `version: 1` liệt kê kết nối theo `bindingDigest` |
-
-File cấu hình chỉ chứa **chi tiết kết nối** (peer, TLS, đường dẫn cert/khóa
-của relayer/controller/admin). Channel, chaincode, contract, writer MSP lấy từ
-dòng binding bất biến nên file này không thể chuyển hướng sang ledger khác.
-Không đưa khóa riêng, mật khẩu hay token vào tài liệu hay ví dụ.
+Worker dùng `FABRIC_BINDINGS_CONFIG` trỏ tới file operator sở hữu. Cấu hình
+production không chứa private-key bytes; chỉ có đường dẫn identity mount riêng.
+File mẫu sau cần thay network, governance digest và đường dẫn bằng dữ liệu đã review:
 
 ```json
 {
   "version": 1,
-  "bindings": [
-    {
-      "bindingDigest": "<64 hex>",
-      "peerEndpoint": "localhost:7051",
+  "bindings": [],
+  "platform": {
+    "network": "<reviewed-network>",
+    "channelId": "agritrace",
+    "chaincodeName": "agritrace",
+    "contractName": "AgriTraceContract",
+    "writerAuthority": "agritrace-relayer-b",
+    "governanceDigest": "<64 hex from deployed chaincode>",
+    "node": {
+      "peerEndpoint": "peer0.org1.example.com:7051",
       "peerHostAlias": "peer0.org1.example.com",
-      "tlsCertPath": "<path>/org1-peer-ca.crt",
-      "mspId": "Org1MSP",
-      "relayer": { "certPath": "<path>", "keyDir": "<path>" },
-      "controller": { "certPath": "<path>", "keyDir": "<path>" }
+      "tlsCertPath": "/hosted-identities/tls/org1.crt",
+      "mspId": "AgritraceMSP",
+      "relayer": {"certPath": "/hosted-identities/relayer/signcerts/cert.pem", "keyDir": "/hosted-identities/relayer/keystore"},
+      "controller": {"certPath": "/hosted-identities/controller/signcerts/cert.pem", "keyDir": "/hosted-identities/controller/keystore"},
+      "admin": {"certPath": "/hosted-identities/admin/signcerts/cert.pem", "keyDir": "/hosted-identities/admin/keystore"}
     }
-  ]
+  }
 }
 ```
 
-Worker chạy các bước theo thứ tự: writer legacy (nếu bật) → `ledger-control`
-(job quyền) → `binding-delivery` (gửi event) → `enterprise-connections` khi bật
-admission. Mỗi binding có circuit breaker
-riêng: một binding lỗi không chặn binding khác (HYB-AC-10).
+Production provisioner xuất `worker-config/bindings.json` và `worker-identities`
+với ba technical identities trên. Mount config readonly ở `/hosted-config` và
+identity readonly ở `/hosted-identities`. API không được mount các identity này.
+Registry admin là quyền kỹ thuật nhạy cảm, không phải khóa Ed25519 doanh nghiệp.
 
-## 4. Đưa một chuỗi lên binding
+Template chỉ khớp binding có cùng network/channel/chaincode/contract/writer
+MSP/authority/governance; thay cấu hình sang mạng khác không chuyển hướng backlog.
+`bindings` cụ thể vẫn phục vụ harness/operator kiểm chứng, production dùng mảng rỗng
+và template `platform`. Không cần sửa inventory mỗi lần thêm doanh nghiệp hoặc chuỗi.
 
-Do platform operator thực hiện bằng CLI (không qua HTTP, người dùng nghiệp vụ
-không chọn channel/MSP):
+Worker xử lý chuẩn bị nền tảng, ledger control, delivery, handover expiry và mail.
+Lỗi một binding có circuit breaker riêng; sự cố của mạng/channel chung có thể ảnh
+hưởng mọi doanh nghiệp. Không tuyên bố HA từ một peer/orderer trên một VPS.
 
-```bash
-cd apps/api
-npx tsx scripts/ledger-operator.ts register-binding --chain <uuid> --network <name> \
-  --channel hybrid-b --writer-authority agritrace-relayer-b --writer-msp Org1MSP \
-  --governance-digest <sha256> --profile MANAGED_ORG
-npx tsx scripts/ledger-operator.ts onboard --binding <digest> --config operator.json
-npx tsx scripts/ledger-operator.ts activate --binding <digest>
-npx tsx scripts/ledger-operator.ts status --chain <uuid>
-```
+## 4. Tự chuẩn bị binding cho chuỗi
 
-`onboard` thực hiện đề xuất → phê duyệt của **mọi MSP governance yêu cầu** →
-thực thi trên registry, rồi ghi fingerprint chứng thư relayer vào allowlist
-(ledger và DB). Kết quả là một binding `PENDING`; `activate` chỉ thành công
-khi registry trên ledger đã xác nhận. Các lệnh còn lại:
+Kích hoạt doanh nghiệp sản xuất tạo chuỗi riêng như nghiệp vụ hiện hành; chuỗi tạo
+thêm đi qua cùng cơ chế. Trigger sau INSERT chuỗi tạo `ledger_provisioning_job`
+trong chính transaction, rollback chuỗi cũng rollback job. Registration/activation
+không tự xác nhận kết nối Fabric thành công.
 
-| Lệnh | Tác dụng |
-| --- | --- |
-| `pause` / `resume` | Tạm dừng/tiếp tục gửi event của binding |
-| `resolve-hold --hold <uuid> --resolution "<text>"` | Đóng một delivery hold sau khi rà soát |
-| `status [--chain <uuid>]` | Quyền, outbox, hold, control job theo binding |
+Worker claim bằng lease, pin binding trước network traffic và dùng proposal nonce
+ổn định. Nó bootstrap registry channel một lần, đăng ký binding/credential, đọc lại
+credential ACTIVE rồi kích hoạt binding và xếp permission grants. Chỉ quyền đã
+confirmed trên ledger mới mở ghi nghiệp vụ. Retry/restart giữ binding/proposal cũ;
+không dùng idempotency key mới để né kết quả chưa rõ. Job hoàn tất bất biến.
 
-### Chuỗi riêng của doanh nghiệp
+Trang ledger của chuỗi hiển thị `PREPARING`, `READY` hoặc `NEEDS_ATTENTION`.
+READY không thay thế kiểm capability/membership/assignment và allowedCommands.
+Không còn form nhập peer/MSP/CA, yêu cầu kết nối hoặc duyệt peer từ phía doanh nghiệp.
 
-Từ 26/10/2026, kích hoạt doanh nghiệp sản xuất tạo sẵn một chuỗi riêng
-(`supply_chain.personal = true`). API không đăng ký binding cho chuỗi này: mỗi
-chuỗi riêng mới vẫn đi qua `register-binding` → `onboard` → `activate` như trên.
-Khi binding `ACTIVE`, các grant đã ghi lúc kích hoạt được xếp hàng xác nhận quyền.
-Môi trường local dùng `ledger-simulator` tự gắn binding giả lập trong vài giây.
-
-Bổ sung chuỗi riêng cho các doanh nghiệp đã kích hoạt trước đó (idempotent; chạy
-`--dry-run` trước để xem danh sách tổ chức):
+Operator có thể đọc trạng thái và xử lý hold bằng CLI hiện có:
 
 ```bash
 cd apps/api
-node dist/operator/personal-chains.js --dry-run
-node dist/operator/personal-chains.js
+node dist/operator/ledger-operator.js status --chain <uuid>
+node dist/operator/ledger-operator.js pause --binding <digest>
+node dist/operator/ledger-operator.js resume --binding <digest>
+node dist/operator/ledger-operator.js resolve-hold --hold <uuid> --resolution "<reviewed reason>"
 ```
+
+Register/onboard/activate là công cụ phục hồi kỹ thuật, không phải bước đăng ký
+thường xuyên. Target phải là `agritrace`/`AgritraceMSP` và profile `SERVICE`.
+Không đổi binding đã ghim, sửa hash/proof hoặc xóa attempt để vượt lỗi.
 
 ## 5. Vòng đời quyền ledger
 
@@ -195,11 +188,11 @@ EMERGENCY_HOLD → PENDING_EMERGENCY_REVOKE → REVOKED_REVIEW_REQUIRED
 npm test --workspace blockchain/chaincode
 npm test --workspace blockchain/gateway
 
-# Nghiệm thu mức ledger trên Fabric thật (30 kiểm tra, gồm 9 kiểm tra chữ ký bản C)
+# Nghiệm thu mức ledger trên Fabric thật; số case theo harness hiện hành
 FABRIC_ROOT='\\wsl.localhost\Ubuntu\home\<user>\agritrace-fabric' \
   npx tsx blockchain/network/hybrid/acceptance/ledger-acceptance.mts
 
-# API → Worker → Fabric thật (11 kịch bản, gồm 2 kịch bản bản C)
+# API → Worker → Fabric thật
 cd apps/api
 HYBRID_FABRIC_E2E=1 TEST_DATABASE_URL=<db test đã migrate> \
   npx vitest run --config vitest.config.e2e.ts test/hybrid-fabric.e2e-spec.ts
@@ -222,7 +215,7 @@ chất lượng hàng.
 | --- | --- | --- |
 | Tạo khóa | Tổ chức (ORG_ADMIN) | Web: panel "Khóa ký của tổ chức" tạo khóa **không trích xuất** trong trình duyệt; hoặc `scripts/org-signer.ts keygen` cho dịch vụ ký ngoài |
 | Đăng ký | ORG_ADMIN | `POST /api/supply-chains/:chainId/signing-keys` với `keyRef`, khóa công khai và **bằng chứng sở hữu** (khóa ký lên binding + keyRef + org). Khóa ở trạng thái `PENDING_LEDGER`, chưa dùng được |
-| Kích hoạt trên ledger | Vận hành viên | `ledger-operator.ts register-signing-key --key <keyRef> --config operator.json`: đề xuất, **admin của writer MSP và owner MSP cùng duyệt**, thực thi, đọc lại ledger rồi mới đặt `ACTIVE` trong DB |
+| Kích hoạt trên ledger | Worker | Tự đề xuất, registry admin `AgritraceMSP` duyệt, thực thi và đọc lại public key/orgRef/status trước khi đặt `ACTIVE` trong DB. Bằng chứng sở hữu khóa doanh nghiệp vẫn bắt buộc |
 | Thu hồi | ORG_ADMIN | `POST .../signing-keys/:keyRef/revoke`. DB thu hồi **ngay** (không chuẩn bị/ký thêm được); Worker tạo job `SIGNING_KEY_REVOKE` để rút khỏi registry ledger |
 | Xoay khóa | ORG_ADMIN | Đăng ký khóa mới (`keyRef` mới) rồi thu hồi khóa cũ. Khóa đã thu hồi không bao giờ kích hoạt lại |
 
@@ -233,7 +226,7 @@ hoạt động, request chuẩn bị ký phải chọn `keyRef`.
 
 ```bash
 cd apps/api
-npx tsx scripts/ledger-operator.ts set-handover-mode --chain <uuid> --mode DUAL_SIGNED
+node dist/operator/ledger-operator.js set-handover-mode --chain <uuid> --mode DUAL_SIGNED
 ```
 
 - Chỉ đổi được khi chuỗi có binding hoạt động, có ít nhất một khóa `ACTIVE`, và
@@ -277,9 +270,9 @@ Quy tắc:
 - **Dịch vụ ký ngoài** (mẫu): `apps/api/scripts/org-signer.ts`
 
 ```bash
-npx tsx scripts/org-signer.ts keygen --out org-key.pem
-npx tsx scripts/org-signer.ts register --key org-key.pem --binding <digest> --org <orgId> --label "Dịch vụ ký"
-npx tsx scripts/org-signer.ts sign --key org-key.pem --intent intent.json   # in ra {"signature": "..."}
+node dist/operator/org-signer.js keygen --out org-key.pem
+node dist/operator/org-signer.js register --key org-key.pem --binding <digest> --org <orgId> --label "Dịch vụ ký"
+node dist/operator/org-signer.js sign --key org-key.pem --intent intent.json   # in ra {"signature": "..."}
 ```
 
 `sign` cũng tính lại mọi digest và từ chối nếu không khớp hoặc đã hết hạn.
@@ -314,7 +307,7 @@ npx tsx scripts/org-signer.ts sign --key org-key.pem --intent intent.json   # in
 # Ledger pilot (dừng ngắn peer/orderer để chép nhất quán; archive chứa khóa CA, giữ riêng tư)
 bash blockchain/network/hybrid/hybrid-network.sh backup ~/agritrace-backup
 # Khôi phục (hoặc chuyển sang host khác với cùng MSP/TLS) một peer, rồi chờ bắt kịp
-bash blockchain/network/hybrid/hybrid-network.sh restore-peer org2 ~/agritrace-backup
+bash blockchain/network/hybrid/hybrid-network.sh restore-peer org1 ~/agritrace-backup
 
 # CSDL: sao lưu, khôi phục vào DB riêng, kiểm toàn bộ bằng chứng từ DB đã khôi phục
 pg_dump --format=custom --file restore.dump "$DATABASE_URL"
@@ -323,13 +316,10 @@ cd apps/api && DATABASE_URL=<restore_check> npx tsx scripts/verify-evidence.ts  
 ```
 
 `verify-evidence.ts` kiểm route đã ghim, proof lưu, hash riêng tư theo phiên bản
-(A/B/C, gồm chữ ký tổ chức) và bằng chứng cảm biến — chỉ đọc DB. Material của
-Org3 (tự quản) do chủ của nó sao lưu; archive của AgriTrace không bao giờ có nó.
+(B/c2, gồm chữ ký tổ chức) và bằng chứng cảm biến — chỉ đọc DB. Backup vận hành chứa CA/MSP/ledger của nền tảng và phải giữ riêng tư; khóa Ed25519 doanh nghiệp được bên ký bảo vệ riêng.
 
-Đã diễn tập ngày 13/10/2026: khôi phục peer Org2 từ bản sao ở khối 632 trong khi
-ledger đã tới 725, peer bắt kịp 725 và nghiệm thu ledger 30/30 sau đó (owner
-endorse đúng); khôi phục DB sang DB riêng cho cùng số bản ghi (31 sự kiện, 30
-proof, 5 chữ ký, 3 bàn giao, 17 migration) và `verify-evidence` 31/31.
+Kết quả diễn tập từng lần tra ở PR/Issue hoặc artifact gắn SHA; không dùng số
+block/test của một lượt pilot cũ làm nghiệm thu restore candidate hiện tại.
 
 ## 10. Lưu ý vận hành
 
@@ -347,13 +337,11 @@ proof, 5 chữ ký, 3 bàn giao, 17 migration) và `verify-evidence` 31/31.
 
 ## 11. Giới hạn đã biết
 
-- Org tự quản chạy cùng máy chỉ chứng minh **cách ly logic**; peer ở host khác
-  và doanh nghiệp giữ khóa thật là **NotEvaluated**. Khóa ký trong pilot do test
-  sinh trên cùng máy, chưa phải khóa của doanh nghiệp thật.
+- AgriTrace giữ mọi quyền vận hành Fabric. Không có xác nhận độc lập từ peer doanh nghiệp; chữ ký nghiệp vụ chỉ độc lập khi doanh nghiệp tự kiểm soát khóa. Pilot dùng khóa thử nghiệm không chứng minh việc giữ khóa của đối tác thật.
 - AgriTrace vẫn vận hành ordering service (một orderer Raft) trong pilot; chưa
   kiểm availability khi mất orderer.
-- Binding không có `channelPolicy` giữ hành vi channel kiểu legacy (ghi nhận
-  là lệch có chủ đích khỏi mô hình strict; channel strict chặn writer V3).
+- Channel ghi B/c2 cần policy strict đã bootstrap; không dùng thiếu policy hoặc
+  writer V3 làm đường tương thích. A/c1 đã gỡ cả đọc và ghi.
 - Chưa có: ủy quyền ký qua dịch vụ AgriTrace, bằng chứng thời điểm ký độc lập
   (timestamp authority), chữ ký cho các sự kiện ngoài bàn giao (care, thu hoạch…),
   cảnh báo/health tự động cho dead letter (hiện chỉ hiện ở panel Ledger và CLI `status`).
@@ -362,180 +350,29 @@ proof, 5 chữ ký, 3 bàn giao, 17 migration) và `verify-evidence` 31/31.
   (`HANDOVER_EXPIRY_ENABLED`, mặc định bật; đặt `false` để tắt;
   `HANDOVER_EXPIRY_BATCH_SIZE`, mặc định 100). Bước này chạy cả khi Fabric tắt.
 
-## 12. Đăng ký và kết nối doanh nghiệp v1
+## 12. Đăng ký doanh nghiệp và chuẩn bị dịch vụ
 
-Đây là ứng viên demo có bước vận hành, chưa phải provisioning đa tổ chức tự động
-hoặc nghiệm thu VPS thật. Mặc định API/Worker đóng admission. Chỉ bật
-`ENTERPRISE_ONBOARDING_ENABLED=true` trên stack cách ly đã migrate khi thử.
-Production cần review migration/lifecycle, backup/restore và nghiệm thu riêng;
-không chạy `up`, `deploy`, `down` của pilot vào stack production.
-Chủ dự án đã cho phép dùng production và VPS doanh nghiệp để nghiệm thu; đọc
-[quy trình production hai máy](production-runbook.md#nghiệm-thu-peer-doanh-nghiệp-trên-vps-thứ-hai).
-Các lệnh pilot ở dưới chỉ dành cho demo cách ly, không thay quy trình đó.
+`ENTERPRISE_ONBOARDING_ENABLED` đóng/mở admission, không chứng minh ledger đã sẵn
+sàng. Đăng ký năm bước và OTP tạo account, organization, capability requests và
+receipt atomically; chưa cấp quyền nghiệp vụ. Admin xét hồ sơ và từng capability,
+rồi kích hoạt dịch vụ bằng command riêng. Khi hoãn thu tiền, không tạo paid order,
+invoice hoặc subscription giả. Thanh toán mô phỏng chỉ mở khi operator bật các
+flag hiện hành và không phải thu tiền thật.
 
-Doanh nghiệp mở `/register`, hoàn thiện hồ sơ và xác thực OTP email trước khi
-gửi. Đăng ký tạo account, tổ chức và receipt atomically, chưa cấp quyền nghiệp
-vụ. Đại diện theo dõi ở `/enterprise/onboarding`; SYSTEM_ADMIN xét duyệt ở
-`/admin/enterprises`. Hồ sơ mới được duyệt nhận email để chọn gói/mô hình peer,
-xem hợp đồng và hoàn tất thanh toán mô phỏng local ở `/enterprise/service`.
-Settlement cấp capability hoạt động, ORG_ADMIN và CREATE_CHAIN trong cùng
-transaction với journal/email outbox; hồ sơ lịch sử giữ chính sách cũ. Chưa có
-cổng thanh toán thật hoặc nghiệm thu hợp đồng thương mại. Các write vẫn cần
-quyền đúng scope. Đại diện tạo chuỗi rồi gửi yêu cầu tại `/enterprise/connections`.
-Chế độ managed không nhận
-cấu hình peer từ doanh nghiệp. Chế độ self chỉ nhận endpoint, tên TLS, MSP và CA
-công khai. Không gửi SSH credentials, CA/admin/signing private key lên web.
+Không có lựa chọn managed/self-managed. AgriTrace vận hành toàn bộ Fabric; doanh
+nghiệp tự giữ khóa ký nghiệp vụ. Quyền sở hữu chuỗi trong ứng dụng vẫn độc lập với
+MSP của hạ tầng. Một trăm chủ chuỗi không cần một trăm Fabric MSP.
 
-Duyệt yêu cầu kết nối chỉ đưa vào hàng chờ. Operator chuẩn bị binding, lifecycle,
-credential và permission như phần 4; đăng ký từ web không tự sửa channel trust.
-Pilot pin Org1/2/3 và hai channel: **mỗi cặp network/MSP chỉ thuộc một doanh
-nghiệp**, kể cả khi có nhiều chuỗi. Thêm doanh nghiệp cần network độc lập hoặc
-quy trình mở rộng governance/channel được review. Không gán chung Org3MSP của
-cùng mạng cho nhiều doanh nghiệp để vượt giới hạn.
+Browser harness kiểm hai doanh nghiệp, chuỗi riêng lúc activation và chuỗi tạo
+thêm đều được Worker chuẩn bị tự động, không sửa inventory thủ công:
+`node scripts/ci/hybrid-browser.mjs --enterprise-only`. Kết quả cần evidence đúng
+SHA trên môi trường cách ly; source/fixture không thay nghiệm thu Fabric thật.
 
-Worker đọc hai inventory ngoài Git, chỉ mount readonly vào Worker:
-
-- `FABRIC_BINDINGS_CONFIG`: kết nối writer như phần 3, có relayer/controller và
-  admin của platform. Có thể thay file atomically để thêm binding khi đang chạy.
-- `ENTERPRISE_CONNECTIONS_CONFIG`: danh sách đích đã được vận hành xác minh.
-  API không đọc file này và không dial địa chỉ browser nhập.
-
-Ví dụ inventory kết nối (UUID/digest/path phải thay bằng giá trị đã review):
-
-```json
-{
-  "version": 1,
-  "targets": [{
-    "connectionId": "<UUID yêu cầu đã duyệt>",
-    "organizationId": "<UUID doanh nghiệp>",
-    "chainId": "<UUID chuỗi>",
-    "bindingDigest": "<64 hex>",
-    "ownerMspId": "Org3MSP",
-    "peerEndpoint": "<VPN IP hoặc DNS>:11051",
-    "peerHostAlias": "peer0.org3.example.com",
-    "tlsCertPath": "/private/operator/public/enterprise-peer-ca.crt"
-  }]
-}
-```
-
-Worker kiểm đúng doanh nghiệp, owner chuỗi, profile, active binding và CA/endpoint
-đã duyệt trước khi nối. Probe dùng writer technical identity, yêu cầu endorsement
-của writer và owner; lưu txId trước traffic, đọc proof từ cả hai peer và kiểm
-validation code VALID. Khi đó UI mới báo CONNECTED kèm thời điểm kiểm tra.
-Không có probe hợp lệ thì health OK hoặc admin bấm duyệt đều không đủ.
-UNKNOWN chỉ đọc đối soát txId/challenge cũ; không tự đổi key để gửi lại. FAILED
-trước broadcast hoặc INVALID cho phép tạo yêu cầu mới sau xử lý. Inventory ghi
-sai scope/MSP không được phép trỏ sang một doanh nghiệp khác.
-
-### Demo peer tự quản trên máy doanh nghiệp
-
-Cần Linux, Docker Engine, Node/npm theo README, `fabric-ca-client`, `peer` và `configtxlator` đúng
-phiên bản pilot. Không cần Docker Compose. Hai host cần tuyến VPN/private IP hai
-chiều; chỉ mở peer/orderer trên tuyến đã review. Tên TLS/discovery của platform
-phải phân giải về platform trên máy và container doanh nghiệp. Đánh giá dung
-lượng, port đang dùng và quota trước khi khởi động. Giới hạn container peer
-512 MiB, chaincode 256 MiB, CA 256 MiB là quota demo, chưa phải cấu hình VPS tối
-thiểu đã được đo.
-
-1. Doanh nghiệp sao chép `blockchain/network/enterprise/spec.example.json` ra
-   thư mục riêng, thay instance, VPN host, chaincode version/image digest,
-   orderer và host aliases. Giữ Org3MSP/domain/channel theo governance pilot.
-   Private root phải là thư mục mới; script từ chối ghi đè identity/tài nguyên
-   Docker không thuộc installation đó. Khởi tạo CA local, cấp admin có
-   `app.role=admin`, peer identity và TLS; private key ở nguyên máy doanh nghiệp:
-
-   ```bash
-   node blockchain/network/enterprise/peer.mjs init spec.json /srv/agritrace/demo-owner
-   ```
-
-2. Chỉ chuyển `public/msp` và `public/connection.json` cho operator. Doanh nghiệp
-   nhập nội dung connection công khai lên web. Platform nhận public MSP ở một
-   thư mục riêng rồi đặt biến cho **mạng demo mới**, port offset 0:
-
-   ```bash
-   export AGRI_FABRIC_ROOT=/srv/agritrace/demo-platform
-   export AGRI_FABRIC_INSTANCE=agri-enterprise-platform-demo
-   export AGRI_FABRIC_BIND_ADDRESS=<platform-VPN-IP>
-   export AGRI_FABRIC_PORT_OFFSET=0
-   export AGRI_SELF_PUBLIC_MSP=/private/operator/public/owner-msp
-   export AGRI_SELF_PEER_ENDPOINT=<enterprise-VPN-IP>:11051
-   # Chuẩn bị fabric-samples/bin và config theo mục 2 trước khi chạy.
-   bash blockchain/network/hybrid/hybrid-network.sh up
-   bash blockchain/network/hybrid/hybrid-network.sh deploy
-   ```
-
-   Chế độ này không tạo CA/admin/peer Org3 ở platform. `deploy` dừng sau bước
-   platform approve và xuất `remote-bundle` chỉ có channel block, CaaS package,
-   orderer TLS CA và chaincode image. Kiểm image ID được in ra, chuyển bundle
-   cho doanh nghiệp; bản spec phải pin chính image ID/digest đó trước `init`.
-   Image có thể build/pin trước `up`, hoặc dùng image đã review trên registry.
-
-3. Doanh nghiệp kiểm nội dung/digest, đặt ba file công khai vào `private-root/public`,
-   `docker image load -i chaincode-image.tar` nếu dùng image local, rồi tự chạy:
-
-   ```bash
-   node blockchain/network/enterprise/peer.mjs start spec.json /srv/agritrace/demo-owner
-   node blockchain/network/enterprise/peer.mjs join spec.json /srv/agritrace/demo-owner
-   node blockchain/network/enterprise/peer.mjs install spec.json /srv/agritrace/demo-owner
-   node blockchain/network/enterprise/peer.mjs approve spec.json /srv/agritrace/demo-owner
-   ```
-
-   Platform chạy `hybrid-network.sh commit-remote`. Mỗi bên dùng admin ở host của
-   mình. `join` giữ hash block gốc; `install` giữ package ID. Chạy lại `approve`
-   chỉ thành công khi đọc `queryapproved`/`querycommitted`, đối chiếu đúng version,
-   sequence, plugin, policy AND hai peer và package đã được duyệt. Retry definition
-   đã commit không dùng `checkcommitreadiness` dành cho sequence kế tiếp;
-   lỗi không rõ kết quả không được xử lý bằng đổi spec hoặc tạo identity mới.
-   Không chuyển thư mục `ca`, `crypto`, credentials hoặc keystore sang bên kia.
-   Script không tự xóa dữ liệu khi lỗi. Backup/restore của split-host cần procedure
-   riêng cho mỗi bên; lệnh backup/restore local pilot sẽ từ chối chế độ này.
-
-4. Sau lifecycle, platform dùng CLI `register-binding`, rồi `onboard` với
-   `--external-owner true`. File operator chỉ khai admin Org1, không chứa admin
-   Org3. CLI trả exit code 2 và JSON `AWAITING_OWNER_APPROVAL` khi cần chủ mạng
-   duyệt. Chuyển nguyên JSON công khai thành `review.json` cho doanh nghiệp.
-   Sau `npm ci` và build gateway, doanh nghiệp kiểm đề xuất đang nằm trên ledger,
-   đối chiếu nội dung rồi duyệt SHA-256 đã kiểm tại host mình:
-
-   ```bash
-   node blockchain/network/enterprise/approve-registry.mjs inspect spec.json /srv/agritrace/demo-owner review.json
-   node blockchain/network/enterprise/approve-registry.mjs approve spec.json /srv/agritrace/demo-owner review.json <reviewed-sha256>
-   ```
-
-   Platform chạy lại cùng lệnh `onboard`; nonce ổn định giữ nguyên proposal. Lặp
-   cho channel bootstrap, binding và writer credential, rồi `activate`. Đăng ký
-   organization signing key cũng hỗ trợ `register-signing-key --external-owner true`;
-   không bật DUAL_SIGNED trước khi registry key thật sự ACTIVE. CLI trên máy
-   doanh nghiệp không dùng database URL của platform.
-
-5. Cấu hình inventory cho Worker, bật feature trên API/Worker, quan sát
-   `/enterprise`, đối chiếu txId/VALID trên hai peer. Nghiệm thu thêm outage,
-   restart, lost-response và tài nguyên tại tải demo trước khi kết luận về VPS.
-   Kiểm thử Docker cùng máy không thay thế mục nghiệm thu qua hai VPS thật.
-
-`npm run test:hybrid:browser` kiểm thêm luồng Web đăng ký → duyệt doanh nghiệp →
-tạo chuỗi → yêu cầu peer → duyệt → Worker probe trên Fabric thật, cho cả managed
-và self-managed, tại chiều rộng desktop/mobile. Đăng ký mất phản hồi phải retry
-đúng nội dung/UUID, không lưu mật khẩu vào browser storage; admin duyệt chưa đủ
-để báo CONNECTED. Có thể kiểm riêng luồng này bằng
-`node scripts/ci/hybrid-browser.mjs --enterprise-only`; receipt ghi suite riêng,
-không thay acceptance bàn giao hoặc nghiệm thu hai VPS.
-
-CI chạy `node scripts/ci/enterprise-peer.mjs` sau `hybrid-fabric.mjs` (hoặc
-`npm run test:enterprise:peer` khi đã có image/tooling của cùng SHA). Bài kiểm tra
-dùng hai Docker network, relay chỉ bind trên Docker host bridge và các root,
-CA, identity, volume riêng; platform không tạo private Org3 material. Nó thử
-join/install/approve lặp lại, doanh nghiệp inspect/approve registry tại root
-của mình, rồi kiểm probe VALID và cùng proof trên hai peer.
-Test dừng peer/chaincode doanh nghiệp, xác nhận thiếu owner thì không endorse
-được, rồi dùng lại installation để khởi động/join/install/approve; identity và
-proof/txId cũ phải giữ nguyên. Đây là kiểm restart cùng host, chưa phải khôi phục
-từ backup hoặc nghiệm thu sự cố mạng giữa hai VPS. Receipt chỉ chứa
-SHA, txId, quota và snapshot tài nguyên; không có khóa riêng. Đây vẫn là kiểm
-tra cùng host, không đóng acceptance TLS/WAN hoặc cấu hình VPS tối thiểu.
-
-Tài liệu Fabric gốc: [Fabric CA identity attributes](https://hyperledger-fabric-ca.readthedocs.io/en/latest/users-guide.html#attribute-based-access-control)
-và [chaincode as an external service](https://hyperledger-fabric.readthedocs.io/en/release-2.5/cc_service.html).
+Chạy riêng giao nhận ký và command recovery trên desktop/mobile viewport bằng
+`node scripts/ci/hybrid-browser.mjs --handover-only`. Không truyền cờ để chạy cả
+hai nhóm. Khóa ký được Worker tự đồng bộ rồi kiểm tra lại trên registry; fixture
+không kích hoạt khóa thay Worker. Kiểm offer hết hạn chờ đủ 15 phút thật, không
+đổi timestamp trong database. Viewport mobile không thay kiểm tra thiết bị thật.
 
 ## Hạn chứng thư và rủi ro thu hồi nhầm (chỉ đọc trên bảng vận hành)
 

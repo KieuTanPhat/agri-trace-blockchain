@@ -89,7 +89,7 @@ export class FakeStub {
 
 export class FakeClientIdentity {
   public relayer = true;
-  public mspId = "Org1MSP";
+  public mspId = "AgritraceMSP";
   public id = "x509::CN=agri-relayer::CN=ca.org1.example.com";
   /** Extra enrollment attributes; `app.role` falls back to `relayer`. */
   public attributes: Record<string, string> = {};

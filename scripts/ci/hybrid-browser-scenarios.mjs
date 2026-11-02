@@ -79,6 +79,9 @@ function signingReview(page, title) {
 }
 
 async function signOut(page) {
+  // The switched account may have no access to the current business route.
+  // Its account page remains available without granting any business permission.
+  await page.goto(new URL('/account/password', page.url()).href, { waitUntil: 'domcontentloaded' });
   await page.getByRole("button", { name: "Tài khoản", exact: true }).filter({ visible: true }).first().click();
   await page.getByRole("menuitem", { name: "Đăng xuất", exact: true }).click();
   // Signing out asks once in the shared confirmation dialog.
@@ -389,7 +392,7 @@ async function enrollKey(options, session, party, label, loseResponse = false) {
     { present: true, extractable: false, algorithm: "Ed25519" },
     "Browser stores a non-extractable device key",
   );
-  await options.activateKey(keyRef);
+  await options.waitForKey(keyRef);
   await until(
     async () =>
       (await options.db.signingKey.findUnique({ where: { keyRef } }))

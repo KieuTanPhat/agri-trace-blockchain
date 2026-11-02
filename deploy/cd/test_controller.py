@@ -112,31 +112,30 @@ class DomainDelivery(unittest.TestCase):
         self.controller.verify(self.record, SHA_B)
         self.controller.verify_hosted.assert_called_with(self.record, True)
 
-    def test_enterprise_inventory_is_private_and_admission_agrees_between_api_and_worker(self):
+    def test_platform_configuration_is_private_and_admission_agrees(self):
         directory = self.base / 'shared/worker'
-        inventory = directory / 'enterprise-connections.json'
         directory.mkdir(parents=True)
-        (directory / 'bindings.json').write_text('{}')
-        inventory.write_text('{"version":1,"targets":[]}')
-        inventory.chmod(0o600)
+        file = directory / 'bindings.json'
+        document = {'version': 1, 'bindings': [], 'platform': {
+            'network': self.controller.fabric['network'], 'channelId': 'agritrace',
+            'governanceDigest': self.controller.fabric.get('governance_digest'), 'node': {'mspId': 'AgritraceMSP'}}}
+        file.write_text(json.dumps(document))
+        directory.chmod(0o700); file.chmod(0o600)
         self.controller.environment['HOSTED_WORKER_CONFIG_HOST'] = str(directory)
-        self.controller.environment['FABRIC_BINDINGS_CONFIG_HOST'] = str(directory / 'bindings.json')
-        self.controller.environment['ENTERPRISE_CONNECTIONS_CONFIG_HOST'] = str(inventory)
+        self.controller.environment['FABRIC_BINDINGS_CONFIG_HOST'] = str(file)
         api = {'ENTERPRISE_ONBOARDING_ENABLED': 'false'}
-        worker = {'environment': {'ENTERPRISE_ONBOARDING_ENABLED': 'false',
-                                 'ENTERPRISE_CONNECTIONS_CONFIG': '/hosted-config/enterprise-connections.json'}}
+        worker = {'environment': {'ENTERPRISE_ONBOARDING_ENABLED': 'false'}}
         self.controller.enterprise_admission_preflight(api, worker)
         worker['environment']['ENTERPRISE_ONBOARDING_ENABLED'] = 'true'
         with self.assertRaisesRegex(PolicyError, 'API/Worker enterprise admission'):
             self.controller.enterprise_admission_preflight(api, worker)
         worker['environment']['ENTERPRISE_ONBOARDING_ENABLED'] = 'false'
-        self.controller.environment['HOSTED_WORKER_CONFIG_HOST'] = str(self.base / 'outside')
-        with self.assertRaisesRegex(PolicyError, 'private production'):
+        file.write_text(json.dumps(dict(document, platform=dict(document['platform'], channelId='wrong'))))
+        with self.assertRaisesRegex(PolicyError, 'shared target'):
             self.controller.enterprise_admission_preflight(api, worker)
-        self.controller.environment['HOSTED_WORKER_CONFIG_HOST'] = str(directory)
-        self.controller.environment['ENTERPRISE_CONNECTIONS_CONFIG_HOST'] = str(inventory)
-        inventory.chmod(0o666)
-        with self.assertRaisesRegex(PolicyError, 'writable'):
+        file.write_text(json.dumps(document))
+        (directory / 'unreviewed.json').write_text('{}')
+        with self.assertRaisesRegex(PolicyError, 'only bindings.json'):
             self.controller.enterprise_admission_preflight(api, worker)
 
     def test_resume_fabric_waits_for_both_peers_before_reconcile(self):
@@ -179,42 +178,6 @@ class DomainDelivery(unittest.TestCase):
         self.controller.resume_fabric.assert_called_once()
         self.assertEqual(self.controller.phase, "ledger-consistent-backup")
 
-    def test_external_backup_requires_original_candidate_frozen_rows_and_same_remote_block(self):
-        directory = self.base / 'shared'
-        directory.mkdir()
-        filename = directory / 'coordinated-backup.json'
-        self.controller.fabric['external_owner'] = {'msp_id': 'Org3MSP', 'channel': 'hybrid-self',
-            'hostname': 'peer0.org3.example.com', 'endpoint': '10.77.0.2:11051', 'tls_ca': '/public/owner.crt'}
-        self.controller.config['external_backup_receipt'] = str(filename)
-        baseline = {'writersStopped': True, 'fingerprints': {'event:one': 'unchanged'}}
-        ledger = {'height': 25, 'currentBlockHash': 'same', 'previousBlockHash': 'previous'}
-        receipt = {'protocol': 'agritrace-coordinated-backup/1', 'candidateSha': SHA_B, 'ownerMspId': 'Org3MSP',
-                   'ownerArchiveSha256': 'a' * 64, 'ownerArchiveBytes': 1000, 'offVps': True, 'ledger': ledger,
-                   'fingerprintsSha256': module.policy.sha256(json.dumps(baseline['fingerprints'], sort_keys=True, separators=(',', ':')).encode())}
-        self.controller.peer_env = MagicMock(return_value=('/peer', {}))
-        def query(label, arguments, **kwargs):
-            if label == 'external-backup-ledger-height':
-                self.assertEqual(arguments[:7], ['/peer', 'chaincode', 'query', '-C', 'hybrid-self', '-n', 'qscc'])
-                self.assertEqual(json.loads(arguments[8]), {'Args': ['GetChainInfo', 'hybrid-self']})
-                self.assertEqual(arguments[9], '--hex')
-                self.assertEqual(kwargs['env']['CORE_PEER_ADDRESS'], '10.77.0.2:11051')
-                return b'0819\n'
-            self.assertEqual(arguments, ['/configtxlator', 'proto_decode', '--type', 'common.BlockchainInfo'])
-            self.assertEqual(kwargs['data'], b'\x08\x19')
-            return json.dumps(dict(ledger, height=str(ledger['height']), bootstrappingSnapshotInfo=None)).encode()
-        self.controller.run = MagicMock(side_effect=query)
-        filename.write_text(json.dumps(receipt))
-        self.controller.external_backup_preflight(SHA_B, baseline)
-        with self.assertRaisesRegex(PolicyError, 'candidate'):
-            self.controller.external_backup_preflight('c' * 40, baseline)
-        with self.assertRaisesRegex(PolicyError, 'frozen'):
-            self.controller.external_backup_preflight(SHA_B, dict(baseline, fingerprints={}))
-        ledger['height'] = 26
-        with self.assertRaisesRegex(PolicyError, 'advanced'):
-            self.controller.external_backup_preflight(SHA_B, baseline)
-        self.controller.run.side_effect = PolicyError('remote unavailable')
-        with self.assertRaisesRegex(PolicyError, 'remote unavailable'):
-            self.controller.external_backup_preflight(SHA_B, baseline)
 
     def test_snapshot_catalogs_hosted_ledger_and_private_state_only(self):
         (self.base / "backups").mkdir()
@@ -772,61 +735,24 @@ if __name__ == "__main__":
     unittest.main()
 
 
-@unittest.skipIf(os.name == "nt", "Private-path ownership and atomic replace use POSIX paths")
-class WorkerBindingInventory(unittest.TestCase):
-    def setUp(self):
-        temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(temporary.cleanup)
-        self.base = Path(temporary.name)
-        env = self.base / ".env"
-        env.write_text("PUBLIC_ORIGIN=https://agritrace.dev\n")
-        (self.base / "accounts.json").write_text("[]")
-        self.controller = build(Controller, hosted_config(self.base, env))
-        self.directory = self.base / "shared/worker"
-        self.directory.mkdir(parents=True)
-        self.inventory = self.directory / "bindings.json"
-        self.original = {"version": 1, "bindings": [{"bindingDigest": "a" * 64, "peerEndpoint": "old:7051"}]}
-        self.inventory.write_text(json.dumps(self.original) + "\n")
-        self.controller.environment["FABRIC_BINDINGS_CONFIG_HOST"] = str(self.inventory)
-        self.node = {"bindingDigest": "b" * 64, "peerEndpoint": "new:7051"}
+class SharedWorkerBootstrap(unittest.TestCase):
+    def test_a_mismatched_template_cannot_be_repaired_by_mutating_worker_config(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            env = base / ".env"
+            env.write_text("PUBLIC_ORIGIN=https://agritrace.dev\n")
+            (base / "accounts.json").write_text("[]")
+            (base / "shared").mkdir()
+            bootstrap = base / "shared/bootstrap.json"
+            bootstrap.write_text("{}")
+            controller = build(Controller, hosted_config(base, env))
+            controller.config['bootstrap'] = str(bootstrap)
+            controller.hosted_operator = MagicMock(return_value={'result': 'configuration-mismatch'})
+            with self.assertRaisesRegex(PolicyError, 'did not complete'):
+                controller.bootstrap_hosted({})
+            controller.hosted_operator.assert_called_once()
+            self.assertFalse(hasattr(controller, 'add_worker_binding'))
 
-    def test_adds_a_binding_by_replace_keeps_other_entries_and_leaves_no_temporary(self):
-        self.controller.add_worker_binding("b" * 64, self.node)
-        document = json.loads(self.inventory.read_text())
-        self.assertEqual(document["bindings"], [*self.original["bindings"], self.node])
-        self.assertEqual({p.name for p in self.directory.iterdir()}, {"bindings.json"})
-        self.controller.add_worker_binding("b" * 64, self.node)  # retry is a no-op
-        self.assertEqual(json.loads(self.inventory.read_text()), document)
-        with self.assertRaisesRegex(PolicyError, "differs"):
-            self.controller.add_worker_binding("b" * 64, dict(self.node, peerEndpoint="other:7051"))
-
-    def test_an_interrupted_write_keeps_the_reviewed_inventory(self):
-        before = self.inventory.read_bytes()
-        with patch.object(module.os, "fsync", side_effect=OSError(28, "No space left on device")):
-            with self.assertRaises(OSError):
-                self.controller.add_worker_binding("b" * 64, self.node)
-        self.assertEqual(self.inventory.read_bytes(), before)
-        self.assertEqual({p.name for p in self.directory.iterdir()}, {"bindings.json"})
-        self.controller.add_worker_binding("b" * 64, self.node)
-        self.assertIn(self.node, json.loads(self.inventory.read_text())["bindings"])
-
-    def test_bootstrap_activates_only_after_the_host_wrote_the_inventory(self):
-        bootstrap = self.base / "shared/bootstrap.json"
-        bootstrap.write_text("{}")
-        self.controller.config["bootstrap"] = str(bootstrap)
-        calls = []
-
-        def operator(record, payload, program, label):
-            calls.append(json.loads(self.inventory.read_text()))
-            if len(calls) == 1:
-                return {"result": "inventory-required", "bindingDigest": "b" * 64, "workerBinding": self.node}
-            return {"result": "passed"}
-
-        with patch.object(self.controller, "hosted_operator", side_effect=operator):
-            self.assertEqual(self.controller.bootstrap_hosted({}), {"result": "passed"})
-        self.assertNotIn(self.node, calls[0]["bindings"])
-        self.assertIn(self.node, calls[1]["bindings"])
-
-    def test_the_bootstrap_container_cannot_write_the_inventory(self):
+    def test_bootstrap_configuration_is_mounted_readonly(self):
         source = Path(module.__file__).read_text()
         self.assertIn("dst=/worker-bindings.json,readonly", source)

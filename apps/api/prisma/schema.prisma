@@ -649,7 +649,7 @@ model PlatformSetting {
 }
 
 model SupplyChain {
-  enterpriseConnections EnterpriseConnection[]
+  provisioning LedgerProvisioningJob?
   ledgerProfile       ChainLedgerProfile?
   id                  String                @id @default(dbgenerated("gen_random_uuid()")) @map("chain_id") @db.Uuid
   ownerOrganizationId String                @map("owner_organization_id") @db.Uuid
@@ -693,7 +693,6 @@ model EnterpriseEnrollment {
   ownerId String @unique @map("owner_id") @db.Uuid
   registrationDigest String @map("registration_digest") @db.VarChar(64)
   businessId String? @unique @map("business_id") @db.VarChar(40)
-  hostingMode String @map("hosting_mode") @db.VarChar(30)
   status String @default("PENDING_REVIEW") @db.VarChar(30)
   version Int @default(0)
   reviewNote String? @map("review_note") @db.VarChar(1000)
@@ -702,36 +701,9 @@ model EnterpriseEnrollment {
   updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  connections EnterpriseConnection[]
   serviceOrder EnterpriseServiceOrder?
   messages EnterpriseMail[]
   @@map("enterprise_enrollment")
-}
-
-model EnterpriseConnection {
-  id String @id @db.Uuid
-  enrollmentId String @map("enrollment_id") @db.Uuid
-  chainId String @map("chain_id") @db.Uuid
-  hostingMode String @map("hosting_mode") @db.VarChar(30)
-  publicConfig Json @default("{}") @map("public_config")
-  status String @default("PENDING_REVIEW") @db.VarChar(30)
-  version Int @default(0)
-  reviewNote String? @map("review_note") @db.VarChar(1000)
-  reviewedBy String? @map("reviewed_by") @db.Uuid
-  challenge String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  txId String? @unique @map("tx_id") @db.VarChar(64)
-  bindingDigest String? @map("binding_digest") @db.VarChar(64)
-  evidence Json?
-  errorCode String? @map("error_code") @db.VarChar(60)
-  leaseToken String? @map("lease_token") @db.Uuid
-  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz(6)
-  checkedAt DateTime? @map("checked_at") @db.Timestamptz(6)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-  enrollment EnterpriseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
-  chain SupplyChain @relation(fields: [chainId], references: [id], onDelete: Restrict)
-  @@index([status, leaseExpiresAt])
-  @@map("enterprise_connection")
 }
 
 /// Operational enterprise data is private; only explicit trace projections are public.
@@ -801,7 +773,6 @@ model EnterpriseServiceOrder {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   enrollmentId String @unique @map("enrollment_id") @db.Uuid
   planCode String @map("plan_code") @db.VarChar(30)
-  hostingMode String @map("hosting_mode") @db.VarChar(30)
   billingEmail String @map("billing_email") @db.VarChar(255)
   billingName String @map("billing_name") @db.VarChar(255)
   billingAddress String @map("billing_address") @db.VarChar(500)
@@ -2524,8 +2495,6 @@ enum ShipmentState {
 
 enum LedgerProfile {
   SERVICE
-  MANAGED_ORG
-  SELF_MANAGED_ORG
 
   @@map("ledger_profile")
 }
@@ -2608,6 +2577,7 @@ model ChainLedgerProfile {
 }
 
 model FabricNetworkBinding {
+  provisioningJobs LedgerProvisioningJob[]
   digest           String                     @id @db.VarChar(64)
   chainId          String                     @map("chain_id") @db.Uuid
   chainRef         String                     @map("chain_ref") @db.Uuid
@@ -3242,4 +3212,22 @@ model ProductPhotoOrder {
   actorId String @map("actor_id") @db.Uuid
   updatedAt DateTime @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
   @@map("product_photo_order")
+}
+
+/// Durable automatic provisioning; created with the chain, resumed by Worker.
+model LedgerProvisioningJob {
+  chain SupplyChain @relation(fields: [chainId], references: [id], onDelete: Restrict)
+  binding FabricNetworkBinding? @relation(fields: [bindingDigest], references: [digest], onDelete: Restrict)
+  chainId String @id @map("chain_id") @db.Uuid
+  bindingDigest String? @map("binding_digest") @db.VarChar(64)
+  status String @default("PENDING") @db.VarChar(20)
+  leaseToken String? @map("lease_token") @db.Uuid
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz(6)
+  nextAttemptAt DateTime? @map("next_attempt_at") @db.Timestamptz(6)
+  lastError String? @map("last_error") @db.VarChar(1000)
+  attempts Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+  @@index([status, nextAttemptAt])
+  @@map("ledger_provisioning_job")
 }

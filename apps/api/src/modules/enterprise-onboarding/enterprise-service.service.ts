@@ -38,7 +38,6 @@ import {
 export const orderView = (r: EnterpriseServiceOrder) => ({
   id: r.id,
   planCode: r.planCode,
-  hostingMode: r.hostingMode,
   billingEmail: r.billingEmail,
   billingName: r.billingName,
   billingAddress: r.billingAddress,
@@ -54,7 +53,7 @@ export const orderView = (r: EnterpriseServiceOrder) => ({
 export const serviceStage = (r: {
   status: string;
   serviceActivatedAt?: Date | null;
-  serviceOrder?: { status: string; hostingMode: string } | null;
+  serviceOrder?: { status: string } | null;
 }) =>
   r.status !== 'APPROVED'
     ? r.status
@@ -137,10 +136,10 @@ export async function previewService(
     `Doanh nghiệp/chủ thể: ${org.name}. Mã số thuế: ${org.businessId ?? 'Chưa khai báo'}.`,
     `Tên thanh toán: ${input.billingName}. Địa chỉ thanh toán: ${input.billingAddress}. Email thanh toán: ${input.billingEmail}.`,
     `Dịch vụ: ${plan.name} (phiên bản giá ${plan.version.version}), kỳ hạn ${plan.version.termMonths} tháng; hạn mức ${plan.version.limits.products} sản phẩm, ${plan.version.limits.chains} chuỗi, ${plan.version.limits.members} thành viên. Phí khởi tạo ${quotation.setup.toLocaleString('vi-VN')} VND; duy trì ${quotation.annual.toLocaleString('vi-VN')} VND; tổng tham khảo ${quotation.total.toLocaleString('vi-VN')} VND.`,
-    `Mô hình peer: ${input.hostingMode === 'SELF_MANAGED_ORG' ? 'Doanh nghiệp tự vận hành peer' : 'AgriTrace quản lý peer'}. Phí QR, máy chủ/peer và thuế chưa bao gồm; cần báo giá riêng trước sử dụng thương mại.`,
+    'Hạ tầng blockchain dùng chung do AgriTrace vận hành. Doanh nghiệp tự giữ khóa ký nghiệp vụ. Phí QR và thuế cần được xác định trước sử dụng thương mại.',
     'Phạm vi: hồ sơ sản phẩm, vùng sản xuất, nhật ký, lô hàng, phân phối và truy xuất QR. Không bao gồm kế toán hoặc quản trị bán hàng.',
     'Doanh nghiệp chịu trách nhiệm về tính chính xác của dữ liệu và quản lý quyền nhân viên. Chỉ chia sẻ dữ liệu theo phạm vi được cấp. Thông tin pháp lý và liên hệ không công khai qua QR.',
-    'Doanh nghiệp tự quản lý peer gửi endpoint, MSP và chứng thư CA công khai sau thanh toán; không gửi khóa riêng. Kết nối chỉ hoạt động sau khi vận hành kiểm chứng, không được tự động công nhận bằng thanh toán.',
+    'Chuỗi được AgriTrace tự động chuẩn bị trên hạ tầng chung. Chỉ mở ghi sau khi registry và quyền được ledger xác nhận; thanh toán hay duyệt hồ sơ không thay thế bước này.',
     'Bản thử nghiệm không thu tiền, không phát hành hóa đơn, không tạo chữ ký số có chứng thư và không xác lập hợp đồng thương mại có hiệu lực. Không nhập số thẻ hay tài khoản ngân hàng.',
     'Thao tác xác nhận chỉ ghi nhận đồng ý thử nghiệm. Tích hợp chữ ký điện tử hợp lệ và NAPAS/QR thanh toán sẽ được thực hiện sau. Giá tham khảo không phải báo giá chính thức của iCheck.',
     'Nguồn cấu trúc giá: https://icheck.com.vn/chi-phi-trien-khai-truy-xuat-nguon-goc (giá tham khảo 07/08/2026, đối chiếu 17/10/2026).',
@@ -294,7 +293,6 @@ export class EnterpriseServiceService {
         data: {
           enrollmentId: row.id,
           planCode: input.planCode,
-          hostingMode: input.hostingMode,
           billingEmail: input.billingEmail,
           billingName: input.billingName,
           billingAddress: input.billingAddress,
@@ -382,7 +380,7 @@ export class EnterpriseServiceService {
           kind: 'CONTRACT',
           recipient,
           subject: 'AgriTrace — Hợp đồng điện tử sau thanh toán mô phỏng',
-          text: `Thanh toán mô phỏng đã hoàn tất. Không có tiền thật được thu. Hợp đồng đính kèm và tại trang Dịch vụ của doanh nghiệp. Mã đối chiếu: ${order.contractDigest}. ${order.hostingMode === 'SELF_MANAGED_ORG' ? 'Bạn có thể gửi cấu hình peer tại trang Kết nối sau khi tạo chuỗi.' : 'AgriTrace sẽ xử lý kết nối theo yêu cầu và kiểm chứng kỹ thuật.'}`,
+          text: `Thanh toán mô phỏng đã hoàn tất. Không có tiền thật được thu. Hợp đồng đính kèm và tại trang Dịch vụ của doanh nghiệp. Mã đối chiếu: ${order.contractDigest}. AgriTrace tự chuẩn bị kết nối blockchain sau khi dịch vụ được kích hoạt.`,
           attachment: order.contractText,
         },
       });

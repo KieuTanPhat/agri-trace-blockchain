@@ -8,52 +8,52 @@ import { verifyExport, wslPath } from "./export-check.mts";
 function fixture(t: { after(fn: () => void): void }) {
   const root = mkdtempSync(path.join(tmpdir(), "agri-trace-export-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  const out = path.join(root, "export"), org3 = path.join(root, "org3");
+  const out = path.join(root, "export"), protectedOwner = path.join(root, "protectedOwner");
   const write = (file: string, content: string) => {
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, content);
   };
-  for (const identity of ["agritrace/relayer", "agritrace/controller", "agritrace/admin", "org2-admin"]) {
+  for (const identity of ["agritrace/relayer", "agritrace/controller", "agritrace/admin"]) {
     write(path.join(out, identity, "signcerts", "cert.pem"), `cert ${identity}`);
     write(path.join(out, identity, "keystore", "key_sk"), `key ${identity}`);
   }
-  for (const name of ["org1-peer-ca.crt", "org2-peer-ca.crt", "org3-peer-ca.crt", "orderer-ca.crt"])
+  for (const name of ["org1-peer-ca.crt", "orderer-ca.crt"])
     write(path.join(out, "tls", name), name);
-  write(path.join(org3, "users", "Admin@org3.example.com", "msp", "keystore", "priv_sk"), "org3 private key");
-  return { out, org3, write };
+  write(path.join(protectedOwner, "users", "Admin@protectedOwner.example.com", "msp", "keystore", "priv_sk"), "protectedOwner private key");
+  return { out, protectedOwner, write };
 }
 
-test("a complete export without Org3 private material passes", (t) => {
-  const { out, org3 } = fixture(t);
-  assert.match(verifyExport(out, org3), /match the reviewed layout/);
+test("a complete export without protected owner private material passes", (t) => {
+  const { out, protectedOwner } = fixture(t);
+  assert.match(verifyExport(out, protectedOwner), /match the reviewed layout/);
 });
 
 test("a missing or unreadable export fails instead of passing", (t) => {
-  const { out, org3 } = fixture(t);
-  assert.throws(() => verifyExport(path.join(out, "absent"), org3), /ENOENT/);
+  const { out, protectedOwner } = fixture(t);
+  assert.throws(() => verifyExport(path.join(out, "absent"), protectedOwner), /ENOENT/);
   rmSync(path.join(out, "tls", "orderer-ca.crt"));
-  assert.throws(() => verifyExport(out, org3), /incomplete/);
+  assert.throws(() => verifyExport(out, protectedOwner), /incomplete/);
 });
 
 test("an export missing an allowed identity's key fails", (t) => {
-  const { out, org3 } = fixture(t);
+  const { out, protectedOwner } = fixture(t);
   rmSync(path.join(out, "agritrace", "relayer", "keystore", "key_sk"));
-  assert.throws(() => verifyExport(out, org3), /lacks agritrace\/relayer\/keystore/);
+  assert.throws(() => verifyExport(out, protectedOwner), /lacks agritrace\/relayer\/keystore/);
 });
 
-test("Org3 private key bytes or paths in the export fail without printing them", (t) => {
-  const { out, org3, write } = fixture(t);
-  write(path.join(out, "agritrace", "admin", "keystore", "copied_sk"), "org3 private key");
-  assert.throws(() => verifyExport(out, org3), (error: Error) =>
-    /Org3 private key bytes/.test(error.message) && !error.message.includes("org3 private key"));
+test("protected owner private key bytes or paths in the export fail without printing them", (t) => {
+  const { out, protectedOwner, write } = fixture(t);
+  write(path.join(out, "agritrace", "admin", "keystore", "copied_sk"), "protectedOwner private key");
+  assert.throws(() => verifyExport(out, protectedOwner), (error: Error) =>
+    /protected owner private key bytes/.test(error.message) && !error.message.includes("protectedOwner private key"));
   rmSync(path.join(out, "agritrace", "admin", "keystore", "copied_sk"));
-  write(path.join(out, "org3-admin", "keystore", "x"), "x");
-  assert.throws(() => verifyExport(out, org3), /unreviewed entries|Org3 material/);
+  write(path.join(out, "protectedOwner-admin", "keystore", "x"), "x");
+  assert.throws(() => verifyExport(out, protectedOwner), /unreviewed entries|protected owner material/);
 });
 
-test("the comparison needs readable Org3 private material", (t) => {
+test("the comparison needs readable protected owner private material", (t) => {
   const { out } = fixture(t);
-  assert.throws(() => verifyExport(out, path.join(out, "no-org3")), /ENOENT|could not be read/);
+  assert.throws(() => verifyExport(out, path.join(out, "no-protectedOwner")), /ENOENT|could not be read/);
 });
 
 test("WSL data roots map to Linux paths and other roots are refused", () => {

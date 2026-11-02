@@ -14,14 +14,14 @@ def binding():
     selected = targets.TARGETS['production']
     base = '/opt/agri-trace'
     root = base + '/hosted/production'
-    hosted = dict(network='hosted_test', channel='hybrid-b', chaincode='agritrace', root=root,
+    hosted = dict(network='hosted_test', channel='agritrace', chaincode='agritrace', root=root,
                   containers=['peer0.org1.example.com', 'peer0.org2.example.com', 'orderer.example.com'],
                   volumes=['compose_peer0.org1.example.com', 'compose_peer0.org2.example.com', 'compose_orderer.example.com'],
                   backup_paths=[root + '/identities'], peer_binary=root + '/bin/peer', config_path=root + '/config',
                   orderer=dict(address='localhost:7050', hostname='orderer.example.com', tls=root + '/orderer/tls.crt'),
-                  peers={str(i): dict(address=f'localhost:{7051 if i == 1 else 9051}', msp_id=f'Org{i}MSP',
+                  peers={str(i): dict(address=f'localhost:{7051 if i == 1 else 9051}', msp_id='AgritraceMSP',
                                      hostname=f'peer0.org{i}.example.com', msp=root + f'/org{i}/msp',
-                                     tls=root + f'/org{i}/tls.crt') for i in [1, 2]})
+                                     tls=root + f'/org{i}/tls.crt') for i in [1]})
     return dict(selected, schema=3, environment='production', enabled=False, profile='fabric', base=base,
                 postgres_volume=selected['project'] + '_postgres-data', hosted=hosted,
                 repository='KieuTanPhat/agri-trace-blockchain', host_lock='/run/lock/agri-trace-host.lock',
@@ -136,21 +136,13 @@ class ProductionController(unittest.TestCase):
 
 
 class HostedTargetBinding(unittest.TestCase):
-    def test_external_owner_must_use_private_tls_and_cannot_retain_its_hosted_private_stack(self):
-        config = binding()
-        config['hosted']['external_owner'] = {'protocol': 'agritrace-external-owner/1', 'msp_id': 'Org3MSP',
-            'channel': 'hybrid-self', 'endpoint': '10.77.0.2:11051', 'hostname': 'peer0.org3.example.com',
-            'tls_ca': config['hosted']['root'] + '/public-owner/ca.crt'}
-        targets.validate_config(config, require)
-        for endpoint in ['0.0.0.0:11051', '8.8.8.8:11051', '10.77.0.2:5432']:
-            changed = copy.deepcopy(config)
-            changed['hosted']['external_owner']['endpoint'] = endpoint
-            with self.subTest(endpoint=endpoint), self.assertRaises(PolicyError):
-                targets.validate_config(changed, require)
-        changed = copy.deepcopy(config)
-        changed['hosted']['containers'].append('agritrace-prod-old-ca-org3')
-        with self.assertRaisesRegex(PolicyError, 'retain a hosted'):
-            targets.validate_config(changed, require)
+    def test_external_owner_and_foreign_msp_are_rejected(self):
+        for change in [dict(external_owner={}), dict(channel='hybrid-self'),
+                       dict(peers={'1': dict(binding()['hosted']['peers']['1'], msp_id='Org2MSP')})]:
+            target = copy.deepcopy(binding())
+            target['hosted'].update(change)
+            with self.subTest(change=change), self.assertRaises(PolicyError):
+                targets.validate_config(target, require)
 
     def test_target_has_its_own_database_mapping_and_never_binds_a_retained_network(self):
         config = binding()

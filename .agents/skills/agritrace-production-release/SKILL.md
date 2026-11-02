@@ -10,7 +10,7 @@ và [CI guide](../../../docs/ci.md). Skill này chuẩn bị/đánh giá; plan/r
 không dispatch workflow, SSH, đổi controller hoặc thực thi release.
 
 1. Xác định candidate SHA, diff, image/manifest/controller revision và acceptance
-   từ Issue/plan hiện hành. Đối chiếu [release gates](../../../docs/plans/hybrid-production-readiness-2026-10-13.md)
+   từ Issue/plan hiện hành. Đối chiếu [release gates](../../../docs/production-runbook.md#cổng-nghiệm-thu-phát-hành)
    và source CLI thực tế. Không lấy tên nhánh, receipt cũ hoặc Issue baseline làm
    bằng chứng runtime hiện tại.
 2. Lập danh sách kiểm theo đúng generation đang cài, schema 3, manifest format 2,

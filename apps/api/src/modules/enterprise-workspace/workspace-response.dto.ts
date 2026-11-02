@@ -42,8 +42,6 @@ export class WorkspaceOrganizationDto {
   participationModel?: string;
   @ApiProperty({ type: String, nullable: true, required: false, description: 'Tax identifier from registration' })
   businessId?: string | null;
-  @ApiProperty({ type: String, nullable: true, required: false })
-  hostingMode?: string | null;
 }
 export class WorkspaceMemberSummaryDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;

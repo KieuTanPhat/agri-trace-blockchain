@@ -31,37 +31,6 @@ test("locked account unlock retains optimistic version", async ({
     reason: "Đã xác minh chủ tài khoản",
   });
 });
-test("connection review keeps its own version and canonical detail URL", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("platform-admin");
-  await api.scenario("governance.registry");
-  await page.goto(`/admin/enterprises/${id}/connections/${connection}`);
-  await page.getByRole("button", { name: "Xét kết nối", exact: true }).click();
-  await page
-    .getByRole("dialog")
-    .getByLabel("Ghi chú", { exact: true })
-    .fill("Kết nối đã được xác minh");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Ghi quyết định", exact: true })
-    .click();
-  await expect(
-    page.getByText("Kết nối đã được xác minh", { exact: true }),
-  ).toBeVisible();
-  const write = api
-    .requests()
-    .find(
-      (r) => r.method === "POST" && r.path.includes("/enterprise-connections/"),
-    );
-  expect(JSON.parse(write!.body!)).toMatchObject({
-    version: 5,
-    decision: "APPROVE",
-    note: "Kết nối đã được xác minh",
-  });
-  await expect(page).toHaveURL(new RegExp(`/connections/${connection}$`));
-});
 test("capability review uses the capability version independently of enrollment", async ({
   page,
   api,

@@ -27,9 +27,13 @@ export function validateBootstrap(input, environment = process.env) {
   }
   for (const name of ['chainId', 'farmId', 'productId', 'plotId']) assert.match(input.catalog[name], UUID);
   assert.ok(input.network && input.channel && input.chaincode && input.writerAuthority);
+  assert.equal(input.channel, 'agritrace');
+  assert.equal(input.connections.relayer.mspId, 'AgritraceMSP');
+  assert.deepEqual(Object.keys(input.connections).sort(), ['admin', 'controller', 'relayer']);
   for (const identity of Object.values(input.connections)) {
+    assert.equal(identity.mspId, 'AgritraceMSP');
     for (const name of ['certPath', 'keyDir', 'tlsCertPath']) {
-      assert.ok(identity[name].startsWith('/operator/') && !identity[name].split('/').includes('..'));
+      assert.ok(typeof identity[name] === 'string' && identity[name].startsWith('/operator/') && !identity[name].split('/').includes('..'));
     }
   }
   assert.ok(['provision', 'activate-keys', 'dataset-ledger'].includes(input.operation ?? 'provision'));
@@ -48,12 +52,13 @@ export function workerBindingNode(worker, bindingDigest) {
   return { ...worker, bindingDigest };
 }
 
-/** False when the entry must still be added; throws when it differs. */
+/** Shared Worker template must already match the reviewed bootstrap connection. */
 export function inventoryHasBinding(document, node) {
-  assert.ok(document && Array.isArray(document.bindings), 'Worker binding inventory is invalid');
-  const existing = document.bindings.find(b => b.bindingDigest === node.bindingDigest);
-  if (!existing) return false;
-  assert.deepEqual(existing, node, 'Existing Worker binding differs');
+  assert.ok(document?.version === 1 && Array.isArray(document.bindings) && document.bindings.length === 0 && document.platform,
+    'Production requires an empty binding list and a reviewed shared platform template');
+  const { bindingDigest: _digest, ...connection } = node;
+  assert.equal(document.platform.channelId, 'agritrace');
+  assert.deepEqual(document.platform.node, connection, 'Platform Worker template differs');
   return true;
 }
 
@@ -106,15 +111,14 @@ export async function provisionBusinessCatalog(db, input) {
 }
 
 // Binds chains the 28-product dataset created through the API, the same way
-// `provision` binds the smoke chain. Each call activates what the Worker
-// inventory already carries and reports the first entry it still needs.
+// `provision` binds the smoke chain. The reviewed shared Worker template serves all of them.
 async function bindDatasetChains(db, input, { operator, approvers, relayer, governanceDigest }) {
   const bound = [];
   for (const chainId of input.chainIds) {
     const chain = await db.supplyChain.findUniqueOrThrow({ where: { id: chainId }, include: { ledgerProfile: true } });
     const binding = await db.$transaction(tx => registerBinding(tx, { chainId: chain.id, network: input.network, channelId: input.channel,
       chaincodeName: input.chaincode, contractName: 'AgriTraceContract', writerAuthority: input.writerAuthority,
-      writerMspId: input.connections.relayer.mspId, governanceDigest, profile: 'MANAGED_ORG' }));
+      writerMspId: input.connections.relayer.mspId, governanceDigest, profile: 'SERVICE' }));
     if (chain.ledgerProfile?.activeBindingDigest !== binding.digest) {
       await onboardBindingOnLedger({ operator, reader: relayer.reader, channelId: input.channel, approvers,
         binding: { digest: binding.digest, network: input.network, chaincodeName: input.chaincode, contractName: 'AgriTraceContract',
@@ -122,8 +126,7 @@ async function bindDatasetChains(db, input, { operator, approvers, relayer, gove
         relayerFingerprint: relayer.fingerprint });
       await db.$transaction(tx => mirrorCredential(tx, binding.digest, relayer.fingerprint));
       const node = workerBindingNode(input.workerConnection, binding.digest);
-      if (!inventoryHasBinding(JSON.parse(readFileSync('/worker-bindings.json', 'utf8')), node))
-        return { result: 'inventory-required', bindingDigest: binding.digest, workerBinding: node };
+      inventoryHasBinding(JSON.parse(readFileSync('/worker-bindings.json', 'utf8')), node);
       await db.$transaction(tx => activateBinding(tx, binding.digest));
     }
     bound.push({ chainId: chain.id, bindingDigest: binding.digest, chainRef: binding.chainRef });
@@ -150,8 +153,8 @@ export async function bootstrapProduction(input) {
       return { reader: new BindingLedgerClient(connection.gateway, { channelName: input.channel, chaincodeName: input.chaincode, contractName: 'AgriTraceContract' }),
         fingerprint: certificateFingerprint(connection.identityCertificate) };
     };
-    const relayer = await client('relayer'), control = await client('controller'), writerAdmin = await client('writerAdmin'), ownerAdmin = await client('ownerAdmin');
-    const adminReaders = { [input.connections.writerAdmin.mspId]: writerAdmin.reader, [input.connections.ownerAdmin.mspId]: ownerAdmin.reader };
+    const relayer = await client('relayer'), control = await client('controller'), admin = await client('admin');
+    const adminReaders = { AgritraceMSP: admin.reader };
     const operator = new RegistryOperator(control.reader, adminReaders);
     const approvers = Object.keys(adminReaders);
     const health = await relayer.reader.health();
@@ -160,7 +163,7 @@ export async function bootstrapProduction(input) {
       return await bindDatasetChains(db, input, { operator, approvers, relayer, governanceDigest: health.governanceDigest });
     const binding = await db.$transaction(tx => registerBinding(tx, { chainId: catalog.chainId, network: input.network, channelId: input.channel,
       chaincodeName: input.chaincode, contractName: 'AgriTraceContract', writerAuthority: input.writerAuthority,
-      writerMspId: input.connections.relayer.mspId, governanceDigest: health.governanceDigest, profile: 'MANAGED_ORG' }));
+      writerMspId: input.connections.relayer.mspId, governanceDigest: health.governanceDigest, profile: 'SERVICE' }));
     if ((input.operation ?? 'provision') === 'provision') {
       await onboardBindingOnLedger({ operator, reader: relayer.reader, channelId: input.channel, approvers,
         binding: { digest: binding.digest, network: input.network, chaincodeName: input.chaincode, contractName: 'AgriTraceContract',
@@ -168,11 +171,8 @@ export async function bootstrapProduction(input) {
         relayerFingerprint: relayer.fingerprint });
       await db.$transaction(tx => mirrorCredential(tx, binding.digest, relayer.fingerprint));
       const node = workerBindingNode(input.workerConnection, binding.digest);
-      // The inventory is mounted read-only. The host controller adds the entry
-      // with a locked atomic replace and reruns this idempotent bootstrap; the
-      // binding is activated only once the Worker inventory carries it.
-      if (!inventoryHasBinding(JSON.parse(readFileSync('/worker-bindings.json', 'utf8')), node))
-        return { result: 'inventory-required', bindingDigest: binding.digest, workerBinding: node };
+      // The shared template is mounted read-only. A mismatch fails without modifying operator configuration.
+      inventoryHasBinding(JSON.parse(readFileSync('/worker-bindings.json', 'utf8')), node);
       await db.$transaction(tx => activateBinding(tx, binding.digest));
     } else {
       for (const keyRef of input.keyRefs) {

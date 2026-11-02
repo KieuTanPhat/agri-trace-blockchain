@@ -28,11 +28,13 @@ Kiểm tra branch, worktree và SHA thực tế, không suy ra từ tên nhánh 
 | Hành vi đã triển khai | Source, Prisma schema/migration và Swagger sinh từ NestJS |
 | Mục tiêu, acceptance và phân công | Issue AGT liên quan và quyết định/plan đã duyệt |
 | Nghiệm thu runtime | Evidence đúng SHA, controller revision và môi trường |
-| Bối cảnh lịch sử | ADR/plan có ngày và archive; không coi baseline là source hiện hành |
+| Bối cảnh lịch sử | Revision Git của ADR/plan cũ; không coi baseline là source hiện hành |
 
-[Đặc tả cũ](docs/archive/business-specification-v1.2.md) dùng mô hình `Batch`.
-Nêu rõ khoảng cách giữa mục tiêu, implementation và evidence; không tự sửa lịch sử
-để làm chúng khớp. Giữ ủy quyền hiện có đúng phạm vi; skill không mở rộng quyền task.
+Đặc tả `Batch`, ADR/plan đã thay thế và evidence từng phiên được tra qua Git;
+[backlog](docs/plans/backlog.md) giữ việc/acceptance còn mở có nguồn lịch sử.
+Không đọc toàn bộ lịch sử để lấy context mặc định. Nêu rõ khoảng cách giữa mục tiêu,
+implementation và evidence; không tự sửa lịch sử để làm chúng khớp. Giữ ủy quyền
+hiện có đúng phạm vi; skill không mở rộng quyền task.
 
 ## Đọc theo tác vụ
 
@@ -69,7 +71,8 @@ hành vi hoặc lệnh. Không đưa private key, token hay payload nhạy cảm
   chiếu lệnh với revision controller đã cài. Chỉ cập nhật helper bằng quy trình
   digest đã review, giữ điều kiện khóa/journal và khả năng phục hồi bản trước.
   Config schema 2 và controller UAT đã retire; không trộn các thế hệ controller.
-- Sửa guide hiện có khi lệnh/hành vi đổi. Giữ plan chứa quyết định và acceptance.
+- Sửa guide hiện có khi lệnh/hành vi đổi. Giữ quyết định và acceptance trong
+  guide/ADR hoặc backlog; plan đã thay thế tra qua Git.
   Ghi bằng chứng từng lần chạy vào PR/Issue hoặc artifact local; không tạo thêm
   báo cáo Markdown cho từng run.
 
@@ -80,7 +83,7 @@ Dùng tên theo mục đích: `feature/agt-010-generated-openapi`,
 `docs/...`, `chore/...`. Dùng lowercase kebab-case và task ID nếu có.
 Không tạo nhánh mới `codex/...` hoặc tên cá nhân nếu chủ dự án chưa yêu cầu đúng
 tên đó. Giữ `main`, `dev` là nhánh chung; `integration/...` chỉ nhánh thành viên
-legacy được giữ lại. Đọc [quy tắc và bản đồ đổi tên nhánh](docs/branch-naming.md)
+legacy được giữ lại. Đọc [quy tắc đặt tên nhánh](docs/branch-naming.md)
 trước khi dùng lại hoặc push nhánh cũ.
 
 ## Hoàn tất và phối hợp

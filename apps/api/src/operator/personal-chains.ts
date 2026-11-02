@@ -4,8 +4,8 @@
  *
  *   node dist/operator/personal-chains.js [--dry-run]
  *
- * New personal chains still need a ledger binding (operator register-binding,
- * onboard and activate; the local simulator binds them on its own).
+ * New personal chains atomically enqueue ledger provisioning. The platform Worker
+ * prepares the shared binding; the local simulator remains development-only.
  */
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';

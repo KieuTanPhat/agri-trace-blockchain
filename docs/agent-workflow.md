@@ -21,7 +21,9 @@ hợp các skill cần thiết; không import toàn bộ docs vào prompt thư�
 | Chuẩn bị/review release/controller/CI/CD/restore | [agritrace-production-release](../.agents/skills/agritrace-production-release/SKILL.md) |
 
 Source/schema/Swagger mô tả implementation; Issue AGT/plan đã duyệt mô tả mục tiêu;
-evidence đúng SHA/môi trường/controller mô tả nghiệm thu. Archive là lịch sử.
+evidence đúng SHA/môi trường/controller mô tả nghiệm thu. Plan/đặc tả đã thay thế
+tra qua Git; [backlog](plans/backlog.md) giữ việc còn mở có nguồn. Không nạp toàn bộ
+backlog, OpenAPI JSON, inventory hoặc lịch sử vào context mặc định.
 Khi khác nhau, ghi rõ gap; không tự sửa lịch sử hoặc đóng acceptance để đồng bộ docs.
 Kiểm Git branch/worktree/SHA thực tế. Quyết định/ủy quyền đã có giữ đúng phạm vi,
 không suy ra một yêu cầu chuẩn bị release cho phép deploy.

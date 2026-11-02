@@ -59,7 +59,7 @@ def validate_fabric(config, require):
     fabric = config["fabric"]
     require(isinstance(fabric, dict) and fabric.get("network") and fabric.get("channel") and fabric.get("chaincode"),
             "Incomplete Fabric binding")
-    require(set(fabric.get("peers", {})) == {"1", "2"}, "Two reviewed endorsing peers are required")
+    require(set(fabric.get("peers", {})) == {"1"}, "One reviewed platform peer is required")
     resources = fabric.get("containers", []) + fabric.get("volumes", [])
     require(bool(fabric.get("containers")) and bool(fabric.get("volumes")) and len(resources) == len(set(resources)),
             "Invalid Fabric resource catalog")
@@ -72,16 +72,9 @@ def validate_fabric(config, require):
             "Retired development Fabric cannot serve production")
     require(bool(fabric.get("backup_paths")) and all(owned_path(p, fabric["root"])
             for p in fabric["backup_paths"]), "Fabric backup paths must belong to its root")
-    owner = fabric.get("external_owner")
-    if owner:
-        require(isinstance(owner, dict) and owner.get("protocol") == "agritrace-external-owner/1" and
-                owner.get("msp_id") == "Org3MSP" and owner.get("channel") == "hybrid-self" and
-                owner.get("hostname") == "peer0.org3.example.com", "Unreviewed external owner")
-        require(re.fullmatch(r"10\.77\.0\.2:11051", owner.get("endpoint", "")) and
-                owned_path(owner.get("tls_ca", ""), fabric["root"]), "External owner must use reviewed private TLS routing")
-        require(not any("-org3" in name or "org3.example.com" in name for name in fabric["containers"]),
-                "External Org3 cannot retain a hosted peer, CA or chaincode")
+    require("external_owner" not in fabric and fabric["channel"] == "agritrace", "Only the shared platform topology is supported")
     for peer in fabric["peers"].values():
+        require(peer.get("msp_id") == "AgritraceMSP", "Unreviewed application MSP")
         require(all(peer.get(k) for k in ("address", "msp_id", "msp", "tls", "hostname")), "Incomplete peer binding")
     require(all(fabric.get("orderer", {}).get(k) for k in ("address", "hostname", "tls")), "Incomplete orderer binding")
     paths = [fabric.get("peer_binary", ""), fabric.get("config_path", ""), fabric["orderer"]["tls"]]

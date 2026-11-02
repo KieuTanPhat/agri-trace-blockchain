@@ -149,11 +149,10 @@ export class AdminInsightsService {
     const now = Date.now();
     const enrollmentSla = await settingNumber(this.db, 'enrollment.reviewSlaHours', 48);
     const supportSla = await settingNumber(this.db, 'support.reviewSlaHours', 24);
-    const [enrollments, capabilities, amendments, connections, tickets, reports, cases, invoices] = await Promise.all([
+    const [enrollments, capabilities, amendments, tickets, reports, cases, invoices] = await Promise.all([
       this.db.enterpriseEnrollment.findMany({ where: { status: 'PENDING_REVIEW' }, include: { organization: { select: { name: true } } }, take: 200 }),
       this.db.capabilityRequest.findMany({ where: { status: 'PENDING' }, include: { organization: { select: { name: true, enterpriseEnrollment: { select: { id: true } } } } }, take: 200 }),
       this.db.enterpriseProfileAmendment.findMany({ where: { status: 'PENDING' }, take: 200 }),
-      this.db.enterpriseConnection.findMany({ where: { status: 'PENDING_REVIEW' }, include: { enrollment: { include: { organization: { select: { name: true } } } } }, take: 200 }),
       this.db.supportTicket.findMany({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } }, include: { organization: { select: { name: true } } }, take: 200 }),
       this.db.consumerReport.findMany({ where: { status: 'NEW' }, take: 200 }),
       this.db.platformCase.findMany({ where: { status: { in: ['OPEN', 'ESCALATED'] } }, include: { owner: { select: { name: true } } }, take: 200 }),
@@ -177,7 +176,6 @@ export class AdminInsightsService {
       ...enrollments.map((e) => item('ENROLLMENT', e.id, 'Hồ sơ đăng ký doanh nghiệp', e.organization.name, e.createdAt, new Date(e.createdAt.getTime() + enrollmentSla * HOUR), `/admin/enterprises/${e.id}`)),
       ...capabilities.map((c) => item('CAPABILITY', c.id, `Năng lực ${c.code}`, c.organization.name, c.createdAt, new Date(c.createdAt.getTime() + enrollmentSla * HOUR), c.organization.enterpriseEnrollment ? `/admin/enterprises/${c.organization.enterpriseEnrollment.id}` : '/admin/enterprises')),
       ...amendments.map((a) => item('AMENDMENT', a.id, 'Điều chỉnh hồ sơ', orgNames.get(a.organizationId) ?? null, a.createdAt, new Date(a.createdAt.getTime() + enrollmentSla * HOUR), `/admin/enterprises/amendments/${a.id}`)),
-      ...connections.map((c) => item('CONNECTION', c.id, 'Kết nối blockchain', c.enrollment.organization.name, c.createdAt, new Date(c.createdAt.getTime() + enrollmentSla * HOUR), `/admin/enterprises/${c.enrollmentId}/connections/${c.id}`)),
       ...tickets.map((t) => item('TICKET', t.id, `${t.code}: ${t.subject}`, t.organization.name, t.createdAt, t.dueAt, `/admin/support/${t.id}`)),
       ...reports.map((r) => item('CONSUMER_REPORT', r.id, `Báo cáo từ người tiêu dùng (${r.category})`, null, r.createdAt, new Date(r.createdAt.getTime() + supportSla * HOUR), '/admin/reports')),
       ...cases.map((c) => item('CASE', c.id, `Sự cố #${c.caseNumber}: ${c.title}`, c.owner?.name ?? null, c.createdAt, c.responseDueAt, `/admin/cases/${c.id}`)),
@@ -250,7 +248,7 @@ export class AdminInsightsService {
         profile: true,
         capabilities: true,
         capabilityRequests: { orderBy: { createdAt: 'asc' } },
-        enterpriseEnrollment: { include: { serviceOrder: true, connections: { orderBy: { createdAt: 'desc' }, take: 20 } } },
+        enterpriseEnrollment: { include: { serviceOrder: true } },
         ownedChains: { select: { id: true, name: true, code: true, businessProfile: { select: { state: true } } } },
         chainMemberships: { include: { chain: { select: { id: true, name: true, code: true } } } },
         enterpriseSites: { select: { id: true, name: true, kind: true, status: true } },
@@ -283,9 +281,7 @@ export class AdminInsightsService {
             id: org.enterpriseEnrollment.id,
             status: org.enterpriseEnrollment.status,
             stage: serviceStage(org.enterpriseEnrollment),
-            hostingMode: org.enterpriseEnrollment.hostingMode,
             createdAt: org.enterpriseEnrollment.createdAt.toISOString(),
-            connections: org.enterpriseEnrollment.connections.map((c) => ({ id: c.id, chainId: c.chainId, status: c.status, createdAt: c.createdAt.toISOString() })),
           }
         : null,
       billing: {
@@ -483,7 +479,7 @@ export class AdminInsightsService {
   }
 
   async ledgerOverview() {
-    const [routes, bindings, outbox, proofs, holds, jobs, lastConfirmed, lastFailed] = await Promise.all([
+    const [routes, bindings, outbox, proofs, holds, jobs, lastConfirmed, lastFailed, provisioning, provisioningCounts] = await Promise.all([
       this.db.ledgerRouteDefinition.findMany({ orderBy: { createdAt: 'desc' }, take: 50 }),
       this.db.fabricNetworkBinding.findMany({ include: { state: true, workerHealth: true }, orderBy: { createdAt: 'desc' }, take: 100 }),
       this.db.blockchainOutbox.groupBy({ by: ['status'], _count: { _all: true } }),
@@ -492,6 +488,8 @@ export class AdminInsightsService {
       this.db.ledgerControlJob.groupBy({ by: ['status'], _count: { _all: true } }),
       this.db.blockchainProof.findFirst({ where: { transactionStatus: 'CONFIRMED' }, orderBy: { recordedAt: 'desc' }, select: { recordedAt: true, txId: true } }),
       this.db.blockchainOutbox.findFirst({ where: { status: { in: ['RETRY', 'DEAD_LETTER'] } }, orderBy: { updatedAt: 'desc' }, select: { lastError: true, updatedAt: true, status: true } }),
+      this.db.ledgerProvisioningJob.findMany({ where: { status: { not: 'COMPLETED' } }, include: { chain: { select: { name: true } } }, orderBy: { createdAt: 'asc' }, take: 50 }),
+      this.db.ledgerProvisioningJob.groupBy({ by: ['status'], _count: { _all: true } }),
     ]);
     const chainNames = new Map(
       (await this.db.supplyChain.findMany({ where: { id: { in: bindings.map((b) => b.chainId) } }, select: { id: true, name: true } })).map((c) => [c.id, c.name]),
@@ -515,6 +513,7 @@ export class AdminInsightsService {
       })),
       outbox: Object.fromEntries(outbox.map((o) => [o.status, o._count._all])),
       proofs: Object.fromEntries(proofs.map((p) => [p.transactionStatus, p._count._all])),
+      preparation: { counts: Object.fromEntries(provisioningCounts.map(j => [j.status, j._count._all])), jobs: provisioning.map(j => ({ chainId: j.chainId, chainName: j.chain.name, status: j.lastError ? 'NEEDS_ATTENTION' : 'PREPARING', attempts: j.attempts, createdAt: j.createdAt.toISOString(), message: j.lastError })) },
       controlJobs: Object.fromEntries(jobs.map((j) => [j.status, j._count._all])),
       unresolvedHolds: holds,
       oldestPendingAgeMinutes: oldest ? Math.floor((Date.now() - oldest.createdAt.getTime()) / 60000) : 0,

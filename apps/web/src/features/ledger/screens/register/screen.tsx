@@ -604,16 +604,6 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                           />
                         </div>
                         <RegistrationSelect
-                          name="hostingMode"
-                          label={t("Mô hình peer quan tâm")}
-                          value={draft.hostingMode}
-                          options={[
-                            ["MANAGED_ORG", "AgriTrace quản lý peer"],
-                            ["SELF_MANAGED_ORG", "Tự vận hành peer trên VPS"],
-                          ]}
-                          onChange={(value) => update("hostingMode", value)}
-                        />
-                        <RegistrationSelect
                           name="planCode"
                           label={t("Gói quan tâm")}
                           value={draft.planCode || "UNDECIDED"}

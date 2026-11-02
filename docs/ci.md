@@ -20,7 +20,7 @@ code; CI đầy đủ chạy khi có PR vào `main` hoặc dispatch, không tự
 | --- | --- |
 | `Application gate` | API/Web trên Node 24.22.1; migration/API E2E PostgreSQL (gồm guard SQL, bàn giao Hybrid và provisioning production); production API, Web và Worker; `Production rehearsal`; PR không được sửa migration đã có. |
 | Mobile trong `Application gate` | Expo 58 dùng lockfile riêng; kiểm queue theo tài khoản/đối soát lệnh, typecheck, lint, audit mọi dependency gồm CLI và web export. Thay đổi mobile chọn cả Web/container/Fabric; job lỗi hoặc skip chặn phát hành. |
-| `Blockchain gate` | Gateway/chaincode trên Node 24.22.1; coverage chaincode; cài/audit/check chaincode độc lập; job `hybrid-fabric` (mạng 3 Org thật: API → outbox → Worker → binding → proof B/C và trình duyệt). |
+| `Blockchain gate` | Gateway/chaincode trên Node 24.22.1; coverage chaincode; cài/audit/check chaincode độc lập; job `hybrid-fabric` (mạng hai MSP, một channel thật: API → outbox → Worker → binding → proof B/C và trình duyệt). |
 | `Dependency gate` | Audit hai lockfile và dependency đã cài; kiểm peer graph workspace; chặn moderate/high/critical, gồm dependency phát triển. |
 
 Mỗi workflow tạo gate cho mọi PR, kể cả PR chỉ sửa tài liệu. Việc chọn job
@@ -136,10 +136,54 @@ suite. Việc tách database giữ nguyên MFA fixture của các suite khác.
 
 Application CI chạy SQL/binding/dual handover, migration lịch sử và cleanup cài
 mới trên PostgreSQL 18. Blockchain CI có job `Hybrid B C real Fabric and browser`:
-mạng 3 Org cách ly, API → Worker → ledger, fault/load và Chromium desktop/mobile.
+mạng hai MSP cách ly, một channel chung, API → Worker → ledger, fault/load và Chromium desktop/mobile.
 Job đặt `HYBRID_FABRIC_E2E=1` và từ chối required tests bị skip. Fixture/harness
 không cấp quyền Admin/Auditor ghi nghiệp vụ để vượt test. CI xanh đúng SHA là cổng
-source; smoke thực trên VPS vẫn bắt buộc theo [kế hoạch phát hành](plans/hybrid-production-readiness-2026-10-13.md).
+source; smoke thực trên VPS vẫn bắt buộc theo [gate phát hành](production-runbook.md#cổng-nghiệm-thu-phát-hành).
+
+## Ma trận nghiệm thu Hybrid
+
+Giữ ID HYB-AC để đối chiếu harness/Issue; catalogue gốc ở Git trước cleanup
+02/11/2026. Bảng mô tả yêu cầu, không phải kết quả PASS của HEAD hiện tại.
+
+| Acceptance | Scenario/expected outcome |
+| --- | --- |
+| HYB-AC-01  |  Một org FARM+TRANSPORTER+RETAILER thực hiện đủ core flow; legacy type không chặn capability hợp lệ |
+| HYB-AC-02  |  Owner điều phối, partner ghi task của mình; owner/admin không ghi thay; reviewer không self-review |
+| HYB-AC-03  |  Forged chainId/direct ID/list/filter/count/export/proof/IoT không lộ chain khác dù partner cùng tham gia |
+| HYB-AC-04  |  Invite/accept/revoke/assign concurrent: đúng membership/capability/grant/state/version, không partial writes |
+| HYB-AC-05 | Revoke/disable vs command/replay; JWT cũ không giữ quyền, same key khác chain không replay, journal gốc đối soát được |
+| HYB-AC-06  |  Multi-harvest/Lot/QR, quantity/custody/damage/receive/sale/recall/expiry/compliance giữ core invariant |
+| HYB-AC-07 | Migration regression/refusal và DB protections giữ hash/QR/proof bất biến; cleanup từ chối dữ liệu không tương thích, không backfill history test vào production mới |
+| HYB-AC-08  |  Đổi chain/account/tab khi request pending: không nhận response cũ, private/offline cache không lộ; mobile dùng được |
+| HYB-AC-09  |  Đúng network/channel/MSP/contract; hash đúng nhưng route sai bị chặn; config change không redirect backlog |
+| HYB-AC-10  |  Một binding outage, binding khác tiếp tục; API Pending, restart/stale lease/unknown commit/duplicate không mất hoặc trùng event |
+| HYB-AC-11  |  Chỉ AgritraceMSP xác nhận trên channel chung; trái MSP/role/create-key/head policy không commit VALID; mọi chủ chuỗi tự chuẩn bị binding SERVICE |
+| HYB-AC-12  |  API/public allowlist không lộ dữ liệu cấm giữa doanh nghiệp cùng channel; operator thấy metadata ledger; offboard không claim xóa ledger |
+| HYB-AC-13  |  Rotate/revoke/platform registry approval/backup restore; khóa doanh nghiệp không copy vào API/Worker |
+| HYB-AC-14  |  Signature sai actor/payload/chain/nonce/version/expiry/replay bị chặn; signer outage không commit write cần ký; delayed relay đúng policy |
+| HYB-AC-15  |  Handover ràng quantity/version, thiếu confirmation không hoàn tất; same-org/ủy quyền có nhãn đúng |
+| HYB-AC-16 | Restore/delivery smoke/rollback hiểu schema/protocol; QR/warnings đúng; load/backlog không làm lẫn scope |
+| HYB-AC-17  |  Revise/cancel ShipmentPlan vô hiệu acceptance cũ; rejoin membership, regrant capability hoặc acceptance thiếu snapshot không finalize được; hai finalize chỉ một Shipment; đã CREATED không đổi org/route/lượng, không tạo Shipment thứ hai |
+| HYB-AC-18  |  Bootstrap chỉ grant được phép; ORG_ADMIN/CHAIN_MANAGER không tự nâng reviewer/platform role hoặc cấp grant sang org/chain khác; NULL-scope uniqueness/FK thật |
+| HYB-AC-19  |  Cert rotate/expiry khi queue Pending/unknown commit: credential hợp lệ cùng authority, route/hash/nonce cũ giữ; reconcile và attempt audit không tạo proof giả/trùng |
+| HYB-AC-20  |  Grant ledger chưa confirmed không mở write; revoke bình thường có barrier/drain; compromise hold/revoke ngay; race registry MVCC không dùng quyền stale |
+| HYB-AC-21 | Hoán đổi chữ ký/digest/dataHash/event/chain/context bị chặn; c2 private/public commitment vectors khớp nội dung thật; actor fingerprint không được coi là chữ ký và reader/proof aggregation đúng |
+| HYB-AC-22 | Sidecar/route trái binding/manifest bị chặn; không nâng trust proof lịch sử; actor backdate không vượt revoke; migration refusal không sửa history |
+| HYB-AC-23 | Pickup/arrival chỉ đổi custody sau dual confirm của C; reject/timeout/recall/race không chuyển hàng ngầm; endpoint không chữ ký của B không bypass C; không đổi profile giữa handover |
+| HYB-AC-24  |  Cùng org ba role vẫn resolve đúng custodian stage, cả FAILED; khác user trong org FARM+AUDITOR không self-review; Farm nhiều chain không rò compliance |
+
+B/c2 chạy các invariant core, binding và chữ ký phù hợp thay đổi. A/c1 đã retire:
+AC-07/22 chỉ còn yêu cầu bảo toàn/refusal/kiểm migration lịch sử, không mở lại
+controlled import hoặc reader A/c1. AC-16 dùng delivery smoke/restore/rollback,
+không yêu cầu canary riêng. AC-21 giữ actor evidence được protocol B/c2 hỗ trợ,
+không khôi phục format cũ. Cột work package và thứ tự rollout A→B→C cũ đã bỏ.
+
+Dataset phải có hai chain dùng chung partner, user nhiều role và user chỉ một
+task, org nhiều capability, reviewer độc lập, hai plan tranh cùng Lot, revoke khi
+outage và cert rotation. AC-11/13 kiểm topology nền tảng và khóa ký nghiệp vụ riêng; mô hình peer doanh nghiệp đã bỏ. Chưa thuộc phạm vi hoặc chưa có môi trường thì ghi rõ
+Deferred/NotEvaluated; không ghi Passed. Distribution c2 có gate integration riêng
+trong [backlog](plans/backlog.md), không suy từ Shipment C.
 
 ## Production containers
 

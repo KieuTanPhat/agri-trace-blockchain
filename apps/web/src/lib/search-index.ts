@@ -72,7 +72,6 @@ export const fieldIndex: Record<string, FieldSection[]> = {
     { fields: ["Doanh nghiệp", "Lời mời", "Trạng thái"] },
     { page: "Thêm doanh nghiệp", href: "/enterprise/partners/new", fields: partnerFields },
   ],
-  "/enterprise/connections": [{ fields: ["Chuỗi của doanh nghiệp", "Kết nối một chuỗi", "Cổng peer", "Tên máy trong chứng thư TLS", "MSP của doanh nghiệp", "Yêu cầu kết nối", "Mã giao dịch kiểm chứng"] }],
   "/enterprise/products": [
     { fields: ["Hình ảnh", "Tên sản phẩm", "Giống / phân loại", "Đơn vị", "Trạng thái"] },
     { page: "Thêm sản phẩm", href: "/enterprise/products/new", fields: productFields },

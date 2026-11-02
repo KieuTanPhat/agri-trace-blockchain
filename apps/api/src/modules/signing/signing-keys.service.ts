@@ -34,8 +34,8 @@ export function keyView(key: SigningKey) {
 
 /** Organization signing keys. The API stores only public keys: a private key
  * is created and kept by the organization's signer (browser, HSM, remote
- * service). Ledger activation is an operator action that needs the owner
- * MSP's approval, so a key is never usable before the ledger registry holds it. */
+ * service). Ledger activation is performed asynchronously by the platform Worker with
+ * the registry admin approval, so a key is never usable before the ledger registry holds it. */
 @Injectable()
 export class SigningKeysService {
   constructor(private readonly prisma: PrismaService) {}
@@ -154,7 +154,9 @@ export class SigningKeysService {
           version: { increment: 1 },
         },
       });
-      if (key.status === 'ACTIVE')
+      // Pending registration may already have committed on Fabric before a
+      // Worker crash. Its revoke must be durable even before DB activation.
+      if (key.status === 'ACTIVE' || key.status === 'PENDING_LEDGER')
         await tx.ledgerControlJob.create({
           data: {
             bindingDigest: key.bindingDigest,

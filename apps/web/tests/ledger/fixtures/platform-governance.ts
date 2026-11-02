@@ -28,7 +28,6 @@ export const pendingEnrollment: S["EnterpriseEnrollmentViewDto"] = {
   representativeEmail: "owner@example.invalid",
   participationModel: "SINGLE",
   payingParticipant: true,
-  hostingMode: "MANAGED_ORG",
   status: "PENDING_REVIEW",
   onboardingStage: "PENDING_REVIEW",
   version: 3,
@@ -37,7 +36,6 @@ export const pendingEnrollment: S["EnterpriseEnrollmentViewDto"] = {
   serviceActivatedAt: null,
   serviceActivationReason: null,
   capabilityRequests: [],
-  connections: [],
   documents: [],
   details: null,
 };
@@ -407,9 +405,7 @@ const organization: OrganizationDetail = {
     id: enrollmentId,
     status: "PENDING_REVIEW",
     stage: "PENDING_REVIEW",
-    hostingMode: "MANAGED_ORG",
     createdAt: pendingEnrollment.createdAt,
-    connections: [],
   },
   billing: {
     applies: true,
@@ -518,11 +514,10 @@ registerScenario("governance.registry", {
       return {
         data: state.values.get("enrollment") ?? {
           ...pendingEnrollment,
-          connections: [connection],
         },
       };
     if (r.path === "/enterprise-enrollments" && r.method === "GET")
-      return { data: [{ ...pendingEnrollment, connections: [connection] }] };
+      return { data: [{ ...pendingEnrollment, }] };
     if (pathname === "/enterprise-profile-amendments" && r.method === "GET")
       return {
         data: {
@@ -557,25 +552,6 @@ registerScenario("governance.registry", {
         },
       });
       return { data: { record: state.values.get("amendment") } };
-    }
-    if (
-      r.path === `/enterprise-connections/${connection.id}/review` &&
-      r.method === "POST"
-    ) {
-      const input = JSON.parse(r.body ?? "{}") as S["ReviewEnterpriseDto"];
-      if (input.version !== 5 || !r.idempotencyKey)
-        throw new Error("Connection version/key missing");
-      const changed = {
-        ...connection,
-        status: input.decision === "APPROVE" ? "APPROVED" : "REJECTED",
-        version: 6,
-        reviewNote: input.note,
-      };
-      state.values.set("enrollment", {
-        ...pendingEnrollment,
-        connections: [changed],
-      });
-      return { data: changed };
     }
     if (
       r.path === `/organizations/${organization.id}/scoped-users` &&
@@ -790,20 +766,6 @@ registerScenario("governance.registry", {
     return governance(r, state);
   },
 });
-const connection: S["EnterpriseConnectionViewDto"] = {
-  id: "88888888-8888-4888-8888-888888888888",
-  chainId: enrollmentId,
-  hostingMode: "ORG_PEER",
-  publicConfig: { mspId: "FixtureMSP", peer: "peer.example.invalid" },
-  status: "PENDING_REVIEW",
-  version: 5,
-  createdAt: pendingEnrollment.createdAt,
-  checkedAt: null,
-  errorCode: null,
-  evidence: null,
-  txId: null,
-  reviewNote: null,
-};
 const amendment: S["ProfileAmendmentDetailDto"] = {
   organization: { id: organization.id, name: organization.name, version: 1 },
   profile: null,

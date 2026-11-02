@@ -4412,105 +4412,6 @@
         ],
         "type": "object"
       },
-      "EnterpriseConnectionDto": {
-        "properties": {
-          "chainId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "id": {
-            "description": "Stable request id retained for retries",
-            "format": "uuid",
-            "type": "string"
-          },
-          "mspId": {
-            "type": "string"
-          },
-          "peerHost": {
-            "description": "DNS name or IP of self-managed peer; no URL or credentials",
-            "type": "string"
-          },
-          "peerPort": {
-            "maximum": 65535,
-            "minimum": 1,
-            "type": "number"
-          },
-          "peerServerName": {
-            "description": "Hostname in the peer TLS certificate",
-            "type": "string"
-          },
-          "tlsCaPem": {
-            "description": "Public TLS root certificate, PEM. Never a private key.",
-            "maxLength": 16384,
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "chainId"
-        ],
-        "type": "object"
-      },
-      "EnterpriseConnectionViewDto": {
-        "properties": {
-          "chainId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "checkedAt": {
-            "nullable": true,
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "errorCode": {
-            "nullable": true,
-            "type": "string"
-          },
-          "evidence": {
-            "additionalProperties": true,
-            "nullable": true,
-            "type": "object"
-          },
-          "hostingMode": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "publicConfig": {
-            "additionalProperties": true,
-            "description": "Submitted public peer settings; never private keys.",
-            "type": "object"
-          },
-          "reviewNote": {
-            "nullable": true,
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "txId": {
-            "nullable": true,
-            "type": "string"
-          },
-          "version": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "publicConfig",
-          "id",
-          "chainId",
-          "hostingMode",
-          "status",
-          "version",
-          "createdAt"
-        ],
-        "type": "object"
-      },
       "EnterpriseEnrollmentViewDto": {
         "properties": {
           "businessId": {
@@ -4520,12 +4421,6 @@
           "capabilityRequests": {
             "items": {
               "$ref": "#/components/schemas/CapabilityRequestViewDto"
-            },
-            "type": "array"
-          },
-          "connections": {
-            "items": {
-              "$ref": "#/components/schemas/EnterpriseConnectionViewDto"
             },
             "type": "array"
           },
@@ -4544,9 +4439,6 @@
               "$ref": "#/components/schemas/RegistrationDocumentViewDto"
             },
             "type": "array"
-          },
-          "hostingMode": {
-            "type": "string"
           },
           "id": {
             "format": "uuid",
@@ -4623,11 +4515,9 @@
           "representativeEmail",
           "businessId",
           "documents",
-          "hostingMode",
           "status",
           "version",
-          "createdAt",
-          "connections"
+          "createdAt"
         ],
         "type": "object"
       },
@@ -7411,8 +7301,6 @@
               "EW_DISPOSITION",
               "ENTERPRISE_REVIEW",
               "ENTERPRISE_ACTIVATE",
-              "ENTERPRISE_CONNECT",
-              "ENTERPRISE_CONNECTION_REVIEW",
               "CREATE_PRODUCTION_CYCLE",
               "EW_CREATE_CYCLE_DRAFT",
               "EW_LINK_CYCLE_DRAFT",
@@ -8430,13 +8318,19 @@
           "permissions": {
             "$ref": "#/components/schemas/LedgerPermissionCountsDto"
           },
+          "preparationStatus": {
+            "enum": [
+              "PREPARING",
+              "READY",
+              "NEEDS_ATTENTION"
+            ],
+            "type": "string"
+          },
           "profile": {
             "description": "UNBOUND: chuỗi chưa có binding nên chưa ghi được sự kiện",
             "enum": [
               "UNBOUND",
-              "SERVICE",
-              "MANAGED_ORG",
-              "SELF_MANAGED_ORG"
+              "SERVICE"
             ],
             "type": "string"
           },
@@ -8445,6 +8339,7 @@
           }
         },
         "required": [
+          "preparationStatus",
           "chainId",
           "profile",
           "bindingStatus",
@@ -15204,13 +15099,6 @@
             "maxLength": 255,
             "type": "string"
           },
-          "hostingMode": {
-            "enum": [
-              "MANAGED_ORG",
-              "SELF_MANAGED_ORG"
-            ],
-            "type": "string"
-          },
           "organizationName": {
             "maxLength": 255,
             "type": "string"
@@ -15246,8 +15134,7 @@
           "fullName",
           "organizationName",
           "organizationType",
-          "details",
-          "hostingMode"
+          "details"
         ],
         "type": "object"
       },
@@ -16410,13 +16297,6 @@
           "disclaimer": {
             "type": "string"
           },
-          "hosting": {
-            "additionalProperties": true,
-            "items": {
-              "type": "object"
-            },
-            "type": "array"
-          },
           "plans": {
             "items": {
               "$ref": "#/components/schemas/ServicePlanView"
@@ -16456,7 +16336,6 @@
           "disclaimer",
           "plans",
           "qrReference",
-          "hosting",
           "simulationEnabled"
         ],
         "type": "object"
@@ -16494,13 +16373,6 @@
             "pattern": "^[a-f0-9]{64}$",
             "type": "string"
           },
-          "hostingMode": {
-            "enum": [
-              "MANAGED_ORG",
-              "SELF_MANAGED_ORG"
-            ],
-            "type": "string"
-          },
           "planCode": {
             "description": "Published plan code for the organization participation model",
             "pattern": "^[A-Z][A-Z0-9_]{1,29}$",
@@ -16509,7 +16381,6 @@
         },
         "required": [
           "planCode",
-          "hostingMode",
           "billingEmail",
           "billingName",
           "billingAddress",
@@ -16543,9 +16414,6 @@
           "contractText": {
             "type": "string"
           },
-          "hostingMode": {
-            "type": "string"
-          },
           "id": {
             "format": "uuid",
             "type": "string"
@@ -16576,7 +16444,6 @@
         "required": [
           "id",
           "planCode",
-          "hostingMode",
           "billingEmail",
           "billingName",
           "billingAddress",
@@ -16728,13 +16595,6 @@
             "maxLength": 80,
             "type": "string"
           },
-          "hostingMode": {
-            "enum": [
-              "MANAGED_ORG",
-              "SELF_MANAGED_ORG"
-            ],
-            "type": "string"
-          },
           "planCode": {
             "description": "Published plan code for the organization participation model",
             "pattern": "^[A-Z][A-Z0-9_]{1,29}$",
@@ -16743,7 +16603,6 @@
         },
         "required": [
           "planCode",
-          "hostingMode",
           "billingEmail",
           "billingName",
           "billingAddress",
@@ -19659,10 +19518,6 @@
           },
           "code": {
             "description": "AGT organization code",
-            "type": "string"
-          },
-          "hostingMode": {
-            "nullable": true,
             "type": "string"
           },
           "id": {
@@ -33889,352 +33744,6 @@
         ],
         "tags": [
           "enterprise-cases"
-        ]
-      }
-    },
-    "/api/enterprise-connections": {
-      "post": {
-        "operationId": "EnterpriseOnboardingController_connect",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EnterpriseConnectionDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/EnterpriseConnectionViewDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "enterprise-onboarding"
-        ]
-      }
-    },
-    "/api/enterprise-connections/{id}/review": {
-      "post": {
-        "operationId": "EnterpriseOnboardingController_reviewConnection",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReviewEnterpriseDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/EnterpriseConnectionViewDto"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "success": {
-                      "enum": [
-                        true
-                      ],
-                      "type": "boolean"
-                    },
-                    "timestamp": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
-                    "timestamp",
-                    "requestId"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
-                }
-              }
-            },
-            "description": "Error envelope from GlobalExceptionFilter"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "enterprise-onboarding"
         ]
       }
     },

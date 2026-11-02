@@ -226,21 +226,20 @@ class Controller:
         require(api.get("ENTERPRISE_ONBOARDING_ENABLED") == enabled and
                 worker["environment"].get("ENTERPRISE_ONBOARDING_ENABLED") == enabled,
                 "API/Worker enterprise admission differs from installed policy")
-        require(worker["environment"].get("ENTERPRISE_CONNECTIONS_CONFIG") == "/hosted-config/enterprise-connections.json",
-                "Enterprise inventory is not the reviewed Worker file")
-        directory = self.environment.get("HOSTED_WORKER_CONFIG_HOST", "")
-        require(policy.targets.owned_path(directory, self.base / "shared"), "Enterprise inventory must belong to private production configuration")
-        require(Path(directory).is_dir() and not Path(directory).is_symlink() and
-                {p.name for p in Path(directory).iterdir()} == {"bindings.json", "enterprise-connections.json"},
-                "Worker configuration directory must contain only the two reviewed public configuration files")
-        inventory = self.environment.get("ENTERPRISE_CONNECTIONS_CONFIG_HOST", "")
-        require(inventory == str(Path(directory) / "enterprise-connections.json") and
-                self.environment.get("FABRIC_BINDINGS_CONFIG_HOST") == str(Path(directory) / "bindings.json"),
-                "Worker configuration files must belong to the reviewed directory")
-        for entry in [Path(directory), Path(inventory), Path(directory) / "bindings.json"]:
-            require(not entry.is_symlink() and (entry.is_dir() if entry == Path(directory) else entry.is_file()),
-                    "Enterprise inventory must use existing regular files and directory")
-            require(entry.stat().st_mode & 0o022 == 0, "Enterprise inventory cannot be writable by another user")
+        directory = Path(self.environment.get("HOSTED_WORKER_CONFIG_HOST", ""))
+        require(directory.is_dir() and not directory.is_symlink() and {p.name for p in directory.iterdir()} == {"bindings.json"},
+                "Worker configuration directory must contain only bindings.json")
+        require(self.environment.get("FABRIC_BINDINGS_CONFIG_HOST") == str(directory / "bindings.json"), "Worker configuration path differs")
+        for entry in [directory, directory / "bindings.json"]:
+            require(not entry.is_symlink() and (entry.is_dir() or entry.is_file()) and entry.stat().st_mode & 0o022 == 0,
+                    "Worker configuration must use private regular files")
+
+        document = json.loads((directory / "bindings.json").read_text())
+        platform = document.get("platform", {})
+        require(document.get("version") == 1 and document.get("bindings") == [] and
+                platform.get("network") == self.fabric["network"] and platform.get("channelId") == "agritrace" and
+                platform.get("governanceDigest") == self.fabric.get("governance_digest") and
+                platform.get("node", {}).get("mspId") == "AgritraceMSP", "Worker shared target differs from reviewed hosted network")
 
     def capacity_preflight(self, services):
         memory = re.search(r"^MemTotal:\s+(\d+) kB$", Path("/proc/meminfo").read_text(), re.M)
@@ -329,7 +328,7 @@ class Controller:
             require(isinstance(image, str) and re.fullmatch(r"[^\s]+@sha256:[a-f0-9]{64}", image), "Hosted images must be immutable")
             actual = json.loads(self.run("hosted-image-identity", ["docker", "inspect", name]))[0]
             require(actual["Config"]["Image"] == image and actual["State"].get("Running"), "Hosted image/readiness mismatch")
-            if name.endswith(("-cc-org1", "-cc-org2", "-cc-org3")):
+            if name.endswith(("-cc-org1",)):
                 require(actual["Config"].get("Labels", {}).get("agritrace.chaincode-fingerprint") == record["manifest"]["chaincode"], "Hosted executable source fingerprint differs")
 
     def verify(self, record, canary=None):
@@ -417,7 +416,6 @@ class Controller:
         atomic_json(filename, updated)
 
     def snapshot(self, old, attempt_sha, baseline):
-        self.external_backup_preflight(attempt_sha, baseline)
         stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         directory = self.base / "backups" / f"{self.prefix}-{attempt_sha}-{stamp}"
         directory.mkdir(mode=0o700)
@@ -465,38 +463,6 @@ class Controller:
                 self.resume_fabric()
                 self.phase = phase
         return str(directory)
-
-    def external_backup_preflight(self, attempt_sha, baseline):
-        owner = self.fabric.get("external_owner")
-        if not owner:
-            return
-        filename = self.config.get("external_backup_receipt", "")
-        require(policy.targets.owned_path(filename, self.base / "shared"), "External peer needs its coordinated backup receipt")
-        receipt = json.loads(Path(filename).read_text())
-        require(receipt.get("protocol") == "agritrace-coordinated-backup/1" and receipt.get("candidateSha") == attempt_sha and
-                receipt.get("ownerMspId") == owner["msp_id"] and receipt.get("offVps") is True,
-                "Coordinated backup does not authorize this candidate and enterprise")
-        require(re.fullmatch(r"[a-f0-9]{64}", receipt.get("ownerArchiveSha256", "")) and
-                type(receipt.get("ownerArchiveBytes")) is int and receipt["ownerArchiveBytes"] > 512,
-                "Enterprise recovery archive is incomplete")
-        require(baseline.get("writersStopped") is True and
-                receipt.get("fingerprintsSha256") == policy.sha256(json.dumps(baseline["fingerprints"], sort_keys=True, separators=(",", ":")).encode()),
-                "Coordinated backup does not match the frozen business history")
-        binary, environment = self.peer_env(1)
-        environment.update(CORE_PEER_ADDRESS=owner["endpoint"], CORE_PEER_TLS_ROOTCERT_FILE=owner["tls_ca"],
-                           CORE_PEER_TLS_SERVERHOSTOVERRIDE=owner["hostname"])
-        # channel getinfo creates a channel-less proposal and authenticates with
-        # the target peer's local MSP. An Org1 operator must query the Org3 peer
-        # through QSCC with the actual channel, using its channel Readers policy.
-        output = self.run("external-backup-ledger-height", [binary, "chaincode", "query", "-C", owner["channel"],
-                          "-n", "qscc", "-c", json.dumps({"Args": ["GetChainInfo", owner["channel"]]}), "--hex"], env=environment)
-        decoded = json.loads(self.run("external-backup-ledger-decode", [str(Path(binary).with_name("configtxlator")),
-                             "proto_decode", "--type", "common.BlockchainInfo"], data=bytes.fromhex(output.decode().strip())))
-        require(not decoded.get("bootstrappingSnapshotInfo"), "External peer snapshot bootstrap is not supported by this checkpoint")
-        height = {"height": int(decoded["height"]), "currentBlockHash": decoded.get("currentBlockHash", ""),
-                  "previousBlockHash": decoded.get("previousBlockHash", "")}
-        require(receipt.get("ledger") == height, "External peer advanced after its recovery archive; create a coordinated backup")
-
 
     def resume_fabric(self):
         self.run("fabric-resume", ["docker", "start", *self.fabric["containers"]], timeout=180)
@@ -1029,63 +995,13 @@ class Controller:
             payload.update(operation="activate-keys", keyRefs=key_refs)
         program = ["node", "apps/api/scripts/bootstrap-production.mjs"]
         result = self.hosted_operator(record, payload, program, "hosted-production-bootstrap")
-        if result.get("result") == "inventory-required":
-            # The one-off container only reads the inventory. The host adds the
-            # entry atomically, then the idempotent bootstrap resumes and activates.
-            self.add_worker_binding(result.get("bindingDigest"), result.get("workerBinding"))
-            result = self.hosted_operator(record, payload, program, "hosted-production-bootstrap")
         require(result.get("result") == "passed", "Hosted production bootstrap did not complete")
         return result
 
-    def add_worker_binding(self, digest, node):
-        """Add one binding to the Worker inventory by atomic replace under the delivery lock.
-        A failed write leaves the reviewed inventory intact; nothing is activated before it."""
-        require(isinstance(digest, str) and re.fullmatch(r"[a-f0-9]{64}", digest) is not None, "Bootstrap binding digest is invalid")
-        require(isinstance(node, dict) and node.get("bindingDigest") == digest, "Bootstrap Worker binding is invalid")
-        filename = Path(self.environment["FABRIC_BINDINGS_CONFIG_HOST"])
-        require(policy.targets.owned_path(str(filename), self.base / "shared") and filename.is_file() and not filename.is_symlink(),
-                "Worker binding inventory must be an existing private file")
-        document = json.loads(filename.read_text())
-        require(isinstance(document, dict) and isinstance(document.get("bindings"), list), "Worker binding inventory is invalid")
-        existing = [item for item in document["bindings"] if isinstance(item, dict) and item.get("bindingDigest") == digest]
-        if existing:
-            require(existing == [node], "Existing Worker binding differs")
-            return
-        document = dict(document, bindings=[*document["bindings"], node])
-        status = filename.stat()
-        # Same directory as the target, so the replace is atomic. A leftover from
-        # an interrupted run is never a reviewed inventory and is discarded.
-        temporary = filename.with_name("." + filename.name + ".next")
-        with contextlib.suppress(FileNotFoundError):
-            temporary.unlink()
-        try:
-            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(descriptor, "w") as file:
-                json.dump(document, file)
-                file.write("\n")
-                file.flush()
-                os.fsync(file.fileno())
-            if hasattr(os, "chown"):
-                os.chown(temporary, status.st_uid, status.st_gid)
-            os.chmod(temporary, status.st_mode & 0o7777)
-            require(json.loads(temporary.read_text()) == document, "Worker binding inventory write could not be verified")
-            os.replace(temporary, filename)
-        except BaseException:
-            with contextlib.suppress(OSError):
-                temporary.unlink()
-            raise
-        if hasattr(os, "O_DIRECTORY"):
-            directory = os.open(filename.parent, os.O_RDONLY | os.O_DIRECTORY)
-            try:
-                os.fsync(directory)
-            finally:
-                os.close(directory)
-        require(json.loads(filename.read_text()) == document, "Worker binding inventory was not replaced")
-
     def hosted_operator(self, record, payload, program, label, smoke_directory=None):
         image = record["manifest"]["api"]
-        # Owner approval identities belong to this one-off operator, never the
-        # API or persistent Worker. Configuration and credentials use stdin.
+        # This one-off operator uses the same reviewed platform roles. The API
+        # never receives them; configuration and secret references use stdin.
         metadata = json.loads(self.run("bootstrap-database-target", ["docker", "inspect", self.project + "-postgres-1"]))[0]
         require(metadata["Config"]["Labels"].get("com.docker.compose.project") == self.project, "Bootstrap database ownership differs")
         address = metadata["NetworkSettings"]["Networks"][self.project + "_default"]["IPAddress"]

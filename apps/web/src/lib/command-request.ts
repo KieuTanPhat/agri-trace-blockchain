@@ -29,7 +29,6 @@ const creates: Record<string, Operation> = {
   "/enterprise-workspace/partners": "EW_INVITE_PARTNER",
   "/enterprise-workspace/sites": "EW_CREATE_SITE",
   "/enterprise-workspace/vehicles": "EW_CREATE_VEHICLE",
-  "/enterprise-connections": "ENTERPRISE_CONNECT",
   "/production-cycles": "CREATE_PRODUCTION_CYCLE",
   "/shipments": "CREATE_SHIPMENT",
   "/inspections": "CREATE_INSPECTION",
@@ -118,13 +117,11 @@ export function commandRequest(
   }
   const enterprise = match(
     path,
-    `/(enterprise-enrollments|enterprise-connections)/(${uuid})/review`,
+    `/(enterprise-enrollments)/(${uuid})/review`,
   );
   if (enterprise && method === "POST")
     return result(
-      enterprise[1] === "enterprise-enrollments"
-        ? "ENTERPRISE_REVIEW"
-        : "ENTERPRISE_CONNECTION_REVIEW",
+      "ENTERPRISE_REVIEW",
       { id: enterprise[2] },
     );
   let signing = match(path, `/shipments/(${uuid})/handover-offers/intent`);

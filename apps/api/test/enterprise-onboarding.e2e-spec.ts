@@ -37,7 +37,7 @@ const prisma = new PrismaClient({
       usageInstructions: 'Rửa sạch trước khi sử dụng',
     });
     const form = (
-      mode: RegisterDto['hostingMode'] = 'MANAGED_ORG',
+      ..._unused: unknown[]
     ): RegisterDto => {
       const email = `onboard-${randomUUID()}@example.test`;
       return {
@@ -49,7 +49,6 @@ const prisma = new PrismaClient({
           Math.floor(Math.random() * 10),
         ).join(''),
         organizationType: 'FARM',
-        hostingMode: mode,
         details: {
           formVersion: 2,
           legalForm: 'ENTERPRISE',
@@ -145,9 +144,9 @@ const prisma = new PrismaClient({
       return post('/auth/login', { email, password }).expect(201);
     };
     const register = async (
-      mode: RegisterDto['hostingMode'] = 'MANAGED_ORG',
+      ..._unused: unknown[]
     ) => {
-      const input = await verifiedForm(mode);
+      const input = await verifiedForm();
       await post('/auth/register', input).expect(201);
       const login = await claim(input.email);
       const token = login.body.data.accessToken as string;
@@ -157,9 +156,9 @@ const prisma = new PrismaClient({
       return { input, token, enrollment };
     };
     const verifiedForm = async (
-      mode: RegisterDto['hostingMode'] = 'MANAGED_ORG',
+      ..._unused: unknown[]
     ) => {
-      const input = form(mode),
+      const input = form(),
         requestId = randomUUID();
       await post(
         '/auth/registration-otp/request',
@@ -266,11 +265,10 @@ const prisma = new PrismaClient({
     const activate = async (a: {
       token: string;
       enrollment: { id: string };
-      input: { hostingMode: string };
+      input: unknown;
     }) => {
       const input = {
         planCode: 'TRACE_5',
-        hostingMode: a.input.hostingMode,
         billingEmail: 'billing@example.test',
         billingName: 'Đơn vị kiểm thử',
         billingAddress: '123 Địa chỉ kiểm thử',
@@ -723,7 +721,7 @@ const prisma = new PrismaClient({
         '/enterprise-connections',
         { id: randomUUID(), chainId: randomUUID() },
         a.token,
-      ).expect(403);
+      ).expect(404);
       await activate(a);
       const grants = await prisma.scopedRoleGrant.findMany({
         where: { organizationId: row.organizationId, scope: 'ORGANIZATION' },
@@ -767,75 +765,11 @@ const prisma = new PrismaClient({
         }),
       ).toBe(1);
     });
-    it('creates a managed connection request with stable retry and rejects foreign chains/config overrides', async () => {
-      const a = await register(),
-        b = await register();
-      await approve(a.enrollment.id).expect(201);
-      await activate(a);
-      await approve(b.enrollment.id).expect(201);
-      await activate(b);
-      const chain = (
-        await post('/supply-chains', { name: 'Owner chain' }, a.token).expect(
-          201,
-        )
-      ).body.data;
-      const foreign = (
-        await post('/supply-chains', { name: 'Other chain' }, b.token).expect(
-          201,
-        )
-      ).body.data;
-      await post(
-        '/enterprise-connections',
-        { id: randomUUID(), chainId: foreign.id },
-        a.token,
-      ).expect(404);
-      await post(
-        '/enterprise-connections',
-        { id: randomUUID(), chainId: chain.id, peerHost: '127.0.0.1' },
-        a.token,
-      ).expect(400);
-      const input = { id: randomUUID(), chainId: chain.id },
-        key = randomUUID();
-      const first = await post(
-        '/enterprise-connections',
-        input,
-        a.token,
-        key,
-      ).expect(201);
-      await post('/enterprise-connections', input, a.token, key).expect(201);
-      expect(first.body.data.status).toBe('PENDING_REVIEW');
-      await post(
-        `/enterprise-connections/${input.id}/review`,
-        { version: 0, decision: 'APPROVE', note: 'Sẵn sàng provision' },
-        admin,
-      ).expect(201);
-      const stored = await prisma.enterpriseConnection.findUniqueOrThrow({
-        where: { id: input.id },
-      });
-      expect(stored.status).toBe('APPROVED');
-      expect(stored.evidence).toBeNull();
-      const grant = await prisma.scopedRoleGrant.findFirstOrThrow({
-        where: {
-          userId: (
-            await prisma.enterpriseEnrollment.findUniqueOrThrow({
-              where: { id: a.enrollment.id },
-            })
-          ).ownerId,
-          role: 'ORG_ADMIN',
-        },
-      });
-      await prisma.scopedRoleGrant.update({
-        where: { id: grant.id },
-        data: { revokedAt: new Date(), revision: { increment: 1 } },
-      });
-      await post('/enterprise-connections', input, a.token, key).expect(403);
-    });
     it('binds simulated payment to the contract without granting access, then activates once', async () => {
       const a = await register(),
         other = await register();
       const input = {
         planCode: 'TRACE_10',
-        hostingMode: 'SELF_MANAGED_ORG',
         billingName: 'Doanh nghiệp thanh toán',
         billingEmail: a.input.email,
         billingAddress: '123 Đường thanh toán',
@@ -974,10 +908,7 @@ const prisma = new PrismaClient({
         status: 'PAID_SIMULATED',
         contractDigest: order.contractDigest,
       });
-      expect(
-        (await get('/enterprise-enrollments/mine', a.token)).body.data
-          .hostingMode,
-      ).toBe('SELF_MANAGED_ORG');
+      expect((await get('/enterprise-enrollments/mine', a.token)).body.data).not.toHaveProperty('hostingMode');
       const messages = await prisma.enterpriseMail.findMany({
         where: { enrollmentId: a.enrollment.id },
       });
@@ -995,38 +926,6 @@ const prisma = new PrismaClient({
           where: { organizationId: a.enrollment.organizationId },
         }),
       ).toBe(1);
-    });
-    it('rejects missing self-managed certificates and private key material without network calls', async () => {
-      const a = await register('SELF_MANAGED_ORG');
-      await approve(a.enrollment.id).expect(201);
-      await activate(a);
-      const chain = (
-        await post('/supply-chains', { name: 'Self chain' }, a.token).expect(
-          201,
-        )
-      ).body.data;
-      for (const patch of [
-        {},
-        { peerHost: 'http://user:pass@localhost/path', peerPort: 7051 },
-        {
-          peerHost: 'peer.example.test',
-          peerPort: 7051,
-          peerServerName: 'peer.example.test',
-          mspId: 'Org3MSP',
-          tlsCaPem:
-            '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----',
-        },
-      ])
-        await post(
-          '/enterprise-connections',
-          { id: randomUUID(), chainId: chain.id, ...patch },
-          a.token,
-        ).expect(400);
-      expect(
-        await prisma.enterpriseConnection.count({
-          where: { chainId: chain.id },
-        }),
-      ).toBe(0);
     });
     it('lets approved organizations own catalog data and rejects cross-organization writes', async () => {
       const a = await register(),

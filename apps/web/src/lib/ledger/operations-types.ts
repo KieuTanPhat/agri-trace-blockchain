@@ -11,7 +11,7 @@ export type Monitoring = { generatedAt: string; api: { uptimeSeconds: number; no
 export type Backup = { available: boolean; note: string; receipt?: Record<string, unknown> };
 /** These views follow AdminInsightsService and BillingService; AdminRecordDto exposes only generic metadata. */
 export type LedgerTx = { eventId: string; txId: string | null; network: string; channelId: string; dataHash: string; status: string; attempts: number; recordedAt: string | null; createdAt: string; lastError: string | null; eventType: string; entityType: string; entityId: string; organizationName: string | null };
-export type LedgerOverview = {
+export type LedgerOverview = { preparation?: { counts: Record<string, number>; jobs: Array<{ chainId: string; chainName: string; status: string; attempts: number; createdAt: string; message: string | null }> };
  routes: { digest: string; mode: string; network: string; channelId: string; chaincodeName: string; contractName: string; writerMspId: string; createdAt: string }[];
  bindings: { digest: string; chainId: string; chainName: string | null; network: string; channelId: string; chaincodeName: string; writerMspId: string; writerRole: string; status: string; lastHealthyAt: string | null; lastErrorCode: string | null; certificateExpiresAt: string | null }[];
  outbox: Record<string, number>; proofs: Record<string, number>; controlJobs: Record<string, number>; unresolvedHolds: number; oldestPendingAgeMinutes: number; lastConfirmed: { at: string | null; txId: string | null } | null; lastFailure: { at: string; status: string; error: string | null } | null; note: string;

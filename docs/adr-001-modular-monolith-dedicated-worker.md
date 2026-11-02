@@ -15,7 +15,7 @@ The backend remains one modular NestJS codebase and one PostgreSQL database, but
 is deployed as two independent processes built from the same image:
 
 - API: owns HTTP, authentication, business commands and queries.
-- Worker: owns blockchain delivery, Fabric signing credentials and retry state.
+- Worker: owns blockchain delivery, technical Fabric identities, registry synchronization and retry state. Each new chain atomically enqueues a shared-platform provisioning job; the API never connects to Fabric. Enterprises retain their own business signing keys.
 
 Every business command writes its domain changes, immutable `trace_event`, and
 one `blockchain_outbox` row in the same PostgreSQL transaction. The worker claims

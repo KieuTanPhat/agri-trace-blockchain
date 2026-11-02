@@ -54,6 +54,12 @@ function Ledger() {
               <Stat label={tr("Hold chưa xử lý")} value={d.unresolvedHolds} tone={d.unresolvedHolds ? "warn" : undefined} />
               <Stat label={tr("Chờ lâu nhất")} value={tr("{p0} phút", { p0: d.oldestPendingAgeMinutes })} />
             </StatRow>
+            {d.preparation && <Section title={tr("Chuẩn bị blockchain cho chuỗi")}><DataTable rows={d.preparation.jobs} rowKey={j => j.chainId} columns={[
+              { key: "chain", header: tr("Chuỗi"), cell: j => j.chainName },
+              { key: "state", header: tr("Trạng thái"), cell: j => j.status === "NEEDS_ATTENTION" ? tr("Cần hỗ trợ") : tr("Đang chuẩn bị") },
+              { key: "at", header: tr("Bắt đầu"), cell: j => fmtDateTime(j.createdAt) },
+              { key: "message", header: tr("Thông tin"), cell: j => j.message ?? tr("Hệ thống đang đồng bộ với sổ cái") },
+            ]} empty={<EmptyState title={tr("Không có chuỗi đang chờ chuẩn bị")} />} /></Section>}
             {d.lastFailure && (
               <Callout tone="danger" title={tr("Lỗi gần nhất · {p0} · {p1}", { p0: d.lastFailure.status, p1: fmtDateTime(d.lastFailure.at) })}>
                 <span className="font-mono text-[12px]">{d.lastFailure.error}</span>

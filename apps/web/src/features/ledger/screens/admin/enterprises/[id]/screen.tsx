@@ -13,7 +13,6 @@ import { api } from "@/lib/ledger/platform-api";
 import type {
   CapabilityRequest,
   Enrollment,
-  EnterpriseConnection,
 } from "@/lib/ledger/platform-api";
 import { useLedgerSession as useSession } from "@/lib/ledger/platform-access";
 import {
@@ -186,7 +185,6 @@ function EnrollmentDetail() {
           <>
             {MODEL_LABEL[e.participationModel]} ·{" "}
             {e.payingParticipant ? tr("Trả phí") : tr("Miễn phí")}{" "}
-            {tr("· Lưu trữ")} <span className="font-mono">{e.hostingMode}</span>{" "}
             · MST <span className="font-mono">{e.businessId ?? "—"}</span>{" "}
             {tr("· nộp")} {fmtDateTime(e.createdAt)}
           </>
@@ -272,10 +270,6 @@ function EnrollmentDetail() {
                 )}
               </p>
             </Section>
-
-            {e.connections.length > 0 && (
-              <Connections e={e} invalidate={invalidate} />
-            )}
             <EnrollmentProducts organizationId={e.organizationId} />
           </div>
 
@@ -517,93 +511,6 @@ function Capabilities({
                 name="note"
                 label={tr("Ghi chú gửi doanh nghiệp")}
                 hint={tr("1–1000 ký tự · email CAPABILITY_DECISION")}
-              />
-            </>
-          )}
-        </CommandDialog>
-      )}
-    </Section>
-  );
-}
-
-export function Connections({
-  e,
-  invalidate,
-}: {
-  e: Enrollment;
-  invalidate: unknown[][];
-}) {
-  const { can } = useSession();
-  const dialog = useDialog<EnterpriseConnection>();
-  return (
-    <Section id="connections" title={tr("Kết nối blockchain (peer)")}>
-      <ul className="divide-y divide-line/70">
-        {e.connections.map((c) => (
-          <li
-            key={c.id}
-            className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-[13px] sm:px-5"
-          >
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="font-mono text-[12px]">
-                {String(c.publicConfig.mspId ?? "")} ·{" "}
-                {String(c.publicConfig.peer ?? "")}
-              </span>
-              <span className="text-[12px] text-ink-2">
-                {c.hostingMode} {tr("· kiểm tra")} {fmtDateTime(c.checkedAt)} ·
-                chain <span className="font-mono">{c.chainId.slice(-8)}</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Status group="connection" value={c.status} />
-              {c.status === "PENDING_REVIEW" && can("enrollment.review") && (
-                <Button
-                  size="xs"
-                  variant="outline"
-                  onClick={() => dialog.open(c)}
-                >
-                  {tr("Xét kết nối")}
-                </Button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-      {dialog.target && (
-        <CommandDialog
-          {...dialog.props}
-          title={tr("Xét kết nối peer")}
-          endpoint="POST /enterprise-connections/:id/review"
-          description={tr(
-            "Chấp nhận kết nối có thể cần gửi đề xuất để một quản trị viên khác phê duyệt.",
-          )}
-          schema={reviewSchema}
-          defaultValues={{ decision: "APPROVE", note: "" }}
-          version={dialog.target.version}
-          submitLabel={tr("Ghi quyết định")}
-          invalidate={invalidate}
-          run={(v, cmd) =>
-            api.enterprises.reviewConnection(
-              dialog.target!.id,
-              { ...v, version: dialog.target!.version },
-              cmd,
-            )
-          }
-        >
-          {(f) => (
-            <>
-              <ChoiceField
-                control={f.control}
-                name="decision"
-                label={tr("Kết quả")}
-                options={[
-                  { value: "APPROVE", label: tr("Chấp nhận kết nối") },
-                  { value: "REJECT", label: tr("Từ chối"), tone: "danger" },
-                ]}
-              />
-              <TextAreaField
-                control={f.control}
-                name="note"
-                label={tr("Ghi chú")}
               />
             </>
           )}

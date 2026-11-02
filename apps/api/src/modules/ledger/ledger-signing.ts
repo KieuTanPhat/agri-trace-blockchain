@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { classifyFabricError } from '@agri-trace/fabric-gateway';
 import type {
   BindingLedgerClient,
   RegistryOperator,
@@ -28,11 +29,11 @@ function stableUuid(value: string): string {
 }
 
 /** Registers an organization key in the ledger registry with the approvals
- * the reviewed governance descriptor demands (writer MSP and owner MSP), then
+ * the reviewed governance descriptor demands (platform registry admin), then
  * reads the record back: the DB never trusts a call that was not confirmed. */
 export async function registerSigningKeyOnLedger(input: {
   operator: RegistryOperator;
-  reader: BindingLedgerClient;
+  reader: Pick<BindingLedgerClient, 'getRegistrySigningKey'>;
   approvers: string[];
   key: Pick<
     SigningKey,
@@ -67,6 +68,24 @@ export async function registerSigningKeyOnLedger(input: {
   return { proposalId: view.proposalId, txId: view.executedTxId ?? null };
 }
 
+/** Resolve a pending registration before revocation, including a crash after
+ * ledger commit but before DB activation. A missing key is registered with its
+ * original proof/nonce, then revoked; a network error is never treated as absence. */
+export async function reconcileSigningKeyForRevocation(input: Parameters<typeof registerSigningKeyOnLedger>[0]): Promise<boolean> {
+  let registered: { status: string; publicKey: string; orgRef: string };
+  try {
+    registered = await input.reader.getRegistrySigningKey(input.key.bindingDigest, input.key.keyRef) as typeof registered;
+  } catch (error) {
+    if (classifyFabricError(error).chaincodeCode !== 'NOT_FOUND') throw error;
+    await registerSigningKeyOnLedger(input);
+    return false;
+  }
+  if (registered.publicKey !== input.key.publicKey || registered.orgRef !== input.key.organizationId)
+    throw new Error('Ledger signing key differs from the revoked database key');
+  if (!['ACTIVE', 'REVOKED'].includes(registered.status)) throw new Error('Unexpected ledger signing key state');
+  return registered.status === 'REVOKED';
+}
+
 /** Marks a ledger-confirmed key ACTIVE. If it was revoked while the operator
  * was registering it, the ledger copy is withdrawn through a control job. */
 export async function activateSigningKey(db: Db, keyRef: string) {
@@ -75,7 +94,8 @@ export async function activateSigningKey(db: Db, keyRef: string) {
     const key = await tx.signingKey.findUniqueOrThrow({ where: { keyRef } });
     if (key.status === 'ACTIVE') return { status: 'ACTIVE' as const };
     if (key.status === 'REVOKED') {
-      await tx.ledgerControlJob.create({
+      const queued = await tx.ledgerControlJob.findFirst({ where: { signingKeyRef: key.keyRef, operation: 'SIGNING_KEY_REVOKE' } });
+      if (!queued) await tx.ledgerControlJob.create({
         data: {
           bindingDigest: key.bindingDigest,
           operation: 'SIGNING_KEY_REVOKE',

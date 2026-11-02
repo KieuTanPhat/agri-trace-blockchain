@@ -22,13 +22,13 @@ export function canUseEnterpriseRoute(
 ): boolean {
   const within = (prefix: string) =>
     path === prefix || path.startsWith(prefix + "/");
+  if (within("/enterprise/connections")) return false;
   const active = ["ACTIVE", "OPERATOR_PROVISIONED"].includes(access.stage);
   if (within("/enterprise/service") || within("/enterprise/onboarding"))
     return access.owner;
   if (!active) return false;
   const permissions = access.permissions,
     has = (p: string) => permissions.includes(p);
-  if (within("/enterprise/connections")) return access.owner;
   if (within("/enterprise/members/new")) return has("members.manage");
   if (within("/enterprise/members"))
     return has(
