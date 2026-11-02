@@ -10,7 +10,7 @@ it("builds the baseline v2 profile with one owner OTP and source-preserving requ
  const payload=build!(draft,"22222222-2222-4222-8222-222222222222",proof,[]);
  expect(payload.requestId).toBe("22222222-2222-4222-8222-222222222222");
  expect(payload.emailVerifications).toEqual([{verificationId:"11111111-1111-4111-8111-111111111111",token:"fixture-otp-proof"}]);
- expect(payload.details).toMatchObject({formVersion:2,legalForm:"COOPERATIVE",businessId:"0123456789",registrationNumber:"HTX-01",activities:["FARM"],production:{sector:"CROP",productGroups:["Xoài","Cam"]},documentIds:[],declarationAccepted:true,termsAccepted:true,privacyAcknowledged:true,marketingAccepted:false});
+ expect(payload.details).toMatchObject({formVersion:2,legalForm:"COOPERATIVE",activities:["FARM"],production:{sector:"CROP",productGroups:["Xoài","Cam"]},documentIds:[],declarationAccepted:true,termsAccepted:true,privacyAcknowledged:true,marketingAccepted:false});
  expect(payload).not.toHaveProperty("password");expect(payload).not.toHaveProperty("capabilities");
 });
 it("cannot manufacture policy acknowledgement for an unchecked registration",()=>{

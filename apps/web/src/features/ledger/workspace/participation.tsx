@@ -37,8 +37,8 @@ export function ParticipationPanel() {
   const enrollment = useQuery({ queryKey: ["ws-enrollment"], queryFn: wapi.enrollment });
   const e = enrollment.data;
   if (!owner || !e || e.status !== "APPROVED") return null;
-  const approved = e.capabilityRequests.filter((c) => c.status === "APPROVED").map((c) => c.code);
-  const pending = e.capabilityRequests.filter((c) => c.status === "PENDING").map((c) => c.code);
+  const approved = (e.capabilityRequests ?? []).filter((c) => c.status === "APPROVED").map((c) => c.code);
+  const pending = (e.capabilityRequests ?? []).filter((c) => c.status === "PENDING").map((c) => c.code);
   const missing = CODES.filter((c) => !approved.includes(c) && !pending.includes(c));
   const member = e.participationStatus !== "CHAIN_OWNER";
   return (

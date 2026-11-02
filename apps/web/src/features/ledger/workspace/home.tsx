@@ -13,6 +13,7 @@ import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 
 import { t as tr } from "@/lib/ledger/i18n";
+import { RoleDesk } from "./role-desk";
 export default function WorkspaceHome() {
   const o = useOverview();
   const { can, primary, access } = useWorkspaceAccess();
@@ -40,6 +41,7 @@ export default function WorkspaceHome() {
         }
       />
       <PageBody>
+        <RoleDesk />
         <StatRow>
           <Stat label={tr("Thành viên bạn quản lý")} value={perms.has("members.read") ? d.counts.members : "—"} href={perms.has("members.read") ? "/enterprise/members" : undefined} />
           <Stat label={tr("Cơ sở trong phạm vi")} value={perms.has("sites.read") ? d.counts.sites : "—"} href={perms.has("sites.read") ? "/enterprise/sites" : undefined} />
