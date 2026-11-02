@@ -268,7 +268,22 @@ export class PublicTraceNoticeDto {
   @ApiProperty() message!: string;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
 }
+export class PublicBrandDto {
+  @ApiProperty() organizationName!: string;
+  @ApiProperty() productName!: string;
+  @ApiProperty({ type: String, nullable: true }) story!: string | null;
+}
+export class PublicSourceTrustDto {
+  @ApiProperty({ description: 'AgriTrace lots recorded by the supplier itself' }) selfRecorded!: number;
+  @ApiProperty() supplierConfirmed!: number;
+  @ApiProperty() evidenced!: number;
+  @ApiProperty() declared!: number;
+}
 export class PublicLotDto extends LotBaseDto {
+  @ApiProperty({ type: PublicBrandDto, nullable: true, required: false, description: 'Chain-owner brand, only for an approved product (ADR-005)' })
+  brand?: PublicBrandDto | null;
+  @ApiProperty({ type: PublicSourceTrustDto, nullable: true, required: false, description: 'Trust levels of the material sources of a processed lot' })
+  sourceTrust?: PublicSourceTrustDto | null;
   @ApiProperty({type:[PublicJourneyGroupDto]}) journey!:PublicJourneyGroupDto[];
   @ApiProperty() imageUrl!:string;
   @ApiProperty({type:String,isArray:true,required:false,description:'Advisory based on declared production journal, not a certification'}) productionWarnings?:string[];

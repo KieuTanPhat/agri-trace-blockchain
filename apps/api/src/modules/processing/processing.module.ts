@@ -5,10 +5,11 @@ import { AuthModule } from '../auth/auth.module.js';
 import { TraceModule } from '../trace/trace.module.js';
 import { ProcessingController } from './processing.controller.js';
 import { ProcessingService } from './processing.service.js';
+import { PublicSupplierConfirmationController } from './supplier-confirmations.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, IdempotencyModule, TraceModule],
-  controllers: [ProcessingController],
+  controllers: [ProcessingController, PublicSupplierConfirmationController],
   providers: [ProcessingService],
   exports: [ProcessingService],
 })

@@ -321,6 +321,8 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_PROCESSING_INPUTS: 'processing.write',
   EW_PROCESSING_LOG: 'processing.write',
   EW_MATERIAL_RECEIPT_CREATE: 'processing.write',
+  EW_SUPPLIER_CONFIRMATION_CREATE: 'processing.write',
+  EW_PRODUCT_APPROVAL_REQUEST: 'catalog.manage',
   EW_UNIT_CONVERSION_CREATE: 'catalog.manage',
   EW_UNIT_CONVERSION_REVOKE: 'catalog.manage',
   EW_TICKET_CREATE: 'profile.read',
@@ -361,6 +363,12 @@ export async function authorizeWorkspaceCommand(
     : null;
   if (runOperation && processingRun?.organizationId !== input.actor!.organizationId)
     throw new ForbiddenException('Lệnh chế biến nằm ngoài doanh nghiệp');
+  if (input.operation === 'EW_SUPPLIER_CONFIRMATION_CREATE') {
+    const receipt = await db.materialReceipt.findUnique({ where: { id: String(data.id) } });
+    if (!receipt || receipt.organizationId !== input.actor!.organizationId)
+      throw new ForbiddenException('Phiếu nhập nằm ngoài doanh nghiệp');
+    return (await enterpriseAuthority(db, input.actor!, permission, undefined, receipt.siteId, lock)).scope;
+  }
   if (input.operation === 'EW_MATERIAL_RECEIPT_CREATE') {
     // External material receipts are scoped to the receiving site only.
     const siteId = typeof data.siteId === 'string' ? data.siteId : undefined;

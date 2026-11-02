@@ -22,6 +22,15 @@ import { VIETNAM_ADDRESSES } from './address-catalog.js';
 import { serviceCatalog } from './service-catalog.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { catalogDigest, publishedCatalog } from '../billing/billing-core.js';
+import { commandTransaction } from '../../common/idempotency/command-transaction.js';
+import {
+  CapabilityAddInput,
+  CapabilityAddView,
+  ParticipationUpgradeInput,
+  ParticipationUpgradeView,
+  requestCapability,
+  upgradeToChainOwner,
+} from './participation.js';
 
 @ApiTags('reference-data')
 @Controller('reference-data')
@@ -47,6 +56,7 @@ export class EnterpriseServiceController {
   constructor(
     private readonly service: EnterpriseServiceService,
     private readonly idem: IdempotencyService,
+    private readonly db: PrismaService,
   ) {}
   @Get('enterprise-access')
   @ApiDataResponse(EnterpriseAccessView)
@@ -93,6 +103,48 @@ export class EnterpriseServiceController {
         payload: input,
       },
       () => this.service.create(req.user, input),
+    );
+  }
+  @Post('enterprise-service/upgrade')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(ParticipationUpgradeView, 201)
+  upgrade(
+    @Req() req: AuthenticatedRequest,
+    @Body() input: ParticipationUpgradeInput,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.idem.executeCommand(
+      {
+        idempotencyKey: key,
+        requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
+        operation: 'ENTERPRISE_UPGRADE_OWNER',
+        requestType: 'COMMAND',
+        payload: input,
+      },
+      () => commandTransaction(this.db, (tx) => upgradeToChainOwner(tx, req.user, input)),
+    );
+  }
+  @Post('capability-requests')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(CapabilityAddView, 201)
+  requestCapability(
+    @Req() req: AuthenticatedRequest,
+    @Body() input: CapabilityAddInput,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.idem.executeCommand(
+      {
+        idempotencyKey: key,
+        requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
+        operation: 'ENTERPRISE_CAPABILITY_REQUEST',
+        requestType: 'COMMAND',
+        payload: input,
+      },
+      () => commandTransaction(this.db, (tx) => requestCapability(tx, req.user, input)),
     );
   }
   @Post('enterprise-service/payment-simulation')

@@ -21,6 +21,7 @@ import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorat
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { SupplyChainsService } from './supply-chains.service.js';
+import { PartnerInvitationInput, PartnerInvitationView } from './partner-invitations.js';
 import {
   CapabilityDto,
   CapabilityRecordDto,
@@ -165,6 +166,24 @@ export class SupplyChainsController {
   ) {
     return this.command(req, key, 'HYB_SUSPEND_BUSINESS_PROFILE', { ...input, chainId }, () =>
       this.service.suspendBusinessProfile(req.user, chainId, input.version, input.reason),
+    );
+  }
+
+  @Post('supply-chains/:chainId/invitations')
+  @ApiDataResponse(PartnerInvitationView, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  inviteByLink(
+    @Req() req: AuthenticatedRequest,
+    @Param('chainId', ParseUUIDPipe) chainId: string,
+    @Body() input: PartnerInvitationInput,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.command(
+      req,
+      key,
+      'HYB_INVITE_BY_LINK',
+      { ...input, chainId },
+      () => this.service.inviteByLink(req.user, chainId, input),
     );
   }
 

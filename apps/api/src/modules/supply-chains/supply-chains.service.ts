@@ -23,6 +23,7 @@ import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import { assertBusinessActivationReady } from './business-profile.commands.js';
 import { bindingObservation } from '../ledger/binding-observation.js';
 import { assertPartnerSlot, partnerHasWork } from './chain-membership-rules.js';
+import { createPartnerInvitation, type PartnerInvitationInput } from './partner-invitations.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -529,8 +530,15 @@ export class SupplyChainsService {
       return result;
     });
   }
+  inviteByLink(actor: CommandActor, chainId: string, input: PartnerInvitationInput) {
+    return this.transaction((tx) => createPartnerInvitation(tx, actor, chainId, input));
+  }
   invite(actor: CommandActor, chainId: string, organizationId: string) {
     return this.transaction(async (tx) => {
+      // The free farm ledger has no owner rights: partners join it only by
+      // accepting a handover of one of its lots (ADR-005).
+      if ((await tx.supplyChain.findUniqueOrThrow({ where: { id: chainId } })).personal)
+        throw new ForbiddenException('Sổ ghi nông trại không mời đối tác; đối tác vào sổ khi nhận bàn giao lô');
       await this.activeOrganization(tx, organizationId);
       if (
         await tx.chainMembership.findUnique({

@@ -25,6 +25,7 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { lockPlatformAudit } from '../platform-governance/platform-audit.js';
 import { AdminInsightsService } from './admin-insights.service.js';
 import { blockQrTx, changeSettingTx, unblockQrTx } from './admin-controls.js';
+import { pendingProductApprovals, ProductApprovalReviewInput, reviewProductApproval } from '../catalog/product-approval.js';
 import { SupportService } from './support.service.js';
 import {
   AdminListDto,
@@ -138,6 +139,18 @@ export class PlatformAdminController extends Commands {
         return { record: { key: row.key, value: row.value, version: row.version } };
       });
     });
+  }
+
+  @Roles('SYSTEM_ADMIN') @Get('product-approvals') @ApiDataResponse(AdminListDto)
+  productApprovals() {
+    return pendingProductApprovals(this.db as never);
+  }
+
+  @Roles('SYSTEM_ADMIN') @Post('product-approvals/:productId/review') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
+  reviewProduct(@Param('productId', ParseUUIDPipe) productId: string, @Body() input: ProductApprovalReviewInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
+    return this.command(req, key, 'PLATFORM_PRODUCT_REVIEW', { ...input, productId }, () =>
+      commandTransaction(this.db, async (tx) => ({ record: await reviewProductApproval(tx, req.user, productId, input) })),
+    );
   }
 
   @Roles('SYSTEM_ADMIN') @Post('qr-blocks') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)

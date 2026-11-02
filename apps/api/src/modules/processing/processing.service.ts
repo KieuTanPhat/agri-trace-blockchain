@@ -19,6 +19,7 @@ import { settingNumber } from '../billing/billing-core.js';
 import { LOT_ORIGIN_INCLUDE, lotChainId } from '../lots/lot-origin.js';
 import { activeChainBindingDigest } from '../ledger/ledger-permissions.js';
 import { assertChainCreatesWork } from '../billing/billing-core.js';
+import { RECEIPT_EVIDENCE_KINDS, createSupplierConfirmation, receiptConfirmed, trustLevel } from './supplier-confirmations.js';
 import { downstreamLots, upstreamLots } from './processing-lineage.js';
 import type {
   AddProcessingInputsInput,
@@ -154,7 +155,7 @@ type ReceiptRow = Prisma.MaterialReceiptGetPayload<object>;
 /** External stock left on a receipt (AgriTrace receipts hold none of their own). */
 export const receiptAvailable = (r: Pick<ReceiptRow, 'source' | 'quantity' | 'reserved' | 'consumed'>) =>
   r.source === 'EXTERNAL' ? r.quantity.sub(r.reserved).sub(r.consumed) : new Prisma.Decimal(0);
-const receiptView = (r: ReceiptRow, siteName: string | null, hasEvidence: boolean) => ({
+const receiptView = (r: ReceiptRow, siteName: string | null, hasEvidence: boolean, confirmed: boolean) => ({
   id: r.id,
   code: r.code,
   source: r.source,
@@ -164,6 +165,8 @@ const receiptView = (r: ReceiptRow, siteName: string | null, hasEvidence: boolea
   lotId: r.lotId,
   materialName: r.materialName,
   supplierName: r.supplierName,
+  supplierId: r.supplierId,
+  growingAreaCode: r.growingAreaCode,
   documentNo: r.documentNo,
   receivedAt: r.receivedAt.toISOString(),
   quantity: r.quantity.toFixed(3),
@@ -174,6 +177,7 @@ const receiptView = (r: ReceiptRow, siteName: string | null, hasEvidence: boolea
   expiryDate: r.expiryDate?.toISOString().slice(0, 10) ?? null,
   note: r.note,
   hasEvidence,
+  trustLevel: trustLevel({ source: r.source, hasEvidence, confirmed }),
   createdAt: r.createdAt.toISOString(),
 });
 
@@ -440,7 +444,7 @@ export class ProcessingService {
       if (isPastExpiry(receipt.expiryDate))
         throw new ConflictException(`Nguyên liệu phiếu ${receipt.code} đã hết hạn`);
       if (!(await this.receiptHasEvidence(tx, receipt.id)))
-        throw new ConflictException(`Phiếu ${receipt.code} chưa có ảnh chứng từ; tải ảnh hóa đơn hoặc giấy kiểm nghiệm trước`);
+        throw new ConflictException(`Phiếu ${receipt.code} chưa có ảnh chứng từ; tải hóa đơn, bảng kê thu mua, phiếu cân hoặc giấy kiểm nghiệm trước`);
       if (receiptAvailable(receipt).lt(quantity(line.quantity)))
         throw new ConflictException(`Phiếu ${receipt.code} không còn đủ lượng khả dụng`);
     }
@@ -449,7 +453,7 @@ export class ProcessingService {
 
   private receiptHasEvidence(tx: Tx, receiptId: string) {
     return tx.traceEvidence
-      .count({ where: { entityType: 'MATERIAL_RECEIPT', entityId: receiptId, withdrawal: { is: null } } })
+      .count({ where: { entityType: 'MATERIAL_RECEIPT', entityId: receiptId, kind: { in: [...RECEIPT_EVIDENCE_KINDS] }, withdrawal: { is: null } } })
       .then((n) => n > 0);
   }
 
@@ -903,12 +907,23 @@ export class ProcessingService {
     });
     const evidence = await this.db.traceEvidence.groupBy({
       by: ['entityId'],
-      where: { entityType: 'MATERIAL_RECEIPT', entityId: { in: rows.map((r) => r.id) }, withdrawal: { is: null } },
+      where: { entityType: 'MATERIAL_RECEIPT', entityId: { in: rows.map((r) => r.id) }, kind: { in: [...RECEIPT_EVIDENCE_KINDS] }, withdrawal: { is: null } },
       _count: { _all: true },
+    });
+    const confirmed = await this.db.supplierConfirmation.findMany({
+      where: { receiptId: { in: rows.map((r) => r.id) }, status: 'CONFIRMED' },
+      select: { receiptId: true },
     });
     const sites = await this.db.enterpriseSite.findMany({ where: { id: { in: rows.map((r) => r.siteId) } }, select: { id: true, name: true } });
     return {
-      items: rows.map((r) => receiptView(r, sites.find((s) => s.id === r.siteId)?.name ?? null, evidence.some((e) => e.entityId === r.id))),
+      items: rows.map((r) =>
+        receiptView(
+          r,
+          sites.find((s) => s.id === r.siteId)?.name ?? null,
+          evidence.some((e) => e.entityId === r.id),
+          confirmed.some((c) => c.receiptId === r.id),
+        ),
+      ),
     };
   }
 
@@ -923,7 +938,12 @@ export class ProcessingService {
     });
     return {
       record: {
-        ...receiptView(row, site?.name ?? null, await this.receiptHasEvidence(this.db as unknown as Tx, id)),
+        ...receiptView(
+          row,
+          site?.name ?? null,
+          await this.receiptHasEvidence(this.db as unknown as Tx, id),
+          await receiptConfirmed(this.db as unknown as Tx, id),
+        ),
         uses: uses.map((u) => ({ runId: u.run.id, runCode: u.run.code, status: u.run.status, quantity: u.quantity.toFixed(3) })),
       },
     };
@@ -940,6 +960,10 @@ export class ProcessingService {
       const receivedAt = new Date(input.receivedAt);
       if (receivedAt.getTime() > Date.now() + 5 * 60_000)
         throw new UnprocessableEntityException('Ngày nhập không được ở tương lai');
+      const supplier = await tx.enterpriseExternalPartner.findFirst({
+        where: { id: input.supplierId, organizationId: actor.organizationId! },
+      });
+      if (!supplier) throw new UnprocessableEntityException('Chọn nhà cung cấp trong danh bạ của doanh nghiệp');
       const row = await tx.materialReceipt.create({
         data: {
           code: code('PN'),
@@ -947,7 +971,9 @@ export class ProcessingService {
           siteId: site.id,
           source: 'EXTERNAL',
           materialName: input.materialName,
-          supplierName: input.supplierName,
+          supplierName: supplier.name,
+          supplierId: supplier.id,
+          growingAreaCode: input.growingAreaCode || null,
           documentNo: input.documentNo,
           receivedAt,
           quantity: quantity(input.quantity),
@@ -957,7 +983,17 @@ export class ProcessingService {
           createdBy: actor.sub!,
         },
       });
-      return { record: receiptView(row, site.name, false) };
+      return { record: receiptView(row, site.name, false, false) };
+    });
+  }
+
+  /** Prints a one-time QR link the supplier scans to confirm the receipt. */
+  confirmReceipt(actor: CommandActor, id: string) {
+    return commandTransaction(this.db, async (tx) => {
+      const row = await tx.materialReceipt.findFirst({ where: { id, organizationId: actor.organizationId! } });
+      if (!row) throw new NotFoundException('Không tìm thấy phiếu nhập');
+      await enterpriseAuthority(tx, actor, 'processing.write', undefined, row.siteId, true);
+      return { record: await createSupplierConfirmation(tx, row, actor.sub!) };
     });
   }
 

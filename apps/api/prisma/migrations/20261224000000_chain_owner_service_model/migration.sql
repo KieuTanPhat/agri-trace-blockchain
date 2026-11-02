@@ -183,7 +183,17 @@ END $$;
 CREATE TRIGGER trg_supplier_confirmation_guard BEFORE UPDATE OR DELETE ON supplier_confirmation
   FOR EACH ROW EXECUTE FUNCTION guard_supplier_confirmation();
 
--- 7. Partner invitations for organizations without an account. Hash only.
+-- 7. Partner invitations for organizations without an account. Hash only;
+-- the invitation mail carries the link and belongs to no enrollment yet.
+ALTER TABLE enterprise_mail DROP CONSTRAINT enterprise_mail_kind_check;
+ALTER TABLE enterprise_mail ADD CONSTRAINT enterprise_mail_kind_check
+  CHECK (kind IN ('APPROVED','REJECTED','CONTRACT','REGISTRATION_OTP','CREDENTIALS','ACCOUNT_CREDENTIALS','PARTNER_INVITE'));
+ALTER TABLE enterprise_mail DROP CONSTRAINT enterprise_mail_subject_scope;
+ALTER TABLE enterprise_mail ADD CONSTRAINT enterprise_mail_subject_scope CHECK (
+  (kind = 'REGISTRATION_OTP' AND enrollment_id IS NULL AND verification_id IS NOT NULL AND user_id IS NULL)
+  OR (kind = 'ACCOUNT_CREDENTIALS' AND enrollment_id IS NULL AND verification_id IS NULL AND user_id IS NOT NULL)
+  OR (kind = 'PARTNER_INVITE' AND enrollment_id IS NULL AND verification_id IS NULL AND user_id IS NULL)
+  OR (kind NOT IN ('REGISTRATION_OTP','ACCOUNT_CREDENTIALS','PARTNER_INVITE') AND enrollment_id IS NOT NULL AND verification_id IS NULL AND user_id IS NULL));
 CREATE TABLE partner_invitation (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   chain_id uuid NOT NULL REFERENCES supply_chain(chain_id) ON DELETE RESTRICT,
@@ -215,6 +225,19 @@ BEGIN
 END $$;
 CREATE TRIGGER trg_partner_invitation_guard BEFORE UPDATE OR DELETE ON partner_invitation
   FOR EACH ROW EXECUTE FUNCTION guard_partner_invitation();
+
+-- Recall proposals are private notes from a partner to the chain owner.
+DO $$
+DECLARE c record;
+BEGIN
+  FOR c IN SELECT conname FROM pg_constraint
+    WHERE conrelid = 'trace_notice'::regclass AND contype = 'c' AND pg_get_constraintdef(oid) LIKE '%kind%'
+  LOOP
+    EXECUTE format('ALTER TABLE trace_notice DROP CONSTRAINT %I', c.conname);
+  END LOOP;
+END $$;
+ALTER TABLE trace_notice ADD CONSTRAINT trace_notice_kind_check
+  CHECK (kind IN ('WARNING','RECALL','RECALL_PROPOSAL'));
 
 -- 8. Cross-chain processing inputs. A run that consumes a lot of another chain
 -- keeps the binding pinned at planning and never gains an origin cycle; the

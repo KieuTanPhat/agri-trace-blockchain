@@ -16,6 +16,7 @@ import { IdempotencyService } from '../../common/idempotency/idempotency.service
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { ProcessingService } from './processing.service.js';
+import { SupplierConfirmationView } from './supplier-confirmations.js';
 import {
   AddProcessingInputsInput,
   CancelProcessingInput,
@@ -89,6 +90,13 @@ export class ProcessingController {
   @ApiDataResponse(ProcessingRecordDto, 201)
   createReceipt(@Req() req: AuthenticatedRequest, @Body() input: CreateMaterialReceiptInput, @IdempotencyKey() key: string) {
     return this.command(req, key, 'EW_MATERIAL_RECEIPT_CREATE', input, () => this.service.createReceipt(req.user, input));
+  }
+
+  @Post('receipts/:id/confirmations')
+  @ApiHeader(KEY)
+  @ApiDataResponse(SupplierConfirmationView, 201)
+  confirmReceipt(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @IdempotencyKey() key: string) {
+    return this.command(req, key, 'EW_SUPPLIER_CONFIRMATION_CREATE', { id }, () => this.service.confirmReceipt(req.user, id));
   }
 
   @Get('lineage/:lotId')

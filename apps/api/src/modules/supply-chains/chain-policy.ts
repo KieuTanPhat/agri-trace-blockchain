@@ -171,6 +171,7 @@ export async function authorizeChainCommand(
     } else if (
       [
         'HYB_INVITE_MEMBERSHIP',
+        'HYB_INVITE_BY_LINK',
         'HYB_CHANGE_MEMBERSHIP',
         'HYB_ACTIVATE_BUSINESS_PROFILE',
         'HYB_SUSPEND_BUSINESS_PROFILE',

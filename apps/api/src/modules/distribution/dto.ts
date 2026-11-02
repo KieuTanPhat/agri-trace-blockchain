@@ -118,13 +118,29 @@ export class HoldingDispositionInput extends TransferLineInput {
   @ApiProperty({required:false,format:'uuid',description:'Quarantine slip whose open quantity is consumed'}) @IsOptional() @IsUUID() quarantineCaseId?:string;
   @ApiProperty({ required: false, format: 'uuid' }) @IsOptional() @IsUUID() siteId?: string;
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
-  @ApiProperty({ enum: ['SALE', 'DAMAGE'] }) @IsIn(['SALE', 'DAMAGE']) kind!:
-    'SALE' | 'DAMAGE';
+  @ApiProperty({
+    enum: ['SALE', 'DAMAGE', 'EXTERNAL_DISPATCH'],
+    description: 'SALE to consumers; EXTERNAL_DISPATCH hands goods to an organization outside AgriTrace (ADR-005)',
+  })
+  @IsIn(['SALE', 'DAMAGE', 'EXTERNAL_DISPATCH'])
+  kind!: 'SALE' | 'DAMAGE' | 'EXTERNAL_DISPATCH';
   @ApiProperty({ maxLength: 500 })
   @IsString()
   @MinLength(3)
   @MaxLength(500)
   reason!: string;
+  @ApiProperty({ required: false, maxLength: 255, description: 'Required for EXTERNAL_DISPATCH' })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(255)
+  recipientName?: string;
+  @ApiProperty({ required: false, maxLength: 100, description: 'Delivery document number, required for EXTERNAL_DISPATCH' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  documentNo?: string;
 }
 export class SiteAllocationInput extends TransferLineInput {
   @ApiProperty({ format: 'uuid' }) @IsUUID() siteId!: string;
@@ -199,9 +215,12 @@ export class DistributionC2Submit extends DistributionC2Prepare {
 }
 export class TraceNoticeInput {
   @ApiProperty({ format: 'uuid' }) @IsUUID() lotId!: string;
-  @ApiProperty({ enum: ['WARNING', 'RECALL'] })
-  @IsIn(['WARNING', 'RECALL'])
-  kind!: 'WARNING' | 'RECALL';
+  @ApiProperty({
+    enum: ['WARNING', 'RECALL', 'RECALL_PROPOSAL'],
+    description: 'RECALL by the chain owner; RECALL_PROPOSAL from a partner, private to the chain',
+  })
+  @IsIn(['WARNING', 'RECALL', 'RECALL_PROPOSAL'])
+  kind!: 'WARNING' | 'RECALL' | 'RECALL_PROPOSAL';
   @ApiProperty({
     maxLength: 500,
     description: 'Public consumer notice; do not include private contact data',

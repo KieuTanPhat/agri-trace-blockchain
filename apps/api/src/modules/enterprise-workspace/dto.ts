@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -120,10 +120,11 @@ export class EnterpriseExternalPartnerInput {
   @ApiProperty({ enum: ['FARM','TRANSPORTER','DISTRIBUTOR','RETAILER'] }) @IsIn(['FARM','TRANSPORTER','DISTRIBUTOR','RETAILER']) kind!: string;
   @ApiProperty({ maxLength: 500 }) @IsString() @MinLength(5) @MaxLength(500) address!: string;
   @ApiProperty({ maxLength: 30 }) @IsString() @Matches(/^(?:0[35789]\d{8}|02\d{9}|\+84(?:[35789]\d{8}|2\d{9}))$/, { message: 'Số điện thoại không hợp lệ' }) phone!: string;
-  @ApiProperty({ format: 'email' }) @IsEmail({}, { message: 'Email không hợp lệ' }) @MaxLength(255) email!: string;
-  @ApiProperty({ maxLength: 14 }) @IsString() @Matches(/^(?:\d{10}(?:-?\d{3})?|\d{12})$/, { message: 'Mã số thuế cần 10, 12 hoặc 13 số' }) taxCode!: string;
-  @ApiProperty({ maxLength: 255 }) @IsString() @MinLength(2) @MaxLength(255) representative!: string;
-  @ApiProperty({ maxLength: 1000 }) @IsString() @MinLength(5) @MaxLength(1000) note!: string;
+  // Suppliers are often farming households: only name, address and phone are required.
+  @ApiPropertyOptional({ format: 'email' }) @IsOptional() @IsEmail({}, { message: 'Email không hợp lệ' }) @MaxLength(255) email?: string;
+  @ApiPropertyOptional({ maxLength: 14, description: 'Mã số thuế hoặc số định danh 12 số của hộ' }) @IsOptional() @IsString() @Matches(/^(?:\d{10}(?:-?\d{3})?|\d{12})$/, { message: 'Mã số thuế cần 10, 12 hoặc 13 số' }) taxCode?: string;
+  @ApiPropertyOptional({ maxLength: 255 }) @IsOptional() @IsString() @MinLength(2) @MaxLength(255) representative?: string;
+  @ApiPropertyOptional({ maxLength: 1000 }) @IsOptional() @IsString() @MinLength(5) @MaxLength(1000) note?: string;
 }
 export class EnterprisePartnerDecision {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;

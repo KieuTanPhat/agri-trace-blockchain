@@ -1161,21 +1161,56 @@ export class DistributionService {
         where: { id: input.lotId },
         include: LOT_ORIGIN_INCLUDE,
       });
-      if (!lot || lot.farmOrgId !== actor.organizationId)
+      if (!lot) throw new NotFoundException('Không tìm thấy lô');
+      const chainId = lotChainId(lot);
+      const chain = chainId
+        ? await tx.supplyChain.findUnique({ where: { id: chainId }, select: { ownerOrganizationId: true, personal: true } })
+        : null;
+      const org = actor.organizationId!;
+      const owner = chain?.ownerOrganizationId === org;
+      // ADR-005: the chain owner triggers a public recall; the producer of a
+      // farm-ledger lot keeps that duty for its own lots (food safety). Others
+      // who take part in the chain send a recall proposal to the owner.
+      if (input.kind === 'RECALL_PROPOSAL') {
+        const member = chainId
+          ? await tx.chainMembership.findUnique({ where: { chainId_organizationId: { chainId, organizationId: org } } })
+          : null;
+        if (owner || member?.status !== 'ACTIVE')
+          throw new ForbiddenException('Đề xuất thu hồi dành cho đối tác đang tham gia chuỗi của lô');
+        await enterpriseAuthority(tx, actor, 'distribution.write', chainId, undefined, true);
+        return { record: await tx.traceNotice.create({ data: { ...input, organizationId: org } }) };
+      }
+      if (input.kind === 'RECALL' ? !owner : !owner && lot.farmOrgId !== org)
         throw new ForbiddenException(
-          'Chỉ doanh nghiệp sản xuất lô nguồn được phát cảnh báo công khai',
+          input.kind === 'RECALL'
+            ? 'Chỉ chủ chuỗi của lô được phát động thu hồi; đối tác gửi đề xuất thu hồi'
+            : 'Chỉ chủ chuỗi hoặc doanh nghiệp sản xuất lô được phát cảnh báo công khai',
         );
       await enterpriseAuthority(
         tx,
         actor,
         'distribution.write',
-        lotChainId(lot),
-        lotSiteId(lot),
+        chainId,
+        owner ? undefined : lotSiteId(lot),
         true,
       );
       const notice = await tx.traceNotice.create({
-        data: { ...input, organizationId: actor.organizationId! },
+        data: { ...input, organizationId: org },
       });
+      if (input.kind === 'RECALL' && lot.processingRunId) {
+        // Cross-chain sources: tell each source chain owner by a proposal on
+        // the source lot; their own recall stays their decision.
+        const sources = await tx.processingCrossChainInput.findMany({ where: { runId: lot.processingRunId } });
+        for (const source of sources)
+          await tx.traceNotice.create({
+            data: {
+              lotId: source.lotId,
+              organizationId: org,
+              kind: 'RECALL_PROPOSAL',
+              message: `Lô thành phẩm ${lot.lotCode} dùng lô này làm nguyên liệu đã bị thu hồi: ${input.message}`.slice(0, 500),
+            },
+          });
+      }
       await this.trace.createInTransaction(tx, {
         entityType: 'LOT',
         entityId: lot.id,
@@ -1211,9 +1246,11 @@ export class DistributionService {
       const cap = await tx.organizationCapability.findFirst({
         where: {
           organizationId: actor.organizationId!,
+          // Selling to consumers suits retailers and producers selling direct;
+          // any goods-owning holder may dispatch outside AgriTrace (ADR-005).
           code:
             input.kind === 'SALE'
-              ? 'RETAILER'
+              ? { in: ['RETAILER', 'FARM', 'PROCESSOR'] }
               : { in: ['FARM', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'] },
           revokedAt: null,
         },
@@ -1223,6 +1260,8 @@ export class DistributionService {
           'Năng lực doanh nghiệp không phù hợp ghi giảm lượng này',
         );
       const qty = quantity(input.quantity);
+      if (input.kind === 'EXTERNAL_DISPATCH' && (!input.recipientName?.trim() || !input.documentNo?.trim()))
+        throw new UnprocessableEntityException('Ghi đơn vị nhận và số chứng từ khi xuất cho đơn vị ngoài hệ thống');
       if(input.fromQuarantine){
         if(input.kind!=='DAMAGE'||!input.siteId)throw new ConflictException('Chỉ ghi hư hỏng lượng cách ly tại cơ sở');
         await enterpriseAuthority(tx,actor,'quarantine.manage',lotChainId(lot),input.siteId);
@@ -1257,8 +1296,9 @@ export class DistributionService {
         );
       if (!(await quantityIsReconciled(tx, lot)))
         throw new ConflictException('Lô cần đối soát trước khi ghi giảm');
+      const outbound = input.kind !== 'DAMAGE';
       if (
-        input.kind === 'SALE' &&
+        outbound &&
         (isPastExpiry(lot.expiryDate) ||
           (await tx.traceNotice.findFirst({
             where: { lotId: lot.id, kind: 'RECALL' },
@@ -1284,6 +1324,9 @@ export class DistributionService {
           organizationId: actor.organizationId!,
           siteId: input.siteId ?? null,
           fromQuarantine: input.fromQuarantine??false,
+          ...(input.kind === 'EXTERNAL_DISPATCH'
+            ? { recipientName: input.recipientName!.trim(), documentNo: input.documentNo!.trim() }
+            : {}),
         },
       });
       await tx.lotHolding.update({
@@ -1302,7 +1345,7 @@ export class DistributionService {
           availableQuantity: after,
           version: { increment: 1 },
           ...(after.isZero()
-            ? { currentState: input.kind === 'SALE' ? 'SOLD' : 'DAMAGED' }
+            ? { currentState: outbound ? 'SOLD' : 'DAMAGED' }
             : {}),
         },
       });
@@ -1310,7 +1353,7 @@ export class DistributionService {
         data: {
           lotId: lot.id,
           eventId: event.id,
-          type: input.kind === 'SALE' ? 'SALE_OUT' : 'DAMAGE_OUT',
+          type: outbound ? 'SALE_OUT' : 'DAMAGE_OUT',
           quantity: qty,
           beforeQty: lot.availableQuantity,
           delta: qty.negated(),

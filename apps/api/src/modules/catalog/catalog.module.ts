@@ -56,6 +56,7 @@ import { randomUUID } from 'node:crypto';
 import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
 import { assertFarmRefs, assertProductRefs } from './product-refs.js';
 import { assertEntitlement } from '../billing/billing-core.js';
+import { ProductApprovalRequestInput, requestProductApproval } from './product-approval.js';
 class ProductDto {
   @ApiProperty({ maxLength: 100 }) @IsString() @MinLength(2) @MaxLength(100) category!: string;
   @ApiProperty({ required: false, format: 'uuid', description: 'Origin farm. Required for producers; processors give manufacturingSiteId instead.' }) @IsOptional() @IsUUID() originFarmId?: string;
@@ -332,6 +333,17 @@ class CatalogController {
       await assertEntitlement(tx, req.user.organizationId!, 'products');
       const updated = await tx.product.updateMany({ where: { id, version: dto.version, evidenceComplete: false }, data: { evidenceComplete: true, status: 'ACTIVE', version: { increment: 1 } } });
       if (updated.count !== 1) throw new ConflictException('Sản phẩm đã thay đổi');
+      return tx.product.findUniqueOrThrow({ where: { id } });
+    });
+  }
+  @ApiDataResponse(ProductRecordDto, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @Post('products/:id/approval-request')
+  @Roles('FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'DISTRIBUTOR', 'PROCESSOR')
+  requestApproval(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ProductApprovalRequestInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
+    return this.run(key, req, 'EW_PRODUCT_APPROVAL_REQUEST', { id, ...dto }, async (tx) => {
+      await enterpriseAuthority(tx, req.user, 'catalog.manage', undefined, undefined, true);
+      await requestProductApproval(tx, req.user, id, dto);
       return tx.product.findUniqueOrThrow({ where: { id } });
     });
   }

@@ -274,6 +274,7 @@ export async function authorizeCommand(
     case 'PLATFORM_BILLING_VOID_INVOICE':
     case 'PLATFORM_BILLING_ISSUE_RENEWAL':
     case 'PLATFORM_QR_BLOCK':
+    case 'PLATFORM_PRODUCT_REVIEW':
     case 'PLATFORM_QR_UNBLOCK':
     case 'PLATFORM_NOTICE_PUBLISH':
     case 'PLATFORM_NOTICE_WITHDRAW':

@@ -30,6 +30,10 @@ import type { ReviewEnterpriseDto, ActivateEnterpriseDto } from './dto.js';
 import { VIETNAM_ADDRESSES } from './address-catalog.js';
 import { serviceStage } from './enterprise-service.service.js';
 import {
+  acceptPartnerInvitation,
+  invitationHash,
+} from '../supply-chains/partner-invitations.js';
+import {
   ensureFarmLedger,
   grantChainCreation,
   grantEnterpriseBusiness,
@@ -364,6 +368,9 @@ export async function registerEnterprise(
                 production,
                 processing,
                 participationStatus,
+                invitationHash: input.invitationToken
+                  ? invitationHash(input.invitationToken)
+                  : null,
                 services,
                 termsAccepted,
                 privacyAcknowledged,
@@ -460,9 +467,12 @@ export async function authorizeEnterpriseCommand(
     });
   }
   if (
-    !['ENTERPRISE_SERVICE_ORDER', 'ENTERPRISE_SERVICE_PAY'].includes(
-      input.operation,
-    )
+    ![
+      'ENTERPRISE_SERVICE_ORDER',
+      'ENTERPRISE_SERVICE_PAY',
+      'ENTERPRISE_UPGRADE_OWNER',
+      'ENTERPRISE_CAPABILITY_REQUEST',
+    ].includes(input.operation)
   )
     throw new ForbiddenException('Command onboarding không hợp lệ');
   if (lock && actor.organizationId)
@@ -476,6 +486,8 @@ export async function authorizeEnterpriseCommand(
   const serviceCommand = [
     'ENTERPRISE_SERVICE_ORDER',
     'ENTERPRISE_SERVICE_PAY',
+    'ENTERPRISE_UPGRADE_OWNER',
+    'ENTERPRISE_CAPABILITY_REQUEST',
   ].includes(input.operation);
   if (
     !enrollment ||
@@ -557,6 +569,7 @@ export class EnterpriseOnboardingService {
       await assertActivationReady(tx,row);
       await tx.enterpriseEnrollment.update({where:{id},data:{serviceActivatedAt:new Date(),serviceActivatedBy:actor.sub!,serviceActivationReason:input.reason,version:{increment:1}}});
       await grantEnterpriseBusiness(tx,row);
+      await acceptPartnerInvitation(tx,row.organizationId,(row.organization.profile?.registrationData as {invitationHash?:string|null}|null)?.invitationHash);
       const createChain=await grantChainCreation(tx,row.organizationId);
       await appendPlatformAudit(tx,{actor,action:'ENTERPRISE_SERVICE_ACTIVATED',subjectType:'ENTERPRISE_ENROLLMENT',subjectId:id,organizationId:row.organizationId,reason:input.reason,details:{manual:true,temporaryAccess:!enterprisePaymentsEnabled(),paymentVerified:false,peerVerified:false,participationStatus:row.organization.participationStatus,createChain}});
       return enrollmentView(await tx.enterpriseEnrollment.findUniqueOrThrow({where:{id},include:INCLUDE}));

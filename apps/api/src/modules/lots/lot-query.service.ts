@@ -18,6 +18,7 @@ import { scopedLotReadWhere } from '../supply-chains/business-read-scope.js';
 import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
 import { getAllowedLotCommands, type LotCommand } from './lot-action.policy.js';
 import {PublicJourneyService} from './public-journey.service.js';
+import { publicBrandAndTrust } from './public-brand.js';
 
 @Injectable()
 export class LotQueryService {
@@ -172,7 +173,7 @@ export class LotQueryService {
     const receipts=await this.prisma.distributionReceipt.findMany({where:{transferId:{in:lines.map(l=>l.transferId)}}});
     const remainders=await this.prisma.distributionRemainder.findMany({where:{lotId:qr.lot.id,transferId:{in:lines.map(l=>l.transferId)}}});
     const notices = await this.prisma.traceNotice.findMany({
-      where: { lotId: qr.lot.id },
+      where: { lotId: qr.lot.id, kind: { in: ['WARNING', 'RECALL'] } },
       select: { kind: true, message: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -192,6 +193,7 @@ export class LotQueryService {
       ON CONFLICT (lot_id, day) DO UPDATE SET scans = trace_scan_daily.scans + 1`.catch(() => undefined);
     return {
       ...toPublicLotDto(qr.lot, traceToken, traceEvents),
+      ...(await publicBrandAndTrust(this.prisma, qr.lot)),
       journey:await this.journey.build(qr.lot,traceEvents,lines,traceToken),
       imageUrl:await this.journey.thumbnailUrl(traceToken,qr.lot.id),
       notices,
