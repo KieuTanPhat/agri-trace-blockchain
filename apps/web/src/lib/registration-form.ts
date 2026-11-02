@@ -4,56 +4,33 @@ export type AddressProvince = {
   wards: Array<{ code: string; name: string }>;
 };
 export const REGISTRATION_STEPS = [
-  "Vai trò & doanh nghiệp",
+  "Tư cách & doanh nghiệp",
   "Đại diện & tài khoản",
   "Thông tin hoạt động",
   "Dịch vụ sử dụng",
   "Kiểm tra & gửi hồ sơ",
 ];
+/** Only enterprises and cooperatives register (ADR-005). */
 export const LEGAL_FORM_OPTIONS = [
   ["ENTERPRISE", "Doanh nghiệp"],
   ["COOPERATIVE", "Hợp tác xã"],
-  ["HOUSEHOLD_BUSINESS", "Hộ kinh doanh có đăng ký"],
-  ["PRODUCER_HOUSEHOLD", "Hộ nông dân sản xuất"],
-  ["INDIVIDUAL_PRODUCER", "Cá nhân sản xuất"],
 ] as const;
 export const ACTIVITY_OPTIONS = [
-  ["FARM", "Nhà sản xuất/HTX"],
-  ["TRANSPORTER", "Nhà vận chuyển"],
-  ["PROCESSOR", "Nhà chế biến"],
-  ["DISTRIBUTOR", "Nhà phân phối"],
-  ["RETAILER", "Nhà bán lẻ"],
+  ["FARM", "Sản xuất (trồng trọt, thu hoạch)"],
+  ["PROCESSOR", "Chế biến, đóng gói"],
+  ["TRANSPORTER", "Vận chuyển"],
+  ["DISTRIBUTOR", "Phân phối, lưu kho"],
+  ["RETAILER", "Bán lẻ"],
 ] as const;
-/** The role chosen first; it fixes the participation model and activities. */
-export const REGISTRATION_ROLES = [
-  ["FARM", "Nhà sản xuất / Hợp tác xã", "Trồng trọt, thu hoạch và tạo lô nông sản. Mua gói dịch vụ và tạo chuỗi truy xuất."],
-  ["PROCESSOR", "Nhà chế biến", "Sơ chế, đóng gói, chế biến lô nông sản. Tham gia chuỗi khi được mời."],
-  ["TRANSPORTER", "Nhà vận chuyển", "Nhận và giao lô hàng giữa các khâu. Tham gia chuỗi khi được mời."],
-  ["DISTRIBUTOR", "Nhà phân phối", "Nhập kho, lưu kho và phân phối lô hàng. Tham gia chuỗi khi được mời."],
-  ["RETAILER", "Nhà bán lẻ", "Nhận hàng, bán lẻ và ghi nhận tiêu thụ. Tham gia chuỗi khi được mời."],
-  ["SUPPLY_CHAIN", "Doanh nghiệp có chuỗi cung ứng", "Một tổ chức có đăng ký vận hành toàn bộ vai trò: sản xuất, chế biến, vận chuyển, phân phối và bán lẻ."],
+/** What the organization is on AgriTrace: free member or paying chain owner. */
+export const PARTICIPATION_STATUS_OPTIONS = [
+  ["MEMBER", "Thành viên (miễn phí)", "Ghi nghiệp vụ theo năng lực trong chuỗi được mời hoặc khi nhận lô. Nông trại có sổ ghi miễn phí. Nâng cấp lên chủ chuỗi bất cứ lúc nào."],
+  ["CHAIN_OWNER", "Chủ chuỗi (dùng dịch vụ)", "Đứng tên sản phẩm, tạo chuỗi, mời đối tác, trang thương hiệu và phát động thu hồi. Chọn gói và thanh toán; quyền tạo chuỗi có hiệu lực khi thanh toán xong."],
 ] as const;
-export type RegistrationRole = (typeof REGISTRATION_ROLES)[number][0];
-const ALL_ACTIVITIES = ["FARM", "PROCESSOR", "TRANSPORTER", "DISTRIBUTOR", "RETAILER"];
-/** Draft fields derived from the chosen registration role. */
-export function registrationRoleFields(role: string) {
-  return role === "SUPPLY_CHAIN"
-    ? {
-        participationModel: "SUPPLY_CHAIN_ENTERPRISE",
-        activities: [...ALL_ACTIVITIES],
-        organizationType: "FARM",
-      }
-    : { participationModel: "SINGLE", activities: [role], organizationType: role };
-}
-/** Households and individual producers may only register as producers. */
-export const legalFormsFor = (role: string) =>
-  LEGAL_FORM_OPTIONS.filter(
-    ([code]) => role === "FARM" || registeredLegalForm(code),
-  );
-export const PARTICIPATION_OPTIONS = [
-  ["SINGLE", "Một vai trò trong chuỗi", "Nhà sản xuất/HTX mua gói và tạo chuỗi; vận chuyển, chế biến, phân phối, bán lẻ tham gia miễn phí khi được mời."],
-  ["SUPPLY_CHAIN_ENTERPRISE", "Doanh nghiệp chuỗi cung ứng", "Một tổ chức có đăng ký vận hành nhiều khâu (sản xuất, chế biến, vận chuyển, phân phối, bán lẻ). Mua gói Doanh nghiệp chuỗi; từng năng lực được xét duyệt riêng."],
-] as const;
+/** A chain owner owns the goods it sells, so it needs a goods-owning capability. */
+export const GOODS_OWNING_ACTIVITIES = ["FARM", "PROCESSOR", "DISTRIBUTOR", "RETAILER"];
+export const mayOwnChains = (activities: string[]) =>
+  activities.some((a) => GOODS_OWNING_ACTIVITIES.includes(a));
 export const PROCESSING_TYPE_OPTIONS = [
   ["PRELIMINARY", "Sơ chế"],
   ["PACKING", "Đóng gói"],
@@ -70,9 +47,6 @@ export const PROCESSING_CERT_OPTIONS = [
   ["FSSC22000", "FSSC 22000"],
   ["OTHER", "Khác"],
 ] as const;
-/** Producers/cooperatives and supply-chain enterprises buy a plan. */
-export const payingDraft = (model: string, activities: string[]) =>
-  model === "SUPPLY_CHAIN_ENTERPRISE" || activities.includes("FARM");
 export const INTEREST_OPTIONS = [
   ["TRACEABILITY", "Truy xuất nguồn gốc"],
 ] as const;
@@ -83,7 +57,7 @@ export const CERTIFICATION_OPTIONS = [
   ["OTHER", "Chứng nhận khác"],
 ] as const;
 export const registeredLegalForm = (value: string) =>
-  ["ENTERPRISE", "COOPERATIVE", "HOUSEHOLD_BUSINESS"].includes(value);
+  ["ENTERPRISE", "COOPERATIVE"].includes(value);
 export const registrationDefaults = {
   organizationName: "",
   legalForm: "ENTERPRISE",
@@ -104,8 +78,8 @@ export const registrationDefaults = {
   email: "",
   sameRepresentative: false,
   registrantRelationship: "REPRESENTATIVE",
-  registrationRole: "FARM",
-  participationModel: "SINGLE",
+  participationStatus: "MEMBER",
+  invitationToken: "",
   activities: ["FARM"] as string[],
   organizationType: "FARM",
   processingTypes: [] as string[],
@@ -158,15 +132,12 @@ export function validateRegistrationStep(
 ): RegistrationErrors {
   const errors: RegistrationErrors = {};
   if (step === 0) {
-    if (!REGISTRATION_ROLES.some(([code]) => code === d.registrationRole))
-      errors.registrationRole = "Chọn vai trò đăng ký của tổ chức.";
+    if (!PARTICIPATION_STATUS_OPTIONS.some(([code]) => code === d.participationStatus))
+      errors.participationStatus = "Chọn tư cách tham gia của tổ chức.";
     if (!goodText(d.organizationName, 2, 255))
-      errors.organizationName = "Tên tổ chức/chủ thể cần từ 2 đến 255 ký tự.";
-    if (!legalFormsFor(d.registrationRole).some(([code]) => code === d.legalForm))
-      errors.legalForm =
-        d.registrationRole === "SUPPLY_CHAIN"
-          ? "Doanh nghiệp có chuỗi cung ứng cần là tổ chức có đăng ký kinh doanh."
-          : "Chọn loại chủ thể phù hợp với vai trò đăng ký.";
+      errors.organizationName = "Tên tổ chức cần từ 2 đến 255 ký tự.";
+    if (!LEGAL_FORM_OPTIONS.some(([code]) => code === d.legalForm))
+      errors.legalForm = "Chỉ doanh nghiệp hoặc hợp tác xã được đăng ký.";
     if (registeredLegalForm(d.legalForm) && !d.businessId.trim())
       errors.businessId = "Nhập mã số thuế của tổ chức.";
     if (
@@ -176,12 +147,7 @@ export function validateRegistrationStep(
       errors.registrationNumber = "Nhập số giấy chứng nhận đăng ký.";
     if (
       d.businessId.trim() &&
-      !/^(?:\d{10}(?:-?\d{3})?|\d{12})$/.test(d.businessId.trim())
-    )
-      errors.businessId = "Mã số thuế cần 10, 12 hoặc 13 số theo loại chủ thể.";
-    if (
-      ["ENTERPRISE", "COOPERATIVE"].includes(d.legalForm) &&
-      /^\d{12}$/.test(d.businessId.trim())
+      !/^\d{10}(?:-?\d{3})?$/.test(d.businessId.trim())
     )
       errors.businessId = "Doanh nghiệp/HTX dùng mã số thuế 10 hoặc 13 số.";
     const province = addresses.find((p) => p.code === d.provinceCode),
@@ -259,15 +225,9 @@ export function validateRegistrationStep(
     if (!d.activities.includes(d.organizationType))
       errors.organizationType =
         "Chọn hoạt động chính trong các hoạt động đã đăng ký.";
-    if (d.participationModel === "SINGLE" && d.activities.length !== 1)
+    if (d.participationStatus === "CHAIN_OWNER" && !mayOwnChains(d.activities))
       errors.activities =
-        "Mô hình một vai trò chọn đúng một hoạt động; chọn Doanh nghiệp chuỗi cung ứng để đăng ký nhiều năng lực.";
-    if (d.participationModel === "SUPPLY_CHAIN_ENTERPRISE") {
-      if (d.activities.length < 2)
-        errors.activities = "Doanh nghiệp chuỗi cung ứng chọn ít nhất hai năng lực.";
-      if (!registeredLegalForm(d.legalForm))
-        errors.activities = "Doanh nghiệp chuỗi cung ứng cần là tổ chức có đăng ký kinh doanh.";
-    }
+        "Chủ chuỗi cần ít nhất một năng lực sở hữu hàng: sản xuất, chế biến, phân phối hoặc bán lẻ.";
     if (d.activities.includes("PROCESSOR")) {
       if (!d.processingTypes.length)
         errors.processingTypes = "Chọn ít nhất một loại hình chế biến.";
@@ -281,9 +241,6 @@ export function validateRegistrationStep(
       if (!files.CERTIFICATE)
         errors.CERTIFICATE = "Đính kèm giấy chứng nhận cơ sở đủ điều kiện an toàn thực phẩm.";
     }
-    if (!registeredLegalForm(d.legalForm) && !d.activities.includes("FARM"))
-      errors.activities =
-        "Hộ / cá nhân sản xuất cần chọn hoạt động Nhà sản xuất.";
     if (d.activities.includes("FARM")) {
       const groups = d.productGroups
         .split(",")
