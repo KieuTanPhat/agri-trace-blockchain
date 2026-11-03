@@ -404,6 +404,8 @@ async function enrollKey(options, session, party, label, loseResponse = false) {
 
 async function ensureKeys(options, session) {
   if (session.keys.farm) return;
+  // Chain keys are created only on a chain pinned to dual signing.
+  await options.setHandoverMode("DUAL_SIGNED");
   session.keys.farm = await enrollKey(
     options,
     session,
