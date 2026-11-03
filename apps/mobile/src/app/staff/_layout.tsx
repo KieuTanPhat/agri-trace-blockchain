@@ -6,9 +6,10 @@ import { color } from '../../theme/tokens';
 
 /** Every staff screen except sign-in needs a session. */
 function Gate() {
-  const { status } = useSession();
+  const { status, user } = useSession<{ mustChangePassword?: boolean }>();
   const segments = useSegments();
   const onLogin = segments.at(-1) === 'login';
+  const onPassword = segments.at(-1) === 'password';
   if (status === 'loading')
     return (
       <View style={{ flex: 1, justifyContent: 'center', backgroundColor: color.bg }}>
@@ -16,6 +17,8 @@ function Gate() {
       </View>
     );
   if (status === 'anonymous' && !onLogin) return <Redirect href="/staff/login" />;
+  // An account created or reset by an administrator changes its password first.
+  if (status === 'signed-in' && user?.mustChangePassword && !onPassword) return <Redirect href="/staff/password" />;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bg } }}>
       <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
