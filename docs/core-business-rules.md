@@ -697,9 +697,10 @@ Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lện
 
 ## Chuỗi riêng, nhân viên của vụ và ràng buộc diện tích (26/10/2026)
 
-- **Sổ ghi nông trại** (chuỗi `personal = true`, ADR-005 mục 4). Tạo trong cùng lệnh
-  khi năng lực `FARM` của tổ chức có hiệu lực (kích hoạt hoặc duyệt năng lực sau kích
-  hoạt), tối đa một sổ mỗi tổ chức, cho cả thành viên lẫn chủ chuỗi. Sổ có hồ sơ
+- **Sổ ghi riêng** (chuỗi `personal = true`, ADR-005 mục 4): "Sổ ghi nông trại" cho
+  `FARM`, "Sổ ghi cửa hàng" cho `RETAILER`/`DISTRIBUTOR` không có `FARM`. Tạo trong
+  cùng lệnh khi một trong các năng lực đó có hiệu lực (kích hoạt hoặc duyệt năng lực
+  sau kích hoạt), tối đa một sổ mỗi tổ chức, cho cả thành viên lẫn chủ chuỗi. Sổ có hồ sơ
   nghiệp vụ `ACTIVE`, tổ chức là thành viên, `CHAIN_MANAGER` và vai trò theo năng lực.
   Sổ không tính vào hạn mức gói, chịu hạn mức năm `billing.farmLedgerLimits`. Binding
   được cấp tự động qua `ledger_provisioning_job`; trước khi binding `ACTIVE`, sổ chưa
