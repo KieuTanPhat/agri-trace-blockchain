@@ -13,10 +13,10 @@ type Desk = { capability: string; title: string; hint: string; links: Array<[str
  * (receive, move, hand over, sell, recall), never ERP orders or prices. */
 const DESKS: Desk[] = [
   { capability: "FARM", title: "Sản xuất", hint: "Vụ, nhật ký, thu hoạch tạo lô trong sổ ghi hoặc chuỗi được mời.", links: [["/production-cycles", "Vụ sản xuất"], ["/enterprise/areas", "Vùng trồng"], ["/enterprise/materials", "Vật tư"]] },
-  { capability: "PROCESSOR", title: "Chế biến", hint: "Phiếu nhập, lệnh chế biến hoặc đóng gói, lô thành phẩm.", links: [["/enterprise/processing", "Lệnh chế biến"]] },
+  { capability: "PROCESSOR", title: "Chế biến", hint: "Phiếu nhập, lệnh chế biến hoặc đóng gói, lô thành phẩm.", links: [["/enterprise/inbound", "Hàng chờ nhận"], ["/enterprise/processing", "Lệnh chế biến"]] },
   { capability: "TRANSPORTER", title: "Vận chuyển", hint: "Nhận yêu cầu lấy hàng, chở và bàn giao, ghi hư hỏng trên đường.", links: [["/distribution", "Chuyến và bàn giao"], ["/enterprise/vehicles", "Phương tiện"]] },
-  { capability: "DISTRIBUTOR", title: "Kho / phân phối", hint: "Nhận hàng, phân kho, cách ly, xuất giao, trả hàng, xuất ra ngoài hệ thống.", links: [["/distribution", "Giao nhận"], ["/enterprise/inventory", "Tồn kho theo lô"], ["/enterprise/reports", "Cân đối khối lượng"]] },
-  { capability: "RETAILER", title: "Bán lẻ", hint: "Nhận hàng, bán cho người tiêu dùng, hủy hàng hết hạn, rút hàng thu hồi.", links: [["/distribution", "Nhận hàng"], ["/enterprise/inventory", "Tồn và ghi bán"], ["/enterprise/notices", "Cảnh báo và thu hồi"]] },
+  { capability: "DISTRIBUTOR", title: "Kho / phân phối", hint: "Nhận hàng, phân kho, cách ly, xuất giao, trả hàng, xuất ra ngoài hệ thống.", links: [["/enterprise/inbound", "Hàng chờ nhận"], ["/distribution", "Giao nhận"], ["/enterprise/inventory", "Tồn kho theo lô"], ["/enterprise/reports", "Cân đối khối lượng"]] },
+  { capability: "RETAILER", title: "Bán lẻ", hint: "Nhận hàng, bán cho người tiêu dùng, hủy hàng hết hạn, rút hàng thu hồi.", links: [["/enterprise/inbound", "Hàng chờ nhận"], ["/enterprise/sales", "Bán hàng"], ["/enterprise/notices", "Cảnh báo và thu hồi"]] },
 ];
 
 export function RoleDesk() {
@@ -33,7 +33,7 @@ export function RoleDesk() {
         <p className="text-[13px]">
           {tr("Hàng chờ nhận / bàn giao")}: <Badge tone={pending ? "warn" : "ok"}>{pending}</Badge>{" "}
           {tr("Lô cần chú ý (thu hồi, hết hạn, cách ly)")}: <Badge tone={alerts ? "danger" : "ok"}>{alerts}</Badge>{" "}
-          <Link className="text-brand underline" href="/distribution">{tr("Mở hộp giao nhận")}</Link>
+          <Link className="text-brand underline" href={canUseEnterpriseRoute("/enterprise/inbound", access) ? "/enterprise/inbound" : "/distribution"}>{tr("Mở hộp giao nhận")}</Link>
         </p>
       )}
       <div className="grid gap-3 md:grid-cols-2">
