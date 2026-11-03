@@ -577,7 +577,7 @@ async function planConsent(options, session) {
 async function invitation(options, session) {
   const farm = session.pages.farm;
   const sheet = await selectChain(farm, options, "members");
-  const invite = sheet.getByRole("button", { name: "Mời đối tác AgriTrace", exact: true });
+  const invite = sheet.getByRole("button", { name: "Mời thành viên", exact: true });
   await until(() => invite.isEnabled(), "active partner can be invited");
   await invite.click();
   const form = farm.getByRole("dialog", { name: "Mời thành viên", exact: true });

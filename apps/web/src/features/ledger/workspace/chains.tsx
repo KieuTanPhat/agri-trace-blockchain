@@ -217,15 +217,17 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
     refetchInterval: query => query.state.data && query.state.data.preparationStatus !== "READY" ? 3000 : false,
   });
   const ctxQ = useQuery({ queryKey: ["chain-context"], queryFn: chainApi.context });
+  // Chain keys exist only for dual-signed handovers; standard chains have no signing tab.
+  const signing = useQuery({ queryKey: ["chain-handover-mode", id], queryFn: () => chainApi.signingContext(id), retry: false });
+  const dual = signing.data?.handoverMode === "DUAL_SIGNED";
   const access=useWorkspaceAccess();
   const memberAct = useDialog<MemberAct>();
   const invite = useDialog();
-  const inviteLink = useDialog();
   const leave = useDialog<MemberRecord>();
   const [sentLink, setSentLink] = useState<string | null>(null);
   const prof = useDialog<"ACTIVATE" | "SUSPEND">();
   const c = chain.data;
-  const tab = view === "detail" || view === "business" ? "" : view;
+  const tab = view === "detail" || view === "business" || view === "signing" && !dual ? "" : view;
   const owner = c?.ownerOrganizationId === me;
   const orgAdmin=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="ORG_ADMIN" && !g.revokedAt);
   const canCreateChain=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="CREATE_CHAIN" && !g.revokedAt);
@@ -233,7 +235,13 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
   const manager = owner && !!ctxQ.data?.grants.some((g) => g.chainId === id && g.role === "CHAIN_MANAGER" && !g.revokedAt);
   const invalidate = [["chain", id], ["chain-members", id], ["chain-profile", id], ["ws-chains"], ["chain-context"]];
   const memberIds = new Set((members.data ?? []).map((m) => m.organizationId));
+  const external = useQuery({ queryKey: ["ws-external-partners"], queryFn: wapi.externalPartners, enabled: !!chain.data && chain.data.ownerOrganizationId === me && !chain.data.personal });
   const invitable = names.partners.filter((p) => p.status === "ACTIVE").flatMap((p) => (p.inviterId === me ? p.invitee : p.inviter) ?? []).filter((o) => !memberIds.has(o.id));
+  // One invite list from partner management: AgriTrace partners join directly,
+  // partners outside AgriTrace get an email link to register first.
+  const outside = (external.data ?? []).filter((p) => !!p.email);
+  const inviteOptions = [...invitable.map((o) => ({ value: `ag:${o.id}`, label: o.name })), ...outside.map((p) => ({ value: `ex:${p.id}`, label: tr("{p0} (ngoài AgriTrace, mời qua email)", { p0: p.name }) }))];
+  const noEmail = (external.data ?? []).filter((p) => !p.email);
   if (!c) return <PageBody>{chain.error ? <ErrorState error={chain.error} onRetry={() => chain.refetch()} /> : <LoadingRows rows={6} />}</PageBody>;
   const activeMembers = (members.data ?? []).filter((m) => m.status === "ACTIVE").length;
   return (
@@ -246,7 +254,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
       />
       <PageBody className="min-w-0">
         <nav aria-label={tr("Mục quản lý chuỗi")} className="flex flex-wrap gap-1 border-b border-line">
-          {TABS.map(([part, label]) => (
+          {TABS.filter(([part]) => part !== "signing" || dual).map(([part, label]) => (
             <Link key={part} aria-current={tab === part ? "page" : undefined} href={`/supply-chains/${c.id}${part ? "/" + part : ""}`}
               className={cn("-mb-px border-b-2 px-3 py-2 text-[13px]", tab === part ? "border-brand font-semibold text-brand-ink" : "border-transparent text-ink-2 hover:text-ink")}>{tr(label)}</Link>
           ))}
@@ -286,7 +294,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
             </>
           )}
           {tab === "members" && (
-            <Section title={manager ? tr("Doanh nghiệp trong chuỗi") : tr("Tư cách thành viên của bạn")} aside={manager && !c.personal && <span className="flex gap-1"><Button size="xs" variant="outline" onClick={() => invite.open(true)} disabled={!invitable.length}><Plus /> {tr("Mời đối tác AgriTrace")}</Button><Button size="xs" variant="outline" onClick={() => inviteLink.open(true)}>{tr("Mời doanh nghiệp ngoài AgriTrace")}</Button></span>} bodyClassName="flex flex-col gap-3 p-4">
+            <Section title={manager ? tr("Doanh nghiệp trong chuỗi") : tr("Tư cách thành viên của bạn")} aside={manager && !c.personal && <Button size="xs" variant="outline" onClick={() => invite.open(true)} disabled={!inviteOptions.length}><Plus /> {tr("Mời thành viên")}</Button>} bodyClassName="flex flex-col gap-3 p-4">
               {c.personal && (
                 <Callout tone="info">
                   {tr("Đây là sổ ghi nông trại miễn phí: không mời đối tác. Đối tác tự vào sổ khi nhận phiếu giao lô từ bạn.")}{" "}
@@ -303,10 +311,11 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
                   )}
                 </Callout>
               )}
-              {manager && !c.personal && !invitable.length && (
+              {manager && !c.personal && (
                 <p className="text-[12.5px] text-ink-2">
-                  {tr("Đối tác AgriTrace đã kết nối và chưa ở trong chuỗi sẽ hiện ở nút mời.")}{" "}
-                  <Link href="/enterprise/partners" className="text-brand underline">{tr("Kết nối đối tác")}</Link>
+                  {tr("Danh sách mời lấy từ Quản lý đối tác: đối tác AgriTrace đang hoạt động và đối tác ngoài AgriTrace có email.")}{" "}
+                  {noEmail.length > 0 && tr("Chưa có email nên chưa mời được: {p0}.", { p0: noEmail.map((p) => p.name).join(", ") })}{" "}
+                  <Link href="/enterprise/partners" className="text-brand underline">{tr("Quản lý đối tác")}</Link>
                 </p>
               )}
               <ul className="divide-y divide-line/70 rounded-md border border-line">
@@ -331,12 +340,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
           {tab === "roles" && (orgAdmin || platformAdmin) && <ChainStaff chainId={c.id} ownerOrganizationId={c.ownerOrganizationId} />}
           {tab === "roles" && !orgAdmin && !platformAdmin && <Callout tone="info">{tr("Chỉ quản trị doanh nghiệp xem được nhân viên làm việc trong chuỗi.")}</Callout>}
           {tab === "plans" && (profile.data?.state === "ACTIVE" ? <Plans chainId={c.id} manager={manager} names={names} members={members.data ?? []} /> : <Callout tone="info">{tr("Kế hoạch vận chuyển mở khi hồ sơ nghiệp vụ của chuỗi đang vận hành.")}</Callout>)}
-          {tab === "signing" && (
-            <>
-              <Callout tone="info">{tr("Bàn giao tiêu chuẩn ký bằng khóa cá nhân của từng người, tạo tự động khi đăng nhập.")} <Link href="/enterprise/signing" className="text-brand underline">{tr("Xem khóa ký bàn giao")}</Link></Callout>
-              {me && <SigningKeys chainId={c.id} canManage={orgAdmin}/>}
-            </>
-          )}
+          {tab === "signing" && me && <SigningKeys chainId={c.id} canManage={orgAdmin}/>}
           {tab === "ledger" && (
             <Section title={tr("Sổ cái của chuỗi")} bodyClassName="flex flex-col gap-2 p-4">
               {ledger.data ? (
@@ -373,12 +377,6 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
         </section>
         {sentLink && <Callout tone="info" title={tr("Link mời (đã gửi email, chỉ hiện một lần)")}><span className="break-all font-mono text-[12px]">{sentLink}</span></Callout>}
       </PageBody>
-      {inviteLink.target && (
-        <CommandDialog {...inviteLink.props} title={tr("Mời doanh nghiệp chưa có tài khoản")} endpoint="POST /supply-chains/:id/invitations" description={tr("Email kèm link đăng ký được gửi tới doanh nghiệp. Sau khi hồ sơ được duyệt và kích hoạt, lời mời vào chuỗi hiện trong tài khoản của họ.")} schema={z.object({ email: z.email({ error: () => tr("Email không hợp lệ") }).max(255), organizationName: z.string().trim().min(2).max(255) })} defaultValues={{ email: "", organizationName: "" }} submitLabel={tr("Gửi lời mời")} invalidate={invalidate}
-          run={async (v, cmd) => { const result = await chainApi.inviteByLink(c.id, v, cmd); setSentLink(result.link); return result; }}>
-          {(f) => <><TextField control={f.control} name="organizationName" label={tr("Tên doanh nghiệp")} /><TextField control={f.control} name="email" label={tr("Email")} type="email" /></>}
-        </CommandDialog>
-      )}
       {leave.target && (
         <CommandDialog {...leave.props} title={tr("Rời chuỗi {p0}", { p0: c.name })} endpoint="POST /supply-chains/:id/memberships/:organizationId/leave" description={tr("Chỉ rời được khi doanh nghiệp không còn giữ hàng và không còn giao nhận mở trong chuỗi. Lịch sử đã ghi vẫn được giữ.")} schema={z.object({})} defaultValues={{}} version={leave.target.version} submitLabel={tr("Rời chuỗi")} tone="danger" invalidate={invalidate}
           run={(_, cmd) => chainApi.leave(c.id, leave.target!.organizationId, { version: leave.target!.version }, cmd)}>
@@ -386,8 +384,16 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
         </CommandDialog>
       )}
       {invite.target && (
-        <CommandDialog {...invite.props} title={tr("Mời thành viên")} endpoint="POST /supply-chains/:id/memberships" description={tr("Doanh nghiệp được mời phải đang hoạt động và tự chấp nhận lời mời.")} schema={z.object({ organizationId: z.string().min(1, { error: () => tr("Chọn tổ chức") }) })} defaultValues={{ organizationId: "" }} submitLabel={tr("Gửi lời mời")} invalidate={invalidate} run={(v, cmd) => chainApi.invite(c.id, v, cmd)}>
-          {(f) => <SelectField control={f.control} name="organizationId" label={tr("Đối tác")} options={invitable.map((o) => ({ value: o.id, label: o.name }))} />}
+        <CommandDialog {...invite.props} title={tr("Mời thành viên")} endpoint="POST /supply-chains/:id/memberships" description={tr("Đối tác AgriTrace tự chấp nhận lời mời. Đối tác ngoài AgriTrace nhận email đăng ký; khi hồ sơ được duyệt, lời mời vào chuỗi hiện trong tài khoản của họ.")} schema={z.object({ partner: z.string().min(1, { error: () => tr("Chọn đối tác") }) })} defaultValues={{ partner: "" }} submitLabel={tr("Gửi lời mời")} invalidate={invalidate}
+          run={async (v, cmd) => {
+            const [kind, partnerId] = [v.partner.slice(0, 2), v.partner.slice(3)];
+            if (kind === "ag") return chainApi.invite(c.id, { organizationId: partnerId }, cmd);
+            const p = outside.find((x) => x.id === partnerId)!;
+            const result = await chainApi.inviteByLink(c.id, { email: p.email!, organizationName: p.name }, cmd);
+            setSentLink(result.link);
+            return result;
+          }}>
+          {(f) => <SelectField control={f.control} name="partner" label={tr("Đối tác")} options={inviteOptions} />}
         </CommandDialog>
       )}
       {memberAct.target && (
