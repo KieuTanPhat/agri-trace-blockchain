@@ -38,6 +38,11 @@ export const usePublicProducts = () => useQuery({ queryKey: ["public", "products
 export const usePublicProduct = (id: string) =>
   useQuery({ queryKey: ["public", "product", id], queryFn: () => get<PublicProductDetail>(`/public/products/${encodeURIComponent(id)}?limit=12`), enabled: !!id });
 
+export type PublicEnterprise = S["PublicDirectoryEnterpriseDto"];
+
+export const usePublicEnterprises = () =>
+  useQuery({ queryKey: ["public", "enterprises"], queryFn: () => get<Page<PublicEnterprise>>("/public/enterprises?limit=50"), staleTime: 60_000 });
+
 export const usePublicNews = (limit = 12) =>
   useQuery({ queryKey: ["public", "news", limit], queryFn: () => get<Page<PublicNews>>(`/public/news?limit=${limit}`), staleTime: 60_000 });
 

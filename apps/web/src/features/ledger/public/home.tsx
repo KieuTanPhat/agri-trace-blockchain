@@ -1,9 +1,10 @@
 "use client";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { enterpriseHref, enterprisesOf, usePublicNews, usePublicProducts } from "@/lib/ledger/public-directory";
+import { enterpriseHref, enterprisesOf, usePublicEnterprises, usePublicNews, usePublicProducts } from "@/lib/ledger/public-directory";
+import { publicApiUrl } from "@/lib/api-client";
 import { customerHref } from "@/lib/site-origins";
 import { SITE_CONTACT } from "@/lib/site-contact";
 import { pt } from "@/lib/ledger/public-i18n";
@@ -11,14 +12,17 @@ import { Button } from "@/components/ledger/ui/button";
 import { Container, CtaBand, PhotoCard, PhotoHero, Reveal, SectionHeading } from "./blocks";
 import { PHOTOS, PLATFORM_FEATURES, SOLUTIONS, TRACE_STEPS } from "./content";
 import { TraceSearch } from "./trace-search";
-import { EnterpriseLogo, PRODUCT_GRID, ProductCard } from "./catalog";
+import { EnterpriseLogo, ORG_TYPE, PRODUCT_GRID, ProductCard } from "./catalog";
+
+const FEATURED_ENTERPRISES = 9;
 import { FeaturedNews } from "./news";
 
 function Hero() {
   return (
     <PhotoHero
       tall
-      image={PHOTOS.heroRiceTerraces}
+      image={PHOTOS.heroAgritrace}
+      imageClassName="object-[75%_center]"
       eyebrow={pt("Truy xuất nguồn gốc nông sản trên blockchain")}
       title={pt("Hành trình nông sản, minh bạch từ vườn tới tay bạn.")}
       description={pt("Từ trồng trọt, thu hoạch đến chế biến và giao hàng. Quét mã để xem nguồn gốc, nhật ký và giấy tờ của từng lô.")}
@@ -56,7 +60,15 @@ function RowHeading({ title, description, href, label }: { title: string; descri
 function Catalog() {
   const products = usePublicProducts();
   const all = useMemo(() => products.data ?? [], [products.data]);
-  const enterprises = useMemo(() => enterprisesOf(all).slice(0, 12), [all]);
+  const directory = usePublicEnterprises();
+  // Chủ sản phẩm trước (theo số sản phẩm), rồi doanh nghiệp khác trong danh bạ cho đủ một hàng.
+  const enterprises = useMemo(() => {
+    const owners = enterprisesOf(all).map((e) => ({ id: e.id, name: e.name, logo: e.logo, note: pt("{p0} sản phẩm", { p0: e.count }), href: enterpriseHref(e.id) }));
+    const others = (directory.data?.items ?? [])
+      .filter((e) => !owners.some((o) => o.id === e.id))
+      .map((e) => ({ id: e.id, name: e.name, logo: e.logoUrl ? publicApiUrl(e.logoUrl) : null, note: pt(ORG_TYPE[e.type] ?? e.type), href: null }));
+    return [...owners, ...others].slice(0, FEATURED_ENTERPRISES);
+  }, [all, directory.data]);
   const top = useMemo(() => [...all].sort((a, b) => b.traceCount - a.traceCount).slice(0, 10), [all]);
   const latest = useMemo(() => [...all].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 5), [all]);
   if (!all.length) return null;
@@ -66,16 +78,27 @@ function Catalog() {
         <section className="pt-16">
           <Container className="flex flex-col gap-7">
             <RowHeading title="Doanh nghiệp nổi bật" description="Doanh nghiệp có nhiều sản phẩm truy xuất trên AgriTrace." href="/products" label="Xem tất cả sản phẩm" />
-            <ul className="-mx-1 flex gap-6 overflow-x-auto px-1 pb-2 sm:gap-8">
-              {enterprises.map((e, i) => (
-                <Reveal as="li" key={e.id} delay={i * 50} className="shrink-0">
-                  <Link href={customerHref(enterpriseHref(e.id))} className="group flex w-28 flex-col items-center gap-2.5 text-center">
-                    <EnterpriseLogo name={e.name} logo={e.logo} className="size-24 rounded-full bg-white p-2 text-[28px] shadow-sm transition-shadow group-hover:border-brand group-hover:shadow-md" />
+            <ul className="grid grid-cols-3 gap-x-4 gap-y-6 sm:grid-cols-5 lg:grid-cols-9">
+              {enterprises.map((e, i) => {
+                const body = (
+                  <>
+                    <EnterpriseLogo name={e.name} logo={e.logo} className="size-20 rounded-full bg-white p-2 text-[26px] shadow-sm transition-shadow group-hover:border-brand group-hover:shadow-md xl:size-24" />
                     <span className="line-clamp-2 text-[13px] leading-snug font-medium group-hover:text-brand">{e.name}</span>
-                    <span className="text-[12px] text-ink-2">{pt("{p0} sản phẩm", { p0: e.count })}</span>
-                  </Link>
-                </Reveal>
-              ))}
+                    <span className="text-[12px] text-ink-2">{e.note}</span>
+                  </>
+                );
+                return (
+                  <Reveal as="li" key={e.id} delay={i * 40}>
+                    {e.href ? (
+                      <Link href={customerHref(e.href)} className="group flex flex-col items-center gap-2.5 text-center">
+                        {body}
+                      </Link>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2.5 text-center">{body}</div>
+                    )}
+                  </Reveal>
+                );
+              })}
             </ul>
           </Container>
         </section>
@@ -196,6 +219,23 @@ function Features() {
   );
 }
 
+/** Video tra cứu trên điện thoại; video vuông nên phóng nhẹ để điện thoại chiếm gần hết khung dọc. */
+function LookupVideo() {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    // Autoplay may be refused (or missing in tests); the video simply stays on its first frame.
+    Promise.resolve()
+      .then(() => video.play())
+      .catch(() => {});
+  }, []);
+  return (
+    <video ref={ref} src="/media/tra-cuu-agritrace.mp4" muted loop playsInline preload="metadata" aria-label={pt("Tra cứu sản phẩm trên điện thoại")} className="absolute inset-0 size-full scale-[1.15] object-cover" />
+  );
+}
+
 function ConsumerGuide() {
   const steps = [
     { title: "Quét mã QR", copy: "Dùng camera điện thoại hoặc ảnh chụp tem trên bao bì." },
@@ -222,8 +262,8 @@ function ConsumerGuide() {
             <Link href={customerHref("/scan")}>{pt("Quét mã truy xuất")}</Link>
           </Button>
         </div>
-        <Reveal className="relative aspect-[4/3] overflow-hidden rounded-3xl lg:aspect-[4/5]">
-          <Image src={PHOTOS.roleConsumer} alt="" fill placeholder="blur" sizes="(max-width: 1024px) 100vw, 45vw" className="object-cover" />
+        <Reveal className="relative mx-auto aspect-[3/4] w-full max-w-[440px] overflow-hidden rounded-3xl bg-brand-weak">
+          <LookupVideo />
         </Reveal>
       </Container>
     </section>

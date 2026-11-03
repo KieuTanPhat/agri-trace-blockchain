@@ -1,33 +1,27 @@
 /**
  * Nội dung tĩnh của trang công khai (tiếng Việt là khóa dịch, xem public-i18n-en.ts).
  * Chỉ mô tả năng lực đã có trong hệ thống; không đặt số liệu, khách hàng hay giá chưa xác nhận.
- * Ảnh lấy từ Unsplash (giấy phép Unsplash), nguồn ghi trong PHOTO_CREDITS.
+ * Ảnh Unsplash ghi nguồn trong PHOTO_CREDITS; ảnh bìa, người tiêu dùng, kiểm định và chế biến do chủ dự án cung cấp.
  */
 import type { StaticImageData } from "next/image";
-import heroRiceTerraces from "../../../../public/images/site/hero-rice-terraces.jpg";
-import aboutRiceVillage from "../../../../public/images/site/about-rice-village.jpg";
+import heroAgritrace from "../../../../public/images/site/hero-agritrace.webp";
 import teaHills from "../../../../public/images/site/tea-hills.jpg";
 import teaLeaves from "../../../../public/images/site/tea-leaves.jpg";
 import roleFarm from "../../../../public/images/site/role-farm.jpg";
-import roleProcessing from "../../../../public/images/site/role-processing.jpg";
+import roleProcessing from "../../../../public/images/site/role-processing-drying.jpg";
 import roleTransport from "../../../../public/images/site/role-transport.jpg";
 import roleRetail from "../../../../public/images/site/role-retail.jpg";
-import roleInspection from "../../../../public/images/site/role-inspection.jpg";
-import roleConsumer from "../../../../public/images/site/role-consumer.jpg";
+import roleInspection from "../../../../public/images/site/role-inspection-lab.jpg";
+import roleConsumer from "../../../../public/images/site/role-consumer-market.jpg";
 
-export const PHOTOS = { heroRiceTerraces, aboutRiceVillage, teaHills, teaLeaves, roleConsumer };
+export const PHOTOS = { heroAgritrace, teaHills, teaLeaves };
 
 export const PHOTO_CREDITS = [
-  ["hero-rice-terraces", "Neil Mewes", "https://unsplash.com/photos/Wut1lHNKZ5M"],
-  ["about-rice-village", "Peter Hammer", "https://unsplash.com/photos/ggQy5lGtwb0"],
   ["tea-hills", "Colin Roe", "https://unsplash.com/photos/H1RWuPMIgBY"],
   ["tea-leaves", "Rashid", "https://unsplash.com/photos/New8EgKnSds"],
   ["role-farm", "feifei liang", "https://unsplash.com/photos/K7DllgDsGNo"],
-  ["role-processing", "Amy Vann", "https://unsplash.com/photos/omICPqHDfgY"],
   ["role-transport", "Zoshua Colah", "https://unsplash.com/photos/qpFY19VSGQU"],
   ["role-retail", "Thomas Le", "https://unsplash.com/photos/pRJhn4MbsMM"],
-  ["role-inspection", "Noah Buscher", "https://unsplash.com/photos/x8ZStukS2PM"],
-  ["role-consumer", "Boxed Water Is Better", "https://unsplash.com/photos/7H1hDt694s8"],
 ] as const;
 
 export type Solution = { slug: string; image: StaticImageData; title: string; summary: string; points: string[] };

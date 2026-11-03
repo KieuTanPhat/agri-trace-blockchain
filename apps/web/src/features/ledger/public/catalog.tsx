@@ -16,9 +16,9 @@ import { Badge } from "@/components/ledger/kit/status";
 import { Button } from "@/components/ledger/ui/button";
 import { Input } from "@/components/ledger/ui/input";
 import { TraceQrImage, useTraceQr } from "@/components/ledger/workspace/trace-qr";
-import { Container, PageIntro, Reveal, SectionHeading } from "./blocks";
+import { Container, Reveal, SectionHeading } from "./blocks";
 
-const ORG_TYPE: Record<string, string> = { FARM: "Nông trại", PROCESSOR: "Nhà chế biến", DISTRIBUTOR: "Nhà phân phối", RETAILER: "Nhà bán lẻ", TRANSPORTER: "Vận chuyển", AUDITOR: "Kiểm định" };
+export const ORG_TYPE: Record<string, string> = { FARM: "Nông trại", PROCESSOR: "Nhà chế biến", DISTRIBUTOR: "Nhà phân phối", RETAILER: "Nhà bán lẻ", TRANSPORTER: "Vận chuyển", AUDITOR: "Kiểm định" };
 
 /** Lưới thẻ sản phẩm nhỏ, dùng chung cho trang chủ, danh sách và sản phẩm liên quan. */
 export const PRODUCT_GRID = "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 lg:gap-6";
@@ -165,7 +165,7 @@ export function ProductsPage() {
 
   return (
     <>
-      <PageIntro eyebrow={pt("Sản phẩm")} title={[category, enterpriseName].filter(Boolean).join(" · ") || pt("Nông sản có truy xuất nguồn gốc")} description={pt("Sản phẩm do doanh nghiệp công bố trên AgriTrace. Mở từng sản phẩm để xem doanh nghiệp, vùng trồng và các lô có mã QR.")} />
+      <h1 className="sr-only">{[category, enterpriseName].filter(Boolean).join(" · ") || pt("Nông sản có truy xuất nguồn gốc")}</h1>
       <Container className="grid grid-cols-[minmax(0,1fr)] gap-8 py-8 lg:grid-cols-[250px_minmax(0,1fr)]">
         <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
           <FilterList title={pt("Danh mục")} allLabel={pt("Tất cả danh mục")} allIcon={<LayoutGrid className="size-4 shrink-0" aria-hidden />} total={all.length} active={category} onPick={(v) => pick("category", v)} items={categories.map((c) => ({ key: c.name, label: c.name, count: c.count, icon: <CategoryIcon name={c.name} /> }))} />
@@ -228,16 +228,12 @@ export function ProductsPage() {
 }
 
 /** Mã QR dẫn tới lô mới nhất của sản phẩm. */
-function LatestLotQr({ token, lotCode }: { token: string; lotCode: string }) {
+function LatestLotQr({ token }: { token: string }) {
   const qr = useTraceQr(token);
   if (!qr.ready) return null;
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-line bg-card p-4">
-      <TraceQrImage qr={qr} className="size-28 shrink-0 rounded-lg border border-line p-1.5 shadow-sm" />
-      <div className="flex min-w-0 flex-col gap-1">
-        <p className="font-semibold">{pt("Quét để xem lô mới nhất")}</p>
-        <p className="text-[13px] text-ink-2">{pt("Dùng camera điện thoại quét mã này để xem hành trình của lô {p0}.", { p0: lotCode })}</p>
-      </div>
+    <div className="flex items-center justify-center rounded-xl border border-line bg-card p-4">
+      <TraceQrImage qr={qr} className="aspect-square w-full max-w-[184px] rounded-lg border border-line p-2 shadow-sm" />
     </div>
   );
 }
@@ -301,20 +297,25 @@ export function ProductDetail({ id }: { id: string }) {
 
       <Container className="py-8">
         <div className="grid gap-8 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7 md:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
-        <ProductPhoto product={p} sizes="(max-width: 768px) 60vw, 360px" className="mx-auto aspect-square w-3/5 self-start rounded-2xl border border-line bg-white shadow-sm md:w-full" />
+        <div className="flex flex-col gap-4">
+          <ProductPhoto product={p} sizes="(max-width: 768px) 60vw, 360px" className="mx-auto aspect-square w-3/5 rounded-2xl border border-line bg-white shadow-sm md:w-full" />
+          {p.enterprise && (
+            <Link href={customerHref(enterpriseHref(p.enterprise.id))} className="group flex items-center gap-4 rounded-2xl border border-line bg-card p-4 transition-shadow hover:shadow-md">
+              <EnterpriseLogo name={p.enterprise.name} logo={p.enterprise.logoUrl ? publicApiUrl(p.enterprise.logoUrl) : null} className="size-16 rounded-full p-1.5 text-[22px] shadow-sm" />
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-[12px] text-ink-2">{pt("Doanh nghiệp đứng tên")}</span>
+                <span className="font-semibold group-hover:text-brand">{p.enterprise.name}</span>
+                <span className="text-[13px] text-brand">{pt("Xem sản phẩm của doanh nghiệp")}</span>
+              </span>
+            </Link>
+          )}
+        </div>
         <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-wrap gap-2">
             {p.category && <Badge tone="brand">{p.category}</Badge>}
             <Badge tone={p.saleStatus === "SELLING" ? "ok" : "neutral"}>{p.saleStatus === "SELLING" ? pt("Đang bán") : pt("Chưa bán")}</Badge>
           </div>
           <h1 className="text-3xl leading-tight font-semibold tracking-tight">{p.productName}</h1>
-          {p.enterprise && (
-            <Link href={customerHref(enterpriseHref(p.enterprise.id))} className="inline-flex w-fit items-center gap-2 text-[15px] font-semibold text-brand hover:underline">
-              <EnterpriseLogo name={p.enterprise.name} logo={p.enterprise.logoUrl ? publicApiUrl(p.enterprise.logoUrl) : null} className="size-6" />
-              {p.enterprise.name}
-            </Link>
-          )}
-          {p.description && <p className="text-[15px] leading-relaxed whitespace-pre-line text-ink-2">{p.description}</p>}
           <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
               [QrCode, "Lô có mã QR", fmtNumber(p.traceCount)],
@@ -352,7 +353,7 @@ export function ProductDetail({ id }: { id: string }) {
                 </dl>
               </section>
             )}
-            {latest && <LatestLotQr token={latest.traceToken} lotCode={latest.lotCode} />}
+            {latest && <LatestLotQr token={latest.traceToken} />}
           </div>
           <div className="flex flex-wrap gap-3">
             {latest && (

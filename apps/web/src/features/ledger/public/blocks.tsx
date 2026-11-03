@@ -50,10 +50,10 @@ export function Reveal({ children, className, delay = 0, as: Tag = "div" }: { ch
 }
 
 /** Băng tiêu đề có ảnh nền xanh và lớp phủ tối để chữ dễ đọc. */
-export function PhotoHero({ image, title, description, eyebrow, children, tall }: { image: StaticImageData; title: string; description?: string; eyebrow?: string; children?: React.ReactNode; tall?: boolean }) {
+export function PhotoHero({ image, title, description, eyebrow, children, tall, imageClassName }: { image: StaticImageData; title: string; description?: string; eyebrow?: string; children?: React.ReactNode; tall?: boolean; imageClassName?: string }) {
   return (
     <section className="relative isolate overflow-hidden bg-(--pub-deep) text-white">
-      <Image src={image} alt="" fill priority placeholder="blur" sizes="100vw" className="-z-20 object-cover" />
+      <Image src={image} alt="" fill priority placeholder="blur" sizes="100vw" className={cn("-z-20 object-cover", imageClassName)} />
       <div className="pub-photo-shade absolute inset-0 -z-10" aria-hidden />
       <Container className={cn("flex flex-col gap-5", tall ? "py-20 sm:py-28 lg:py-32" : "py-14 sm:py-20")}>
         {eyebrow && <span className="text-[13px] font-semibold tracking-[0.16em] text-[#b9eccb] uppercase">{eyebrow}</span>}
