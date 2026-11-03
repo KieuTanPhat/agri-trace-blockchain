@@ -19,6 +19,9 @@ import {PublicJourney} from "./journey";
 import {ConsumerReport} from "./report";
 const proof={VERIFIED:["Đã lưu, không sửa được","ok"],PENDING:["Đang lưu","info"],INTEGRITY_WARNING:["Cần kiểm tra lại","danger"],BLOCKCHAIN_UNAVAILABLE:["Chưa lưu được","warn"]} as const;
 const card="rounded-2xl";
+/** Cảnh báo của lô bằng lời thường; hết hạn và lệch số lượng đã có ô riêng ở trên. */
+const WARNING_LABEL:Record<string,string>={RECALLED:"Lô đang bị thu hồi",DAMAGED:"Lô bị hư hỏng",REJECTED:"Lô bị từ chối nhận",NO_DATA:"Chưa có dữ liệu nhiệt độ, độ ẩm",SENSOR_INTEGRITY_WARNING:"Dữ liệu nhiệt độ, độ ẩm có điểm bất thường",LATE_READINGS:"Một số số đo nhiệt độ, độ ẩm được gửi muộn"};
+const SHOWN_ELSEWHERE={EXPIRED:1,QUANTITY_MISMATCH:1,STATE_MISMATCH:1};
 export function PublicTraceContent({lot,photo}:{lot:PublicLotTrace;photo?:string|null}){
 return <>
 <PageIntro eyebrow={t("Kết quả truy xuất")} title={lot.lotName??lot.productName} description={`${lot.productName} · ${lot.lotCode}`}><div className="flex flex-wrap gap-2"><Badge tone={LOT_STATE_TONE[lot.currentState]??"neutral"}>{LOT_STATE_LABEL[lot.currentState]??lot.currentState}</Badge></div></PageIntro>
@@ -30,7 +33,7 @@ return <>
 {lot.notices?.map((n,i)=><Callout key={i} tone={n.kind==="RECALL"?"danger":"warn"} title={n.kind==="RECALL"?t("Thông báo thu hồi"):t("Cảnh báo")}>{n.message}</Callout>)}
 {lot.brand&&<Section className={card} title={t("Thương hiệu sản phẩm")} bodyClassName="flex flex-col gap-2 p-5"><p className="text-sm font-semibold">{lot.brand.productName} · {lot.brand.organizationName}</p>{lot.brand.story&&<p className="text-sm text-ink-2">{lot.brand.story}</p>}<p className="text-[12px] text-ink-2">{t("Sản phẩm đã được nền tảng AgriTrace duyệt bản công bố; chủ chuỗi chịu trách nhiệm về thông tin đứng tên.")}</p></Section>}
 {lot.sourceTrust&&<Section className={card} title={t("Mức tin cậy nguồn nguyên liệu")} bodyClassName="p-5"><Fields cols={4}><Field label={t("Ghi trên AgriTrace")}>{lot.sourceTrust.selfRecorded}</Field><Field label={t("Nhà cung cấp xác nhận")}>{lot.sourceTrust.supplierConfirmed}</Field><Field label={t("Có chứng từ")}>{lot.sourceTrust.evidenced}</Field><Field label={t("Bên bán tự khai")}>{lot.sourceTrust.declared}</Field></Fields></Section>}
-{lot.warnings.map((w,i)=><Callout key={i} tone="warn">{w}</Callout>)}
+{lot.warnings.filter(w=>!(w in SHOWN_ELSEWHERE)).map((w,i)=><Callout key={i} tone="warn">{WARNING_LABEL[w]?t(WARNING_LABEL[w]):w}</Callout>)}
 {lot.productionWarnings?.map((w,i)=><Callout key={i} tone="warn">{w}</Callout>)}
 <div className={cn("flex flex-col gap-3 border border-line bg-card p-5",card)}><p className="text-[13px] text-ink-2">{t("Thông tin chưa đúng hoặc nghi hàng giả? Gửi phản ánh để doanh nghiệp và AgriTrace kiểm tra.")}</p><div className="flex flex-wrap items-center gap-3"><ConsumerReport key={lot.traceToken} traceToken={lot.traceToken}/><Button asChild variant="ghost"><Link href="/scan">{t("Quét mã khác")}</Link></Button></div></div>
 </aside>

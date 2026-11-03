@@ -386,4 +386,10 @@ export const PUBLIC_EN: Record<string, string> = {
   "Xem sản phẩm của từng doanh nghiệp đang công bố trên AgriTrace.": "Browse the products of each business publishing on AgriTrace.",
   "Xem tất cả": "See all",
   "Sản phẩm do doanh nghiệp công bố trên AgriTrace. Mở từng sản phẩm để xem doanh nghiệp, vùng trồng và các lô có mã QR.": "Products published by businesses on AgriTrace. Open a product to see its businesses, growing areas and lots with a QR code.",
+  "Lô đang bị thu hồi": "This lot is being recalled",
+  "Lô bị hư hỏng": "This lot is damaged",
+  "Lô bị từ chối nhận": "This lot was refused on delivery",
+  "Chưa có dữ liệu nhiệt độ, độ ẩm": "No temperature or humidity data yet",
+  "Dữ liệu nhiệt độ, độ ẩm có điểm bất thường": "The temperature and humidity data has irregularities",
+  "Một số số đo nhiệt độ, độ ẩm được gửi muộn": "Some temperature and humidity readings arrived late",
 };
