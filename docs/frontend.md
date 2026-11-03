@@ -50,10 +50,23 @@ hiển thị số dòng hàng thay vì cộng kg, lít hoặc đơn vị khác t
 nơi giao/nhận và đơn vị tham gia. Danh sách/chi tiết tải lại khi quay về màn hình;
 lỗi đọc có thử lại. Chỉ chữ ký cùng `attestationEpoch` hiện hành được hiển thị,
 không suy ra đủ chữ ký từ trạng thái DELIVERED và không coi metadata API là proof
-Fabric. Ký thật vẫn thực hiện trên Web với khóa tổ chức; mobile không tạo chữ ký
-giả hoặc hạ cấp bàn giao. Test presentation và Web recovery:
-`npm test --workspace apps/web -- src/lib/mobile-transfers.spec.ts
-src/features/ledger/workspace/distribution-signing.spec.tsx`.
+Fabric.
+
+App nhân viên ký bàn giao bằng khóa Ed25519 của tổ chức giữ trên điện thoại
+(`expo-secure-store`, chỉ máy này). Quản trị doanh nghiệp tạo khóa ở
+`/staff/signing`: khóa giao nhận doanh nghiệp cho chuỗi STANDARD, khóa theo chuỗi
+cho chuỗi DUAL_SIGNED (dùng được khi sổ cái kích hoạt). Nhân viên trên cùng máy ký
+bằng khóa đó; API vẫn kiểm `distribution.sign`. Trước khi ký, app tự tính lại
+snapshot, digest và intent như Web, từ chối khi khác lô, lượng, phiên bản hoặc
+bên ký đang hiển thị. Prepare/submit/receipt đi qua hàng đợi lệnh và đối soát bằng
+đúng key cũ. Ghi lượng thực nhận trên app chỉ nhận đủ hoặc thiếu; cách ly, từ chối
+và trả hàng làm trên Web. Test: `node --import tsx --test
+apps/mobile/test/signing.test.ts` kiểm chữ ký mobile bằng mã xác minh của API.
+
+Tab nhân viên theo năng lực: Trang chủ, tối đa hai tab vai trò (Nhật ký cho sản
+xuất, Chờ nhận cho chế biến/vận chuyển/phân phối/bán lẻ, Bán hàng cho bán lẻ,
+Chuyến hàng), Thêm. Màn hình còn lại mở từ Thêm. Web có cùng hàng đợi ở
+`/enterprise/inbound` và `/enterprise/sales` (chỉ bán lẻ).
 
 ### ACheck: xác minh điện thoại trên bản development
 

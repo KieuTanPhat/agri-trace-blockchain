@@ -4,6 +4,8 @@
   "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/nunito": "^0.4.2",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-firebase/app": "27.1.0",
     "@react-native-firebase/auth": "27.1.0",

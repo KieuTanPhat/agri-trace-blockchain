@@ -12,13 +12,18 @@ import { readProvince } from '../../../lib/local';
 import { readQueue } from '../../../lib/queue';
 import { useLoad } from '../../../lib/useApi';
 import { weatherText } from '../../../lib/weather';
+import { useAccess } from '../../../lib/access';
 import { color, shadow } from '../../../theme/tokens';
 
 type User = Schemas['AuthUserDto'];
 
 export default function StaffHome() {
   const { user, call } = useSession<User>();
-  const [tab, setTab] = useState<'cycles' | 'lots'>('cycles');
+  const { has } = useAccess();
+  // Production work only for farms; other capabilities start from their queue.
+  const farm = has('FARM');
+  const [chosen, setTab] = useState<'cycles' | 'lots'>('cycles');
+  const tab = farm ? chosen : 'lots';
   const [pending, setPending] = useState(0);
   useFocusEffect(
     useCallback(() => {
@@ -26,7 +31,8 @@ export default function StaffHome() {
       if(user)void readQueue(user).then((q) => setPending(q.length));
     }, [user]),
   );
-  const cycles = useLoad(() => call<Schemas['CycleListDto'][]>('/production-cycles'));
+  const cycles = useLoad(() => (farm ? call<Schemas['CycleListDto'][]>('/production-cycles') : Promise.resolve([])), [farm]);
+  const tasks = useLoad(() => (farm ? Promise.resolve(null) : call<{ counts: { transfers: number } }>('/distribution/tasks')), [farm]);
   const lots = useLoad(() => call<Schemas['InternalLotDto'][]>('/lots'));
   const weather = useLoad(async () => api<Schemas['PublicWeatherDto']>(`/public/weather?province=${await readProvince()}`));
   const active = (cycles.data ?? []).filter((c) => !['COMPLETED', 'CANCELLED'].includes(c.currentState));
@@ -73,12 +79,19 @@ export default function StaffHome() {
       </GreenHeader>
 
       <Card style={[{ marginTop: -58, marginHorizontal: 16, paddingVertical: 16, flexDirection: 'row' }, shadow.raised]}>
-        {(
-          [
+        {(farm
+          ? ([
             { label: 'Ghi thu hoạch', icon: 'basket', t: 'orange', go: () => router.push('/staff/journal') },
             { label: 'Ghi nhật ký', icon: 'journal', t: 'purple', go: () => router.push('/staff/journal') },
             { label: 'Quét lô', icon: 'scan', t: 'blue', go: () => router.push('/staff/scan') },
-          ] as const
+          ] as const)
+          : ([
+            { label: 'Hàng chờ nhận', icon: 'box', t: 'orange', go: () => router.push('/staff/inbound') },
+            has('RETAILER')
+              ? ({ label: 'Bán hàng', icon: 'store', t: 'purple', go: () => router.push('/staff/sales') } as const)
+              : ({ label: 'Chuyến hàng', icon: 'truck', t: 'purple', go: () => router.push('/staff/transfers') } as const),
+            { label: 'Quét lô', icon: 'scan', t: 'blue', go: () => router.push('/staff/scan') },
+          ] as const)
         ).map((a) => (
           <Pressable key={a.label} accessibilityRole="button" onPress={a.go} style={{ flex: 1, alignItems: 'center', gap: 8 }}>
             <IconTile name={a.icon} t={a.t} size={56} />
@@ -97,7 +110,9 @@ export default function StaffHome() {
 
       <Card style={{ marginHorizontal: 16, marginTop: 12, paddingVertical: 12, flexDirection: 'row' }}>
         {[
-          { v: String(active.length), l: 'Vụ đang chạy', c: color.orangeDeep },
+          farm
+            ? { v: String(active.length), l: 'Vụ đang chạy', c: color.orangeDeep }
+            : { v: String(tasks.data?.counts.transfers ?? 0), l: 'Việc chờ ký', c: color.orangeDeep },
           { v: String(held.length), l: 'Lô đang giữ', c: color.blue },
           { v: qty(held.reduce((s, l) => s + l.availableQuantity, 0), held[0]?.unit), l: 'Tồn kho', c: color.green },
         ].map((s, i) => (
@@ -112,7 +127,7 @@ export default function StaffHome() {
         ))}
       </Card>
 
-      <View style={{ marginTop: 12 }}>
+      {farm && <View style={{ marginTop: 12 }}>
         <SegmentTabs
           value={tab}
           onChange={setTab}
@@ -121,7 +136,7 @@ export default function StaffHome() {
             { key: 'lots', label: 'Lô đang giữ' },
           ]}
         />
-      </View>
+      </View>}
       <View style={{ padding: 16, gap: 10 }}>
         {tab === 'cycles' ? (
           cycles.loading && !cycles.data ? (

@@ -7,11 +7,8 @@ import { transferStatus, type Transfer } from '../../../lib/transfers';
 import { useLoad, useReloadOnFocus } from '../../../lib/useApi';
 import { color } from '../../../theme/tokens';
 
-/**
- * Transfers in the caller's scope. Signing a handover needs the device's own
- * Ed25519 key registered with the organization; until that step exists on
- * mobile, signatures are made on the Web.
- */
+/** Transfers in the caller's scope; each one is signed from its detail screen
+ * with the organization key kept on this phone. */
 export default function Transfers() {
   const { call } = useSession();
   const list = useLoad(() => call<{ items: Transfer[] }>('/distribution/transfers'));
@@ -32,7 +29,7 @@ export default function Transfers() {
           onRefresh={() => void list.reload()}
           refreshing={list.loading}
           contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 72 }}
-          ListHeaderComponent={<Notice kind="info" title="Ký bàn giao trên Web" body="Ứng dụng chưa có khóa ký trên máy. Bạn xem được chuyến hàng; ký gửi và ký nhận làm trên AgriTrace Web." />}
+          ListHeaderComponent={<Notice kind="info" title="Ký bàn giao trên điện thoại" body="Mở chuyến hàng để ký lấy hàng, ký nhận hoặc ghi lượng thực nhận. Cần khóa ký trên máy (mục Thêm → Khóa ký)." />}
           ListEmptyComponent={<Empty title="Chưa có chuyến hàng" icon="truck" />}
           renderItem={({ item }) => {
             const s = transferStatus(item.status);
