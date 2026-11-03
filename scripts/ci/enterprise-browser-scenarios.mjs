@@ -233,12 +233,11 @@ export async function runEnterpriseBrowserScenarios(options) {
       await owner.waitForURL(url => url.pathname === '/enterprise/service/payment', { timeout });
       await command(owner, '/enterprise-service/payment-simulation', () =>
         owner.getByRole('button', { name: 'Thanh toán mô phỏng', exact: true }).click());
-      activePage = admin;
-      step('admin-service-activation');
-      await admin.goto(`${options.origin}/admin/enterprises/${enrollmentId}`, { waitUntil: 'domcontentloaded' });
-      await decision.getByLabel('Lý do kích hoạt thủ công', { exact: true }).fill('Kích hoạt doanh nghiệp trong kiểm thử cách ly');
-      await command(admin, `/enterprise-enrollments/${enrollmentId}/activate`, () =>
-        decision.getByRole('button', { name: 'Kích hoạt dịch vụ', exact: true }).click());
+      // ADR-005: capabilities were reviewed first, so the chain owner's paid
+      // plan activates the enterprise; no administrator activation remains.
+      step('payment-activation');
+      await until(async () => !!(await options.operator.db.enterpriseEnrollment.findUniqueOrThrow({ where: { id: enrollmentId } })).serviceActivatedAt,
+        'activation by the chain owner payment', 30_000);
       activePage = owner;
       step('owner-create-chain');
       await owner.goto(`${options.origin}/supply-chains/new`, { waitUntil: 'domcontentloaded' });
