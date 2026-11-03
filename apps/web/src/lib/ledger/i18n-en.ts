@@ -330,6 +330,8 @@ export const EN: Record<string, string> = {
     "Mock mode only. Data is stored in this browser and never sent to the backend.",
   "Chỉ doanh nghiệp đã kích hoạt và có gói còn hiệu lực mới tìm thấy":
     "Only activated enterprises with a valid plan can be found",
+  "Chỉ doanh nghiệp đã được duyệt hồ sơ trên AgriTrace mới được mời liên kết.":
+    "Only enterprises approved on AgriTrace can be invited to connect.",
   "Chỉ doanh nghiệp xem": "Visible to the enterprise only",
   "Chỉ đọc": "Read-only",
   "Chỉ đọc theo API": "Read-only per API",
@@ -410,6 +412,7 @@ export const EN: Record<string, string> = {
   "Chờ xác nhận": "Awaiting confirmation",
   "Chờ xét": "Pending review",
   "Chờ xét duyệt": "Pending review",
+  "CHỜ XÉT DUYỆT": "PENDING REVIEW",
   "Chủ chuỗi": "Chain owner",
   "Chủ đề": "Topic",
   "Chủ đề hỗ trợ": "Support topics",
@@ -1122,6 +1125,8 @@ export const EN: Record<string, string> = {
   "Không thuộc diện": "Not applicable",
   "Không thực hiện được ({p0})": "Request failed ({p0})",
   "Không tìm thấy doanh nghiệp phù hợp.": "No matching enterprise found.",
+  "Chưa có doanh nghiệp phù hợp để mời.": "No enterprises are available to invite.",
+  "Không tải thêm được doanh nghiệp.": "Could not load more enterprises.",
   "không truy cập được trang này": "cannot access this page",
   "Không tự khóa chính mình; không vô hiệu hóa quản trị viên hoạt động cuối cùng. Khóa/vô hiệu hóa thu hồi mọi refresh session.":
     "You cannot lock yourself or deactivate the last active admin. Locking/deactivating revokes all refresh sessions.",
@@ -1265,6 +1270,18 @@ export const EN: Record<string, string> = {
   "Mã số 12 chữ số chỉ dành cho hộ kinh doanh":
     "12-digit IDs are only for household businesses",
   "Mã số thuế": "Tax ID",
+  "Mã số thuế đã được đăng ký. Vui lòng kiểm tra lại hoặc liên hệ hỗ trợ.":
+    "This tax identifier is already registered. Check it or contact support.",
+  "Chưa kiểm tra được mã số thuế. Vui lòng thử lại.":
+    "Could not check this tax identifier. Please try again.",
+  "Email đã được đăng ký. Vui lòng dùng email khác hoặc đăng nhập.":
+    "This email is already registered. Use another email or sign in.",
+  "Email thay đổi trong lúc kiểm tra. Vui lòng thử lại.":
+    "The email changed while it was being checked. Please try again.",
+  "Chưa kiểm tra được email. Vui lòng thử lại.":
+    "Could not check the email. Please try again.",
+  "Bạn kiểm tra email quá nhiều lần. Vui lòng thử lại sau.":
+    "Too many email checks. Please try again later.",
   "Mã số thuế / mã pháp lý": "Tax ID / legal ID",
   "Ma trận nhóm quyền": "Role matrix",
   "Mã trùng trong cùng danh mục trả 409.":
@@ -1539,13 +1556,21 @@ export const EN: Record<string, string> = {
   "Quản lý cơ sở": "Manage sites",
   "Quản lý danh mục": "Manage catalog",
   "Quản lý đối tác": "Manage partners",
+  "Quản lý giao nhận": "Manage distribution",
+  "Quản lý kho QR": "Manage QR inventory",
+  "Quản lý lô hàng": "Manage lots",
   "Quản lý giống/vật tư": "Manage seeds/materials",
+  "Quản lý giống & vật tư": "Manage seeds and materials",
   "Quản lý nhóm quyền": "Manage roles",
   "Quản lý phương tiện": "Manage vehicles",
+  "Quản lý sản phẩm": "Manage products",
   "Quản lý thành viên": "Manage members",
+  "Quản lý chuỗi cung ứng": "Manage supply chains",
   "Quản lý thành viên thuộc không gian doanh nghiệp; nền tảng chỉ xem.":
     "Members are managed in the enterprise workspace; the platform only views them.",
   "Quản lý tồn kho": "Manage inventory",
+  "Quản lý vùng sản xuất": "Manage production areas",
+  "Quản lý vụ sản xuất": "Manage production cycles",
   "Quản trị hệ thống": "System admin",
   "Quản trị nền tảng": "Platform admin",
   "Quản trị viên chưa bật MFA": "Admins without MFA",
@@ -2103,12 +2128,4 @@ export const EN: Record<string, string> = {
   "Được mời liên kết": "We were invited to link",
   "Doanh nghiệp đã dùng AgriTrace thì gửi lời mời liên kết; chưa dùng thì lưu vào danh bạ riêng.": "Send a link invitation to an enterprise already on AgriTrace; save others to your private address book.",
   "Khai báo đối tác chưa dùng hệ thống (tên, MST, liên hệ). Muốn họ vào chuỗi thì mời qua email trong trang chuỗi.": "Record a partner not yet on the platform (name, tax code, contact). To bring them into a chain, invite them by email from the chain page.",
-  "Quản lý giao nhận": "Manage distribution",
-  "Quản lý kho QR": "Manage QR inventory",
-  "Quản lý lô hàng": "Manage lots",
-  "Quản lý giống & vật tư": "Manage seeds and materials",
-  "Quản lý sản phẩm": "Manage products",
-  "Quản lý chuỗi cung ứng": "Manage supply chains",
-  "Quản lý vùng sản xuất": "Manage production areas",
-  "Quản lý vụ sản xuất": "Manage production cycles",
 };

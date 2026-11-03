@@ -120,6 +120,11 @@ Shell hỗ trợ desktop/mobile, sáng/tối và tiếng Việt/Anh. Theme lưu 
 `agt-admin.theme`; locale tại `agt-admin.locale`. Tùy chọn bảng màu/typography/chiều rộng
 của UI cũ không được nạp. Dialog dùng Radix với keyboard, focus trap/restore và Escape
 phù hợp trạng thái yêu cầu. Chuyển động tôn trọng `prefers-reduced-motion`.
+Trong không gian doanh nghiệp, bỏ khối tiêu đề/mô tả lặp lại ở đầu chức năng; giữ lại
+các nút thao tác nếu trang có và hiển thị Tìm nhanh bên dưới thanh không gian. Với hồ sơ
+`PENDING_REVIEW`, thay Tìm nhanh bằng nhãn `CHỜ XÉT DUYỆT`. Hộp thêm đối tác liệt kê
+doanh nghiệp đã được duyệt theo trang, giữ tìm kiếm và chỉ trả mã số thuế trong kết quả
+truy vấn cụ thể.
 
 ## Phiên, quyền và command
 
@@ -154,7 +159,10 @@ chỉ giữ trong bộ nhớ khi luồng yêu cầu như vậy.
 
 ## Các luồng chính
 
-`/register` xác thực OTP trước hồ sơ, giữ sáu vai trò và giấy tờ theo loại tổ chức.
+`/register` dò mã số thuế khi rời bước 1, dò email khi rời bước 2 và xác thực OTP
+trước hồ sơ; form giữ sáu vai trò và giấy tờ theo loại tổ chức. Khi hồ sơ lần đầu
+còn chờ duyệt, `/enterprise/onboarding` chỉ hiện hồ sơ đăng ký; hồ sơ doanh nghiệp
+chỉ hiện sau khi được duyệt.
 `/join-organization` dùng token mời. Hồ sơ chờ duyệt xem `/enterprise/onboarding`.
 Mặc định hoãn thanh toán: admin xét từng năng lực rồi kích hoạt dùng tạm; trang
 `/enterprise/service` hiển thị tiến độ, không bắt mua gói hoặc tạo hóa đơn giả.

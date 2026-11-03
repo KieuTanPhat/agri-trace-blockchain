@@ -14,5 +14,58 @@ import {ProfileDetails} from "@/features/ledger/screens/admin/enterprises/profil
 import ProfilePage from "./profile";
 const noticeSchema=z.object({lotId:z.uuid(),kind:z.enum(["WARNING","RECALL","RECALL_PROPOSAL"]),message:z.string().trim().min(10).max(500)});
 export function NoticesPage(){const {can,access}=useWorkspaceAccess(),q=useQuery({queryKey:["ws-notice-lots"],queryFn:wapi.traceReports,enabled:can("reports.read")});return <><PageHeader title={tr("Cảnh báo & thu hồi")} description={tr("Chủ chuỗi phát động thu hồi và cảnh báo công khai trên trang truy xuất; đối tác trong chuỗi gửi đề xuất thu hồi tới chủ chuỗi.")}/><PageBody>{q.error?<ErrorState error={q.error}/>:!q.data?<LoadingRows/>:<Section title={tr("Thông báo truy xuất")} bodyClassName="p-4">{can("distribution.write") && !!access && <CommandForm title={tr("Gửi thông báo")} endpoint="POST /distribution/notices" schema={noticeSchema} defaultValues={{lotId:q.data.lots[0]?.lotId??"",kind:"WARNING",message:""}} submitLabel={tr("Phát hành thông báo")} invalidate={[["ws-notice-lots"]]} run={(v,cmd)=>wapi.notice(v,cmd)}>{f=><><SelectField control={f.control} name="lotId" label={tr("Lô hàng")} options={q.data!.lots.map(l=>({value:l.lotId,label:`${l.lotCode} · ${l.productName}`}))}/><SelectField control={f.control} name="kind" label={tr("Loại thông báo")} options={[{value:"WARNING",label:tr("Cảnh báo công khai (chủ chuỗi, nhà sản xuất)")},{value:"RECALL",label:tr("Thu hồi (chủ chuỗi)")},{value:"RECALL_PROPOSAL",label:tr("Đề xuất thu hồi gửi chủ chuỗi")}]}/><TextAreaField control={f.control} name="message" label={tr("Nội dung")} max={500}/></>}</CommandForm>}</Section>}</PageBody></>;}
-export function OnboardingPage(){const q=useQuery({queryKey:["ws-enrollment"],queryFn:wapi.enrollment});if(q.error)return <ErrorState error={q.error}/>;if(!q.data)return <LoadingRows/>;const r=q.data;return <><PageHeader title={tr("Hồ sơ đăng ký")} meta={<Badge tone={r.status==="APPROVED"?"ok":"info"}>{r.onboardingStage}</Badge>} description={r.organizationName}/><PageBody className="min-w-0">{r.reviewNote && <Callout>{r.reviewNote}</Callout>}<Section title={tr("Thông tin đăng ký")}><Fields cols={3}><Field label={tr("Người đại diện")}>{r.representativeName}</Field><Field label={tr("Email")}>{r.representativeEmail}</Field><Field label={tr("Mã số thuế")}>{r.businessId}</Field></Fields>{r.details && <ProfileDetails data={r.details}/>}</Section><Section title={tr("Tài liệu đăng ký")} bodyClassName="flex flex-col gap-2 p-4">{r.documents.map(d=><RegistrationDocumentDownload key={d.id} document={d}/>)}</Section><div className="flex flex-wrap gap-4 text-sm text-brand"><Link href="/enterprise/service">{tr("Dịch vụ")}</Link><Link href="/supply-chains">{tr("Kết nối")}</Link><Link href="/enterprise/support">{tr("Liên hệ hỗ trợ")}</Link></div></PageBody><ProfilePage/></>;}
+export function OnboardingPage() {
+  const q = useQuery({
+    queryKey: ["ws-enrollment"],
+    queryFn: wapi.enrollment,
+  });
+  if (q.error) return <ErrorState error={q.error} />;
+  if (!q.data) return <LoadingRows />;
+  const r = q.data;
+  const stage =
+    r.onboardingStage === "PENDING_REVIEW"
+      ? tr("CHỜ XÉT DUYỆT")
+      : r.onboardingStage;
+  return (
+    <>
+      <PageHeader
+        title={tr("Hồ sơ đăng ký")}
+        meta={
+          <Badge tone={r.status === "APPROVED" ? "ok" : "info"}>
+            {stage}
+          </Badge>
+        }
+        description={r.organizationName}
+      />
+      <PageBody className="min-w-0">
+        {r.reviewNote && <Callout>{r.reviewNote}</Callout>}
+        <Section title={tr("Thông tin đăng ký")}>
+          <Fields cols={3}>
+            <Field label={tr("Người đại diện")}>{r.representativeName}</Field>
+            <Field label={tr("Email")}>{r.representativeEmail}</Field>
+            <Field label={tr("Mã số thuế")}>{r.businessId}</Field>
+          </Fields>
+          {r.details && <ProfileDetails data={r.details} />}
+        </Section>
+        <Section
+          title={tr("Tài liệu đăng ký")}
+          bodyClassName="flex flex-col gap-2 p-4"
+        >
+          {r.documents.map((document) => (
+            <RegistrationDocumentDownload
+              key={document.id}
+              document={document}
+            />
+          ))}
+        </Section>
+        <div className="flex flex-wrap gap-4 text-sm text-brand">
+          <Link href="/enterprise/service">{tr("Dịch vụ")}</Link>
+          <Link href="/supply-chains">{tr("Kết nối")}</Link>
+          <Link href="/enterprise/support">{tr("Liên hệ hỗ trợ")}</Link>
+        </div>
+      </PageBody>
+      {r.status === "APPROVED" && <ProfilePage />}
+    </>
+  );
+}
 export function HelpPage(){return <><PageHeader title={tr("Trung tâm trợ giúp")} description={tr("Hướng dẫn vận hành doanh nghiệp và kênh hỗ trợ AgriTrace.")}/><PageBody><Section title={tr("Bắt đầu")} bodyClassName="flex flex-col gap-3 p-4 text-sm">{[["/enterprise/onboarding",tr("Hồ sơ đăng ký & điều chỉnh")],["/enterprise/members",tr("Thành viên & phân quyền")],["/enterprise/products",tr("Sản phẩm & chứng cứ")],["/supply-chains",tr("Kết nối chuỗi")],["/enterprise/support/new",tr("Gửi yêu cầu hỗ trợ")]].map(([href,label])=><Link key={href} href={href} className="text-brand underline">{label}</Link>)}</Section><Callout>{tr("Khi chưa rõ kết quả lệnh, dùng Đối soát và giữ nguyên yêu cầu đang chờ.")}</Callout></PageBody></>;}
