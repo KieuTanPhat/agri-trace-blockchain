@@ -112,8 +112,8 @@ export function ProductsPage() {
   return (
     <>
       <PhotoHero image={PHOTOS.teaHills} eyebrow={pt("Sản phẩm")} title={category || pt("Nông sản có truy xuất nguồn gốc")} description={pt("Sản phẩm do doanh nghiệp công bố trên AgriTrace. Mở từng sản phẩm để xem doanh nghiệp, vùng trồng và các lô có mã truy xuất.")} />
-      <Container className="grid gap-8 py-10 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="flex flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
+      <Container className="grid grid-cols-[minmax(0,1fr)] gap-8 py-10 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
           <div className="flex flex-col gap-2">
             <h2 className="text-[13px] font-semibold tracking-wide text-ink-2 uppercase">{pt("Danh mục")}</h2>
             <ul className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-0.5 lg:overflow-visible">
