@@ -56,6 +56,8 @@ export default function PartnersPage({view="list",partnerId,externalMode=false}:
   const [text, setText] = useState("");
   const q = useDebounced(text.trim());
   const search = useQuery({ queryKey: ["ws-partner-search", q], queryFn: () => wapi.searchPartners(q), enabled: manage && q.length >= 2 });
+  // Search also returns our own external entries; those are already in the table and have no AgriTrace profile.
+  const found = search.data?.filter((s) => s.registered);
   const invite = useDialog<PartnerSearchItem>();
   const resolve = useDialog<{ p: Partner; decision: "ACCEPT" | "REJECT" | "REVOKE" }>();
   const addExternal = useDialog();
@@ -139,10 +141,10 @@ export default function PartnersPage({view="list",partnerId,externalMode=false}:
                 <ul className="mt-2 max-h-64 divide-y divide-line/70 overflow-y-auto rounded-md border border-line">
                   {search.isLoading ? (
                     <li className="px-3 py-2 text-[13px] text-ink-2">{tr("Đang tìm…")}</li>
-                  ) : !search.data?.length ? (
+                  ) : !found?.length ? (
                     <li className="px-3 py-2 text-[13px] text-ink-2">{tr("Không tìm thấy doanh nghiệp phù hợp.")}</li>
                   ) : (
-                    search.data.map((s) => (
+                    found.map((s) => (
                       <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2 text-[13px]">
                         <span className="min-w-0">
                           <span className="font-medium">{s.name}</span> <span className="text-[12px] text-ink-2">· {CAPABILITY_LABEL[s.kind] ?? s.kind} · MST {s.taxCode}</span>
