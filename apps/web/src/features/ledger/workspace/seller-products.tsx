@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { z } from "zod";
+import { useWatch, type Control } from "react-hook-form";
 import { useLedgerQuery as useQuery } from "@/lib/ledger/data";
 import { distApi } from "@/lib/ledger/dist-api";
 import { chainApi } from "@/lib/ledger/chain-api";
@@ -218,7 +219,7 @@ function OutsideIntake({ goods, props }: { goods: Product[]; props: { open: bool
           {!(suppliers.data ?? []).length && <Callout tone="warn">{tr("Thêm nhà cung cấp vào danh bạ ở Quản lý đối tác trước.")}</Callout>}
           <SelectField control={f.control} name="supplierId" label={tr("Nhà cung cấp (danh bạ đối tác)")} options={(suppliers.data ?? []).map((x) => ({ value: x.id, label: x.name }))} />
           <SelectField control={f.control} name="goods" label={tr("Hàng")} options={[...goods.map((g) => ({ value: g.id, label: g.productName })), { value: "new", label: tr("Hàng mới…") }]} />
-          <TextField control={f.control} name="newName" label={tr("Tên hàng mới (nếu chọn Hàng mới)")} />
+          <NewGoodsName control={f.control as unknown as Control<never>} />
           <SelectField control={f.control} name="siteId" label={tr("Cơ sở nhận")} options={(sites.data ?? []).filter((x) => x.status === "ACTIVE").map((x) => ({ value: x.id, label: x.name }))} />
           <TextField control={f.control} name="documentNo" label={tr("Số hóa đơn / phiếu giao")} />
           <TextField control={f.control} name="supplierLotCode" label={tr("Mã lô trên chứng từ hoặc thùng (nếu có)")} />
@@ -231,4 +232,11 @@ function OutsideIntake({ goods, props }: { goods: Product[]; props: { open: bool
       )}
     </CommandDialog>
   );
+}
+
+/** The name field shows only when new goods are being recorded. */
+function NewGoodsName({ control }: { control: Control<never> }) {
+  const goods = useWatch({ control, name: "goods" as never }) as string;
+  if (goods !== "new") return null;
+  return <TextField control={control} name={"newName" as never} label={tr("Tên hàng mới")} />;
 }
