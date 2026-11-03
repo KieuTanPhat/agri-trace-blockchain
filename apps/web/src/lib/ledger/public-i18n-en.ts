@@ -35,7 +35,6 @@ export const PUBLIC_EN: Record<string, string> = {
 
   // Trang chủ
   "Truy xuất nguồn gốc nông sản trên blockchain": "Agricultural traceability on blockchain",
-  "Hành trình nông sản, minh bạch từ vườn tới tay bạn.": "The journey of produce, transparent from farm to your hands.",
   "Từ trồng trọt, thu hoạch đến chế biến và giao hàng. Quét mã để xem nguồn gốc, nhật ký và giấy tờ của từng lô.": "From growing and harvest to processing and delivery. Scan the code to see each lot's origin, diary and documents.",
   "Không cần đăng nhập": "No sign-in needed",
   "Đọc mã ngay trên thiết bị": "Codes are read on your device",
@@ -391,4 +390,10 @@ export const PUBLIC_EN: Record<string, string> = {
   "Doanh nghiệp đứng tên": "Owning business",
   "Xem sản phẩm của doanh nghiệp": "See this business’s products",
   "Tra cứu sản phẩm trên điện thoại": "Looking up a product on a phone",
+  "Hành trình nông sản,": "The journey of produce,",
+  "minh bạch từ vườn tới tay bạn.": "transparent from farm to your hands.",
+  "Bán lẻ": "Retail",
+  "Người mua quét mã": "Shoppers scan the code",
+  "Lưu trên blockchain": "Stored on the blockchain",
+  "Mã QR truy xuất": "Trace QR code",
 };

@@ -9,28 +9,32 @@ import { customerHref } from "@/lib/site-origins";
 import { SITE_CONTACT } from "@/lib/site-contact";
 import { pt } from "@/lib/ledger/public-i18n";
 import { Button } from "@/components/ledger/ui/button";
-import { Container, CtaBand, PhotoCard, PhotoHero, Reveal, SectionHeading } from "./blocks";
+import { Container, CtaBand, PhotoCard, Reveal, SectionHeading } from "./blocks";
 import { PHOTOS, PLATFORM_FEATURES, SOLUTIONS, TRACE_STEPS } from "./content";
 import { TraceSearch } from "./trace-search";
 import { EnterpriseLogo, ORG_TYPE, PRODUCT_GRID, ProductCard } from "./catalog";
+import { FeaturedNews } from "./news";
+import { HeroScene } from "./hero-scene";
 
 const FEATURED_ENTERPRISES = 9;
-import { FeaturedNews } from "./news";
 
+/** Ảnh bìa động: tiêu đề và ô tra cứu ở trên, cảnh quỹ đạo chuỗi cung ứng ở dưới. */
 function Hero() {
   return (
-    <PhotoHero
-      banner
-      image={PHOTOS.heroAgritrace}
-      eyebrow={pt("Truy xuất nguồn gốc nông sản trên blockchain")}
-      title={pt("Hành trình nông sản, minh bạch từ vườn tới tay bạn.")}
-      description={pt("Từ trồng trọt, thu hoạch đến chế biến và giao hàng. Quét mã để xem nguồn gốc, nhật ký và giấy tờ của từng lô.")}
-    >
-      <TraceSearch className="mt-2 max-w-xl" onDark />
-      <p className="text-[14px] text-white/80">
-        {["Không cần đăng nhập", "Đọc mã ngay trên thiết bị", "Cảnh báo thu hồi hiển thị riêng"].map((x) => pt(x)).join(" · ")}
-      </p>
-    </PhotoHero>
+    <section className="pub-hero-bg relative isolate overflow-hidden text-white">
+      <div aria-hidden className="pub-hero-dots absolute inset-0 -z-10" />
+      <Container className="flex flex-col items-center gap-4 pt-14 pb-8 text-center sm:pt-16">
+        <span className="text-[13px] font-semibold tracking-[0.16em] text-[#b9eccb] uppercase">{pt("Truy xuất nguồn gốc nông sản trên blockchain")}</span>
+        <h1 className="max-w-4xl text-4xl leading-[1.12] font-semibold tracking-tight sm:text-5xl lg:text-[56px]">
+          {pt("Hành trình nông sản,")}{" "}
+          <span className="bg-gradient-to-r from-[#86efac] to-[#4ade80] bg-clip-text text-transparent">{pt("minh bạch từ vườn tới tay bạn.")}</span>
+        </h1>
+        <p className="max-w-2xl text-[16px] leading-relaxed text-white/85 sm:text-[17px]">{pt("Từ trồng trọt, thu hoạch đến chế biến và giao hàng. Quét mã để xem nguồn gốc, nhật ký và giấy tờ của từng lô.")}</p>
+        <TraceSearch className="mt-2 w-full max-w-xl text-left" onDark />
+        <p className="text-[14px] text-white/75">{["Không cần đăng nhập", "Đọc mã ngay trên thiết bị", "Cảnh báo thu hồi hiển thị riêng"].map((x) => pt(x)).join(" · ")}</p>
+      </Container>
+      <HeroScene />
+    </section>
   );
 }
 

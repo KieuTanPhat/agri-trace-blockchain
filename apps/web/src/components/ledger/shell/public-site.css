@@ -81,3 +81,61 @@
     transform: scale(1.05);
   }
 }
+
+/* Ảnh bìa động trang chủ: nền xanh tỏa từ giữa, khối lơ lửng quanh quỹ đạo. */
+.pub-hero-bg {
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 72%, rgb(34 160 79 / 0.55) 0%, transparent 70%),
+    radial-gradient(ellipse at 50% 40%, #0f4424 0%, #0a2e18 45%, #061a0d 100%);
+}
+.pub-hero-dots {
+  background-image: radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse at 50% 45%, black 30%, transparent 75%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pub-float {
+    animation: pub-float 4s ease-in-out infinite;
+    animation-delay: var(--pub-delay, 0ms);
+  }
+  .pub-float-lg {
+    animation: pub-float-lg 3.5s ease-in-out infinite;
+  }
+  .pub-glow {
+    animation: pub-glow 3.5s ease-in-out infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pub-orbit-dot {
+    display: none;
+  }
+}
+@keyframes pub-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes pub-float-lg {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+@keyframes pub-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.08);
+  }
+}

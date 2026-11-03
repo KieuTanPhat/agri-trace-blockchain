@@ -49,17 +49,16 @@ export function Reveal({ children, className, delay = 0, as: Tag = "div" }: { ch
   );
 }
 
-/** Băng tiêu đề có ảnh nền xanh và lớp phủ tối để chữ dễ đọc.
- * `banner`: ảnh bìa ngang có minh họa bên phải, khung giữ đúng tỉ lệ ảnh trên màn hình lớn. */
-export function PhotoHero({ image, title, description, eyebrow, children, tall, banner }: { image: StaticImageData; title: string; description?: string; eyebrow?: string; children?: React.ReactNode; tall?: boolean; banner?: boolean }) {
+/** Băng tiêu đề có ảnh nền xanh và lớp phủ tối để chữ dễ đọc. */
+export function PhotoHero({ image, title, description, eyebrow, children }: { image: StaticImageData; title: string; description?: string; eyebrow?: string; children?: React.ReactNode }) {
   return (
-    <section className={cn("relative isolate overflow-hidden bg-(--pub-deep) text-white", banner && "xl:flex xl:aspect-[1125/373] xl:items-center")}>
-      <Image src={image} alt="" fill priority placeholder="blur" sizes="100vw" className={cn("-z-20 object-cover", banner && "object-right xl:object-center")} />
+    <section className="relative isolate overflow-hidden bg-(--pub-deep) text-white">
+      <Image src={image} alt="" fill priority placeholder="blur" sizes="100vw" className="-z-20 object-cover" />
       <div className="pub-photo-shade absolute inset-0 -z-10" aria-hidden />
-      <Container className={cn("flex flex-col gap-5", banner ? "py-16 sm:py-20 xl:py-8" : tall ? "py-20 sm:py-28 lg:py-32" : "py-14 sm:py-20")}>
+      <Container className="flex flex-col gap-5 py-14 sm:py-20">
         {eyebrow && <span className="text-[13px] font-semibold tracking-[0.16em] text-[#b9eccb] uppercase">{eyebrow}</span>}
-        <h1 className={cn("leading-[1.12] font-semibold tracking-tight", banner ? "max-w-xl text-4xl sm:text-5xl" : "max-w-3xl", !banner && (tall ? "text-4xl sm:text-5xl lg:text-6xl" : "text-3xl sm:text-4xl"))}>{title}</h1>
-        {description && <p className={cn("text-[16px] leading-relaxed text-white/85 sm:text-[17px]", banner ? "max-w-xl" : "max-w-2xl")}>{description}</p>}
+        <h1 className="max-w-3xl text-3xl leading-[1.12] font-semibold tracking-tight sm:text-4xl">{title}</h1>
+        {description && <p className="max-w-2xl text-[16px] leading-relaxed text-white/85 sm:text-[17px]">{description}</p>}
         {children}
       </Container>
     </section>
@@ -107,13 +106,13 @@ export function PhotoCard({ image, title, children, href, delay }: { image: Stat
   );
 }
 
-/** Băng kêu gọi cuối trang trên nền ảnh lá chè. */
+/** Băng kêu gọi cuối trang trên nền ảnh minh họa AgriTrace. */
 export function CtaBand() {
   return (
     <section className="py-16">
       <Container>
         <Reveal className="relative isolate overflow-hidden rounded-3xl bg-(--pub-deep) px-6 py-14 text-white sm:px-14">
-          <Image src={PHOTOS.teaLeaves} alt="" fill placeholder="blur" sizes="(max-width: 1280px) 100vw, 1280px" className="-z-20 object-cover" />
+          <Image src={PHOTOS.heroAgritrace} alt="" fill placeholder="blur" sizes="(max-width: 1280px) 100vw, 1280px" className="-z-20 object-cover object-right" />
           <div className="pub-photo-shade absolute inset-0 -z-10" aria-hidden />
           <div className="flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
             <div className="flex max-w-2xl flex-col gap-2">
