@@ -20,10 +20,10 @@ const STAGES: { image: StaticImageData; label: string; left: string; top: string
   { image: harvest, label: "Thu hoạch", left: "23%", top: "4%" },
   { image: processing, label: "Chế biến", left: "77%", top: "4%" },
   { image: transport, label: "Vận chuyển", left: "93%", top: "30%" },
-  { image: retail, label: "Bán lẻ", left: "86%", top: "60%" },
-  { image: consumer, label: "Người mua quét mã", left: "64%", top: "70%" },
-  { image: ledger, label: "Lưu trên blockchain", left: "36%", top: "70%" },
-  { image: inspection, label: "Kiểm định", left: "14%", top: "60%" },
+  { image: retail, label: "Bán lẻ", left: "86%", top: "67%" },
+  { image: consumer, label: "Người mua quét mã", left: "64%", top: "78%" },
+  { image: ledger, label: "Lưu trên blockchain", left: "36%", top: "78%" },
+  { image: inspection, label: "Kiểm định", left: "14%", top: "67%" },
 ];
 
 /** Quỹ đạo elip trong khung 1100×430; chấm sáng chạy theo đường này. */
@@ -65,7 +65,7 @@ export function HeroScene() {
   return (
     <>
       {/* Máy tính: quỹ đạo đầy đủ. */}
-      <div className="relative mx-auto mb-10 hidden h-[460px] w-full max-w-[1100px] lg:block">
+      <div className="relative mx-auto hidden h-[430px] w-full max-w-[1100px] lg:block">
         <svg aria-hidden viewBox="0 0 1100 430" preserveAspectRatio="none" className="absolute inset-0 size-full">
           <ellipse cx="550" cy="215" rx="510" ry="165" fill="none" stroke="rgb(74 222 128 / 0.35)" strokeDasharray="2 6" />
           <ellipse cx="550" cy="215" rx="360" ry="112" fill="none" stroke="rgb(74 222 128 / 0.22)" strokeDasharray="2 6" />
