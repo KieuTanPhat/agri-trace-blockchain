@@ -1784,6 +1784,8 @@ model Product {
   approvedBy String? @map("approved_by") @db.Uuid
   approvedAt DateTime? @map("approved_at") @db.Timestamptz(6)
   approvalNote String? @map("approval_note") @db.VarChar(1000)
+  /// Branded by a retailer or distributor from source products of other businesses.
+  privateLabel Boolean @default(false) @map("private_label")
   version Int @default(0)
   id          String             @id @default(dbgenerated("gen_random_uuid()")) @map("product_id") @db.Uuid
   productName String             @map("product_name") @db.VarChar(255)
@@ -3348,4 +3350,15 @@ model LedgerProvisioningJob {
   completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
   @@index([status, nextAttemptAt])
   @@map("ledger_provisioning_job")
+}
+
+/// Source products a private-label product may be packed from; append-only.
+model ProductLabelSource {
+  productId String @map("product_id") @db.Uuid
+  sourceProductId String @map("source_product_id") @db.Uuid
+  createdBy String @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@id([productId, sourceProductId])
+  @@index([sourceProductId])
+  @@map("product_label_source")
 }

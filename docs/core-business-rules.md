@@ -489,6 +489,15 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   (mã 10 phút, tối đa 5 lần sai, 60 giây giữa hai lần gửi, 5 mã mỗi giờ), chỉ ký cho
   chính chủ (guard SQL trên chữ ký) và bị thu hồi khi tài khoản ngừng hoạt động.
   Máy chủ chỉ nhận khóa công khai và bằng chứng sở hữu, không nhận khóa riêng.
+- Bán lẻ và phân phối không tự khai sản phẩm gốc. Trang sản phẩm của họ gồm "Hàng
+  đang bán" (tự lấy từ lô đã nhận, gom theo sản phẩm, không sửa nguồn gốc) và "Nhãn
+  riêng": sản phẩm mang thương hiệu bên bán, khai sản phẩm nguồn là hàng đã nhận của
+  doanh nghiệp khác, không gắn vùng hay nhà xưởng. Nhãn riêng chỉ đóng gói (lệnh
+  `PACKING`, không phụ phẩm, không nguyên liệu ngoài) từ lô của sản phẩm nguồn đang
+  giữ, tại cơ sở của bên bán; lô mới có QR riêng và lô nguồn trong phả hệ, nên trang
+  quét hiện thương hiệu bên bán (khi sản phẩm được duyệt) và nguồn gốc thật. Guard SQL
+  giữ danh sách nguồn chỉ thêm, nguồn phải của doanh nghiệp khác và cờ nhãn riêng cố
+  định. Lượng giữ chỗ của lô tính cả nguyên liệu của lệnh chế biến đang chạy.
 - Ảnh xác nhận giao nhận là chứng cứ riêng của các bên trong chuyến, không công khai:
   - Lấy hàng/giao hàng: ảnh `TRANSFER_IMAGE` của một bên ký bước đó, tùy chọn, tối đa
     6 ảnh mỗi bước. Chỉ gắn khi bước đang mở và chưa bên nào ký; mã băm danh sách ảnh

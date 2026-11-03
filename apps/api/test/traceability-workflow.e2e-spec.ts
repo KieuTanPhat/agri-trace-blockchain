@@ -884,6 +884,30 @@ const prisma = new PrismaClient({
         where: { lotId_organizationId: { lotId: lot.id, organizationId: receiver.id } },
       });
       expect(received.quantity.toFixed(3)).toBe('0.600');
+
+      // Private label: the receiver, a retailer, brands goods it received. The
+      // label names the received product as its source and is packed from that
+      // lot only; the branded lot keeps the source lot in its lineage.
+      await prisma.organizationCapability.create({ data: { organizationId: receiver.id, code: 'RETAILER' } });
+      // Products belong to the business that makes them (ADR-005).
+      await prisma.product.update({ where: { id: lot.productId }, data: { organizationId: farmOrgId } });
+      const label = (fields: object) => post('/catalog/products', {
+        productName: 'Xoài nhãn riêng', defaultUnit: 'kg', category: 'Trái cây', storageConditions: 'Mát', ingredients: 'Xoài', usageInstructions: 'Ăn tươi', ...fields,
+      }, 'selfReceiver');
+      await label({ privateLabelSourceIds: [randomUUID()] }).expect(422);
+      const brand = (await label({ privateLabelSourceIds: [lot.productId] }).expect(201)).body.data;
+      expect(brand).toMatchObject({ privateLabel: true, originFarmId: null, organizationId: receiver.id });
+      await prisma.product.update({ where: { id: brand.id }, data: { status: 'ACTIVE', evidenceComplete: true } });
+      const packing = { chainId: selfChainId, siteId: receiverSite.id, productId: brand.id, baseUnit: 'kg', inputs: [{ lotId: lot.id, quantity: '0.500' }], externalInputs: [] };
+      await post('/processing-runs', { ...packing, processType: 'DRYING' }, 'selfReceiver').expect(422);
+      const packRun = (await post('/processing-runs', { ...packing, processType: 'PACKING' }, 'selfReceiver').expect(201)).body.data.record;
+      await post(`/processing-runs/${packRun.id}/start`, { version: packRun.version }, 'selfReceiver').expect(201);
+      await post(`/processing-runs/${packRun.id}/complete`, { version: packRun.version + 1, output: { quantity: '0.500', unit: 'kg', packageCount: 1, packaging: 'Túi 500 g' }, byProducts: [], losses: [] }, 'selfReceiver').expect(201);
+      const packed = await prisma.lot.findFirstOrThrow({ where: { processingRunId: packRun.id } });
+      expect(packed).toMatchObject({ productId: brand.id, farmOrgId: receiver.id });
+      expect(await prisma.processingInput.findMany({ where: { runId: packRun.id }, select: { lotId: true } })).toEqual([{ lotId: lot.id }]);
+      // The shared fixture product goes back to the shared catalog for later tests.
+      await prisma.product.update({ where: { id: lot.productId }, data: { organizationId: null } });
       expect(
         await prisma.distributionAttestation.count({ where: { transferId: transfer.id } }),
       ).toBe(5);

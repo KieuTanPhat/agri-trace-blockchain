@@ -70,6 +70,10 @@ export class PlotRecordDto {
 }
 
 export class ProductRecordDto {
+  @ApiProperty({ type: Boolean, required: false, description: 'Branded by a retailer or distributor from source products of other businesses' })
+  privateLabel?: boolean;
+  @ApiProperty({ type: [String], required: false, description: 'Source products a private label is packed from' })
+  labelSourceIds?: string[];
   @ApiProperty({ enum: ['NONE', 'PENDING', 'APPROVED', 'REJECTED'], required: false, description: 'Platform approval gating the public brand page (ADR-005)' })
   approvalStatus?: string;
   @ApiProperty({ type: String, nullable: true, required: false }) approvalNote?: string | null;

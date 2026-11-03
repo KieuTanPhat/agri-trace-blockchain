@@ -28,6 +28,7 @@ import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
+import { SellerProducts } from "./seller-products";
 import { PhotoPicker } from "@/components/ledger/workspace/photo-picker";
 import { newLedgerCommandKey } from "@/lib/ledger/command-context";
 import { Controller, type Control } from "react-hook-form";
@@ -115,7 +116,11 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
   const router=useRouter();
   const [search,setSearch]=useState("");
   const [status,setStatus]=useState("");
-  const { can } = useWorkspaceAccess();
+  const { can, access } = useWorkspaceAccess();
+  // Producers create products from a farm or plant; retailers and
+  // distributors sell what they received and may brand it as a private label.
+  const producer = !!access?.capabilities.some((c) => c === "FARM" || c === "PROCESSOR");
+  const seller = !!access?.capabilities.some((c) => c === "RETAILER" || c === "DISTRIBUTOR");
   const organizationId=useOverview().data?.organization.id;
   const [openId, setOpenId] = useState<string | null>(productId ?? null);
   const [importing, setImporting] = useState(view === "import");
@@ -145,9 +150,9 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
     <>
       <PageHeader
         title={tr("Sản phẩm")}
-        description={tr("Danh mục sản phẩm gắn với vùng xuất xứ đã hoàn tất hồ sơ. Sản phẩm mới ở trạng thái ngừng; cần ít nhất một ảnh sản phẩm rồi hoàn tất để bán (tính vào hạn mức sản phẩm của gói).")}
+        description={producer ? tr("Danh mục sản phẩm gắn với vùng xuất xứ đã hoàn tất hồ sơ. Sản phẩm mới ở trạng thái ngừng; cần ít nhất một ảnh sản phẩm rồi hoàn tất để bán (tính vào hạn mức sản phẩm của gói).") : tr("Hàng doanh nghiệp đang bán, tự lấy từ lô đã nhận, và sản phẩm nhãn riêng mang thương hiệu của bạn.")}
         actions={
-          can("catalog.manage") && (
+          can("catalog.manage") && producer && (
             <>
               <Button size="sm" variant="outline" onClick={() => router.push("/enterprise/products/import")}><FileUp /> {tr("Nhập từ CSV")}</Button>
               <Button size="sm" onClick={() => router.push("/enterprise/products/new")} disabled={!readyFarms.length}><Plus /> {tr("Thêm sản phẩm")}</Button>
@@ -156,10 +161,11 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
         }
       />
       <PageBody className="min-w-0">
-        {can("catalog.manage") && catalog.data && !readyFarms.length && <Callout tone="info">{tr("Chưa có vùng sản xuất đã hoàn tất hồ sơ — hoàn tất vùng trước khi tạo sản phẩm.")}</Callout>}
-        <div className="min-w-0 max-w-full overflow-hidden rounded-md border border-line bg-card">
+        {seller && <SellerProducts own={products ?? []} onOpen={(id) => router.push(`/enterprise/products/${id}`)} />}
+        {can("catalog.manage") && producer && catalog.data && !readyFarms.length && <Callout tone="info">{tr("Chưa có vùng sản xuất đã hoàn tất hồ sơ — hoàn tất vùng trước khi tạo sản phẩm.")}</Callout>}
+        {producer && <div className="min-w-0 max-w-full overflow-hidden rounded-md border border-line bg-card">
           <div className="flex flex-wrap gap-2 p-3"><Input aria-label={tr("Tìm sản phẩm")} placeholder={tr("Tìm tên, SKU, GTIN, vùng xuất xứ")} value={search} onChange={e=>setSearch(e.target.value)}/><FilterSelect label={tr("Lọc trạng thái")} value={status} onChange={setStatus} options={[{value:"ACTIVE",label:tr("Đang bán")},{value:"INACTIVE",label:tr("Ngừng")}]} /></div><DataTable rows={filtered} loading={catalog.isLoading} error={catalog.error} onRetry={() => catalog.refetch()} columns={columns} rowKey={(p) => p.id} empty={<EmptyState title={tr("Chưa có sản phẩm")} />} />
-        </div>
+        </div>}
       </PageBody>
       <ProductSheet initialEdit={view === "edit"} product={products?.find((p) => p.id === openId) ?? null} farms={farms} options={options} onClose={() => {setOpenId(null);if(productId)router.push("/enterprise/products");}} canManage={can("catalog.manage") && typeof products?.find(p=>p.id===openId)?.version === "number"} canEvidence={can("catalog.manage") && can("evidence.manage")} />
       <CommandDialog

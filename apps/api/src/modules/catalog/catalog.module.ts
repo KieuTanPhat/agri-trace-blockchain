@@ -39,6 +39,7 @@ import {
   ArrayMaxSize,
 } from 'class-validator';
 import { AREA_UNITS, areaInM2 } from '../../common/area.js';
+import { assertLabelSources } from './private-label.js';
 import { Transform, Type } from 'class-transformer';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -58,6 +59,8 @@ import { assertFarmRefs, assertProductRefs } from './product-refs.js';
 import { assertEntitlement } from '../billing/billing-core.js';
 import { ProductApprovalRequestInput, requestProductApproval } from './product-approval.js';
 class ProductDto {
+  @ApiProperty({ required: false, type: [String], format: 'uuid', description: 'Private label: source products of other businesses already received; no farm or site needed' })
+  @IsOptional() @IsArray() @ArrayUnique() @ArrayMaxSize(20) @IsUUID('4', { each: true }) privateLabelSourceIds?: string[];
   @ApiProperty({ maxLength: 100 }) @IsString() @MinLength(2) @MaxLength(100) category!: string;
   @ApiProperty({ required: false, format: 'uuid', description: 'Origin farm. Required for producers; processors give manufacturingSiteId instead.' }) @IsOptional() @IsUUID() originFarmId?: string;
   @ApiProperty({ required: false, type: Number, minimum: 0 }) @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) price?: number;
@@ -258,7 +261,13 @@ class CatalogController {
         orderBy: { name: 'asc' },
       }),
     ]);
-    return { products, farms, plots };
+    // Private labels list the source products they are packed from.
+    const sources = await this.db.productLabelSource.findMany({ where: { productId: { in: products.filter((p) => p.privateLabel).map((p) => p.id) } } });
+    return {
+      products: products.map((p) => (p.privateLabel ? { ...p, labelSourceIds: sources.filter((s) => s.productId === p.id).map((s) => s.sourceProductId) } : p)),
+      farms,
+      plots,
+    };
   }
   private run(
     key: string,
@@ -298,6 +307,20 @@ class CatalogController {
         dto.originFarmId ?? dto.manufacturingSiteId,
         true,
       );
+      const { privateLabelSourceIds: sourceIds, ...fields } = dto;
+      if (sourceIds?.length) {
+        // A private label has no farm or site of its own: its goods come from
+        // the source products, packed from lots the seller received.
+        if (dto.originFarmId || dto.manufacturingSiteId)
+          throw new UnprocessableEntityException('Sản phẩm nhãn riêng không gắn vùng sản xuất hay nhà xưởng');
+        await assertLabelSources(tx, req.user.organizationId!, sourceIds);
+        await assertProductRefs(tx, req.user.organizationId!, dto);
+        const product = await tx.product.create({
+          data: { ...fields, privateLabel: true, sku: dto.sku?.trim() || `NR-${randomUUID().slice(0, 12).toUpperCase()}`, evidenceComplete: false, status: 'INACTIVE', organizationId: req.user.organizationId },
+        });
+        await tx.productLabelSource.createMany({ data: sourceIds.map((sourceProductId) => ({ productId: product.id, sourceProductId, createdBy: req.user.sub! })) });
+        return product;
+      }
       if (dto.originFarmId) {
         const farm = await tx.farm.findFirst({ where: { id: dto.originFarmId, organizationId: req.user.organizationId!, status: 'ACTIVE', evidenceComplete: true } });
         if (!farm) throw new UnprocessableEntityException('Vùng sản xuất chưa hoàn tất hồ sơ ảnh hoặc ngoài doanh nghiệp');
@@ -310,7 +333,7 @@ class CatalogController {
       await assertProductRefs(tx, req.user.organizationId!, dto);
       return tx.product.create({
         data: {
-          ...dto,
+          ...fields,
           sku: dto.sku?.trim() || `SP-${randomUUID().slice(0, 12).toUpperCase()}`,
           evidenceComplete: false,
           status: 'INACTIVE',

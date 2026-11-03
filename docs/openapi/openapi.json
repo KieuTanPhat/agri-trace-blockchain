@@ -12467,6 +12467,14 @@
             "minimum": 0,
             "type": "number"
           },
+          "privateLabelSourceIds": {
+            "description": "Private label: source products of other businesses already received; no farm or site needed",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
           "productName": {
             "maxLength": 255,
             "minLength": 1,
@@ -13057,6 +13065,13 @@
             "nullable": true,
             "type": "string"
           },
+          "labelSourceIds": {
+            "description": "Source products a private label is packed from",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "managerUserId": {
             "format": "uuid",
             "nullable": true,
@@ -13080,6 +13095,10 @@
           "price": {
             "nullable": true,
             "type": "string"
+          },
+          "privateLabel": {
+            "description": "Branded by a retailer or distributor from source products of other businesses",
+            "type": "boolean"
           },
           "productName": {
             "type": "string"

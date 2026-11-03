@@ -8868,6 +8868,8 @@ export interface components {
              */
             originFarmId?: string;
             price?: number;
+            /** @description Private label: source products of other businesses already received; no farm or site needed */
+            privateLabelSourceIds?: string[];
             productName: string;
             rawMaterials?: string;
             sku?: string;
@@ -9033,6 +9035,8 @@ export interface components {
             id: string;
             importer?: string | null;
             ingredients: string | null;
+            /** @description Source products a private label is packed from */
+            labelSourceIds?: string[];
             /** Format: uuid */
             managerUserId?: string | null;
             /** Format: uuid */
@@ -9042,6 +9046,8 @@ export interface components {
             /** Format: uuid */
             originFarmId: string | null;
             price: string | null;
+            /** @description Branded by a retailer or distributor from source products of other businesses */
+            privateLabel?: boolean;
             productName: string;
             rawMaterials?: string | null;
             sku?: string | null;

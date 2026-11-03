@@ -17,6 +17,7 @@ import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.j
 import { activeSite } from '../distribution/distribution-inventory.js';
 import { settingNumber } from '../billing/billing-core.js';
 import { LOT_ORIGIN_INCLUDE, lotChainId } from '../lots/lot-origin.js';
+import { assertPackable } from '../catalog/private-label.js';
 import { activeChainBindingDigest } from '../ledger/ledger-permissions.js';
 import { assertChainCreatesWork } from '../billing/billing-core.js';
 import { RECEIPT_EVIDENCE_KINDS, createSupplierConfirmation, receiptConfirmed, trustLevel } from './supplier-confirmations.js';
@@ -527,15 +528,37 @@ export class ProcessingService {
       throw new ForbiddenException('Tổ chức chưa được duyệt hoặc không còn năng lực chế biến');
   }
 
+  /**
+   * Who may run a lệnh: a processor, or a retailer/distributor packing its own
+   * private label (PACKING only, from lots of the label's source products,
+   * no outside materials). Returns whether it is a private-label packing.
+   */
+  private async requireRunner(tx: Tx, organizationId: string, productId: string | null, processType: string) {
+    const product = productId ? await tx.product.findUnique({ where: { id: productId }, select: { privateLabel: true, organizationId: true } }) : null;
+    if (product?.privateLabel && product.organizationId === organizationId) {
+      if (processType !== 'PACKING') throw new UnprocessableEntityException('Nhãn riêng chỉ đóng gói, không chế biến biến đổi hàng');
+      if (!(await tx.organizationCapability.findFirst({ where: { organizationId, code: { in: ['RETAILER', 'DISTRIBUTOR'] }, revokedAt: null } })))
+        throw new ForbiddenException('Chỉ doanh nghiệp bán lẻ hoặc phân phối đóng gói nhãn riêng');
+      return true;
+    }
+    await this.requireProcessor(tx, organizationId);
+    return false;
+  }
+
   /** Lập kế hoạch: main product, site and materials. Nothing is reserved yet. */
   create(actor: CommandActor, input: CreateProcessingRunInput) {
     return commandTransaction(this.db, async (tx) => {
       await enterpriseAuthority(tx, actor, 'processing.write', input.chainId, input.siteId, true);
       const organizationId = actor.organizationId!;
-      await this.requireProcessor(tx, organizationId);
+      const label = await this.requireRunner(tx, organizationId, input.productId, input.processType);
       const site = await activeSite(tx, organizationId, input.siteId);
-      if (!['PROCESSING', 'PACKING'].includes(site.kind))
+      // A private label is packed at the seller's own store or warehouse.
+      if (!label && !['PROCESSING', 'PACKING'].includes(site.kind))
         throw new UnprocessableEntityException('Chọn cơ sở loại chế biến hoặc đóng gói');
+      if (label) {
+        if (input.externalInputs.length) throw new UnprocessableEntityException('Nhãn riêng chỉ đóng gói từ lô đã nhận trên AgriTrace');
+        await assertPackable(tx, input.productId, input.inputs.map((i) => i.lotId));
+      }
       if (!input.inputs.length && !input.externalInputs.length)
         throw new UnprocessableEntityException('Chọn ít nhất một nguyên liệu');
       await assertChainCreatesWork(tx, input.chainId, 'runs');
@@ -588,7 +611,7 @@ export class ProcessingService {
     return commandTransaction(this.db, async (tx) => {
       const run = await this.lockRun(tx, actor, id, input.version, ['DRAFT']);
       if (!run.productId) throw new ConflictException('Lệnh nháp cũ không theo vòng đời mới; hủy và lập lệnh mới');
-      await this.requireProcessor(tx, run.organizationId);
+      if (await this.requireRunner(tx, run.organizationId, run.productId, run.processType)) await assertPackable(tx, run.productId, run.inputs.map((i) => i.lotId));
       await activeSite(tx, run.organizationId, run.siteId);
       await this.checkMaterials(
         tx,
@@ -614,6 +637,10 @@ export class ProcessingService {
       if (!run.productId) throw new ConflictException('Lệnh nháp cũ không bổ sung được nguyên liệu');
       if (!input.inputs.length && !input.externalInputs.length)
         throw new UnprocessableEntityException('Chọn ít nhất một nguyên liệu');
+      if (await this.requireRunner(tx, run.organizationId, run.productId, run.processType)) {
+        if (input.externalInputs.length) throw new UnprocessableEntityException('Nhãn riêng chỉ đóng gói từ lô đã nhận trên AgriTrace');
+        await assertPackable(tx, run.productId, input.inputs.map((i) => i.lotId));
+      }
       const { originCycles, bindings, crossChain } = await this.checkMaterials(tx, run, input, {
         lotIds: run.inputs.map((i) => i.lotId),
         receiptIds: run.externalInputs.map((i) => i.receiptId),
@@ -675,8 +702,9 @@ export class ProcessingService {
   complete(actor: CommandActor, id: string, input: CompleteProcessingInput) {
     return commandTransaction(this.db, async (tx) => {
       const run = await this.lockRun(tx, actor, id, input.version, ['IN_PROGRESS']);
-      await this.requireProcessor(tx, run.organizationId);
+      const label = await this.requireRunner(tx, run.organizationId, run.productId, run.processType);
       const site = await activeSite(tx, run.organizationId, run.siteId);
+      if (label && input.byProducts.length) throw new UnprocessableEntityException('Đóng gói nhãn riêng không có phụ phẩm');
       if (input.byProducts.some((o) => o.kind !== 'BY_PRODUCT'))
         throw new UnprocessableEntityException('Dòng phụ phẩm phải có kind = BY_PRODUCT');
       const lines = [
