@@ -127,9 +127,11 @@ and privacy acknowledgements are separate required inputs; marketing is optional
 and defaults off. The server records the policy version and acceptance timestamp.
 New registration service preferences require TRACEABILITY; the form no longer
 offers QR_LABELS (label printing was retired on 26/10/2026), while the API still
-accepts it from drafts saved earlier. Other capabilities remain separate from signup preferences. A
-rate-limited, no-store public email availability check returns only a boolean;
-it never reserves an email or replaces atomic uniqueness at final registration.
+accepts it from drafts saved earlier. Other capabilities remain separate from signup preferences.
+Rate-limited, no-store public availability checks return only booleans. The form
+checks a business tax identifier before leaving the organization step and emails
+before leaving the contact step. They do not reserve identifiers or replace
+atomic uniqueness at final registration.
 
 Payment collection is deferred by default (`ENTERPRISE_PAYMENTS_ENABLED=false`,
 28/10/2026 decision). Approval alone does not grant business authority: every

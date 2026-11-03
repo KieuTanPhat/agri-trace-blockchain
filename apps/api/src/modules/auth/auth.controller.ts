@@ -44,6 +44,10 @@ import {
   RegistrationEmailAvailabilityDto,
   RegistrationEmailAvailabilityViewDto,
 } from './dto/registration-email-availability.dto.js';
+import {
+  RegistrationBusinessIdAvailabilityDto,
+  RegistrationBusinessIdAvailabilityViewDto,
+} from './dto/registration-business-id-availability.dto.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import {
@@ -80,6 +84,22 @@ export class AuthController {
   ) {
     this.assertTrustedOrigin(request);
     return this.authService.registrationEmailAvailability(input.email);
+  }
+
+  @Post('registration-business-id-availability')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(EnterpriseOnboardingGuard)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiDataResponse(RegistrationBusinessIdAvailabilityViewDto)
+  registrationBusinessIdAvailability(
+    @Body() input: RegistrationBusinessIdAvailabilityDto,
+    @Req() request: Request,
+  ) {
+    this.assertTrustedOrigin(request);
+    return this.authService.registrationBusinessIdAvailability(
+      input.businessId,
+    );
   }
 
   @Post('login')

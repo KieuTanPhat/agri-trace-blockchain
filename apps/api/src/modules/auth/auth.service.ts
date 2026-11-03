@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Inject,
@@ -20,6 +21,10 @@ import type { ChangePasswordDto } from './dto/change-password.dto.js';
 import { PlatformMfaService } from '../platform-governance/platform-mfa.service.js';
 import { isPlatformAdminRole } from './role-codes.js';
 import { registrationEmailInUse } from '../enterprise-onboarding/registration-email.js';
+import {
+  normalizeRegistrationBusinessId,
+  registrationBusinessIdInUse,
+} from '../enterprise-onboarding/registration-business-id.js';
 import { enforcePasswordAge } from './password-age.js';
 import {
   appendPlatformAudit,
@@ -86,6 +91,18 @@ export class AuthService {
 
   async registrationEmailAvailability(email: string) {
     return { available: !(await registrationEmailInUse(this.prisma, email)) };
+  }
+
+  async registrationBusinessIdAvailability(businessId: string) {
+    const normalized = normalizeRegistrationBusinessId(businessId);
+    if (!normalized)
+      throw new BadRequestException('Mã số thuế không hợp lệ');
+    return {
+      available: !(await registrationBusinessIdInUse(
+        this.prisma,
+        normalized,
+      )),
+    };
   }
 
   async login(input: LoginDto, previousRefreshToken?: string) {

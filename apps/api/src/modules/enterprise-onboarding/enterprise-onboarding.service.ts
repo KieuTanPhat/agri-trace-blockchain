@@ -43,6 +43,10 @@ import {
   temporaryPassword,
 } from './registration-email.js';
 import {
+  normalizeRegistrationBusinessId,
+  registrationBusinessIdInUse,
+} from './registration-business-id.js';
+import {
   REGISTERED_FORMS,
   REGISTRATION_POLICY_VERSION,
   chainOwner,
@@ -80,7 +84,7 @@ export async function registerEnterprise(
     email: input.email.trim().toLowerCase(),
     fullName: input.fullName.trim(),
     organizationName: input.organizationName.trim(),
-    businessId: input.businessId?.trim().replace('-', '') || null,
+    businessId: normalizeRegistrationBusinessId(input.businessId),
   };
   const details = input.details;
   const province = VIETNAM_ADDRESSES.find(
@@ -197,10 +201,7 @@ export async function registerEnterprise(
       if (
         (await registrationEmailInUse(tx, normalized.email)) ||
         (normalized.businessId &&
-          (await tx.enterpriseEnrollment.findUnique({
-            where: { businessId: normalized.businessId },
-            select: { id: true },
-          })))
+          (await registrationBusinessIdInUse(tx, normalized.businessId)))
       )
         throw new ConflictException(
           'Email hoặc mã doanh nghiệp đã được đăng ký',
