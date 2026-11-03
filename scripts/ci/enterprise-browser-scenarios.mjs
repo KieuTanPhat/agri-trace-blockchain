@@ -183,9 +183,9 @@ export async function runEnterpriseBrowserScenarios(options) {
       step('owner-login');
       await login(owner, { email }, `enterprise-${mode}`);
       await owner.goto(`${options.origin}/enterprise/onboarding`, { waitUntil: 'domcontentloaded' });
-      // The page header and the embedded profile section share this title.
-      await owner.getByRole('heading', { name: 'Hồ sơ đăng ký', exact: true }).first().waitFor({ timeout });
-      await owner.getByText('PENDING_REVIEW', { exact: true }).first().waitFor({ timeout });
+      // The compact enterprise header replaces quick search with the review status.
+      await owner.getByRole('heading', { name: 'Thông tin đăng ký', exact: true }).first().waitFor({ timeout });
+      await owner.getByRole('status').filter({ hasText: 'CHỜ XÉT DUYỆT' }).first().waitFor({ timeout });
       await bothLayouts(owner);
       await until(() => authorization, 'owner authentication');
       const denied = await ownerContext.request.post(`${options.origin}/api/supply-chains`, {
