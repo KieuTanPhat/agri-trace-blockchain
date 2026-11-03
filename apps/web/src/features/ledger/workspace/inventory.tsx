@@ -20,6 +20,7 @@ import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/compone
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 import {EvidencePanel} from "@/components/ledger/workspace/evidence-panel";
+import { PhotoInput, usePhotoUploads } from "./handover-photos";
 
 const SLIP_LABEL: Record<SiteTransferView["status"], string> = localized({ PENDING: "Chờ xuất", IN_TRANSIT: "Đang chuyển", RECEIVED: "Đã nhận", DISCREPANCY: "Chênh lệch", CANCELLED: "Đã hủy" });
 const SLIP_TONE: Record<SiteTransferView["status"], "info" | "brand" | "ok" | "warn" | "neutral"> = { PENDING: "info", IN_TRANSIT: "brand", RECEIVED: "ok", DISCREPANCY: "warn", CANCELLED: "neutral" };
@@ -291,6 +292,7 @@ function Cases({ lots }: { lots: StockLot[] }) {
   const q = useQuery({ queryKey: ["dist-cases"], queryFn: distApi.quarantineCases, enabled: can("quarantine.manage") });
   const act = useDialog<CaseAction>();
   const evidence=useDialog<QuarantineCaseView>();
+  const damagePhotos = usePhotoUploads({ entityType: "LOT", entityId: act.target?.c.lotId ?? "", kind: "DAMAGE_IMAGE", siteId: act.target?.c.siteId, description: tr("Ảnh hàng hư hỏng") });
   if (!can("quarantine.manage")) return <Callout tone="info">{tr("Cần quyền quarantine.manage để xem phiếu cách ly.")}</Callout>;
   const t = act.target;
   const lotOf = (c: QuarantineCaseView) => lots.find((l) => l.lotId === c.lotId);
@@ -331,13 +333,17 @@ function Cases({ lots }: { lots: StockLot[] }) {
           run={(v, cmd) =>
             t.kind === "RELEASE"
               ? distApi.quarantine({ lotId: t.c.lotId, siteId: t.c.siteId, unit: t.c.unit, version: lot.version, quantity: v.quantity, reason: v.reason, action: "RELEASE", quarantineCaseId: t.c.id }, cmd)
-              : distApi.dispose({ lotId: t.c.lotId, siteId: t.c.siteId, unit: t.c.unit, version: lot.version, quantity: v.quantity, reason: v.reason, kind: "DAMAGE", fromQuarantine: true, quarantineCaseId: t.c.id }, cmd)
+              : (async () => {
+                  if (!damagePhotos.files.length) throw new Error(tr("Chụp ít nhất một ảnh hàng hư hỏng"));
+                  return distApi.dispose({ lotId: t.c.lotId, siteId: t.c.siteId, unit: t.c.unit, version: lot.version, quantity: v.quantity, reason: v.reason, kind: "DAMAGE", fromQuarantine: true, quarantineCaseId: t.c.id, photos: await damagePhotos.upload() }, cmd);
+                })()
           }
         >
           {(f) => (
             <>
               <TextField control={f.control} name="quantity" label={tr("Số lượng ({p0})", { p0: t.c.unit })} inputMode="decimal" />
               <TextAreaField control={f.control} name="reason" label={tr("Lý do")} max={1000} />
+              {t.kind === "DISPOSE" && <PhotoInput label={tr("Ảnh hàng hư hỏng")} required photos={damagePhotos} />}
             </>
           )}
         </CommandDialog>

@@ -24,6 +24,7 @@ import { TraceService } from '../src/modules/trace/trace.service.js';
 import { LotHarvestService } from '../src/modules/lots/lot-harvest.service.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
+import { handoverPhotosDigest } from '../src/modules/distribution/handover-photos.js';
 import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 import { provisionChain } from './support/chain-scope.js';
 import { confirmSimulatedPermissions } from '../src/modules/ledger/simulated-ledger.js';
@@ -839,16 +840,51 @@ const prisma = new PrismaClient({
         where: { lotId_organizationId: { lotId: lot.id, organizationId: farmOrgId } },
       });
       expect(sent.quantity.toFixed(3)).toBe('0.400');
+      // Handover photos: a short receipt needs the receiver's photo, a photo of
+      // another organization is refused, and delivery photos enter the snapshot
+      // every delivery signature covers.
+      const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=', 'base64');
+      const photo = async (actor: 'farm' | 'selfReceiver') =>
+        (await request(app.getHttpServer())
+          .post('/api/enterprise-workspace/evidence')
+          .set('Authorization', bearer(actor))
+          .set('Idempotency-Key', randomUUID())
+          .field('entityType', 'TRANSFER')
+          .field('entityId', transfer.id)
+          .field('kind', 'TRANSFER_IMAGE')
+          .field('description', 'Ảnh giao nhận trong kiểm thử')
+          .attach('file', png, { filename: 'handover.png', contentType: 'image/png' })
+          .expect(201)).body.data.record as { id: string; sha256: string };
+      await post(`/distribution/transfers/${transfer.id}/receipt`, {
+        version: transfer.version,
+        reason: 'Thiếu một phần hàng khi dỡ xuống kho',
+        lines: [{ lotId: lot.id, received: '0.500', rejected: '0', quarantined: '0' }],
+      }, 'selfReceiver').expect(422);
+      const carrierPhoto = await photo('farm');
+      await post(`/distribution/transfers/${transfer.id}/photos`, { version: transfer.version, phase: 'DELIVERY', photos: [carrierPhoto.id] }, 'selfReceiver').expect(422);
+      const deliveryPhoto = await photo('selfReceiver');
+      transfer = { ...transfer, ...(await post(`/distribution/transfers/${transfer.id}/photos`, { version: transfer.version, phase: 'DELIVERY', photos: [deliveryPhoto.id] }, 'selfReceiver').expect(201)).body.data.record };
       await post(`/distribution/transfers/${transfer.id}/receipt`, {
         version: transfer.version,
         reason: 'Đã kiểm đếm đủ lượng giao tại kho nhận',
         lines: [{ lotId: lot.id, received: '0.600', rejected: '0', quarantined: '0' }],
       }, 'selfReceiver').expect(201);
       transfer = (await get(`/distribution/transfers/${transfer.id}`, 'selfReceiver').expect(200)).body.data.record;
+      expect(transfer.photos).toEqual([expect.objectContaining({ phase: 'DELIVERY', evidenceId: deliveryPhoto.id, sha256: deliveryPhoto.sha256 })]);
+      expect(transfer.photosDigest).toBe(handoverPhotosDigest(transfer.id, [{ phase: 'DELIVERY', evidenceId: deliveryPhoto.id, sha256: deliveryPhoto.sha256 }]));
+      const challenge = (await get(`/distribution/transfers/${transfer.id}/challenge`, 'selfReceiver').expect(200)).body.data;
+      expect(challenge.snapshot.photosDigest).toBe(transfer.photosDigest);
       for (const [actor, organizationId] of [['farm', farmOrgId], ['selfReceiver', receiver.id]] as const) {
         const delivery = await signPhase(actor, organizationId, 'DELIVERY');
         expect(delivery.status, JSON.stringify(delivery.body)).toBe(201);
         transfer = delivery.body.data.record;
+        if (actor === 'farm') {
+          // Once one party signed, the photos are fixed in the API and the database.
+          const late = await photo('selfReceiver');
+          await post(`/distribution/transfers/${transfer.id}/photos`, { version: transfer.version, phase: 'DELIVERY', photos: [late.id] }, 'selfReceiver').expect(409);
+          await expect(prisma.distributionHandoverPhoto.create({ data: { transferId: transfer.id, phase: 'DELIVERY', evidenceId: late.id, sha256: late.sha256, organizationId: receiver.id, createdBy: users.selfReceiver } })).rejects.toThrow(/fixed once the phase is signed/);
+          await expect(prisma.distributionTransfer.update({ where: { id: transfer.id }, data: { photosDigest: 'f'.repeat(64), version: { increment: 1 } } })).rejects.toThrow(/photo digest/);
+        }
       }
       expect(transfer.status).toBe('DELIVERED');
       const received = await prisma.lotHolding.findUniqueOrThrow({

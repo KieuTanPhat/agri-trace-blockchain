@@ -30,7 +30,7 @@ import {
   TraceNoticeInput,
   HoldingDispositionInput,
   DistributionOptionsDto,
-  SiteAllocationInput, QuarantineInput, ActualReceiptInput, ReturnInput, ReturnSignatureInput,
+  SiteAllocationInput, QuarantineInput, ActualReceiptInput, HandoverPhotosInput, ReturnInput, ReturnSignatureInput,
   DistributionC2Prepare,DistributionC2Submit,
   ConsentRenewInput,
   DistributionReportQuery,
@@ -98,6 +98,10 @@ export class DistributionController {
   @Post('quarantine') @ApiHeader({ name: 'Idempotency-Key', required: true }) @ApiDataResponse(WorkspaceRecordDto, 201)
   quarantine(@Req() req: AuthenticatedRequest, @Body() dto: QuarantineInput, @IdempotencyKey() key: string) {
     return this.run(req,key,'EW_QUARANTINE',dto,() => this.service.quarantine(req.user,dto));
+  }
+  @Post('transfers/:id/photos') @ApiHeader({ name: 'Idempotency-Key', required: true }) @ApiDataResponse(WorkspaceRecordDto, 201)
+  photos(@Req() req: AuthenticatedRequest, @Param('id',ParseUUIDPipe) id: string, @Body() dto: HandoverPhotosInput, @IdempotencyKey() key: string) {
+    return this.run(req,key,'DIST_PHOTOS',{id,...dto},() => this.service.attachHandoverPhotos(req.user,id,dto));
   }
   @Post('transfers/:id/receipt') @ApiHeader({ name: 'Idempotency-Key', required: true }) @ApiDataResponse(WorkspaceRecordDto, 201)
   receipt(@Req() req: AuthenticatedRequest, @Param('id',ParseUUIDPipe) id: string, @Body() dto: ActualReceiptInput, @IdempotencyKey() key: string) {

@@ -1031,6 +1031,8 @@ model DistributionTransfer {
   handoverMode HandoverMode @default(STANDARD) @map("handover_mode")
   attestationEpoch Int @default(0) @map("attestation_epoch")
   receiptDigest String? @map("receipt_digest") @db.VarChar(64)
+  /// Digest of the pickup/delivery photos; the snapshot carries it so signatures cover them.
+  photosDigest String? @map("photos_digest") @db.VarChar(64)
   senderSiteId String? @map("sender_site_id") @db.Uuid
   carrierSiteId String? @map("carrier_site_id") @db.Uuid
   receiverSiteId String? @map("receiver_site_id") @db.Uuid
@@ -1051,6 +1053,7 @@ model DistributionTransfer {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   lines DistributionLine[]
   attestations DistributionAttestation[]
+  photos DistributionHandoverPhoto[]
   @@index([senderId, status])
   @@index([receiverId, status])
   @@index([carrierId, status])
@@ -1218,8 +1221,24 @@ model DistributionReceipt {
   lines Json
   reason String @db.VarChar(1000)
   digest String @db.VarChar(64)
+  /// Receiver's photos [{evidenceId, sha256}], part of the receipt digest.
+  photos Json @default("[]")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   @@map("distribution_receipt")
+}
+
+/// Append-only pickup/delivery photos; fixed once the phase is signed.
+model DistributionHandoverPhoto {
+  transferId String @map("transfer_id") @db.Uuid
+  phase String @db.VarChar(20)
+  evidenceId String @unique @map("evidence_id") @db.Uuid
+  sha256 String @db.VarChar(64)
+  organizationId String @map("organization_id") @db.Uuid
+  createdBy String @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  transfer DistributionTransfer @relation(fields: [transferId], references: [id])
+  @@id([transferId, evidenceId])
+  @@map("distribution_handover_photo")
 }
 
 model DistributionRemainder {

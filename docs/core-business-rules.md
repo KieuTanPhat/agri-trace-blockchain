@@ -478,6 +478,16 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   Lượng cách ly phát sinh từ biên bản nhận hàng không có phiếu vẫn xử lý được trong
   phần chưa có phiếu. Phiếu chuyển và phiếu cách ly bất biến, chỉ đổi trạng thái hợp
   lệ; ảnh/chứng từ gắn qua chứng cứ `SITE_TRANSFER`/`QUARANTINE`.
+- Ảnh xác nhận giao nhận là chứng cứ riêng của các bên trong chuyến, không công khai:
+  - Lấy hàng/giao hàng: ảnh `TRANSFER_IMAGE` của một bên ký bước đó, tùy chọn, tối đa
+    6 ảnh mỗi bước. Chỉ gắn khi bước đang mở và chưa bên nào ký; mã băm danh sách ảnh
+    (`photosDigest`) nằm trong snapshot nên mọi chữ ký của bước (STANDARD và c2) đều
+    phủ ảnh. Gắn ảnh tăng phiên bản chặng, intent đã chuẩn bị trước đó hết hiệu lực.
+  - Biên bản thực nhận: bắt buộc ít nhất một ảnh của bên nhận khi có thiếu, từ chối
+    hoặc cách ly; mã băm ảnh nằm trong `receiptDigest`.
+  - Ghi hư hỏng (`DAMAGE`) bắt buộc ảnh `DAMAGE_IMAGE` của lô; cách ly được kèm ảnh.
+    Mã băm ảnh ghi trong sự kiện truy xuất. Guard SQL kiểm ảnh đúng chuyến, đúng tổ
+    chức và chặn thêm ảnh sau khi bước đã ký.
 - Sản phẩm có thêm nguyên liệu, nhà xưởng sản xuất (cơ sở của doanh nghiệp), nhà xuất
   khẩu/nhập khẩu/phân phối/vận chuyển và người quản lí (thành viên đang hoạt động).
   Nhật ký chăm sóc ghi người thực hiện (tài khoản đang ghi hoặc người phụ trách vụ)

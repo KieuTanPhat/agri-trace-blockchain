@@ -116,6 +116,14 @@ export function ed25519Spki(raw: Uint8Array) {
   return out;
 }
 
+/** Digest a transfer snapshot carries for its pickup and delivery photos. */
+export function handoverPhotosDigest(transferId: string, photos: { phase: string; evidenceId: string; sha256: string }[]) {
+  const sorted = photos
+    .map((p) => ({ phase: p.phase, evidenceId: p.evidenceId, sha256: p.sha256 }))
+    .sort((a, b) => a.phase.localeCompare(b.phase) || a.evidenceId.localeCompare(b.evidenceId));
+  return sha256Hex(new TextEncoder().encode(canonicalJson({ transferId, photos: sorted })));
+}
+
 /** Messages of the standard (non-c2) distribution protocol: domain NUL json. */
 export const distributionMessage = (domain: string, body: unknown) => encoder.encode(domain + '\0' + canonicalJson(body));
 

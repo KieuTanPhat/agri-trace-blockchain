@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 import type { Schemas } from '../../../api/client';
 import { useSession } from '../../../auth/session';
+import { LotIncident } from '../../../components/LotIncident';
 import { Button, Card, GreenHeader, IconTile, Loading, Notice, Pill, Row, T } from '../../../components/ui';
 import { date, dateTime, qty } from '../../../lib/format';
 import { LOT_STATE } from '../../../lib/labels';
@@ -77,6 +78,7 @@ export default function StaffLot() {
           {lot.productionCycle && <Row label="MÙA VỤ" value={lot.productionCycle.cycleCode} mono />}
           <Row label="ĐƠN VỊ SẢN XUẤT" value={lot.farmOrg.name} />
         </Card>
+        <LotIncident lotId={lot.lotId} lotCode={lot.lotCode} />
         {lot.productionCycle && <Button label="Xem mùa vụ" kind="outline" onPress={() => router.push(`/staff/cycle/${lot.productionCycle!.cycleId}`)} />}
       </View>
     </ScrollView>

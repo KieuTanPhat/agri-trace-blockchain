@@ -22,6 +22,7 @@ export const distApi={
  sign:(v:string,b:S["TransferSignature"],c:LedgerCommandContext)=>post("/transfers/"+id(v)+"/sign",b,c),
  submitC2:(v:string,b:S["DistributionC2Submit"],c:LedgerCommandContext)=>post("/transfers/"+id(v)+"/c2/submit",b,c),
  receipt:(v:string,b:S["ActualReceiptInput"],c:LedgerCommandContext)=>post("/transfers/"+id(v)+"/receipt",b,c),
+ photos:(v:string,b:S["HandoverPhotosInput"],c:LedgerCommandContext)=>post("/transfers/"+id(v)+"/photos",b,c),
  proposeReturn:(v:string,b:S["ReturnInput"],c:LedgerCommandContext)=>post("/transfers/"+id(v)+"/returns",b,c),
  signReturn:(v:string,r:string,b:S["ReturnSignatureInput"],c:LedgerCommandContext)=>post("/transfers/"+id(v)+"/returns/"+id(r)+"/sign",b,c),
  renewConsent:(v:string,b:S["ConsentRenewInput"],c:LedgerCommandContext)=>post("/transfers/"+id(v)+"/consent-renewal",b,c),

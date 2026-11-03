@@ -1,4 +1,4 @@
-import { canonicalJson, distributionMessage, sha256Hex, signedMessage, verifyPreparedIntent, type PreparedIntent } from './canonical';
+import { canonicalJson, distributionMessage, handoverPhotosDigest, sha256Hex, signedMessage, verifyPreparedIntent, type PreparedIntent } from './canonical';
 import { listDeviceKeys, signWith } from './keys';
 
 /**
@@ -31,12 +31,22 @@ export function transferSnapshot(t: Row) {
     ...(t.handoverMode === 'DUAL_SIGNED' ? { handoverMode: t.handoverMode } : {}),
     ...(t.attestationEpoch ? { attestationEpoch: t.attestationEpoch } : {}),
     ...(t.receiptDigest ? { receiptDigest: t.receiptDigest } : {}),
+    ...(t.photosDigest ? { photosDigest: t.photosDigest } : {}),
     ...(t.senderSiteId || t.carrierSiteId || t.receiverSiteId
       ? { senderSiteId: t.senderSiteId ?? null, carrierSiteId: t.carrierSiteId ?? null, receiverSiteId: t.receiverSiteId ?? null } : {}),
     lines: (t.lines as Line[])
       .map((l) => ({ lotId: l.lotId, quantity: fixed(l.quantity), unit: l.unit }))
       .sort((a, b) => a.lotId.localeCompare(b.lotId)),
   };
+}
+
+type PhotoRow = { phase: string; evidenceId: string; sha256: string };
+/** The photos listed with the transfer are exactly those its snapshot commits to. */
+export function assertPhotosDigest(t: Row) {
+  const photos = (t.photos as PhotoRow[] | undefined) ?? [];
+  if (!t.photosDigest && !photos.length) return;
+  if (handoverPhotosDigest(String(t.id), photos) !== t.photosDigest)
+    throw new Error('Ảnh bàn giao không khớp nội dung sẽ ký; tải lại chuyến hàng');
 }
 
 /** Which key this phone would sign with, or why it cannot. */
@@ -87,6 +97,9 @@ export async function signStandard(call: Call, t: SignableTransfer, phase: strin
   if (challenge.domain !== 'agritrace:distribution-attestation:1'
     || sha256Hex(new TextEncoder().encode(canonicalJson(challenge.snapshot))) !== challenge.snapshotDigest)
     throw new Error('Nội dung bàn giao không khớp dấu kiểm tra');
+  // The challenge must commit to the photos shown on this screen.
+  if (((challenge.snapshot as Row | null)?.photosDigest ?? null) !== (t.photosDigest ?? null))
+    throw new Error('Ảnh bàn giao đã thay đổi. Tải lại chuyến hàng.');
   const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
   const body = { transferId: t.id, phase, organizationId: signer.organizationId, userId: signer.id, keyRef, version: String(t.version), expiresAt };
   const signature = await signWith(keyRef, signer.organizationId,

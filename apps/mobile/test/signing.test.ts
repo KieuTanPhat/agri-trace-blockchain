@@ -7,6 +7,7 @@ import {
   canonicalJson,
   distributionMessage,
   ed25519Spki,
+  handoverPhotosDigest,
   intentDigest,
   keyPopMessage,
   payloadDigest,
@@ -17,6 +18,7 @@ import {
 } from "../src/lib/signing/canonical.ts";
 import { commandIdentity } from "../src/lib/command-queue.ts";
 import * as server from "../../api/src/modules/trace/signed-commitment.ts";
+import * as photos from "../../api/src/modules/distribution/handover-photos.ts";
 
 // The API verifier is the reference: a phone signature must pass it unchanged.
 const secret = ed25519.utils.randomSecretKey();
@@ -69,3 +71,17 @@ test("distribution commands reconcile with the Web operation names", () => {
   assert.deepEqual(commandIdentity({ path: "/distribution/transfers/t1/receipt", body }).operation, "DIST_RECEIPT");
   assert.deepEqual(commandIdentity({ path: "/distribution/quantities", body }), { operation: "EW_DISPOSITION", payload: body });
 });
+
+test("handover photo digest matches the API and changes with any photo", () => {
+  const transferId = randomUUID();
+  const list = [
+    { phase: "PICKUP", evidenceId: randomUUID(), sha256: "b".repeat(64) },
+    { phase: "DELIVERY", evidenceId: randomUUID(), sha256: "c".repeat(64) },
+  ];
+  assert.equal(handoverPhotosDigest(transferId, list), photos.handoverPhotosDigest(transferId, list));
+  assert.equal(handoverPhotosDigest(transferId, [...list].reverse()), photos.handoverPhotosDigest(transferId, list));
+  // A swapped photo or a photo moved to another phase is a different digest.
+  assert.notEqual(handoverPhotosDigest(transferId, [list[0], { ...list[1], sha256: "d".repeat(64) }]), photos.handoverPhotosDigest(transferId, list));
+  assert.notEqual(handoverPhotosDigest(transferId, [list[0], { ...list[1], phase: "PICKUP" }]), photos.handoverPhotosDigest(transferId, list));
+});
+

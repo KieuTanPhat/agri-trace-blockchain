@@ -58,10 +58,13 @@ App nhân viên ký bàn giao bằng khóa Ed25519 của tổ chức giữ trên
 cho chuỗi DUAL_SIGNED (dùng được khi sổ cái kích hoạt). Nhân viên trên cùng máy ký
 bằng khóa đó; API vẫn kiểm `distribution.sign`. Trước khi ký, app tự tính lại
 snapshot, digest và intent như Web, từ chối khi khác lô, lượng, phiên bản hoặc
-bên ký đang hiển thị. Prepare/submit/receipt đi qua hàng đợi lệnh và đối soát bằng
-đúng key cũ. Ghi lượng thực nhận trên app chỉ nhận đủ hoặc thiếu; cách ly, từ chối
-và trả hàng làm trên Web. Test: `node --import tsx --test
-apps/mobile/test/signing.test.ts` kiểm chữ ký mobile bằng mã xác minh của API.
+bên ký đang hiển thị. Prepare/submit/receipt/photos đi qua hàng đợi lệnh và đối
+soát bằng đúng key cũ. Biên bản thực nhận trên app ghi thực nhận, từ chối, cách ly
+kèm ảnh; trả hàng làm trên Web. Ảnh lấy/giao hàng gắn trước khi ký, app kiểm lại
+`photosDigest` từ danh sách ảnh trước khi ký. Màn hình lô có báo hư hỏng (bắt buộc
+ảnh) và cách ly. Tài khoản phải đổi mật khẩu được chuyển tới `/staff/password`
+trước mọi màn hình khác. Test: `node --import tsx --test
+apps/mobile/test/signing.test.ts` kiểm chữ ký và mã băm ảnh mobile bằng mã của API.
 
 Tab nhân viên theo năng lực: Trang chủ, tối đa hai tab vai trò (Nhật ký cho sản
 xuất, Chờ nhận cho chế biến/vận chuyển/phân phối/bán lẻ, Bán hàng cho bán lẻ,
