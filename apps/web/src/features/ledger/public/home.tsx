@@ -1,6 +1,9 @@
 "use client";
+import { useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { categoriesOf, usePublicNews, usePublicProducts } from "@/lib/ledger/public-directory";
 import { customerHref } from "@/lib/site-origins";
 import { SITE_CONTACT } from "@/lib/site-contact";
 import { pt } from "@/lib/ledger/public-i18n";
@@ -8,6 +11,8 @@ import { Button } from "@/components/ledger/ui/button";
 import { Container, CtaBand, PhotoCard, PhotoHero, Reveal, SectionHeading } from "./blocks";
 import { PHOTOS, PLATFORM_FEATURES, SOLUTIONS, TRACE_STEPS } from "./content";
 import { TraceSearch } from "./trace-search";
+import { CategoryTile, ProductCard } from "./catalog";
+import { FeaturedNews } from "./news";
 
 function Hero() {
   return (
@@ -23,6 +28,95 @@ function Hero() {
         {["Không cần đăng nhập", "Đọc mã ngay trên thiết bị", "Cảnh báo thu hồi hiển thị riêng"].map((x) => pt(x)).join(" · ")}
       </p>
     </PhotoHero>
+  );
+}
+
+function SeeAll({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={customerHref(href)} className="inline-flex shrink-0 items-center gap-1 text-[15px] font-semibold text-brand hover:underline">
+      {pt(label)}
+      <ArrowRight className="size-4" aria-hidden />
+    </Link>
+  );
+}
+
+function RowHeading({ title, description, href, label }: { title: string; description?: string; href: string; label: string }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-[26px] leading-tight font-semibold tracking-tight sm:text-[30px]">{pt(title)}</h2>
+        {description && <p className="text-[15px] text-ink-2">{pt(description)}</p>}
+      </div>
+      <SeeAll href={href} label={label} />
+    </div>
+  );
+}
+
+/** Danh mục và sản phẩm lấy trực tiếp từ danh bạ công khai; ẩn khi chưa có dữ liệu. */
+function Catalog() {
+  const products = usePublicProducts();
+  const all = useMemo(() => products.data ?? [], [products.data]);
+  const categories = useMemo(() => categoriesOf(all).slice(0, 8), [all]);
+  const top = useMemo(() => [...all].sort((a, b) => b.traceCount - a.traceCount).slice(0, 8), [all]);
+  const latest = useMemo(() => [...all].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 4), [all]);
+  if (!all.length) return null;
+  return (
+    <>
+      {categories.length > 0 && (
+        <section className="pt-16">
+          <Container className="flex flex-col gap-7">
+            <RowHeading title="Danh mục nổi bật" description="Nhóm nông sản có nhiều lô truy xuất nhất." href="/products" label="Tất cả danh mục" />
+            <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
+              {categories.map((c, i) => (
+                <Reveal as="li" key={c.name} delay={i * 50}>
+                  <CategoryTile category={c} />
+                </Reveal>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      )}
+      <section className="pt-16">
+        <Container className="flex flex-col gap-7">
+          <RowHeading title="Truy xuất nhiều nhất" description="Sản phẩm có nhiều lô mang mã QR công khai." href="/products" label="Xem tất cả sản phẩm" />
+          <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {top.map((p, i) => (
+              <Reveal as="li" key={p.id} delay={(i % 4) * 70}>
+                <ProductCard product={p} />
+              </Reveal>
+            ))}
+          </ul>
+        </Container>
+      </section>
+      {all.length > 8 && (
+        <section className="pt-16">
+          <Container className="flex flex-col gap-7">
+            <RowHeading title="Mới cập nhật" description="Sản phẩm vừa được doanh nghiệp công bố." href="/products" label="Xem thêm" />
+            <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {latest.map((p, i) => (
+                <Reveal as="li" key={p.id} delay={i * 70}>
+                  <ProductCard product={p} />
+                </Reveal>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      )}
+    </>
+  );
+}
+
+function News() {
+  const news = usePublicNews(5);
+  const items = news.data?.items ?? [];
+  if (!items.length) return null;
+  return (
+    <section className="pt-16 pb-4">
+      <Container className="flex flex-col gap-7">
+        <RowHeading title="Bài viết nổi bật" href="/news" label="Xem bảng tin" />
+        <FeaturedNews items={items} />
+      </Container>
+    </section>
   );
 }
 
@@ -159,6 +253,8 @@ export default function Home() {
   return (
     <>
       <Hero />
+      <Catalog />
+      <News />
       <Audiences />
       <Process />
       <Features />

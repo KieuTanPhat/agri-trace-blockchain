@@ -1,7 +1,10 @@
 import {cleanup,render,screen} from "@testing-library/react";
 import {afterEach,expect,it,vi} from "vitest";
-import Home from "@/features/ledger/public/home";
+import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
+import HomePage from "@/features/ledger/public/home";
 import {SITE_CONTACT} from "@/lib/site-contact";
+// Directory sections stay hidden while the public API returns nothing.
+const Home=()=><QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false,enabled:false}}})}><HomePage/></QueryClientProvider>;
 vi.mock("next/navigation",()=>({useRouter:()=>({push:vi.fn()})}));
 vi.mock("next/image",()=>({default:({alt}:{alt:string})=><span role="img" aria-label={alt}/>}));
 afterEach(cleanup);

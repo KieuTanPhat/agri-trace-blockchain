@@ -38,8 +38,10 @@ export function publicTraceUrl(token: string, fallbackOrigin = "") {
 }
 /** Customer-site pages besides `/` and trace; they never need a business session. */
 export const CUSTOMER_PAGES = ["/scan", "/about", "/solutions", "/contact"] as const;
+/** Customer-site sections whose detail pages live below them. */
+export const CUSTOMER_SECTIONS = ["/products", "/news"] as const;
 export function isCustomerPage(path: string) {
-  return CUSTOMER_PAGES.some((page) => path === page);
+  return CUSTOMER_PAGES.some((page) => path === page) || CUSTOMER_SECTIONS.some((s) => path === s || path.startsWith(`${s}/`));
 }
 /** Only configured hostnames participate; API, assets and legal pages stay on their origin. */
 export function siteRedirect(input: URL): URL | null {
