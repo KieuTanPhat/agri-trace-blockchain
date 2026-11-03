@@ -63,6 +63,15 @@ async function check(name, fn) {
   console.log(`PASS ${name}`);
 }
 try {
+  if (target.mode === "production") {
+    // Real Fabric: wait until the Worker has delivered every committed event.
+    const deadline = Date.now() + 45 * 60_000;
+    while ((await db.blockchainOutbox.count({ where: { status: { not: "COMPLETED" } } })) > 0) {
+      assert.equal(await db.blockchainOutbox.count({ where: { status: "DEAD_LETTER" } }), 0, "Fabric rejected an event");
+      assert.ok(Date.now() < deadline, "Worker did not deliver every event to Fabric in time");
+      await new Promise((resolve) => setTimeout(resolve, 15_000));
+    }
+  }
   const counts = {};
   for (const model of [
     "role",
@@ -109,13 +118,18 @@ try {
     "subscription",
   ])
     counts[model] = await db[model].count();
+  // Production keeps the controller's technical smoke catalog beside the dataset.
+  const technical = target.mode === "production"
+    ? { farm: await db.farm.count({ where: { name: "Production technical farm" } }),
+        product: await db.product.count({ where: { productName: "Production technical product" } }) }
+    : { farm: 0, product: 0 };
   await check(
     "Coverage: human roles, organization types, hierarchy and media",
     async () => {
       assert.ok(
         counts.user >= 30 &&
-          counts.farm === 3 &&
-          counts.product === 28 &&
+          counts.farm - technical.farm === 3 &&
+          counts.product - technical.product === 28 &&
           counts.productionCycle >= 15 &&
           counts.lot >= 13 &&
           counts.traceEvidence >= 120,

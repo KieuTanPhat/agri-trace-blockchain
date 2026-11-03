@@ -37,6 +37,9 @@ def verify_bundle(bundle, sha):
         fail("Dataset bundle does not belong to the installed release")
     for name, digest in manifest["files"].items():
         path = (bundle / name).resolve()
+        # The one-off container is root without capabilities: it reads only root-owned files.
+        if path.stat().st_uid != 0:
+            fail(f"Dataset bundle file is not owned by root (chown -R root:root the bundle): {name}")
         if not path.is_relative_to(bundle.resolve()) or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
             fail(f"Dataset bundle file differs: {name}")
     return manifest
