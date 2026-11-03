@@ -20,9 +20,8 @@ import { FeaturedNews } from "./news";
 function Hero() {
   return (
     <PhotoHero
-      tall
+      banner
       image={PHOTOS.heroAgritrace}
-      imageClassName="object-[75%_center]"
       eyebrow={pt("Truy xuất nguồn gốc nông sản trên blockchain")}
       title={pt("Hành trình nông sản, minh bạch từ vườn tới tay bạn.")}
       description={pt("Từ trồng trọt, thu hoạch đến chế biến và giao hàng. Quét mã để xem nguồn gốc, nhật ký và giấy tờ của từng lô.")}
