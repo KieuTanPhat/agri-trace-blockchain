@@ -217,9 +217,10 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
     refetchInterval: query => query.state.data && query.state.data.preparationStatus !== "READY" ? 3000 : false,
   });
   const ctxQ = useQuery({ queryKey: ["chain-context"], queryFn: chainApi.context });
-  // Chain keys exist only for dual-signed handovers; standard chains have no signing tab.
+  // Chain keys sign dual-signed handovers. The operator turns dual signing on only once a key is
+  // ACTIVE, so the owner registers the first one on a standard chain; other members see the tab
+  // once dual signing is on or while they hold a key.
   const signing = useQuery({ queryKey: ["chain-handover-mode", id], queryFn: () => chainApi.signingContext(id), retry: false });
-  const dual = signing.data?.handoverMode === "DUAL_SIGNED";
   const access=useWorkspaceAccess();
   const memberAct = useDialog<MemberAct>();
   const invite = useDialog();
@@ -227,8 +228,9 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
   const [sentLink, setSentLink] = useState<string | null>(null);
   const prof = useDialog<"ACTIVATE" | "SUSPEND">();
   const c = chain.data;
-  const tab = view === "detail" || view === "business" || view === "signing" && !dual ? "" : view;
   const owner = c?.ownerOrganizationId === me;
+  const showSigning = signing.data?.handoverMode === "DUAL_SIGNED" || !!signing.data?.keys.some((k) => k.status !== "REVOKED") || (owner && !!signing.data?.bindingDigest);
+  const tab = view === "detail" || view === "business" || view === "signing" && !showSigning ? "" : view;
   const orgAdmin=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="ORG_ADMIN" && !g.revokedAt);
   const canCreateChain=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="CREATE_CHAIN" && !g.revokedAt);
   const platformAdmin=user?.role.code==="SYSTEM_ADMIN";
@@ -257,7 +259,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
       />
       <PageBody className="min-w-0">
         <nav aria-label={tr("Mục quản lý chuỗi")} className="flex flex-wrap gap-1 border-b border-line">
-          {TABS.filter(([part]) => part !== "signing" || dual).map(([part, label]) => (
+          {TABS.filter(([part]) => part !== "signing" || showSigning).map(([part, label]) => (
             <Link key={part} aria-current={tab === part ? "page" : undefined} href={`/supply-chains/${c.id}${part ? "/" + part : ""}`}
               className={cn("-mb-px border-b-2 px-3 py-2 text-[13px]", tab === part ? "border-brand font-semibold text-brand-ink" : "border-transparent text-ink-2 hover:text-ink")}>{tr(label)}</Link>
           ))}

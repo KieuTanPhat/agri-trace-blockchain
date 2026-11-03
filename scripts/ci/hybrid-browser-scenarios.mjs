@@ -404,8 +404,8 @@ async function enrollKey(options, session, party, label, loseResponse = false) {
 
 async function ensureKeys(options, session) {
   if (session.keys.farm) return;
-  // Chain keys are created only on a chain pinned to dual signing.
-  await options.setHandoverMode("DUAL_SIGNED");
+  // The chain owner registers the first key on a standard chain; dual signing
+  // needs an ACTIVE key, and only then do the other members see their signing tab.
   session.keys.farm = await enrollKey(
     options,
     session,
@@ -413,6 +413,7 @@ async function ensureKeys(options, session) {
     `${options.variant} farm`,
     true,
   );
+  await options.setHandoverMode("DUAL_SIGNED");
   session.keys.transporter = await enrollKey(
     options,
     session,
@@ -425,7 +426,6 @@ async function ensureKeys(options, session) {
     "retailer",
     `${options.variant} retailer`,
   );
-  await options.setHandoverMode("DUAL_SIGNED");
   session.groups.push({
     name: "device-key-enrollment-lost-response-reload-real-registry",
     passed: true,
