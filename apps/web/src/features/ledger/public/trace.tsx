@@ -12,7 +12,7 @@ import {LOT_STATE_LABEL,LOT_STATE_TONE} from "@/lib/ledger/ops-labels";
 import {fmtDate,fmtDateTime,fmtNumber} from "@/lib/ledger/format";
 import {pt as t} from "@/lib/ledger/public-i18n";
 import {cn} from "@/lib/ledger/utils";
-import {Container,PageIntro} from "./blocks";
+import {Container} from "./blocks";
 /** Bước nhật ký chế biến hiển thị công khai (không có người ghi). */
 const STEP_LABEL:Record<string,string>={RECEIVING:"Tiếp nhận nguyên liệu",SORTING:"Phân loại",WASHING:"Rửa",PRELIMINARY:"Sơ chế",DRYING:"Sấy",ROASTING:"Rang",MILLING:"Xay / nghiền",FERMENTING:"Lên men",COOKING:"Nấu / chần",FREEZING:"Cấp đông",PACKING:"Đóng gói",QUALITY_CHECK:"Kiểm tra chất lượng",CORRECTION:"Đính chính",OTHER:"Khác"};
 import {PublicJourney} from "./journey";
@@ -24,8 +24,8 @@ const WARNING_LABEL:Record<string,string>={RECALLED:"Lô đang bị thu hồi",D
 const SHOWN_ELSEWHERE={EXPIRED:1,QUANTITY_MISMATCH:1,STATE_MISMATCH:1};
 export function PublicTraceContent({lot,photo}:{lot:PublicLotTrace;photo?:string|null}){
 return <>
-<PageIntro eyebrow={t("Kết quả truy xuất")} title={lot.lotName??lot.productName} description={`${lot.productName} · ${lot.lotCode}`}><div className="flex flex-wrap gap-2"><Badge tone={LOT_STATE_TONE[lot.currentState]??"neutral"}>{LOT_STATE_LABEL[lot.currentState]??lot.currentState}</Badge></div></PageIntro>
-<Container className="grid min-w-0 gap-6 py-8 lg:grid-cols-[360px_minmax(0,1fr)]">
+<Container className="flex flex-col gap-1.5 pt-7"><span className="text-[12px] font-semibold tracking-[0.16em] text-(--pub-accent-ink) uppercase">{t("Kết quả truy xuất")}</span><div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{lot.lotName??lot.productName}</h1><div className="flex flex-wrap gap-2"><Badge tone={LOT_STATE_TONE[lot.currentState]??"neutral"}>{LOT_STATE_LABEL[lot.currentState]??lot.currentState}</Badge></div></div><p className="text-[14px] text-ink-2">{lot.productName} · <span className="font-mono">{lot.lotCode}</span></p></Container>
+<Container className="grid min-w-0 gap-6 pt-5 pb-8 lg:grid-cols-[360px_minmax(0,1fr)]">
 <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
 {photo&&<div className="relative aspect-[4/3] min-w-0 overflow-hidden rounded-2xl border border-line bg-card"><Image src={photo} alt={lot.productName} fill unoptimized sizes="(max-width: 1024px) 100vw, 360px" className="object-cover"/></div>}
 {lot.isExpired&&<Callout tone="danger" title={t("Lô đã hết hạn sử dụng")}>{fmtDate(lot.expiryDate)}</Callout>}

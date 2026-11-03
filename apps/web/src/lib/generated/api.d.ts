@@ -9457,6 +9457,8 @@ export interface components {
         PublicProductEnterpriseDto: {
             /** Format: uuid */
             id: string;
+            /** @description Only an explicitly published logo. */
+            logoUrl: string | null;
             name: string;
         };
         PublicProductsPageDto: {

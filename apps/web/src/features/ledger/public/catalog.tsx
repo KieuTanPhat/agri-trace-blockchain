@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronRight, Leaf, MapPin, QrCode, ScanLine, Search, Store } from "lucide-react";
+import { ChevronRight, Info, Leaf, MapPin, QrCode, ScanLine, Search, Store } from "lucide-react";
 import { publicApiUrl } from "@/lib/api-client";
 import { customerHref } from "@/lib/site-origins";
 import { categoriesOf, categoryHref, enterpriseHref, enterprisesOf, productImage, usePublicProduct, usePublicProducts, type Category, type PublicProduct } from "@/lib/ledger/public-directory";
@@ -11,7 +11,7 @@ import { LOT_STATE_LABEL, LOT_STATE_TONE } from "@/lib/ledger/ops-labels";
 import { fmtDate, fmtNumber } from "@/lib/ledger/format";
 import { pt } from "@/lib/ledger/public-i18n";
 import { cn } from "@/lib/ledger/utils";
-import { ErrorState, Field, Fields, LoadingRows } from "@/components/ledger/kit/page";
+import { ErrorState, LoadingRows } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { Button } from "@/components/ledger/ui/button";
 import { Input } from "@/components/ledger/ui/input";
@@ -21,7 +21,17 @@ import { Container, PageIntro, Reveal, SectionHeading } from "./blocks";
 const ORG_TYPE: Record<string, string> = { FARM: "Nông trại", PROCESSOR: "Nhà chế biến", DISTRIBUTOR: "Nhà phân phối", RETAILER: "Nhà bán lẻ", TRANSPORTER: "Vận chuyển", AUDITOR: "Kiểm định" };
 
 /** Lưới thẻ sản phẩm nhỏ, dùng chung cho trang chủ, danh sách và sản phẩm liên quan. */
-export const PRODUCT_GRID = "grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6";
+export const PRODUCT_GRID = "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 lg:gap-6";
+
+/** Logo nhỏ của doanh nghiệp; chưa công bố logo thì hiện chữ cái đầu. */
+export function EnterpriseLogo({ name, logo, className }: { name: string; logo: string | null; className?: string }) {
+  const initial = name.replace(/^(Công ty|HTX|Hợp tác xã)\s+(Cổ phần|TNHH)?\s*/i, "").charAt(0).toUpperCase();
+  return (
+    <span className={cn("relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-white text-[11px] font-semibold text-brand", className)}>
+      {logo ? <Image src={logo} alt="" fill unoptimized sizes="32px" className="object-contain p-0.5" /> : initial}
+    </span>
+  );
+}
 
 /** Ảnh sản phẩm đã công bố; chưa có ảnh thì hiện biểu tượng lá trên nền xanh nhạt. */
 function ProductPhoto({ product, sizes, className, fit = "contain" }: { product: Pick<PublicProduct, "imageUrl" | "productName">; sizes: string; className?: string; fit?: "contain" | "cover" }) {
@@ -91,12 +101,12 @@ export function sortProducts(items: PublicProduct[], sort: Sort) {
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 
 /** Một nhóm lọc ở cột trái: cuộn ngang trên điện thoại, danh sách dọc trên máy tính. */
-function FilterList({ title, items, active, onPick, allLabel, total }: { title: string; items: { key: string; label: string; count: number }[]; active: string; onPick: (key: string) => void; allLabel: string; total: number }) {
+function FilterList({ title, items, active, onPick, allLabel, total }: { title: string; items: { key: string; label: string; count: number; icon?: React.ReactNode }[]; active: string; onPick: (key: string) => void; allLabel: string; total: number }) {
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <h2 className="text-[13px] font-semibold tracking-wide text-ink-2 uppercase">{title}</h2>
       <ul className="flex gap-2 overflow-x-auto pb-1 lg:max-h-[340px] lg:flex-col lg:gap-0.5 lg:overflow-y-auto">
-        {[{ key: "", label: allLabel, count: total }, ...items].map((c) => (
+        {[{ key: "", label: allLabel, count: total, icon: undefined as React.ReactNode }, ...items].map((c) => (
           <li key={c.key || "all"} className="shrink-0">
             <button
               type="button"
@@ -104,7 +114,10 @@ function FilterList({ title, items, active, onPick, allLabel, total }: { title: 
               aria-pressed={active === c.key}
               className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-[14px] whitespace-nowrap transition-colors lg:whitespace-normal", active === c.key ? "bg-brand text-white" : "bg-card text-ink hover:bg-brand-weak lg:bg-transparent")}
             >
-              <span>{c.label}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                {c.icon}
+                <span>{c.label}</span>
+              </span>
               <span className={cn("text-[12px]", active === c.key ? "text-white/80" : "text-ink-2")}>{c.count}</span>
             </button>
           </li>
@@ -158,7 +171,7 @@ export function ProductsPage() {
       <Container className="grid grid-cols-[minmax(0,1fr)] gap-8 py-8 lg:grid-cols-[250px_minmax(0,1fr)]">
         <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
           <FilterList title={pt("Danh mục")} allLabel={pt("Tất cả danh mục")} total={all.length} active={category} onPick={(v) => pick("category", v)} items={categories.map((c) => ({ key: c.name, label: c.name, count: c.count }))} />
-          <FilterList title={pt("Doanh nghiệp")} allLabel={pt("Tất cả doanh nghiệp")} total={all.length} active={enterprise} onPick={(v) => pick("enterprise", v)} items={enterprises.map((e) => ({ key: e.id, label: e.name, count: e.count }))} />
+          <FilterList title={pt("Doanh nghiệp")} allLabel={pt("Tất cả doanh nghiệp")} total={all.length} active={enterprise} onPick={(v) => pick("enterprise", v)} items={enterprises.map((e) => ({ key: e.id, label: e.name, count: e.count, icon: <EnterpriseLogo name={e.name} logo={e.logo} className="size-6" /> }))} />
           <div className="hidden flex-col gap-2 lg:flex">
             <label htmlFor="pub-province" className="text-[13px] font-semibold tracking-wide text-ink-2 uppercase">
               {pt("Tỉnh / thành")}
@@ -198,7 +211,7 @@ export function ProductsPage() {
             <>
               <p className="text-[14px] text-ink-2">{pt("{p0} sản phẩm", { p0: shown.length })}</p>
               {shown.length ? (
-                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+                <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4 xl:gap-5">
                   {shown.map((p) => (
                     <li key={p.id}>
                       <ProductCard product={p} />
@@ -221,8 +234,8 @@ function LatestLotQr({ token, lotCode }: { token: string; lotCode: string }) {
   const qr = useTraceQr(token);
   if (!qr.ready) return null;
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-line bg-card p-4">
-      <TraceQrImage qr={qr} className="size-28 shrink-0 rounded-lg border border-line p-1" />
+    <div className="flex items-center gap-4 rounded-xl border border-line bg-card p-4">
+      <TraceQrImage qr={qr} className="size-28 shrink-0 rounded-lg border border-line p-1.5 shadow-sm" />
       <div className="flex min-w-0 flex-col gap-1">
         <p className="font-semibold">{pt("Quét để xem lô mới nhất")}</p>
         <p className="text-[13px] text-ink-2">{pt("Dùng camera điện thoại quét mã này để xem hành trình của lô {p0}.", { p0: lotCode })}</p>
@@ -235,7 +248,7 @@ export function ProductDetail({ id }: { id: string }) {
   const detail = usePublicProduct(id);
   const products = usePublicProducts();
   const p = detail.data;
-  const related = useMemo(() => (p?.category ? sortProducts((products.data ?? []).filter((x) => x.category === p.category && x.id !== p.id), "traces").slice(0, 12) : []), [p, products.data]);
+  const related = useMemo(() => (p?.category ? sortProducts((products.data ?? []).filter((x) => x.category === p.category && x.id !== p.id), "traces").slice(0, 10) : []), [p, products.data]);
   if (detail.isLoading)
     return (
       <Container className="py-12">
@@ -288,22 +301,23 @@ export function ProductDetail({ id }: { id: string }) {
         </Container>
       </div>
 
-      <Container className="grid gap-8 py-8 md:grid-cols-[minmax(0,3fr)_minmax(0,7fr)]">
-        <ProductPhoto product={p} sizes="(max-width: 768px) 60vw, 340px" className="mx-auto aspect-square w-3/5 self-start rounded-2xl border border-line bg-card md:w-full" />
-        <div className="flex min-w-0 flex-col gap-5">
+      <Container className="py-8">
+        <div className="grid gap-8 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7 md:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+        <ProductPhoto product={p} sizes="(max-width: 768px) 60vw, 360px" className="mx-auto aspect-square w-3/5 self-start rounded-2xl border border-line bg-white shadow-sm md:w-full" />
+        <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-wrap gap-2">
             {p.category && <Badge tone="brand">{p.category}</Badge>}
             <Badge tone={p.saleStatus === "SELLING" ? "ok" : "neutral"}>{p.saleStatus === "SELLING" ? pt("Đang bán") : pt("Chưa bán")}</Badge>
           </div>
           <h1 className="text-3xl leading-tight font-semibold tracking-tight">{p.productName}</h1>
           {p.enterprise && (
-            <Link href={customerHref(enterpriseHref(p.enterprise.id))} className="inline-flex w-fit items-center gap-1.5 text-[15px] font-medium text-brand hover:underline">
-              <Store className="size-4" aria-hidden />
+            <Link href={customerHref(enterpriseHref(p.enterprise.id))} className="inline-flex w-fit items-center gap-2 text-[15px] font-semibold text-brand hover:underline">
+              <EnterpriseLogo name={p.enterprise.name} logo={p.enterprise.logoUrl ? publicApiUrl(p.enterprise.logoUrl) : null} className="size-6" />
               {p.enterprise.name}
             </Link>
           )}
           {p.description && <p className="text-[15px] leading-relaxed whitespace-pre-line text-ink-2">{p.description}</p>}
-          <dl className="grid grid-cols-3 gap-3">
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
               [QrCode, "Lô có mã QR", fmtNumber(p.traceCount)],
               [ScanLine, "Lượt quét", fmtNumber(p.scanCount)],
@@ -311,27 +325,34 @@ export function ProductDetail({ id }: { id: string }) {
             ].map(([Icon, label, value]) => {
               const I = Icon as typeof QrCode;
               return (
-                <div key={label as string} className="flex flex-col gap-1 rounded-xl border border-line bg-card p-3">
-                  <dt className="inline-flex items-center gap-1.5 text-[12px] text-ink-2">
-                    <I className="size-3.5 text-brand" aria-hidden />
-                    {pt(label as string)}
-                  </dt>
-                  <dd className="text-[20px] font-semibold">{value as string}</dd>
+                <div key={label as string} className="flex items-center gap-3 rounded-xl border border-line bg-card p-3">
+                  <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-weak text-brand">
+                    <I className="size-5" aria-hidden />
+                  </span>
+                  <div className="flex flex-col">
+                    <dt className="text-[12px] text-ink-2">{pt(label as string)}</dt>
+                    <dd className="text-[20px] leading-tight font-semibold">{value as string}</dd>
+                  </div>
                 </div>
               );
             })}
           </dl>
           <div className="grid gap-4 lg:grid-cols-2">
             {info.length > 0 && (
-              <div className="rounded-2xl border border-line bg-card p-4">
-                <Fields cols={2}>
+              <section className="rounded-xl border border-line bg-card">
+                <h2 className="flex items-center gap-2 border-b border-line px-4 py-3 text-[14px] font-semibold">
+                  <Info className="size-4 text-brand" aria-hidden />
+                  {pt("Thông tin sản phẩm")}
+                </h2>
+                <dl className="divide-y divide-line px-4 text-[13.5px]">
                   {info.map(([k, v]) => (
-                    <Field key={k} label={pt(k)}>
-                      {v}
-                    </Field>
+                    <div key={k} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3 py-2">
+                      <dt className="text-ink-2">{pt(k)}</dt>
+                      <dd className="font-medium">{v}</dd>
+                    </div>
                   ))}
-                </Fields>
-              </div>
+                </dl>
+              </section>
             )}
             {latest && <LatestLotQr token={latest.traceToken} lotCode={latest.lotCode} />}
           </div>
@@ -351,6 +372,7 @@ export function ProductDetail({ id }: { id: string }) {
               </Link>
             </Button>
           </div>
+        </div>
         </div>
       </Container>
 

@@ -76,6 +76,7 @@ export class PublicEnterprisesQueryDto extends PublicDirectoryQueryDto {
 export class PublicProductEnterpriseDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
   @ApiProperty({ type: String }) name!: string;
+  @ApiProperty({ type: String, nullable: true, description: 'Only an explicitly published logo.' }) logoUrl!: string | null;
 }
 
 export class PublicDirectoryProductDto {

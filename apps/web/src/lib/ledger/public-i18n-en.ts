@@ -392,4 +392,5 @@ export const PUBLIC_EN: Record<string, string> = {
   "Chưa có dữ liệu nhiệt độ, độ ẩm": "No temperature or humidity data yet",
   "Dữ liệu nhiệt độ, độ ẩm có điểm bất thường": "The temperature and humidity data has irregularities",
   "Một số số đo nhiệt độ, độ ẩm được gửi muộn": "Some temperature and humidity readings arrived late",
+  "Thông tin sản phẩm": "Product details",
 };

@@ -58,8 +58,8 @@ function Catalog() {
   const all = useMemo(() => products.data ?? [], [products.data]);
   const categories = useMemo(() => categoriesOf(all).slice(0, 6), [all]);
   const enterprises = useMemo(() => enterprisesOf(all).slice(0, 12), [all]);
-  const top = useMemo(() => [...all].sort((a, b) => b.traceCount - a.traceCount).slice(0, 12), [all]);
-  const latest = useMemo(() => [...all].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 6), [all]);
+  const top = useMemo(() => [...all].sort((a, b) => b.traceCount - a.traceCount).slice(0, 10), [all]);
+  const latest = useMemo(() => [...all].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 5), [all]);
   if (!all.length) return null;
   return (
     <>
@@ -106,7 +106,7 @@ function Catalog() {
           </Container>
         </section>
       )}
-      {all.length > 12 && (
+      {all.length > 10 && (
         <section className="pt-16">
           <Container className="flex flex-col gap-7">
             <RowHeading title="Mới cập nhật" description="Sản phẩm vừa được doanh nghiệp công bố." href="/products" label="Xem thêm" />

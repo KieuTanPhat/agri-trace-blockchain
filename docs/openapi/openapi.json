@@ -14713,13 +14713,19 @@
             "format": "uuid",
             "type": "string"
           },
+          "logoUrl": {
+            "description": "Only an explicitly published logo.",
+            "nullable": true,
+            "type": "string"
+          },
           "name": {
             "type": "string"
           }
         },
         "required": [
           "id",
-          "name"
+          "name",
+          "logoUrl"
         ],
         "type": "object"
       },

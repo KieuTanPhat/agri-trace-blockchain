@@ -85,14 +85,14 @@ export function categoriesOf(products: PublicProduct[]): Category[] {
   return [...map.values()].sort((a, b) => b.traces - a.traces || b.count - a.count || a.name.localeCompare(b.name, "vi"));
 }
 
-export type Enterprise = { id: string; name: string; count: number };
+export type Enterprise = { id: string; name: string; logo: string | null; count: number };
 
 /** Doanh nghiệp đứng tên sản phẩm, xếp theo số sản phẩm. */
 export function enterprisesOf(products: PublicProduct[]): Enterprise[] {
   const map = new Map<string, Enterprise>();
   for (const p of products) {
     if (!p.enterprise) continue;
-    const e = map.get(p.enterprise.id) ?? { ...p.enterprise, count: 0 };
+    const e = map.get(p.enterprise.id) ?? { id: p.enterprise.id, name: p.enterprise.name, logo: p.enterprise.logoUrl ? publicApiUrl(p.enterprise.logoUrl) : null, count: 0 };
     e.count++;
     map.set(e.id, e);
   }
