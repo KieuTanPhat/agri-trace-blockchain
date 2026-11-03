@@ -179,14 +179,14 @@ function OutsideIntake({ goods, props }: { goods: Product[]; props: { open: bool
   const suppliers = useQuery({ queryKey: ["ws-external-partners"], queryFn: wapi.externalPartners });
   const sites = useQuery({ queryKey: ["ws-sites"], queryFn: wapi.sites });
   const chains = useQuery({ queryKey: ["ws-chains"], queryFn: chainApi.chains });
-  const ctx = useQuery({ queryKey: ["chain-context"], queryFn: chainApi.context });
+  const me = useOverview().data?.organization.id;
   const [file, setFile] = useState<File | null>(null);
-  const active = (chains.data ?? []).filter((c) => ctx.data?.memberships.some((m) => m.chainId === c.id && m.status === "ACTIVE"));
+  // Outside goods are recorded in the business's own store ledger, not a chain.
+  const ledger = (chains.data ?? []).find((c) => c.personal && c.ownerOrganizationId === me);
   const schema = z.object({
     supplierId: z.string().min(1, { error: () => tr("Chọn nhà cung cấp") }),
     goods: z.string().min(1, { error: () => tr("Chọn hoặc nhập tên hàng") }),
     newName: z.string().max(255).optional(),
-    chainId: z.string().min(1, { error: () => tr("Chọn chuỗi") }),
     siteId: z.string().min(1, { error: () => tr("Chọn cơ sở nhận") }),
     documentNo: z.string().trim().min(1).max(100),
     supplierLotCode: z.string().trim().max(60).optional(),
@@ -199,16 +199,17 @@ function OutsideIntake({ goods, props }: { goods: Product[]; props: { open: bool
     <CommandDialog {...props} wide title={tr("Nhập hàng ngoài AgriTrace")} endpoint="POST /processing-runs/receipts"
       description={tr("Ghi hàng mua của nhà cung cấp chưa dùng AgriTrace theo hóa đơn hoặc phiếu giao. Bắt buộc ảnh chứng từ. Mã lô in trên chứng từ (nếu có) giúp nối về lô gốc khi hàng từng đi ra từ AgriTrace.")}
       schema={schema}
-      defaultValues={{ supplierId: "", goods: goods[0]?.id ?? "new", newName: "", chainId: active[0]?.id ?? "", siteId: (sites.data ?? []).find((x) => x.status === "ACTIVE")?.id ?? "", documentNo: "", supplierLotCode: "", receivedAt: new Date().toISOString().slice(0, 10), quantity: "", unit: "kg", expiryDate: "" }}
+      defaultValues={{ supplierId: "", goods: goods[0]?.id ?? "new", newName: "", siteId: (sites.data ?? []).find((x) => x.status === "ACTIVE")?.id ?? "", documentNo: "", supplierLotCode: "", receivedAt: new Date().toISOString().slice(0, 10), quantity: "", unit: "kg", expiryDate: "" }}
       submitLabel={tr("Nhập kho")} invalidate={[["dist-report"], ["ws-catalog"]]}
       run={async (v) => {
         if (!file) throw new Error(tr("Chọn ảnh hóa đơn hoặc phiếu giao"));
+        if (!ledger) throw new Error(tr("Doanh nghiệp chưa có sổ ghi cửa hàng; liên hệ hỗ trợ nền tảng."));
         const key = () => ({ idempotencyKey: newLedgerCommandKey() });
         const supplier = suppliers.data?.find((x) => x.id === v.supplierId);
         const productId = v.goods !== "new" ? v.goods : (await createLabel({ productName: v.newName!.trim(), category: tr("Hàng nhập"), defaultUnit: v.unit, storageConditions: tr("Theo hướng dẫn của nhà cung cấp"), ingredients: v.newName!.trim(), usageInstructions: tr("Theo hướng dẫn của nhà cung cấp"), externalGoods: true }, key())).id;
         const receipt = await procApi.createReceipt({ siteId: v.siteId, materialName: goods.find((g) => g.id === productId)?.productName ?? v.newName!.trim(), supplierId: v.supplierId, documentNo: v.documentNo, ...(v.supplierLotCode ? { supplierLotCode: v.supplierLotCode } : {}), receivedAt: new Date(v.receivedAt + "T00:00:00").toISOString(), quantity: v.quantity, unit: v.unit, ...(v.expiryDate ? { expiryDate: v.expiryDate } : {}) }, key());
         await wapi.uploadEvidence({ file, entityType: "MATERIAL_RECEIPT", entityId: receipt.id, kind: "INVOICE", description: tr("Chứng từ nhập hàng của {p0}", { p0: supplier?.name ?? "" }) }, key());
-        const run = await procApi.create({ chainId: v.chainId, siteId: v.siteId, productId, processType: "PACKING", baseUnit: v.unit, inputs: [], externalInputs: [{ receiptId: receipt.id, quantity: v.quantity }] }, key());
+        const run = await procApi.create({ chainId: ledger.id, siteId: v.siteId, productId, processType: "PACKING", baseUnit: v.unit, inputs: [], externalInputs: [{ receiptId: receipt.id, quantity: v.quantity }] }, key());
         const started = await procApi.start(run.id, { version: run.version }, key());
         return procApi.complete(run.id, { version: started.version, output: { quantity: v.quantity, unit: v.unit, ...(v.expiryDate ? { expiryDate: v.expiryDate } : {}) }, byProducts: [], losses: [] }, key());
       }}>
@@ -218,7 +219,6 @@ function OutsideIntake({ goods, props }: { goods: Product[]; props: { open: bool
           <SelectField control={f.control} name="supplierId" label={tr("Nhà cung cấp (danh bạ đối tác)")} options={(suppliers.data ?? []).map((x) => ({ value: x.id, label: x.name }))} />
           <SelectField control={f.control} name="goods" label={tr("Hàng")} options={[...goods.map((g) => ({ value: g.id, label: g.productName })), { value: "new", label: tr("Hàng mới…") }]} />
           <TextField control={f.control} name="newName" label={tr("Tên hàng mới (nếu chọn Hàng mới)")} />
-          <SelectField control={f.control} name="chainId" label={tr("Chuỗi")} options={active.map((c) => ({ value: c.id, label: c.name }))} />
           <SelectField control={f.control} name="siteId" label={tr("Cơ sở nhận")} options={(sites.data ?? []).filter((x) => x.status === "ACTIVE").map((x) => ({ value: x.id, label: x.name }))} />
           <TextField control={f.control} name="documentNo" label={tr("Số hóa đơn / phiếu giao")} />
           <TextField control={f.control} name="supplierLotCode" label={tr("Mã lô trên chứng từ hoặc thùng (nếu có)")} />

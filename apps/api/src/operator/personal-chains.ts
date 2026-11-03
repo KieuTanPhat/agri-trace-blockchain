@@ -1,6 +1,6 @@
 /**
- * One-off backfill: gives every active organization whose owner holds
- * CREATE_CHAIN the personal chain that activation now creates. Idempotent.
+ * One-off backfill: gives every active farm, retailer and distributor the own
+ * ledger that activation now creates. Idempotent.
  *
  *   node dist/operator/personal-chains.js [--dry-run]
  *
@@ -22,20 +22,20 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: url }),
 });
 try {
-  const owners = await prisma.scopedRoleGrant.findMany({
+  // Farms, retailers and distributors without their own ledger, with the
+  // owner of their enrollment (or their tier-1 account) as its manager.
+  const orgs = await prisma.organization.findMany({
     where: {
-      scope: 'ORGANIZATION',
-      role: 'CREATE_CHAIN',
-      revokedAt: null,
-      organization: {
-        status: 'ACTIVE',
-        ownedChains: { none: { personal: true } },
-      },
+      status: 'ACTIVE',
+      capabilities: { some: { code: { in: ['FARM', 'RETAILER', 'DISTRIBUTOR'] }, revokedAt: null } },
+      ownedChains: { none: { personal: true } },
     },
-    select: { organizationId: true, userId: true },
+    select: { id: true, enterpriseEnrollment: { select: { ownerId: true } }, users: { where: { enterpriseTier: 1 }, select: { id: true }, take: 1 } },
   });
-  // Only the tier-1 owner holds CREATE_CHAIN; keep one row per organization.
-  const rows = [...new Map(owners.map((o) => [o.organizationId, o])).values()];
+  const rows = orgs.flatMap((o) => {
+    const ownerId = o.enterpriseEnrollment?.ownerId ?? o.users[0]?.id;
+    return ownerId ? [{ organizationId: o.id, userId: ownerId }] : [];
+  });
   const created: string[] = [];
   for (const row of rows) {
     if (dryRun) {

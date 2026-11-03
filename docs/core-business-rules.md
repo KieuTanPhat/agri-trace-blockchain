@@ -502,7 +502,9 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   chữ ký hai bên; nhà cung cấp xác nhận qua link (tùy chọn); bên nhận khai báo kèm
   chứng từ. Bán lẻ và phân phối nhập hàng của nhà cung cấp ngoài AgriTrace bằng phiếu
   nhập hàng ngoài: chọn nhà cung cấp trong danh bạ, số chứng từ, mã lô in trên chứng
-  từ (tùy chọn), bắt buộc ảnh chứng từ trước khi dùng. Phiếu được đóng gói thành lô
+  từ (tùy chọn), bắt buộc ảnh chứng từ trước khi dùng. Hàng nhập ngoài ghi vào **sổ ghi
+  cửa hàng** (chuỗi riêng miễn phí, tự tạo khi duyệt năng lực bán lẻ hoặc phân phối,
+  không giới hạn số lô), không phải chọn chuỗi. Phiếu được đóng gói thành lô
   của sản phẩm "hàng nhập ngoài" (cờ cố định, không trang thương hiệu). Mã lô khớp một
   lô AgriTrace đã "xuất cho đơn vị ngoài hệ thống" thì phiếu nối về lô đó và trang quét
   hiện nguồn gốc nối lại; không khớp thì nguồn gốc dừng ở nhà cung cấp.

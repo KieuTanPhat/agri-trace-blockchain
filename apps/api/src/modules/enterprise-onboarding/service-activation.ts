@@ -46,15 +46,19 @@ export async function grantChainCreation(
   return true;
 }
 
-/** The free farm ledger follows an effective FARM capability, for members and
- * owners alike. Idempotent. */
-export async function ensureFarmLedger(
+/** Capabilities that keep their own free ledger: a farm records its cycles,
+ * a retailer or distributor records goods bought outside AgriTrace. */
+export const OWN_LEDGER_CAPABILITIES = ['FARM', 'RETAILER', 'DISTRIBUTOR'] as const;
+
+/** Gives an organization with one of those capabilities its own ledger, for
+ * members and chain owners alike. Idempotent. */
+export async function ensureOwnLedger(
   tx: Prisma.TransactionClient,
   row: { organizationId: string; ownerId: string },
 ) {
   if (
     await tx.organizationCapability.findFirst({
-      where: { organizationId: row.organizationId, code: 'FARM', revokedAt: null },
+      where: { organizationId: row.organizationId, code: { in: [...OWN_LEDGER_CAPABILITIES] }, revokedAt: null },
     })
   )
     await ensurePersonalChain(tx, row);
@@ -90,7 +94,7 @@ export async function grantEnterpriseBusiness(
         data: { organizationId: org.id, code },
       });
   await grantOrganizationRole(tx, org.id, row.ownerId, 'ORG_ADMIN');
-  await ensureFarmLedger(tx, row);
+  await ensureOwnLedger(tx, row);
 }
 
 /** Shared activation step (admin activation, or a chain owner's payment):

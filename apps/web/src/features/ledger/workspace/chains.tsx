@@ -300,7 +300,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
             <Section title={manager ? tr("Doanh nghiệp trong chuỗi") : tr("Tư cách thành viên của bạn")} aside={manager && !c.personal && <Button size="xs" variant="outline" onClick={() => invite.open(true)} disabled={!inviteOptions.length}><Plus /> {tr("Mời thành viên")}</Button>} bodyClassName="flex flex-col gap-3 p-4">
               {c.personal && (
                 <Callout tone="info">
-                  {tr("Đây là sổ ghi nông trại miễn phí: không mời đối tác. Đối tác tự vào sổ khi nhận phiếu giao lô từ bạn.")}{" "}
+                  {tr("Đây là sổ ghi riêng miễn phí của doanh nghiệp (nông trại ghi mùa vụ, cửa hàng ghi hàng nhập ngoài): không mời đối tác. Đối tác tự vào sổ khi nhận phiếu giao lô từ bạn.")}{" "}
                   {canCreateChain ? (
                     <>
                       {tr("Doanh nghiệp bạn là chủ chuỗi: tạo chuỗi theo dòng sản phẩm để mời đối tác (kể cả qua email).")}{" "}

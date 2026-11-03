@@ -2286,4 +2286,6 @@ export const EN: Record<string, string> = {
   "Ngày nhận": "Received on",
   "Số lượng": "Quantity",
   "Ảnh hóa đơn hoặc phiếu giao": "Invoice or delivery note photo",
+  "Doanh nghiệp chưa có sổ ghi cửa hàng; liên hệ hỗ trợ nền tảng.": "The business has no store ledger yet; contact platform support.",
+  "Đây là sổ ghi riêng miễn phí của doanh nghiệp (nông trại ghi mùa vụ, cửa hàng ghi hàng nhập ngoài): không mời đối tác. Đối tác tự vào sổ khi nhận phiếu giao lô từ bạn.": "This is the business free own ledger (farms record cycles, stores record outside goods): partners are not invited. A partner joins when it receives a lot from you.",
 };
