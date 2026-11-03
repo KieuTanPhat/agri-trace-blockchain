@@ -427,6 +427,12 @@ export class EnterpriseWorkspaceService {
         where: { userId: id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      // A member who stops working loses the personal signing keys of its devices.
+      if (input.status !== 'ACTIVE')
+        await tx.distributionKey.updateMany({
+          where: { userId: { in: [id, ...descendants.map((c) => c.id)] }, status: { in: ['PENDING', 'ACTIVE'] } },
+          data: { status: 'REVOKED' },
+        });
       return {
         record: await tx.user.findUniqueOrThrow({
           where: { id },

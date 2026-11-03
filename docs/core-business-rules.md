@@ -478,6 +478,12 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   Lượng cách ly phát sinh từ biên bản nhận hàng không có phiếu vẫn xử lý được trong
   phần chưa có phiếu. Phiếu chuyển và phiếu cách ly bất biến, chỉ đổi trạng thái hợp
   lệ; ảnh/chứng từ gắn qua chứng cứ `SITE_TRANSFER`/`QUARANTINE`.
+- Khóa ký bàn giao STANDARD có hai loại: khóa doanh nghiệp do tài khoản cấp 1 tạo,
+  và khóa cá nhân do thiết bị tự sinh khi thành viên có `distribution.sign` đăng nhập.
+  Khóa cá nhân chỉ ký được sau khi chủ tài khoản nhập mã OTP gửi tới email tài khoản
+  (mã 10 phút, tối đa 5 lần sai, 60 giây giữa hai lần gửi, 5 mã mỗi giờ), chỉ ký cho
+  chính chủ (guard SQL trên chữ ký) và bị thu hồi khi tài khoản ngừng hoạt động.
+  Máy chủ chỉ nhận khóa công khai và bằng chứng sở hữu, không nhận khóa riêng.
 - Ảnh xác nhận giao nhận là chứng cứ riêng của các bên trong chuyến, không công khai:
   - Lấy hàng/giao hàng: ảnh `TRANSFER_IMAGE` của một bên ký bước đó, tùy chọn, tối đa
     6 ảnh mỗi bước. Chỉ gắn khi bước đang mở và chưa bên nào ký; mã băm danh sách ảnh

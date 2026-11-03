@@ -5,6 +5,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { api, type Schemas } from '../../../api/client';
 import { useSession } from '../../../auth/session';
 import { CycleCard } from '../../../components/CycleCard';
+import { DeviceKeyCard } from '../../../components/DeviceKeyCard';
 import { decorative, Icon } from '../../../components/Icon';
 import { Card, Empty, GreenHeader, IconButton, IconTile, Loading, Notice, SegmentTabs, T } from '../../../components/ui';
 import { qty } from '../../../lib/format';
@@ -102,6 +103,10 @@ export default function StaffHome() {
         ))}
       </Card>
 
+      {/* The personal signing key is created on first sign-in; only its emailed code is asked here. */}
+      <View style={{ marginHorizontal: 16, marginTop: 12 }}>
+        <DeviceKeyCard quiet />
+      </View>
       {pending > 0 && (
         <Pressable accessibilityRole="button" onPress={() => router.push('/staff/sync')} style={{ marginHorizontal: 16, marginTop: 12 }}>
           <Notice kind="warn" title={`${pending} lệnh đang chờ gửi`} body="Máy sẽ gửi lại bằng đúng mã lệnh cũ khi có mạng. Bấm để xem." />

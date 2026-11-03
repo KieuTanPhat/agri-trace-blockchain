@@ -11,9 +11,11 @@ import { distributionMessage, ed25519Spki, fromBase64Url, keyPopMessage, toBase6
  */
 export type DeviceKey = {
   id: string;
-  /** Chain id for c2 keys, "distribution" for standard handover keys. */
+  /** Chain id for c2 keys, "device" for the personal standard handover key. */
   chainId: string;
   organizationId: string;
+  /** Owner of a personal device key. */
+  userId?: string;
   label: string;
   publicKey: string;
   createdAt: string;
@@ -35,10 +37,10 @@ export async function listDeviceKeys(chainId: string, organizationId: string) {
   return (await readIndex()).filter((k) => k.chainId === chainId && k.organizationId === organizationId);
 }
 
-async function createKey(chainId: string, organizationId: string, label: string, id: string) {
+async function createKey(chainId: string, organizationId: string, label: string, id: string, userId?: string) {
   const secret = getRandomBytes(32);
   const publicKey = toBase64Url(ed25519Spki(ed25519.getPublicKey(secret)));
-  const key: DeviceKey = { id, chainId, organizationId, label, publicKey, createdAt: new Date().toISOString() };
+  const key: DeviceKey = { id, chainId, organizationId, userId, label, publicKey, createdAt: new Date().toISOString() };
   // The secret is stored before the index so a listed key always has one.
   await SecureStore.setItemAsync(secretName(id), toBase64Url(secret), options);
   await SecureStore.setItemAsync(INDEX, JSON.stringify([...(await readIndex()), key]), options);
@@ -54,13 +56,37 @@ export async function createChainKey(input: { chainId: string; organizationId: s
   return { keyRef: key.id, label: key.label, publicKey: key.publicKey, popSignature };
 }
 
-/** The enterprise key of the standard handover protocol. */
-export async function createDistributionKey(organizationId: string, label: string) {
-  const { key, secret } = await createKey('distribution', organizationId, label, randomUUID());
+/** The signed-in member's own standard handover key on this phone. */
+export async function createDeviceKey(organizationId: string, userId: string, label: string) {
+  const { key, secret } = await createKey('device', organizationId, label, randomUUID(), userId);
+  return { key, request: deviceKeyRequest(key, secret) };
+}
+
+/** Registration body: public key plus proof of possession, never the secret. */
+function deviceKeyRequest(key: DeviceKey, secret: Uint8Array) {
   const popSignature = toBase64Url(ed25519.sign(
-    distributionMessage('agritrace:distribution-key:1', { id: key.id, organizationId, publicKey: key.publicKey }), secret,
+    distributionMessage('agritrace:distribution-key:1', { id: key.id, organizationId: key.organizationId, publicKey: key.publicKey }), secret,
   ));
   return { id: key.id, label: key.label, publicKey: key.publicKey, popSignature };
+}
+
+/** Rebuilds the registration of a stored key whose first request was lost. */
+export async function deviceKeyRegistration(key: DeviceKey) {
+  const secret = await SecureStore.getItemAsync(secretName(key.id), options);
+  if (!secret) throw new Error('Khóa ký trên máy đã mất; tạo lại khóa');
+  return deviceKeyRequest(key, fromBase64Url(secret));
+}
+
+/** The phone's personal keys of one member. */
+export async function listUserKeys(organizationId: string, userId: string) {
+  return (await readIndex()).filter((k) => k.chainId === 'device' && k.organizationId === organizationId && k.userId === userId);
+}
+
+/** Forgets keys the server revoked, so they are never offered again. */
+export async function forgetKeys(ids: string[]) {
+  if (!ids.length) return;
+  for (const id of ids) await SecureStore.deleteItemAsync(secretName(id), options);
+  await SecureStore.setItemAsync(INDEX, JSON.stringify((await readIndex()).filter((k) => !ids.includes(k.id))), options);
 }
 
 /** Signs with a stored key; refuses a key of another organization. */

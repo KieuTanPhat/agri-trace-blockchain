@@ -3,9 +3,10 @@ import { useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { errorText, newIdempotencyKey, type Schemas } from '../../api/client';
 import { useSession } from '../../auth/session';
+import { DeviceKeyCard } from '../../components/DeviceKeyCard';
 import { Button, Card, GreenHeader, Loading, Notice, Pill, T } from '../../components/ui';
 import { useAccess } from '../../lib/access';
-import { createChainKey, createDistributionKey, listDeviceKeys } from '../../lib/signing/keys';
+import { createChainKey, listDeviceKeys } from '../../lib/signing/keys';
 import { useLoad, useReloadOnFocus } from '../../lib/useApi';
 import { color } from '../../theme/tokens';
 
@@ -17,9 +18,10 @@ const KEY_STATUS: Record<string, { label: string; t: 'green' | 'orange' | 'red' 
 };
 
 /**
- * Signing keys on this phone. The enterprise administrator creates them here
- * once; staff signing on the same phone then use them. Chains pinned to dual
- * signing need a key per chain that the ledger activates before use.
+ * Signing keys on this phone. Each member's standard handover key is created
+ * automatically and turned on with an emailed code; chains pinned to dual
+ * signing still need a chain key the enterprise administrator creates and the
+ * ledger activates.
  */
 export default function Signing() {
   const { chainId } = useLocalSearchParams<{ chainId?: string }>();
@@ -29,9 +31,8 @@ export default function Signing() {
   const load = useLoad(async () => {
     const chains = (await call<Chain[]>('/supply-chains')).filter((c) => !chainId || c.id === chainId);
     const contexts = await Promise.all(chains.map((c) => call<Context>(`/supply-chains/${c.id}/signing-keys`).catch(() => null)));
-    const enterprise = await call<{ items: { id: string; label: string; status: string }[] }>('/distribution/keys').catch(() => ({ items: [] }));
-    const local = new Set([...(await listDeviceKeys('distribution', org)), ...(await Promise.all(chains.map((c) => listDeviceKeys(c.id, org)))).flat()].map((k) => k.id));
-    return { chains, contexts, enterprise: enterprise.items, local };
+    const local = new Set((await Promise.all(chains.map((c) => listDeviceKeys(c.id, org)))).flat().map((k) => k.id));
+    return { chains, contexts, local };
   }, [chainId, org]);
   useReloadOnFocus(load.reload);
   const [busy, setBusy] = useState(false);
@@ -62,36 +63,15 @@ export default function Signing() {
     <ScrollView style={{ flex: 1, backgroundColor: color.bg }} contentContainerStyle={{ paddingBottom: 32 }}>
       <GreenHeader title="Khóa ký trên điện thoại" back />
       <View style={{ padding: 16, gap: 12 }}>
-        <Notice kind="info" title="Khóa riêng không rời điện thoại" body="Máy chủ chỉ nhận khóa công khai và bằng chứng sở hữu. Gỡ ứng dụng hoặc đổi máy thì phải tạo khóa mới." />
-        {!admin && <Notice kind="warn" title="Chỉ tài khoản quản trị doanh nghiệp tạo được khóa" body="Nhờ quản trị đăng nhập ứng dụng trên điện thoại này để tạo khóa; sau đó bạn ký bằng khóa đó." />}
+        <Notice kind="info" title="Khóa riêng không rời điện thoại" body="Máy chủ chỉ nhận khóa công khai và bằng chứng sở hữu. Gỡ ứng dụng hoặc đổi máy thì khóa mới được tạo lại và cần mã xác minh mới." />
+        <DeviceKeyCard />
         {message && <Notice kind={message.kind} title={message.text} />}
-        {load.loading && !data ? <Loading /> : load.error ? <Notice kind="error" title={load.error} /> : data && (
+        {load.loading && !data ? <Loading /> : load.error ? <Notice kind="error" title={load.error} /> : data && data.contexts.some((ctx) => ctx?.handoverMode === 'DUAL_SIGNED') && (
           <>
-            <T size={18} weight="heavy">Khóa giao nhận của doanh nghiệp</T>
-            <Card style={{ padding: 16, gap: 8 }}>
-              {data.enterprise.length === 0 && <T c={color.muted}>Chưa có khóa.</T>}
-              {data.enterprise.map((k) => (
-                <View key={k.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <T style={{ flex: 1 }}>{k.label}{data.local.has(k.id) ? ' · trên máy này' : ''}</T>
-                  <Pill label={KEY_STATUS[k.status]?.label ?? k.status} t={KEY_STATUS[k.status]?.t ?? 'orange'} />
-                </View>
-              ))}
-              {admin && (
-                <Button label="Tạo khóa giao nhận trên máy này" icon="lock" loading={busy} disabled={busy} onPress={() => void register(async () => {
-                  const key = await createDistributionKey(org, 'Khóa trên điện thoại');
-                  return { path: '/distribution/keys', body: key, idempotencyKey: newIdempotencyKey() };
-                })} />
-              )}
-            </Card>
             <T size={18} weight="heavy">Khóa ký kép theo chuỗi</T>
             {data.chains.map((c, i) => {
               const ctx = data.contexts[i];
-              if (!ctx || ctx.handoverMode !== 'DUAL_SIGNED') return (
-                <Card key={c.id} style={{ padding: 16, gap: 4 }}>
-                  <T weight="heavy">{c.name}</T>
-                  <T size={13} c={color.muted}>Chuỗi dùng khóa giao nhận của doanh nghiệp.</T>
-                </Card>
-              );
+              if (!ctx || ctx.handoverMode !== 'DUAL_SIGNED') return null;
               return (
                 <Card key={c.id} style={{ padding: 16, gap: 8 }}>
                   <T weight="heavy">{c.name}</T>
@@ -102,6 +82,7 @@ export default function Signing() {
                       <Pill label={KEY_STATUS[k.status]?.label ?? 'Chờ sổ cái kích hoạt'} t={KEY_STATUS[k.status]?.t ?? 'orange'} />
                     </View>
                   ))}
+                  {!admin && <T size={13} c={color.muted}>Quản trị doanh nghiệp tạo khóa chuỗi trên điện thoại ký.</T>}
                   {admin && ctx.bindingDigest && (
                     <Button label="Tạo khóa chuỗi trên máy này" icon="lock" kind="outline" loading={busy} disabled={busy} onPress={() => void register(async () => {
                       const key = await createChainKey({ chainId: c.id, organizationId: org, bindingDigest: ctx.bindingDigest!, label: 'Khóa trên điện thoại' });

@@ -1,5 +1,5 @@
 import { canonicalJson, distributionMessage, handoverPhotosDigest, sha256Hex, signedMessage, verifyPreparedIntent, type PreparedIntent } from './canonical';
-import { listDeviceKeys, signWith } from './keys';
+import { listDeviceKeys, listUserKeys, signWith } from './keys';
 
 /**
  * Handover signatures from the phone, the same two protocols as the Web
@@ -58,8 +58,9 @@ export async function deviceSigningKey(call: Call, t: SignableTransfer, signer: 
     const key = local.find((k) => context.keys.some((a) => a.keyRef === k.id && a.status === 'ACTIVE'));
     return { mode: 'c2' as const, key, context };
   }
+  // The member's own device key, active once its emailed code was confirmed.
   const active = (await call<{ items: { id: string; status: string }[] }>('/distribution/keys')).items;
-  const local = await listDeviceKeys('distribution', signer.organizationId);
+  const local = await listUserKeys(signer.organizationId, signer.id);
   return { mode: 'standard' as const, key: local.find((k) => active.some((a) => a.id === k.id && a.status === 'ACTIVE')), context: null };
 }
 

@@ -52,11 +52,14 @@ lỗi đọc có thử lại. Chỉ chữ ký cùng `attestationEpoch` hiện h�
 không suy ra đủ chữ ký từ trạng thái DELIVERED và không coi metadata API là proof
 Fabric.
 
-App nhân viên ký bàn giao bằng khóa Ed25519 của tổ chức giữ trên điện thoại
-(`expo-secure-store`, chỉ máy này). Quản trị doanh nghiệp tạo khóa ở
-`/staff/signing`: khóa giao nhận doanh nghiệp cho chuỗi STANDARD, khóa theo chuỗi
-cho chuỗi DUAL_SIGNED (dùng được khi sổ cái kích hoạt). Nhân viên trên cùng máy ký
-bằng khóa đó; API vẫn kiểm `distribution.sign`. Trước khi ký, app tự tính lại
+App nhân viên ký bàn giao bằng khóa Ed25519 giữ trên điện thoại
+(`expo-secure-store`, chỉ máy này). Chuỗi STANDARD dùng khóa cá nhân: lần đầu
+đăng nhập trên máy, app tự sinh khóa và gửi khóa công khai cùng bằng chứng sở hữu
+tới `POST /distribution/device-keys`; khóa ở `PENDING` cho tới khi chủ tài khoản
+nhập mã 6 số gửi tới email tài khoản (`/verify`, sai 5 lần thì gửi lại mã). Khóa cá
+nhân chỉ ký cho chính chủ, bị thu hồi khi khóa tài khoản. Chuỗi DUAL_SIGNED vẫn cần
+khóa chuỗi do quản trị tạo ở `/staff/signing` và sổ cái kích hoạt. Web vẫn dùng
+khóa doanh nghiệp do tài khoản cấp 1 tạo; API vẫn kiểm `distribution.sign`. Trước khi ký, app tự tính lại
 snapshot, digest và intent như Web, từ chối khi khác lô, lượng, phiên bản hoặc
 bên ký đang hiển thị. Prepare/submit/receipt/photos đi qua hàng đợi lệnh và đối
 soát bằng đúng key cũ. Biên bản thực nhận trên app ghi thực nhận, từ chối, cách ly

@@ -72,10 +72,24 @@ export class EnterpriseMailWorker {
           });
           continue;
         }
+        // A device-key code is dropped once used, replaced or expired.
+        const keyCode = row.kind === 'SIGNING_KEY_OTP'
+          ? await this.db.signingKeyVerification.findUnique({ where: { mailId: row.id } })
+          : null;
+        if (
+          row.kind === 'SIGNING_KEY_OTP' &&
+          (!keyCode || keyCode.expiresAt <= new Date() || keyCode.supersededAt || keyCode.verifiedAt)
+        ) {
+          await this.db.enterpriseMail.updateMany({
+            where: { id: row.id, leaseToken: token, status: 'PENDING' },
+            data: { status: 'CANCELLED', otpCiphertext: null, leaseToken: null, leaseExpiresAt: null },
+          });
+          continue;
+        }
         const sealed = row.otpCiphertext
           ? decryptOtp(row.otpCiphertext)
           : undefined;
-        const otp = row.kind === 'REGISTRATION_OTP' ? sealed : undefined;
+        const otp = ['REGISTRATION_OTP', 'SIGNING_KEY_OTP'].includes(row.kind) ? sealed : undefined;
         const password = ['CREDENTIALS', 'ACCOUNT_CREDENTIALS'].includes(row.kind)
           ? sealed
           : undefined;

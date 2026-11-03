@@ -25,6 +25,7 @@ import { LotHarvestService } from '../src/modules/lots/lot-harvest.service.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
 import { handoverPhotosDigest } from '../src/modules/distribution/handover-photos.js';
+import { decryptOtp } from '../src/modules/enterprise-onboarding/registration-otp.service.js';
 import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 import { provisionChain } from './support/chain-scope.js';
 import { confirmSimulatedPermissions } from '../src/modules/ledger/simulated-ledger.js';
@@ -777,8 +778,9 @@ const prisma = new PrismaClient({
         const pair = generateKeyPairSync('ed25519');
         const keyRef = randomUUID();
         const publicKey = pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
+        // The receiver uses a personal device key, the sender an organization key.
         await post(
-          '/distribution/keys',
+          actor === 'selfReceiver' ? '/distribution/device-keys' : '/distribution/keys',
           {
             id: keyRef,
             label: 'Isolated self delivery key',
@@ -825,6 +827,17 @@ const prisma = new PrismaClient({
       ).toBe(1);
       await confirmSimulatedPermissions(prisma, { guard: false });
 
+      // A personal key signs only after the emailed code; a wrong code is counted.
+      const deviceKey = keys.selfReceiver.keyRef;
+      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: deviceKey } })).status).toBe('PENDING');
+      expect((await signPhase('selfReceiver', receiver.id, 'CONSENT')).status).toBe(403);
+      const codeMail = await prisma.enterpriseMail.findFirstOrThrow({ where: { userId: users.selfReceiver, kind: 'SIGNING_KEY_OTP' }, orderBy: { createdAt: 'desc' } });
+      const code = decryptOtp(codeMail.otpCiphertext!);
+      await post(`/distribution/device-keys/${deviceKey}/verify`, { code: code === '000000' ? '000001' : '000000' }, 'selfReceiver').expect(400);
+      expect((await prisma.signingKeyVerification.findFirstOrThrow({ where: { keyId: deviceKey } })).attempts).toBe(1);
+      const verified = await post(`/distribution/device-keys/${deviceKey}/verify`, { code }, 'selfReceiver');
+      expect(verified.status, JSON.stringify(verified.body)).toBe(201);
+      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: deviceKey } })).status).toBe('ACTIVE');
       for (const [actor, organizationId] of [['selfReceiver', receiver.id], ['farm', farmOrgId]] as const) {
         const consent = await signPhase(actor, organizationId, 'CONSENT');
         expect(consent.status, JSON.stringify(consent.body)).toBe(201);

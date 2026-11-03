@@ -33,6 +33,7 @@ import { activeSite, siteBalance, requireSiteStock, addSiteStock, internalInTran
 import { recordHandoverReceipt } from '../processing/processing-receipts.js';
 import { prepareC2,consumeC2 } from './distribution-c2.js';
 import { handoverPhotosDigest, ownPhotos, phaseSigned } from './handover-photos.js';
+import { requestDeviceKey, resendDeviceKeyCode, verifyDeviceKey } from './device-keys.js';
 import { BUSINESS_CAPABILITIES, lockChainScope } from '../supply-chains/chain-policy.js';
 import { requestLedgerGrant } from '../ledger/ledger-permissions.js';
 import { assertPartnerSlot } from '../supply-chains/chain-membership-rules.js';
@@ -745,10 +746,11 @@ export class DistributionService {
       });
   }
   async keys(actor: CommandActor) {
-    await enterpriseAuthority(this.db, actor, 'distribution.sign');
+    const auth = await enterpriseAuthority(this.db, actor, 'distribution.sign');
     return {
+      // Members see organization keys and their own device keys.
       items: await this.db.distributionKey.findMany({
-        where: { organizationId: actor.organizationId! },
+        where: { organizationId: actor.organizationId!, ...(auth.primary ? {} : { OR: [{ userId: null }, { userId: actor.sub! }] }) },
         orderBy: { createdAt: 'desc' },
       }),
     };
@@ -799,6 +801,15 @@ export class DistributionService {
         }),
       };
     });
+  }
+  requestDeviceKey(actor: CommandActor, input: TransferKeyInput) {
+    return commandTransaction(this.db, (tx) => requestDeviceKey(tx, actor, input));
+  }
+  resendDeviceKey(actor: CommandActor, id: string) {
+    return commandTransaction(this.db, (tx) => resendDeviceKeyCode(tx, actor, id));
+  }
+  verifyDeviceKey(actor: CommandActor, id: string, code: string) {
+    return commandTransaction(this.db, (tx) => verifyDeviceKey(tx, actor, id, code));
   }
   revokeKey(actor: CommandActor, id: string) {
     return commandTransaction(this.db, async (tx) => {
@@ -912,11 +923,13 @@ export class DistributionService {
       await this.assets(tx, t);
       const consumed=c2?await consumeC2(tx,t,actor,auth.scope,c2,distributionSnapshot(t)):undefined;
       if(consumed?.length)input={...input,keyRef:consumed[0].intent.keyRef,expiresAt:consumed[0].intent.expiresAt.toISOString(),signature:consumed[0].intent.signature!};
+      // A personal device key signs only for its owner.
       const key = consumed?.[0].intent.key ?? await tx.distributionKey.findFirst({
         where: {
           id: input.keyRef,
           organizationId: actor.organizationId!,
           status: 'ACTIVE',
+          OR: [{ userId: null }, { userId: actor.sub! }],
         },
       });
       if (!key)
@@ -1525,7 +1538,7 @@ export class DistributionService {
       if((t.handoverMode==='DUAL_SIGNED')!==!!c2)throw new ConflictException('Chặng trả phải giữ giao thức chữ ký của chặng gốc');
       const consumed=c2?await consumeC2(tx,t,actor,auth.scope,c2,distributionSnapshot(t),r):undefined;
       if(consumed?.length)input={...input,keyRef:consumed[0].intent.keyRef,expiresAt:consumed[0].intent.expiresAt.toISOString(),signature:consumed[0].intent.signature!};
-      const key = consumed?.[0].intent.key ?? await tx.distributionKey.findFirst({ where: { id: input.keyRef, organizationId: actor.organizationId!, status: 'ACTIVE' } });
+      const key = consumed?.[0].intent.key ?? await tx.distributionKey.findFirst({ where: { id: input.keyRef, organizationId: actor.organizationId!, status: 'ACTIVE', OR: [{ userId: null }, { userId: actor.sub! }] } });
       const body = { returnId, transferId: t.id, digest: r.digest, organizationId: actor.organizationId, userId: actor.sub, keyRef: input.keyRef, version: String(input.version), expiresAt: input.expiresAt };
       const expiry = Date.parse(input.expiresAt);
       if (!key || expiry <= Date.now() || expiry > Date.now()+20*60_000 || (!c2 && !verifyEd25519(key.publicKey, domainMessage('agritrace:distribution-return:1',body),input.signature))) throw new ConflictException('Chữ ký trả hàng không hợp lệ hoặc đã hết hạn');
