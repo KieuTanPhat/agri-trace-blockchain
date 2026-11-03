@@ -1,0 +1,49 @@
+name: Mobile APK test build
+# Throwaway build of the staff app for a device test against a developer's
+# local API on the home Wi-Fi (plain HTTP). Debug-key signed; never a store
+# submission and never merged.
+on:
+  push:
+    branches: [ci/role-workspaces-apk]
+permissions: {contents: read}
+concurrency:
+  group: mobile-apk-test-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  apk:
+    name: APK / staff (local API)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      EXPO_PUBLIC_APP_VARIANT: staff
+      EXPO_PUBLIC_API_BASE_URL: http://192.168.1.5:8081/api
+      EXPO_PUBLIC_TRACE_ORIGIN: http://192.168.1.5:3000
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with: {node-version-file: .node-version}
+      - run: npm install --global npm@12.1.0
+      - run: npm ci --prefix apps/mobile --workspaces=false --no-audit --no-fund
+      - name: Generate the Android project
+        working-directory: apps/mobile
+        run: node node_modules/expo/bin/cli prebuild --platform android --no-install --clean
+      - name: Allow plain HTTP to the local test API
+        working-directory: apps/mobile
+        run: sed -i 's/<application /<application android:usesCleartextTraffic="true" /' android/app/src/main/AndroidManifest.xml
+      - name: Build release APK
+        working-directory: apps/mobile/android
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+      - name: Name the APK
+        run: |
+          mkdir -p dist
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "dist/agritrace-nhan-vien-test-${GITHUB_SHA::7}.apk"
+          sha256sum dist/*.apk >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: apk-staff-test
+          path: dist/*.apk
+          retention-days: 7
