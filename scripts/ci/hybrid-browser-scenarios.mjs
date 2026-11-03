@@ -82,7 +82,16 @@ async function signOut(page) {
   // The switched account may have no access to the current business route.
   // Its account page remains available without granting any business permission.
   await page.goto(new URL('/account/password', page.url()).href, { waitUntil: 'domcontentloaded' });
-  await page.getByRole("button", { name: "Tài khoản", exact: true }).filter({ visible: true }).first().click();
+  const account = page.getByRole("button", { name: "Tài khoản", exact: true }).filter({ visible: true }).first();
+  try {
+    await account.waitFor({ timeout: 30_000 });
+  } catch (error) {
+    // Record where the shell actually landed (redirect, gate or overlay).
+    const text = await page.locator("body").innerText().catch(() => "");
+    console.error(JSON.stringify({ signOut: "account-menu-missing", url: page.url(), viewport: page.viewportSize(), text: text.replace(/\s+/g, " ").slice(0, 600) }));
+    throw error;
+  }
+  await account.click();
   await page.getByRole("menuitem", { name: "Đăng xuất", exact: true }).click();
   // Signing out asks once in the shared confirmation dialog.
   await page
