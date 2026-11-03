@@ -224,6 +224,7 @@ function ChainSheet({ id, onClose, names,view }: { id: string | null; onClose: (
   const c = chain.data;
   const owner = c?.ownerOrganizationId === me;
   const orgAdmin=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="ORG_ADMIN" && !g.revokedAt);
+  const canCreateChain=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="CREATE_CHAIN" && !g.revokedAt);
   const platformAdmin=user?.role.code==="SYSTEM_ADMIN";
   const manager = owner && !!ctxQ.data?.grants.some((g) => g.chainId === id && g.role === "CHAIN_MANAGER" && !g.revokedAt);
   const invalidate = [["chain", id], ["chain-members", id], ["chain-profile", id], ["ws-chains"], ["chain-context"]];
@@ -279,9 +280,18 @@ function ChainSheet({ id, onClose, names,view }: { id: string | null; onClose: (
                 </div>
                 {c.personal && (
                   <Callout tone="info">
-                    {tr("Đây là sổ ghi nông trại miễn phí: không mời đối tác. Đối tác tự vào sổ khi nhận phiếu giao lô từ bạn. Muốn mời đối tác (kể cả qua email), hãy là chủ chuỗi và tạo chuỗi riêng.")}{" "}
-                    <Link href="/supply-chains/new" className="text-brand underline">{tr("Tạo chuỗi")}</Link>{" · "}
-                    <Link href="/enterprise/service" className="text-brand underline">{tr("Nâng cấp chủ chuỗi")}</Link>
+                    {tr("Đây là sổ ghi nông trại miễn phí: không mời đối tác. Đối tác tự vào sổ khi nhận phiếu giao lô từ bạn.")}{" "}
+                    {canCreateChain ? (
+                      <>
+                        {tr("Doanh nghiệp bạn là chủ chuỗi: tạo chuỗi theo dòng sản phẩm để mời đối tác (kể cả qua email).")}{" "}
+                        <Link href="/supply-chains/new" className="text-brand underline">{tr("Tạo chuỗi")}</Link>
+                      </>
+                    ) : (
+                      <>
+                        {tr("Muốn mời đối tác, nâng cấp lên chủ chuỗi rồi tạo chuỗi riêng.")}{" "}
+                        <Link href="/enterprise/service" className="text-brand underline">{tr("Nâng cấp chủ chuỗi")}</Link>
+                      </>
+                    )}
                   </Callout>
                 )}
                 {manager && !c.personal && !invitable.length && (
