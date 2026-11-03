@@ -21,7 +21,7 @@ import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorat
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { SupplyChainsService } from './supply-chains.service.js';
-import { PartnerInvitationInput, PartnerInvitationView } from './partner-invitations.js';
+import { PartnerInvitationInput, PartnerInvitationRecord, PartnerInvitationView } from './partner-invitations.js';
 import {
   CapabilityDto,
   CapabilityRecordDto,
@@ -167,6 +167,12 @@ export class SupplyChainsController {
     return this.command(req, key, 'HYB_SUSPEND_BUSINESS_PROFILE', { ...input, chainId }, () =>
       this.service.suspendBusinessProfile(req.user, chainId, input.version, input.reason),
     );
+  }
+
+  @Get('supply-chains/:chainId/invitations')
+  @ApiDataResponse(PartnerInvitationRecord, 200, true)
+  invitations(@Req() req: AuthenticatedRequest, @Param('chainId', ParseUUIDPipe) chainId: string) {
+    return this.service.invitations(req.user, chainId);
   }
 
   @Post('supply-chains/:chainId/invitations')

@@ -2257,4 +2257,9 @@ export const EN: Record<string, string> = {
   "Túi": "Bag",
   "Lô nguồn chưa thuộc chuỗi nào": "The source lot is not in a chain",
   "Hàng doanh nghiệp đang bán, tự lấy từ lô đã nhận, và sản phẩm nhãn riêng mang thương hiệu của bạn.": "What the business sells, built from received lots, and private-label products under your brand.",
+  "Lời mời qua email (đối tác ngoài AgriTrace)": "Email invitations (partners outside AgriTrace)",
+  "Đối tác chưa có tài khoản chỉ vào chuỗi sau khi đăng ký, được duyệt và chấp nhận lời mời. Lời mời hết hạn thì mời lại được.": "A partner without an account joins only after signing up, being approved and accepting. Expired invitations can be sent again.",
+  "Đã đăng ký và nhận lời": "Signed up and accepted",
+  "Chờ đăng ký": "Waiting for sign-up",
+  "hạn {p0}": "expires {p0}",
 };

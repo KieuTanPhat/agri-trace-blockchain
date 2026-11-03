@@ -15,6 +15,7 @@ export const chainApi={
  create:(input:S["CreateChainDto"],cmd:LedgerCommandContext)=>post(path("").slice(0,-1),input,cmd),invite:(id:string,input:S["InviteMemberDto"],cmd:LedgerCommandContext)=>post(path(id)+"/memberships",input,cmd),
  accept:(id:string,organizationId:string,input:S["ChainVersionDto"],cmd:LedgerCommandContext)=>post(path(id)+"/memberships/"+encodeURIComponent(organizationId)+"/accept",input,cmd),
  leave:(id:string,organizationId:string,input:S["ChainVersionDto"],cmd:LedgerCommandContext)=>post(path(id)+"/memberships/"+encodeURIComponent(organizationId)+"/leave",input,cmd),
+ invitations:(id:string)=>ledgerRequest<S["PartnerInvitationRecord"][]>(path(id)+"/invitations"),
  inviteByLink:(id:string,input:S["PartnerInvitationInput"],cmd:LedgerCommandContext)=>ledgerRequest<{link:string;expiresAt:string}>(path(id)+"/invitations",{method:"POST",headers:{"Idempotency-Key":cmd.idempotencyKey},body:JSON.stringify(input)}),changeMember:(id:string,organizationId:string,input:S["ChangeMemberDto"],cmd:LedgerCommandContext)=>post(path(id)+"/memberships/"+encodeURIComponent(organizationId)+"/status",input,cmd),
  activate:(id:string,input:S["ChainVersionDto"],cmd:LedgerCommandContext)=>post(path(id)+"/business-profile/activate",input,cmd),suspend:(id:string,input:S["SuspendChainDto"],cmd:LedgerCommandContext)=>post(path(id)+"/business-profile/suspend",input,cmd),
  scopedGrants:(id:string)=>ledgerRequest<S["GrantRecordDto"][]>(org(id)+"/scoped-grants"),scopedUsers:(id:string)=>ledgerRequest<S["ScopedUserDto"][]>(org(id)+"/scoped-users"),

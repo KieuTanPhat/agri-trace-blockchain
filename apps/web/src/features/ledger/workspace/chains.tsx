@@ -236,10 +236,13 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
   const invalidate = [["chain", id], ["chain-members", id], ["chain-profile", id], ["ws-chains"], ["chain-context"]];
   const memberIds = new Set((members.data ?? []).map((m) => m.organizationId));
   const external = useQuery({ queryKey: ["ws-external-partners"], queryFn: wapi.externalPartners, enabled: !!chain.data && chain.data.ownerOrganizationId === me && !chain.data.personal });
+  const emailInvites = useQuery({ queryKey: ["chain-invitations", id], queryFn: () => chainApi.invitations(id), enabled: !!chain.data && chain.data.ownerOrganizationId === me && !chain.data.personal });
   const invitable = names.partners.filter((p) => p.status === "ACTIVE").flatMap((p) => (p.inviterId === me ? p.invitee : p.inviter) ?? []).filter((o) => !memberIds.has(o.id));
   // One invite list from partner management: AgriTrace partners join directly,
   // partners outside AgriTrace get an email link to register first.
-  const outside = (external.data ?? []).filter((p) => !!p.email);
+  // An email with a pending invitation waits for its sign-up; it is not offered again.
+  const pendingEmails = new Set((emailInvites.data ?? []).filter((i) => i.status === "PENDING").map((i) => i.email.toLowerCase()));
+  const outside = (external.data ?? []).filter((p) => !!p.email && !pendingEmails.has(p.email.toLowerCase()));
   const inviteOptions = [...invitable.map((o) => ({ value: `ag:${o.id}`, label: o.name })), ...outside.map((p) => ({ value: `ex:${p.id}`, label: tr("{p0} (ngoài AgriTrace, mời qua email)", { p0: p.name }) }))];
   const noEmail = (external.data ?? []).filter((p) => !p.email);
   if (!c) return <PageBody>{chain.error ? <ErrorState error={chain.error} onRetry={() => chain.refetch()} /> : <LoadingRows rows={6} />}</PageBody>;
@@ -318,6 +321,21 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
                   <Link href="/enterprise/partners" className="text-brand underline">{tr("Quản lý đối tác")}</Link>
                 </p>
               )}
+              {manager && !c.personal && (emailInvites.data ?? []).length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <h4 className="text-[12.5px] font-semibold">{tr("Lời mời qua email (đối tác ngoài AgriTrace)")}</h4>
+                  <p className="text-[12px] text-ink-2">{tr("Đối tác chưa có tài khoản chỉ vào chuỗi sau khi đăng ký, được duyệt và chấp nhận lời mời. Lời mời hết hạn thì mời lại được.")}</p>
+                  <ul className="divide-y divide-line/70 rounded-md border border-line">
+                    {(emailInvites.data ?? []).map((i) => (
+                      <li key={i.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[13px]">
+                        <span className="min-w-0 flex-1">{i.organizationName}<span className="block font-mono text-[11.5px] text-ink-2">{i.email}</span></span>
+                        <Badge tone={i.status === "ACCEPTED" ? "ok" : i.status === "PENDING" ? "info" : "neutral"}>{i.status === "ACCEPTED" ? tr("Đã đăng ký và nhận lời") : i.status === "PENDING" ? tr("Chờ đăng ký") : tr("Hết hạn")}</Badge>
+                        {i.status === "PENDING" && <span className="font-mono text-[11.5px] text-ink-2">{tr("hạn {p0}", { p0: fmtDate(i.expiresAt) })}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <ul className="divide-y divide-line/70 rounded-md border border-line">
                 {(members.data ?? []).map((m) => (
                   <li key={m.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[13px]">
@@ -384,7 +402,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
         </CommandDialog>
       )}
       {invite.target && (
-        <CommandDialog {...invite.props} title={tr("Mời thành viên")} endpoint="POST /supply-chains/:id/memberships" description={tr("Đối tác AgriTrace tự chấp nhận lời mời. Đối tác ngoài AgriTrace nhận email đăng ký; khi hồ sơ được duyệt, lời mời vào chuỗi hiện trong tài khoản của họ.")} schema={z.object({ partner: z.string().min(1, { error: () => tr("Chọn đối tác") }) })} defaultValues={{ partner: "" }} submitLabel={tr("Gửi lời mời")} invalidate={invalidate}
+        <CommandDialog {...invite.props} title={tr("Mời thành viên")} endpoint="POST /supply-chains/:id/memberships" description={tr("Đối tác AgriTrace tự chấp nhận lời mời. Đối tác ngoài AgriTrace nhận email đăng ký; khi hồ sơ được duyệt, lời mời vào chuỗi hiện trong tài khoản của họ.")} schema={z.object({ partner: z.string().min(1, { error: () => tr("Chọn đối tác") }) })} defaultValues={{ partner: "" }} submitLabel={tr("Gửi lời mời")} invalidate={[...invalidate, ["chain-invitations", id]]}
           run={async (v, cmd) => {
             const [kind, partnerId] = [v.partner.slice(0, 2), v.partner.slice(3)];
             if (kind === "ag") return chainApi.invite(c.id, { organizationId: partnerId }, cmd);

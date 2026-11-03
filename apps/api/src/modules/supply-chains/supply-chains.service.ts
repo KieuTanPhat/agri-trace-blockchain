@@ -23,7 +23,7 @@ import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import { assertBusinessActivationReady } from './business-profile.commands.js';
 import { bindingObservation } from '../ledger/binding-observation.js';
 import { assertPartnerSlot, partnerHasWork } from './chain-membership-rules.js';
-import { createPartnerInvitation, type PartnerInvitationInput } from './partner-invitations.js';
+import { createPartnerInvitation, listPartnerInvitations, type PartnerInvitationInput } from './partner-invitations.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -532,6 +532,9 @@ export class SupplyChainsService {
       await this.audit(tx, actor, 'SUSPEND_BUSINESS_PROFILE', chainId, result.version, chainId);
       return result;
     });
+  }
+  invitations(actor: CommandActor, chainId: string) {
+    return listPartnerInvitations(this.prisma, actor, chainId);
   }
   inviteByLink(actor: CommandActor, chainId: string, input: PartnerInvitationInput) {
     return this.transaction((tx) => createPartnerInvitation(tx, actor, chainId, input));
