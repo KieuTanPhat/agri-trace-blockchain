@@ -479,6 +479,10 @@ model MaterialReceipt {
   supplierId     String?   @map("supplier_id") @db.Uuid
   growingAreaCode String?  @map("growing_area_code") @db.VarChar(60)
   documentNo     String?   @map("document_no") @db.VarChar(100)
+  /// Lot code printed on the supplier's documents, and the AgriTrace lot it matched.
+  supplierLotCode String?  @map("supplier_lot_code") @db.VarChar(60)
+  matchedLotId   String?   @map("matched_lot_id") @db.Uuid
+  matchedLot     Lot?      @relation("ReceiptMatchedLot", fields: [matchedLotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   receivedAt     DateTime  @map("received_at") @db.Timestamptz(6)
   quantity       Decimal   @db.Decimal(14, 3)
   unit           String    @db.VarChar(30)
@@ -1786,6 +1790,8 @@ model Product {
   approvalNote String? @map("approval_note") @db.VarChar(1000)
   /// Branded by a retailer or distributor from source products of other businesses.
   privateLabel Boolean @default(false) @map("private_label")
+  /// Goods of a supplier outside AgriTrace, recorded by the seller from documents.
+  externalGoods Boolean @default(false) @map("external_goods")
   version Int @default(0)
   id          String             @id @default(dbgenerated("gen_random_uuid()")) @map("product_id") @db.Uuid
   productName String             @map("product_name") @db.VarChar(255)
@@ -2052,6 +2058,7 @@ model Lot {
   @@index([productId], map: "ix_lot_product")
   @@index([currentState], map: "ix_lot_state")
   @@map("lot")
+  matchedReceipts MaterialReceipt[] @relation("ReceiptMatchedLot")
 }
 
 model Shipment {

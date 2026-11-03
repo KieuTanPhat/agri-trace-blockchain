@@ -211,6 +211,7 @@ export class CreateMaterialReceiptInput {
   @ApiProperty({ format: 'uuid', description: 'Cơ sở chế biến/đóng gói nhận hàng' }) @IsUUID() siteId!: string;
   @ApiProperty({ maxLength: 255 }) @Transform(trim) @IsString() @MinLength(1) @MaxLength(255) materialName!: string;
   @ApiProperty({ format: 'uuid', description: 'Supplier from the private address book (ADR-005)' }) @IsUUID() supplierId!: string;
+  @ApiPropertyOptional({ maxLength: 60, description: 'Mã lô in trên chứng từ hoặc thùng hàng của nhà cung cấp; khớp lô AgriTrace đã xuất ngoài thì nối nguồn gốc' }) @IsOptional() @Transform(trim) @IsString() @MaxLength(60) supplierLotCode?: string;
   @ApiPropertyOptional({ maxLength: 60, description: 'Mã số vùng trồng hoặc cơ sở đóng gói của nguồn' }) @IsOptional() @Transform(trim) @IsString() @MaxLength(60) growingAreaCode?: string;
   @ApiProperty({ maxLength: 100, description: 'Số hóa đơn / chứng từ' }) @Transform(trim) @IsString() @MinLength(1) @MaxLength(100) documentNo!: string;
   @ApiProperty({ format: 'date-time' }) @IsISO8601() receivedAt!: string;

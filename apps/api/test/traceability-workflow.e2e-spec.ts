@@ -906,6 +906,28 @@ const prisma = new PrismaClient({
       const packed = await prisma.lot.findFirstOrThrow({ where: { processingRunId: packRun.id } });
       expect(packed).toMatchObject({ productId: brand.id, farmOrgId: receiver.id });
       expect(await prisma.processingInput.findMany({ where: { runId: packRun.id }, select: { lotId: true } })).toEqual([{ lotId: lot.id }]);
+      // Outside goods: the farm sends part of its lot outside AgriTrace; the
+      // retailer records it back from the supplier's documents. The lot code on
+      // the documents links the new lot to the farm lot; no document, no use.
+      const farmLot = await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } });
+      await post('/distribution/quantities', { lotId: lot.id, siteId: senderSite.id, unit: 'kg', quantity: '0.100', version: farmLot.version, kind: 'EXTERNAL_DISPATCH', reason: 'Bán cho nhà phân phối ngoài hệ thống', recipientName: 'Nhà phân phối ngoài', documentNo: 'PX-001' }, 'farm').expect(201);
+      const supplier = await prisma.enterpriseExternalPartner.create({ data: { organizationId: receiver.id, businessId: 'NPP-' + randomUUID().slice(0, 8), name: 'Nhà phân phối ngoài', kind: 'DISTRIBUTOR', address: 'Ngoài hệ thống' } });
+      const outsideGoods = (await label({ productName: 'Xoài nhập ngoài', externalGoods: true }).expect(201)).body.data;
+      expect(outsideGoods).toMatchObject({ externalGoods: true, status: 'ACTIVE' });
+      const receipt = (await post('/processing-runs/receipts', { siteId: receiverSite.id, materialName: 'Xoài', supplierId: supplier.id, documentNo: 'HD-001', supplierLotCode: lot.lotCode.toLowerCase(), receivedAt: new Date().toISOString(), quantity: '0.100', unit: 'kg' }, 'selfReceiver').expect(201)).body.data.record;
+      expect((await prisma.materialReceipt.findUniqueOrThrow({ where: { id: receipt.id } })).matchedLotId).toBe(lot.id);
+      const intake = { chainId: selfChainId, siteId: receiverSite.id, productId: outsideGoods.id, processType: 'PACKING', baseUnit: 'kg', inputs: [], externalInputs: [{ receiptId: receipt.id, quantity: '0.100' }] };
+      await post('/processing-runs', intake, 'selfReceiver').expect(409);
+      await request(app.getHttpServer()).post('/api/enterprise-workspace/evidence').set('Authorization', bearer('selfReceiver')).set('Idempotency-Key', randomUUID())
+        .field('entityType', 'MATERIAL_RECEIPT').field('entityId', receipt.id).field('kind', 'INVOICE').field('description', 'Hóa đơn nhà phân phối')
+        .attach('file', png, { filename: 'invoice.png', contentType: 'image/png' }).expect(201);
+      await post('/processing-runs', { ...intake, inputs: [{ lotId: lot.id, quantity: '0.010' }] }, 'selfReceiver').expect(422);
+      const intakeRun = (await post('/processing-runs', intake, 'selfReceiver').expect(201)).body.data.record;
+      await post(`/processing-runs/${intakeRun.id}/start`, { version: intakeRun.version }, 'selfReceiver').expect(201);
+      await post(`/processing-runs/${intakeRun.id}/complete`, { version: intakeRun.version + 1, output: { quantity: '0.100', unit: 'kg' }, byProducts: [], losses: [] }, 'selfReceiver').expect(201);
+      const intakeLot = await prisma.lot.findFirstOrThrow({ where: { processingRunId: intakeRun.id }, include: { traceQr: true } });
+      const page = (await request(app.getHttpServer()).get(`/api/public/trace/${intakeLot.traceQr!.traceToken}`).expect(200)).body.data;
+      expect(page.processing.externalInputs[0]).toMatchObject({ supplierName: 'Nhà phân phối ngoài', trust: 'EVIDENCED', matchedOrigin: { lotCode: lot.lotCode } });
       // The shared fixture product goes back to the shared catalog for later tests.
       await prisma.product.update({ where: { id: lot.productId }, data: { organizationId: null } });
       expect(

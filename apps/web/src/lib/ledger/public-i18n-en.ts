@@ -298,4 +298,10 @@ export const PUBLIC_EN: Record<string, string> = {
 
   // Pháp lý
   "Về biểu mẫu đăng ký": "Back to the registration form",
+  "Bàn giao có chữ ký trên AgriTrace": "Signed handover on AgriTrace",
+  "Nhà cung cấp đã xác nhận": "Confirmed by the supplier",
+  "Bên nhận khai báo, có chứng từ": "Declared by the receiver, with documents",
+  "Nguồn gốc nối lại: {p0} · {p1} · lô {p2}": "Origin linked back: {p0} · {p1} · lot {p2}",
+  "Xem lô gốc": "View source lot",
+  "lô": "lot",
 };

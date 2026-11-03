@@ -1737,6 +1737,7 @@ export class DistributionService {
           productId: l.productId,
           producerName: l.organization?.name ?? null,
           privateLabel: l.product.privateLabel,
+          externalGoods: l.product.externalGoods,
           chainId: lotChainId(l),
           farmOrgId: l.farmOrgId,
           initialQuantity: l.initialQuantity.toFixed(3),

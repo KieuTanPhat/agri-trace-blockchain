@@ -498,6 +498,14 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   quét hiện thương hiệu bên bán (khi sản phẩm được duyệt) và nguồn gốc thật. Guard SQL
   giữ danh sách nguồn chỉ thêm, nguồn phải của doanh nghiệp khác và cờ nhãn riêng cố
   định. Lượng giữ chỗ của lô tính cả nguyên liệu của lệnh chế biến đang chạy.
+- Không bắt buộc mọi bên dùng AgriTrace. Mỗi mắt xích có mức tin cậy: bàn giao có
+  chữ ký hai bên; nhà cung cấp xác nhận qua link (tùy chọn); bên nhận khai báo kèm
+  chứng từ. Bán lẻ và phân phối nhập hàng của nhà cung cấp ngoài AgriTrace bằng phiếu
+  nhập hàng ngoài: chọn nhà cung cấp trong danh bạ, số chứng từ, mã lô in trên chứng
+  từ (tùy chọn), bắt buộc ảnh chứng từ trước khi dùng. Phiếu được đóng gói thành lô
+  của sản phẩm "hàng nhập ngoài" (cờ cố định, không trang thương hiệu). Mã lô khớp một
+  lô AgriTrace đã "xuất cho đơn vị ngoài hệ thống" thì phiếu nối về lô đó và trang quét
+  hiện nguồn gốc nối lại; không khớp thì nguồn gốc dừng ở nhà cung cấp.
 - Ảnh xác nhận giao nhận là chứng cứ riêng của các bên trong chuyến, không công khai:
   - Lấy hàng/giao hàng: ảnh `TRANSFER_IMAGE` của một bên ký bước đó, tùy chọn, tối đa
     6 ảnh mỗi bước. Chỉ gắn khi bước đang mở và chưa bên nào ký; mã băm danh sách ảnh

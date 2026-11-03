@@ -37,9 +37,10 @@ import {
   IsArray,
   ArrayUnique,
   ArrayMaxSize,
+  IsBoolean,
 } from 'class-validator';
 import { AREA_UNITS, areaInM2 } from '../../common/area.js';
-import { assertLabelSources } from './private-label.js';
+import { assertLabelSources, isSeller } from './private-label.js';
 import { Transform, Type } from 'class-transformer';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -61,6 +62,8 @@ import { ProductApprovalRequestInput, requestProductApproval } from './product-a
 class ProductDto {
   @ApiProperty({ required: false, type: [String], format: 'uuid', description: 'Private label: source products of other businesses already received; no farm or site needed' })
   @IsOptional() @IsArray() @ArrayUnique() @ArrayMaxSize(20) @IsUUID('4', { each: true }) privateLabelSourceIds?: string[];
+  @ApiProperty({ required: false, description: 'Goods of a supplier outside AgriTrace, recorded by a retailer or distributor from its documents' })
+  @IsOptional() @IsBoolean() externalGoods?: boolean;
   @ApiProperty({ maxLength: 100 }) @IsString() @MinLength(2) @MaxLength(100) category!: string;
   @ApiProperty({ required: false, format: 'uuid', description: 'Origin farm. Required for producers; processors give manufacturingSiteId instead.' }) @IsOptional() @IsUUID() originFarmId?: string;
   @ApiProperty({ required: false, type: Number, minimum: 0 }) @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) price?: number;
@@ -307,7 +310,19 @@ class CatalogController {
         dto.originFarmId ?? dto.manufacturingSiteId,
         true,
       );
-      const { privateLabelSourceIds: sourceIds, ...fields } = dto;
+      const { privateLabelSourceIds: sourceIds, externalGoods, ...fields } = dto;
+      if (externalGoods) {
+        // Outside goods carry the supplier's name, not the seller's brand: no
+        // farm, site or approval; their lots come from documented receipts.
+        if (sourceIds?.length || dto.originFarmId || dto.manufacturingSiteId)
+          throw new UnprocessableEntityException('Hàng nhập ngoài không gắn vùng, nhà xưởng hay sản phẩm nguồn');
+        if (!(await isSeller(tx, req.user.organizationId!)))
+          throw new ForbiddenException('Chỉ doanh nghiệp bán lẻ hoặc phân phối nhập hàng ngoài hệ thống');
+        await assertProductRefs(tx, req.user.organizationId!, dto);
+        return tx.product.create({
+          data: { ...fields, externalGoods: true, sku: dto.sku?.trim() || `NN-${randomUUID().slice(0, 12).toUpperCase()}`, evidenceComplete: true, status: 'ACTIVE', organizationId: req.user.organizationId },
+        });
+      }
       if (sourceIds?.length) {
         // A private label has no farm or site of its own: its goods come from
         // the source products, packed from lots the seller received.

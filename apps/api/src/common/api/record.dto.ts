@@ -72,6 +72,8 @@ export class PlotRecordDto {
 export class ProductRecordDto {
   @ApiProperty({ type: Boolean, required: false, description: 'Branded by a retailer or distributor from source products of other businesses' })
   privateLabel?: boolean;
+  @ApiProperty({ type: Boolean, required: false, description: 'Goods of a supplier outside AgriTrace, recorded by the seller from documents' })
+  externalGoods?: boolean;
   @ApiProperty({ type: [String], required: false, description: 'Source products a private label is packed from' })
   labelSourceIds?: string[];
   @ApiProperty({ enum: ['NONE', 'PENDING', 'APPROVED', 'REJECTED'], required: false, description: 'Platform approval gating the public brand page (ADR-005)' })

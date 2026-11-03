@@ -6187,6 +6187,8 @@ export interface components {
              * @description Supplier from the private address book (ADR-005)
              */
             supplierId: string;
+            /** @description Mã lô in trên chứng từ hoặc thùng hàng của nhà cung cấp; khớp lô AgriTrace đã xuất ngoài thì nối nguồn gốc */
+            supplierLotCode?: string;
             unit: string;
         };
         CreateOrganizationDto: {
@@ -8818,7 +8820,7 @@ export interface components {
             code: string;
             /** Format: date-time */
             completedAt: string | null;
-            /** @description Nguyên liệu nhập ngoài AgriTrace, doanh nghiệp tự khai (selfDeclared = true) */
+            /** @description Hàng hoặc nguyên liệu nhập ngoài AgriTrace, bên nhận khai từ chứng từ (selfDeclared = true); trust: SUPPLIER_CONFIRMED | EVIDENCED; matchedOrigin: lô AgriTrace mà mã lô nhà cung cấp khớp, hoặc null */
             externalInputs: Record<string, never>[];
             inputs: components["schemas"]["ProcessingInputSummaryDto"][];
             inputTotal: number | null;
@@ -8860,6 +8862,8 @@ export interface components {
             description?: string;
             distributor?: string;
             exporter?: string;
+            /** @description Goods of a supplier outside AgriTrace, recorded by a retailer or distributor from its documents */
+            externalGoods?: boolean;
             /** @description GTIN digits, syntax only; no registry verification */
             gtin?: string;
             importer?: string;
@@ -9042,6 +9046,8 @@ export interface components {
             distributor?: string | null;
             evidenceComplete: boolean;
             exporter?: string | null;
+            /** @description Goods of a supplier outside AgriTrace, recorded by the seller from documents */
+            externalGoods?: boolean;
             gtin?: string | null;
             /** Format: uuid */
             id: string;

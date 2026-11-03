@@ -2703,6 +2703,11 @@
             "format": "uuid",
             "type": "string"
           },
+          "supplierLotCode": {
+            "description": "Mã lô in trên chứng từ hoặc thùng hàng của nhà cung cấp; khớp lô AgriTrace đã xuất ngoài thì nối nguồn gốc",
+            "maxLength": 60,
+            "type": "string"
+          },
           "unit": {
             "maxLength": 30,
             "type": "string"
@@ -12313,7 +12318,7 @@
           },
           "externalInputs": {
             "additionalProperties": true,
-            "description": "Nguyên liệu nhập ngoài AgriTrace, doanh nghiệp tự khai (selfDeclared = true)",
+            "description": "Hàng hoặc nguyên liệu nhập ngoài AgriTrace, bên nhận khai từ chứng từ (selfDeclared = true); trust: SUPPLIER_CONFIRMED | EVIDENCED; matchedOrigin: lô AgriTrace mà mã lô nhà cung cấp khớp, hoặc null",
             "items": {
               "type": "object"
             },
@@ -12474,6 +12479,10 @@
           "exporter": {
             "maxLength": 255,
             "type": "string"
+          },
+          "externalGoods": {
+            "description": "Goods of a supplier outside AgriTrace, recorded by a retailer or distributor from its documents",
+            "type": "boolean"
           },
           "gtin": {
             "description": "GTIN digits, syntax only; no registry verification",
@@ -13087,6 +13096,10 @@
           "exporter": {
             "nullable": true,
             "type": "string"
+          },
+          "externalGoods": {
+            "description": "Goods of a supplier outside AgriTrace, recorded by the seller from documents",
+            "type": "boolean"
           },
           "gtin": {
             "nullable": true,
