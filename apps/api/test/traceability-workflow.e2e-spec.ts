@@ -215,6 +215,18 @@ const prisma = new PrismaClient({
       return 'Bearer ' + jwt.sign({ sub: users[user], sid: sessionIds[user] });
     }
 
+    /** A personal device key, turned on with the code emailed to its owner. */
+    async function deviceKey(user: string, organizationId: string, label: string) {
+      const pair = generateKeyPairSync('ed25519');
+      const keyRef = randomUUID();
+      const publicKey = pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
+      const popSignature = sign(null, Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId, publicKey })}`), pair.privateKey).toString('base64url');
+      await post('/distribution/device-keys', { id: keyRef, label, publicKey, popSignature }, user).expect(201);
+      const mail = await prisma.enterpriseMail.findFirstOrThrow({ where: { userId: users[user], kind: 'SIGNING_KEY_OTP' }, orderBy: { createdAt: 'desc' } });
+      await post(`/distribution/device-keys/${keyRef}/verify`, { code: decryptOtp(mail.otpCiphertext!) }, user).expect(201);
+      return { keyRef, privateKey: pair.privateKey };
+    }
+
     function get(path: string, user = 'farm') {
       return request(app.getHttpServer())
         .get('/api' + path)
@@ -564,28 +576,7 @@ const prisma = new PrismaClient({
           lines: [{ lotId: lot.id, quantity: '0.500', unit: 'kg' }],
         }).expect(201)
       ).body.data.record;
-      const pair = generateKeyPairSync('ed25519');
-      const keyRef = randomUUID();
-      const publicKey = pair.publicKey
-        .export({ type: 'spki', format: 'der' })
-        .toString('base64url');
-      const keyBody = { id: keyRef, organizationId: processor.id, publicKey };
-      await post(
-        '/distribution/keys',
-        {
-          id: keyRef,
-          label: 'Isolated processor regression key',
-          publicKey,
-          popSignature: sign(
-            null,
-            Buffer.from(
-              `agritrace:distribution-key:1\0${canonicalize(keyBody)}`,
-            ),
-            pair.privateKey,
-          ).toString('base64url'),
-        },
-        'processor',
-      ).expect(201);
+      const { keyRef, privateKey: processorKey } = await deviceKey('processor', processor.id, 'Isolated processor regression key');
       const challenge = (
         await get(
           `/distribution/transfers/${transfer.id}/challenge`,
@@ -606,7 +597,7 @@ const prisma = new PrismaClient({
       const signature = sign(
         null,
         Buffer.from(`${challenge.domain}\0${canonicalize(body)}`),
-        pair.privateKey,
+        processorKey,
       ).toString('base64url');
       const input = {
         version: transfer.version,
@@ -774,26 +765,15 @@ const prisma = new PrismaClient({
       ).toMatchObject({ status: 'INVITED' });
 
       const keys: Record<string, { keyRef: string; privateKey: ReturnType<typeof generateKeyPairSync>['privateKey'] }> = {};
-      for (const [actor, organizationId] of [['farm', farmOrgId], ['selfReceiver', receiver.id]] as const) {
+      // The sender's key is already on; the receiver's waits for its emailed code below.
+      keys.farm = await deviceKey('farm', farmOrgId, 'Isolated self delivery key');
+      {
         const pair = generateKeyPairSync('ed25519');
         const keyRef = randomUUID();
         const publicKey = pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
-        // The receiver uses a personal device key, the sender an organization key.
-        await post(
-          actor === 'selfReceiver' ? '/distribution/device-keys' : '/distribution/keys',
-          {
-            id: keyRef,
-            label: 'Isolated self delivery key',
-            publicKey,
-            popSignature: sign(
-              null,
-              Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId, publicKey })}`),
-              pair.privateKey,
-            ).toString('base64url'),
-          },
-          actor,
-        ).expect(201);
-        keys[actor] = { keyRef, privateKey: pair.privateKey };
+        const popSignature = sign(null, Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId: receiver.id, publicKey })}`), pair.privateKey).toString('base64url');
+        await post('/distribution/device-keys', { id: keyRef, label: 'Isolated self delivery key', publicKey, popSignature }, 'selfReceiver').expect(201);
+        keys.selfReceiver = { keyRef, privateKey: pair.privateKey };
       }
       const signPhase = async (actor: 'farm' | 'selfReceiver', organizationId: string, phase: string) => {
         const challengeResponse = await get(`/distribution/transfers/${transfer.id}/challenge`, actor);
@@ -828,16 +808,16 @@ const prisma = new PrismaClient({
       await confirmSimulatedPermissions(prisma, { guard: false });
 
       // A personal key signs only after the emailed code; a wrong code is counted.
-      const deviceKey = keys.selfReceiver.keyRef;
-      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: deviceKey } })).status).toBe('PENDING');
+      const receiverKeyRef = keys.selfReceiver.keyRef;
+      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: receiverKeyRef } })).status).toBe('PENDING');
       expect((await signPhase('selfReceiver', receiver.id, 'CONSENT')).status).toBe(403);
       const codeMail = await prisma.enterpriseMail.findFirstOrThrow({ where: { userId: users.selfReceiver, kind: 'SIGNING_KEY_OTP' }, orderBy: { createdAt: 'desc' } });
       const code = decryptOtp(codeMail.otpCiphertext!);
-      await post(`/distribution/device-keys/${deviceKey}/verify`, { code: code === '000000' ? '000001' : '000000' }, 'selfReceiver').expect(400);
-      expect((await prisma.signingKeyVerification.findFirstOrThrow({ where: { keyId: deviceKey } })).attempts).toBe(1);
-      const verified = await post(`/distribution/device-keys/${deviceKey}/verify`, { code }, 'selfReceiver');
+      await post(`/distribution/device-keys/${receiverKeyRef}/verify`, { code: code === '000000' ? '000001' : '000000' }, 'selfReceiver').expect(400);
+      expect((await prisma.signingKeyVerification.findFirstOrThrow({ where: { keyId: receiverKeyRef } })).attempts).toBe(1);
+      const verified = await post(`/distribution/device-keys/${receiverKeyRef}/verify`, { code }, 'selfReceiver');
       expect(verified.status, JSON.stringify(verified.body)).toBe(201);
-      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: deviceKey } })).status).toBe('ACTIVE');
+      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: receiverKeyRef } })).status).toBe('ACTIVE');
       for (const [actor, organizationId] of [['selfReceiver', receiver.id], ['farm', farmOrgId]] as const) {
         const consent = await signPhase(actor, organizationId, 'CONSENT');
         expect(consent.status, JSON.stringify(consent.body)).toBe(201);

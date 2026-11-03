@@ -3,7 +3,7 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import {
   canonicalJson,
   distributionKeyStore,
-  generateDistributionKey,
+  generateDeviceKey,
   signDistribution,
 } from "./distribution-signer";
 import { sha256Hex } from "./signing/canonical";
@@ -18,7 +18,7 @@ it("generates a non-extractable device key and proves possession for exactly its
   vi.spyOn(distributionKeyStore, "put").mockImplementation(async (key) => {
     stored = key;
   });
-  const result = await generateDistributionKey("org-one", "Device key");
+  const result = await generateDeviceKey("org-one", "user-one", "Device key");
   expect(stored?.privateKey.extractable).toBe(false);
   const message = Buffer.from(
     "agritrace:distribution-key:1\0" +
@@ -68,7 +68,7 @@ it("signs only the canonical phase, actor and version shown for the matching org
   vi.spyOn(distributionKeyStore, "put").mockImplementation(async (value) => {
     key = value;
   });
-  const generated = await generateDistributionKey("org-one", "Device key");
+  const generated = await generateDeviceKey("org-one", "user-one", "Device key");
   vi.spyOn(distributionKeyStore, "get").mockImplementation(async () => key);
   const snapshot = {
     lines: [{ lotId: "source", quantity: "600.000", unit: "kg" }],

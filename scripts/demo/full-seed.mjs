@@ -1643,7 +1643,7 @@ async function signingKey(key) {
   ).toString("base64url");
   await api(
     actors[key],
-    "/distribution/keys",
+    "/distribution/device-keys",
     {
       id: value.id,
       publicKey: value.publicKey,
@@ -1652,6 +1652,12 @@ async function signingKey(key) {
     },
     `key:${key}`,
   );
+  // Demo data only: the seed confirms the emailed code on behalf of its own
+  // test account instead of reading a mailbox.
+  await db.distributionKey.updateMany({
+    where: { id: value.id, status: "PENDING" },
+    data: { status: "ACTIVE", verifiedAt: new Date() },
+  });
   return value;
 }
 async function attest(id, key, phase) {

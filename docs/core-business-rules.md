@@ -460,7 +460,11 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   nguyên snapshot. Phiếu đi theo chuỗi của lô (không chọn chuỗi). Bên nhận hoặc
   đơn vị vận chuyển chưa ở chuỗi nhận lời mời khi phiếu được lập; chủ quản chấp
   nhận vào chuỗi trên phiếu. Nếu bên giao là chủ chuỗi, người chấp nhận được cấp
-  vai trò theo năng lực doanh nghiệp; nếu không, chủ chuỗi cấp vai trò như thường.
+  vai trò theo năng lực doanh nghiệp; nếu không, quản trị doanh nghiệp giao chuỗi
+  cho nhân viên trong nhóm quyền thành viên. Doanh nghiệp không cấp hay thu hồi vai
+  trò nghiệp vụ theo chuỗi trực tiếp: vai trò đó sinh ra từ nhóm quyền gắn chuỗi khi
+  tạo hoặc sửa thành viên, và được dựng lại mỗi lần lưu. Nền tảng vẫn cấp trực tiếp
+  vai trò quản trị (quản trị tổ chức, tạo chuỗi, điều phối chuỗi, kiểm định).
   Chỉ ký được khi đã là thành viên hoạt động và quyền ledger đã đồng bộ. Bên nhận
   gửi được yêu cầu lấy hàng (không giữ chỗ hàng); bên giao lập phiếu
   `RECEIVER_PICKUP` từ yêu cầu hoặc từ chối.
@@ -478,9 +482,10 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   Lượng cách ly phát sinh từ biên bản nhận hàng không có phiếu vẫn xử lý được trong
   phần chưa có phiếu. Phiếu chuyển và phiếu cách ly bất biến, chỉ đổi trạng thái hợp
   lệ; ảnh/chứng từ gắn qua chứng cứ `SITE_TRANSFER`/`QUARANTINE`.
-- Khóa ký bàn giao STANDARD có hai loại: khóa doanh nghiệp do tài khoản cấp 1 tạo,
-  và khóa cá nhân do thiết bị tự sinh khi thành viên có `distribution.sign` đăng nhập.
-  Khóa cá nhân chỉ ký được sau khi chủ tài khoản nhập mã OTP gửi tới email tài khoản
+- Khóa ký bàn giao STANDARD là khóa cá nhân do thiết bị (app hoặc trình duyệt) tự
+  sinh khi thành viên có `distribution.sign` đăng nhập; không còn tạo khóa doanh
+  nghiệp bằng tay. Tài khoản cấp 1 xem và thu hồi mọi khóa của doanh nghiệp. Khóa
+  cá nhân chỉ ký được sau khi chủ tài khoản nhập mã OTP gửi tới email tài khoản
   (mã 10 phút, tối đa 5 lần sai, 60 giây giữa hai lần gửi, 5 mã mỗi giờ), chỉ ký cho
   chính chủ (guard SQL trên chữ ký) và bị thu hồi khi tài khoản ngừng hoạt động.
   Máy chủ chỉ nhận khóa công khai và bằng chứng sở hữu, không nhận khóa riêng.

@@ -33,6 +33,9 @@ import {
   requestLedgerRevoke,
 } from '../ledger/ledger-permissions.js';
 
+/** Chain roles the member permission groups own (enterprise-workspace assign). */
+const MEMBER_GROUP_ROLES: string[] = ['FARM_STAFF', 'TRANSPORTER', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'];
+
 @Injectable()
 export class SupplyChainsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -701,6 +704,10 @@ export class SupplyChainsService {
         });
         if (member?.status !== 'ACTIVE')
           throw new ForbiddenException('Tổ chức chưa là thành viên hoạt động');
+        // Business roles follow the member's permission groups, which rebuild
+        // them on every save; a direct grant would be silently dropped.
+        if (MEMBER_GROUP_ROLES.includes(input.role))
+          throw new ForbiddenException('Vai trò nghiệp vụ được cấp qua nhóm quyền của thành viên');
         const capability =
           BUSINESS_CAPABILITIES[
             input.role as keyof typeof BUSINESS_CAPABILITIES
@@ -777,13 +784,6 @@ export class SupplyChainsService {
         grant.chainId !== (chainId ?? null)
       )
         throw new NotFoundException('Không tìm thấy quyền');
-      if (
-        actor.role !== 'SYSTEM_ADMIN' &&
-        !['FARM_STAFF', 'TRANSPORTER', 'RETAILER'].includes(grant.role)
-      )
-        throw new ForbiddenException(
-          'Org admin không thu hồi quyền nền tảng cấp',
-        );
       if (grant.revision !== version || grant.revokedAt)
         throw new ConflictException('Quyền đã thay đổi');
       const result = await tx.scopedRoleGrant.update({

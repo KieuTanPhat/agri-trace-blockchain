@@ -25,7 +25,6 @@ import { isPastExpiry } from '../../common/expiry-date.js';
 import { businessTimestamp } from '../../common/timestamp.js';
 import {
   verifyEd25519,
-  parseEd25519PublicKey,
 } from '../trace/signed-commitment.js';
 import { TraceService } from '../trace/trace.service.js';
 import { randomUUID } from 'node:crypto';
@@ -60,7 +59,6 @@ import type {
 
 export const DISTRIBUTION_SIGNATURE_DOMAIN =
   'agritrace:distribution-attestation:1';
-export const DISTRIBUTION_KEY_DOMAIN = 'agritrace:distribution-key:1';
 export function distributionSnapshot(
   t: DistributionTransfer & { lines: DistributionLine[] },
 ) {
@@ -755,53 +753,6 @@ export class DistributionService {
       }),
     };
   }
-  registerKey(actor: CommandActor, input: TransferKeyInput) {
-    return commandTransaction(this.db, async (tx) => {
-      const auth = await enterpriseAuthority(
-        tx,
-        actor,
-        'roles.manage',
-        undefined,
-        undefined,
-        true,
-      );
-      if (!auth.primary)
-        throw new ForbiddenException(
-          'Chỉ tài khoản cấp 1 được đăng ký khóa doanh nghiệp',
-        );
-      try {
-        parseEd25519PublicKey(input.publicKey);
-      } catch {
-        throw new UnprocessableEntityException(
-          'Khóa công khai Ed25519 không hợp lệ',
-        );
-      }
-      if (
-        !verifyEd25519(
-          input.publicKey,
-          domainMessage(DISTRIBUTION_KEY_DOMAIN, {
-            id: input.id,
-            organizationId: actor.organizationId,
-            publicKey: input.publicKey,
-          }),
-          input.popSignature,
-        )
-      )
-        throw new UnprocessableEntityException(
-          'Bằng chứng sở hữu khóa không hợp lệ',
-        );
-      return {
-        record: await tx.distributionKey.create({
-          data: {
-            id: input.id,
-            organizationId: actor.organizationId!,
-            publicKey: input.publicKey,
-            label: input.label,
-          },
-        }),
-      };
-    });
-  }
   requestDeviceKey(actor: CommandActor, input: TransferKeyInput) {
     return commandTransaction(this.db, (tx) => requestDeviceKey(tx, actor, input));
   }
@@ -822,8 +773,10 @@ export class DistributionService {
         true,
       );
       if (!auth.primary) throw new ForbiddenException();
+      // The primary account revokes any key of the organization, including a
+      // member's device key that is still waiting for its emailed code.
       const changed = await tx.distributionKey.updateMany({
-        where: { id, organizationId: actor.organizationId!, status: 'ACTIVE' },
+        where: { id, organizationId: actor.organizationId!, status: { in: ['PENDING', 'ACTIVE'] } },
         data: { status: 'REVOKED' },
       });
       if (!changed.count)

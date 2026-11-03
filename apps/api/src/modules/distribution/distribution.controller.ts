@@ -223,18 +223,6 @@ export class DistributionController {
       this.service.cancel(req.user, id, dto),
     );
   }
-  @Post('keys')
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiDataResponse(WorkspaceRecordDto, 201)
-  key(
-    @Req() req: AuthenticatedRequest,
-    @Body() dto: TransferKeyInput,
-    @IdempotencyKey() key: string,
-  ) {
-    return this.run(req, key, 'EW_REGISTER_DISTRIBUTION_KEY', dto, () =>
-      this.service.registerKey(req.user, dto),
-    );
-  }
   @Post('device-keys')
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @ApiDataResponse(WorkspaceRecordDto, 201)

@@ -3,7 +3,7 @@ import {useRef,useState} from "react";
 import {z} from "zod";
 import {useAuth} from "@/lib/auth-store";
 import {retryPendingCommand} from "@/lib/api-client";
-import {distributionKeyStore,signDistribution,signDistributionReturn} from "@/lib/distribution-signer";
+import {deviceScope,distributionKeyStore,signDistribution,signDistributionReturn} from "@/lib/distribution-signer";
 import {assertPhotosDigest,signDistributionC2} from "@/lib/distribution-c2";
 import {usePendingCommands} from "@/lib/use-pending-commands";
 import {ledgerCommandError} from "@/lib/ledger/command-context";
@@ -23,7 +23,7 @@ export function DistributionSignature({transfer:t,phase,returnId,props}:{transfe
  async function prepare(){if(!org||!user||busy||pending&&!preparation.current)return;setBusy(true);setError("");try{
  await assertPhotosDigest(t);
  if(dual){const resume=preparation.current?async()=>prepared.parse(await retryPendingCommand(preparation.current!)):undefined;setBody(await signDistributionC2(t,phase,{id:user.id,organizationId:org},r,resume));preparation.current=undefined;return;}
- const local=await distributionKeyStore.list("distribution",org),active=await distApi.keys(),key=local.find(k=>active.some(a=>a.id===k.id&&a.status==="ACTIVE"));if(!key)throw new Error(tr("Thiết bị chưa có khóa ký đang hoạt động của doanh nghiệp"));const expiresAt=new Date(Date.now()+15*60000).toISOString();
+ const local=await distributionKeyStore.list(deviceScope(user.id),org),active=await distApi.keys(),key=local.find(k=>active.some(a=>a.id===k.id&&a.status==="ACTIVE"));if(!key)throw new Error(tr("Khóa ký của bạn trên trình duyệt này chưa bật. Mở Khóa ký bàn giao và nhập mã gửi qua email."));const expiresAt=new Date(Date.now()+15*60000).toISOString();
  if(phase==="RETURN"){if(!r)throw new Error(tr("Không tìm thấy chặng trả hàng"));const signature=await signDistributionReturn(r,{returnId:r.id,transferId:t.id,digest:r.digest,organizationId:org,userId:user.id,keyRef:key.id,version:String(r.version),expiresAt});setBody({version:r.version,keyRef:key.id,expiresAt,signature});}
  else{const challenge=await distApi.challenge(t.id);if(!challenge.phases.includes(phase))throw new Error(tr("Bước bàn giao đã thay đổi. Tải lại giao nhận."));if(((challenge.snapshot as {photosDigest?:string}|null)?.photosDigest??null)!==(t.photosDigest??null))throw new Error(tr("Ảnh bàn giao đã thay đổi. Tải lại giao nhận."));const signature=await signDistribution(challenge,{transferId:t.id,phase,organizationId:org,userId:user.id,keyRef:key.id,version:String(t.version),expiresAt});setBody({phase,version:t.version,keyRef:key.id,expiresAt,signature});}
  }catch(cause){const e=ledgerCommandError(cause);preparation.current=e.recoveryId??preparation.current;setError(e.message);}finally{setBusy(false);}}

@@ -58,8 +58,12 @@ App nhân viên ký bàn giao bằng khóa Ed25519 giữ trên điện thoại
 tới `POST /distribution/device-keys`; khóa ở `PENDING` cho tới khi chủ tài khoản
 nhập mã 6 số gửi tới email tài khoản (`/verify`, sai 5 lần thì gửi lại mã). Khóa cá
 nhân chỉ ký cho chính chủ, bị thu hồi khi khóa tài khoản. Chuỗi DUAL_SIGNED vẫn cần
-khóa chuỗi do quản trị tạo ở `/staff/signing` và sổ cái kích hoạt. Web vẫn dùng
-khóa doanh nghiệp do tài khoản cấp 1 tạo; API vẫn kiểm `distribution.sign`. Trước khi ký, app tự tính lại
+khóa chuỗi do quản trị tạo ở `/staff/signing` và sổ cái kích hoạt. Web làm như app: trình
+duyệt tự sinh khóa không xuất được ở trang chủ doanh nghiệp và
+`/enterprise/signing`, chờ mã email rồi mới ký; tài khoản cấp 1 thu hồi khóa ở
+`/enterprise/signing`. API vẫn kiểm `distribution.sign`. Chi tiết chuỗi là trang
+riêng `/supply-chains/:id/(members|roles|plans|signing|ledger)`; tab Nhân viên chỉ
+đọc, giao chuỗi cho nhân viên làm ở nhóm quyền thành viên. Trước khi ký, app tự tính lại
 snapshot, digest và intent như Web, từ chối khi khác lô, lượng, phiên bản hoặc
 bên ký đang hiển thị. Prepare/submit/receipt/photos đi qua hàng đợi lệnh và đối
 soát bằng đúng key cũ. Biên bản thực nhận trên app ghi thực nhận, từ chối, cách ly

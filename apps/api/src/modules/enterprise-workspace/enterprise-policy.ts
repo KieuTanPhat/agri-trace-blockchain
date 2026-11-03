@@ -316,7 +316,6 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_PICKUP_REQUEST: 'distribution.write',
   EW_PICKUP_DECLINE: 'distribution.write',
   EW_PICKUP_CANCEL: 'distribution.write',
-  EW_REGISTER_DISTRIBUTION_KEY: 'roles.manage',
   EW_REVOKE_DISTRIBUTION_KEY: 'roles.manage',
   EW_PROCESSING_CREATE: 'processing.write',
   EW_PROCESSING_COMPLETE: 'processing.write',

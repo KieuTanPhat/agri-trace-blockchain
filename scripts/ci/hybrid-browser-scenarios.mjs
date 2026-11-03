@@ -44,16 +44,16 @@ async function login(page, origin, user, password) {
   options.results?.push(result);
 }
 
-/** The chain route opens its detail sheet; its section link marks the current view. */
+/** The chain detail is its own page; the tab link marks the current view and
+ * the tab content is the region named after the chain. */
 async function selectChain(page, options, section) {
   await page.goto(`${options.origin}/supply-chains/${options.fixture.chainId}/${section}`, {
     waitUntil: "domcontentloaded",
   });
-  const sheet = page.getByRole("dialog", { name: options.fixture.chainName, exact: true });
-  await sheet
+  await page
     .locator(`a[href="/supply-chains/${options.fixture.chainId}/${section}"][aria-current="page"]`)
     .waitFor({ state: "visible", timeout });
-  return sheet;
+  return page.getByRole("region", { name: options.fixture.chainName, exact: true });
 }
 
 /** Reconcile one journaled command from the shell banner. Detail sheets are modal,
@@ -575,7 +575,7 @@ async function planConsent(options, session) {
 async function invitation(options, session) {
   const farm = session.pages.farm;
   const sheet = await selectChain(farm, options, "members");
-  const invite = sheet.getByRole("button", { name: "Mời thành viên", exact: true });
+  const invite = sheet.getByRole("button", { name: "Mời đối tác AgriTrace", exact: true });
   await until(() => invite.isEnabled(), "active partner can be invited");
   await invite.click();
   const form = farm.getByRole("dialog", { name: "Mời thành viên", exact: true });

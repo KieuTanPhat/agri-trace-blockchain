@@ -11,6 +11,7 @@ import { connectGateway, BindingLedgerClient, RegistryOperator, certificateFinge
 import { registerBinding, activateBinding } from '../../apps/api/dist/modules/ledger/ledger-bindings.js';
 import { onboardBindingOnLedger, mirrorCredential } from '../../apps/api/dist/modules/ledger/ledger-onboarding.js';
 import { setHandoverMode as changeMode } from '../../apps/api/dist/modules/ledger/ledger-signing.js';
+import { requestLedgerGrant, requestLedgerRevoke } from '../../apps/api/dist/modules/ledger/ledger-permissions.js';
 
 export async function createBrowserFixture(env, origin, label = 'browser', { waitForWorker = true } = {}) {
   const database = new URL(env.DATABASE_URL);
@@ -147,8 +148,13 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
     revokeGrant: async (actor, role) => {
       const party = typeof actor === 'string' ? actor : Object.keys(users).find(key => users[key].id === actor.id);
       assert.ok(party && users[party]);
+      // Business chain roles follow member permission groups; this is the
+      // same revocation a member edit performs, with its ledger revoke.
       const grant = await db.scopedRoleGrant.findFirstOrThrow({ where: { userId: users[party].id, chainId: chain.id, role, revokedAt: null } });
-      return command(party, `/organizations/${users[party].organizationId}/scoped-grants/${grant.id}/revoke`, { version: grant.revision, chainId: chain.id });
+      return db.$transaction(async tx => {
+        await requestLedgerRevoke(tx, grant.id, 'NORMAL', 'grant revoked');
+        return tx.scopedRoleGrant.update({ where: { id: grant.id }, data: { revokedAt: new Date(), revision: { increment: 1 } } });
+      });
     },
     restoreGrant: async (actor, role) => {
       const party = typeof actor === 'string' ? actor : Object.keys(users).find(key => users[key].id === actor.id);
@@ -162,8 +168,11 @@ export async function createBrowserFixture(env, origin, label = 'browser', { wai
       await wait(async () => (await db.ledgerPermissionSync.findUniqueOrThrow({
         where: { permissionRef: permission.permissionRef },
       })).state === 'REVOKED');
-      const result = await command(party, `/organizations/${users[party].organizationId}/scoped-grants`,
-        { userId: users[party].id, chainId: chain.id, role });
+      const result = await db.$transaction(async tx => {
+        const grant = await tx.scopedRoleGrant.create({ data: { userId: users[party].id, organizationId: users[party].organizationId, chainId: chain.id, scope: 'CHAIN', role } });
+        await requestLedgerGrant(tx, grant);
+        return grant;
+      });
       await wait(async () => (await db.ledgerPermissionSync.count({ where: { permission: { binding: { digest: binding.digest } }, state: { not: 'ACTIVE' } } })) === 0);
       return result;
     },
