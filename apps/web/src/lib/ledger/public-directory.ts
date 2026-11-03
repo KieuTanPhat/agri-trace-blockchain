@@ -63,23 +63,16 @@ export const useNewsCover = (article: Pick<PublicNews, "id" | "hasCover" | "cove
 
 export const productImage = (p: Pick<PublicProduct, "imageUrl">) => (p.imageUrl ? publicApiUrl(p.imageUrl) : null);
 
-export type Category = { name: string; count: number; image: string | null; traces: number };
+type Category = { name: string; count: number; traces: number };
 
-/** Danh mục lấy từ nhóm sản phẩm doanh nghiệp đã công bố, xếp theo số lô truy xuất.
- * Ảnh đại diện là ảnh của sản phẩm nhiều lô nhất trong nhóm. */
+/** Danh mục lấy từ nhóm sản phẩm doanh nghiệp đã công bố, xếp theo số lô truy xuất. */
 export function categoriesOf(products: PublicProduct[]): Category[] {
   const map = new Map<string, Category>();
-  const best = new Map<string, number>();
   for (const p of products) {
     if (!p.category) continue;
-    const c = map.get(p.category) ?? { name: p.category, count: 0, image: null, traces: 0 };
+    const c = map.get(p.category) ?? { name: p.category, count: 0, traces: 0 };
     c.count++;
     c.traces += p.traceCount;
-    const image = productImage(p);
-    if (image && p.traceCount > (best.get(p.category) ?? -1)) {
-      c.image = image;
-      best.set(p.category, p.traceCount);
-    }
     map.set(p.category, c);
   }
   return [...map.values()].sort((a, b) => b.traces - a.traces || b.count - a.count || a.name.localeCompare(b.name, "vi"));

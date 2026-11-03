@@ -3,10 +3,10 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronRight, Info, Leaf, MapPin, QrCode, ScanLine, Search, Store } from "lucide-react";
+import { Apple, Building2, Carrot, ChevronRight, Coffee, CookingPot, Fish, Info, LayoutGrid, Leaf, MapPin, Milk, QrCode, ScanLine, Search, Sprout, Store, Wheat, type LucideIcon } from "lucide-react";
 import { publicApiUrl } from "@/lib/api-client";
 import { customerHref } from "@/lib/site-origins";
-import { categoriesOf, categoryHref, enterpriseHref, enterprisesOf, productImage, usePublicProduct, usePublicProducts, type Category, type PublicProduct } from "@/lib/ledger/public-directory";
+import { categoriesOf, categoryHref, enterpriseHref, enterprisesOf, productImage, usePublicProduct, usePublicProducts, type PublicProduct } from "@/lib/ledger/public-directory";
 import { LOT_STATE_LABEL, LOT_STATE_TONE } from "@/lib/ledger/ops-labels";
 import { fmtDate, fmtNumber } from "@/lib/ledger/format";
 import { pt } from "@/lib/ledger/public-i18n";
@@ -66,25 +66,6 @@ export function ProductCard({ product }: { product: PublicProduct }) {
   );
 }
 
-/** Ô danh mục: ảnh vuông phủ kín cùng kích thước để các ô đều nhau. */
-export function CategoryTile({ category, active }: { category: Category; active?: boolean }) {
-  return (
-    <Link
-      href={customerHref(categoryHref(category.name))}
-      aria-current={active ? "page" : undefined}
-      className={cn("group flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md", active ? "border-brand ring-2 ring-brand/20" : "border-line")}
-    >
-      <div className="relative aspect-[4/3] overflow-hidden bg-brand-weak">
-        {category.image ? <Image src={category.image} alt="" fill unoptimized sizes="(max-width: 640px) 50vw, 220px" className="object-cover transition-transform duration-300 group-hover:scale-105" /> : <Leaf className="absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 text-brand/50" aria-hidden />}
-      </div>
-      <div className="flex flex-1 flex-col justify-center gap-0.5 px-3 py-2.5 text-center">
-        <p className="line-clamp-1 text-[14px] font-semibold group-hover:text-brand">{category.name}</p>
-        <p className="text-[12px] text-ink-2">{pt("{p0} sản phẩm", { p0: category.count })}</p>
-      </div>
-    </Link>
-  );
-}
-
 const SORTS = [
   { value: "traces", label: "Nhiều lô truy xuất" },
   { value: "newest", label: "Mới nhất" },
@@ -100,13 +81,30 @@ export function sortProducts(items: PublicProduct[], sort: Sort) {
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 
+/** Biểu tượng theo từ khóa trong tên danh mục (doanh nghiệp tự đặt tên); không khớp thì là chiếc lá. */
+const CATEGORY_ICONS: [RegExp, LucideIcon][] = [
+  [/trai cay|qua/, Apple],
+  [/che bien|dong goi|say|mut|nuoc/, CookingPot],
+  [/ngu coc|gao|dau|hat/, Wheat],
+  [/gia vi|thao moc/, Sprout],
+  [/rau|cu/, Carrot],
+  [/ca phe|che|tra/, Coffee],
+  [/thuy san|ca |tom|hai san/, Fish],
+  [/sua|trung/, Milk],
+];
+function CategoryIcon({ name }: { name: string }) {
+  const key = fold(name);
+  const Icon = CATEGORY_ICONS.find(([re]) => re.test(key))?.[1] ?? Leaf;
+  return <Icon className="size-4 shrink-0" aria-hidden />;
+}
+
 /** Một nhóm lọc ở cột trái: cuộn ngang trên điện thoại, danh sách dọc trên máy tính. */
-function FilterList({ title, items, active, onPick, allLabel, total }: { title: string; items: { key: string; label: string; count: number; icon?: React.ReactNode }[]; active: string; onPick: (key: string) => void; allLabel: string; total: number }) {
+function FilterList({ title, items, active, onPick, allLabel, allIcon, total }: { title: string; items: { key: string; label: string; count: number; icon?: React.ReactNode }[]; active: string; onPick: (key: string) => void; allLabel: string; allIcon: React.ReactNode; total: number }) {
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <h2 className="text-[13px] font-semibold tracking-wide text-ink-2 uppercase">{title}</h2>
       <ul className="flex gap-2 overflow-x-auto pb-1 lg:max-h-[340px] lg:flex-col lg:gap-0.5 lg:overflow-y-auto">
-        {[{ key: "", label: allLabel, count: total, icon: undefined as React.ReactNode }, ...items].map((c) => (
+        {[{ key: "", label: allLabel, count: total, icon: allIcon }, ...items].map((c) => (
           <li key={c.key || "all"} className="shrink-0">
             <button
               type="button"
@@ -115,7 +113,7 @@ function FilterList({ title, items, active, onPick, allLabel, total }: { title: 
               className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-[14px] whitespace-nowrap transition-colors lg:whitespace-normal", active === c.key ? "bg-brand text-white" : "bg-card text-ink hover:bg-brand-weak lg:bg-transparent")}
             >
               <span className="flex min-w-0 items-center gap-2">
-                {c.icon}
+                {c.icon && <span className={cn("inline-flex", active === c.key ? "text-white" : "text-brand")}>{c.icon}</span>}
                 <span>{c.label}</span>
               </span>
               <span className={cn("text-[12px]", active === c.key ? "text-white/80" : "text-ink-2")}>{c.count}</span>
@@ -170,8 +168,8 @@ export function ProductsPage() {
       <PageIntro eyebrow={pt("Sản phẩm")} title={[category, enterpriseName].filter(Boolean).join(" · ") || pt("Nông sản có truy xuất nguồn gốc")} description={pt("Sản phẩm do doanh nghiệp công bố trên AgriTrace. Mở từng sản phẩm để xem doanh nghiệp, vùng trồng và các lô có mã QR.")} />
       <Container className="grid grid-cols-[minmax(0,1fr)] gap-8 py-8 lg:grid-cols-[250px_minmax(0,1fr)]">
         <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
-          <FilterList title={pt("Danh mục")} allLabel={pt("Tất cả danh mục")} total={all.length} active={category} onPick={(v) => pick("category", v)} items={categories.map((c) => ({ key: c.name, label: c.name, count: c.count }))} />
-          <FilterList title={pt("Doanh nghiệp")} allLabel={pt("Tất cả doanh nghiệp")} total={all.length} active={enterprise} onPick={(v) => pick("enterprise", v)} items={enterprises.map((e) => ({ key: e.id, label: e.name, count: e.count, icon: <EnterpriseLogo name={e.name} logo={e.logo} className="size-6" /> }))} />
+          <FilterList title={pt("Danh mục")} allLabel={pt("Tất cả danh mục")} allIcon={<LayoutGrid className="size-4 shrink-0" aria-hidden />} total={all.length} active={category} onPick={(v) => pick("category", v)} items={categories.map((c) => ({ key: c.name, label: c.name, count: c.count, icon: <CategoryIcon name={c.name} /> }))} />
+          <FilterList title={pt("Doanh nghiệp")} allLabel={pt("Tất cả doanh nghiệp")} allIcon={<Building2 className="size-4 shrink-0" aria-hidden />} total={all.length} active={enterprise} onPick={(v) => pick("enterprise", v)} items={enterprises.map((e) => ({ key: e.id, label: e.name, count: e.count, icon: <EnterpriseLogo name={e.name} logo={e.logo} className="size-6" /> }))} />
           <div className="hidden flex-col gap-2 lg:flex">
             <label htmlFor="pub-province" className="text-[13px] font-semibold tracking-wide text-ink-2 uppercase">
               {pt("Tỉnh / thành")}

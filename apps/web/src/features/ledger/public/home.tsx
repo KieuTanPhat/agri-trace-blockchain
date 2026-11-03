@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { categoriesOf, enterpriseHref, enterprisesOf, usePublicNews, usePublicProducts } from "@/lib/ledger/public-directory";
+import { enterpriseHref, enterprisesOf, usePublicNews, usePublicProducts } from "@/lib/ledger/public-directory";
 import { customerHref } from "@/lib/site-origins";
 import { SITE_CONTACT } from "@/lib/site-contact";
 import { pt } from "@/lib/ledger/public-i18n";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ledger/ui/button";
 import { Container, CtaBand, PhotoCard, PhotoHero, Reveal, SectionHeading } from "./blocks";
 import { PHOTOS, PLATFORM_FEATURES, SOLUTIONS, TRACE_STEPS } from "./content";
 import { TraceSearch } from "./trace-search";
-import { CategoryTile, PRODUCT_GRID, ProductCard } from "./catalog";
+import { EnterpriseLogo, PRODUCT_GRID, ProductCard } from "./catalog";
 import { FeaturedNews } from "./news";
 
 function Hero() {
@@ -52,25 +52,28 @@ function RowHeading({ title, description, href, label }: { title: string; descri
   );
 }
 
-/** Danh mục và sản phẩm lấy trực tiếp từ danh bạ công khai; ẩn khi chưa có dữ liệu. */
+/** Doanh nghiệp và sản phẩm lấy trực tiếp từ danh bạ công khai; ẩn khi chưa có dữ liệu. */
 function Catalog() {
   const products = usePublicProducts();
   const all = useMemo(() => products.data ?? [], [products.data]);
-  const categories = useMemo(() => categoriesOf(all).slice(0, 6), [all]);
   const enterprises = useMemo(() => enterprisesOf(all).slice(0, 12), [all]);
   const top = useMemo(() => [...all].sort((a, b) => b.traceCount - a.traceCount).slice(0, 10), [all]);
   const latest = useMemo(() => [...all].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 5), [all]);
   if (!all.length) return null;
   return (
     <>
-      {categories.length > 0 && (
+      {enterprises.length > 0 && (
         <section className="pt-16">
           <Container className="flex flex-col gap-7">
-            <RowHeading title="Danh mục nổi bật" description="Nhóm nông sản có nhiều lô truy xuất nhất." href="/products" label="Tất cả danh mục" />
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              {categories.map((c, i) => (
-                <Reveal as="li" key={c.name} delay={i * 50}>
-                  <CategoryTile category={c} />
+            <RowHeading title="Doanh nghiệp nổi bật" description="Doanh nghiệp có nhiều sản phẩm truy xuất trên AgriTrace." href="/products" label="Xem tất cả sản phẩm" />
+            <ul className="-mx-1 flex gap-6 overflow-x-auto px-1 pb-2 sm:gap-8">
+              {enterprises.map((e, i) => (
+                <Reveal as="li" key={e.id} delay={i * 50} className="shrink-0">
+                  <Link href={customerHref(enterpriseHref(e.id))} className="group flex w-28 flex-col items-center gap-2.5 text-center">
+                    <EnterpriseLogo name={e.name} logo={e.logo} className="size-24 rounded-full bg-white p-2 text-[28px] shadow-sm transition-shadow group-hover:border-brand group-hover:shadow-md" />
+                    <span className="line-clamp-2 text-[13px] leading-snug font-medium group-hover:text-brand">{e.name}</span>
+                    <span className="text-[12px] text-ink-2">{pt("{p0} sản phẩm", { p0: e.count })}</span>
+                  </Link>
                 </Reveal>
               ))}
             </ul>
@@ -89,23 +92,6 @@ function Catalog() {
           </ul>
         </Container>
       </section>
-      {enterprises.length > 0 && (
-        <section className="pt-16">
-          <Container className="flex flex-col gap-7">
-            <RowHeading title="Theo doanh nghiệp" description="Xem sản phẩm của từng doanh nghiệp đang công bố trên AgriTrace." href="/products" label="Xem tất cả sản phẩm" />
-            <ul className="flex flex-wrap gap-2">
-              {enterprises.map((e) => (
-                <li key={e.id}>
-                  <Link href={customerHref(enterpriseHref(e.id))} className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-4 py-2 text-[14px] font-medium transition-colors hover:border-brand hover:text-brand">
-                    {e.name}
-                    <span className="text-[12px] text-ink-2">{e.count}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Container>
-        </section>
-      )}
       {all.length > 10 && (
         <section className="pt-16">
           <Container className="flex flex-col gap-7">
