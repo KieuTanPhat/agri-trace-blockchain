@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useLedgerQuery as useQuery } from "@/lib/ledger/data";
 import { Controller, useWatch, type Control } from "react-hook-form";
 import { z } from "zod";
@@ -74,20 +72,14 @@ const legalSchema = z
 const withdrawSchema = z.object({ reason });
 
 export default function ProfilePage() {
-  const router = useRouter();
   const { user } = useAuth();
   const { can } = useWorkspaceAccess();
   const q = useQuery({ queryKey: ["ws-profile"], queryFn: wapi.profile });
-  const d = q.data;
-  const registrationPending = d?.enrollment?.status === "PENDING_REVIEW";
-  useEffect(() => {
-    if (registrationPending) router.replace("/enterprise/onboarding");
-  }, [registrationPending, router]);
   const contact = useDialog();
   const legal = useDialog();
   const withdraw = useDialog<ProfileAmendment>();
   if (q.error) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
-  if (registrationPending) return <LoadingRows rows={4} />;
+  const d = q.data;
   const p = d?.profile;
   const pending = d?.amendments.find((a) => a.status === "PENDING");
   const owner = d?.enrollment?.ownerId === user?.id;
@@ -127,11 +119,7 @@ export default function ProfilePage() {
                 <Section title={tr("Hồ sơ đăng ký")}>
                   <dl className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)] gap-x-3 gap-y-1.5 px-4 py-3 text-[13px] sm:px-5">
                     <dt className="text-ink-2">{tr("Trạng thái")}</dt>
-                    <dd>
-                      {d.enrollment?.status === "PENDING_REVIEW"
-                        ? tr("CHỜ XÉT DUYỆT")
-                        : (d.enrollment?.status ?? "—")}
-                    </dd>
+                    <dd>{d.enrollment?.status ?? "—"}</dd>
                     <dt className="text-ink-2">{tr("Mã số thuế")}</dt>
                     <dd className="font-mono">{d.enrollment?.businessId ?? "—"}</dd>
                     <dt className="text-ink-2">{tr("Người đứng tên")}</dt>

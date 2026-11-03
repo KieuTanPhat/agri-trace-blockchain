@@ -75,30 +75,30 @@ export const WORKSPACE_NAV: LedgerNavGroup[] = [
         items: [
             { href: "/enterprise", get label() { return tr("Tổng quan"); } },
             { href: "/enterprise/profile", get label() { return tr("Hồ sơ doanh nghiệp"); } },
-            { href: "/enterprise/members", get label() { return tr("Quản lý thành viên"); } },
-            { href: "/enterprise/roles", get label() { return tr("Quản lý nhóm quyền"); } },
+            { href: "/enterprise/members", get label() { return tr("Thành viên"); } },
+            { href: "/enterprise/roles", get label() { return tr("Nhóm quyền"); } },
         ]
     },
     {
         get label() { return tr("Tài nguyên"); },
         items: [
-            { href: "/enterprise/sites", get label() { return tr("Quản lý cơ sở"); } },
+            { href: "/enterprise/sites", get label() { return tr("Cơ sở"); } },
             { href: "/enterprise/vehicles", get label() { return tr("Phương tiện"); } },
-            { href: "/enterprise/areas", get label() { return tr("Quản lý vùng sản xuất"); } },
-            { href: "/enterprise/products", get label() { return tr("Quản lý sản phẩm"); } },
-            { href: "/enterprise/materials", get label() { return tr("Quản lý giống & vật tư"); } },
-            { href: "/supply-chains", get label() { return tr("Quản lý chuỗi cung ứng"); } },
-            { href: "/enterprise/partners", get label() { return tr("Quản lý đối tác"); } },
+            { href: "/enterprise/areas", get label() { return tr("Vùng sản xuất"); } },
+            { href: "/enterprise/products", get label() { return tr("Sản phẩm"); } },
+            { href: "/enterprise/materials", get label() { return tr("Giống & vật tư"); } },
+            { href: "/supply-chains", get label() { return tr("Chuỗi cung ứng"); } },
+            { href: "/enterprise/partners", get label() { return tr("Đối tác"); } },
         ]
     },
     {
         get label() { return tr("Tác nghiệp"); },
         items: [
-            { href: "/production-cycles", get label() { return tr("Quản lý vụ sản xuất"); } },
-            { href: "/lots", get label() { return tr("Quản lý lô hàng"); } },
-            { href: "/distribution", get label() { return tr("Quản lý giao nhận"); } },
-            { href: "/enterprise/inventory", get label() { return tr("Quản lý tồn kho"); } },
-            { href: "/enterprise/qr", get label() { return tr("Quản lý kho QR"); } },
+            { href: "/production-cycles", get label() { return tr("Vụ sản xuất"); } },
+            { href: "/lots", get label() { return tr("Lô hàng"); } },
+            { href: "/distribution", get label() { return tr("Giao nhận"); } },
+            { href: "/enterprise/inventory", get label() { return tr("Tồn kho"); } },
+            { href: "/enterprise/qr", get label() { return tr("Kho QR"); } },
             { href: "/enterprise/processing", get label() { return tr("Chế biến"); } },
         ]
     },

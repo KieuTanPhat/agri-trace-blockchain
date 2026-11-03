@@ -5,7 +5,6 @@ import { ledgerRequest } from "@/lib/ledger/request";
 import { sanitizeLedgerRegistrationDraft } from "@/lib/ledger/registration";
 import { useRegistrationEmail } from "@/lib/use-registration-email";
 import { t } from "@/lib/ledger/i18n";
-import type { components } from "@/lib/generated/api";
 import type { LedgerScreenProps } from "@/lib/ledger/route-input";
 import {
   REGISTRATION_STEPS,
@@ -185,9 +184,9 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
       error={
         errors[key] ||
         (key === "email"
-          ? t(loginEmail.error)
+          ? loginEmail.error
           : key === "contactEmail"
-            ? t(contactEmail.error)
+            ? contactEmail.error
             : undefined)
       }
       onChange={(value) => update(key, value)}
@@ -243,50 +242,21 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
         nextErrors,
         validateRegistrationStep(draft, i, addresses, files),
       );
-    const availabilityChecks: Promise<void>[] = [];
-    if (last >= 0 && draft.businessId.trim() && !nextErrors.businessId)
-      availabilityChecks.push(
-        ledgerRequest<
-          components["schemas"]["RegistrationBusinessIdAvailabilityViewDto"]
-        >(
-          "/auth/registration-business-id-availability",
-          {
-            method: "POST",
-            body: JSON.stringify({ businessId: draft.businessId.trim() }),
-            signal: AbortSignal.timeout(10_000),
-          },
-          false,
-        )
-          .then((result) => {
-            if (!result.available)
-              nextErrors.businessId = t(
-                "Mã số thuế đã được đăng ký. Vui lòng kiểm tra lại hoặc liên hệ hỗ trợ.",
-              );
-          })
-          .catch(() => {
-            nextErrors.businessId = t(
-              "Chưa kiểm tra được mã số thuế. Vui lòng thử lại.",
-            );
-          }),
-      );
-    if (last >= 1 && !nextErrors.email && !nextErrors.contactEmail)
-      availabilityChecks.push(
-        Promise.all([loginEmail.check(), contactEmail.check()]).then(
-          ([login, contact]) => {
-            if (!login.available)
-              nextErrors.email =
-                t(login.error || "Chưa xác minh được email đăng nhập");
-            if (!contact.available)
-              nextErrors.contactEmail =
-                t(contact.error || "Chưa xác minh được email liên hệ");
-          },
-        ),
-      );
-    await Promise.all(availabilityChecks);
+    if (last >= 1 && !nextErrors.email && !nextErrors.contactEmail) {
+      const [loginOk, contactOk] = await Promise.all([
+        loginEmail.check(),
+        contactEmail.check(),
+      ]);
+      if (!loginOk)
+        nextErrors.email =
+          loginEmail.error || t("Chưa xác minh được email đăng nhập");
+      if (!contactOk)
+        nextErrors.contactEmail =
+          contactEmail.error || t("Chưa xác minh được email liên hệ");
+    }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
-      if (nextErrors.businessId) setStep(0);
-      else if (nextErrors.email || nextErrors.contactEmail) setStep(1);
+      if (nextErrors.email || nextErrors.contactEmail) setStep(1);
       for (let i = 0; i <= last; i++)
         if (
           Object.keys(

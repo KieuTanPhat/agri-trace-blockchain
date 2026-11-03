@@ -37,7 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "../ui/sheet";
-import { ErrorState, PageHeaderModeProvider } from "../kit/page";
+import { ErrorState } from "../kit/page";
 import { SidebarNav } from "./sidebar";
 import { CommandPalette } from "./command-palette";
 
@@ -416,12 +416,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
         </header>
         <main className="flex min-w-0 flex-1 flex-col">
           <LedgerRecoveryPanel />
-          <PageHeaderModeProvider
-            compact={enterprise}
-            onQuickSearch={() => setPalette(true)}
-          >
-            {children}
-          </PageHeaderModeProvider>
+          {children}
         </main>
       </div>
       <CommandPalette
