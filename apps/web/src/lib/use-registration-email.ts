@@ -28,7 +28,8 @@ export function useRegistrationEmail(
     };
   }, []);
   const check = useCallback(async (candidate: string) => {
-    if (!isRegistrationEmailValid(candidate)) return false;
+    if (!isRegistrationEmailValid(candidate))
+      return { available: false, error: "Nhập email hợp lệ." };
     if (current.current === candidate && alive.current)
       setState({ email: candidate, checking: true, error: "" });
     const promise =
@@ -48,26 +49,33 @@ export function useRegistrationEmail(
     flight.current = { email: candidate, promise };
     try {
       const result = await promise;
-      if (current.current === candidate && alive.current)
+      const isCurrent = current.current === candidate;
+      const error = result.available ? "" : takenMessage;
+      if (isCurrent && alive.current)
         setState({
           email: candidate,
           checking: false,
-          error: result.available
-            ? ""
-            : takenMessage,
+          error,
         });
-      return current.current === candidate && result.available;
+      return {
+        available: isCurrent && result.available,
+        error: isCurrent
+          ? error
+          : "Email thay đổi trong lúc kiểm tra. Vui lòng thử lại.",
+      };
     } catch (cause) {
-      if (current.current === candidate && alive.current)
+      const isCurrent = current.current === candidate;
+      const error =
+        (cause as { status?: number }).status === 429
+          ? "Bạn kiểm tra email quá nhiều lần. Vui lòng thử lại sau."
+          : "Chưa kiểm tra được email. Vui lòng thử lại.";
+      if (isCurrent && alive.current)
         setState({
           email: candidate,
           checking: false,
-          error:
-            (cause as { status?: number }).status === 429
-              ? "Bạn kiểm tra email quá nhiều lần. Vui lòng thử lại sau."
-              : "Chưa kiểm tra được email. Vui lòng thử lại.",
+          error,
         });
-      return false;
+      return { available: false, error };
     } finally {
       if (flight.current?.promise === promise) flight.current = null;
     }

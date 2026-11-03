@@ -273,11 +273,18 @@ function ChainSheet({ id, onClose, names,view }: { id: string | null; onClose: (
                 <div className="flex items-center justify-between">
                   <h3 className="text-[13px] font-semibold">{manager ? tr("Thành viên") : tr("Tư cách thành viên của bạn")}</h3>
                   <span className="flex gap-1">
-                    {manager && <Button size="xs" variant="outline" onClick={() => invite.open(true)} disabled={!invitable.length || c.personal}><Plus /> {tr("Mời thành viên")}</Button>}
+                    {manager && !c.personal && <Button size="xs" variant="outline" onClick={() => invite.open(true)} disabled={!invitable.length}><Plus /> {tr("Mời thành viên")}</Button>}
                     {manager && !c.personal && <Button size="xs" variant="outline" onClick={() => inviteLink.open(true)}>{tr("Mời qua email")}</Button>}
                   </span>
                 </div>
-                {manager && !invitable.length && (
+                {c.personal && (
+                  <Callout tone="info">
+                    {tr("Đây là sổ ghi nông trại miễn phí: không mời đối tác. Đối tác tự vào sổ khi nhận phiếu giao lô từ bạn. Muốn mời đối tác (kể cả qua email), hãy là chủ chuỗi và tạo chuỗi riêng.")}{" "}
+                    <Link href="/supply-chains/new" className="text-brand underline">{tr("Tạo chuỗi")}</Link>{" · "}
+                    <Link href="/enterprise/service" className="text-brand underline">{tr("Nâng cấp chủ chuỗi")}</Link>
+                  </Callout>
+                )}
+                {manager && !c.personal && !invitable.length && (
                   <p className="text-[12.5px] text-ink-2">
                     {tr("Chỉ mời được doanh nghiệp đã là đối tác đang hoạt động và chưa ở trong chuỗi.")}{" "}
                     <Link href="/enterprise/partners" className="text-brand underline">{tr("Kết nối đối tác")}</Link>

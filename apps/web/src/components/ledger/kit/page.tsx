@@ -1,13 +1,36 @@
 "use client";
 
+import { createContext, useContext } from "react";
 import Link from "next/link";
-import { AlertTriangle, Inbox, Lock, RefreshCw } from "lucide-react";
+import { AlertTriangle, Inbox, Lock, RefreshCw, Search } from "lucide-react";
 import { getLedgerError } from "@/lib/ledger/errors";
 import { Button } from "@/components/ledger/ui/button";
 import { Skeleton } from "@/components/ledger/ui/skeleton";
 import { cn } from "@/lib/ledger/utils";
 
 import { t as tr } from "@/lib/ledger/i18n";
+
+const PageHeaderModeContext = createContext<{
+  compact: boolean;
+  onQuickSearch: () => void;
+}>({ compact: false, onQuickSearch: () => {} });
+
+export function PageHeaderModeProvider({
+  compact,
+  onQuickSearch,
+  children,
+}: {
+  compact: boolean;
+  onQuickSearch: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <PageHeaderModeContext.Provider value={{ compact, onQuickSearch }}>
+      {children}
+    </PageHeaderModeContext.Provider>
+  );
+}
+
 export function PageHeader({
   title,
   description,
@@ -21,6 +44,24 @@ export function PageHeader({
   crumbs?: { href?: string; label: string }[];
   meta?: React.ReactNode;
 }) {
+  const { compact, onQuickSearch } = useContext(PageHeaderModeContext);
+  if (compact)
+    return (
+      <div className="flex flex-wrap items-center gap-3 px-4 pt-2 sm:px-7">
+        <button
+          type="button"
+          onClick={onQuickSearch}
+          className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-canvas px-2.5 text-left text-[13px] text-ink-2 hover:border-line-strong sm:max-w-[420px]"
+        >
+          <Search className="size-3.5 shrink-0" />
+          <span className="truncate">{tr("Tìm trang, tổ chức, mã lô…")}</span>
+          <kbd className="ml-auto hidden rounded border border-line bg-card px-1.5 font-mono text-[10.5px] sm:inline">
+            Ctrl K
+          </kbd>
+        </button>
+        {actions && <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>}
+      </div>
+    );
   return (
     <header className="flex flex-col gap-3 border-b border-line bg-card px-4 py-4 sm:px-7">
       {crumbs && (

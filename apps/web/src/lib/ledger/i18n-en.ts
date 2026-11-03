@@ -410,6 +410,7 @@ export const EN: Record<string, string> = {
   "Chờ xác nhận": "Awaiting confirmation",
   "Chờ xét": "Pending review",
   "Chờ xét duyệt": "Pending review",
+  "CHỜ XÉT DUYỆT": "PENDING REVIEW",
   "Chủ chuỗi": "Chain owner",
   "Chủ đề": "Topic",
   "Chủ đề hỗ trợ": "Support topics",
@@ -1265,6 +1266,18 @@ export const EN: Record<string, string> = {
   "Mã số 12 chữ số chỉ dành cho hộ kinh doanh":
     "12-digit IDs are only for household businesses",
   "Mã số thuế": "Tax ID",
+  "Mã số thuế đã được đăng ký. Vui lòng kiểm tra lại hoặc liên hệ hỗ trợ.":
+    "This tax identifier is already registered. Check it or contact support.",
+  "Chưa kiểm tra được mã số thuế. Vui lòng thử lại.":
+    "Could not check this tax identifier. Please try again.",
+  "Email đã được đăng ký. Vui lòng dùng email khác hoặc đăng nhập.":
+    "This email is already registered. Use another email or sign in.",
+  "Email thay đổi trong lúc kiểm tra. Vui lòng thử lại.":
+    "The email changed while it was being checked. Please try again.",
+  "Chưa kiểm tra được email. Vui lòng thử lại.":
+    "Could not check the email. Please try again.",
+  "Bạn kiểm tra email quá nhiều lần. Vui lòng thử lại sau.":
+    "Too many email checks. Please try again later.",
   "Mã số thuế / mã pháp lý": "Tax ID / legal ID",
   "Ma trận nhóm quyền": "Role matrix",
   "Mã trùng trong cùng danh mục trả 409.":
@@ -1539,13 +1552,21 @@ export const EN: Record<string, string> = {
   "Quản lý cơ sở": "Manage sites",
   "Quản lý danh mục": "Manage catalog",
   "Quản lý đối tác": "Manage partners",
+  "Quản lý giao nhận": "Manage distribution",
+  "Quản lý kho QR": "Manage QR inventory",
+  "Quản lý lô hàng": "Manage lots",
   "Quản lý giống/vật tư": "Manage seeds/materials",
+  "Quản lý giống & vật tư": "Manage seeds and materials",
   "Quản lý nhóm quyền": "Manage roles",
   "Quản lý phương tiện": "Manage vehicles",
+  "Quản lý sản phẩm": "Manage products",
   "Quản lý thành viên": "Manage members",
+  "Quản lý chuỗi cung ứng": "Manage supply chains",
   "Quản lý thành viên thuộc không gian doanh nghiệp; nền tảng chỉ xem.":
     "Members are managed in the enterprise workspace; the platform only views them.",
   "Quản lý tồn kho": "Manage inventory",
+  "Quản lý vùng sản xuất": "Manage production areas",
+  "Quản lý vụ sản xuất": "Manage production cycles",
   "Quản trị hệ thống": "System admin",
   "Quản trị nền tảng": "Platform admin",
   "Quản trị viên chưa bật MFA": "Admins without MFA",
