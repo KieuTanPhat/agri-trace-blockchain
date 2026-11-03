@@ -5,7 +5,7 @@ import {EvidencePanel} from "@/components/ledger/workspace/evidence-panel";
 import {Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription} from "@/components/ledger/ui/sheet";
 import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription} from "@/components/ledger/ui/dialog";
 import { useState } from "react";
-import {useLedgerQuery as useQuery} from "@/lib/ledger/data";
+import {useLedgerInfiniteQuery as useInfiniteQuery, useLedgerQuery as useQuery} from "@/lib/ledger/data";
 import { z } from "zod";
 import { Building2, Plus, Search, UserPlus } from "lucide-react";
 import { wapi } from "@/lib/ledger/enterprise-coordination-api";
@@ -20,7 +20,7 @@ import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { useDebounced } from "@/components/ledger/kit/filters";
 import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
-import { EmptyState, PageBody, PageHeader } from "@/components/ledger/kit/page";
+import { EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 
@@ -55,9 +55,32 @@ export default function PartnersPage({view="list",partnerId,externalMode=false}:
   const external = useQuery({ queryKey: ["ws-external"], queryFn: wapi.externalPartners, enabled: can("partners.read") });
   const [text, setText] = useState("");
   const q = useDebounced(text.trim());
-  const search = useQuery({ queryKey: ["ws-partner-search", q], queryFn: () => wapi.searchPartners(q), enabled: manage && q.length >= 2 });
+  const search = useQuery({ queryKey: ["ws-partner-search", q], queryFn: () => wapi.searchPartners(q), enabled: manage && adding && q.length >= 2 });
+  const directory = useInfiniteQuery({
+    queryKey: ["ws-partner-directory"],
+    queryFn: ({ pageParam }) => wapi.partnerDirectory(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: manage && adding && q.length < 2,
+  });
   // Search also returns our own external entries; those are already in the table and have no AgriTrace profile.
   const found = search.data?.filter((s) => s.registered);
+  const directoryItems = directory.data?.pages.flatMap((page) => page.items);
+  const searching = q.length >= 2;
+  const candidates: PartnerSearchItem[] = searching
+    ? found ?? []
+    : (directoryItems ?? []).map((item) => ({
+        id: item.id,
+        businessId: item.agriTraceCode,
+        taxCode: null,
+        agriTraceCode: item.agriTraceCode,
+        name: item.name,
+        kind: item.kind,
+        registered: true,
+        matched: "CODE",
+      }));
+  const candidateError = searching ? search.error : directory.error;
+  const candidateLoading = searching ? search.isLoading : directory.isLoading;
   const invite = useDialog<PartnerSearchItem>();
   const resolve = useDialog<{ p: Partner; decision: "ACCEPT" | "REJECT" | "REVOKE" }>();
   const addExternal = useDialog();
@@ -124,48 +147,68 @@ export default function PartnersPage({view="list",partnerId,externalMode=false}:
         </div>
       </PageBody>
       <Dialog open={manage && adding} onOpenChange={(o) => { setAdding(o); if (!o) { setText(""); if (view === "new") router.push("/enterprise/partners"); } }}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{tr("Thêm đối tác")}</DialogTitle>
-            <DialogDescription>{tr("Doanh nghiệp đã dùng AgriTrace thì gửi lời mời liên kết; chưa dùng thì lưu vào danh bạ riêng.")}</DialogDescription>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader className="pr-8">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <DialogTitle>{tr("Thêm đối tác")}</DialogTitle>
+                <DialogDescription className="mt-1">{tr("Doanh nghiệp đã dùng AgriTrace thì gửi lời mời liên kết; chưa dùng thì lưu vào danh bạ riêng.")}</DialogDescription>
+              </div>
+              <Button size="xs" variant="outline" className="shrink-0" title={tr("Khai báo đối tác chưa dùng AgriTrace")} onClick={() => { setAdding(false); addExternal.open(true); }}>
+                <UserPlus className="size-3.5" aria-hidden /> {tr("Ngoài AgriTrace")}
+              </Button>
+            </div>
           </DialogHeader>
-          <div className="flex flex-col gap-3">
+          <div className="flex min-h-0 flex-col gap-3">
             <div className="rounded-md border border-line p-3">
               <p className="flex items-center gap-2 text-[13px] font-medium"><Building2 className="size-4" aria-hidden /> {tr("Trong AgriTrace")}</p>
-              <p className="mt-0.5 text-[12px] text-ink-2">{tr("Chỉ doanh nghiệp đã kích hoạt và có gói còn hiệu lực mới tìm thấy")}</p>
+              <p className="mt-0.5 text-[12px] text-ink-2">{tr("Chỉ doanh nghiệp đã được duyệt hồ sơ trên AgriTrace mới được mời liên kết.")}</p>
               <div className="relative mt-2">
                 <Search className="absolute top-2.5 left-2.5 size-4 text-ink-2" aria-hidden />
                 <Input aria-label={tr("Tìm theo tên, mã AgriTrace hoặc MST")} placeholder={tr("Tên, mã AGT-… hoặc mã số thuế")} value={text} onChange={(e) => setText(e.target.value)} className="bg-card pl-8" />
               </div>
-              {q.length >= 2 && (
-                <ul className="mt-2 max-h-64 divide-y divide-line/70 overflow-y-auto rounded-md border border-line">
-                  {search.isLoading ? (
-                    <li className="px-3 py-2 text-[13px] text-ink-2">{tr("Đang tìm…")}</li>
-                  ) : !found?.length ? (
-                    <li className="px-3 py-2 text-[13px] text-ink-2">{tr("Không tìm thấy doanh nghiệp phù hợp.")}</li>
-                  ) : (
-                    found.map((s) => (
-                      <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2 text-[13px]">
-                        <span className="min-w-0">
-                          <span className="font-medium">{s.name}</span> <span className="text-[12px] text-ink-2">· {CAPABILITY_LABEL[s.kind] ?? s.kind} · MST {s.taxCode}</span>
-                        </span>
+              {candidateError && !candidates.length ? (
+                <ErrorState error={candidateError} compact onRetry={() => { void (searching ? search.refetch() : directory.refetch()); }} />
+              ) : candidateLoading && !candidates.length ? (
+                <LoadingRows rows={3} className="mt-2" />
+              ) : !candidates.length ? (
+                <EmptyState title={tr(searching ? "Không tìm thấy doanh nghiệp phù hợp." : "Chưa có doanh nghiệp phù hợp để mời.")} />
+              ) : (
+                <ul className="mt-2 flex max-h-[55vh] flex-col gap-2 overflow-y-auto pr-1">
+                  {candidates.map((s) => (
+                    <li key={s.id} className="flex flex-col gap-2 rounded-md border border-line bg-card p-3 text-[13px]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{s.name}</p>
+                          <p className="mt-0.5 text-[12px] text-ink-2">{CAPABILITY_LABEL[s.kind] ?? s.kind}</p>
+                        </div>
+                        <Badge tone="info">AgriTrace</Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line/70 pt-2">
+                        <span className="font-mono text-[11px] text-ink-2">{s.taxCode ? `MST ${s.taxCode}` : s.agriTraceCode}</span>
                         <span className="flex shrink-0 gap-1">
                           <Button size="xs" variant="ghost" onClick={() => setProfileOf(s.id)}>{tr("Hồ sơ")}</Button>
                           <Button size="xs" variant="outline" onClick={() => { setAdding(false); invite.open(s); }}>{tr("Mời liên kết")}</Button>
                         </span>
-                      </li>
-                    ))
+                      </div>
+                    </li>
+                  ))}
+                  {!searching && directory.hasNextPage && (
+                    <li className="flex justify-center py-1">
+                      <Button size="xs" variant="outline" onClick={() => void directory.fetchNextPage()} disabled={directory.isFetchingNextPage}>
+                        {directory.isFetchingNextPage ? tr("Đang tải…") : tr("Tải thêm")}
+                      </Button>
+                    </li>
                   )}
                 </ul>
               )}
+              {candidateError && !!candidates.length && (
+                <div className="mt-2 flex items-center justify-between gap-2 text-[12px] text-danger" role="alert">
+                  <span>{tr("Không tải thêm được doanh nghiệp.")}</span>
+                  <Button size="xs" variant="outline" onClick={() => { void (searching ? search.refetch() : directory.refetch()); }}>{tr("Thử lại")}</Button>
+                </div>
+              )}
             </div>
-            <button type="button" onClick={() => { setAdding(false); addExternal.open(true); }} className="flex items-start gap-2 rounded-md border border-line p-3 text-left hover:bg-row-alt">
-              <UserPlus className="mt-0.5 size-4 shrink-0" aria-hidden />
-              <span>
-                <span className="block text-[13px] font-medium">{tr("Ngoài AgriTrace")}</span>
-                <span className="block text-[12px] text-ink-2">{tr("Khai báo đối tác chưa dùng hệ thống (tên, MST, liên hệ). Muốn họ vào chuỗi thì mời qua email trong trang chuỗi.")}</span>
-              </span>
-            </button>
           </div>
         </DialogContent>
       </Dialog>

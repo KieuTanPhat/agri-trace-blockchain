@@ -27,6 +27,7 @@ import {
   EnterpriseRoleInput,
   EnterpriseSiteInput,
   EnterpriseVehicleInput,
+  PartnerDirectoryQueryDto,
   ResourceStatusInput,
   WorkspaceRecordDto,
 } from './dto.js';
@@ -35,6 +36,7 @@ import {
   EnterprisePartnerListDto,
   ExternalPartnerListDto,
   PartnerSearchListDto,
+  PartnerDirectoryPageDto,
   PartnerDirectoryProfileDto,
   EnterpriseRoleListDto,
   EnterpriseRoleTemplateListDto,
@@ -94,6 +96,12 @@ export class EnterpriseWorkspaceController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.service.partners(req.user);
+  }
+  @Get('partners/directory') @ApiDataResponse(PartnerDirectoryPageDto) partnerDirectory(
+    @Req() req: AuthenticatedRequest,
+    @Query() query: PartnerDirectoryQueryDto,
+  ) {
+    return this.service.partnerDirectory(req.user, query.cursor);
   }
   @Get('partners/search') @ApiDataResponse(PartnerSearchListDto) searchPartners(
     @Req() req: AuthenticatedRequest, @Query('q') query = '',

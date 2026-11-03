@@ -21,6 +21,13 @@ import {
 } from 'class-validator';
 import { ENTERPRISE_PERMISSIONS } from './enterprise-policy.js';
 
+export class PartnerDirectoryQueryDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  cursor?: string;
+}
+
 export class EnterpriseRoleInput {
   @ApiProperty({ maxLength: 100 })
   @IsString()

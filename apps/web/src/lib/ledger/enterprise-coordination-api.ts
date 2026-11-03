@@ -10,6 +10,7 @@ const post=<T=unknown,>(path:string,body:unknown,cmd:LedgerCommandContext)=>ledg
 export const wapi={...workspace,
  partners:()=>items<Partner>("/enterprise-workspace/partners"),externalPartners:()=>items<ExternalPartner>("/enterprise-workspace/partners/external"),
  searchPartners:(q:string)=>items<PartnerSearchItem>("/enterprise-workspace/partners/search?q="+encodeURIComponent(q)),
+ partnerDirectory:(cursor?:string)=>ledgerRequest<S["PartnerDirectoryPageDto"]>("/enterprise-workspace/partners/directory"+(cursor?"?cursor="+encodeURIComponent(cursor):"")),
  partnerProfile:(id:string)=>ledgerRequest<S["PartnerDirectoryProfileDto"]>("/enterprise-workspace/partners/directory/"+encodeURIComponent(id)),
  invitePartner:(input:S["EnterprisePartnerInput"],cmd:LedgerCommandContext)=>post("/enterprise-workspace/partners",input,cmd),
  resolvePartner:(id:string,input:S["EnterprisePartnerDecision"],cmd:LedgerCommandContext)=>post("/enterprise-workspace/partners/"+encodeURIComponent(id),input,cmd),

@@ -10405,6 +10405,51 @@
         ],
         "type": "object"
       },
+      "PartnerDirectoryItemDto": {
+        "properties": {
+          "agriTraceCode": {
+            "description": "AGT organization code",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "agriTraceCode"
+        ],
+        "type": "object"
+      },
+      "PartnerDirectoryPageDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PartnerDirectoryItemDto"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
       "PartnerDirectoryProfileDto": {
         "properties": {
           "activities": {
@@ -15502,6 +15547,31 @@
           "label",
           "publicKey",
           "popSignature"
+        ],
+        "type": "object"
+      },
+      "RegistrationBusinessIdAvailabilityDto": {
+        "properties": {
+          "businessId": {
+            "description": "Advisory availability only; final registration checks uniqueness atomically.",
+            "pattern": "^[0-9]{10}(?:-?[0-9]{3})?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "businessId"
+        ],
+        "type": "object"
+      },
+      "RegistrationBusinessIdAvailabilityViewDto": {
+        "properties": {
+          "available": {
+            "description": "Advisory availability only. Final registration still enforces unique business identifiers atomically.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "available"
         ],
         "type": "object"
       },
@@ -22687,6 +22757,161 @@
                   "properties": {
                     "data": {
                       "$ref": "#/components/schemas/EnterpriseRegistrationReceiptDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/registration-business-id-availability": {
+      "post": {
+        "operationId": "AuthController_registrationBusinessIdAvailability",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationBusinessIdAvailabilityDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RegistrationBusinessIdAvailabilityViewDto"
                     },
                     "requestId": {
                       "type": "string"
@@ -41419,6 +41644,166 @@
                   "properties": {
                     "data": {
                       "$ref": "#/components/schemas/WorkspaceRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "enterprise-workspace"
+        ]
+      }
+    },
+    "/api/enterprise-workspace/partners/directory": {
+      "get": {
+        "operationId": "EnterpriseWorkspaceController_partnerDirectory",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PartnerDirectoryPageDto"
                     },
                     "requestId": {
                       "type": "string"

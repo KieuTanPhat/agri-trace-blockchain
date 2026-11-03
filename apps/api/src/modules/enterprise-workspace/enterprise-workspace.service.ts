@@ -705,6 +705,36 @@ export class EnterpriseWorkspaceService {
       ...external.map((row) => ({ id: row.id, businessId: row.businessId, taxCode: row.taxCode ?? row.businessId, agriTraceCode: null, name: row.name, kind: row.kind, registered: false, matched: matched(row.taxCode ?? row.businessId, row.name, null) })),
     ] };
   }
+  async partnerDirectory(actor: CommandActor, cursor?: string) {
+    await enterpriseAuthority(this.db, actor, 'partners.read');
+    const pageSize = 50;
+    const rows = await this.db.enterpriseEnrollment.findMany({
+      where: {
+        status: 'APPROVED',
+        organizationId: {
+          not: actor.organizationId!,
+          ...(cursor ? { gt: cursor } : {}),
+        },
+      },
+      select: {
+        organizationId: true,
+        organization: { select: { name: true, type: true } },
+      },
+      orderBy: { organizationId: 'asc' },
+      take: pageSize + 1,
+    });
+    const hasMore = rows.length > pageSize;
+    const page = rows.slice(0, pageSize);
+    return {
+      items: page.map((row) => ({
+        id: row.organizationId,
+        name: row.organization.name,
+        kind: row.organization.type,
+        agriTraceCode: organizationCode(row.organizationId),
+      })),
+      nextCursor: hasMore ? page.at(-1)!.organizationId : null,
+    };
+  }
   /** Business profile of another approved enterprise, for deciding whether
    * to invite it. Only approved enterprises are listed; no member data. */
   async partnerProfile(actor: CommandActor, organizationId: string) {

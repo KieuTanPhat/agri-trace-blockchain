@@ -219,6 +219,18 @@ export class PartnerSearchListDto {
   @ApiProperty({ type: [PartnerSearchItemDto] }) items!: PartnerSearchItemDto[];
 }
 
+export class PartnerDirectoryItemDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() kind!: string;
+  @ApiProperty({ description: 'AGT organization code' }) agriTraceCode!: string;
+}
+export class PartnerDirectoryPageDto {
+  @ApiProperty({ type: [PartnerDirectoryItemDto] }) items!: PartnerDirectoryItemDto[];
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  nextCursor!: string | null;
+}
+
 export class EnterpriseSiteRecordDto {
   @ApiProperty({ type: String, nullable: true }) region!: string | null;
   @ApiProperty({ type: String, nullable: true }) ward!: string | null;
