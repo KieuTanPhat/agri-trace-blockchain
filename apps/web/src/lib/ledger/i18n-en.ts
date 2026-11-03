@@ -2103,4 +2103,12 @@ export const EN: Record<string, string> = {
   "Được mời liên kết": "We were invited to link",
   "Doanh nghiệp đã dùng AgriTrace thì gửi lời mời liên kết; chưa dùng thì lưu vào danh bạ riêng.": "Send a link invitation to an enterprise already on AgriTrace; save others to your private address book.",
   "Khai báo đối tác chưa dùng hệ thống (tên, MST, liên hệ). Muốn họ vào chuỗi thì mời qua email trong trang chuỗi.": "Record a partner not yet on the platform (name, tax code, contact). To bring them into a chain, invite them by email from the chain page.",
+  "Quản lý giao nhận": "Manage distribution",
+  "Quản lý kho QR": "Manage QR inventory",
+  "Quản lý lô hàng": "Manage lots",
+  "Quản lý giống & vật tư": "Manage seeds and materials",
+  "Quản lý sản phẩm": "Manage products",
+  "Quản lý chuỗi cung ứng": "Manage supply chains",
+  "Quản lý vùng sản xuất": "Manage production areas",
+  "Quản lý vụ sản xuất": "Manage production cycles",
 };
