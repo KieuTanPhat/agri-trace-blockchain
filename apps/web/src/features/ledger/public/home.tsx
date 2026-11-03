@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { categoriesOf, usePublicNews, usePublicProducts } from "@/lib/ledger/public-directory";
+import { categoriesOf, enterpriseHref, enterprisesOf, usePublicNews, usePublicProducts } from "@/lib/ledger/public-directory";
 import { customerHref } from "@/lib/site-origins";
 import { SITE_CONTACT } from "@/lib/site-contact";
 import { pt } from "@/lib/ledger/public-i18n";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ledger/ui/button";
 import { Container, CtaBand, PhotoCard, PhotoHero, Reveal, SectionHeading } from "./blocks";
 import { PHOTOS, PLATFORM_FEATURES, SOLUTIONS, TRACE_STEPS } from "./content";
 import { TraceSearch } from "./trace-search";
-import { CategoryTile, ProductCard } from "./catalog";
+import { CategoryTile, PRODUCT_GRID, ProductCard } from "./catalog";
 import { FeaturedNews } from "./news";
 
 function Hero() {
@@ -20,8 +20,8 @@ function Hero() {
       tall
       image={PHOTOS.heroRiceTerraces}
       eyebrow={pt("Truy xuất nguồn gốc nông sản trên blockchain")}
-      title={pt("Hành trình nông sản, thông tin có thể đối chiếu.")}
-      description={pt("Từ sản xuất, thu hoạch đến chế biến và giao nhận. Quét mã để xem nguồn gốc, nhật ký và bằng chứng được công khai của từng lô.")}
+      title={pt("Hành trình nông sản, minh bạch từ vườn tới tay bạn.")}
+      description={pt("Từ trồng trọt, thu hoạch đến chế biến và giao hàng. Quét mã để xem nguồn gốc, nhật ký và giấy tờ của từng lô.")}
     >
       <TraceSearch className="mt-2 max-w-xl" onDark />
       <p className="text-[14px] text-white/80">
@@ -56,9 +56,10 @@ function RowHeading({ title, description, href, label }: { title: string; descri
 function Catalog() {
   const products = usePublicProducts();
   const all = useMemo(() => products.data ?? [], [products.data]);
-  const categories = useMemo(() => categoriesOf(all).slice(0, 8), [all]);
-  const top = useMemo(() => [...all].sort((a, b) => b.traceCount - a.traceCount).slice(0, 8), [all]);
-  const latest = useMemo(() => [...all].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 4), [all]);
+  const categories = useMemo(() => categoriesOf(all).slice(0, 6), [all]);
+  const enterprises = useMemo(() => enterprisesOf(all).slice(0, 12), [all]);
+  const top = useMemo(() => [...all].sort((a, b) => b.traceCount - a.traceCount).slice(0, 12), [all]);
+  const latest = useMemo(() => [...all].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 6), [all]);
   if (!all.length) return null;
   return (
     <>
@@ -66,7 +67,7 @@ function Catalog() {
         <section className="pt-16">
           <Container className="flex flex-col gap-7">
             <RowHeading title="Danh mục nổi bật" description="Nhóm nông sản có nhiều lô truy xuất nhất." href="/products" label="Tất cả danh mục" />
-            <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {categories.map((c, i) => (
                 <Reveal as="li" key={c.name} delay={i * 50}>
                   <CategoryTile category={c} />
@@ -79,22 +80,39 @@ function Catalog() {
       <section className="pt-16">
         <Container className="flex flex-col gap-7">
           <RowHeading title="Truy xuất nhiều nhất" description="Sản phẩm có nhiều lô mang mã QR công khai." href="/products" label="Xem tất cả sản phẩm" />
-          <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <ul className={PRODUCT_GRID}>
             {top.map((p, i) => (
-              <Reveal as="li" key={p.id} delay={(i % 4) * 70}>
+              <Reveal as="li" key={p.id} delay={(i % 6) * 50}>
                 <ProductCard product={p} />
               </Reveal>
             ))}
           </ul>
         </Container>
       </section>
-      {all.length > 8 && (
+      {enterprises.length > 0 && (
+        <section className="pt-16">
+          <Container className="flex flex-col gap-7">
+            <RowHeading title="Theo doanh nghiệp" description="Xem sản phẩm của từng doanh nghiệp đang công bố trên AgriTrace." href="/products" label="Xem tất cả sản phẩm" />
+            <ul className="flex flex-wrap gap-2">
+              {enterprises.map((e) => (
+                <li key={e.id}>
+                  <Link href={customerHref(enterpriseHref(e.id))} className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-4 py-2 text-[14px] font-medium transition-colors hover:border-brand hover:text-brand">
+                    {e.name}
+                    <span className="text-[12px] text-ink-2">{e.count}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      )}
+      {all.length > 12 && (
         <section className="pt-16">
           <Container className="flex flex-col gap-7">
             <RowHeading title="Mới cập nhật" description="Sản phẩm vừa được doanh nghiệp công bố." href="/products" label="Xem thêm" />
-            <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <ul className={PRODUCT_GRID}>
               {latest.map((p, i) => (
-                <Reveal as="li" key={p.id} delay={i * 70}>
+                <Reveal as="li" key={p.id} delay={i * 50}>
                   <ProductCard product={p} />
                 </Reveal>
               ))}
@@ -148,7 +166,7 @@ function Process() {
         <SectionHeading
           eyebrow={pt("Quy trình")}
           title={pt("Bốn bước tạo nên một mã truy xuất")}
-          description={pt("Vụ sản xuất → Thu hoạch → Lô hàng → Giao nhận. Mỗi bước đều có thời điểm, người thực hiện và trạng thái sổ cái.")}
+          description={pt("Vụ trồng → Thu hoạch → Lô hàng → Giao nhận. Mỗi bước ghi rõ thời gian, người làm và được lưu lại, không sửa được.")}
         />
         <ol className="grid gap-10 md:grid-cols-4 md:gap-6">
           {TRACE_STEPS.map((s, i) => (
@@ -176,7 +194,7 @@ function Features() {
             align="left"
             eyebrow={pt("Vì sao chọn AgriTrace")}
             title={pt("Minh bạch có kiểm chứng, không chỉ là một con tem")}
-            description={pt("Dữ liệu nghiệp vụ được ghi dấu trên mạng Hyperledger Fabric. Người mua thấy được điều gì đã xác nhận, điều gì đang chờ và cảnh báo nào cần chú ý.")}
+            description={pt("Mỗi ghi nhận được lưu trên blockchain nên không thể sửa lén. Người mua thấy rõ điều gì đã xác nhận, điều gì đang chờ và cảnh báo nào cần chú ý.")}
           />
           <dl className="grid gap-6 sm:grid-cols-2">
             {PLATFORM_FEATURES.map((f, i) => (

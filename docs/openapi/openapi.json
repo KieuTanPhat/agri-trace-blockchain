@@ -13936,6 +13936,15 @@
             "nullable": true,
             "type": "string"
           },
+          "enterprise": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicProductEnterpriseDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
           "gtin": {
             "nullable": true,
             "type": "string"
@@ -13987,6 +13996,7 @@
           }
         },
         "required": [
+          "enterprise",
           "saleStatus",
           "imageUrl",
           "category",
@@ -14605,6 +14615,15 @@
             "nullable": true,
             "type": "string"
           },
+          "enterprise": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicProductEnterpriseDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
           "enterprises": {
             "$ref": "#/components/schemas/PublicEnterprisesPageDto"
           },
@@ -14666,6 +14685,7 @@
           }
         },
         "required": [
+          "enterprise",
           "saleStatus",
           "imageUrl",
           "category",
@@ -14684,6 +14704,22 @@
           "scanCount",
           "enterprises",
           "lots"
+        ],
+        "type": "object"
+      },
+      "PublicProductEnterpriseDto": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
         ],
         "type": "object"
       },

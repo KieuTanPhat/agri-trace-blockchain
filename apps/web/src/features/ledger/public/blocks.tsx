@@ -65,6 +65,20 @@ export function PhotoHero({ image, title, description, eyebrow, children, tall }
   );
 }
 
+/** Tiêu đề trang nền sáng, dùng ở mọi trang trừ trang chủ, giải pháp và liên hệ. */
+export function PageIntro({ title, description, eyebrow, children }: { title: string; description?: string; eyebrow?: string; children?: React.ReactNode }) {
+  return (
+    <section className="border-b border-line bg-card">
+      <Container className="flex flex-col gap-3 py-8 sm:py-10">
+        {eyebrow && <span className="text-[12px] font-semibold tracking-[0.16em] text-(--pub-accent-ink) uppercase">{eyebrow}</span>}
+        <h1 className="max-w-3xl text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">{title}</h1>
+        {description && <p className="max-w-2xl text-[16px] leading-relaxed text-ink-2">{description}</p>}
+        {children}
+      </Container>
+    </section>
+  );
+}
+
 export function SectionHeading({ eyebrow, title, description, align = "center" }: { eyebrow?: string; title: string; description?: string; align?: "center" | "left" }) {
   return (
     <Reveal className={cn("flex flex-col gap-3", align === "center" ? "mx-auto max-w-2xl items-center text-center" : "max-w-2xl")}>

@@ -22,6 +22,6 @@ it("keeps the shared email and Zalo contact destinations",()=>{
  expect(hrefs).toContain(SITE_CONTACT.emailUrl);expect(hrefs).toContain(SITE_CONTACT.zaloUrl);
 });
 it("describes public trace and separates ledger evidence from warnings and certificates",()=>{
- const {container}=render(<Home/>);expect(container.textContent).toContain("Trạng thái sổ cái, cảnh báo và chứng nhận được trình bày riêng.");
+ const {container}=render(<Home/>);expect(container.textContent).toContain("Dữ liệu đã ghi không sửa được; cảnh báo và chứng nhận hiện riêng, rõ ràng.");
  expect(container.textContent).not.toMatch(/Dữ liệu nghiệp vụ được ký số|Chữ ký số của tổ chức/);
 });

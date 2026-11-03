@@ -88,7 +88,18 @@ function DesktopNav({ path }: { path: string }) {
         </div>
       </div>
       {link("/contact", "Liên hệ")}
+      <HotlineLink className="ml-2" />
     </nav>
+  );
+}
+
+/** Số hotline viền xanh, bấm để gọi. */
+function HotlineLink({ className }: { className?: string }) {
+  return (
+    <a href={SITE_CONTACT.hotlineUrl} aria-label={pt("Gọi hotline {p0}", { p0: SITE_CONTACT.hotline })} className={cn("inline-flex h-9 items-center gap-1.5 rounded-md border border-brand px-3 text-[14px] font-semibold whitespace-nowrap text-brand transition-colors hover:bg-brand hover:text-white", className)}>
+      <Phone className="size-4" aria-hidden />
+      {SITE_CONTACT.hotline}
+    </a>
   );
 }
 
@@ -127,7 +138,8 @@ function MobileNav({ path }: { path: string }) {
           {SOLUTION_LINKS.slice(1).map((l) => item(l.href, l.label, true))}
           {item(customerHref("/contact"), "Liên hệ")}
         </nav>
-        <div className="mt-auto border-t border-line p-4">
+        <div className="mt-auto flex flex-col gap-3 border-t border-line p-4">
+          <HotlineLink className="justify-center" />
           <Button asChild className="w-full">
             <Link href={customerHref("/scan")} onClick={() => setOpen(false)}>
               {pt("Quét mã truy xuất")}
@@ -136,26 +148,6 @@ function MobileNav({ path }: { path: string }) {
         </div>
       </SheetContent>
     </Sheet>
-  );
-}
-
-/** Dải liên hệ phía trên header, cuộn đi theo trang. */
-function TopBar() {
-  return (
-    <div className="border-b border-line bg-brand-weak/60 text-[13px]">
-      <div className="mx-auto flex h-10 max-w-[1280px] items-center justify-between gap-3 px-4 sm:px-7">
-        <span className="hidden truncate text-ink-2 sm:inline">{pt("Truy xuất nguồn gốc nông sản minh bạch, đối chiếu được trên sổ cái")}</span>
-        <div className="flex items-center gap-3">
-          <a href={SITE_CONTACT.emailUrl} className="hidden text-ink-2 hover:text-brand md:inline">
-            {SITE_CONTACT.email}
-          </a>
-          <a href={SITE_CONTACT.hotlineUrl} aria-label={pt("Gọi hotline {p0}", { p0: SITE_CONTACT.hotline })} className="inline-flex h-7 items-center gap-1.5 rounded-md border border-brand px-3 font-semibold text-brand transition-colors hover:bg-brand hover:text-white">
-            <Phone className="size-3.5" aria-hidden />
-            {SITE_CONTACT.hotline}
-          </a>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -264,7 +256,6 @@ export function LedgerPublicShell({ children }: { children: React.ReactNode }) {
       <a href="#public-main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2">
         {pt("Bỏ qua tới nội dung")}
       </a>
-      <TopBar />
       <Header path={path} />
       <main id="public-main" className="flex min-w-0 flex-1 flex-col">
         {children}

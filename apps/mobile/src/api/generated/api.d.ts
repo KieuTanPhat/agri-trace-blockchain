@@ -9267,6 +9267,7 @@ export interface components {
             createdAt: string;
             defaultUnit: string | null;
             description: string | null;
+            enterprise: components["schemas"]["PublicProductEnterpriseDto"] | null;
             gtin: string | null;
             /** Format: uuid */
             id: string;
@@ -9430,6 +9431,7 @@ export interface components {
             createdAt: string;
             defaultUnit: string | null;
             description: string | null;
+            enterprise: components["schemas"]["PublicProductEnterpriseDto"] | null;
             enterprises: components["schemas"]["PublicEnterprisesPageDto"];
             gtin: string | null;
             /** Format: uuid */
@@ -9451,6 +9453,11 @@ export interface components {
             traceCount: number;
             usageInstructions: string | null;
             variety: string | null;
+        };
+        PublicProductEnterpriseDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
         };
         PublicProductsPageDto: {
             /** @description Có thể tải tiếp hay không. */

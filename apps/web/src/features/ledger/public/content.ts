@@ -38,7 +38,7 @@ export const SOLUTIONS: Solution[] = [
     image: roleFarm,
     title: "Nông trại và hợp tác xã",
     summary: "Ghi nhật ký vụ sản xuất, vùng trồng, vật tư và thu hoạch ngay tại hiện trường.",
-    points: ["Vụ sản xuất gắn vùng trồng và sản phẩm", "Nhật ký canh tác kèm chứng cứ ảnh, tài liệu", "Thu hoạch tạo lô hàng có số lượng đối soát"],
+    points: ["Vụ sản xuất gắn vùng trồng và sản phẩm", "Nhật ký canh tác kèm chứng cứ ảnh, tài liệu", "Mỗi lần thu hoạch tạo một lô hàng có mã riêng"],
   },
   {
     slug: "che-bien",
@@ -52,7 +52,7 @@ export const SOLUTIONS: Solution[] = [
     image: roleTransport,
     title: "Vận chuyển và phân phối",
     summary: "Bàn giao có ký xác nhận giữa các bên, theo dõi số lượng thực nhận và hàng trả.",
-    points: ["Kế hoạch giao nhận đồng thuận từng bên", "Ký số trên thiết bị khi bàn giao", "Dữ liệu cảm biến nhiệt độ, độ ẩm theo chuyến"],
+    points: ["Kế hoạch giao nhận đồng thuận từng bên", "Ký nhận trên điện thoại khi bàn giao", "Dữ liệu cảm biến nhiệt độ, độ ẩm theo chuyến"],
   },
   {
     slug: "ban-le",
@@ -65,30 +65,30 @@ export const SOLUTIONS: Solution[] = [
     slug: "kiem-dinh",
     image: roleInspection,
     title: "Kiểm định và cơ quan quản lý",
-    summary: "Đọc nhật ký và bằng chứng theo phạm vi được cấp, không can thiệp dữ liệu nghiệp vụ.",
-    points: ["Quyền chỉ đọc theo phân công", "Đối chiếu dấu kiểm tra với sổ cái", "Chứng nhận công khai kèm mã băm tài liệu"],
+    summary: "Xem nhật ký và giấy tờ của doanh nghiệp được giao kiểm tra, không sửa được dữ liệu.",
+    points: ["Quyền chỉ đọc theo phân công", "Kiểm tra dữ liệu có bị sửa hay không", "Xem chứng nhận doanh nghiệp đã công bố"],
   },
   {
     slug: "nguoi-tieu-dung",
     image: roleConsumer,
     title: "Người tiêu dùng",
-    summary: "Quét mã trên bao bì để xem nguồn gốc, hành trình và bằng chứng được công bố của lô.",
+    summary: "Quét mã trên bao bì để xem nguồn gốc, hành trình và giấy tờ của lô hàng.",
     points: ["Không cần cài ứng dụng hay đăng nhập", "Xem cảnh báo hết hạn, thu hồi riêng biệt", "Gửi phản ánh khi thông tin chưa đúng"],
   },
 ];
 
 export const TRACE_STEPS: { title: string; copy: string }[] = [
-  { title: "Vụ sản xuất", copy: "Doanh nghiệp mở vụ, gắn vùng trồng và ghi nhật ký canh tác có chứng cứ." },
-  { title: "Thu hoạch", copy: "Mỗi lần thu hoạch ghi thời gian, sản lượng và cửa sổ dữ liệu cảm biến." },
-  { title: "Lô hàng", copy: "Lô hàng nhận mã truy xuất riêng, số lượng và trạng thái được đối soát." },
+  { title: "Vụ sản xuất", copy: "Doanh nghiệp mở vụ, chọn vùng trồng và ghi nhật ký canh tác kèm ảnh." },
+  { title: "Thu hoạch", copy: "Mỗi lần thu hoạch ghi ngày hái, sản lượng và nhiệt độ, độ ẩm đo được." },
+  { title: "Lô hàng", copy: "Mỗi lô hàng có mã QR riêng, số lượng được kiểm đếm ở từng bước." },
   { title: "Giao nhận", copy: "Chuyến hàng ghi bàn giao từng bên tới khi lô đến tay nhà bán lẻ." },
 ];
 
 export const PLATFORM_FEATURES: { title: string; copy: string }[] = [
-  { title: "Bằng chứng có đối chiếu", copy: "Trạng thái sổ cái, cảnh báo và chứng nhận được trình bày riêng." },
+  { title: "Thông tin kiểm tra được", copy: "Dữ liệu đã ghi không sửa được; cảnh báo và chứng nhận hiện riêng, rõ ràng." },
   { title: "Theo từng lô hàng", copy: "Xem nguồn nguyên liệu, lịch sử sản xuất và hành trình giao nhận." },
   { title: "Truy xuất công khai", copy: "Không cần đăng nhập để đọc thông tin được cho phép công bố." },
-  { title: "Dữ liệu cảm biến IoT", copy: "Bản đo trong cửa sổ thu hoạch được tóm tắt bằng dấu kiểm tra." },
+  { title: "Nhiệt độ, độ ẩm", copy: "Cảm biến ghi nhiệt độ, độ ẩm trong lúc trồng và vận chuyển." },
 ];
 
 export type Plan = { name: string; audience: string; features: string[]; highlight?: boolean };
@@ -108,6 +108,6 @@ export const PLANS: Plan[] = [
   {
     name: "Chuỗi cung ứng",
     audience: "Chuỗi nhiều bên cùng chia sẻ dữ liệu giao nhận",
-    features: ["Toàn bộ gói Doanh nghiệp", "Kế hoạch giao nhận và ký số nhiều bên", "Kết nối node Hyperledger Fabric riêng", "Dữ liệu cảm biến IoT theo chuyến"],
+    features: ["Toàn bộ gói Doanh nghiệp", "Kế hoạch giao nhận, các bên cùng ký nhận", "Máy chủ lưu trữ riêng cho chuỗi", "Theo dõi nhiệt độ, độ ẩm theo chuyến"],
   },
 ];

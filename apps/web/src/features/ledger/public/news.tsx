@@ -10,8 +10,7 @@ import { pt } from "@/lib/ledger/public-i18n";
 import { cn } from "@/lib/ledger/utils";
 import { ErrorState, LoadingRows } from "@/components/ledger/kit/page";
 import { Button } from "@/components/ledger/ui/button";
-import { Container, PhotoHero, Reveal, SectionHeading } from "./blocks";
-import { PHOTOS } from "./content";
+import { Container, PageIntro, Reveal, SectionHeading } from "./blocks";
 
 const href = (n: Pick<PublicNews, "id">) => customerHref(`/news/${n.id}`);
 
@@ -102,7 +101,7 @@ export function NewsPage() {
   };
   return (
     <>
-      <PhotoHero image={PHOTOS.teaLeaves} eyebrow={pt("Bảng tin")} title={pt("Tin tức và kiến thức nông sản")} description={pt("Mùa vụ, hướng dẫn chọn và bảo quản nông sản, cập nhật từ AgriTrace.")} />
+      <PageIntro eyebrow={pt("Bảng tin")} title={pt("Tin tức và kiến thức nông sản")} description={pt("Mùa vụ, hướng dẫn chọn và bảo quản nông sản, cập nhật từ AgriTrace.")} />
       <Container className="flex flex-col gap-10 py-12">
         {first.isLoading ? (
           <LoadingRows rows={6} />

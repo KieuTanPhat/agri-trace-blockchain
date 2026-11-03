@@ -7,8 +7,7 @@ import { CameraScanner } from "@/components/ledger/camera-scanner";
 import { Callout } from "@/components/ledger/kit/page";
 import { Input } from "@/components/ledger/ui/input";
 import { Button } from "@/components/ledger/ui/button";
-import { Container, PhotoHero, Reveal } from "./blocks";
-import { PHOTOS } from "./content";
+import { Container, PageIntro, Reveal } from "./blocks";
 
 export default function Scan() {
   const router = useRouter(),
@@ -30,7 +29,7 @@ export default function Scan() {
   ];
   return (
     <>
-      <PhotoHero image={PHOTOS.teaHills} title={pt("Quét mã truy xuất")} description={pt("Dùng camera, ảnh mã QR hoặc nhập mã truy xuất trên bao bì.")} />
+      <PageIntro title={pt("Quét mã truy xuất")} description={pt("Dùng camera, ảnh mã QR hoặc nhập mã truy xuất trên bao bì.")} />
       <section className="py-12 sm:py-16">
         <Container className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
           <Reveal className="rounded-2xl border border-line bg-card p-2 shadow-sm [&>section]:border-0">

@@ -63,7 +63,8 @@ export class PublicDirectoryService {
     const images=lotIds.length?await this.db.traceEvidence.findMany({where:{entityType:'LOT',entityId:{in:lotIds}},select:{id:true,entityId:true,public:true,kind:true,supersedesId:true,mediaType:true,withdrawal:{select:{evidenceId:true}}},orderBy:{createdAt:'desc'}}):[];
     return rows.map(row=>{const image=visibleDirectoryImage(images.filter(i=>(row.lots??[]).some(l=>l.id===i.entityId)));return {id:row.id,saleStatus:sellingProducts.has(row.id)?'SELLING':'NOT_SELLING',productName:row.productName,variety:row.variety??null,defaultUnit:row.defaultUnit??null,description:row.description??null,
       ...publicProductDetails(row,row.organization?.directoryPublications?.[0]?.presentation),createdAt:row.createdAt?.toISOString()??new Date(0).toISOString(),traceCount:row._count?.lots??0,
-      imageUrl:image?`/public/products/${row.id}/image?v=${image.id}`:null};});
+      imageUrl:image?`/public/products/${row.id}/image?v=${image.id}`:null,
+      enterprise:row.organization?{id:row.organization.id,name:row.organization.name}:null};});
   }
   private presentEnterprise(row:Prisma.OrganizationGetPayload<{select:typeof PUBLIC_ENTERPRISE_SELECT}>) {
     const {published: _published,logoEvidenceId,...contact}=publicContact(row.directoryPublications?.[0]?.presentation);

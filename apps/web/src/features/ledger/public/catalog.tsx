@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronRight, Leaf, MapPin, QrCode, ScanLine, Search, Store } from "lucide-react";
 import { publicApiUrl } from "@/lib/api-client";
 import { customerHref } from "@/lib/site-origins";
-import { categoriesOf, categoryHref, productImage, usePublicProduct, usePublicProducts, type Category, type PublicProduct } from "@/lib/ledger/public-directory";
+import { categoriesOf, categoryHref, enterpriseHref, enterprisesOf, productImage, usePublicProduct, usePublicProducts, type Category, type PublicProduct } from "@/lib/ledger/public-directory";
 import { LOT_STATE_LABEL, LOT_STATE_TONE } from "@/lib/ledger/ops-labels";
 import { fmtDate, fmtNumber } from "@/lib/ledger/format";
 import { pt } from "@/lib/ledger/public-i18n";
@@ -15,37 +15,40 @@ import { ErrorState, Field, Fields, LoadingRows } from "@/components/ledger/kit/
 import { Badge } from "@/components/ledger/kit/status";
 import { Button } from "@/components/ledger/ui/button";
 import { Input } from "@/components/ledger/ui/input";
-import { Container, PhotoHero, Reveal, SectionHeading } from "./blocks";
-import { PHOTOS } from "./content";
+import { TraceQrImage, useTraceQr } from "@/components/ledger/workspace/trace-qr";
+import { Container, PageIntro, Reveal, SectionHeading } from "./blocks";
 
 const ORG_TYPE: Record<string, string> = { FARM: "Nông trại", PROCESSOR: "Nhà chế biến", DISTRIBUTOR: "Nhà phân phối", RETAILER: "Nhà bán lẻ", TRANSPORTER: "Vận chuyển", AUDITOR: "Kiểm định" };
 
+/** Lưới thẻ sản phẩm nhỏ, dùng chung cho trang chủ, danh sách và sản phẩm liên quan. */
+export const PRODUCT_GRID = "grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6";
+
 /** Ảnh sản phẩm đã công bố; chưa có ảnh thì hiện biểu tượng lá trên nền xanh nhạt. */
-function ProductPhoto({ product, sizes, className }: { product: Pick<PublicProduct, "imageUrl" | "productName">; sizes: string; className?: string }) {
+function ProductPhoto({ product, sizes, className, fit = "contain" }: { product: Pick<PublicProduct, "imageUrl" | "productName">; sizes: string; className?: string; fit?: "contain" | "cover" }) {
   const src = productImage(product);
   return (
     <div className={cn("relative overflow-hidden bg-brand-weak", className)}>
       {src ? (
-        <Image src={src} alt={product.productName} fill unoptimized sizes={sizes} className="object-contain p-3 transition-transform duration-300 group-hover:scale-105" />
+        <Image src={src} alt={product.productName} fill unoptimized sizes={sizes} className={cn("transition-transform duration-300 group-hover:scale-105", fit === "cover" ? "object-cover" : "object-contain p-2")} />
       ) : (
-        <Leaf className="absolute top-1/2 left-1/2 size-10 -translate-x-1/2 -translate-y-1/2 text-brand/40" aria-hidden />
+        <Leaf className="absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 text-brand/40" aria-hidden />
       )}
     </div>
   );
 }
 
-export function ProductCard({ product, compact }: { product: PublicProduct; compact?: boolean }) {
+export function ProductCard({ product }: { product: PublicProduct }) {
   return (
-    <Link href={customerHref(`/products/${product.id}`)} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-card transition-shadow hover:shadow-lg">
-      <ProductPhoto product={product} sizes="(max-width: 640px) 50vw, 240px" className="aspect-square border-b border-line" />
-      <div className="flex flex-1 flex-col gap-1.5 p-4">
-        <h3 className={cn("line-clamp-2 font-semibold group-hover:text-brand", compact ? "text-[14px]" : "text-[15px]")}>{product.productName}</h3>
-        <p className="line-clamp-1 text-[13px] text-ink-2">{[product.variety, product.province].filter(Boolean).join(" · ") || product.category || pt("Nông sản có truy xuất")}</p>
-        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 text-[12px]">
+    <Link href={customerHref(`/products/${product.id}`)} className="group flex h-full flex-col overflow-hidden rounded-xl border border-line bg-card transition-shadow hover:shadow-md">
+      <ProductPhoto product={product} sizes="(max-width: 640px) 50vw, 200px" fit="cover" className="aspect-square" />
+      <div className="flex flex-1 flex-col gap-1 p-3">
+        <h3 className="line-clamp-2 text-[14px] leading-snug font-semibold group-hover:text-brand">{product.productName}</h3>
+        <p className="line-clamp-1 text-[12px] text-ink-2">{product.enterprise?.name ?? product.province ?? product.category ?? pt("Nông sản có truy xuất")}</p>
+        <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-1.5 text-[11.5px]">
           <span className={cn("font-semibold", product.saleStatus === "SELLING" ? "text-brand" : "text-ink-2")}>{product.saleStatus === "SELLING" ? pt("Đang bán") : pt("Chưa bán")}</span>
           <span className="inline-flex items-center gap-1 text-ink-2">
-            <QrCode className="size-3.5" aria-hidden />
-            {pt("{p0} lô truy xuất", { p0: fmtNumber(product.traceCount) })}
+            <QrCode className="size-3" aria-hidden />
+            {pt("{p0} lô", { p0: fmtNumber(product.traceCount) })}
           </span>
         </div>
       </div>
@@ -53,19 +56,19 @@ export function ProductCard({ product, compact }: { product: PublicProduct; comp
   );
 }
 
-/** Ô danh mục có ảnh đại diện, dùng ở trang chủ và trang sản phẩm. */
+/** Ô danh mục: ảnh vuông phủ kín cùng kích thước để các ô đều nhau. */
 export function CategoryTile({ category, active }: { category: Category; active?: boolean }) {
   return (
     <Link
       href={customerHref(categoryHref(category.name))}
       aria-current={active ? "page" : undefined}
-      className={cn("group flex flex-col items-center gap-3 rounded-2xl border bg-card p-4 text-center transition-shadow hover:shadow-md", active ? "border-brand ring-2 ring-brand/20" : "border-line")}
+      className={cn("group flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md", active ? "border-brand ring-2 ring-brand/20" : "border-line")}
     >
-      <div className="relative size-20 overflow-hidden rounded-full bg-brand-weak">
-        {category.image ? <Image src={category.image} alt="" fill unoptimized sizes="80px" className="object-contain p-2 transition-transform group-hover:scale-110" /> : <Leaf className="absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 text-brand/50" aria-hidden />}
+      <div className="relative aspect-[4/3] overflow-hidden bg-brand-weak">
+        {category.image ? <Image src={category.image} alt="" fill unoptimized sizes="(max-width: 640px) 50vw, 220px" className="object-cover transition-transform duration-300 group-hover:scale-105" /> : <Leaf className="absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 text-brand/50" aria-hidden />}
       </div>
-      <div>
-        <p className="line-clamp-2 text-[14px] font-semibold group-hover:text-brand">{category.name}</p>
+      <div className="flex flex-1 flex-col justify-center gap-0.5 px-3 py-2.5 text-center">
+        <p className="line-clamp-1 text-[14px] font-semibold group-hover:text-brand">{category.name}</p>
         <p className="text-[12px] text-ink-2">{pt("{p0} sản phẩm", { p0: category.count })}</p>
       </div>
     </Link>
@@ -79,7 +82,7 @@ const SORTS = [
 ] as const;
 type Sort = (typeof SORTS)[number]["value"];
 
-function sortProducts(items: PublicProduct[], sort: Sort) {
+export function sortProducts(items: PublicProduct[], sort: Sort) {
   return [...items].sort((a, b) =>
     sort === "newest" ? Date.parse(b.createdAt) - Date.parse(a.createdAt) : sort === "name" ? a.productName.localeCompare(b.productName, "vi") : b.traceCount - a.traceCount || a.productName.localeCompare(b.productName, "vi"),
   );
@@ -87,11 +90,36 @@ function sortProducts(items: PublicProduct[], sort: Sort) {
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 
+/** Một nhóm lọc ở cột trái: cuộn ngang trên điện thoại, danh sách dọc trên máy tính. */
+function FilterList({ title, items, active, onPick, allLabel, total }: { title: string; items: { key: string; label: string; count: number }[]; active: string; onPick: (key: string) => void; allLabel: string; total: number }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <h2 className="text-[13px] font-semibold tracking-wide text-ink-2 uppercase">{title}</h2>
+      <ul className="flex gap-2 overflow-x-auto pb-1 lg:max-h-[340px] lg:flex-col lg:gap-0.5 lg:overflow-y-auto">
+        {[{ key: "", label: allLabel, count: total }, ...items].map((c) => (
+          <li key={c.key || "all"} className="shrink-0">
+            <button
+              type="button"
+              onClick={() => onPick(c.key)}
+              aria-pressed={active === c.key}
+              className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-[14px] whitespace-nowrap transition-colors lg:whitespace-normal", active === c.key ? "bg-brand text-white" : "bg-card text-ink hover:bg-brand-weak lg:bg-transparent")}
+            >
+              <span>{c.label}</span>
+              <span className={cn("text-[12px]", active === c.key ? "text-white/80" : "text-ink-2")}>{c.count}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function ProductsPage() {
   const params = useSearchParams();
   const router = useRouter();
   const path = usePathname();
   const category = params.get("category") ?? "";
+  const enterprise = params.get("enterprise") ?? "";
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [province, setProvince] = useState("");
   const [selling, setSelling] = useState(false);
@@ -99,39 +127,38 @@ export function ProductsPage() {
   const products = usePublicProducts();
   const all = useMemo(() => products.data ?? [], [products.data]);
   const categories = useMemo(() => categoriesOf(all), [all]);
+  const enterprises = useMemo(() => enterprisesOf(all), [all]);
   const provinces = useMemo(() => [...new Set(all.map((p) => p.province).filter((p): p is string => !!p))].sort((a, b) => a.localeCompare(b, "vi")), [all]);
   const shown = useMemo(() => {
     const q = fold(query.trim());
     return sortProducts(
-      all.filter((p) => (!category || p.category === category) && (!province || p.province === province) && (!selling || p.saleStatus === "SELLING") && (!q || fold(`${p.productName} ${p.variety ?? ""} ${p.category ?? ""}`).includes(q))),
+      all.filter(
+        (p) =>
+          (!category || p.category === category) &&
+          (!enterprise || p.enterprise?.id === enterprise) &&
+          (!province || p.province === province) &&
+          (!selling || p.saleStatus === "SELLING") &&
+          (!q || fold(`${p.productName} ${p.variety ?? ""} ${p.category ?? ""} ${p.enterprise?.name ?? ""}`).includes(q)),
+      ),
       sort,
     );
-  }, [all, category, province, selling, query, sort]);
-  const pick = (name: string) => router.replace(name ? `${path}?category=${encodeURIComponent(name)}` : path, { scroll: false });
+  }, [all, category, enterprise, province, selling, query, sort]);
+  const pick = (key: "category" | "enterprise", value: string) => {
+    const next = new URLSearchParams(params.toString());
+    if (value) next.set(key, value);
+    else next.delete(key);
+    const qs = next.toString();
+    router.replace(qs ? `${path}?${qs}` : path, { scroll: false });
+  };
+  const enterpriseName = enterprises.find((e) => e.id === enterprise)?.name;
 
   return (
     <>
-      <PhotoHero image={PHOTOS.teaHills} eyebrow={pt("Sản phẩm")} title={category || pt("Nông sản có truy xuất nguồn gốc")} description={pt("Sản phẩm do doanh nghiệp công bố trên AgriTrace. Mở từng sản phẩm để xem doanh nghiệp, vùng trồng và các lô có mã truy xuất.")} />
-      <Container className="grid grid-cols-[minmax(0,1fr)] gap-8 py-10 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <PageIntro eyebrow={pt("Sản phẩm")} title={[category, enterpriseName].filter(Boolean).join(" · ") || pt("Nông sản có truy xuất nguồn gốc")} description={pt("Sản phẩm do doanh nghiệp công bố trên AgriTrace. Mở từng sản phẩm để xem doanh nghiệp, vùng trồng và các lô có mã QR.")} />
+      <Container className="grid grid-cols-[minmax(0,1fr)] gap-8 py-8 lg:grid-cols-[250px_minmax(0,1fr)]">
         <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-[13px] font-semibold tracking-wide text-ink-2 uppercase">{pt("Danh mục")}</h2>
-            <ul className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-0.5 lg:overflow-visible">
-              {[{ name: "", count: all.length }, ...categories].map((c) => (
-                <li key={c.name || "all"} className="shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => pick(c.name)}
-                    aria-pressed={category === c.name}
-                    className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-[14px] whitespace-nowrap transition-colors lg:whitespace-normal", category === c.name ? "bg-brand text-white" : "bg-card text-ink hover:bg-brand-weak lg:bg-transparent")}
-                  >
-                    <span>{c.name || pt("Tất cả sản phẩm")}</span>
-                    <span className={cn("text-[12px]", category === c.name ? "text-white/80" : "text-ink-2")}>{c.count}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <FilterList title={pt("Danh mục")} allLabel={pt("Tất cả danh mục")} total={all.length} active={category} onPick={(v) => pick("category", v)} items={categories.map((c) => ({ key: c.name, label: c.name, count: c.count }))} />
+          <FilterList title={pt("Doanh nghiệp")} allLabel={pt("Tất cả doanh nghiệp")} total={all.length} active={enterprise} onPick={(v) => pick("enterprise", v)} items={enterprises.map((e) => ({ key: e.id, label: e.name, count: e.count }))} />
           <div className="hidden flex-col gap-2 lg:flex">
             <label htmlFor="pub-province" className="text-[13px] font-semibold tracking-wide text-ink-2 uppercase">
               {pt("Tỉnh / thành")}
@@ -149,7 +176,7 @@ export function ProductsPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-2" aria-hidden />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={pt("Tìm sản phẩm, giống, nhóm hàng")} aria-label={pt("Tìm sản phẩm")} className="h-10 bg-card pl-9" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={pt("Tìm sản phẩm, giống, doanh nghiệp")} aria-label={pt("Tìm sản phẩm")} className="h-10 bg-card pl-9" />
             </div>
             <label className="inline-flex h-10 items-center gap-2 rounded-md border border-line bg-card px-3 text-[14px]">
               <input type="checkbox" checked={selling} onChange={(e) => setSelling(e.target.checked)} className="accent-(--brand)" />
@@ -171,7 +198,7 @@ export function ProductsPage() {
             <>
               <p className="text-[14px] text-ink-2">{pt("{p0} sản phẩm", { p0: shown.length })}</p>
               {shown.length ? (
-                <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
                   {shown.map((p) => (
                     <li key={p.id}>
                       <ProductCard product={p} />
@@ -189,11 +216,26 @@ export function ProductsPage() {
   );
 }
 
+/** Mã QR dẫn tới lô mới nhất của sản phẩm. */
+function LatestLotQr({ token, lotCode }: { token: string; lotCode: string }) {
+  const qr = useTraceQr(token);
+  if (!qr.ready) return null;
+  return (
+    <div className="flex items-center gap-4 rounded-2xl border border-line bg-card p-4">
+      <TraceQrImage qr={qr} className="size-28 shrink-0 rounded-lg border border-line p-1" />
+      <div className="flex min-w-0 flex-col gap-1">
+        <p className="font-semibold">{pt("Quét để xem lô mới nhất")}</p>
+        <p className="text-[13px] text-ink-2">{pt("Dùng camera điện thoại quét mã này để xem hành trình của lô {p0}.", { p0: lotCode })}</p>
+      </div>
+    </div>
+  );
+}
+
 export function ProductDetail({ id }: { id: string }) {
   const detail = usePublicProduct(id);
   const products = usePublicProducts();
   const p = detail.data;
-  const related = useMemo(() => (p?.category ? sortProducts((products.data ?? []).filter((x) => x.category === p.category && x.id !== p.id), "traces").slice(0, 4) : []), [p, products.data]);
+  const related = useMemo(() => (p?.category ? sortProducts((products.data ?? []).filter((x) => x.category === p.category && x.id !== p.id), "traces").slice(0, 12) : []), [p, products.data]);
   if (detail.isLoading)
     return (
       <Container className="py-12">
@@ -206,6 +248,7 @@ export function ProductDetail({ id }: { id: string }) {
         <ErrorState error={detail.error ?? new Error(pt("Không tìm thấy sản phẩm"))} onRetry={() => void detail.refetch()} />
       </Container>
     );
+  const latest = p.lots.items[0];
   const info = [
     ["Nhóm sản phẩm", p.category],
     ["Giống", p.variety],
@@ -245,54 +288,63 @@ export function ProductDetail({ id }: { id: string }) {
         </Container>
       </div>
 
-      <Container className="grid gap-10 py-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-        <ProductPhoto product={p} sizes="(max-width: 1024px) 100vw, 520px" className="aspect-square rounded-3xl border border-line bg-card" />
+      <Container className="grid gap-8 py-8 md:grid-cols-[minmax(0,3fr)_minmax(0,7fr)]">
+        <ProductPhoto product={p} sizes="(max-width: 768px) 60vw, 340px" className="mx-auto aspect-square w-3/5 self-start rounded-2xl border border-line bg-card md:w-full" />
         <div className="flex min-w-0 flex-col gap-5">
           <div className="flex flex-wrap gap-2">
             {p.category && <Badge tone="brand">{p.category}</Badge>}
             <Badge tone={p.saleStatus === "SELLING" ? "ok" : "neutral"}>{p.saleStatus === "SELLING" ? pt("Đang bán") : pt("Chưa bán")}</Badge>
           </div>
-          <h1 className="text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">{p.productName}</h1>
-          {p.description && <p className="text-[16px] leading-relaxed whitespace-pre-line text-ink-2">{p.description}</p>}
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <h1 className="text-3xl leading-tight font-semibold tracking-tight">{p.productName}</h1>
+          {p.enterprise && (
+            <Link href={customerHref(enterpriseHref(p.enterprise.id))} className="inline-flex w-fit items-center gap-1.5 text-[15px] font-medium text-brand hover:underline">
+              <Store className="size-4" aria-hidden />
+              {p.enterprise.name}
+            </Link>
+          )}
+          {p.description && <p className="text-[15px] leading-relaxed whitespace-pre-line text-ink-2">{p.description}</p>}
+          <dl className="grid grid-cols-3 gap-3">
             {[
-              [QrCode, "Lô truy xuất", fmtNumber(p.traceCount)],
+              [QrCode, "Lô có mã QR", fmtNumber(p.traceCount)],
               [ScanLine, "Lượt quét", fmtNumber(p.scanCount)],
               [Store, "Doanh nghiệp", fmtNumber(p.enterprises.items.length)],
             ].map(([Icon, label, value]) => {
               const I = Icon as typeof QrCode;
               return (
-                <div key={label as string} className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-4">
-                  <dt className="inline-flex items-center gap-1.5 text-[13px] text-ink-2">
-                    <I className="size-4 text-brand" aria-hidden />
+                <div key={label as string} className="flex flex-col gap-1 rounded-xl border border-line bg-card p-3">
+                  <dt className="inline-flex items-center gap-1.5 text-[12px] text-ink-2">
+                    <I className="size-3.5 text-brand" aria-hidden />
                     {pt(label as string)}
                   </dt>
-                  <dd className="text-[22px] font-semibold">{value as string}</dd>
+                  <dd className="text-[20px] font-semibold">{value as string}</dd>
                 </div>
               );
             })}
           </dl>
-          {info.length > 0 && (
-            <div className="rounded-2xl border border-line bg-card p-5">
-              <Fields cols={2}>
-                {info.map(([k, v]) => (
-                  <Field key={k} label={pt(k)}>
-                    {v}
-                  </Field>
-                ))}
-              </Fields>
-            </div>
-          )}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {info.length > 0 && (
+              <div className="rounded-2xl border border-line bg-card p-4">
+                <Fields cols={2}>
+                  {info.map(([k, v]) => (
+                    <Field key={k} label={pt(k)}>
+                      {v}
+                    </Field>
+                  ))}
+                </Fields>
+              </div>
+            )}
+            {latest && <LatestLotQr token={latest.traceToken} lotCode={latest.lotCode} />}
+          </div>
           <div className="flex flex-wrap gap-3">
-            {p.lots.items[0] && (
-              <Button asChild size="lg">
-                <Link href={customerHref(`/trace/${encodeURIComponent(p.lots.items[0].traceToken)}`)}>
+            {latest && (
+              <Button asChild>
+                <Link href={customerHref(`/trace/${encodeURIComponent(latest.traceToken)}`)}>
                   <QrCode />
                   {pt("Xem lô mới nhất")}
                 </Link>
               </Button>
             )}
-            <Button asChild size="lg" variant="outline">
+            <Button asChild variant="outline">
               <Link href={customerHref("/scan")}>
                 <ScanLine />
                 {pt("Quét mã trên bao bì")}
@@ -303,7 +355,7 @@ export function ProductDetail({ id }: { id: string }) {
       </Container>
 
       {notes.length > 0 && (
-        <section className="bg-card py-12">
+        <section className="bg-card py-10">
           <Container className="grid gap-6 md:grid-cols-3">
             {notes.map(([k, v]) => (
               <div key={k} className="flex flex-col gap-2 border-l-2 border-brand pl-4">
@@ -315,15 +367,15 @@ export function ProductDetail({ id }: { id: string }) {
         </section>
       )}
 
-      <Container className="grid gap-10 py-12 lg:grid-cols-2">
+      <Container className="grid gap-10 py-10 lg:grid-cols-2">
         <section className="flex flex-col gap-4">
           <h2 className="text-[22px] font-semibold">{pt("Doanh nghiệp liên quan")}</h2>
           {p.enterprises.items.length ? (
             <ul className="flex flex-col gap-3">
               {p.enterprises.items.map((e) => (
                 <li key={e.id} className="flex items-center gap-4 rounded-2xl border border-line bg-card p-4">
-                  <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-line bg-brand-weak">
-                    {e.logoUrl ? <Image src={publicApiUrl(e.logoUrl)} alt="" fill unoptimized sizes="56px" className="object-contain p-1" /> : <Store className="absolute top-1/2 left-1/2 size-6 -translate-x-1/2 -translate-y-1/2 text-brand/60" aria-hidden />}
+                  <div className="relative size-12 shrink-0 overflow-hidden rounded-xl border border-line bg-brand-weak">
+                    {e.logoUrl ? <Image src={publicApiUrl(e.logoUrl)} alt="" fill unoptimized sizes="48px" className="object-contain p-1" /> : <Store className="absolute top-1/2 left-1/2 size-5 -translate-x-1/2 -translate-y-1/2 text-brand/60" aria-hidden />}
                   </div>
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{e.name}</p>
@@ -345,7 +397,7 @@ export function ProductDetail({ id }: { id: string }) {
           )}
         </section>
         <section className="flex flex-col gap-4">
-          <h2 className="text-[22px] font-semibold">{pt("Lô có mã truy xuất")}</h2>
+          <h2 className="text-[22px] font-semibold">{pt("Lô có mã QR")}</h2>
           {p.lots.items.length ? (
             <ul className="flex flex-col divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
               {p.lots.items.map((l) => (
@@ -370,12 +422,19 @@ export function ProductDetail({ id }: { id: string }) {
       </Container>
 
       {related.length > 0 && (
-        <section className="pb-16">
-          <Container className="flex flex-col gap-6">
-            <SectionHeading align="left" eyebrow={pt("Cùng danh mục")} title={p.category ?? ""} />
-            <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <section className="pb-14">
+          <Container className="flex flex-col gap-5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <SectionHeading align="left" eyebrow={pt("Cùng danh mục")} title={p.category ?? ""} />
+              {p.category && (
+                <Link href={customerHref(categoryHref(p.category))} className="text-[15px] font-semibold text-brand hover:underline">
+                  {pt("Xem tất cả")}
+                </Link>
+              )}
+            </div>
+            <ul className={PRODUCT_GRID}>
               {related.map((r, i) => (
-                <Reveal as="li" key={r.id} delay={i * 70}>
+                <Reveal as="li" key={r.id} delay={(i % 6) * 50}>
                   <ProductCard product={r} />
                 </Reveal>
               ))}
