@@ -422,6 +422,10 @@ export class EnterpriseWorkspaceService {
           where: { userId: child.id, revokedAt: null },
           data: { revokedAt: new Date() },
         });
+        await tx.distributionKey.updateMany({
+          where: { userId: child.id, status: { in: ['PENDING', 'ACTIVE'] } },
+          data: { status: 'REVOKED' },
+        });
       }
       await tx.refreshSession.updateMany({
         where: { userId: id, revokedAt: null },
@@ -430,7 +434,7 @@ export class EnterpriseWorkspaceService {
       // A member who stops working loses the personal signing keys of its devices.
       if (input.status !== 'ACTIVE')
         await tx.distributionKey.updateMany({
-          where: { userId: { in: [id, ...descendants.map((c) => c.id)] }, status: { in: ['PENDING', 'ACTIVE'] } },
+          where: { userId: id, status: { in: ['PENDING', 'ACTIVE'] } },
           data: { status: 'REVOKED' },
         });
       return {
