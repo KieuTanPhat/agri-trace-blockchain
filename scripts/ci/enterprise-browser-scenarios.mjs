@@ -91,7 +91,7 @@ export async function runEnterpriseBrowserScenarios(options) {
       assert.ok(province && ward, 'Registration address fixture must exist in the catalog');
       // Step 1: participation status and organization (ADR-005). A producing
       // chain owner registers; its FARM capability is the default activity.
-      await owner.locator('input[name="participationStatus"][value="CHAIN_OWNER"]').check();
+      await owner.getByRole('checkbox', { name: 'Đăng ký làm chủ chuỗi (dùng dịch vụ có phí)', exact: true }).check();
       await owner.locator('#organizationName').fill(organizationName);
       await owner.locator('#businessId').fill(Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join(''));
       await owner.locator('#registrationNumber').fill('UI-REG-' + randomUUID().slice(0, 8));

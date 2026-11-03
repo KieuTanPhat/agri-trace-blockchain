@@ -8,7 +8,6 @@ import { t } from "@/lib/ledger/i18n";
 import type { LedgerScreenProps } from "@/lib/ledger/route-input";
 import {
   REGISTRATION_STEPS,
-  PARTICIPATION_STATUS_OPTIONS,
   ACTIVITY_OPTIONS,
   LEGAL_FORM_OPTIONS,
   mayOwnChains,
@@ -372,35 +371,6 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                   >
                     {step === 0 && (
                       <>
-                        <div className="flex flex-col gap-2 sm:col-span-2">
-                          <span className="text-[13px] font-medium">{t("Tư cách tham gia AgriTrace")}</span>
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {PARTICIPATION_STATUS_OPTIONS.map(([value, label, hint]) => (
-                              <label
-                                key={value}
-                                className={`flex cursor-pointer flex-col gap-1 rounded-md border p-3 text-[13px] ${draft.participationStatus === value ? "border-primary bg-primary/5" : "border-line"}`}
-                              >
-                                <span className="flex items-center gap-2 font-medium">
-                                  <input
-                                    type="radio"
-                                    name="participationStatus"
-                                    value={value}
-                                    checked={draft.participationStatus === value}
-                                    onChange={() => update("participationStatus", value)}
-                                  />
-                                  {t(label)}
-                                </span>
-                                <span className="text-muted-foreground">{t(hint)}</span>
-                              </label>
-                            ))}
-                          </div>
-                          {errors.participationStatus && (
-                            <p className="text-[12px] text-destructive">{t(errors.participationStatus)}</p>
-                          )}
-                          {draft.invitationToken && (
-                            <Callout>{t("Bạn đăng ký theo lời mời của một chủ chuỗi; sau khi kích hoạt, lời mời vào chuỗi sẽ hiện trong tài khoản.")}</Callout>
-                          )}
-                        </div>
                         {text("organizationName", "Tên tổ chức")}
                         <RegistrationSelect
                           name="legalForm"
@@ -462,6 +432,21 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                         {text("address", "Địa chỉ chi tiết", "text", true)}
                         {text("website", "Website", "url")}
                         {upload("LOGO", "Logo tổ chức")}
+                        <div className="flex flex-col gap-1 sm:col-span-2">
+                          <RegistrationCheck
+                            name="participationStatus"
+                            label={t("Đăng ký làm chủ chuỗi (dùng dịch vụ có phí)")}
+                            checked={draft.participationStatus === "CHAIN_OWNER"}
+                            onChange={(checked) => update("participationStatus", checked ? "CHAIN_OWNER" : "MEMBER")}
+                            error={errors.participationStatus}
+                          />
+                          <p className="pl-6 text-[12px] text-ink-2">
+                            {t("Bỏ trống để tham gia miễn phí với tư cách thành viên; có thể nâng cấp sau. Chủ chuỗi đứng tên sản phẩm, tạo chuỗi và mời đối tác.")}
+                          </p>
+                          {draft.invitationToken && (
+                            <p className="pl-6 text-[12px] text-ink-2">{t("Bạn đăng ký theo lời mời của một chủ chuỗi; lời mời vào chuỗi hiện trong tài khoản sau khi kích hoạt.")}</p>
+                          )}
+                        </div>
                       </>
                     )}
                     {step === 1 && (
