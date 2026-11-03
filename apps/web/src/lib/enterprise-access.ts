@@ -9,6 +9,10 @@ export type EnterpriseAccess = {
 /** First enterprise page this account may open: the workspace once the
  * service is active, else the plan/onboarding pages an owner completes. */
 export function enterpriseLanding(access: EnterpriseAccess): string | null {
+  // A profile still under review (or rejected) opens its status page, never
+  // the plan selection.
+  if (access.owner && ["PENDING_REVIEW", "REJECTED"].includes(access.stage))
+    return "/enterprise/onboarding";
   return (
     ["/enterprise", "/enterprise/service", "/enterprise/onboarding"].find(
       (path) => canUseEnterpriseRoute(path, access),

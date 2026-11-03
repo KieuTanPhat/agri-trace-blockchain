@@ -29,15 +29,8 @@ import type { RegisterDto } from '../auth/dto/register.dto.js';
 import type { ReviewEnterpriseDto, ActivateEnterpriseDto } from './dto.js';
 import { VIETNAM_ADDRESSES } from './address-catalog.js';
 import { serviceStage } from './enterprise-service.service.js';
-import {
-  acceptPartnerInvitation,
-  invitationHash,
-} from '../supply-chains/partner-invitations.js';
-import {
-  ensureFarmLedger,
-  grantChainCreation,
-  grantEnterpriseBusiness,
-} from './service-activation.js';
+import { invitationHash } from '../supply-chains/partner-invitations.js';
+import { activateEnrollmentTx, ensureFarmLedger } from './service-activation.js';
 import { assertActivationReady, enterprisePaymentsEnabled } from './payment-policy.js';
 export { assertActivationReady } from './payment-policy.js';
 import { settingValue } from '../billing/billing-core.js';
@@ -567,10 +560,7 @@ export class EnterpriseOnboardingService {
       await tx.$queryRaw`SELECT id FROM enterprise_enrollment WHERE id=${id}::uuid FOR UPDATE`;
       if(row.status!=='APPROVED' || row.version!==input.version || row.serviceActivatedAt)throw new ConflictException('Hồ sơ chưa duyệt, đã kích hoạt hoặc phiên bản đã đổi');
       await assertActivationReady(tx,row);
-      await tx.enterpriseEnrollment.update({where:{id},data:{serviceActivatedAt:new Date(),serviceActivatedBy:actor.sub!,serviceActivationReason:input.reason,version:{increment:1}}});
-      await grantEnterpriseBusiness(tx,row);
-      await acceptPartnerInvitation(tx,row.organizationId,(row.organization.profile?.registrationData as {invitationHash?:string|null}|null)?.invitationHash);
-      const createChain=await grantChainCreation(tx,row.organizationId);
+      const createChain=await activateEnrollmentTx(tx,row,actor.sub!,input.reason);
       await appendPlatformAudit(tx,{actor,action:'ENTERPRISE_SERVICE_ACTIVATED',subjectType:'ENTERPRISE_ENROLLMENT',subjectId:id,organizationId:row.organizationId,reason:input.reason,details:{manual:true,temporaryAccess:!enterprisePaymentsEnabled(),paymentVerified:false,peerVerified:false,participationStatus:row.organization.participationStatus,createChain}});
       return enrollmentView(await tx.enterpriseEnrollment.findUniqueOrThrow({where:{id},include:INCLUDE}));
     });

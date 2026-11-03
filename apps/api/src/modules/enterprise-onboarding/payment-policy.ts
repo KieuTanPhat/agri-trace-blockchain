@@ -21,6 +21,7 @@ export async function assertActivationReady(
   row: {
     organizationId: string;
     organization: {
+      participationStatus?: string;
       capabilityRequests?: Pick<CapabilityRequest, 'status' | 'code'>[];
     };
   },
@@ -31,9 +32,11 @@ export async function assertActivationReady(
   const approved = requests.filter((r) => r.status === 'APPROVED');
   if (requests.length && !approved.length)
     throw new ConflictException('Chưa có năng lực nào được phê duyệt');
-  // Activation is about reviewed capabilities. A chain owner's plan only
-  // gates CREATE_CHAIN (ADR-005), so no subscription is required here.
-  void tx;
+  // A member is activated on reviewed capabilities alone. A chain owner pays
+  // its plan first while collection is enabled (ADR-005); paying activates it.
+  if (!enterprisePaymentsEnabled() || row.organization.participationStatus !== 'CHAIN_OWNER') return;
+  if (!(await tx.subscription.findFirst({ where: { organizationId: row.organizationId, status: 'ACTIVE' } })))
+    throw new ConflictException('Chủ chuỗi cần thanh toán gói dịch vụ trước khi kích hoạt');
 }
 
 export function serviceWorkspaceStage(base: string) {

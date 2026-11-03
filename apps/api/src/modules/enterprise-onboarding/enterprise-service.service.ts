@@ -22,6 +22,7 @@ import {
   settleInvoiceTx,
 } from '../billing/billing-core.js';
 import { chainOwner } from './registration-profile.dto.js';
+import { activateEnrollmentTx } from './service-activation.js';
 import { assertEnterprisePaymentsEnabled, serviceWorkspaceStage } from './payment-policy.js';
 import { lockPlatformAudit } from '../platform-governance/platform-audit.js';
 import type {
@@ -332,6 +333,22 @@ export class EnterpriseServiceService {
           reference: `SIM-${invoice.number}`,
           note: 'Thanh toán mô phỏng hợp đồng khởi tạo',
         });
+      // A chain owner whose capabilities are all reviewed is activated by its
+      // payment (ADR-005); otherwise the administrator activates after review.
+      const requests = await tx.capabilityRequest.findMany({ where: { organizationId: row.organizationId } });
+      const reviewed = !requests.some((r) => r.status === 'PENDING') && requests.some((r) => r.status === 'APPROVED');
+      if (!row.serviceActivatedAt && reviewed && row.organization.participationStatus === 'CHAIN_OWNER') {
+        const createChain = await activateEnrollmentTx(tx, row, actor.sub!, 'Tự kích hoạt khi chủ chuỗi thanh toán gói dịch vụ');
+        await appendPlatformAudit(tx, {
+          actor,
+          action: 'ENTERPRISE_SERVICE_ACTIVATED',
+          subjectType: 'ENTERPRISE_ENROLLMENT',
+          subjectId: row.id,
+          organizationId: row.organizationId,
+          reason: 'Tự kích hoạt khi chủ chuỗi thanh toán gói dịch vụ',
+          details: { manual: false, paymentVerified: false, simulated: true, participationStatus: 'CHAIN_OWNER', createChain },
+        });
+      }
       const recipient = row.organization.profile?.contactEmail;
       if (!recipient)
         throw new ConflictException(

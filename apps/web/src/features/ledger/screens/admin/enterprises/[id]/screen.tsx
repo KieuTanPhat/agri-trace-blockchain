@@ -648,16 +648,16 @@ function ActivatePanel({
       label: tr("Có ít nhất một năng lực được duyệt"),
     },
     {
-      // ADR-005: activation never waits for a plan; a chain owner's plan only
-      // gates chain creation, granted once the subscription is ACTIVE.
-      ok: true,
+      // ADR-005: a member needs no plan; a chain owner pays first (its
+      // payment activates it once every capability is reviewed).
+      ok: e.participationStatus !== "CHAIN_OWNER" || e.paymentsEnabled === false || subscriptionActive,
       label: e.participationStatus !== "CHAIN_OWNER"
         ? tr("Thành viên — không cần gói")
         : e.paymentsEnabled === false
-          ? tr("Chủ chuỗi — thu phí tạm hoãn, được tạo chuỗi ngay khi kích hoạt")
+          ? tr("Chủ chuỗi — thu phí tạm hoãn, kích hoạt dùng tạm")
           : orgLoaded && subscriptionActive
-            ? tr("Chủ chuỗi — gói ACTIVE, được tạo chuỗi khi kích hoạt")
-            : tr("Chủ chuỗi — tạo chuỗi được sau khi thanh toán gói"),
+            ? tr("Chủ chuỗi — gói đã thanh toán")
+            : tr("Chủ chuỗi — chờ doanh nghiệp chọn gói và thanh toán"),
     },
   ];
   const ready = checks.every((c) => c.ok);

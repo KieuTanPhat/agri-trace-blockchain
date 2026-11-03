@@ -3,6 +3,7 @@ import type { OrganizationType, Prisma } from '../../generated/prisma/client.js'
 import { chainOwner } from './registration-profile.dto.js';
 import { enterprisePaymentsEnabled } from './payment-policy.js';
 import { ensurePersonalChain } from '../supply-chains/personal-chain.js';
+import { acceptPartnerInvitation } from '../supply-chains/partner-invitations.js';
 
 async function grantOrganizationRole(
   tx: Prisma.TransactionClient,
@@ -90,4 +91,32 @@ export async function grantEnterpriseBusiness(
       });
   await grantOrganizationRole(tx, org.id, row.ownerId, 'ORG_ADMIN');
   await ensureFarmLedger(tx, row);
+}
+
+/** Shared activation step (admin activation, or a chain owner's payment):
+ * marks the enrollment active, grants reviewed capabilities and ORG_ADMIN,
+ * turns a pending partner invitation into a chain invitation and grants
+ * CREATE_CHAIN when the participation status allows it. */
+export async function activateEnrollmentTx(
+  tx: Prisma.TransactionClient,
+  row: {
+    id: string;
+    organizationId: string;
+    ownerId: string;
+    organization: { profile?: { registrationData?: unknown } | null };
+  },
+  by: string,
+  reason: string,
+) {
+  await tx.enterpriseEnrollment.update({
+    where: { id: row.id },
+    data: { serviceActivatedAt: new Date(), serviceActivatedBy: by, serviceActivationReason: reason, version: { increment: 1 } },
+  });
+  await grantEnterpriseBusiness(tx, row);
+  await acceptPartnerInvitation(
+    tx,
+    row.organizationId,
+    (row.organization.profile?.registrationData as { invitationHash?: string | null } | null)?.invitationHash,
+  );
+  return grantChainCreation(tx, row.organizationId);
 }
