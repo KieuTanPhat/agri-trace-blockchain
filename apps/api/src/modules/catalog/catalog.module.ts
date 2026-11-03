@@ -66,7 +66,6 @@ class ProductDto {
   @IsOptional() @IsBoolean() externalGoods?: boolean;
   @ApiProperty({ maxLength: 100 }) @IsString() @MinLength(2) @MaxLength(100) category!: string;
   @ApiProperty({ required: false, format: 'uuid', description: 'Origin farm. Required for producers; processors give manufacturingSiteId instead.' }) @IsOptional() @IsUUID() originFarmId?: string;
-  @ApiProperty({ required: false, type: Number, minimum: 0 }) @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) price?: number;
   @ApiProperty({ maxLength: 2000 }) @IsString() @MinLength(2) @MaxLength(2000) storageConditions!: string;
   @ApiProperty({ maxLength: 2000 }) @IsString() @MinLength(2) @MaxLength(2000) ingredients!: string;
   @ApiProperty({ maxLength: 2000 }) @IsString() @MinLength(2) @MaxLength(2000) usageInstructions!: string;

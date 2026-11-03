@@ -67,7 +67,7 @@ describe('Public directory', () => {
     const { db, service } = fixture();
     db.product.findMany.mockResolvedValue([{ id }, { id: next }]);
     expect(await service.products({ limit: 1, cursor: id, q: '%' })).toMatchObject({
-      items: [{ id, imageUrl:null,price:null }],
+      items: [{ id, imageUrl:null,category:null }],
       hasMore: true,
       nextCursor: id,
     });

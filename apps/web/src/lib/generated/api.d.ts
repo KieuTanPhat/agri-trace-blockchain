@@ -7955,7 +7955,6 @@ export interface components {
             manufacturer?: string;
             name: string;
             origin?: string;
-            price?: number;
             seedType?: string;
             supplier?: string;
             unit: string;
@@ -8883,7 +8882,6 @@ export interface components {
              * @description Origin farm. Required for producers; processors give manufacturingSiteId instead.
              */
             originFarmId?: string;
-            price?: number;
             /** @description Private label: source products of other businesses already received; no farm or site needed */
             privateLabelSourceIds?: string[];
             productName: string;
@@ -8914,7 +8912,6 @@ export interface components {
             manufacturingSiteId?: string;
             /** Format: uuid */
             originFarmId: string;
-            price?: number;
             productName: string;
             rawMaterials?: string;
             sku: string;
@@ -9012,7 +9009,6 @@ export interface components {
             /** Format: uuid */
             organizationId: string;
             origin: string | null;
-            price: string | null;
             seedType: string | null;
             status: string;
             supplier: string | null;
@@ -9063,7 +9059,6 @@ export interface components {
             organizationId?: string | null;
             /** Format: uuid */
             originFarmId: string | null;
-            price: string | null;
             /** @description Branded by a retailer or distributor from source products of other businesses */
             privateLabel?: boolean;
             productName: string;
@@ -9278,8 +9273,6 @@ export interface components {
             /** @description Only an explicitly published product image. */
             imageUrl: string | null;
             ingredients: string | null;
-            /** @description Published indicative price in VND per defaultUnit; not a checkout price. */
-            price: string | null;
             productName: string;
             province: string | null;
             /**
@@ -9445,8 +9438,6 @@ export interface components {
             imageUrl: string | null;
             ingredients: string | null;
             lots: components["schemas"]["PublicTraceLinksPageDto"];
-            /** @description Published indicative price in VND per defaultUnit; not a checkout price. */
-            price: string | null;
             productName: string;
             province: string | null;
             /**

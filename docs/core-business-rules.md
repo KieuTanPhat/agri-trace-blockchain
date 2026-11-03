@@ -573,6 +573,9 @@ Quyết định đầy đủ ở [ADR-005](adr-005-chain-owner-service-model.md)
 - Phiếu nhập ngoài chọn nhà cung cấp trong danh bạ của tổ chức, có mức tin cậy
   `DECLARED`/`EVIDENCED`/`SUPPLIER_CONFIRMED`; lô AgriTrace là `SELF_RECORDED`.
 - Bên giữ hàng ghi `EXTERNAL_DISPATCH` khi giao cho đơn vị ngoài hệ thống.
+- AgriTrace không lưu giá (03/11/2026): sản phẩm không có giá khuyến nghị, vật tư không
+  có đơn giá. Giá bán do cửa hàng quyết định trên POS/ERP của mình, giá mua bán giữa
+  doanh nghiệp nằm trên hóa đơn; nhập hàng ngoài chỉ giữ số và ảnh chứng từ.
 
 ## Chế biến (biến đổi lô)
 

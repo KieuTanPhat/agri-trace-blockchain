@@ -75,7 +75,6 @@ export class PublicEnterprisesQueryDto extends PublicDirectoryQueryDto {
 export class PublicDirectoryProductDto {
   @ApiProperty({enum:['SELLING','NOT_SELLING'],description:'SELLING when any active retailer holds saleable stock in an eligible lot.'}) saleStatus!:'SELLING'|'NOT_SELLING';
   @ApiProperty({type:String,nullable:true,description:'Only an explicitly published product image.'}) imageUrl!:string|null;
-  @ApiProperty({type:String,nullable:true,description:'Published indicative price in VND per defaultUnit; not a checkout price.'}) price!:string|null;
   @ApiProperty({type:String,nullable:true}) category!:string|null;
   @ApiProperty({type:String,nullable:true}) province!:string|null;
   @ApiProperty({type:String,nullable:true}) gtin!:string|null;

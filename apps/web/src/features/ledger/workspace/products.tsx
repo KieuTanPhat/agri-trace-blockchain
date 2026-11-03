@@ -14,7 +14,6 @@ import { ArrowDown, ArrowUp, FileUp, Loader2, Plus } from "lucide-react";
 type ApiError = Error;
 import { wapi } from "@/lib/ledger/product-api";
 import type { Farm, ImportPreview, Member, Product, ProductInput, Site } from "@/lib/ledger/product-types";
-import { fmtNumber } from "@/lib/ledger/format";
 import { t as tr } from "@/lib/ledger/i18n";
 import { useOverview, useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { Button } from "@/components/ledger/ui/button";
@@ -46,7 +45,6 @@ const fields = {
   variety: opt(255),
   defaultUnit: req(1, 30),
   originFarmId: z.string().min(1, { error: () => tr("Chọn vùng sản xuất") }),
-  price: z.union([z.literal(""), z.coerce.number<number>().min(0, { error: () => tr("≥ 0") })]).optional(),
   storageConditions: req(2, 2000),
   ingredients: req(2, 2000),
   usageInstructions: req(2, 2000),
@@ -76,7 +74,6 @@ function toInput(v: Values): ProductInput {
     variety: blank(v.variety),
     defaultUnit: v.defaultUnit,
     originFarmId: v.originFarmId,
-    price: typeof v.price === "number" ? v.price : undefined,
     storageConditions: v.storageConditions,
     ingredients: v.ingredients,
     usageInstructions: v.usageInstructions,
@@ -98,7 +95,6 @@ const fromRow = (p: Product): Values => ({
   variety: p.variety ?? "",
   defaultUnit: p.defaultUnit ?? "",
   originFarmId: p.originFarmId ?? "",
-  price: p.price !== null && p.price !== undefined ? Number(p.price) : "",
   storageConditions: p.storageConditions ?? "",
   ingredients: p.ingredients ?? "",
   usageInstructions: p.usageInstructions ?? "",
@@ -140,7 +136,6 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
     { key: "name", header: tr("Sản phẩm"), sort: (p) => p.productName, cell: (p) => <span className="flex flex-col"><span className="font-medium">{p.productName}</span><span className="font-mono text-[11px] text-ink-2">{p.sku}{p.gtin ? ` · GTIN ${p.gtin}` : ""}</span></span> },
     { key: "farm", header: tr("Vùng xuất xứ"), hideBelow: "md", cell: (p) => <span className="text-[12.5px]">{farms.find((f) => f.id === p.originFarmId)?.name ?? "—"}</span> },
     { key: "unit", header: tr("Đơn vị"), hideBelow: "lg", cell: (p) => <span className="text-[12.5px]">{p.defaultUnit}</span> },
-    { key: "price", header: tr("Giá"), hideBelow: "lg", cell: (p) => <span className="font-mono text-[12px]">{p.price ? fmtNumber(p.price) : "—"}</span> },
     { key: "ev", header: tr("Ảnh"), cell: (p) => (p.evidenceComplete ? <Badge tone="ok">{tr("Đủ")}</Badge> : <Badge tone="warn">{tr("Thiếu")}</Badge>) },
     { key: "status", header: tr("Trạng thái"), cell: (p) => <Badge tone={p.status === "ACTIVE" ? "ok" : "neutral"}>{p.status === "ACTIVE" ? tr("Đang bán") : tr("Ngừng")}</Badge> },
     { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (p) => <Button size="xs" variant="outline" onClick={() => router.push(`/enterprise/products/${p.id}`)}>{tr("Chi tiết")}</Button> },
@@ -219,7 +214,7 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
     </>
   );
 }
-const emptyValues = (): Values => ({ productName: "", sku: "", gtin: "", category: "", variety: "", defaultUnit: "kg", originFarmId: "", price: "", storageConditions: "", ingredients: "", usageInstructions: "", rawMaterials: "", manufacturingSiteId: "", managerUserId: "", exporter: "", importer: "", distributor: "", carrier: "", description: "" });
+const emptyValues = (): Values => ({ productName: "", sku: "", gtin: "", category: "", variety: "", defaultUnit: "kg", originFarmId: "", storageConditions: "", ingredients: "", usageInstructions: "", rawMaterials: "", manufacturingSiteId: "", managerUserId: "", exporter: "", importer: "", distributor: "", carrier: "", description: "" });
 
 function ProductPhotosField({ control }: { control: Control<z.infer<typeof createSchema>> }) {
   return (
@@ -245,7 +240,6 @@ function ProductFields({ f, options, creating }: { f: { control: never }; option
         <TextField control={c} name="gtin" label={tr("GTIN")} inputMode="numeric" />
         <ReferenceSelectField control={c} name="defaultUnit" label={tr("Đơn vị tính")} category="UNIT" />
         <SelectField control={c} name="originFarmId" label={tr("Vùng xuất xứ")} options={options.farms.map((x) => ({ value: x.id, label: x.name }))} />
-        <TextField control={c} name="price" label={tr("Giá (VND)")} type="number" />
         <SelectField control={c} name="manufacturingSiteId" label={tr("Nhà xưởng sản xuất")} options={options.sites.map((s) => ({ value: s.id, label: s.name }))} />
         <SelectField control={c} name="managerUserId" label={tr("Người quản lý sản phẩm")} options={options.members.map((m) => ({ value: m.id, label: m.fullName }))} />
       </div>
@@ -308,7 +302,6 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
                   [tr("Giống/chủng loại"), p.variety],
                   ["GTIN", p.gtin],
                   [tr("Đơn vị tính"), p.defaultUnit],
-                  [tr("Giá"), p.price && `${fmtNumber(p.price)} VND`],
                   [tr("Điều kiện bảo quản"), p.storageConditions],
                   [tr("Thành phần"), p.ingredients],
                   [tr("Hướng dẫn sử dụng"), p.usageInstructions],
@@ -420,7 +413,7 @@ function PhotoOrder({ productId, open, onOpenChange }: { productId: string; open
   );
 }
 
-const CSV_COLUMNS = ["productName", "sku", "category", "originFarmId", "defaultUnit", "storageConditions", "ingredients", "usageInstructions", "gtin", "variety", "price", "description"] as const;
+const CSV_COLUMNS = ["productName", "sku", "category", "originFarmId", "defaultUnit", "storageConditions", "ingredients", "usageInstructions", "gtin", "variety", "description"] as const;
 function ImportDialog({ open, onOpenChange, farms }: { open: boolean; onOpenChange: (o: boolean) => void; farms: Farm[] }) {
   const [locked,setLocked]=useState(false);
   const [text, setText] = useState("");

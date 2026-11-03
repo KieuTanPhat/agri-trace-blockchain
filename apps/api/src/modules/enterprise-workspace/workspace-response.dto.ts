@@ -274,7 +274,6 @@ export class EnterpriseVehicleListDto {
 
 export class ProductionMaterialRecordDto {
   @ApiProperty({ type: String, nullable: true }) seedType!: string | null;
-  @ApiProperty({ type: String, nullable: true }) price!: string | null;
   @ApiProperty({ type: String, nullable: true }) origin!: string | null;
   @ApiProperty({ type: String, nullable: true }) manufacturer!: string | null;
   @ApiProperty({ type: String, nullable: true }) description!: string | null;

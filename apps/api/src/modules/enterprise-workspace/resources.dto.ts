@@ -18,7 +18,6 @@ export class EvidenceCompletionInput {
 export class ProductInput {
  @ApiProperty({maxLength:100}) @IsString() @MinLength(2) @MaxLength(100) category!: string;
  @ApiProperty({format:'uuid'}) @IsUUID() originFarmId!: string;
- @ApiProperty({required:false,type:Number,minimum:0}) @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) price?:number;
  @ApiProperty({maxLength:2000}) @IsString() @MinLength(2) @MaxLength(2000) storageConditions!:string;
  @ApiProperty({maxLength:2000}) @IsString() @MinLength(2) @MaxLength(2000) ingredients!:string;
  @ApiProperty({maxLength:2000}) @IsString() @MinLength(2) @MaxLength(2000) usageInstructions!:string;
@@ -57,7 +56,6 @@ export class MaterialInput {
  @ApiProperty({required:false,maxLength:100}) @IsOptional() @IsString() @MaxLength(100) batchCode?: string;
  @ApiProperty({required:false,maxLength:255}) @IsOptional() @IsString() @MaxLength(255) activeIngredient?: string;
  @ApiProperty({required:false,maxLength:100}) @ValidateIf((input:MaterialInput)=>input.kind==='SEED') @IsString() @MinLength(2) @MaxLength(100) seedType?: string;
- @ApiProperty({required:false,type:Number,minimum:0}) @IsOptional() @Type(()=>Number) @IsNumber({maxDecimalPlaces:2}) @Min(0) price?: number;
  @ApiProperty({required:false,maxLength:255}) @IsOptional() @IsString() @MaxLength(255) origin?: string;
  @ApiProperty({required:false,maxLength:255}) @IsOptional() @IsString() @MaxLength(255) manufacturer?: string;
  @ApiProperty({required:false,maxLength:2000}) @IsOptional() @IsString() @MaxLength(2000) description?: string;

@@ -211,7 +211,7 @@ const at=(days)=>new Date(new Date(state.startedAt).getTime()+days*86400000).toI
 async function produce(org,p,setup){
  const {a,farm,plot,site,chain}=setup;
  const product=unwrap(await command(a,'/catalog/products',{
-  productName:p.name,sku:p.sku,category:p.processed?'[DEMO] Sản phẩm chế biến':'[DEMO] Nông sản',defaultUnit:'kg',price:p.price,
+  productName:p.name,sku:p.sku,category:p.processed?'[DEMO] Sản phẩm chế biến':'[DEMO] Nông sản',defaultUnit:'kg',
   variety:'Dữ liệu tổng hợp để kiểm thử',storageConditions:'[DEMO] Bảo quản khô thoáng; không phải hướng dẫn cho hàng thật',
   ingredients:'[DEMO] Thành phần minh họa',usageInstructions:'Chỉ dùng thử nghiệm phần mềm',description:'Dữ liệu thử nghiệm tổng hợp; không phải hàng hóa hoặc chứng nhận thật.',
   ...(farm?{originFarmId:farm.id}:{manufacturingSiteId:site.id}),
@@ -252,7 +252,7 @@ async function verify(){
  for(const p of plan.products){
   const record=state.products[p.key];assert.ok(record);
   const detail=await raw(null,`/public/products/${record.productId}`);assert.equal(detail.productName,p.name);assert.ok(detail.lots.items.some(l=>l.traceToken===record.traceToken));
-  assert.ok(detail.imageUrl,'Public demo image missing');assert.equal(Number(detail.price),p.price,'Published demo catalog price missing');
+  assert.ok(detail.imageUrl,'Public demo image missing');assert.ok(detail.category,'Published demo catalog details missing');
   const trace=await raw(null,`/public/trace/${record.traceToken}`);assert.ok(trace,'Trace missing');
   const lot=await db.lot.findUniqueOrThrow({where:{id:record.lotId}});assert.equal(lot.productId,record.productId);assert.equal(lot.unit,'kg');
   if(p.processed){const run=await db.processingRun.findUniqueOrThrow({where:{id:lot.processingRunId}});assert.equal(run.status,'COMPLETED');assert.equal(run.inputTotal.toFixed(3),'10.000');assert.equal(run.outputTotal.toFixed(3),'8.000');assert.equal(run.lossTotal.toFixed(3),'2.000');}

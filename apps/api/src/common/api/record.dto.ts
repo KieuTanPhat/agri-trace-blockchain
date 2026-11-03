@@ -81,7 +81,6 @@ export class ProductRecordDto {
   @ApiProperty({ type: String, nullable: true, required: false }) approvalNote?: string | null;
   @ApiProperty({ type: String, nullable: true }) category!: string | null;
   @ApiProperty({ type: String, format: 'uuid', nullable: true }) originFarmId!: string | null;
-  @ApiProperty({ type: String, nullable: true }) price!: string | null;
   @ApiProperty({ type: String, nullable: true }) storageConditions!: string | null;
   @ApiProperty({ type: String, nullable: true }) ingredients!: string | null;
   @ApiProperty({ type: String, nullable: true }) usageInstructions!: string | null;

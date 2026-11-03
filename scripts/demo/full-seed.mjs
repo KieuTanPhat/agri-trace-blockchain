@@ -779,7 +779,6 @@ const resources = await step("resources", async () => {
             manufacturer: "Cơ sở vật tư ",
             batchCode: `AGT-VT-2026-${i}${j}`,
             origin: "Việt Nam (dữ liệu)",
-            price: j ? 45000 : 120000,
             seedType: j ? undefined : "Giống chọn lọc",
             activeIngredient: j === 2 ? "Bacillus thuringiensis" : undefined,
             description:
@@ -920,7 +919,6 @@ const resources = await step("resources", async () => {
           category: definition.category,
           defaultUnit: "kg",
           originFarmId: farm.id,
-          price: definition.price,
           storageConditions:
             definition.storage,
           ingredients: `100% ${definition.name.toLowerCase()}`,
@@ -1759,7 +1757,7 @@ const processing = await step("processing", async () => {
   for (const definition of processedProducts) {
     const product = await api(actors.processor, "/catalog/products", {
       productName:definition.name, sku:`MV-${definition.slug.toUpperCase()}`, category:definition.category,
-      defaultUnit:"kg", variety:definition.variety, price:definition.price,
+      defaultUnit:"kg", variety:definition.variety,
       storageConditions:definition.storage, ingredients:`100% ${definition.variety.toLowerCase()}`,
       rawMaterials:`${definition.variety} từ các lô nguồn có truy xuất`, usageInstructions:definition.usage,
       manufacturingSiteId:resources.sites.processor[0].id, managerUserId:actors.processor.id,

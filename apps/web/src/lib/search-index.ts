@@ -17,7 +17,7 @@ const siteFields = [
 ];
 const productFields = [
   "Tên sản phẩm", "Mã sản phẩm", "Danh mục sản phẩm", "Vùng sản xuất xuất xứ",
-  "Mã vạch GTIN", "Giá sản phẩm", "Điều kiện bảo quản", "Thành phần",
+  "Mã vạch GTIN", "Điều kiện bảo quản", "Thành phần",
   "Hướng dẫn sử dụng", "Giống / phân loại", "Đơn vị mặc định", "Nguyên liệu",
   "Nhà xưởng sản xuất", "Nhà xuất khẩu", "Nhà nhập khẩu", "Nhà phân phối",
   "Nhà vận chuyển", "Người quản lí", "Hình ảnh sản phẩm", "Mô tả hình ảnh",
@@ -88,7 +88,7 @@ export const fieldIndex: Record<string, FieldSection[]> = {
   ],
   "/enterprise/materials": [
     { fields: ["Mã / tên", "Loại", "Nhà cung cấp / lô", "Đơn vị", "Cách ly khai báo", "Trạng thái"] },
-    { page: "Thêm giống / vật tư", href: "/enterprise/materials/new", fields: ["Mã đầu vào", "Tên", "Loại", "Loại giống", "Đơn vị", "Giá", "Xuất xứ", "Nhà sản xuất", "Nhà cung cấp", "Mô tả", "Lô đầu vào", "Thành phần / hoạt chất", "Cách ly khai báo (ngày)", "Hạn dùng"] },
+    { page: "Thêm giống / vật tư", href: "/enterprise/materials/new", fields: ["Mã đầu vào", "Tên", "Loại", "Loại giống", "Đơn vị", "Xuất xứ", "Nhà sản xuất", "Nhà cung cấp", "Mô tả", "Lô đầu vào", "Thành phần / hoạt chất", "Cách ly khai báo (ngày)", "Hạn dùng"] },
   ],
   "/lots": [{ fields: ["Nông sản", "Mã lô", "Nông trại", "Cập nhật gần nhất", "Trạng thái", "Tìm lô", "Lọc trạng thái", "Lọc trang trại", "Tổng số lô", "Đang vận chuyển", "Đã thu hoạch"] }],
   "/iot-simulator": [{ fields: ["Thiết bị", "Vụ trồng", "Loại cảm biến", "Giá trị và đơn vị", "Thời điểm ghi nhận UTC", "Cấu hình cảm biến"] }],

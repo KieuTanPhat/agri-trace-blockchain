@@ -1449,7 +1449,6 @@ model ProductionMaterial {
   batchCode String? @map("batch_code") @db.VarChar(100)
   activeIngredient String? @map("active_ingredient") @db.VarChar(255)
   seedType String? @map("seed_type") @db.VarChar(100)
-  price Decimal? @db.Decimal(14,2)
   origin String? @db.VarChar(255)
   manufacturer String? @db.VarChar(255)
   description String? @db.VarChar(2000)
@@ -1777,7 +1776,6 @@ model Product {
   category String? @db.VarChar(100)
   originFarmId String? @map("origin_farm_id") @db.Uuid
   originFarm Farm? @relation(fields: [originFarmId], references: [id], onDelete: Restrict)
-  price Decimal? @db.Decimal(14,2)
   storageConditions String? @map("storage_conditions") @db.VarChar(2000)
   ingredients String? @db.VarChar(2000)
   usageInstructions String? @map("usage_instructions") @db.VarChar(2000)
