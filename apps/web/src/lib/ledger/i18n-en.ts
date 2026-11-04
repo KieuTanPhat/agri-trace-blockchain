@@ -1125,6 +1125,13 @@ export const EN: Record<string, string> = {
   "Kiểm toán": "Audit",
   "Kiểm tra": "Check",
   "Ký giao nhận": "Sign handover",
+  "Tài xế": "Driver",
+  "Lái xe": "Drive",
+  "Chọn tài xế": "Choose a driver",
+  "Chọn cơ sở giao để thấy tài xế.": "Choose the sending site to see its drivers.",
+  "Nhân viên có quyền Lái xe ở cơ sở giao; người này ký lấy hàng và giao hàng.": "Employees with the Drive permission at the sending site; the driver signs pickup and delivery.",
+  "Chưa có nhân viên có quyền Lái xe ở cơ sở giao. Gán nhóm quyền Tài xế giao hàng cho thành viên trước.": "No employee has the Drive permission at the sending site yet. Assign the Delivery driver group to a member first.",
+  "Làm tài xế khi tự chở: ký lấy hàng và giao hàng": "Drive self deliveries: sign pickup and delivery",
   "Kỳ hạn (tháng)": "Term (months)",
   "Kỹ thuật": "Technical",
   "là thao tác bị Backend từ chối và vẫn được ghi nhật ký.":

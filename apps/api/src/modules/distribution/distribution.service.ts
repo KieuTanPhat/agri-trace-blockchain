@@ -56,8 +56,6 @@ import type {
   DistributionC2Prepare, DistributionC2Submit,
   ConsentRenewInput,
   DistributionReportQuery,
-  PickupRequestInput,
-  PickupResolveInput,
 } from './dto.js';
 
 export const DISTRIBUTION_SIGNATURE_DOMAIN =
@@ -78,6 +76,7 @@ export function distributionSnapshot(
       transportMode: t.transportMode,
       transportDetails: t.transportDetails ?? null,
     } : {}),
+    ...(t.driverUserId ? { driverUserId: t.driverUserId } : {}),
     ...(t.plannedPickupAt ? {
       plannedPickupAt: t.plannedPickupAt.toISOString(),
       plannedDeliveryAt: t.plannedDeliveryAt?.toISOString() ?? null,
@@ -116,6 +115,23 @@ export function phaseParties(
         ? [t.senderId, t.carrierId]
         : [t.carrierId, t.receiverId],
   )];
+}
+/** Self delivery with a named driver: the carrying side signs pickup and
+ * delivery (and attaches their photos) through that driver; the owner may
+ * stand in. Consent and transfers without a driver stay organization-level. */
+export function driverMaySign(
+  t: Pick<DistributionTransfer, 'carrierId' | 'driverUserId'>,
+  phase: string,
+  actor: CommandActor,
+  primary: boolean,
+) {
+  return (
+    !t.driverUserId ||
+    actor.organizationId !== t.carrierId ||
+    !['PICKUP', 'DELIVERY'].includes(phase) ||
+    primary ||
+    actor.sub === t.driverUserId
+  );
 }
 export const domainMessage = (domain: string, body: unknown) =>
   Buffer.from(`${domain}\0${canonicalize(body)}`, 'utf8');
@@ -165,6 +181,25 @@ export class DistributionService {
         where: { organizationId: { in: ids }, status: 'ACTIVE', ...(!auth.primary ? {OR:[{organizationId:{not:actor.organizationId!}},{id:{in:auth.matching.flatMap(r=>r.siteIds)}}]}:{}) },
         select: { id: true, organizationId: true, name: true, kind: true },
         orderBy: { name: 'asc' },
+      }),
+      // Drivers of this organization; create re-checks drive and sign scope.
+      drivers: (await this.db.user.findMany({
+        where: {
+          organizationId: actor.organizationId!,
+          accountStatus: 'ACTIVE',
+          enterpriseRoles: { some: { role: { permissions: { has: 'distribution.drive' } } } },
+        },
+        select: { id: true, fullName: true, phone: true, enterpriseRoles: { include: { role: true } } },
+        orderBy: { fullName: 'asc' },
+      })).map((u) => {
+        const roles = u.enterpriseRoles.filter((r) => r.role.permissions.includes('distribution.drive'));
+        return {
+          id: u.id,
+          fullName: u.fullName,
+          phone: u.phone,
+          chainIds: [...new Set(roles.flatMap((r) => r.chainIds))],
+          siteIds: [...new Set(roles.flatMap((r) => r.siteIds))],
+        };
       }),
     };
   }
@@ -298,7 +333,7 @@ export class DistributionService {
         'Giao nhận chưa có cơ sở được phân công cho nhân viên',
       );
     const has = (permission: string) => authority.primary || authority.user.enterpriseRoles.some(r => r.role.permissions.includes(permission) && r.chainIds.includes(t.chainId) && !!site && r.siteIds.includes(site));
-    const phases = ['CONSENT','PICKUP','DELIVERY'].filter(phase=>this.phaseAllowed(t,phase,actor.organizationId!));
+    const phases = ['CONSENT','PICKUP','DELIVERY'].filter(phase=>this.phaseAllowed(t,phase,actor.organizationId!) && driverMaySign(t,phase,actor,authority.primary));
     const signed = new Set(t.attestations.filter(a => a.organizationId === actor.organizationId && a.epoch===t.attestationEpoch).map(a => a.phase));
     const chain = await this.db.supplyChain.findUnique({ where: { id: t.chainId }, select: { name: true, ownerOrganizationId: true } });
     const roleGrants = await this.db.scopedRoleGrant.count({
@@ -307,7 +342,7 @@ export class DistributionService {
     // Photos of the open handover phase can be added until anyone signs it.
     const photoPhase = t.status === 'READY' ? 'PICKUP' : t.status === 'IN_TRANSIT' ? 'DELIVERY' : null;
     const canAttach = !!photoPhase && has('distribution.sign') && membership?.status === 'ACTIVE'
-      && phaseParties(t, photoPhase).includes(actor.organizationId!) && !(await phaseSigned(this.db, id, photoPhase));
+      && phaseParties(t, photoPhase).includes(actor.organizationId!) && driverMaySign(t, photoPhase, actor, authority.primary) && !(await phaseSigned(this.db, id, photoPhase));
     const allowedActions = [
       ...(canAttach ? [`PHOTOS_${photoPhase}`] : []),
       ...(authority.primary && membership?.status === 'INVITED' && t.status === 'PROPOSED' && actor.organizationId !== t.senderId ? ['JOIN_CHAIN'] : []),
@@ -608,7 +643,7 @@ export class DistributionService {
           ? input.carrierId
           : mode === 'SELF_DELIVERY' || (mode === 'EXTERNAL_CARRIER' && input.externalHirer === 'SENDER')
             ? sender
-            : mode === 'RECEIVER_PICKUP' || (mode === 'EXTERNAL_CARRIER' && input.externalHirer === 'RECEIVER')
+            : mode === 'EXTERNAL_CARRIER' && input.externalHirer === 'RECEIVER'
               ? input.receiverId
               : undefined;
       if (!carrierId)
@@ -630,6 +665,26 @@ export class DistributionService {
         throw new UnprocessableEntityException('Nhập tên đơn vị vận chuyển bên ngoài');
       if (mode !== 'EXTERNAL_CARRIER' && details.carrierName)
         throw new UnprocessableEntityException('Tên đơn vị vận chuyển chỉ dùng khi thuê đơn vị bên ngoài');
+      // Self delivery names one of the sender's employees as driver; the
+      // driver must be able to drive and sign on this chain and sender site.
+      if (mode !== 'SELF_DELIVERY' && input.driverUserId)
+        throw new UnprocessableEntityException('Chọn tài xế thành viên chỉ khi bên giao tự chở');
+      if (mode === 'SELF_DELIVERY') {
+        if (!input.driverUserId) throw new UnprocessableEntityException('Chọn tài xế là thành viên của doanh nghiệp');
+        const driver = await tx.user.findUnique({ where: { id: input.driverUserId }, include: { role: true, organization: { select: { type: true } } } });
+        if (!driver || driver.organizationId !== sender || driver.accountStatus !== 'ACTIVE')
+          throw new UnprocessableEntityException('Tài xế phải là thành viên đang hoạt động của doanh nghiệp');
+        const driverActor = { sub: driver.id, organizationId: sender, role: effectiveRole(driver) ?? '' };
+        try {
+          await enterpriseAuthority(tx, driverActor, 'distribution.drive', chainId, input.senderSiteId);
+          await enterpriseAuthority(tx, driverActor, 'distribution.sign', chainId, input.senderSiteId);
+        } catch {
+          throw new UnprocessableEntityException('Tài xế chưa có quyền Lái xe và Ký giao nhận ở chuỗi và cơ sở giao này');
+        }
+        details.driverName = driver.fullName;
+        if (driver.phone) details.driverPhone = driver.phone;
+        else delete details.driverPhone;
+      }
       const carrierSiteId = carrierId === sender ? input.senderSiteId : carrierId === input.receiverId ? input.receiverSiteId : input.carrierSiteId;
       const data = {
         chainId,
@@ -644,14 +699,8 @@ export class DistributionService {
         note: input.note,
         transportMode: mode,
         transportDetails: Object.keys(details).length ? details : Prisma.DbNull,
+        driverUserId: mode === 'SELF_DELIVERY' ? input.driverUserId : undefined,
       };
-      const request = input.pickupRequestId
-        ? (await tx.$queryRaw<{ id: string }[]>`SELECT id FROM distribution_pickup_request WHERE id=${input.pickupRequestId}::uuid FOR UPDATE`).length
-          ? await tx.distributionPickupRequest.findUnique({ where: { id: input.pickupRequestId } })
-          : null
-        : null;
-      if (input.pickupRequestId && (!request || request.status !== 'OPEN' || request.senderId !== sender || request.receiverId !== input.receiverId || mode !== 'RECEIVER_PICKUP'))
-        throw new ConflictException('Yêu cầu lấy hàng không còn mở hoặc không khớp bên nhận');
       const ledger = await tx.chainLedgerProfile.findUnique({
         where: { chainId },
       });
@@ -747,11 +796,6 @@ export class DistributionService {
       });
       for (const party of new Set([data.receiverId, carrierId].filter((x) => x !== sender)))
         await this.inviteForTransfer(tx, chainId, party, actor);
-      if (request)
-        await tx.distributionPickupRequest.update({
-          where: { id: request.id },
-          data: { status: 'ACCEPTED', transferId: transfer.id, version: { increment: 1 } },
-        });
       await this.events(tx, transfer, actor, 'DISTRIBUTION_PROPOSED', {
         transportMode: mode,
       });
@@ -835,6 +879,7 @@ export class DistributionService {
       const r=input.phase==='RETURN'&&input.returnId?await tx.distributionReturn.findUnique({where:{id:input.returnId}}):undefined;
       if(input.phase==='RETURN' && (!r||r.transferId!==id||r.status!=='PROPOSED'||r.version!==input.version||![t.senderId,t.carrierId].includes(actor.organizationId!)))throw new ConflictException('Chặng trả không phù hợp');
       if(input.phase!=='RETURN' && (t.version!==input.version || !this.phaseAllowed(t,input.phase,actor.organizationId!)))throw new ConflictException('Trạng thái hoặc phiên bản bàn giao đã đổi');
+      if(!driverMaySign(t,input.phase,actor,auth.primary))throw new ForbiddenException('Chỉ tài xế được chỉ định hoặc chủ doanh nghiệp ký bước này');
       return prepareC2(tx,t,actor,auth.scope,input.phase,distributionSnapshot(t),input.keyRef,r??undefined);
     });
   }
@@ -893,6 +938,8 @@ export class DistributionService {
         throw new ConflictException(
           'Bước bàn giao không phù hợp trạng thái hoặc bên ký',
         );
+      if (!driverMaySign(t, input.phase, actor, auth.primary))
+        throw new ForbiddenException('Chỉ tài xế được chỉ định hoặc chủ doanh nghiệp ký bước này');
       if (input.phase === 'DELIVERY' && t.receiverSiteId && !t.receiptDigest)
         throw new ConflictException('Bên nhận cần lập biên bản thực nhận trước khi hai bên ký');
       const expiry = Date.parse(input.expiresAt);
@@ -1485,7 +1532,9 @@ export class DistributionService {
       if (!t || ![t.senderId, t.carrierId, t.receiverId].includes(org)) throw new NotFoundException();
       if (!phaseParties(t, input.phase).includes(org)) throw new ForbiddenException('Chỉ bên ký bước này gắn ảnh bàn giao');
       const siteId = t.senderId === org && input.phase === 'PICKUP' ? t.senderSiteId : t.carrierId === org ? t.carrierSiteId : t.receiverSiteId;
-      await enterpriseAuthority(tx, actor, 'distribution.sign', t.chainId, siteId ?? undefined, true);
+      const signer = await enterpriseAuthority(tx, actor, 'distribution.sign', t.chainId, siteId ?? undefined, true);
+      if (!driverMaySign(t, input.phase, actor, signer.primary))
+        throw new ForbiddenException('Chỉ tài xế được chỉ định hoặc chủ doanh nghiệp gắn ảnh bước này');
       const open = input.phase === 'PICKUP' ? t.status === 'READY' : t.status === 'IN_TRANSIT';
       if (!open || t.version !== input.version || await phaseSigned(tx, id, input.phase))
         throw new ConflictException('Chỉ gắn ảnh trước khi bước bàn giao được ký; tải lại giao nhận');
@@ -1566,78 +1615,6 @@ export class DistributionService {
       return { record: await tx.distributionReturn.findUniqueOrThrow({ where: { id: returnId } }) };
     });
   }
-  /** Pickup requests where this organization is either side. */
-  async pickupRequests(actor: CommandActor) {
-    await enterpriseAuthority(this.db, actor, 'distribution.read');
-    const rows = await this.db.distributionPickupRequest.findMany({
-      where: { OR: [{ senderId: actor.organizationId! }, { receiverId: actor.organizationId! }] },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
-    const orgs = await this.db.organization.findMany({
-      where: { id: { in: rows.flatMap((r) => [r.senderId, r.receiverId]) } },
-      select: { id: true, name: true },
-    });
-    return {
-      items: rows.map((r) => ({
-        ...r,
-        senderName: orgs.find((o) => o.id === r.senderId)?.name,
-        receiverName: orgs.find((o) => o.id === r.receiverId)?.name,
-        direction: r.senderId === actor.organizationId ? 'INCOMING' : 'OUTGOING',
-      })),
-    };
-  }
-  /** A receiver asks a linked partner to prepare goods it will collect itself. */
-  requestPickup(actor: CommandActor, input: PickupRequestInput) {
-    return commandTransaction(this.db, async (tx) => {
-      await enterpriseAuthority(tx, actor, 'distribution.write', undefined, undefined, true);
-      const receiver = actor.organizationId!;
-      if (input.senderId === receiver)
-        throw new UnprocessableEntityException('Chọn bên giao khác doanh nghiệp của bạn');
-      const partner = await tx.enterprisePartner.findFirst({
-        where: {
-          status: 'ACTIVE',
-          OR: [
-            { inviterId: receiver, inviteeId: input.senderId },
-            { inviterId: input.senderId, inviteeId: receiver },
-          ],
-        },
-      });
-      if (!partner)
-        throw new ForbiddenException('Hai doanh nghiệp phải liên kết đối tác trước khi yêu cầu lấy hàng');
-      const preferredPickupAt = input.preferredPickupAt
-        ? businessTimestamp(input.preferredPickupAt, 'Thời gian muốn lấy hàng', { allowFuture: true })
-        : null;
-      const record = await tx.distributionPickupRequest.create({
-        data: {
-          senderId: input.senderId,
-          receiverId: receiver,
-          requestedBy: actor.sub!,
-          preferredPickupAt,
-          note: input.note.trim(),
-        },
-      });
-      return { record };
-    });
-  }
-  /** The sender declines, or the receiver withdraws, an open pickup request. */
-  resolvePickup(actor: CommandActor, id: string, input: PickupResolveInput, outcome: 'DECLINED' | 'CANCELLED') {
-    return commandTransaction(this.db, async (tx) => {
-      await enterpriseAuthority(tx, actor, 'distribution.write', undefined, undefined, true);
-      await tx.$queryRaw`SELECT id FROM distribution_pickup_request WHERE id=${id}::uuid FOR UPDATE`;
-      const request = await tx.distributionPickupRequest.findUnique({ where: { id } });
-      const owner = outcome === 'DECLINED' ? request?.senderId : request?.receiverId;
-      if (!request || owner !== actor.organizationId)
-        throw new NotFoundException('Không tìm thấy yêu cầu lấy hàng');
-      if (request.status !== 'OPEN' || request.version !== input.version)
-        throw new ConflictException('Yêu cầu đã được xử lý hoặc đã thay đổi');
-      const record = await tx.distributionPickupRequest.update({
-        where: { id },
-        data: { status: outcome, resolutionNote: input.note?.trim() || null, version: { increment: 1 } },
-      });
-      return { record };
-    });
-  }
   /** Work waiting on this organization, filtered by the same scope as detail/report.
    * Counts are hints for navigation; each action is re-authorized on submit. */
   async tasks(actor: CommandActor) {
@@ -1659,7 +1636,7 @@ export class DistributionService {
         const has = (permission: string) => readable.primary || readable.user.enterpriseRoles.some(r => r.role.permissions.includes(permission) && r.chainIds.includes(t.chainId) && !!site && r.siteIds.includes(site));
         const signed = new Set(t.attestations.filter(a => a.organizationId === org && a.epoch === t.attestationEpoch).map(a => a.phase));
         const actions = [
-          ...(has('distribution.sign') ? ['CONSENT', 'PICKUP', 'DELIVERY'].filter(p => this.phaseAllowed(t, p, org) && !signed.has(p)) : []),
+          ...(has('distribution.sign') ? ['CONSENT', 'PICKUP', 'DELIVERY'].filter(p => this.phaseAllowed(t, p, org) && driverMaySign(t, p, actor, readable.primary) && !signed.has(p)) : []),
           ...(has('distribution.sign') && t.receiverId === org && t.status === 'IN_TRANSIT' && t.receiverSiteId && !t.receiptDigest ? ['ACTUAL_RECEIPT'] : []),
         ];
         if (t.status === 'DELIVERED' && [t.senderId, t.carrierId].includes(org)) {

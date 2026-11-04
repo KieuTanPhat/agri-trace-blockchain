@@ -63,6 +63,7 @@ export const permissionLabels: Record<string, string> = {
   "distribution.read": "Xem giao nhận",
   "distribution.write": "Tạo giao nhận / phân bổ",
   "distribution.sign": "Ký đồng thuận và bàn giao",
+  "distribution.drive": "Làm tài xế khi tự chở: ký lấy hàng và giao hàng",
   "trace.read": "Xem hành trình truy xuất",
   "qr.manage": "Xem kho QR",
   "reports.read": "Xem báo cáo đối soát",
@@ -86,7 +87,7 @@ export const permissionGroups: { title: string; codes: string[] }[] = [
   },
   {
     title: "Kho & phân phối",
-    codes: ["inventory.manage", "quarantine.manage", "quantity.adjust", "distribution.read", "distribution.write", "distribution.sign"],
+    codes: ["inventory.manage", "quarantine.manage", "quantity.adjust", "distribution.read", "distribution.write", "distribution.sign", "distribution.drive"],
   },
   {
     title: "Truy xuất, chứng cứ & báo cáo",

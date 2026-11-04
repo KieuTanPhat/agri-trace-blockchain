@@ -833,54 +833,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/distribution/pickup-requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["DistributionController_pickupRequests"];
-        put?: never;
-        post: operations["DistributionController_requestPickup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/distribution/pickup-requests/{id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["DistributionController_cancelPickup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/distribution/pickup-requests/{id}/decline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["DistributionController_declinePickup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/distribution/qr": {
         parameters: {
             query?: never;
@@ -6815,6 +6767,10 @@ export interface components {
             snapshotDigest: string;
         };
         DistributionOptionsDto: {
+            /** @description Thành viên có quyền Lái xe, kèm chuỗi/cơ sở được giao; chọn làm tài xế khi bên giao tự chở */
+            drivers: {
+                [key: string]: unknown;
+            }[];
             items: {
                 [key: string]: unknown;
             }[];
@@ -7167,7 +7123,7 @@ export interface components {
         };
         EnterpriseRoleInput: {
             name: string;
-            permissions: ("profile.read" | "members.read" | "members.manage" | "roles.manage" | "partners.read" | "partners.manage" | "catalog.read" | "catalog.manage" | "sites.read" | "sites.manage" | "vehicles.read" | "vehicles.manage" | "production.read" | "production.write" | "distribution.read" | "distribution.write" | "distribution.sign" | "trace.read" | "qr.manage" | "reports.read" | "quantity.adjust" | "profile.manage" | "cases.read" | "cases.respond" | "inventory.manage" | "quarantine.manage" | "evidence.read" | "evidence.manage" | "materials.read" | "materials.manage" | "processing.read" | "processing.write" | "devices.read" | "devices.manage")[];
+            permissions: ("profile.read" | "members.read" | "members.manage" | "roles.manage" | "partners.read" | "partners.manage" | "catalog.read" | "catalog.manage" | "sites.read" | "sites.manage" | "vehicles.read" | "vehicles.manage" | "production.read" | "production.write" | "distribution.read" | "distribution.write" | "distribution.sign" | "distribution.drive" | "trace.read" | "qr.manage" | "reports.read" | "quantity.adjust" | "profile.manage" | "cases.read" | "cases.respond" | "inventory.manage" | "quarantine.manage" | "evidence.read" | "evidence.manage" | "materials.read" | "materials.manage" | "processing.read" | "processing.write" | "devices.read" | "devices.manage")[];
             version?: number;
         };
         EnterpriseRoleListDto: {
@@ -7693,7 +7649,7 @@ export interface components {
         };
         InspectCommandRequestDto: {
             /** @enum {string} */
-            operation: "PLATFORM_NEWS_CREATE" | "PLATFORM_NEWS_UPDATE" | "PLATFORM_NEWS_STATUS" | "EW_PROFILE_CONTACT" | "EW_PROFILE_SUBMIT" | "EW_PROFILE_WITHDRAW" | "ENTERPRISE_PROFILE_REVIEW" | "PRIVACY_REQUEST_CREATE" | "PLATFORM_PRIVACY_BREACH_CREATE" | "PLATFORM_PRIVACY_UPDATE" | "EW_CREATE_MEMBER" | "EW_INVITE_MEMBER" | "EW_REVOKE_MEMBER_INVITATION" | "EW_UPDATE_MEMBER" | "EW_CREATE_ROLE" | "EW_UPDATE_ROLE" | "EW_DELETE_ROLE" | "EW_INVITE_PARTNER" | "EW_CREATE_EXTERNAL_PARTNER" | "EW_RESOLVE_PARTNER" | "EW_CREATE_SITE" | "EW_COMPLETE_SITE" | "EW_UPDATE_SITE" | "EW_CREATE_VEHICLE" | "EW_DEVICE_REGISTER" | "EW_DEVICE_BIND" | "EW_DEVICE_ROTATE_KEY" | "EW_DEVICE_STATUS" | "EW_UPDATE_VEHICLE" | "EW_CREATE_PRODUCT" | "EW_UPDATE_PRODUCT" | "EW_REVISE_SITE" | "EW_REVISE_VEHICLE" | "EW_CREATE_MATERIAL" | "EW_UPDATE_MATERIAL" | "EW_IMPORT_PRODUCTS" | "EW_UPLOAD_EVIDENCE" | "EW_WITHDRAW_EVIDENCE" | "EW_ORDER_PRODUCT_PHOTOS" | "EW_COMPLETE_MATERIAL" | "EW_ALLOCATE" | "EW_QUARANTINE" | "EW_CASE_ACK" | "EW_CASE_RESPOND" | "EW_MESSAGE_SEND" | "EW_MESSAGE_REPLY" | "EW_MESSAGE_READ" | "EW_SITE_TRANSFER_CREATE" | "EW_SITE_TRANSFER_DISPATCH" | "EW_SITE_TRANSFER_RECEIVE" | "EW_SITE_TRANSFER_RESOLVE" | "EW_SITE_TRANSFER_CANCEL" | "EW_PICKUP_REQUEST" | "EW_PICKUP_DECLINE" | "EW_PICKUP_CANCEL" | "DIST_JOIN_CHAIN" | "DIST_RECEIPT" | "DIST_PHOTOS" | "EW_DEVICE_KEY_REQUEST" | "DIST_RETURN" | "DIST_RETURN_SIGN" | "DIST_RENEW_CONSENT" | "DIST_C2_PREPARE" | "DIST_C2_SUBMIT" | "EW_CREATE_FARM" | "EW_COMPLETE_FARM" | "EW_COMPLETE_PRODUCT" | "EW_CREATE_PLOT" | "EW_REVOKE_DISTRIBUTION_KEY" | "DIST_CREATE" | "DIST_SIGN" | "DIST_CANCEL" | "DIST_OBSERVE" | "EW_TRACE_NOTICE" | "EW_SUPPLIER_CONFIRMATION_CREATE" | "EW_PRODUCT_APPROVAL_REQUEST" | "EW_DISPOSITION" | "PLATFORM_PRODUCT_REVIEW" | "ENTERPRISE_REVIEW" | "ENTERPRISE_ACTIVATE" | "ENTERPRISE_UPGRADE_OWNER" | "ENTERPRISE_CAPABILITY_REQUEST" | "CREATE_PRODUCTION_CYCLE" | "EW_CREATE_CYCLE_DRAFT" | "EW_LINK_CYCLE_DRAFT" | "EW_SET_CYCLE_STAFF" | "PLANT_PRODUCTION_CYCLE" | "RECORD_CARE" | "RECORD_SENSOR" | "INGEST_SENSOR_READING" | "INGEST_SHIPMENT_TELEMETRY" | "CLOSE_PRODUCTION_CYCLE" | "CANCEL_PRODUCTION_CYCLE" | "RECORD_HARVEST" | "CREATE_SHIPMENT" | "START_SHIPMENT" | "ARRIVE_SHIPMENT" | "RECEIVE_SHIPMENT" | "REJECT_SHIPMENT" | "DAMAGE_SHIPMENT" | "DAMAGE_LOT" | "MARK_FOR_SALE" | "MARK_SOLD" | "RECALL_LOT" | "EXPIRE_LOT" | "CREATE_INSPECTION" | "CREATE_CERTIFICATE" | "REVIEW_CERTIFICATE" | "BIND_SHIPMENT_DEVICE" | "UNBIND_SHIPMENT_DEVICE" | "CREATE_SHIPMENT_TELEMETRY_DIGEST" | "HYB_CREATE_CHAIN" | "HYB_ACTIVATE_BUSINESS_PROFILE" | "HYB_SUSPEND_BUSINESS_PROFILE" | "HYB_INVITE_MEMBERSHIP" | "HYB_ACCEPT_MEMBERSHIP" | "HYB_CHANGE_MEMBERSHIP" | "HYB_LEAVE_MEMBERSHIP" | "HYB_INVITE_BY_LINK" | "HYB_GRANT_ROLE" | "HYB_REVOKE_ROLE" | "HYB_SET_CAPABILITY" | "SCOPE_CREATE_SHIPMENT_PLAN" | "SCOPE_REVISE_SHIPMENT_PLAN" | "SCOPE_ACCEPT_SHIPMENT_PLAN" | "SCOPE_CANCEL_SHIPMENT_PLAN" | "SCOPE_FINALIZE_SHIPMENT_PLAN" | "PREPARE_HANDOVER_OFFER" | "PREPARE_HANDOVER_CONFIRM" | "SUBMIT_SIGNED_INTENT" | "REJECT_HANDOVER" | "CANCEL_HANDOVER" | "HYB_REGISTER_SIGNING_KEY" | "HYB_REVOKE_SIGNING_KEY";
+            operation: "PLATFORM_NEWS_CREATE" | "PLATFORM_NEWS_UPDATE" | "PLATFORM_NEWS_STATUS" | "EW_PROFILE_CONTACT" | "EW_PROFILE_SUBMIT" | "EW_PROFILE_WITHDRAW" | "ENTERPRISE_PROFILE_REVIEW" | "PRIVACY_REQUEST_CREATE" | "PLATFORM_PRIVACY_BREACH_CREATE" | "PLATFORM_PRIVACY_UPDATE" | "EW_CREATE_MEMBER" | "EW_INVITE_MEMBER" | "EW_REVOKE_MEMBER_INVITATION" | "EW_UPDATE_MEMBER" | "EW_CREATE_ROLE" | "EW_UPDATE_ROLE" | "EW_DELETE_ROLE" | "EW_INVITE_PARTNER" | "EW_CREATE_EXTERNAL_PARTNER" | "EW_RESOLVE_PARTNER" | "EW_CREATE_SITE" | "EW_COMPLETE_SITE" | "EW_UPDATE_SITE" | "EW_CREATE_VEHICLE" | "EW_DEVICE_REGISTER" | "EW_DEVICE_BIND" | "EW_DEVICE_ROTATE_KEY" | "EW_DEVICE_STATUS" | "EW_UPDATE_VEHICLE" | "EW_CREATE_PRODUCT" | "EW_UPDATE_PRODUCT" | "EW_REVISE_SITE" | "EW_REVISE_VEHICLE" | "EW_CREATE_MATERIAL" | "EW_UPDATE_MATERIAL" | "EW_IMPORT_PRODUCTS" | "EW_UPLOAD_EVIDENCE" | "EW_WITHDRAW_EVIDENCE" | "EW_ORDER_PRODUCT_PHOTOS" | "EW_COMPLETE_MATERIAL" | "EW_ALLOCATE" | "EW_QUARANTINE" | "EW_CASE_ACK" | "EW_CASE_RESPOND" | "EW_MESSAGE_SEND" | "EW_MESSAGE_REPLY" | "EW_MESSAGE_READ" | "EW_SITE_TRANSFER_CREATE" | "EW_SITE_TRANSFER_DISPATCH" | "EW_SITE_TRANSFER_RECEIVE" | "EW_SITE_TRANSFER_RESOLVE" | "EW_SITE_TRANSFER_CANCEL" | "DIST_JOIN_CHAIN" | "DIST_RECEIPT" | "DIST_PHOTOS" | "EW_DEVICE_KEY_REQUEST" | "DIST_RETURN" | "DIST_RETURN_SIGN" | "DIST_RENEW_CONSENT" | "DIST_C2_PREPARE" | "DIST_C2_SUBMIT" | "EW_CREATE_FARM" | "EW_COMPLETE_FARM" | "EW_COMPLETE_PRODUCT" | "EW_CREATE_PLOT" | "EW_REVOKE_DISTRIBUTION_KEY" | "DIST_CREATE" | "DIST_SIGN" | "DIST_CANCEL" | "DIST_OBSERVE" | "EW_TRACE_NOTICE" | "EW_SUPPLIER_CONFIRMATION_CREATE" | "EW_PRODUCT_APPROVAL_REQUEST" | "EW_DISPOSITION" | "PLATFORM_PRODUCT_REVIEW" | "ENTERPRISE_REVIEW" | "ENTERPRISE_ACTIVATE" | "ENTERPRISE_UPGRADE_OWNER" | "ENTERPRISE_CAPABILITY_REQUEST" | "CREATE_PRODUCTION_CYCLE" | "EW_CREATE_CYCLE_DRAFT" | "EW_LINK_CYCLE_DRAFT" | "EW_SET_CYCLE_STAFF" | "PLANT_PRODUCTION_CYCLE" | "RECORD_CARE" | "RECORD_SENSOR" | "INGEST_SENSOR_READING" | "INGEST_SHIPMENT_TELEMETRY" | "CLOSE_PRODUCTION_CYCLE" | "CANCEL_PRODUCTION_CYCLE" | "RECORD_HARVEST" | "CREATE_SHIPMENT" | "START_SHIPMENT" | "ARRIVE_SHIPMENT" | "RECEIVE_SHIPMENT" | "REJECT_SHIPMENT" | "DAMAGE_SHIPMENT" | "DAMAGE_LOT" | "MARK_FOR_SALE" | "MARK_SOLD" | "RECALL_LOT" | "EXPIRE_LOT" | "CREATE_INSPECTION" | "CREATE_CERTIFICATE" | "REVIEW_CERTIFICATE" | "BIND_SHIPMENT_DEVICE" | "UNBIND_SHIPMENT_DEVICE" | "CREATE_SHIPMENT_TELEMETRY_DIGEST" | "HYB_CREATE_CHAIN" | "HYB_ACTIVATE_BUSINESS_PROFILE" | "HYB_SUSPEND_BUSINESS_PROFILE" | "HYB_INVITE_MEMBERSHIP" | "HYB_ACCEPT_MEMBERSHIP" | "HYB_CHANGE_MEMBERSHIP" | "HYB_LEAVE_MEMBERSHIP" | "HYB_INVITE_BY_LINK" | "HYB_GRANT_ROLE" | "HYB_REVOKE_ROLE" | "HYB_SET_CAPABILITY" | "SCOPE_CREATE_SHIPMENT_PLAN" | "SCOPE_REVISE_SHIPMENT_PLAN" | "SCOPE_ACCEPT_SHIPMENT_PLAN" | "SCOPE_CANCEL_SHIPMENT_PLAN" | "SCOPE_FINALIZE_SHIPMENT_PLAN" | "PREPARE_HANDOVER_OFFER" | "PREPARE_HANDOVER_CONFIRM" | "SUBMIT_SIGNED_INTENT" | "REJECT_HANDOVER" | "CANCEL_HANDOVER" | "HYB_REGISTER_SIGNING_KEY" | "HYB_REVOKE_SIGNING_KEY";
             /** @description Payload gốc của command, gồm resource IDs như controller chuẩn hóa */
             payload: {
                 [key: string]: unknown;
@@ -8580,21 +8536,6 @@ export interface components {
             /** @enum {boolean} */
             changed: true;
             sessionsRevoked: number;
-        };
-        PickupRequestInput: {
-            /** @description Sản phẩm, lượng và thời gian muốn lấy */
-            note: string;
-            /** Format: date-time */
-            preferredPickupAt?: string;
-            /**
-             * Format: uuid
-             * @description Bên giao (đối tác đã liên kết)
-             */
-            senderId: string;
-        };
-        PickupResolveInput: {
-            note?: string;
-            version: number;
         };
         PlanAcceptanceResultDto: {
             /** Format: date-time */
@@ -11108,6 +11049,11 @@ export interface components {
             chainId?: string;
             destination: string;
             /**
+             * Format: uuid
+             * @description Bên giao tự chở: nhân viên có quyền Lái xe; người này (hoặc chủ doanh nghiệp) ký lấy hàng và giao hàng
+             */
+            driverUserId?: string;
+            /**
              * @description Bên thuê đơn vị vận chuyển ngoài AgriTrace; bên đó giữ hàng trong lúc vận chuyển
              * @enum {string}
              */
@@ -11115,11 +11061,6 @@ export interface components {
             lines: components["schemas"]["TransferLineInput"][];
             note?: string;
             origin: string;
-            /**
-             * Format: uuid
-             * @description Yêu cầu lấy hàng của bên nhận được chuyển thành phiếu này
-             */
-            pickupRequestId?: string;
             /** Format: date-time */
             plannedDeliveryAt?: string;
             /**
@@ -11138,7 +11079,7 @@ export interface components {
              * @default PLATFORM_CARRIER
              * @enum {string}
              */
-            transportMode: "PLATFORM_CARRIER" | "EXTERNAL_CARRIER" | "SELF_DELIVERY" | "RECEIVER_PICKUP";
+            transportMode: "PLATFORM_CARRIER" | "EXTERNAL_CARRIER" | "SELF_DELIVERY";
             /** Format: uuid */
             vehicleId?: string;
         };
@@ -17600,492 +17541,6 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["DistributionOptionsDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    DistributionController_pickupRequests: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["WorkspaceListDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    DistributionController_requestPickup: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PickupRequestInput"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["WorkspaceRecordDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    DistributionController_cancelPickup: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PickupResolveInput"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["WorkspaceRecordDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    DistributionController_declinePickup: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PickupResolveInput"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["WorkspaceRecordDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;

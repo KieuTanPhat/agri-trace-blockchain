@@ -782,10 +782,40 @@ const prisma = new PrismaClient({
         plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
         lines: [{ lotId: lot.id, quantity: '0.600', unit: 'kg' }],
       }).expect(422);
+      // Self delivery names an employee with the Lái xe permission as driver.
+      const staffRole = await prisma.role.upsert({ where: { code: 'ENTERPRISE_STAFF' }, create: { code: 'ENTERPRISE_STAFF', name: 'ENTERPRISE_STAFF' }, update: {} });
+      const makeStaff = async (name: string, permissions: string[]) => {
+        const user = await prisma.user.create({
+          data: { fullName: name, email: `workflow-${randomUUID()}@example.test`, roleId: staffRole.id, organizationId: farmOrgId, passwordHash: 'not-a-login-fixture', enterpriseTier: 3, supervisorId: users.farm, phone: '0901234567' },
+        });
+        const group = await prisma.enterpriseRole.create({ data: { organizationId: farmOrgId, name: `${name} ${randomUUID().slice(0, 6)}`, permissions } });
+        await prisma.enterpriseMemberRole.create({ data: { userId: user.id, organizationId: farmOrgId, roleId: group.id, chainIds: [selfChainId], siteIds: [senderSite.id] } });
+        return user;
+      };
+      const driver = await makeStaff('Tài xế nông trại', ['profile.read', 'distribution.read', 'distribution.sign', 'distribution.drive']);
+      const signerOnly = await makeStaff('Thủ kho ký', ['profile.read', 'distribution.read', 'distribution.sign']);
+      const selfInput = {
+        transportMode: 'SELF_DELIVERY',
+        transportDetails: { registration: '51C-123.45' },
+        vehicleId: vehicle.id,
+        receiverId: receiver.id,
+        senderSiteId: senderSite.id,
+        receiverSiteId: receiverSite.id,
+        origin: 'Self delivery farm',
+        destination: 'Self delivery receiver',
+        plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
+        lines: [{ lotId: lot.id, quantity: '0.600', unit: 'kg' }],
+      };
+      await post('/distribution/transfers', selfInput).expect(422);
+      await post('/distribution/transfers', { ...selfInput, driverUserId: signerOnly.id }).expect(422);
+      const options = (await get('/distribution/options').expect(200)).body.data;
+      expect(options.drivers).toEqual([expect.objectContaining({ id: driver.id, chainIds: [selfChainId], siteIds: [senderSite.id] })]);
       let transfer = (
         await post('/distribution/transfers', {
+          ...selfInput,
+          driverUserId: driver.id,
           transportMode: 'SELF_DELIVERY',
-          transportDetails: { registration: '51C-123.45', driverName: 'Tài xế nông trại' },
+          transportDetails: { registration: '51C-123.45' },
           vehicleId: vehicle.id,
           receiverId: receiver.id,
           senderSiteId: senderSite.id,
@@ -801,6 +831,8 @@ const prisma = new PrismaClient({
         carrierId: farmOrgId,
         carrierSiteId: senderSite.id,
         transportMode: 'SELF_DELIVERY',
+        driverUserId: driver.id,
+        transportDetails: { driverName: 'Tài xế nông trại', driverPhone: '0901234567' },
       });
       expect(
         await prisma.chainMembership.findUniqueOrThrow({
@@ -871,8 +903,8 @@ const prisma = new PrismaClient({
       await post(`/iot/v2/devices/${gpsDevice.id}/binding`, { version: gpsDevice.authorityRevision }).expect(409);
       const otherVehicle = await prisma.enterpriseVehicle.create({ data: { organizationId: farmOrgId, registration: `GPS-${randomUUID().slice(0, 6)}`, kind: 'Xe tải' } });
       await post(`/iot/v2/devices/${gpsDevice.id}/binding`, { version: gpsDevice.authorityRevision, vehicleId: otherVehicle.id }).expect(409);
-      const options = (await get('/iot/v2/device-options').expect(200)).body.data;
-      expect(options.vehicles.find((v: { id: string }) => v.id === vehicle.id)).toMatchObject({ inTransit: true, trackerId: gpsDevice.id });
+      const deviceOptions = (await get('/iot/v2/device-options').expect(200)).body.data;
+      expect(deviceOptions.vehicles.find((v: { id: string }) => v.id === vehicle.id)).toMatchObject({ inTransit: true, trackerId: gpsDevice.id });
       const sent = await prisma.lotHolding.findUniqueOrThrow({
         where: { lotId_organizationId: { lotId: lot.id, organizationId: farmOrgId } },
       });
@@ -1008,12 +1040,7 @@ const prisma = new PrismaClient({
         await prisma.distributionAttestation.count({ where: { transferId: transfer.id } }),
       ).toBe(5);
 
-      // The receiver asks to collect more; the sender turns one request into a
-      // pickup transfer and declines the other. Requests never reserve stock.
-      const ask = (note: string) =>
-        post('/distribution/pickup-requests', { senderId: farmOrgId, note }, 'selfReceiver').expect(201);
-      const wanted = (await ask('Lấy thêm 0,2 kg xoài')).body.data.record;
-      const extra = (await ask('Lấy thêm hàng tuần sau')).body.data.record;
+      // Receiver pickup is retired; the receiver may still hire an external carrier.
       const base = {
         receiverId: receiver.id,
         senderSiteId: senderSite.id,
@@ -1024,18 +1051,7 @@ const prisma = new PrismaClient({
         lines: [{ lotId: lot.id, quantity: '0.200', unit: 'kg' }],
       };
       await post('/distribution/transfers', { ...base, transportMode: 'EXTERNAL_CARRIER', externalHirer: 'RECEIVER' }).expect(422);
-      await post('/distribution/transfers', { ...base, transportMode: 'SELF_DELIVERY', pickupRequestId: wanted.id }).expect(409);
-      const collected = (
-        await post('/distribution/transfers', { ...base, transportMode: 'RECEIVER_PICKUP', pickupRequestId: wanted.id }).expect(201)
-      ).body.data.record;
-      expect(collected).toMatchObject({ carrierId: receiver.id, carrierSiteId: receiverSite.id, transportMode: 'RECEIVER_PICKUP' });
-      expect(await prisma.distributionPickupRequest.findUniqueOrThrow({ where: { id: wanted.id } })).toMatchObject({
-        status: 'ACCEPTED',
-        transferId: collected.id,
-      });
-      await post(`/distribution/pickup-requests/${extra.id}/decline`, { version: extra.version }, 'selfReceiver').expect(404);
-      await post(`/distribution/pickup-requests/${extra.id}/decline`, { version: extra.version, note: 'Hết hàng tuần sau' }).expect(201);
-      expect(await prisma.distributionPickupRequest.findUniqueOrThrow({ where: { id: extra.id } })).toMatchObject({ status: 'DECLINED' });
+      await post('/distribution/transfers', { ...base, transportMode: 'RECEIVER_PICKUP' }).expect(400);
       const hired = (
         await post('/distribution/transfers', {
           ...base,

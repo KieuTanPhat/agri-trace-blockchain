@@ -21,7 +21,6 @@ const creates: Record<string, Operation> = {
   '/distribution/quarantine':'EW_QUARANTINE',
   '/distribution/site-transfers':'EW_SITE_TRANSFER_CREATE',
   '/enterprise-messages':'EW_MESSAGE_SEND',
-  '/distribution/pickup-requests':'EW_PICKUP_REQUEST',
   '/enterprise-workspace/materials':'EW_CREATE_MATERIAL',
   '/enterprise-workspace/products-import/apply':'EW_IMPORT_PRODUCTS',
   "/enterprise-workspace/roles": "EW_CREATE_ROLE",
@@ -82,8 +81,6 @@ export function commandRequest(
     );
   const message=match(path,`/enterprise-messages/(${uuid})/(replies|read)`);
   if(message&&method==='POST')return result(message[2]==='replies'?'EW_MESSAGE_REPLY':'EW_MESSAGE_READ',{id:message[1]});
-  const pickup=match(path,`/distribution/pickup-requests/(${uuid})/(decline|cancel)`);
-  if(pickup&&method==='POST')return result(pickup[2]==='decline'?'EW_PICKUP_DECLINE':'EW_PICKUP_CANCEL',{id:pickup[1]});
   const siteTransfer=match(path,`/distribution/site-transfers/(${uuid})/(dispatch|receive|resolve|cancel)`);
   if(siteTransfer&&method==='POST')return result(({dispatch:'EW_SITE_TRANSFER_DISPATCH',receive:'EW_SITE_TRANSFER_RECEIVE',resolve:'EW_SITE_TRANSFER_RESOLVE',cancel:'EW_SITE_TRANSFER_CANCEL'} as Record<string,Operation>)[siteTransfer[2]],{id:siteTransfer[1]});
   const returnSign=match(path,`/distribution/transfers/(${uuid})/returns/(${uuid})/sign`);

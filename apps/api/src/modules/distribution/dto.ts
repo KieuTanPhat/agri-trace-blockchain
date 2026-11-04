@@ -32,7 +32,7 @@ export class TransferLineInput {
   @MaxLength(30)
   unit!: string;
 }
-export const TRANSPORT_MODES = ['PLATFORM_CARRIER', 'EXTERNAL_CARRIER', 'SELF_DELIVERY', 'RECEIVER_PICKUP'] as const;
+export const TRANSPORT_MODES = ['PLATFORM_CARRIER', 'EXTERNAL_CARRIER', 'SELF_DELIVERY'] as const;
 export type TransportMode = (typeof TRANSPORT_MODES)[number];
 export class TransportDetailsInput {
   @ApiProperty({ required: false, maxLength: 255, description: 'Bắt buộc khi thuê đơn vị vận chuyển ngoài AgriTrace' })
@@ -51,8 +51,8 @@ export class TransferInput {
   @IsOptional() @IsIn(['SENDER', 'RECEIVER']) externalHirer?: 'SENDER' | 'RECEIVER';
   @ApiProperty({ type: TransportDetailsInput, required: false })
   @IsOptional() @ValidateNested() @Type(() => TransportDetailsInput) transportDetails?: TransportDetailsInput;
-  @ApiProperty({ required: false, format: 'uuid', description: 'Yêu cầu lấy hàng của bên nhận được chuyển thành phiếu này' })
-  @IsOptional() @IsUUID() pickupRequestId?: string;
+  @ApiProperty({ required: false, format: 'uuid', description: 'Bên giao tự chở: nhân viên có quyền Lái xe; người này (hoặc chủ doanh nghiệp) ký lấy hàng và giao hàng' })
+  @IsOptional() @IsUUID() driverUserId?: string;
   @ApiProperty({ type: String, format: 'date-time', description: 'Dự kiến lấy hàng; múi giờ bắt buộc' })
   @IsDateString() plannedPickupAt!: string;
   @ApiProperty({ type: String, required: false, format: 'date-time' })
@@ -97,15 +97,6 @@ export class TransferInput {
   @ValidateNested({ each: true })
   @Type(() => TransferLineInput)
   lines!: TransferLineInput[];
-}
-export class PickupRequestInput {
-  @ApiProperty({ format: 'uuid', description: 'Bên giao (đối tác đã liên kết)' }) @IsUUID() senderId!: string;
-  @ApiProperty({ required: false, type: String, format: 'date-time' }) @IsOptional() @IsDateString() preferredPickupAt?: string;
-  @ApiProperty({ maxLength: 1000, description: 'Sản phẩm, lượng và thời gian muốn lấy' }) @IsString() @MinLength(5) @MaxLength(1000) note!: string;
-}
-export class PickupResolveInput {
-  @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
-  @ApiProperty({ required: false, maxLength: 1000 }) @IsOptional() @IsString() @MaxLength(1000) note?: string;
 }
 export class TransferVersion {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
@@ -312,4 +303,10 @@ export class DistributionOptionsDto {
     items: { type: 'object', additionalProperties: true },
   })
   vehicles!: Record<string, unknown>[];
+  @ApiProperty({
+    type: 'array',
+    description: 'Thành viên có quyền Lái xe, kèm chuỗi/cơ sở được giao; chọn làm tài xế khi bên giao tự chở',
+    items: { type: 'object', additionalProperties: true },
+  })
+  drivers!: Record<string, unknown>[];
 }

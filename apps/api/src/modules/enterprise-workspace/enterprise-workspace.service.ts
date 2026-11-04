@@ -599,6 +599,7 @@ export class EnterpriseWorkspaceService {
           'partners.read',
         ],
         'distribution.sign': ['distribution.read'],
+        'distribution.drive': ['distribution.sign', 'distribution.read'],
         'cases.respond': ['cases.read'],
         'evidence.manage': ['evidence.read'],
         'materials.manage': ['materials.read'],

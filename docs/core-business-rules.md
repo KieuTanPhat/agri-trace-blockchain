@@ -482,11 +482,12 @@ gỡ; khi bật lại, người duyệt phải là một tài khoản Admin khá
 - Từ 2026-10-26 phiếu giao nhận có `transport_mode`: `PLATFORM_CARRIER` (đơn vị
   vận chuyển trên AgriTrace, ba bên độc lập như trước), `EXTERNAL_CARRIER` (thuê
   xe ngoài; bên thuê là bên giao hoặc bên nhận và giữ vai trò người chở),
-  `SELF_DELIVERY` (bên giao tự chở) và `RECEIVER_PICKUP` (bên nhận tự lấy). Khi
+  `SELF_DELIVERY` (bên giao tự chở) và `RECEIVER_PICKUP` (bên nhận tự lấy, đã bỏ
+  từ 04/11/2026). Khi
   bên giao hoặc bên nhận kiêm người chở, mỗi bước chỉ cần chữ ký của các doanh
   nghiệp khác nhau tham gia bước đó (`distribution_phase_parties`); chỉ đơn vị
   vận chuyển trên AgriTrace ghi quan sát cảm biến (từ 04/11/2026 theo ADR-006:
-  mọi bên chở trừ thuê ngoài ghi nhật ký tay, không ghi nhiệt độ; tự giao/tự lấy được
+  mọi bên chở trừ thuê ngoài ghi nhật ký tay, không ghi nhiệt độ; tự giao được
   chọn xe đã khai để gắn GPS). Thông tin xe/tài xế nhập tay
   nằm trong snapshot ký của phiếu không dùng `PLATFORM_CARRIER`; phiếu cũ giữ
   nguyên snapshot. Phiếu đi theo chuỗi của lô (không chọn chuỗi). Bên nhận hoặc
@@ -497,9 +498,18 @@ gỡ; khi bật lại, người duyệt phải là một tài khoản Admin khá
   trò nghiệp vụ theo chuỗi trực tiếp: vai trò đó sinh ra từ nhóm quyền gắn chuỗi khi
   tạo hoặc sửa thành viên, và được dựng lại mỗi lần lưu. Nền tảng vẫn cấp trực tiếp
   vai trò quản trị (quản trị tổ chức, tạo chuỗi, điều phối chuỗi, kiểm định).
-  Chỉ ký được khi đã là thành viên hoạt động và quyền ledger đã đồng bộ. Bên nhận
-  gửi được yêu cầu lấy hàng (không giữ chỗ hàng); bên giao lập phiếu
-  `RECEIVER_PICKUP` từ yêu cầu hoặc từ chối.
+  Chỉ ký được khi đã là thành viên hoạt động và quyền ledger đã đồng bộ.
+- Tài xế khi tự chở (04/11/2026): phiếu `SELF_DELIVERY` mới bắt buộc chọn tài xế
+  (`driver_user_id`) là nhân viên đang hoạt động của bên giao, có quyền
+  `distribution.drive` (Lái xe) và `distribution.sign` trên chuỗi của lô và cơ sở
+  giao. API điền tên/số điện thoại tài xế từ hồ sơ thành viên; `driverUserId` vào
+  snapshot ký khi có. Phía bên chở, chỉ tài xế đó hoặc chủ doanh nghiệp ký lấy hàng,
+  ký giao hàng và gắn ảnh hai bước này; đồng thuận vẫn ký theo tổ chức. Phiếu tự chở
+  cũ không có tài xế giữ cách ký theo tổ chức. Mẫu nhóm quyền "Tài xế giao hàng" có
+  sẵn quyền Lái xe. Chế độ `RECEIVER_PICKUP` (bên nhận tự lấy) và yêu cầu lấy hàng
+  đã bỏ: migration `20270101000005_self_delivery_driver` từ chối chạy nếu còn phiếu
+  `RECEIVER_PICKUP`, xóa bảng `distribution_pickup_request` và loại mode này khỏi
+  ràng buộc. Bên nhận muốn tự lo vận chuyển dùng `EXTERNAL_CARRIER` do bên nhận thuê.
 - Phân bổ lượng chưa gắn cơ sở ghi ngay, không cần giao nhận vật lý. Chuyển hàng
   giữa hai cơ sở của cùng doanh nghiệp phải lập phiếu chuyển kho (`CK-…`): Chờ
   chuyển → Đang chuyển → Đã nhận/Chênh lệch, hoặc Hủy khi chưa xuất. Khi xuất,

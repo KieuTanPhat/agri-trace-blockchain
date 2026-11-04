@@ -1053,10 +1053,12 @@ model DistributionTransfer {
   origin String @db.VarChar(500)
   destination String @db.VarChar(500)
   vehicleId String? @map("vehicle_id") @db.Uuid
-  /// PLATFORM_CARRIER | EXTERNAL_CARRIER | SELF_DELIVERY | RECEIVER_PICKUP
+  /// PLATFORM_CARRIER | EXTERNAL_CARRIER | SELF_DELIVERY
   transportMode String @default("PLATFORM_CARRIER") @map("transport_mode") @db.VarChar(30)
   /// Vehicle/driver typed on the transfer; carrierName names an external carrier.
   transportDetails Json? @map("transport_details")
+  /// Self delivery: the sender's employee who drives and signs pickup/delivery.
+  driverUserId String? @map("driver_user_id") @db.Uuid
   status String @default("PROPOSED") @db.VarChar(30)
   version Int @default(0)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -1072,23 +1074,6 @@ model DistributionTransfer {
   @@index([receiverId, status])
   @@index([carrierId, status])
   @@map("distribution_transfer")
-}
-
-model DistributionPickupRequest {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  senderId String @map("sender_id") @db.Uuid
-  receiverId String @map("receiver_id") @db.Uuid
-  requestedBy String @map("requested_by") @db.Uuid
-  preferredPickupAt DateTime? @map("preferred_pickup_at") @db.Timestamptz(6)
-  note String @db.VarChar(1000)
-  status String @default("OPEN") @db.VarChar(20)
-  transferId String? @unique @map("transfer_id") @db.Uuid
-  resolutionNote String? @map("resolution_note") @db.VarChar(1000)
-  version Int @default(0)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  @@index([senderId, status], map: "distribution_pickup_sender_status")
-  @@index([receiverId, status], map: "distribution_pickup_receiver_status")
-  @@map("distribution_pickup_request")
 }
 
 model DistributionLine {

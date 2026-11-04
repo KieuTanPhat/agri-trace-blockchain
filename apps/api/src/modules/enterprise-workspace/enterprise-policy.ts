@@ -35,6 +35,8 @@ export const ENTERPRISE_PERMISSIONS = [
   'distribution.read',
   'distribution.write',
   'distribution.sign',
+  // Self delivery: may be named as the driver who signs pickup and delivery.
+  'distribution.drive',
   'trace.read',
   // Kho QR (read-only since label printing was retired).
   'qr.manage',
@@ -323,9 +325,6 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   DIST_RETURN: 'distribution.write',
   DIST_RETURN_SIGN: 'distribution.sign',
   DIST_JOIN_CHAIN: 'distribution.sign',
-  EW_PICKUP_REQUEST: 'distribution.write',
-  EW_PICKUP_DECLINE: 'distribution.write',
-  EW_PICKUP_CANCEL: 'distribution.write',
   EW_REVOKE_DISTRIBUTION_KEY: 'roles.manage',
   EW_PROCESSING_CREATE: 'processing.write',
   EW_PROCESSING_COMPLETE: 'processing.write',
