@@ -172,7 +172,7 @@ const accesses: Record<string, EnterpriseAccess> = {
     stage: "OPERATOR_PROVISIONED",
     owner: false,
     primary: false,
-    tier: 2,
+    tier: 3,
     permissions: allPermissions.filter((p) => p.endsWith(".read")),
     capabilities: ["DISTRIBUTOR"],
   },

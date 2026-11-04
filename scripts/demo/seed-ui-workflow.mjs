@@ -83,11 +83,12 @@ async function bootstrap(){
    const roleCode=org.type==='FARM'?'FARM_STAFF':org.type;
    const role=await tx.role.upsert({where:{code:roleCode},create:{code:roleCode,name:roleCode},update:{}});
    await tx.organization.create({data:{id:org.id,name:org.name,type:org.type,status:'ACTIVE',participationStatus:['FARM','PROCESSOR'].includes(org.type)?'CHAIN_OWNER':'MEMBER'}});
-   const owner=userFor(org,1),manager=userFor(org,2);
+   // Slot 2 is a lead employee; there is no manager tier, so every employee reports to the owner.
+   const owner=userFor(org,1);
    for(const c of credentials.filter(c=>c.organizationId===org.id))await tx.user.create({data:{
     id:c.id,email:c.email,passwordHash:hashes.get(c.id),fullName:c.fullName,roleId:role.id,organizationId:org.id,
-    enterpriseTier:c.tier,memberCode:`NV000${c.tier}`,jobTitle:c.tier===1?'[DEMO] Chủ quản':c.tier===2?'[DEMO] Quản lý':'[DEMO] Nhân viên',
-    supervisorId:c.tier===1?null:c.tier===2?owner.id:manager.id,phone:c.phone,contactAddress:'[DEMO] Địa chỉ thử nghiệm, không liên hệ thực tế',
+    enterpriseTier:c.tier===1?1:3,memberCode:`NV000${c.tier}`,jobTitle:c.tier===1?'[DEMO] Chủ quản':c.tier===2?'[DEMO] Quản lý':'[DEMO] Nhân viên',
+    supervisorId:c.tier===1?null:owner.id,phone:c.phone,contactAddress:'[DEMO] Địa chỉ thử nghiệm, không liên hệ thực tế',
     passwordChangedAt:new Date(state.startedAt),mustChangePassword:false,
    }});
    await tx.organizationCapability.upsert({where:{organizationId_code:{organizationId:org.id,code:org.type}},create:{organizationId:org.id,code:org.type},update:{}});

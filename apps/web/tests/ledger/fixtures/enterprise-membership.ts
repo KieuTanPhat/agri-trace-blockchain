@@ -22,10 +22,10 @@ for (const name of ["membership.baseline", "membership.identity"]) registerScena
   const permissions = state.actor === "org-staff" ? ["profile.read", "members.read"] : isManager ? allPermissions.filter(permission => permission !== "roles.manage") : allPermissions;
   if (request.method === "GET") {
     if (path === "/enterprise-messages") return { data: { items: [], counts: { unread: 0 }, canSend: false } };
-    if (path === "/enterprise-access") return { data: { stage: "ACTIVE", owner: !isManager && state.actor !== "org-staff", primary: state.actor === "org-owner", tier: state.actor === "org-staff" ? 3 : isManager ? 2 : 1, capabilities: ["FARM"], permissions } };
+    if (path === "/enterprise-access") return { data: { stage: "ACTIVE", owner: !isManager && state.actor !== "org-staff", primary: state.actor === "org-owner", tier: state.actor === "org-staff" || isManager ? 3 : 1, capabilities: ["FARM"], permissions } };
     if (path === "/enterprise-workspace") {
       if (name === "membership.identity" && isManager && !state.values.has("force-refresh")) { state.values.set("force-refresh", true); return { status: 401, error: { code: "UNAUTHORIZED", message: "Session must refresh" } }; }
-      return { delayMs: name === "membership.identity" && isManager ? 1500 : 0, data: { ...overview, permissions, member: { ...overview.member, id: state.session!.user.id, primary: state.actor === "org-owner", tier: isManager ? 2 : 1 }, organization: { ...overview.organization, name: isManager ? "DOANH_NGHIEP_B" : "DOANH_NGHIEP_A" }, profile: { ...profile, address: isManager ? "PRIVATE_ORG_B_ADDRESS" : profile.address } } };
+      return { delayMs: name === "membership.identity" && isManager ? 1500 : 0, data: { ...overview, permissions, member: { ...overview.member, id: state.session!.user.id, primary: state.actor === "org-owner", tier: isManager ? 3 : 1 }, organization: { ...overview.organization, name: isManager ? "DOANH_NGHIEP_B" : "DOANH_NGHIEP_A" }, profile: { ...profile, address: isManager ? "PRIVATE_ORG_B_ADDRESS" : profile.address } } };
     }
     if (path === "/enterprise-workspace/members") return { data: { items: [state.values.has("member-updated") ? { ...member, contactAddress: "Địa chỉ đã cập nhật", enterpriseRevision: 8 } : member] } };
     if (path === "/enterprise-workspace/roles") return { data: { items: [role] } };

@@ -20,7 +20,6 @@ import {
   EnterpriseMemberInput,
   EnterpriseVersionInput,
   EnterpriseMemberUpdate,
-  MemberSupervisorInput,
   EnterprisePartnerDecision,
   EnterprisePartnerInput,
   EnterpriseExternalPartnerInput,
@@ -152,19 +151,6 @@ export class EnterpriseWorkspaceController {
   ) {
     return this.run(req, key, 'EW_UPDATE_MEMBER', { id, ...dto }, () =>
       this.service.updateMember(req.user, id, dto),
-    );
-  }
-  @Post('members/:id/supervisor')
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiDataResponse(WorkspaceRecordDto, 201)
-  changeMemberSupervisor(
-    @Req() req: AuthenticatedRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: MemberSupervisorInput,
-    @IdempotencyKey() key: string,
-  ) {
-    return this.run(req, key, 'EW_CHANGE_MEMBER_SUPERVISOR', { id, ...dto }, () =>
-      this.service.changeSupervisor(req.user, id, dto),
     );
   }
   @Post('roles')

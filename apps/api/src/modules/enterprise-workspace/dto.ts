@@ -76,7 +76,6 @@ export class EnterpriseMemberInput {
   @ApiProperty({ minLength: 5, maxLength: 500 }) @IsString() @MinLength(5, { message: 'Nhập địa chỉ liên hệ từ 5 ký tự' }) @MaxLength(500) contactAddress!: string;
   @ApiProperty({ required: false, maxLength: 1000 }) @IsOptional() @IsString() @MaxLength(1000) memberNote?: string;
   @ApiProperty({ format: 'email' }) @IsEmail() @MaxLength(255) email!: string;
-  @ApiProperty({ enum: [2, 3] }) @IsIn([2, 3]) tier!: number;
   @ApiProperty({ type: MemberRoleInput, isArray: true, minItems: 1 })
   @IsArray()
   @ArrayMinSize(1, { message: 'Chọn ít nhất một nhóm quyền' })
@@ -84,11 +83,6 @@ export class EnterpriseMemberInput {
   @ValidateNested({ each: true })
   @Type(() => MemberRoleInput)
   roles!: MemberRoleInput[];
-}
-export class MemberSupervisorInput {
-  @ApiProperty({ minimum: 0, description: 'Member enterpriseRevision the change is based on' }) @IsInt() @Min(0) version!: number;
-  @ApiProperty({ format: 'uuid', nullable: true, description: 'Active tier-2 manager; null puts the member directly under the owner' })
-  @IsOptional() @IsUUID() supervisorId?: string | null;
 }
 export class EnterpriseMemberUpdate {
   @ApiProperty({ required: false, maxLength: 255 }) @IsOptional() @IsString() @MinLength(2) @MaxLength(255) jobTitle?: string;

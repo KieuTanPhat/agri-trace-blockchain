@@ -470,7 +470,8 @@ const bootstrap = await step("bootstrap", async () => {
             staffRoleCode,
             {
               organizationId: organization.id,
-              enterpriseTier: 2,
+              // No manager tier: every employee reports directly to the owner.
+              enterpriseTier: 3,
               supervisorId: owner.id,
               memberCode: "NV0002",
               jobTitle: "Quản lý nghiệp vụ",
@@ -484,7 +485,7 @@ const bootstrap = await step("bootstrap", async () => {
             {
               organizationId: organization.id,
               enterpriseTier: 3,
-              supervisorId: manager.id,
+              supervisorId: owner.id,
               memberCode: "NV0003",
               jobTitle: "Nhân viên nghiệp vụ",
             },
@@ -561,7 +562,7 @@ const bootstrap = await step("bootstrap", async () => {
           {
             organizationId: result.orgs.farm.id,
             enterpriseTier: 3,
-            supervisorId: result.users.farmManager.id,
+            supervisorId: result.users.farm.id,
             ...fields,
           },
         );
@@ -1212,18 +1213,15 @@ await step("delegation", async () => {
       ...resources.farms.filter((x) => x.key === key).map((x) => x.id),
     ];
     for (const tier of ["Manager", "Staff"]) {
-      const permissions =
-        tier === "Manager"
-          ? allPermissions
-          : allPermissions.filter(
-              (x) =>
-                ![
-                  "members.manage",
-                  "roles.manage",
-                  "profile.manage",
-                  "partners.manage",
-                ].includes(x),
-            );
+      // Member and permission-group administration belongs to the owner only.
+      const permissions = allPermissions.filter(
+        (x) =>
+          ![
+            "members.manage",
+            "roles.manage",
+            ...(tier === "Manager" ? [] : ["profile.manage", "partners.manage"]),
+          ].includes(x),
+      );
       const role = unwrap(
         await api(
           actors[key],

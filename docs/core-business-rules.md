@@ -411,13 +411,14 @@ mọi yêu cầu dữ liệu hoặc cấp quyền thu hồi lô cho admin.
 - Năm vai doanh nghiệp `FARM_STAFF`, `TRANSPORTER`, `DISTRIBUTOR`, `PROCESSOR`,
   `RETAILER` ứng với loại tổ chức; chủ doanh nghiệp (cấp 1 hoặc chưa phân cấp)
   mang vai này.
-- Nhân viên doanh nghiệp (`ENTERPRISE_STAFF`): thành viên cấp 2/3 của tổ chức
+- Nhân viên doanh nghiệp (`ENTERPRISE_STAFF`): thành viên cấp 3 của tổ chức
   nghiệp vụ. API suy vai nghiệp vụ từ `organization.type` (FARM → `FARM_STAFF`,
   các loại khác cùng tên) mỗi request và khi kiểm tra lại actor trong transaction
   của command; quyền chi tiết vẫn lấy từ `EnterpriseRole` qua `enterpriseAuthority`.
-  Nhân viên không thuộc tổ chức nghiệp vụ hoặc không ở cấp 2/3 bị từ chối.
+  Nhân viên không thuộc tổ chức nghiệp vụ hoặc không ở cấp 3 bị từ chối.
   `AuthUserDto.businessRole` trả vai nghiệp vụ đã suy để client hiển thị lệnh.
-  Migration `20270101000002_enterprise_staff_role` chuyển thành viên cấp 2/3 hiện có.
+  Migration `20270101000002_enterprise_staff_role` chuyển thành viên cấp 2/3 hiện có;
+  `20270101000004_single_staff_tier` bỏ cấp 2 (xem mục Thành viên hai cấp).
 - Kiểm định (`AUDITOR`): tổ chức kiểm định; ghi kiểm định chỉ trên nông trại được
   phân công (migration `20270101000001_inspector_role_consolidation`).
 - `IOT_DEVICE`, `SYSTEM_ACTOR`: danh tính máy, không hiện trên giao diện.
@@ -462,12 +463,17 @@ gỡ; khi bật lại, người duyệt phải là một tài khoản Admin khá
   thành viên chuỗi, bên nhận giữ hàng hay người ký. Thành viên nội bộ có chức danh,
   liên hệ và phân công cơ sở/vùng; lời mời chuyển các trường này sang tài khoản chỉ
   sau khi được chấp nhận. Ảnh đại diện và giấy tờ thành viên là chứng cứ riêng tư.
-- Người quản lý trực tiếp quyết định thành viên được làm gì và ai quản lý họ.
-  Chỉ chủ quản đổi được, chỉ cho nhân viên cấp 3, sang quản lý cấp 2 đang hoạt
-  động (trực thuộc chủ quản) hoặc về chủ quản. Quản lý mới phải có mọi quyền và
-  phạm vi chuỗi/cơ sở của thành viên. Mỗi lần đổi ghi một dòng bất biến
-  `enterprise_supervisor_change`; trigger cấp bậc chỉ nhận cập nhật đi kèm dòng đó
-  trong cùng transaction. Thành viên bị thu hồi phiên và phải đăng nhập lại.
+- Thành viên hai cấp (04/11/2026): chủ doanh nghiệp (cấp 1) là người quản lý duy
+  nhất; mọi nhân viên (cấp 3) trực thuộc thẳng chủ. Không còn cấp quản lý 2 và
+  không còn lệnh đổi người quản lý. Chỉ chủ tạo/mời/sửa/khóa thành viên và tạo/sửa
+  nhóm quyền; nhóm quyền không được chứa `members.manage` hay `roles.manage` (API
+  trả 422). Request tạo thành viên/lời mời không còn trường `tier`. Nhân viên chỉ
+  thấy và ghi vụ được giao. Migration `20270101000004_single_staff_tier` chuyển cấp
+  2 thành nhân viên cấp 3, đưa nhân viên dưới quản lý cũ về trực thuộc chủ, thu hồi
+  lời mời đang chờ không còn hợp lệ, thêm ràng buộc cấp chỉ 1 hoặc 3 và trigger chỉ
+  cho phép người quản lý trực tiếp là chủ. Bảng `enterprise_supervisor_change` giữ
+  lịch sử cũ, không ghi thêm. Migration có `DISABLE TRIGGER` nên phải pin
+  `migration_reviews` trong config CD trước khi deploy.
 - Phiếu giao nhận mới yêu cầu giờ dự kiến lấy hàng có múi giờ; giờ giao dự kiến
   nếu có không được trước giờ lấy. Lịch và ghi chú tham gia snapshot đồng thuận
   của phiếu mới. Phiếu cũ có các cột mới `NULL` giữ snapshot/chữ ký trước đó.
@@ -709,9 +715,8 @@ Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lện
 - Nhóm quyền đã gán cho thành viên vẫn sửa được. Quyền mới có hiệu lực ngay cho
   mọi thành viên đang hoạt động trong nhóm, không thu hồi phiên; quyền theo chuỗi
   (`scoped_role_grant` CHAIN) của từng người được cấp lại theo nhóm như khi sửa
-  thành viên. Quản lý cấp 2 chỉ sửa được nhóm khi mọi người giữ nhóm đều do mình
-  quản lý, và không cấp quyền vượt quyền đang có. Người quản lý cấp 2 vẫn giới hạn
-  quyền thực tế của nhân viên cấp 3 theo `enterpriseAuthority`.
+  thành viên. Chỉ chủ doanh nghiệp sửa được nhóm quyền (từ 04/11/2026 không còn
+  quản lý cấp 2).
 - Tạo thành viên bắt buộc địa chỉ liên hệ và ít nhất một nhóm quyền (API trả 400 nếu
   thiếu).
 - `trace_evidence` vẫn bất biến. Gỡ ảnh sản phẩm ghi một dòng chỉ thêm vào

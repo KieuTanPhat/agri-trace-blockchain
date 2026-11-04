@@ -10,6 +10,9 @@ import { evidenceSubject } from './evidence-policy.js';
 import { lockChainScope } from '../supply-chains/chain-policy.js';
 import { BUSINESS_ROLES } from '../auth/role-codes.js';
 
+/** Every enterprise employee sits one level below the owner (tier 1). */
+export const STAFF_TIER = 3;
+
 export function isEnterpriseBusinessRole(role: string) {
   return (BUSINESS_ROLES as readonly string[]).includes(role);
 }
@@ -149,12 +152,10 @@ export async function enterpriseAuthority(
     throw new ForbiddenException(
       'Bạn chưa được cấp quyền hoặc phạm vi cho thao tác này',
     );
-  if (
-    ['members.manage', 'roles.manage'].includes(permission) &&
-    user.enterpriseTier === 3
-  )
+  // Only the enterprise (its owner) manages members and permission groups.
+  if (['members.manage', 'roles.manage'].includes(permission) && !primary)
     throw new ForbiddenException(
-      'Tài khoản cấp 3 không được quản trị thành viên',
+      'Chỉ chủ doanh nghiệp quản trị thành viên và nhóm quyền',
     );
   const ancestry: unknown[] = [];
   let supervisorId =
@@ -262,7 +263,6 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_INVITE_MEMBER: 'members.manage',
   EW_REVOKE_MEMBER_INVITATION: 'members.manage',
   EW_UPDATE_MEMBER: 'members.manage',
-  EW_CHANGE_MEMBER_SUPERVISOR: 'members.manage',
   EW_CREATE_ROLE: 'roles.manage',
   EW_UPDATE_ROLE: 'roles.manage',
   EW_DELETE_ROLE: 'roles.manage',

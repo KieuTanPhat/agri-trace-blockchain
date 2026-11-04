@@ -5,29 +5,25 @@ import {registerScenario,readScenario} from "./fixtures/scenarios";
 import { AUTH_SYNC_KEY } from "../../src/lib/auth-coordination";
 registerScenario("membership.permission-unavailable",{handle(r,state){return r.path==="/chain-permissions"?{status:503,error:{code:"UNAVAILABLE",message:"Quyền tạm thời chưa kiểm tra được"}}:readScenario("membership.baseline").handle(r,state);}});
 
-test("members stay aligned across tiers and can be filtered by name and tier", async ({ page, api }) => {
+test("members list every employee under the owner and filters by name", async ({ page, api }) => {
   await api.useActor("org-owner");
   await api.scenario("membership.baseline");
-  const managerId = "77777777-7777-4777-8777-777777777777";
-  const member = { id: memberId, fullName: "Nguyễn Thành Viên", email: "member@example.invalid", accountStatus: "ACTIVE", enterpriseRevision: 7, enterpriseRoles: [], enterpriseTier: 3, jobTitle: "Nhân viên", memberCode: "NV0017", supervisorId: managerId, phone: null, contactAddress: null, memberNote: null, responsibleFarmId: null, workSiteId: siteId };
+  const otherId = "77777777-7777-4777-8777-777777777777";
+  const member = { id: memberId, fullName: "Nguyễn Thành Viên", email: "member@example.invalid", accountStatus: "ACTIVE", enterpriseRevision: 7, enterpriseRoles: [], enterpriseTier: 3, jobTitle: "Nhân viên", memberCode: "NV0017", supervisorId: null, phone: null, contactAddress: null, memberNote: null, responsibleFarmId: null, workSiteId: siteId };
   await page.route("**/api/enterprise-workspace/members", (route) => route.fulfill({ json: {
-    success: true, data: { items: [member, { ...member, id: managerId, fullName: "Trần Quản Lý", email: "manager@example.invalid", enterpriseTier: 2, jobTitle: "Quản lý sản xuất", supervisorId: null }] },
+    success: true, data: { items: [member, { ...member, id: otherId, fullName: "Trần Thủ Kho", email: "keeper@example.invalid", jobTitle: "Thủ kho", memberCode: "NV0018" }] },
     timestamp: "2026-11-04T06:00:00Z", requestId: "isolated-members-ui",
   } }));
   await page.goto("/enterprise/members");
   const list = page.getByRole("list", { name: "Danh sách thành viên", exact: true });
   await expect(list.getByRole("button")).toHaveCount(2);
-  const manager = await list.getByText("Trần Quản Lý", { exact: true }).boundingBox();
+  const keeper = await list.getByText("Trần Thủ Kho", { exact: true }).boundingBox();
   const staff = await list.getByText("Nguyễn Thành Viên", { exact: true }).boundingBox();
-  expect(manager!.x).toBe(staff!.x);
-  await page.getByRole("textbox", { name: "Tìm thành viên", exact: true }).fill("Quản lý");
+  expect(keeper!.x).toBe(staff!.x);
+  await expect(page.getByRole("combobox", { name: "Cấp", exact: true })).toHaveCount(0);
+  await page.getByRole("textbox", { name: "Tìm thành viên", exact: true }).fill("Thủ kho");
   await expect(list.getByRole("button")).toHaveCount(1);
-  await expect(list.getByText("Trần Quản Lý", { exact: true })).toBeVisible();
-  await page.getByRole("textbox", { name: "Tìm thành viên", exact: true }).fill("");
-  await page.getByRole("combobox", { name: "Cấp", exact: true }).click();
-  await page.getByRole("option", { name: "Cấp 3", exact: true }).click();
-  await expect(list.getByRole("button")).toHaveCount(1);
-  await expect(list.getByText("Nguyễn Thành Viên", { exact: true })).toBeVisible();
+  await expect(list.getByText("Trần Thủ Kho", { exact: true })).toBeVisible();
 });
 
 test("background permission recheck keeps the draft usable and locks it only if verification fails",async({page,api})=>{
@@ -61,7 +57,8 @@ test("member creation preserves delegated scopes and attachments; edit retains e
   await expect(dialog).toHaveCount(0);
   const create = api.requests().find(request => request.method === "POST" && request.path === "/enterprise-workspace/members");
   expect(create?.idempotencyKey).toBeTruthy();
-  expect(JSON.parse(create!.body!)).toMatchObject({ email: "member@example.invalid", tier: 2, phone: "0901234567", roles: [{ roleId, chainIds: [chainId], siteIds: [siteId] }] });
+  expect(JSON.parse(create!.body!)).not.toHaveProperty("tier");
+  expect(JSON.parse(create!.body!)).toMatchObject({ email: "member@example.invalid", phone: "0901234567", roles: [{ roleId, chainIds: [chainId], siteIds: [siteId] }] });
   const upload = api.requests().find(request => request.method === "POST" && request.path === "/enterprise-workspace/evidence");
   expect(upload?.body).toContain("MEMBER_AVATAR"); expect(upload?.body).toContain(memberId);
   await page.goto(`/enterprise/members/${memberId}/edit`);

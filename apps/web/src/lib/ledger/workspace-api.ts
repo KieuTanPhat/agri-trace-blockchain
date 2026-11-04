@@ -28,7 +28,6 @@ export const wapi = {
   catalog: () => ledgerRequest<S["CatalogDto"]>("/catalog"),
   createMember: (input: Omit<S["EnterpriseMemberInput"], "roles"> & { roles: V.RoleGrant[] }, cmd: LedgerCommandContext) => post<{ record: Pick<V.Member, "id" | "email" | "memberCode"> }>(root + "/members", { ...input, roles: nonEmptyRoles(input.roles) }, cmd),
   updateMember: (id: string, input: MemberUpdate, cmd: LedgerCommandContext) => post(root + "/members/" + encodeURIComponent(id), input, cmd),
-  changeSupervisor: (id: string, input: { version: number; supervisorId: string | null }, cmd: LedgerCommandContext) => post(root + "/members/" + encodeURIComponent(id) + "/supervisor", input, cmd),
   invitations: () => items<V.Invitation>(root + "/member-invitations"),
   invite: (input: Omit<S["MemberInvitationInput"], "roles"> & { roles: V.RoleGrant[] }, cmd: LedgerCommandContext) => post(root + "/member-invitations", { ...input, roles: nonEmptyRoles(input.roles) }, cmd),
   revokeInvitation: (id: string, cmd: LedgerCommandContext) => post(root + "/member-invitations/" + encodeURIComponent(id) + "/revoke", {}, cmd),

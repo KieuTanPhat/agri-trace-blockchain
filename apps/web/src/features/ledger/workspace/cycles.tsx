@@ -295,7 +295,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
   const close = useDialog();
   const cancel = useDialog();
   const staffEdit = useDialog();
-  const { tier } = useWorkspaceAccess();
+  const { primary } = useWorkspaceAccess();
   const c = q.data;
   const staff = c?.staffUserIds ?? [];
   // The API accepts an assignee as representative; the signed-in user when assigned.
@@ -331,7 +331,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                   {active && <Button size="sm" onClick={() => care.open(true)}>{tr("Ghi nhật ký chăm sóc")}</Button>}
                   {active && <Button size="sm" variant="outline" onClick={() => harvest.open(true)}>{tr("Thu hoạch")}</Button>}
                   {active && <Button size="sm" variant="outline" onClick={() => close.open(true)}>{tr("Kết thúc vụ")}</Button>}
-                  {tier !== 3 && <Button size="sm" variant="outline" onClick={() => staffEdit.open(true)}>{tr("Đổi nhân viên")}</Button>}
+                  {primary && <Button size="sm" variant="outline" onClick={() => staffEdit.open(true)}>{tr("Đổi nhân viên")}</Button>}
                   <Button size="sm" variant="ghost" className="text-danger" onClick={() => cancel.open(true)}>{tr("Hủy vụ")}</Button>
                 </div>
               )}

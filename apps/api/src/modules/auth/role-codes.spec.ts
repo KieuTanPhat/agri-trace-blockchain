@@ -9,7 +9,7 @@ describe('Account roles', () => {
     ['PROCESSOR', 'PROCESSOR'],
     ['RETAILER', 'RETAILER'],
   ])('lets a %s employee act as %s', (type, role) => {
-    for (const enterpriseTier of [2, 3]) {
+    for (const enterpriseTier of [3]) {
       const user = {
         role: { code: 'ENTERPRISE_STAFF' },
         organization: { type },
@@ -25,7 +25,7 @@ describe('Account roles', () => {
     expect(effectiveRole({ ...staff, organization: { type: 'AUDITOR' }, enterpriseTier: 3 })).toBeNull();
     expect(effectiveRole({ ...staff, organization: { type: 'FARM' }, enterpriseTier: 1 })).toBeNull();
     expect(effectiveRole({ ...staff, organization: { type: 'FARM' }, enterpriseTier: null })).toBeNull();
-    expect(effectiveRole({ ...staff, organization: null, enterpriseTier: 2 })).toBeNull();
+    expect(effectiveRole({ ...staff, organization: null, enterpriseTier: 3 })).toBeNull();
   });
 
   it('keeps every other role as stored and exposes no business role for it', () => {

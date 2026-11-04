@@ -10,16 +10,16 @@ export const PERMISSION_LABEL: Record<string, string> = localized({
   "evidence.read": "Xem chứng cứ", "evidence.manage": "Quản lý chứng cứ", "cases.read": "Xem sự cố", "cases.respond": "Phản hồi sự cố",
 });
 export const PERMISSION_GROUPS = [
-  { label: "Tổ chức", keys: ["profile.read", "profile.manage", "members.read", "members.manage", "roles.manage", "partners.read", "partners.manage"] },
+  { label: "Tổ chức", keys: ["profile.read", "profile.manage", "members.read", "partners.read", "partners.manage"] },
   { label: "Nguồn lực", keys: ["catalog.read", "catalog.manage", "sites.read", "sites.manage", "vehicles.read", "vehicles.manage", "devices.read", "devices.manage", "materials.read", "materials.manage"] },
   { label: "Vận hành", keys: ["production.read", "production.write", "processing.read", "processing.write", "inventory.manage", "quarantine.manage", "quantity.adjust"] },
   { label: "Giao nhận & truy xuất", keys: ["distribution.read", "distribution.write", "distribution.sign", "trace.read", "qr.manage", "reports.read", "evidence.read", "evidence.manage", "cases.read", "cases.respond"] },
 ];
-export const TIER_LABEL: Record<number, string> = localized({ 1: "Cấp 1 · chủ quản", 2: "Cấp 2 · quản lý", 3: "Cấp 3 · nhân viên" });
+export const TIER_LABEL: Record<number, string> = localized({ 1: "Chủ doanh nghiệp", 3: "Nhân viên" });
 /** Mirrors EnterpriseWorkspaceService's baseline dependency closure; the server remains authority. */
 export function withDependencies(input: readonly string[]) {
   const dependencies: Record<string, string[]> = {
-    "members.manage": ["members.read"], "roles.manage": ["members.read"], "partners.manage": ["partners.read"],
+    "partners.manage": ["partners.read"],
     "catalog.manage": ["catalog.read"], "sites.manage": ["sites.read"], "vehicles.manage": ["vehicles.read"], "devices.manage": ["devices.read"],
     "production.write": ["production.read"], "distribution.write": ["distribution.read", "reports.read", "partners.read"],
     "distribution.sign": ["distribution.read"], "cases.respond": ["cases.read"], "evidence.manage": ["evidence.read"],

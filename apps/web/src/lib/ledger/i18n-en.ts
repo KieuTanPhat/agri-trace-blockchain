@@ -74,7 +74,6 @@ export const EN: Record<string, string> = {
   "(không dùng ở chế độ mock)": "(not used in mock mode)",
   "(tự thêm)": "(auto-added)",
   "{p0} · {p1}/năm": "{p0} · {p1}/year",
-  "{p0} · cấp 2": "{p0} · tier 2",
   "{p0} (chủ quản)": "{p0} (owner)",
   "{p0} dòng": "{p0} rows",
   "{p0} dòng có lỗi — sửa CSV rồi xem trước lại":
@@ -274,11 +273,8 @@ export const EN: Record<string, string> = {
   Cấp: "Tier",
   "cấp {p0}": "tier {p0}",
   "Cấp {p0}": "Tier {p0}",
-  "Cấp 1 · chủ quản": "Tier 1 · owner",
-  "Cấp 2 · quản lý": "Tier 2 · manager",
   "Cấp 2 · quản lý sản xuất": "Tier 2 · production manager",
   "Cấp 2 · trưởng kho": "Tier 2 · warehouse lead",
-  "Cấp 3 · nhân viên": "Tier 3 · staff",
   "Cấp 3 · nhân viên sản xuất": "Tier 3 · production staff",
   "Cấp 3 · vận chuyển": "Tier 3 · transport",
   "Cấp năng lực tổ chức": "Grant organization capability",
@@ -320,8 +316,6 @@ export const EN: Record<string, string> = {
     "Mock mode · no requests reach the backend",
   "Chỉ chủ quản cấp 1 đứng tên hồ sơ đăng ký mới đề xuất chuyển quyền. Yêu cầu gửi cho bạn sẽ hiện ở đây.":
     "Only the tier-1 owner who holds the enrollment can propose a transfer. Requests sent to you appear here.",
-  "Chỉ chủ quản thực hiện. Cấp 2 luôn trực thuộc chủ quản; cấp 3 có thể chuyển sang một quản lý cấp 2 đang nắm đủ mọi quyền và phạm vi của nhân viên.":
-    "Owner only. Tier 2 always reports to the owner; tier 3 can move to a tier-2 manager who holds all of the member's permissions and scopes.",
   "Chỉ chủ quản xem lịch sử hồ sơ có thông tin quản lý.":
     "Only the owner can view history containing management details.",
   "Chỉ có trong chế độ mock. Dữ liệu lưu trong trình duyệt này, không gửi tới Backend.":
@@ -763,8 +757,6 @@ export const EN: Record<string, string> = {
     "Changing the type (e.g. from material to seed) makes the item inactive and requires completing photos again. Activation needs completed photos.",
   "Đổi mật khẩu": "Change password",
   "Đổi mật khẩu tạm": "Change temporary password",
-  "Đổi người quản lý": "Change manager",
-  "Đổi người quản lý · {p0}": "Change manager · {p0}",
   "Đối tác": "Partners",
   "Đối tác, cơ sở, phương tiện": "Partners, sites, vehicles",
   "Đổi tham số nền tảng": "Change platform setting",
@@ -777,8 +769,6 @@ export const EN: Record<string, string> = {
   "Đơn vị vận chuyển": "Carrier",
   Đủ: "Complete",
   "Được mời": "Invited",
-  "Được quản lý nhân viên cấp 3 trong phạm vi được giao.":
-    "Can manage tier-3 staff within the assigned scope.",
   "Email": "Email",
   "Email đại diện": "Representative email",
   "Email hệ thống": "System email",
@@ -925,8 +915,6 @@ export const EN: Record<string, string> = {
   "Hành động": "Action",
   HĐ: "Contract",
   "Hệ thống": "System",
-  "Hệ thống gửi mật khẩu tạm qua email; thành viên phải đổi ở lần đăng nhập đầu. Người tạo trở thành người quản lý trực tiếp.":
-    "The system emails a temporary password; the member must change it at first sign-in. The creator becomes their direct manager.",
   "Hệ thống tự kích hoạt khi đủ điều kiện (sau duyệt năng lực hoặc ghi nhận thanh toán). Kích hoạt thủ công chỉ dành cho hồ sơ chưa tự kích hoạt.":
     "The system activates automatically once eligible (after capability approval or payment). Manual activation is only for enrollments that did not auto-activate.",
   Hết: "Exhausted",
@@ -1112,8 +1100,6 @@ export const EN: Record<string, string> = {
   "Không khớp": "Mismatch",
   "Không khớp bản ghi liền kề trong trang (có thể do bộ lọc)":
     "Does not match the adjacent record on this page (possibly due to filters)",
-  "Không quản trị thành viên hay nhóm quyền.":
-    "Cannot manage members or roles.",
   "Không tải được dữ liệu": "Could not load data",
   "Không thuộc diện": "Not applicable",
   "Không thực hiện được ({p0})": "Request failed ({p0})",
@@ -1309,8 +1295,6 @@ export const EN: Record<string, string> = {
   "Mọi năng lực đã được xét": "All capabilities reviewed",
   "Mọi quản trị viên đã bật MFA": "All admins have MFA enabled",
   "Mọi quyền": "All permissions",
-  "Mọi quyền của thành viên đều phải được người quản lý ở các cấp trên nắm giữ; người quản lý bị khóa thì nhân viên trực thuộc bị khóa theo.":
-    "Every member permission must be held by the managers above them; when a manager is locked, their direct reports are locked too.",
   "Mọi tổ chức tham gia (trừ tổ chức kiểm định). Bộ lọc gửi thẳng tới Backend: q, status, model, capability, plan.":
     "All participating organizations (except inspection bodies). Filters go straight to the backend: q, status, model, capability, plan.",
   "Mọi việc đang chờ một quyết định của nền tảng, gom từ hồ sơ, phê duyệt, sự cố, hỗ trợ và hóa đơn.":
@@ -1410,7 +1394,6 @@ export const EN: Record<string, string> = {
   "Người phụ trách": "Assignee",
   "Người quản lý": "Manager",
   "Người quản lý sản phẩm": "Product manager",
-  "Người quản lý trực tiếp": "Direct manager",
   "Người thực hiện": "Actor",
   "Người tiêu dùng": "Consumer",
   "Người tiêu dùng sẽ đọc nội dung này": "Consumers will read this content",
@@ -1425,8 +1408,6 @@ export const EN: Record<string, string> = {
   "Nhà xưởng sản xuất": "Manufacturing site",
   Nhãn: "Label",
   "Nhận lời mời tham gia doanh nghiệp": "Accept enterprise invitation",
-  "Nhân viên do bạn quản lý trực tiếp. Bạn chỉ cấp được quyền và phạm vi mà chính mình đang có.":
-    "Staff you manage directly. You can only grant permissions and scopes you hold yourself.",
   "Nhân viên phụ trách": "Staff in charge",
   "Nhập giá trị": "Enter a value",
   "Nhập lại": "Confirm",
@@ -1846,8 +1827,6 @@ export const EN: Record<string, string> = {
   "Tình trạng": "Health",
   "Tình trạng hệ thống": "System health",
   "Tỉnh/thành": "Province/city",
-  "Toàn bộ thành viên, xếp theo người quản lý trực tiếp. Chủ quản tạo được cấp 2 và cấp 3; cấp 2 chỉ tạo cấp 3.":
-    "All members, arranged by direct manager. The owner can create tier 2 and tier 3; tier 2 can only create tier 3.",
   "Toàn cảnh các chuỗi do doanh nghiệp vận hành. Nền tảng điều phối, không ghi vụ, lô hay giao nhận thay doanh nghiệp.":
     "Overview of chains run by enterprises. The platform coordinates and never records seasons, lots or handovers on their behalf.",
   "tổ chức": "organizations",
@@ -2275,4 +2254,9 @@ export const EN: Record<string, string> = {
   "Khóa riêng nằm trên thiết bị và được tạo tự động khi đăng nhập; máy chủ chỉ nhận khóa công khai. Máy bị mất hoặc lạ thì tài khoản chủ doanh nghiệp thu hồi khóa.": "The private key stays on the device and is created at sign-in; the server only receives the public key. The primary account revokes the key of a lost or unknown device.",
   "Thiết bị đó không ký được nữa. Nếu là máy của nhân viên, lần đăng nhập sau sẽ tạo khóa mới.": "That device can no longer sign. On a staff member's device, the next sign-in creates a new key.",
   "Chưa tạo được khóa ký trên trình duyệt này. Thử lại.": "Could not create a signing key in this browser. Try again.",
+  "Chủ doanh nghiệp": "Business owner",
+  "Chủ doanh nghiệp và toàn bộ nhân viên. Chỉ chủ doanh nghiệp tạo, mời và phân quyền nhân viên.": "The owner and every employee. Only the owner creates, invites and assigns permissions to employees.",
+  "Chỉ chủ doanh nghiệp quản lý thành viên và nhóm quyền.": "Only the business owner manages members and permission groups.",
+  "Hệ thống gửi mật khẩu tạm qua email; thành viên phải đổi ở lần đăng nhập đầu. Tài khoản là Nhân viên doanh nghiệp: chỉ thấy và ghi vụ được giao, quyền theo nhóm quyền.": "A temporary password is emailed and must be changed at first sign-in. The account is an enterprise employee: it sees and records only the cycles assigned to it, with permissions from its groups.",
+  "Nhân viên trực thuộc chủ doanh nghiệp; chỉ thấy và ghi vụ sản xuất được giao.": "Employees report to the business owner and see and record only the production cycles assigned to them.",
 };

@@ -1052,7 +1052,7 @@ const prisma = new PrismaClient({
         a.token,
       ).expect(403);
     });
-    it('delegates 1→2→3 without escalation and revokes descendants with the delegating manager', async () => {
+    it('lets only the owner manage members and keeps employees on assigned work', async () => {
       const a = await register();
       await approve(a.enrollment.id).expect(201);
       await activate(a);
@@ -1063,105 +1063,83 @@ const prisma = new PrismaClient({
           jobTitle: 'Nhân viên kiểm thử',
           email: randomUUID() + '@example.test',
           password: '🌾'.repeat(19),
-          tier: 3,
           roles: [],
         },
         a.token,
       ).expect(400);
-      const managerRole = (
-        await post(
-          '/enterprise-workspace/roles',
-          {
-            name: 'Delegated manager',
-            permissions: [
-              'profile.read',
-              'members.read',
-              'members.manage',
-              'roles.manage',
-            ],
-          },
-          a.token,
-        ).expect(201)
-      ).body.data.record;
+      // Member and permission-group administration stays with the owner.
+      await post(
+        '/enterprise-workspace/roles',
+        {
+          name: 'Delegated manager',
+          permissions: ['profile.read', 'members.read', 'members.manage'],
+        },
+        a.token,
+      ).expect(422);
+      await post(
+        '/enterprise-workspace/roles',
+        { name: 'Role admin', permissions: ['profile.read', 'roles.manage'] },
+        a.token,
+      ).expect(422);
       const readerRole = (
         await post(
           '/enterprise-workspace/roles',
-          { name: 'Reader', permissions: ['profile.read'] },
+          { name: 'Reader', permissions: ['profile.read', 'members.read'] },
           a.token,
         ).expect(201)
       ).body.data.record;
-      const managerInput = {
-        fullName: 'Manager',
-        jobTitle: 'Quản lý kiểm thử',
-        email: `manager-${randomUUID()}@example.test`,
-        phone: '0901234567',
-        contactAddress: '12 Nguyễn Huệ, Quận 1',
-        tier: 2,
-        roles: [{ roleId: managerRole.id, chainIds: [], siteIds: [] }],
-      };
-      const manager = (
-        await post(
-          '/enterprise-workspace/members',
-          managerInput,
-          a.token,
-        ).expect(201)
-      ).body.data.record;
-      const managerToken = (await claim(managerInput.email)).body.data
-        .accessToken;
-      await post(
-        '/enterprise-workspace/roles',
-        { name: 'Escalation', permissions: ['qr.manage'] },
-        managerToken,
-      ).expect(403);
-      await post(
-        '/enterprise-workspace/members',
-        {
-          ...managerInput,
-          email: `forged-${randomUUID()}@example.test`,
-          tier: 2,
-        },
-        managerToken,
-      ).expect(403);
-      const childInput = {
+      const staffInput = {
         fullName: 'Staff',
         jobTitle: 'Nhân viên kiểm thử',
         email: `staff-${randomUUID()}@example.test`,
         phone: '0901234568',
         contactAddress: '12 Nguyễn Huệ, Quận 1',
-        tier: 3,
         roles: [{ roleId: readerRole.id, chainIds: [], siteIds: [] }],
       };
-      const child = (
-        await post(
-          '/enterprise-workspace/members',
-          childInput,
-          managerToken,
-        ).expect(201)
-      ).body.data.record;
-      const childToken = (await claim(childInput.email)).body.data.accessToken;
+      // The removed manager tier is no longer accepted.
       await post(
         '/enterprise-workspace/members',
-        { ...childInput, email: `other-${randomUUID()}@example.test` },
-        childToken,
+        { ...staffInput, tier: 2 },
+        a.token,
+      ).expect(400);
+      const staff = (
+        await post('/enterprise-workspace/members', staffInput, a.token).expect(
+          201,
+        )
+      ).body.data.record;
+      const stored = await prisma.user.findUniqueOrThrow({
+        where: { id: staff.id },
+      });
+      expect(stored.enterpriseTier).toBe(3);
+      const owner = await prisma.user.findFirstOrThrow({
+        where: { email: a.input.email },
+      });
+      expect(stored.supervisorId).toBe(owner.id);
+      const staffToken = (await claim(staffInput.email)).body.data.accessToken;
+      await post(
+        '/enterprise-workspace/members',
+        { ...staffInput, email: `other-${randomUUID()}@example.test` },
+        staffToken,
+      ).expect(403);
+      await post(
+        '/enterprise-workspace/roles',
+        { name: 'Escalation', permissions: ['qr.manage'] },
+        staffToken,
       ).expect(403);
       await post(
         '/catalog/products',
         productForm(randomUUID()),
-        childToken,
+        staffToken,
       ).expect(403);
       await post(
-        `/enterprise-workspace/members/${manager.id}`,
-        { version: manager.enterpriseRevision, status: 'LOCKED', roles: [] },
+        `/enterprise-workspace/members/${staff.id}`,
+        { version: staff.enterpriseRevision, status: 'LOCKED', roles: [] },
         a.token,
       ).expect(201);
-      await get('/enterprise-workspace', childToken).expect(401);
-      expect(
-        (await prisma.user.findUniqueOrThrow({ where: { id: child.id } }))
-          .accountStatus,
-      ).toBe('LOCKED');
+      await get('/enterprise-workspace', staffToken).expect(401);
       expect(
         await prisma.refreshSession.count({
-          where: { userId: child.id, revokedAt: null },
+          where: { userId: staff.id, revokedAt: null },
         }),
       ).toBe(0);
     });
@@ -1182,7 +1160,6 @@ const prisma = new PrismaClient({
         email: `holder-${randomUUID()}@example.test`,
         phone: '0901234569',
         contactAddress: '12 Nguyễn Huệ, Quận 1',
-        tier: 3,
       };
       await post(
         '/enterprise-workspace/members',

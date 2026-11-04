@@ -22,11 +22,11 @@ import {
   ENTERPRISE_PERMISSIONS,
   enterpriseAuthority,
   enterpriseTransferWhere,
+  STAFF_TIER,
 } from './enterprise-policy.js';
 import type {
   EnterpriseMemberInput,
   EnterpriseMemberUpdate,
-  MemberSupervisorInput,
   EnterpriseRoleInput,
   MemberRoleInput,
   EnterprisePartnerInput,
@@ -216,10 +216,9 @@ export class EnterpriseWorkspaceService {
     };
   }
   async roleTemplates(actor: CommandActor) {
-    const auth = await enterpriseAuthority(this.db, actor, 'roles.manage');
+    await enterpriseAuthority(this.db, actor, 'roles.manage');
     const capabilities = await this.db.organizationCapability.findMany({ where: { organizationId: actor.organizationId!, revokedAt: null } });
-    const granted = new Set(auth.user.enterpriseRoles.flatMap(r => r.role.permissions));
-    return { items: ENTERPRISE_ROLE_TEMPLATES.filter(t => capabilities.some(c => c.code === t.capability)).map(t => ({ ...t, permissions: t.permissions.filter(p => auth.primary || granted.has(p)) })) };
+    return { items: ENTERPRISE_ROLE_TEMPLATES.filter(t => capabilities.some(c => c.code === t.capability)).map(t => ({ ...t, permissions: [...t.permissions] })) };
   }
   async roles(actor: CommandActor) {
     const auth = await enterpriseAuthority(this.db, actor, 'members.read');
@@ -241,6 +240,7 @@ export class EnterpriseWorkspaceService {
     actor: CommandActor,
     assignments: MemberRoleInput[],
   ) {
+    // members.manage resolves only for the owner (enterpriseAuthority).
     const auth = await enterpriseAuthority(
       tx,
       actor,
@@ -254,20 +254,6 @@ export class EnterpriseWorkspaceService {
         where: { id: grant.roleId, organizationId: actor.organizationId! },
       });
       if (!role) throw new ForbiddenException('Nhóm quyền ngoài doanh nghiệp');
-      for (const permission of role.permissions) {
-        if (
-          !auth.primary &&
-          !auth.user.enterpriseRoles.some(
-            (r) =>
-              r.role.permissions.includes(permission) &&
-              grant.chainIds.every((c) => r.chainIds.includes(c)) &&
-              grant.siteIds.every((s) => r.siteIds.includes(s)),
-          )
-        )
-          throw new ForbiddenException(
-            'Không được cấp quyền hoặc phạm vi vượt quyền đang có',
-          );
-      }
       for (const chainId of grant.chainIds)
         if (
           !(await tx.chainMembership.findFirst({
@@ -373,11 +359,9 @@ export class EnterpriseWorkspaceService {
     // temporary one is mailed and must be replaced at first sign-in.
     const { password, passwordHash } = await temporaryCredential();
     return commandTransaction(this.db, async (tx) => {
-      const auth = await this.validateDelegation(tx, actor, input.roles);
+      await this.validateDelegation(tx, actor, input.roles);
       await this.validateMemberProfileReferences(tx, actor, input);
       const email = input.email.trim().toLowerCase();
-      if (!auth.primary && input.tier !== 3)
-        throw new ForbiddenException('Cấp 2 chỉ được tạo tài khoản cấp 3');
       // Members are enterprise employees; the business type follows the
       // organization, the detailed permissions follow the EnterpriseRole grants.
       const role = await tx.role.findUniqueOrThrow({
@@ -405,7 +389,7 @@ export class EnterpriseWorkspaceService {
             memberNote: input.memberNote?.trim(),
             passwordHash,
             mustChangePassword: true,
-            enterpriseTier: input.tier,
+            enterpriseTier: STAFF_TIER,
             supervisorId: actor.sub!,
           },
         })
@@ -435,7 +419,7 @@ export class EnterpriseWorkspaceService {
   }
   updateMember(actor: CommandActor, id: string, input: EnterpriseMemberUpdate) {
     return commandTransaction(this.db, async (tx) => {
-      const auth = await this.validateDelegation(tx, actor, input.roles);
+      await this.validateDelegation(tx, actor, input.roles);
       await this.validateMemberProfileReferences(tx, actor, input);
       const member = await tx.user.findFirst({
         where: { id, organizationId: actor.organizationId! },
@@ -444,8 +428,7 @@ export class EnterpriseWorkspaceService {
         !member ||
         id === actor.sub ||
         member.enterpriseTier === 1 ||
-        member.enterpriseTier === null ||
-        (!auth.primary && member.supervisorId !== actor.sub)
+        member.enterpriseTier === null
       )
         throw new ForbiddenException('Không thể sửa tài khoản này');
 
@@ -556,78 +539,6 @@ export class EnterpriseWorkspaceService {
       };
     });
   }
-  /** The owner moves a member under another manager. The supervisor bounds
-   * what the member may do (enterpriseAuthority walks it) and who manages the
-   * member, so the new manager must already hold every permission and scope
-   * the member's roles grant; tier 2 stays directly under the owner. */
-  changeSupervisor(actor: CommandActor, id: string, input: MemberSupervisorInput) {
-    return commandTransaction(this.db, async (tx) => {
-      const auth = await enterpriseAuthority(tx, actor, 'members.manage', undefined, undefined, true);
-      if (!auth.primary)
-        throw new ForbiddenException('Chỉ chủ quản doanh nghiệp đổi người quản lý trực tiếp');
-      const member = await tx.user.findFirst({
-        where: { id, organizationId: actor.organizationId! },
-        include: { enterpriseRoles: { include: { role: true } } },
-      });
-      if (!member || id === actor.sub || !member.enterpriseTier || member.enterpriseTier === 1)
-        throw new ForbiddenException('Không thể đổi người quản lý của tài khoản này');
-      let supervisorId: string = actor.sub!;
-      if (input.supervisorId && input.supervisorId !== actor.sub) {
-        if (member.enterpriseTier !== 3)
-          throw new UnprocessableEntityException('Quản lý cấp 2 chỉ trực thuộc chủ quản doanh nghiệp');
-        const manager = await tx.user.findFirst({
-          where: { id: input.supervisorId, organizationId: actor.organizationId!, accountStatus: 'ACTIVE', enterpriseTier: 2 },
-          include: { enterpriseRoles: { include: { role: true } } },
-        });
-        if (!manager || manager.id === id)
-          throw new UnprocessableEntityException('Người quản lý mới phải là quản lý cấp 2 đang hoạt động');
-        const parentAdmin = manager.supervisorId
-          ? await tx.scopedRoleGrant.findFirst({ where: { userId: manager.supervisorId, organizationId: actor.organizationId!, scope: 'ORGANIZATION', role: 'ORG_ADMIN', revokedAt: null } })
-          : null;
-        if (manager.supervisorId && !parentAdmin)
-          throw new UnprocessableEntityException('Quản lý cấp 2 này không trực thuộc chủ quản');
-        const missing = new Set<string>();
-        for (const granted of member.enterpriseRoles)
-          for (const permission of granted.role.permissions)
-            if (!manager.enterpriseRoles.some((held) =>
-              held.role.permissions.includes(permission) &&
-              granted.chainIds.every((c) => held.chainIds.includes(c)) &&
-              granted.siteIds.every((site) => held.siteIds.includes(site))))
-              missing.add(permission);
-        if (missing.size)
-          throw new ConflictException(`Người quản lý mới chưa có đủ quyền/phạm vi của thành viên: ${[...missing].join(', ')}`);
-        supervisorId = manager.id;
-      }
-      if (member.enterpriseRevision !== input.version)
-        throw new ConflictException('Thành viên đã thay đổi; tải lại rồi thử lại');
-      if (member.supervisorId === supervisorId)
-        throw new ConflictException('Thành viên đã thuộc người quản lý này');
-      // The hierarchy guard accepts the update only next to this record.
-      await tx.enterpriseSupervisorChange.create({
-        data: {
-          organizationId: actor.organizationId!,
-          memberId: id,
-          fromSupervisorId: member.supervisorId,
-          toSupervisorId: supervisorId,
-          actorId: actor.sub!,
-        },
-      });
-      const changed = await tx.user.updateMany({
-        where: { id, enterpriseRevision: input.version },
-        data: { supervisorId, enterpriseRevision: { increment: 1 } },
-      });
-      if (changed.count !== 1)
-        throw new ConflictException('Thành viên đã thay đổi; tải lại rồi thử lại');
-      // Permissions now resolve through a different chain: sign in again.
-      await tx.refreshSession.updateMany({
-        where: { userId: id, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-      return {
-        record: await tx.user.findUniqueOrThrow({ where: { id }, select: MEMBER_SELECT }),
-      };
-    });
-  }
   /** Removes a role nobody holds and no pending invitation grants. */
   deleteRole(actor: CommandActor, id: string, version: number) {
     return commandTransaction(this.db, async (tx) => {
@@ -661,7 +572,7 @@ export class EnterpriseWorkspaceService {
   }
   saveRole(actor: CommandActor, input: EnterpriseRoleInput, id?: string) {
     return commandTransaction(this.db, async (tx) => {
-      const auth = await enterpriseAuthority(
+      await enterpriseAuthority(
         tx,
         actor,
         'roles.manage',
@@ -669,13 +580,13 @@ export class EnterpriseWorkspaceService {
         undefined,
         true,
       );
-      const owned = new Set(
-        auth.user.enterpriseRoles.flatMap((r) => r.role.permissions),
-      );
       const permissions = new Set(['profile.read', ...input.permissions]);
+      // Employees never manage members or permission groups; only the owner does.
+      if (permissions.has('members.manage') || permissions.has('roles.manage'))
+        throw new UnprocessableEntityException(
+          'Quyền quản trị thành viên và nhóm quyền chỉ thuộc chủ doanh nghiệp',
+        );
       const dependencies: Record<string, string[]> = {
-        'members.manage': ['members.read'],
-        'roles.manage': ['members.read'],
         'partners.manage': ['partners.read'],
         'catalog.manage': ['catalog.read'],
         'sites.manage': ['sites.read'],
@@ -698,26 +609,12 @@ export class EnterpriseWorkspaceService {
       for (const permission of permissions)
         for (const dependency of dependencies[permission] ?? [])
           permissions.add(dependency);
-      if (!auth.primary && [...permissions].some((p) => !owned.has(p)))
-        throw new ForbiddenException('Nhóm quyền vượt quyền đang có');
       if (id) {
         const role = await tx.enterpriseRole.findFirst({
           where: { id, organizationId: actor.organizationId! },
           include: { members: true },
         });
         if (!role) throw new NotFoundException('Không tìm thấy nhóm quyền');
-        // Editing an assigned role changes every holder at once. A manager may
-        // only do that when every holder is someone they manage.
-        if (!auth.primary && role.members.length) {
-          const holders = await tx.user.findMany({
-            where: { id: { in: role.members.map((m) => m.userId) } },
-            select: { id: true, supervisorId: true },
-          });
-          if (holders.some((h) => h.supervisorId !== actor.sub))
-            throw new ForbiddenException(
-              'Nhóm đang gán cho thành viên ngoài phạm vi bạn quản lý',
-            );
-        }
         const changed = await tx.enterpriseRole.updateMany({
           where: { id, version: input.version ?? -1 },
           data: {

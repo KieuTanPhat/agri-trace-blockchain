@@ -11767,38 +11767,6 @@
           }
         },
         {
-          "id": "POST `/enterprise-workspace/members/${member.id}/supervisor`",
-          "endpoint": "`/enterprise-workspace/members/${member.id}/supervisor`",
-          "method": "POST",
-          "requestType": [
-            "supervisorId",
-            "version"
-          ],
-          "responseType": "unknown",
-          "retainedLogic": [
-            "apps/web/src/lib/api-client.ts",
-            "apps/web/src/lib/enterprise-access.ts",
-            "apps/web/src/lib/auth-scope.ts",
-            "apps/web/src/lib/command-request.ts",
-            "apps/web/src/lib/command-recovery.ts"
-          ],
-          "tests": [],
-          "status": "verified",
-          "baselineLogicSources": [
-            "apps/web/src/app/enterprise/members/[id]/page.tsx",
-            "apps/web/src/components/workspace/member-form.tsx"
-          ],
-          "implementation": [
-            "apps/web/src/features/ledger/workspace/members.tsx",
-            "apps/web/src/lib/ledger/workspace-api.ts"
-          ],
-          "verification": {
-            "method": "source-review",
-            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
-            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
-          }
-        },
-        {
           "id": "POST `/enterprise-workspace/members/${member.id}`",
           "endpoint": "`/enterprise-workspace/members/${member.id}`",
           "method": "POST",

@@ -16,7 +16,7 @@ import { ApiDataResponse } from '../../common/api/openapi.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
-import { enterpriseAuthority } from './enterprise-policy.js';
+import { enterpriseAuthority, STAFF_TIER } from './enterprise-policy.js';
 import { EnterpriseWorkspaceService } from './enterprise-workspace.service.js';
 import { EnterpriseMemberInput, WorkspaceRecordDto, type MemberRoleInput } from './dto.js';
 import { EnterpriseMemberInvitationListDto } from './workspace-response.dto.js';
@@ -41,7 +41,6 @@ export class MemberInvitationsService {
  create(actor:CommandActor,input:MemberInvitationInput){return commandTransaction(this.db,async tx=>{
   const auth=await this.workspace.validateDelegation(tx,actor,input.roles);
   await this.workspace.validateMemberProfileReferences(tx,actor,input);
-  if(!auth.primary&&input.tier!==3)throw new ForbiddenException('Cấp 2 chỉ mời thành viên cấp 3');
   const email=input.email.trim().toLowerCase();
   if(await tx.user.findFirst({where:{email}}))throw new ConflictException('Email đã có tài khoản');
   const pending=await tx.enterpriseInvitation.findFirst({where:{organizationId:actor.organizationId!,email,status:'PENDING'}});
@@ -49,7 +48,7 @@ export class MemberInvitationsService {
   if(pending)await tx.enterpriseInvitation.update({where:{id:pending.id},data:{status:'EXPIRED',version:{increment:1}}});
   const delegationDigest=await this.delegationDigest(tx,actor.organizationId!,input.roles);
   const memberCode=await nextMemberCode(tx,actor.organizationId!);
-  const row=await tx.enterpriseInvitation.create({data:{memberCode,id:input.id,organizationId:actor.organizationId!,creatorId:actor.sub!,fullName:input.fullName.trim(),email,tier:input.tier,roles:input.roles.map(r=>({...r})),tokenDigest:input.tokenDigest,authorityScope:auth.scope,delegationDigest,expiresAt:new Date(Date.now()+72*3600000),jobTitle:input.jobTitle.trim(),phone:input.phone?.trim(),workSiteId:input.workSiteId,responsibleFarmId:input.responsibleFarmId,contactAddress:input.contactAddress?.trim(),memberNote:input.memberNote?.trim()}});
+  const row=await tx.enterpriseInvitation.create({data:{memberCode,id:input.id,organizationId:actor.organizationId!,creatorId:actor.sub!,fullName:input.fullName.trim(),email,tier:STAFF_TIER,roles:input.roles.map(r=>({...r})),tokenDigest:input.tokenDigest,authorityScope:auth.scope,delegationDigest,expiresAt:new Date(Date.now()+72*3600000),jobTitle:input.jobTitle.trim(),phone:input.phone?.trim(),workSiteId:input.workSiteId,responsibleFarmId:input.responsibleFarmId,contactAddress:input.contactAddress?.trim(),memberNote:input.memberNote?.trim()}});
   return {record:{id:row.id,memberCode:row.memberCode,fullName:row.fullName,email:row.email,phone:row.phone,jobTitle:row.jobTitle,tier:row.tier,expiresAt:row.expiresAt,status:row.status}};
  });}
  async list(actor:CommandActor){const auth=await enterpriseAuthority(this.db,actor,'members.manage');return {items:await this.db.enterpriseInvitation.findMany({where:{organizationId:actor.organizationId!,...(!auth.primary?{creatorId:actor.sub!}:{})},select:{id:true,memberCode:true,email:true,fullName:true,tier:true,status:true,expiresAt:true,version:true,createdAt:true},orderBy:{createdAt:'desc'},take:200})};}

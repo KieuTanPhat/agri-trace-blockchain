@@ -189,7 +189,8 @@ async function initializeBusinessIdentities() {
       intent.orgs[definition.key]={...definition,id:randomUUID(),location:location(definition.region,Number(definition.key.slice(1)))};
       add(definition.key,roleOf(definition.type),definition.key,1);
       if(definition.status==='APPROVED') {
-        add(`${definition.key}Manager`,staffRoleOf(definition.type),definition.key,2);
+        // No manager tier: the operations lead is an employee directly under the owner.
+        add(`${definition.key}Manager`,staffRoleOf(definition.type),definition.key,3);
         for(let i=1;i<=2;i++)add(`${definition.key}Staff${i}`,staffRoleOf(definition.type),definition.key,3);
       }
     }
@@ -221,9 +222,9 @@ async function initializeBusinessIdentities() {
         passwordHash:passwordHashes.get(user.id),passwordChangedAt:T0,
         phone:`090${String(1000000+ordinal)}`,
         ...(user.orgKey?{organizationId:intent.orgs[user.orgKey].id,enterpriseTier:user.tier,
-          memberCode:`NV${String(user.tier===1?1:user.tier===2?2:user.key.endsWith('1')?3:4).padStart(4,'0')}`,
-          jobTitle:user.tier===1?'Giám đốc':user.tier===2?'Quản lý nghiệp vụ':'Nhân viên nghiệp vụ',
-          ...(user.tier>1?{supervisorId:intent.users[user.tier===2?user.orgKey:`${user.orgKey}Manager`].id}:{})}:{}),
+          memberCode:`NV${String(user.tier===1?1:user.key.endsWith('Manager')?2:user.key.endsWith('1')?3:4).padStart(4,'0')}`,
+          jobTitle:user.tier===1?'Giám đốc':user.key.endsWith('Manager')?'Quản lý nghiệp vụ':'Nhân viên nghiệp vụ',
+          ...(user.tier>1?{supervisorId:intent.users[user.orgKey].id}:{})}:{}),
         ...(user.role==='CONSUMER'?{loginPhone:`+8491${String(1000000+ordinal)}`,consumerProfile:{create:{
           provinceCode:location('BAC',ordinal).provinceCode,provinceName:location('BAC',ordinal).province,
           wardCode:location('BAC',ordinal).wardCode,wardName:location('BAC',ordinal).ward,
@@ -444,7 +445,7 @@ async function configurePeople(resources,chains) {
     const siteIds=[...(resources.sites[org.key]??[]).map(s=>s.id),...resources.farms.filter(f=>f.owner===org.key).map(f=>f.id)];
     for(const tier of ['Manager','Staff']) {
       const role=unwrap(await command(org.key,'/enterprise-workspace/roles',{name:tier==='Manager'?'Quản lý vận hành':'Nhân viên thực hiện',
-        permissions:tier==='Manager'?permissions:permissions.filter(p=>!['members.manage','roles.manage','profile.manage','partners.manage'].includes(p))},`enterprise-role:${org.key}:${tier}`));
+        permissions:permissions.filter(p=>!['members.manage','roles.manage',...(tier==='Manager'?[]:['profile.manage','partners.manage'])].includes(p))},`enterprise-role:${org.key}:${tier}`));
       for(const userKey of tier==='Manager'?[`${org.key}Manager`]:[`${org.key}Staff1`,`${org.key}Staff2`]) {
         const members=await readApi(org.key,'/enterprise-workspace/members');
         const user=(members.items??members).find(u=>u.id===actors[userKey].id);assert.ok(user);
