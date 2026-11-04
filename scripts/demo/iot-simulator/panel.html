@@ -3,76 +3,382 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Thiết bị ảo AgriTrace</title>
+<meta name="theme-color" content="#f7f8f2">
+<meta name="description" content="Bảng điều khiển mô phỏng thiết bị IoT cho AgriTrace.">
+<title>Thiết bị ảo · AgriTrace</title>
 <style>
-  :root { --ink:#1d2939; --ink2:#667085; --line:#e4e7ec; --card:#fff; --bg:#f6f7f9; --ok:#1f7a4d; --warn:#b54708; --bad:#b42318; }
+  :root {
+    color-scheme: light;
+    --ink: #172c25;
+    --ink-soft: #40584d;
+    --muted: #687a70;
+    --forest: #174735;
+    --forest-deep: #103529;
+    --leaf: #d9ec6c;
+    --lime: #ecf3c2;
+    --line: #e2e7de;
+    --paper: #f7f8f2;
+    --white: #fff;
+    --ok: #176b46;
+    --warn: #885316;
+    --bad: #a63b34;
+    --shadow: 0 22px 60px rgb(23 44 37 / 9%);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
-  header { padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--card); }
-  header h1 { margin: 0; font-size: 18px; }
-  header p { margin: 4px 0 0; color: var(--ink2); font-size: 13px; }
-  main { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
-  button, select, input { font: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; background: #fff; }
+  html { min-width: 320px; scroll-behavior: smooth; }
+  body { margin: 0; color: var(--ink); background: var(--paper); font-size: 14px; line-height: 1.55; }
+  button, input, select { color: inherit; font: inherit; }
   button { cursor: pointer; }
-  button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
-  button.danger { color: var(--bad); }
-  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); white-space: nowrap; }
-  .ok { color: var(--ok); border-color: #a6d8bf; background: #ecfdf3; }
-  .warn { color: var(--warn); border-color: #fedf89; background: #fffaeb; }
-  .bad { color: var(--bad); border-color: #fecdca; background: #fef3f2; }
-  .muted { color: var(--ink2); font-size: 12.5px; }
-  code { font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 12px; word-break: break-all; }
-  h2 { font-size: 15px; margin: 0; }
-  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 3px 10px; font-size: 13px; margin: 10px 0 0; }
-  .kv dt { color: var(--ink2); }
-  .kv dd { margin: 0; }
-  .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 4px; }
-  .bar > span { display: block; height: 100%; background: var(--ok); }
-  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
-  .metric { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
-  .metric b { display: block; font-size: 18px; font-family: ui-monospace, monospace; }
-  details { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
-  summary { cursor: pointer; color: var(--ink2); font-size: 13px; }
-  ol.log { margin: 6px 0 0; padding-left: 18px; max-height: 140px; overflow: auto; font-size: 12px; color: var(--ink2); }
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #a8c642; outline-offset: 3px; }
+  .topbar { position: relative; z-index: 2; border-bottom: 1px solid rgb(226 231 222 / 85%); background: rgb(255 255 255 / 88%); backdrop-filter: blur(14px); }
+  .topbar-inner { width: min(1320px, calc(100% - 64px)); min-height: 76px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .brand { display: inline-flex; align-items: center; gap: 12px; min-width: 0; color: inherit; text-decoration: none; }
+  .brand-mark { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 14px; background: var(--forest); color: var(--leaf); box-shadow: 0 6px 14px rgb(23 71 53 / 16%); }
+  .brand-mark svg { width: 25px; height: 25px; }
+  .brand-title { display: block; font-size: 15px; font-weight: 790; letter-spacing: -.035em; }
+  .brand-caption { display: block; margin-top: -1px; color: var(--muted); font-size: 10px; font-weight: 690; letter-spacing: .14em; text-transform: uppercase; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .local-chip, .simulation-chip, .badge { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; border-radius: 999px; font-size: 11px; font-weight: 730; }
+  .local-chip { padding: 7px 11px; border: 1px solid var(--line); background: #fff; color: var(--ink-soft); letter-spacing: .04em; }
+  .local-dot, .live-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #6a9b38; box-shadow: 0 0 0 3px rgb(106 155 56 / 13%); }
+  .api-chip { max-width: 340px; color: var(--muted); font-size: 12px; }
+  .api-chip code { color: var(--ink-soft); }
+  .page-shell { width: min(1320px, calc(100% - 64px)); margin: 0 auto; padding: 34px 0 76px; }
+  .hero { position: relative; min-height: 340px; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr); align-items: center; padding: 46px 62px; border-radius: 26px; isolation: isolate; background: var(--forest-deep); color: #fff; box-shadow: var(--shadow); }
+  .hero::before { position: absolute; z-index: -1; inset: 0; content: ""; opacity: .5; background: radial-gradient(ellipse at 75% 9%, rgb(80 127 77 / 48%), transparent 36%), radial-gradient(ellipse at 18% 100%, rgb(58 102 61 / 28%), transparent 48%); }
+  .hero::after { position: absolute; z-index: -1; width: 510px; height: 510px; right: -136px; top: -266px; content: ""; border: 1px solid rgb(222 239 150 / 12%); border-radius: 50%; box-shadow: 0 0 0 38px rgb(222 239 150 / 3%), 0 0 0 78px rgb(222 239 150 / 3%), 0 0 0 120px rgb(222 239 150 / 2%); }
+  .hero-copy { max-width: 640px; padding: 3px 0; }
+  .eyebrow { display: flex; align-items: center; gap: 9px; margin: 0 0 18px; color: var(--leaf); font-size: 10px; font-weight: 790; letter-spacing: .17em; text-transform: uppercase; }
+  .eyebrow-mark { width: 18px; height: 1px; background: var(--leaf); }
+  .hero h1 { max-width: 660px; margin: 0; font-size: clamp(38px, 4.4vw, 62px); font-weight: 680; line-height: 1.03; letter-spacing: -.06em; }
+  .hero h1 span { color: var(--leaf); }
+  .hero-description { max-width: 565px; margin: 18px 0 0; color: rgb(255 255 255 / 76%); font-size: 14px; line-height: 1.75; }
+  .hero-points { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 23px; }
+  .hero-point { display: inline-flex; align-items: center; gap: 8px; padding: 7px 11px; border: 1px solid rgb(255 255 255 / 15%); border-radius: 999px; color: rgb(255 255 255 / 88%); background: rgb(255 255 255 / 5%); font-size: 11px; font-weight: 590; }
+  .hero-point svg { width: 14px; height: 14px; color: var(--leaf); }
+  .hero-art { position: relative; width: min(100%, 380px); aspect-ratio: 1 / .81; justify-self: end; }
+  .map-card { position: absolute; inset: 4% 3% 3% 5%; overflow: hidden; border: 1px solid rgb(255 255 255 / 16%); border-radius: 24px; background: linear-gradient(142deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 3%)); box-shadow: inset 0 1px rgb(255 255 255 / 12%); }
+  .map-grid { position: absolute; inset: 0; opacity: .44; background-image: linear-gradient(rgb(225 239 191 / 11%) 1px, transparent 1px), linear-gradient(90deg, rgb(225 239 191 / 11%) 1px, transparent 1px); background-size: 38px 38px; mask-image: linear-gradient(135deg, #000 25%, transparent 94%); }
+  .route-svg { position: absolute; inset: 10% 4%; width: 92%; height: 80%; overflow: visible; }
+  .route-line { fill: none; stroke: var(--leaf); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 5 7; opacity: .76; }
+  .route-glow { fill: none; stroke: var(--leaf); stroke-width: 11; stroke-linecap: round; opacity: .1; }
+  .route-point { fill: var(--leaf); stroke: #23503b; stroke-width: 3; }
+  .route-pulse { transform-box: fill-box; transform-origin: center; animation: ping 2.8s ease-out infinite; }
+  .map-caption { position: absolute; left: 18px; bottom: 16px; display: flex; align-items: center; gap: 8px; color: rgb(255 255 255 / 78%); font-size: 10px; font-weight: 720; letter-spacing: .12em; text-transform: uppercase; }
+  .floating-chip { position: absolute; display: flex; align-items: center; gap: 9px; padding: 11px 14px; border: 1px solid rgb(255 255 255 / 55%); border-radius: 15px; color: var(--ink); background: #fff; box-shadow: 0 14px 32px rgb(0 0 0 / 15%); }
+  .floating-chip.sensor { top: 5px; right: -15px; }
+  .floating-chip.gps { left: -18px; bottom: 12px; }
+  .float-icon { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 10px; color: var(--forest); background: #eff5d9; }
+  .float-icon.orange { color: #a9652d; background: #faeee3; }
+  .float-icon svg { width: 16px; height: 16px; }
+  .float-copy b { display: block; font-size: 11px; line-height: 1.3; }
+  .float-copy span { display: block; color: var(--muted); font-size: 9px; line-height: 1.4; }
+  .section-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 37px 2px 16px; }
+  .section-overline { margin: 0 0 5px; color: var(--ok); font-size: 9px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+  .section-head h2 { margin: 0; font-size: 23px; font-weight: 710; letter-spacing: -.045em; }
+  .section-description { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+  .count-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-soft); background: #fff; font-size: 11px; font-weight: 680; }
+  .count-dot { width: 7px; height: 7px; border-radius: 50%; background: #a9b6ac; }
+  .count-pill.has-devices .count-dot { background: #6c9842; box-shadow: 0 0 0 3px #eaf1df; }
+  .create-panel { position: relative; overflow: hidden; padding: 23px 25px 20px; border: 1px solid var(--line); border-radius: 19px; background: var(--white); box-shadow: 0 7px 22px rgb(23 44 37 / 3%); }
+  .create-panel::before { position: absolute; inset: 0 auto 0 0; width: 3px; content: ""; background: linear-gradient(var(--forest), #9ab75e); }
+  .create-head { display: flex; align-items: center; gap: 13px; margin-bottom: 17px; }
+  .create-icon { display: grid; width: 39px; height: 39px; flex: 0 0 auto; place-items: center; border-radius: 13px; color: var(--forest); background: #eef3df; }
+  .create-icon svg { width: 19px; height: 19px; }
+  .create-head h3 { margin: 0; font-size: 14px; font-weight: 740; letter-spacing: -.02em; }
+  .create-head p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+  .create-form { display: grid; grid-template-columns: minmax(175px, .8fr) minmax(180px, 1fr) minmax(210px, 1.08fr) auto; align-items: end; gap: 11px; }
+  .field { min-width: 0; }
+  .field label { display: block; margin-bottom: 6px; color: #45584f; font-size: 10px; font-weight: 720; }
+  .control { width: 100%; height: 43px; padding: 0 12px; border: 1px solid #dce3d9; border-radius: 10px; color: var(--ink); background: #fbfcf8; font-size: 12px; transition: border-color .16s, box-shadow .16s, background .16s; }
+  .control:hover { border-color: #bfcbbb; }
+  .control:focus { border-color: #64874d; outline: 0; background: #fff; box-shadow: 0 0 0 3px rgb(145 173 98 / 18%); }
+  .control::placeholder { color: #96a299; }
+  .create-button, .button { display: inline-flex; min-height: 43px; align-items: center; justify-content: center; gap: 8px; padding: 0 17px; border: 1px solid transparent; border-radius: 10px; background: #f3f5ef; color: var(--ink); font-size: 11px; font-weight: 730; transition: transform .16s, background .16s, border-color .16s, box-shadow .16s; }
+  .create-button { min-width: 134px; background: var(--forest); color: #fff; box-shadow: 0 5px 12px rgb(23 71 53 / 15%); }
+  .create-button svg { width: 15px; height: 15px; color: var(--leaf); }
+  .create-button:hover { transform: translateY(-1px); background: #205a40; box-shadow: 0 8px 16px rgb(23 71 53 / 19%); }
+  .button { min-height: 34px; padding: 0 11px; border-color: #e3e8df; background: #fff; font-size: 10px; }
+  .button:hover { border-color: #c3d0bd; background: #f5f7f0; }
+  .button.primary { border-color: var(--forest); background: var(--forest); color: #fff; }
+  .button.primary:hover { background: #205a40; }
+  .button.danger { border-color: #f0d9d6; color: var(--bad); }
+  .button:disabled, .create-button:disabled { cursor: wait; opacity: .65; }
+  .create-note { display: flex; align-items: start; gap: 8px; margin: 14px 1px 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+  .create-note svg { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 1px; color: #81964e; }
+  .device-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 15px; }
+  .empty-state { min-height: 215px; grid-column: 1 / -1; display: grid; grid-template-columns: 158px minmax(0, 1fr) auto; align-items: center; gap: 26px; padding: 28px 34px; border: 1px dashed #d5ded1; border-radius: 19px; background: linear-gradient(110deg, #fff, #fbfcf8); }
+  .empty-art { position: relative; display: grid; width: 140px; height: 140px; place-items: center; border-radius: 50%; background: #f0f4e4; }
+  .empty-art::before, .empty-art::after { position: absolute; inset: 14px; content: ""; border: 1px solid #d9e4c7; border-radius: 50%; }
+  .empty-art::after { inset: 29px; border-style: dashed; }
+  .empty-art svg { position: relative; z-index: 1; width: 47px; height: 47px; color: var(--forest); }
+  .empty-content { max-width: 530px; }
+  .empty-content .eyebrow { margin-bottom: 9px; color: #718944; font-size: 9px; }
+  .empty-content h3 { margin: 0; font-size: 19px; font-weight: 740; letter-spacing: -.04em; }
+  .empty-content p { max-width: 510px; margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .empty-hint { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 15px; }
+  .empty-hint span { padding: 5px 9px; border: 1px solid #e6eadf; border-radius: 999px; color: #596b5f; background: #fff; font-size: 9px; font-weight: 650; }
+  .empty-action { justify-self: end; white-space: nowrap; }
+  .device-card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 17px; background: #fff; box-shadow: 0 5px 18px rgb(23 44 37 / 4%); transition: transform .18s, box-shadow .18s, border-color .18s; }
+  .device-card:hover { transform: translateY(-2px); border-color: #d3ddcd; box-shadow: 0 12px 28px rgb(23 44 37 / 8%); }
+  .device-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; padding: 18px 19px 15px; border-bottom: 1px solid #edf0e9; }
+  .device-heading { display: flex; min-width: 0; align-items: center; gap: 12px; }
+  .device-type-icon { display: grid; width: 43px; height: 43px; flex: 0 0 auto; place-items: center; border-radius: 14px; color: var(--forest); background: #eef3e1; }
+  .device-type-icon.gps { color: #8c612b; background: #f7f0e2; }
+  .device-type-icon svg { width: 20px; height: 20px; }
+  .device-title-wrap { min-width: 0; }
+  .device-title-wrap h3 { overflow: hidden; margin: 0; font-size: 14px; font-weight: 740; letter-spacing: -.025em; text-overflow: ellipsis; white-space: nowrap; }
+  .device-code { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--muted); font-size: 10px; }
+  .device-code code { overflow: hidden; color: #617268; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+  .copy-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 2px 5px; border: 0; border-radius: 5px; color: #5e7467; background: transparent; font-size: 9px; font-weight: 680; }
+  .copy-button:hover { color: var(--forest); background: #f0f4e9; }
+  .copy-button svg { width: 12px; height: 12px; }
+  .device-badges { display: flex; flex-wrap: wrap; justify-content: end; gap: 5px; }
+  .badge { padding: 5px 8px; border: 1px solid #e5e9e1; color: #65746a; background: #f7f8f5; font-size: 9px; }
+  .badge.ok { border-color: #cce4d0; color: #286744; background: #eff7ed; }
+  .badge.warn { border-color: #efdfb8; color: #856122; background: #fbf6e9; }
+  .badge.bad { border-color: #f0d3d0; color: #a03f36; background: #fcf1ef; }
+  .device-content { padding: 16px 19px 12px; }
+  .device-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .info-box { min-width: 0; padding: 10px 11px; border: 1px solid #edf0e9; border-radius: 11px; background: #fbfcf9; }
+  .info-label { display: block; margin-bottom: 5px; color: #829087; font-size: 9px; font-weight: 760; letter-spacing: .1em; text-transform: uppercase; }
+  .info-value { min-width: 0; color: #344b3e; font-size: 11px; font-weight: 580; line-height: 1.5; overflow-wrap: anywhere; }
+  .info-value .muted { font-size: 10px; }
+  .info-value .badge { margin-top: 2px; }
+  .device-card .muted { color: var(--muted); font-size: 10px; }
+  .kv { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 6px 10px; margin: 12px 0 0; font-size: 10px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { min-width: 0; margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
+  code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 10px; overflow-wrap: anywhere; }
+  .trip-box { margin-top: 12px; padding: 12px; border: 1px solid #e9eddf; border-radius: 11px; background: #f8faf3; }
+  .trip-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 9px; font-weight: 720; letter-spacing: .09em; text-transform: uppercase; }
+  .trip-route { margin-top: 4px; color: var(--ink); font-size: 12px; font-weight: 700; }
+  .trip-measure { margin-top: 10px; color: #52675a; font-size: 10px; }
+  .bar { height: 6px; overflow: hidden; margin-top: 6px; border-radius: 999px; background: #e4e9dc; }
+  .bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6a8d43, #bfd54e); transition: width .35s ease; }
+  .trip-wait { margin: 12px 0 0; padding: 10px 11px; border-radius: 10px; color: #61705f; background: #f6f8f0; font-size: 10px; }
+  .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+  .metric { min-width: 0; padding: 10px; border: 1px solid #edf0e9; border-radius: 11px; background: #fbfcf9; }
+  .metric span { display: block; color: #77857b; font-size: 9px; }
+  .metric b { display: block; margin-top: 3px; color: #284535; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 17px; font-weight: 720; letter-spacing: -.04em; }
+  .device-foot { padding: 0 19px 14px; }
+  details { margin-top: 7px; border-top: 1px solid #edf0e9; }
+  summary { display: flex; min-height: 38px; align-items: center; gap: 8px; cursor: pointer; color: #5e7064; font-size: 10px; font-weight: 700; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { width: 7px; height: 7px; margin-left: auto; border-right: 1.5px solid #809083; border-bottom: 1.5px solid #809083; content: ""; transform: rotate(45deg) translateY(-2px); transition: transform .16s; }
+  details[open] summary::after { transform: rotate(225deg) translate(-1px, -1px); }
+  .details-body { padding: 2px 0 8px; }
+  .details-body .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .details-body select, .details-body input { min-height: 32px; padding: 5px 8px; border: 1px solid #e1e7dd; border-radius: 8px; background: #fff; font-size: 10px; }
+  .details-body label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
+  ol.log { max-height: 145px; overflow: auto; margin: 10px 0 0; padding-left: 17px; color: #708076; font-size: 10px; }
+  ol.log li { padding: 2px 0; }
+  .toast { position: fixed; z-index: 10; right: 23px; bottom: 22px; max-width: min(420px, calc(100vw - 34px)); padding: 12px 16px; border: 1px solid #dae5d6; border-radius: 12px; color: var(--ink); background: #fff; box-shadow: 0 14px 40px rgb(23 44 37 / 15%); font-size: 12px; opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .2s, transform .2s; }
+  .toast.visible { opacity: 1; transform: translateY(0); }
+  .toast.error { border-color: #f0d3d0; color: var(--bad); }
+  .page-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin: 24px 2px 0; color: #829087; font-size: 10px; }
+  .page-footer strong { color: #5d7164; font-weight: 680; }
+  @keyframes ping { 0% { opacity: .85; transform: scale(.75); } 70%, 100% { opacity: 0; transform: scale(2.3); } }
+  @media (max-width: 900px) {
+    .topbar-inner, .page-shell { width: min(100% - 40px, 720px); }
+    .hero { min-height: auto; grid-template-columns: minmax(0, 1fr) minmax(230px, .72fr); gap: 8px; padding: 37px 34px; }
+    .hero h1 { font-size: clamp(38px, 6.2vw, 52px); }
+    .hero-art { width: min(100%, 300px); }
+    .create-form { grid-template-columns: 1fr 1fr; }
+    .create-button { align-self: end; }
+    .device-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 620px) {
+    .topbar-inner, .page-shell { width: calc(100% - 28px); }
+    .topbar-inner { min-height: 65px; gap: 12px; }
+    .brand-mark { width: 37px; height: 37px; border-radius: 12px; }
+    .brand { gap: 9px; }
+    .brand-title { font-size: 13px; }
+    .brand-caption { font-size: 9px; }
+    .topbar-right { gap: 0; }
+    .api-chip { display: none; }
+    .local-chip { padding: 6px 9px; font-size: 9px; }
+    .page-shell { padding-top: 17px; padding-bottom: 42px; }
+    .hero { grid-template-columns: 1fr; gap: 20px; padding: 29px 23px 22px; border-radius: 20px; }
+    .hero h1 { font-size: clamp(37px, 10vw, 49px); }
+    .hero-description { margin-top: 13px; font-size: 12px; }
+    .hero-points { gap: 7px; margin-top: 16px; }
+    .hero-point { padding: 6px 9px; font-size: 9px; }
+    .hero-art { width: min(85%, 320px); aspect-ratio: 1.45 / 1; justify-self: center; margin: 1px 0 6px; }
+    .map-card { border-radius: 18px; }
+    .floating-chip { gap: 6px; padding: 8px 10px; border-radius: 12px; }
+    .floating-chip.sensor { right: -9px; }
+    .floating-chip.gps { left: -9px; }
+    .float-icon { width: 27px; height: 27px; border-radius: 9px; }
+    .float-copy b { font-size: 10px; }
+    .float-copy span { font-size: 8px; }
+    .section-head { align-items: start; margin: 28px 1px 12px; }
+    .section-head h2 { font-size: 20px; }
+    .section-description { max-width: 245px; font-size: 10px; }
+    .count-pill { gap: 6px; padding: 7px 9px; font-size: 9px; }
+    .create-panel { padding: 17px 15px 15px; border-radius: 15px; }
+    .create-head { gap: 10px; margin-bottom: 13px; }
+    .create-icon { width: 34px; height: 34px; border-radius: 11px; }
+    .create-head h3 { font-size: 13px; }
+    .create-head p { font-size: 10px; }
+    .create-form { grid-template-columns: 1fr; gap: 9px; }
+    .field label { margin-bottom: 4px; font-size: 9px; }
+    .control { height: 41px; }
+    .create-button { width: 100%; min-height: 43px; }
+    .create-note { margin-top: 12px; font-size: 9px; }
+    .empty-state { min-height: 0; grid-template-columns: 53px minmax(0, 1fr); gap: 13px; padding: 17px 14px; border-radius: 15px; }
+    .empty-art { width: 53px; height: 53px; }
+    .empty-art::before { inset: 5px; }
+    .empty-art::after { inset: 11px; }
+    .empty-art svg { width: 24px; height: 24px; }
+    .empty-content .eyebrow { font-size: 8px; }
+    .empty-content h3 { font-size: 14px; }
+    .empty-content p { font-size: 10px; }
+    .empty-hint { gap: 5px; margin-top: 9px; }
+    .empty-hint span { font-size: 8px; }
+    .empty-action { grid-column: 2; justify-self: start; margin-top: -1px; }
+    .device-head { align-items: start; gap: 8px; padding: 14px 13px 12px; }
+    .device-heading { gap: 9px; }
+    .device-type-icon { width: 37px; height: 37px; border-radius: 12px; }
+    .device-type-icon svg { width: 18px; height: 18px; }
+    .device-title-wrap h3 { max-width: 138px; font-size: 12px; }
+    .device-code { font-size: 9px; }
+    .device-code code { max-width: 112px; font-size: 9px; }
+    .device-badges { max-width: 120px; gap: 4px; }
+    .badge { padding: 4px 6px; font-size: 8px; }
+    .device-content { padding: 12px 13px 8px; }
+    .device-info { gap: 7px; }
+    .info-box { padding: 8px; }
+    .info-label { font-size: 8px; }
+    .info-value { font-size: 10px; }
+    .kv { grid-template-columns: 74px minmax(0, 1fr); gap: 5px 7px; font-size: 9px; }
+    .metrics { gap: 6px; }
+    .metric { padding: 8px 7px; }
+    .metric span { font-size: 8px; }
+    .metric b { font-size: 15px; }
+    .device-foot { padding: 0 13px 10px; }
+    .page-footer { font-size: 9px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>Thiết bị ảo AgriTrace</h1>
-  <p>Thiết bị tự hỏi AgriTrace mỗi 15 giây: đang gắn vào thửa/xe nào, xe đang chở phiếu nào. Khi phiếu được ký lấy hàng, GPS tự chạy theo điểm đi/điểm đến của phiếu; ký nhận xong thì tự dừng. Dữ liệu là <b>mô phỏng</b>. API: <code id="api"></code></p>
-</header>
-<main>
-  <section class="card">
-    <h2>Thêm thiết bị</h2>
-    <div class="row" style="margin-top:8px">
-      <select id="kind"><option value="GPS_TRACKER">GPS trên xe</option><option value="FIELD_SENSOR">Cảm biến vùng trồng</option></select>
-      <input id="name" placeholder="Tên gợi nhớ (tùy chọn)">
-      <input id="code" placeholder="Mã cũ để nhận lại (tùy chọn)" size="24">
-      <button class="primary" onclick="create()">Tạo</button>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/" aria-label="AgriTrace, bảng điều khiển thiết bị">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 15.2C5 9.5 9.2 5 18.5 4.3c-.7 8.8-4.9 13.3-10.2 13.3-2 0-3.3-1-3.3-2.4Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 20c2.3-5 5.8-8.4 10.3-10.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+      <span><span class="brand-title">AgriTrace</span><span class="brand-caption">Thiết bị ảo</span></span>
+    </a>
+    <div class="topbar-right">
+      <span class="api-chip">API <code id="api"></code></span>
+      <span class="local-chip"><span class="local-dot"></span> MÔI TRƯỜNG DEMO</span>
     </div>
-    <p class="muted" style="margin:8px 0 0">Sau khi tạo: AgriTrace → Thiết bị IoT → Đăng ký thiết bị, dán mã và khóa công khai, gắn vào thửa hoặc xe. Nhận lại mã cũ thì dùng "Đổi khóa" trong AgriTrace với khóa mới.</p>
+  </div>
+</header>
+
+<main class="page-shell">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="eyebrow-mark"></span> INTERNET OF THINGS · AGRITRACE</p>
+      <h1 id="hero-title">Mỗi lô hàng,<br><span>một nhịp đập.</span></h1>
+      <p class="hero-description">Theo dõi cảm biến tại vùng trồng và hành trình xe giao nhận ngay trên AgriTrace. Thiết bị tự ghép với thửa, xe và phiếu; mọi dữ liệu ở đây đều được đánh dấu mô phỏng.</p>
+      <div class="hero-points">
+        <span class="hero-point"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v4l2.8 1.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Đồng bộ mỗi 15 giây</span>
+        <span class="hero-point"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 15.5 7.5 11l3 2.5L17 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="6" r="2" fill="currentColor"/></svg> GPS tự chạy theo phiếu</span>
+      </div>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <div class="map-card">
+        <div class="map-grid"></div>
+        <svg class="route-svg" viewBox="0 0 380 255" fill="none">
+          <path class="route-glow" d="M27 190c35-5 46-48 85-40 38 8 35-58 78-55 37 3 43 38 79 14 30-20 42-3 80-49"/>
+          <path class="route-line" d="M27 190c35-5 46-48 85-40 38 8 35-58 78-55 37 3 43 38 79 14 30-20 42-3 80-49"/>
+          <circle cx="27" cy="190" r="6" class="route-point"/><circle cx="349" cy="60" r="7" class="route-point"/>
+          <circle cx="349" cy="60" r="12" class="route-pulse" stroke="#d9ec6c" stroke-width="2" opacity=".7"/>
+          <path d="M85 58h34M102 41v34M250 190h42M271 169v42" stroke="#d9ec6c" stroke-opacity=".3" stroke-width="1"/>
+          <circle cx="192" cy="95" r="3" fill="#d9ec6c" opacity=".76"/><circle cx="277" cy="109" r="3" fill="#d9ec6c" opacity=".7"/>
+        </svg>
+        <span class="map-caption"><span class="live-dot"></span> Mạng lưới mô phỏng</span>
+      </div>
+      <div class="floating-chip sensor"><span class="float-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5v2M10 15.5v2M2.5 10h2m11 0h2M4.7 4.7l1.4 1.4m7.8 7.8 1.4 1.4m0-10.6-1.4 1.4m-7.8 7.8-1.4 1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="10" r="3.5" stroke="currentColor" stroke-width="1.5"/></svg></span><span class="float-copy"><b>Cảm biến vùng trồng</b><span>Nhiệt độ · độ ẩm · đất</span></span></div>
+      <div class="floating-chip gps"><span class="float-icon orange"><svg viewBox="0 0 20 20" fill="none"><path d="M10 17s5-4.4 5-9a5 5 0 1 0-10 0c0 4.6 5 9 5 9Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="8" r="1.7" stroke="currentColor" stroke-width="1.5"/></svg></span><span class="float-copy"><b>GPS hành trình</b><span>Vị trí theo phiếu giao nhận</span></span></div>
+    </div>
   </section>
-  <section id="devices" class="grid"></section>
+
+  <section aria-labelledby="devices-title">
+    <div class="section-head">
+      <div><p class="section-overline">Mạng thiết bị</p><h2 id="devices-title">Thiết bị của bạn</h2><p id="device-subtitle" class="section-description">Tạo thiết bị demo để bắt đầu kết nối AgriTrace.</p></div>
+      <span id="device-count" class="count-pill"><span class="count-dot"></span><span>0 thiết bị</span></span>
+    </div>
+
+    <section class="create-panel" id="create-panel" aria-labelledby="create-title">
+      <div class="create-head">
+        <span class="create-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+        <span><h3 id="create-title">Thêm thiết bị mô phỏng</h3><p>Khởi tạo GPS cho xe hoặc cảm biến cho vùng trồng.</p></span>
+      </div>
+      <div class="create-form">
+        <div class="field"><label for="kind">Loại thiết bị</label><select class="control" id="kind"><option value="GPS_TRACKER">GPS trên xe</option><option value="FIELD_SENSOR">Cảm biến vùng trồng</option></select></div>
+        <div class="field"><label for="name">Tên gợi nhớ <span style="font-weight:500;color:#839087">· tùy chọn</span></label><input class="control" id="name" placeholder="VD: GPS xe Đà Lạt" autocomplete="off"></div>
+        <div class="field"><label for="code">Mã thiết bị cũ <span style="font-weight:500;color:#839087">· để nhận lại</span></label><input class="control" id="code" placeholder="Để trống nếu tạo mới" autocomplete="off"></div>
+        <button class="create-button" id="create-button" type="button" onclick="create()"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Tạo thiết bị</button>
+      </div>
+      <p class="create-note"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.4"/><path d="M10 9v4m0-6h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>Sau khi tạo, đăng ký mã và khóa công khai ở <strong>AgriTrace → Thiết bị IoT</strong>, rồi gắn vào thửa hoặc xe. Nhận lại mã cũ thì dùng chức năng <strong>Đổi khóa</strong> trong AgriTrace.</span></p>
+    </section>
+
+    <div class="section-head" style="margin-top:29px;margin-bottom:13px">
+      <div><h2 style="font-size:17px">Danh sách thiết bị</h2></div>
+    </div>
+    <section id="devices" class="device-grid" aria-live="polite" aria-label="Danh sách thiết bị mô phỏng"></section>
+  </section>
+
+  <footer class="page-footer"><span>AgriTrace IoT Lab <strong>· Local demo</strong></span><span>Dữ liệu mô phỏng, không dùng làm bằng chứng cho thiết bị thật.</span></footer>
 </main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 <script>
 let provinces = [];
 const open = new Set();
+let toastTimer;
 const $ = (s) => document.querySelector(s);
-const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const esc = (s) => String(s ?? '').replace(/[&<>\"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));
+const icon = (kind) => kind === 'GPS_TRACKER'
+  ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.7"/></svg>'
+  : '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/></svg>';
+function notify(message, error = false) {
+  const toast = $('#toast');
+  toast.textContent = message;
+  toast.classList.toggle('error', error);
+  toast.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('visible'), 3400);
+}
 async function call(path, body, method = 'POST') {
-  const r = await fetch(path, { method, headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
-  const j = await r.json();
-  if (!r.ok) alert(j.error || 'Lỗi');
-  refresh();
-  return j;
+  try {
+    const r = await fetch(path, { method, headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    const j = await r.json();
+    if (!r.ok) { notify(j.error || 'Không thể thực hiện thao tác.', true); return null; }
+    await refresh();
+    if (path === '/api/devices') {
+      $('#name').value = '';
+      $('#code').value = '';
+      notify('Đã tạo thiết bị. Sao chép mã và khóa công khai để đăng ký trên AgriTrace.');
+    }
+    return j;
+  } catch {
+    notify('Không kết nối được simulator. Hãy tải lại trang và thử lại.', true);
+    return null;
+  }
 }
 const create = () => call('/api/devices', { kind: $('#kind').value, name: $('#name').value, deviceCode: $('#code').value });
 const act = (id, a, body = {}) => call(`/api/devices/${id}/${a}`, body);
 const del = (id) => confirm('Xóa thiết bị ảo này? Khóa riêng của nó sẽ mất (bản sao lưu vẫn được giữ trong .iot-simulator).') && call(`/api/devices/${id}`, null, 'DELETE');
-const copy = (t) => navigator.clipboard.writeText(t);
+const copy = async (text) => {
+  try { await navigator.clipboard.writeText(text); notify('Đã sao chép vào bộ nhớ tạm.'); }
+  catch { notify('Trình duyệt không cho phép sao chép. Hãy chọn và sao chép thủ công.', true); }
+};
 const LABEL = { TEMPERATURE: 'Nhiệt độ', HUMIDITY: 'Độ ẩm KK', SOIL_MOISTURE: 'Độ ẩm đất' };
 function localNow() {
   const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
@@ -80,12 +386,12 @@ function localNow() {
 }
 function agriStatus(d) {
   if (d.assignmentError) return `<span class="badge bad">${esc(d.assignmentError)}</span>`;
-  if (!d.assignment) return '<span class="badge">đang kết nối…</span>';
-  return d.assignment.device.active ? '<span class="badge ok">AgriTrace: hoạt động</span>' : '<span class="badge warn">AgriTrace: đã ngừng</span>';
+  if (!d.assignment) return '<span class="badge">Đang kết nối</span>';
+  return d.assignment.device.active ? '<span class="badge ok">AgriTrace · hoạt động</span>' : '<span class="badge warn">AgriTrace · đã ngừng</span>';
 }
 function attached(d) {
   const a = d.assignment;
-  if (!a) return '—';
+  if (!a) return 'Chưa đồng bộ';
   if (a.plot) return `${esc(a.plot.farmName)} · ${esc(a.plot.name)}<div class="muted">${a.plot.runningCycles.length ? 'Vụ đang nhận dữ liệu: ' + a.plot.runningCycles.map(esc).join(', ') : 'Thửa chưa có vụ đang trồng: dữ liệu sẽ bị bỏ qua'}</div>`;
   if (a.vehicle) return `Xe <b>${esc(a.vehicle.registration)}</b> · ${esc(a.vehicle.kind)}`;
   return '<span class="muted">Chưa gắn vào thửa hoặc xe</span>';
@@ -94,88 +400,107 @@ function tripBlock(d) {
   const t = d.trip;
   const a = d.assignment?.trip;
   if (!t) {
-    if (d.mode === 'AUTO') return `<p class="muted" style="margin:8px 0 0">Đang chờ phiếu: lập phiếu giao nhận chọn xe này và ký lấy hàng, xe sẽ tự chạy.</p>`;
-    return `<p class="muted" style="margin:8px 0 0">Chế độ thủ công: chọn tuyến trong mục Nâng cao.</p>`;
+    if (d.mode === 'AUTO') return '<p class="trip-wait">Đang chờ phiếu. Ký lấy hàng trên AgriTrace để GPS tự bắt đầu hành trình.</p>';
+    return '<p class="trip-wait">Chế độ thủ công. Có thể chọn tuyến trong mục Nâng cao.</p>';
   }
   const pct = Math.min(100, (t.progressKm / t.totalKm) * 100);
-  return `<dl class="kv">
-      <dt>Chuyến</dt><dd>${esc(t.routeName)}${t.transferId ? '' : ' <span class="badge warn">thủ công</span>'}${t.estimated ? ' <span class="badge warn">tuyến ước lượng</span>' : ''}</dd>
-      ${a ? `<dt>Theo phiếu</dt><dd><code>${esc(a.transferId.slice(0, 8))}</code> · ký lấy hàng ${new Date(a.inTransitAt).toLocaleString('vi-VN')}</dd>` : ''}
-      <dt>Tiến độ</dt><dd>${t.progressKm}/${t.totalKm} km · ${t.speed} km/h${t.remainingMin != null ? ` · còn ~${t.remainingMin} phút` : ''} ${t.stopped ? '<span class="badge warn">đang dừng</span>' : ''} ${t.arrivedAt ? '<span class="badge ok">đã tới nơi, chờ ký nhận</span>' : ''}
-        <div class="bar"><span style="width:${pct}%"></span></div></dd>
-    </dl>`;
+  return `<div class="trip-box">
+      <div class="trip-label"><span>Hành trình hiện tại</span>${t.stopped ? '<span class="badge warn">Đang dừng</span>' : ''}${t.arrivedAt ? '<span class="badge ok">Đã tới nơi</span>' : ''}</div>
+      <div class="trip-route">${esc(t.routeName)}${t.transferId ? '' : ' <span class="badge warn">Thủ công</span>'}${t.estimated ? ' <span class="badge warn">Ước lượng</span>' : ''}</div>
+      ${a ? `<p class="muted" style="margin:4px 0 0">Phiếu ${esc(a.transferId.slice(0, 8))} · ký lấy hàng ${new Date(a.inTransitAt).toLocaleString('vi-VN')}</p>` : ''}
+      <div class="trip-measure">${t.progressKm} / ${t.totalKm} km · ${t.speed} km/h${t.remainingMin != null ? ` · còn khoảng ${t.remainingMin} phút` : ''}<div class="bar"><span style="width:${pct}%"></span></div></div>
+    </div>`;
 }
 function fieldBlock(d) {
   const r = d.lastReadings ?? {};
-  return `<div class="metrics">${['TEMPERATURE', 'HUMIDITY', 'SOIL_MOISTURE'].map((k) => `<div class="metric"><span class="muted">${LABEL[k]}</span><b>${r[k] ?? '—'}</b></div>`).join('')}</div>
-    <p class="muted" style="margin:6px 0 0">Đo mỗi ${d.intervalSec}s${d.drought ? ' · <span class="badge warn">đang khô hạn</span>' : ''}</p>`;
+  return `<div class="metrics">${['TEMPERATURE', 'HUMIDITY', 'SOIL_MOISTURE'].map((k) => `<div class="metric"><span>${LABEL[k]}</span><b>${r[k] ?? '—'}</b></div>`).join('')}</div>
+    <p class="muted" style="margin:8px 2px 0">Đo mỗi ${d.intervalSec} giây${d.drought ? ' · <span class="badge warn">Đang khô hạn</span>' : ''}</p>`;
 }
 function incidents(d) {
   const gps = d.kind === 'GPS_TRACKER';
-  return `<div class="row" style="margin-top:6px">
-    ${d.manualSignal ? `<button onclick="act('${d.id}','signal_off')">Mất sóng</button>` : `<button onclick="act('${d.id}','signal_on')">Có sóng lại</button>`}
-    ${gps && d.trip ? (d.trip.stopped ? `<button onclick="act('${d.id}','resume')">Chạy tiếp</button>` : `<button onclick="act('${d.id}','stop')">Dừng bất thường</button>`) : ''}
-    ${gps && d.trip ? `<button onclick="act('${d.id}','finish')">Tua tới gần điểm nhận</button>` : ''}
-    ${gps ? (d.power === 'MAINS' ? `<button onclick="act('${d.id}','unplug')">Rút nguồn</button>` : `<button onclick="act('${d.id}','plug')">Cắm nguồn</button>`) : ''}
-    ${gps ? `<button onclick="act('${d.id}','spoof')">GPS bị giả mạo</button>` : `<button onclick="act('${d.id}','drought')">${d.drought ? 'Hết khô hạn' : 'Khô hạn'}</button><button onclick="act('${d.id}','irrigate')">Tưới</button>`}
-    <button onclick="act('${d.id}','replay')">Gửi lại gói cũ</button>
-    <button onclick="act('${d.id}','forge')">Giả chữ ký</button>
+  return `<div class="row">
+    ${d.manualSignal ? `<button class="button" onclick="act('${d.id}','signal_off')">Mất sóng</button>` : `<button class="button" onclick="act('${d.id}','signal_on')">Có sóng lại</button>`}
+    ${gps && d.trip ? (d.trip.stopped ? `<button class="button" onclick="act('${d.id}','resume')">Chạy tiếp</button>` : `<button class="button" onclick="act('${d.id}','stop')">Dừng bất thường</button>`) : ''}
+    ${gps && d.trip ? `<button class="button" onclick="act('${d.id}','finish')">Tua gần điểm nhận</button>` : ''}
+    ${gps ? (d.power === 'MAINS' ? `<button class="button" onclick="act('${d.id}','unplug')">Rút nguồn</button>` : `<button class="button" onclick="act('${d.id}','plug')">Cắm nguồn</button>`) : ''}
+    ${gps ? `<button class="button" onclick="act('${d.id}','spoof')">GPS giả mạo</button>` : `<button class="button" onclick="act('${d.id}','drought')">${d.drought ? 'Hết khô hạn' : 'Khô hạn'}</button><button class="button" onclick="act('${d.id}','irrigate')">Tưới</button>`}
+    <button class="button" onclick="act('${d.id}','replay')">Gửi lại gói cũ</button>
+    <button class="button" onclick="act('${d.id}','forge')">Giả chữ ký</button>
   </div>`;
 }
 function advanced(d) {
   const gps = d.kind === 'GPS_TRACKER';
   const options = (sel) => provinces.map((p) => `<option value="${p.code}" ${p.code === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
   const manual = gps ? `
-    <p class="muted" style="margin:8px 0 4px">${d.mode === 'AUTO' ? 'Đang tự động theo phiếu. Có thể chạy thử một tuyến tùy chọn (không theo phiếu):' : 'Chế độ thủ công: chọn tuyến rồi chạy thử.'}</p>
-    <div class="row"><select id="fm-${d.id}">${options('68')}</select> → <select id="dm-${d.id}">${options('79')}</select></div>
-    <div class="row" style="margin-top:6px"><label>Xuất phát <input type="datetime-local" id="t-${d.id}" value="${localNow()}"></label>
-      <button onclick="act('${d.id}','trip',{from:{code:document.getElementById('fm-${d.id}').value},to:{code:document.getElementById('dm-${d.id}').value},departAt:new Date(document.getElementById('t-${d.id}').value).toISOString()})">Chạy thử</button>
-      ${d.mode === 'AUTO' ? '' : `<button class="primary" onclick="act('${d.id}','auto')">Về tự động</button>`}
-      ${d.trip ? `<button onclick="act('${d.id}','end_trip')">Kết thúc chuyến</button>` : ''}</div>` : `
-    <div class="row" style="margin-top:6px">
-      <button onclick="act('${d.id}','interval',{seconds:60})">Đo mỗi 60s</button>
-      <button onclick="act('${d.id}','interval',{seconds:300})">Đo mỗi 5 phút</button>
-      <button onclick="act('${d.id}','backfill',{days:Number(prompt('Số ngày lịch sử', '60'))})">Nạp lịch sử</button></div>`;
-  return `${manual}
-    <dl class="kv"><dt>Khóa công khai</dt><dd><code>${esc(d.publicKey)}</code> <button onclick="copy('${d.publicKey}')">Chép</button></dd>
-      <dt>Số thứ tự kế</dt><dd>${d.sequence} · lưu tạm ${d.queue}</dd></dl>
-    <div class="row" style="margin-top:6px">
-      <button onclick="confirm('Tạo khóa mới? Cần Đổi khóa trong AgriTrace.') && act('${d.id}','rotate_key')">Tạo khóa mới</button>
-      <button class="danger" onclick="del('${d.id}')">Xóa</button></div>
-    <ol class="log">${d.log.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>`;
+    <p class="muted" style="margin:2px 0 8px">${d.mode === 'AUTO' ? 'Thiết bị đang tự chạy theo phiếu. Bạn cũng có thể chạy tuyến demo thủ công:' : 'Chế độ thủ công: chọn tuyến rồi chạy thử.'}</p>
+    <div class="row"><select aria-label="Tỉnh xuất phát" id="fm-${d.id}">${options('68')}</select><span class="muted">→</span><select aria-label="Tỉnh đến" id="dm-${d.id}">${options('79')}</select></div>
+    <div class="row" style="margin-top:7px"><label>Xuất phát <input aria-label="Thời điểm xuất phát" type="datetime-local" id="t-${d.id}" value="${localNow()}"></label>
+      <button class="button" onclick="act('${d.id}','trip',{from:{code:document.getElementById('fm-${d.id}').value},to:{code:document.getElementById('dm-${d.id}').value},departAt:new Date(document.getElementById('t-${d.id}').value).toISOString()})">Chạy thử tuyến</button>
+      ${d.mode === 'AUTO' ? '' : `<button class="button primary" onclick="act('${d.id}','auto')">Về tự động</button>`}
+      ${d.trip ? `<button class="button" onclick="act('${d.id}','end_trip')">Kết thúc chuyến</button>` : ''}</div>` : `
+    <div class="row">
+      <button class="button" onclick="act('${d.id}','interval',{seconds:60})">Đo mỗi 60 giây</button>
+      <button class="button" onclick="act('${d.id}','interval',{seconds:300})">Đo mỗi 5 phút</button>
+      <button class="button" onclick="act('${d.id}','backfill',{days:Number(prompt('Số ngày lịch sử', '60'))})">Nạp lịch sử</button></div>`;
+  return `<div class="details-body">${manual}
+    <dl class="kv"><dt>Khóa công khai</dt><dd><code>${esc(d.publicKey)}</code> <button class="copy-button" onclick="copy('${d.publicKey}')">Chép khóa</button>
+      <dt>Số thứ tự kế</dt><dd>${d.sequence} · lưu tạm ${d.queue} bản ghi</dd></dl>
+    <div class="row" style="margin-top:8px">
+      <button class="button" onclick="confirm('Tạo khóa mới? Cần Đổi khóa trong AgriTrace.') && act('${d.id}','rotate_key')">Tạo khóa mới</button>
+      <button class="button danger" onclick="del('${d.id}')">Xóa thiết bị</button></div>
+    <ol class="log">${d.log.map((l) => `<li>${esc(l)}</li>`).join('')}</ol></div>`;
 }
 function card(d) {
   const r = d.lastResult;
   const unregistered = !!d.assignmentError && d.assignmentError.startsWith('Chưa đăng ký');
-  return `<article class="card">
-    <div class="row" style="justify-content:space-between"><h2>${esc(d.name)}</h2>
-      <span class="row">${agriStatus(d)}
-        <span class="badge ${d.signal ? 'ok' : 'warn'}">${d.signal ? 'có sóng' : 'mất sóng'}</span>
-        ${d.kind === 'GPS_TRACKER' ? `<span class="badge ${d.power === 'MAINS' ? 'ok' : d.power === 'OFF' ? 'bad' : 'warn'}">${d.power === 'MAINS' ? 'nguồn xe' : d.power === 'OFF' ? 'tắt' : 'pin ' + d.battery + '%'}</span>` : ''}
-      </span></div>
-    <dl class="kv">
-      <dt>Mã thiết bị</dt><dd><code>${esc(d.deviceCode)}</code> <button onclick="copy('${d.deviceCode}')">Chép</button>${unregistered ? ` <button onclick="copy('${d.publicKey}')">Chép khóa công khai</button>` : ''}</dd>
-      <dt>Gắn vào</dt><dd>${attached(d)}</dd>
-      <dt>Lần gửi cuối</dt><dd>${r ? `nhận ${r.accepted} · trùng ${r.duplicates} · bỏ qua ${r.ignored} · muộn ${r.late} · bất thường ${r.anomalies}` : '—'}${d.lastError ? ` <span class="badge bad">${esc(d.lastError)}</span>` : ''}</dd>
-    </dl>
-    ${d.kind === 'GPS_TRACKER' ? tripBlock(d) : fieldBlock(d)}
-    <details data-key="inc-${d.id}" ${open.has('inc-' + d.id) ? 'open' : ''}><summary>Tạo sự cố để demo</summary>${incidents(d)}</details>
-    <details data-key="adv-${d.id}" ${open.has('adv-' + d.id) ? 'open' : ''}><summary>Nâng cao</summary>${advanced(d)}</details>
+  const gps = d.kind === 'GPS_TRACKER';
+  const signal = d.signal ? '<span class="badge ok">Có sóng</span>' : '<span class="badge warn">Mất sóng</span>';
+  const power = gps ? `<span class="badge ${d.power === 'MAINS' ? 'ok' : d.power === 'OFF' ? 'bad' : 'warn'}">${d.power === 'MAINS' ? 'Nguồn xe' : d.power === 'OFF' ? 'Tắt' : 'Pin ' + d.battery + '%'}</span>` : '';
+  return `<article class="device-card">
+    <div class="device-head">
+      <div class="device-heading"><span class="device-type-icon ${gps ? 'gps' : ''}">${icon(d.kind)}</span><span class="device-title-wrap"><h3 title="${esc(d.name)}">${esc(d.name)}</h3><span class="device-code"><code>${esc(d.deviceCode)}</code><button class="copy-button" aria-label="Sao chép mã thiết bị" onclick="copy('${d.deviceCode}')"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.2" y="5.2" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M10.5 5V3.8A1.8 1.8 0 0 0 8.7 2H3.8A1.8 1.8 0 0 0 2 3.8v4.9a1.8 1.8 0 0 0 1.8 1.8H5" stroke="currentColor" stroke-width="1.2"/></svg></button></span></span></div>
+      <div class="device-badges">${agriStatus(d)}${signal}${power}</div>
+    </div>
+    <div class="device-content">
+      <div class="device-info"><div class="info-box"><span class="info-label">Gắn vào</span><div class="info-value">${attached(d)}</div></div>
+        <div class="info-box"><span class="info-label">Bản tin gần nhất</span><div class="info-value">${r ? `Nhận ${r.accepted} · trùng ${r.duplicates} · muộn ${r.late} · bất thường ${r.anomalies}` : 'Chưa gửi dữ liệu'}${d.lastError ? `<div class="badge bad">${esc(d.lastError)}</div>` : ''}${unregistered ? `<button class="copy-button" style="margin-top:5px" onclick="copy('${d.publicKey}')">Sao chép khóa công khai</button>` : ''}</div></div></div>
+      ${gps ? tripBlock(d) : fieldBlock(d)}
+    </div>
+    <div class="device-foot">
+      <details data-key="inc-${d.id}" ${open.has('inc-' + d.id) ? 'open' : ''}><summary>Tạo sự cố để demo</summary><div class="details-body">${incidents(d)}</div></details>
+      <details data-key="adv-${d.id}" ${open.has('adv-' + d.id) ? 'open' : ''}><summary>Cấu hình nâng cao</summary>${advanced(d)}</details>
+    </div>
   </article>`;
 }
+function emptyState() {
+  return `<div class="empty-state"><div class="empty-art" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M9 33.5C9 20.4 19.3 10 38 8.5c-1.4 18.2-11 27.5-22 27.5-4 0-7-1.1-7-2.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 41c4.4-10 11.2-16.8 20-20.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="empty-content"><p class="eyebrow"><span class="eyebrow-mark"></span> SẴN SÀNG KẾT NỐI</p><h3>Chưa có thiết bị trong mạng lưới</h3><p>Tạo một thiết bị mô phỏng để bắt đầu. Sau đó đăng ký khóa công khai trên AgriTrace và gắn GPS vào xe hoặc cảm biến vào thửa trồng.</p><div class="empty-hint"><span>01 · Tạo thiết bị</span><span>02 · Đăng ký trên AgriTrace</span><span>03 · Tự đồng bộ</span></div></div>
+    <a class="create-button empty-action" href="#create-panel"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Tạo thiết bị đầu tiên</a></div>`;
+}
 async function refresh() {
-  const s = await (await fetch('/api/state')).json();
-  provinces = s.provinces;
-  $('#api').textContent = s.api;
-  const focused = document.activeElement?.id;
-  if (focused && /^(t|fm|dm)-/.test(focused)) return;
-  document.querySelectorAll('details[data-key]').forEach((el) => (el.open ? open.add(el.dataset.key) : open.delete(el.dataset.key)));
-  const saved = {};
-  document.querySelectorAll('#devices select[id], #devices input[id]').forEach((el) => (saved[el.id] = el.value));
-  $('#devices').innerHTML = s.devices.map(card).join('') || '<p class="card">Chưa có thiết bị ảo. Tạo thiết bị ở trên.</p>';
-  for (const [id, value] of Object.entries(saved)) {
-    const el = document.getElementById(id);
-    if (el) el.value = value;
+  try {
+    const response = await fetch('/api/state');
+    if (!response.ok) throw new Error('state');
+    const s = await response.json();
+    provinces = s.provinces;
+    $('#api').textContent = s.api;
+    const focused = document.activeElement?.id;
+    if (focused && /^(t|fm|dm)-/.test(focused)) return;
+    document.querySelectorAll('details[data-key]').forEach((el) => (el.open ? open.add(el.dataset.key) : open.delete(el.dataset.key)));
+    const saved = {};
+    document.querySelectorAll('#devices select[id], #devices input[id]').forEach((el) => (saved[el.id] = el.value));
+    $('#devices').innerHTML = s.devices.map(card).join('') || emptyState();
+    const count = $('#device-count');
+    count.querySelector('span:last-child').textContent = `${s.devices.length} thiết bị`;
+    count.classList.toggle('has-devices', s.devices.length > 0);
+    $('#device-subtitle').textContent = s.devices.length ? 'Trạng thái và dữ liệu được làm mới tự động mỗi 2 giây.' : 'Tạo thiết bị demo để bắt đầu kết nối AgriTrace.';
+    for (const [id, value] of Object.entries(saved)) {
+      const el = document.getElementById(id);
+      if (el) el.value = value;
+    }
+  } catch {
+    $('#api').textContent = 'Chưa kết nối';
+    $('#device-subtitle').textContent = 'Không thể đọc trạng thái simulator. Hãy tải lại trang để kết nối lại.';
   }
 }
 refresh();

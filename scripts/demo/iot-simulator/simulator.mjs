@@ -458,13 +458,12 @@ function view(d) {
   };
 }
 
-const panel = await readFile(join(here, 'panel.html'), 'utf8');
 const panelServer = createServer(async (req, res) => {
   const send = (code, data) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); };
   try {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const body = req.method === 'POST' ? JSON.parse((await new Promise((ok) => { let s = ''; req.on('data', (c) => (s += c)); req.on('end', () => ok(s)); })) || '{}') : {};
-    if (req.method === 'GET' && url.pathname === '/') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(panel); }
+    if (req.method === 'GET' && url.pathname === '/') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(await readFile(join(here, 'panel.html'), 'utf8')); }
     if (req.method === 'GET' && url.pathname === '/api/state')
       return send(200, { api: API, provinces: PROVINCES, routes: [...routes.values()].filter((r) => !r.id.startsWith('dyn-')).map((r) => ({ id: r.id, name: r.name, km: +(r.length / 1000).toFixed(1), origin: r.origin, destination: r.destination })), devices: state.devices.map(view) });
     if (req.method === 'POST' && url.pathname === '/api/devices') {
