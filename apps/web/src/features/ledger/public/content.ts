@@ -4,7 +4,7 @@
  * Ảnh Unsplash ghi nguồn trong PHOTO_CREDITS; ảnh bìa và minh họa About tạo riêng cho trang; ảnh người tiêu dùng, kiểm định và chế biến do chủ dự án cung cấp.
  */
 import type { StaticImageData } from "next/image";
-import heroAgritrace from "../../../../public/images/site/hero-agritrace-v2.webp";
+import heroAgritrace from "../../../../public/images/site/hero-agritrace-rice-harvest.png";
 import aboutGrowerPartner from "../../../../public/images/site/about-grower-partner.webp";
 import teaHills from "../../../../public/images/site/tea-hills.jpg";
 import teaLeaves from "../../../../public/images/site/tea-leaves.jpg";

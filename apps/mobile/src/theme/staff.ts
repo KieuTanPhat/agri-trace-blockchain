@@ -6,17 +6,17 @@ import type { TextStyle } from 'react-native';
  * a calm operations tool rather than a set of colourful tiles.
  */
 export const color = {
-  bg: '#f6f8f7',
+  bg: '#f3f8f1',
   surface: '#ffffff',
   ink: '#111827',
   inkSoft: '#374151',
   muted: '#6b7280',
   faint: '#9ca3af',
-  line: '#edf0ee',
+  line: '#e7eee5',
   field: '#d1d5db',
   green: '#1f8a4c',
   greenDeep: '#176c3b',
-  greenTint: '#e6f4ec',
+  greenTint: '#e6f4e4',
   teal: '#0f766e',
   orange: '#d97706',
   orangeDeep: '#b45309',

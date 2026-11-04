@@ -18,7 +18,7 @@ export default function Journal() {
   const shown = (cycles.data ?? []).filter((c) => RUNNING.includes(c.currentState) === (tab === 'running'));
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <Header title="Vụ được giao" subtitle="Chọn vụ để ghi nhật ký chăm sóc hoặc thu hoạch" />
+      <Header title="Mùa vụ" subtitle="Nhật ký chăm sóc và thu hoạch" />
       <Screen refreshing={cycles.loading} onRefresh={() => void cycles.reload()} bottomInset={96}>
         <SegmentTabs value={tab} onChange={setTab} items={[{ key: 'running', label: 'Đang làm' }, { key: 'ended', label: 'Đã kết thúc' }]} />
         <Loadable {...cycles} reload={() => void cycles.reload()}>
@@ -28,9 +28,9 @@ export default function Journal() {
                 <Empty title={tab === 'running' ? 'Chưa có vụ đang làm' : 'Chưa có vụ đã kết thúc'} body="Bạn chỉ thấy các vụ chủ doanh nghiệp giao cho bạn." icon="leaf" />
               </Card>
             ) : (
-              <Card style={{ overflow: 'hidden' }}>
+              <View>
                 {shown.map((c, i) => <CycleCard key={c.id} cycle={c} first={i === 0} />)}
-              </Card>
+              </View>
             )
           }
         </Loadable>

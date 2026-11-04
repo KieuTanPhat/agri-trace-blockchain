@@ -143,6 +143,9 @@ chạy:
 docker compose --env-file .env.docker up --build
 ```
 
+The local Worker sends queued email to Mailpit, not to real inboxes. View
+captured messages at `http://localhost:8025`.
+
 PostgreSQL 18 dùng volume tại `/var/lib/postgresql`. Volume đã khởi tạo bằng
 PostgreSQL 16 cần quy trình chuyển dữ liệu hoặc tạo mới có ủy quyền; thay tag image
 không tự nâng định dạng dữ liệu. Xem [runbook database](docs/database-migration-runbook.md).

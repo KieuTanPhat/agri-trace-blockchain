@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Schemas } from '../../../api/client';
 import { useSession } from '../../../auth/session';
 import { DeviceKeyCard } from '../../../components/DeviceKeyCard';
+import { DirectoryPhoto } from '../../../components/DirectoryCards';
 import { Icon, type IconName } from '../../../components/staff/Icon';
 import { Button, Card, Empty, IconButton, IconTile, initialOf, Notice, Pill, Screen, Section, T } from '../../../components/staff/ui';
 import { useAccess, type FeatureKey } from '../../../lib/access';
@@ -18,7 +19,7 @@ type Task = { transferId: string; action: string; origin: string; destination: s
 const SHORT = { staleTimeMs: 20_000 };
 const TONES: Tone[] = ['green', 'blue', 'orange', 'purple'];
 const ACTION: Record<string, { label: string; t: Tone }> = {
-  CONSENT: { label: 'Ký đồng thuận', t: 'orange' },
+  CONSENT: { label: 'Ký xác nhận', t: 'orange' },
   PICKUP: { label: 'Ký lấy hàng', t: 'blue' },
   DELIVERY: { label: 'Ký giao nhận', t: 'green' },
   ACTUAL_RECEIPT: { label: 'Ghi thực nhận', t: 'purple' },
@@ -66,16 +67,16 @@ export default function StaffHome() {
   const running = (cycles.data ?? []).filter((c) => ['PLANTED', 'GROWING'].includes(c.currentState));
 
   const shortcuts: { label: string; icon: IconName; href: string }[] = [
-    { label: 'Quét mã', icon: 'scan', href: '/staff/scan' },
+    { label: 'Quét QR', icon: 'scan', href: '/staff/scan' },
     ...features
       .filter((f) => !['messages', 'signing'].includes(f.key))
       .slice(0, 3)
-      .map((f) => ({ label: f.label.replace(' được giao', '').replace('Việc chờ ký', 'Việc ký'), icon: f.icon, href: f.href })),
+      .map((f) => ({ label: f.label, icon: f.icon, href: f.href })),
   ];
   const banner = signable.length
-    ? { tag: 'CẦN LÀM', title: `${signable.length} việc chờ bạn ký`, body: 'Kiểm tra lô, số lượng rồi ký bằng khóa trên điện thoại.', action: 'Xem việc chờ ký', href: '/staff/tasks', icon: 'tasks' as const }
+    ? { tag: 'CẦN LÀM', title: `${signable.length} việc cần xác nhận`, body: 'Kiểm tra lô, số lượng rồi ký bằng khóa trên điện thoại.', action: 'Xem việc ký', href: '/staff/tasks', icon: 'tasks' as const }
     : running.length
-      ? { tag: 'MÙA VỤ', title: `${running.length} vụ đang chăm sóc`, body: 'Ghi nhật ký chăm sóc và thu hoạch kèm ảnh tại vườn.', action: 'Mở vụ được giao', href: '/staff/journal', icon: 'leaf' as const }
+      ? { tag: 'MÙA VỤ', title: `${running.length} mùa vụ đang làm`, body: 'Ghi tưới nước, chăm sóc cây và thu hoạch kèm ảnh tại vườn.', action: 'Mở mùa vụ', href: '/staff/journal', icon: 'leaf' as const }
       : null;
 
   const refresh = () => {
@@ -86,8 +87,12 @@ export default function StaffHome() {
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <View style={{ paddingTop: insets.top + 8, paddingHorizontal: space.lg, paddingBottom: space.sm, flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <Image source={require('../../../../assets/brand/logo-agritrace.webp')} style={{ width: 92, height: 34 }} contentFit="contain" accessibilityLabel="AgriTrace" />
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 174, overflow: 'hidden', backgroundColor: '#edf7ec' }}>
+        <Image source={require('../../../../assets/images/hero-rice-terraces.jpg')} style={{ width: '100%', height: '100%', opacity: 0.16 }} contentFit="cover" accessibilityElementsHidden />
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(239,248,236,0.62)' }} />
+      </View>
+      <View style={{ paddingTop: insets.top + 6, paddingHorizontal: space.lg, paddingBottom: space.sm, flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+        <Image source={require('../../../../assets/brand/logo-agritrace.webp')} style={{ width: 126, height: 48 }} contentFit="contain" accessibilityLabel="AgriTrace" />
         <View style={{ flex: 1 }} />
         {pending > 0 && <IconButton name="sync" label="Lệnh chờ gửi" badge={pending} onPress={() => router.push('/staff/sync')} />}
         <IconButton name="bell" label="Thông báo nội bộ" badge={messages.data?.counts.unread} onPress={() => router.push('/staff/messages')} />
@@ -114,9 +119,9 @@ export default function StaffHome() {
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           {shortcuts.map((s, i) => (
-            <Pressable key={s.href} accessibilityRole="button" accessibilityLabel={s.label} onPress={() => router.push(s.href as never)} style={({ pressed }) => ({ width: '23%', alignItems: 'center', gap: 6, opacity: pressed ? 0.75 : 1 })}>
-              <IconTile name={s.icon} t={TONES[i % TONES.length]} size={56} glyph={24} />
-              <T size={11.5} weight="medium" numberOfLines={1} style={{ textAlign: 'center' }}>
+            <Pressable key={s.href} accessibilityRole="button" accessibilityLabel={s.label} onPress={() => router.push(s.href as never)} style={({ pressed }) => ({ width: '23%', minHeight: 102, alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 9, borderRadius: radius.xl, borderWidth: 1, borderColor: color.line, backgroundColor: color.surface, opacity: pressed ? 0.78 : 1 })}>
+              <IconTile name={s.icon} t={TONES[i % TONES.length]} size={50} glyph={22} />
+              <T size={11.5} weight="bold" numberOfLines={1} style={{ textAlign: 'center' }}>
                 {s.label}
               </T>
             </Pressable>
@@ -163,7 +168,7 @@ export default function StaffHome() {
         {has('tasks') && (
           <Section title="Việc sắp tới" action={signable.length ? 'Xem tất cả ›' : undefined} onAction={() => router.push('/staff/tasks')}>
             {signable.length === 0 ? (
-              <Empty title="Không có việc chờ ký" icon="tasks" />
+              <Empty title="Không có việc ký" icon="tasks" />
             ) : (
               signable.slice(0, 4).map((t, i) => (
                 <Pressable
@@ -192,13 +197,15 @@ export default function StaffHome() {
         )}
 
         {!has('tasks') && has('journal') && (
-          <Section title="Vụ đang làm" action={running.length ? 'Xem tất cả ›' : undefined} onAction={() => router.push('/staff/journal')}>
+          <Section title="Mùa vụ đang làm" action={running.length ? 'Xem tất cả ›' : undefined} onAction={() => router.push('/staff/journal')}>
             {running.length === 0 ? (
               <Empty title="Chưa có vụ đang làm" icon="leaf" />
             ) : (
               running.slice(0, 4).map((c, i) => (
                 <Pressable key={c.id} accessibilityRole="button" onPress={() => router.push(`/staff/cycle/${c.id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderTopWidth: i ? 1 : 0, borderTopColor: color.line }}>
-                  <IconTile name="leaf" t="green" size={40} glyph={18} />
+                  <View style={{ width: 50, height: 50, borderRadius: 14, overflow: 'hidden', backgroundColor: color.greenTint }}>
+                    <DirectoryPhoto url={`/public/products/${c.product.id}/image`} label={c.product.productName} fit="cover" />
+                  </View>
                   <View style={{ flex: 1 }}>
                     <T size={13.5} weight="bold">
                       {c.product.productName}

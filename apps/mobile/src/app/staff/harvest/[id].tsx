@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -118,6 +119,13 @@ function HarvestForm({ id }: { id: string }) {
         </Header>
         <View style={{ marginTop: 16, paddingHorizontal: 16, gap: 12 }}>
           <Card style={{ padding: 16, gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Image source={require('../../../../assets/icons/harvest.png')} style={{ width: 52, height: 52 }} contentFit="contain" accessibilityLabel="Thu hoạch" />
+              <View style={{ flex: 1, gap: 2 }}>
+                <T size={15} weight="bold">Thu hoạch</T>
+                <T size={12} c={color.muted}>Nhập sản lượng của đợt này</T>
+              </View>
+            </View>
             <T size={15} weight="bold">
               Khối lượng <T c={color.red}>*</T>
             </T>
@@ -156,6 +164,7 @@ function HarvestForm({ id }: { id: string }) {
               <PhotoSlot label="Ảnh thu hoạch" photo={harvestPhoto} onChange={setHarvestPhoto} />
               <PhotoSlot label="Ảnh lô hàng" photo={lotPhoto} onChange={setLotPhoto} />
             </View>
+            <T size={12} c={color.redDeep}>Cần đủ cả hai ảnh trước khi lưu sự kiện thu hoạch.</T>
             <T size={13} c={color.muted}>
               Ảnh lưu riêng tư cho doanh nghiệp, không tự công khai.
             </T>

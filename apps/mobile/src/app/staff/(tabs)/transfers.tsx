@@ -19,7 +19,7 @@ export default function Transfers() {
   const shown = (list.data?.items ?? []).filter((t) => OPEN.includes(t.status) === (tab === 'open'));
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <Header title="Chuyến hàng" />
+      <Header title="Vận chuyển" />
       <Screen refreshing={list.loading} onRefresh={() => void list.reload()} bottomInset={96}>
         <SegmentTabs value={tab} onChange={setTab} items={[{ key: 'open', label: 'Đang xử lý' }, { key: 'done', label: 'Đã xong / hủy' }]} />
         <Loadable {...list} reload={() => void list.reload()}>

@@ -9,7 +9,7 @@ import type { Tone } from '../../../theme/staff';
 
 type Task = { transferId: string; action: string; status: string; origin: string; destination: string; role: string; createdAt: string };
 const ACTION: Record<string, { label: string; t: Tone; web?: boolean }> = {
-  CONSENT: { label: 'Ký đồng thuận', t: 'orange' },
+  CONSENT: { label: 'Ký xác nhận', t: 'orange' },
   PICKUP: { label: 'Ký lấy hàng', t: 'blue' },
   DELIVERY: { label: 'Ký giao nhận', t: 'green' },
   ACTUAL_RECEIPT: { label: 'Ghi lượng thực nhận', t: 'purple' },
@@ -43,13 +43,13 @@ export default function Tasks() {
   };
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <Header title="Việc chờ ký" subtitle="Mở chuyến để kiểm tra và ký bằng khóa trên máy" />
+      <Header title="Việc ký" subtitle="Mở chuyến để kiểm tra và ký bằng khóa trên máy" />
       <Screen refreshing={list.loading} onRefresh={() => void list.reload()} bottomInset={96}>
         <Loadable {...list} reload={() => void list.reload()}>
           {() =>
             all.length === 0 ? (
               <Card>
-                <Empty title="Không có việc chờ ký" body="Chuyến cần bạn ký sẽ hiện ở đây." icon="tasks" />
+                <Empty title="Không có việc ký" body="Yêu cầu xác nhận chuyến sẽ hiện ở đây." icon="tasks" />
               </Card>
             ) : (
               <>

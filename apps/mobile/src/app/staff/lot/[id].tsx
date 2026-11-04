@@ -30,7 +30,7 @@ export default function StaffLot() {
         ) : (
           <View style={{ padding: 16, gap: 12 }}>
             <Notice kind="error" title={error ?? 'Không tìm thấy lô hàng'} body="Lô không tồn tại hoặc không thuộc phạm vi của bạn." />
-            <Button label="Quét mã khác" onPress={() => router.replace('/staff/scan')} />
+            <Button label="Quét QR khác" onPress={() => router.replace('/staff/scan')} />
           </View>
         )}
       </View>

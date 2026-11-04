@@ -17,7 +17,7 @@ import { color } from '../../../theme/staff';
 
 type Detail = TransferDetail & SignableTransfer & { allowedActions: string[]; receiverSiteId?: string | null; photos?: { phase: string; evidenceId: string }[] };
 type ReceiptRow = { received: string; rejected: string; quarantined: string };
-const PHASE: Record<string, string> = { CONSENT: 'Đồng thuận bàn giao', PICKUP: 'Ký lấy hàng', DELIVERY: 'Ký giao nhận hàng' };
+const PHASE: Record<string, string> = { CONSENT: 'Ký xác nhận bàn giao', PICKUP: 'Ký lấy hàng', DELIVERY: 'Ký giao nhận hàng' };
 const PHOTO_PHASE: Record<string, string> = { PICKUP: 'Ảnh lúc lấy hàng', DELIVERY: 'Ảnh lúc giao hàng' };
 const DEC = /^\d{1,11}(\.\d{1,3})?$/;
 type Message = { kind: 'success' | 'error' | 'warn'; title: string; body?: string };

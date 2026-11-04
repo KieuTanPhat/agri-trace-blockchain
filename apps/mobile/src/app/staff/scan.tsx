@@ -30,7 +30,7 @@ export default function StaffScan() {
       <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <IconButton name="close" label="Đóng" tint="#fff" bg="rgba(0,0,0,0.35)" onPress={() => (router.canGoBack() ? router.back() : router.replace('/staff'))} />
         <T size={19} weight="heavy" c="#fff">
-          Quét mã lô
+          Quét QR
         </T>
         <View style={{ width: 46 }} />
       </View>

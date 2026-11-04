@@ -311,7 +311,7 @@ function LatestLotQr({ token }: { token: string }) {
   if (!qr.ready) return null;
   return (
     <div className="flex items-center justify-center rounded-xl border border-line bg-card p-4">
-      <TraceQrImage qr={qr} className="aspect-square w-full max-w-[184px] rounded-lg border border-line p-2 shadow-sm" />
+      <TraceQrImage qr={qr} className="aspect-square w-full max-w-[184px] p-2" />
     </div>
   );
 }

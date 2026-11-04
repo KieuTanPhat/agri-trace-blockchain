@@ -47,11 +47,11 @@ const any = (perms: string[], ...wanted: string[]) => wanted.some((p) => perms.i
  * employee sees exactly the work its permission groups assign.
  */
 const FEATURES: Feature[] = [
-  { key: 'journal', label: 'Vụ được giao', hint: 'Nhật ký chăm sóc, thu hoạch', icon: 'leaf', href: '/staff/journal', tab: 'journal', show: (c, p) => c.includes('FARM') && p.includes('production.read') },
-  { key: 'tasks', label: 'Việc chờ ký', hint: 'Đồng thuận, lấy hàng, giao nhận', icon: 'tasks', href: '/staff/tasks', tab: 'tasks', show: (_c, p) => p.includes('distribution.sign') },
+  { key: 'journal', label: 'Mùa vụ', hint: 'Nhật ký chăm sóc, thu hoạch', icon: 'leaf', href: '/staff/journal', tab: 'journal', show: (c, p) => c.includes('FARM') && p.includes('production.read') },
+  { key: 'tasks', label: 'Việc ký', hint: 'Xác nhận bàn giao, lấy hàng, giao nhận', icon: 'tasks', href: '/staff/tasks', tab: 'tasks', show: (_c, p) => p.includes('distribution.sign') },
   { key: 'stock', label: 'Tồn kho', hint: 'Lô theo cơ sở, chuyển kho, cách ly', icon: 'warehouse', href: '/staff/stock', tab: 'stock', show: (_c, p) => p.includes('reports.read') && any(p, 'inventory.manage', 'quarantine.manage', 'quantity.adjust') },
   { key: 'sales', label: 'Bán hàng', hint: 'Ghi bán theo lô', icon: 'store', href: '/staff/sales', tab: 'sales', show: (c, p) => c.includes('RETAILER') && p.includes('quantity.adjust') },
-  { key: 'transfers', label: 'Chuyến hàng', hint: 'Mọi chuyến trong phạm vi được giao', icon: 'truck', href: '/staff/transfers', tab: 'transfers', show: (_c, p) => p.includes('distribution.read') },
+  { key: 'transfers', label: 'Vận chuyển', hint: 'Chuyến hàng trong phạm vi được giao', icon: 'truck', href: '/staff/transfers', tab: 'transfers', show: (_c, p) => p.includes('distribution.read') },
   { key: 'devices', label: 'Thiết bị IoT', hint: 'Cảm biến vùng trồng, GPS xe', icon: 'device', href: '/staff/devices', show: (_c, p) => p.includes('devices.read') },
   { key: 'cases', label: 'Sự cố được giao', hint: 'Xem và phản hồi sự cố', icon: 'incident', href: '/staff/cases', show: (_c, p) => p.includes('cases.read') },
   { key: 'messages', label: 'Thông báo nội bộ', hint: 'Tin nhắn trong doanh nghiệp', icon: 'message', href: '/staff/messages', show: () => true },
@@ -63,7 +63,7 @@ type StaffTab = { route: string; label: string; icon: IconName };
 /** Home, the first two assigned features that can be tabs, then More. */
 export function staffTabs(features: Feature[]): StaffTab[] {
   const middle = features.filter((f) => f.tab).slice(0, 2);
-  const short: Partial<Record<FeatureKey, string>> = { journal: 'Mùa vụ', tasks: 'Việc ký', stock: 'Tồn kho', sales: 'Bán hàng', transfers: 'Chuyến' };
+  const short: Partial<Record<FeatureKey, string>> = { journal: 'Mùa vụ', tasks: 'Việc ký', stock: 'Tồn kho', sales: 'Bán hàng', transfers: 'Vận chuyển' };
   return [
     { route: 'index', label: 'Trang chủ', icon: 'home' },
     ...middle.map((f) => ({ route: f.tab!, label: short[f.key] ?? f.label, icon: f.icon })),

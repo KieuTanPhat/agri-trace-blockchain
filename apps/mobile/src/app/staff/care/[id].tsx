@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -94,9 +95,13 @@ function CareForm({ id }: { id: string }) {
         </Header>
         <View style={{ marginTop: 16, paddingHorizontal: 16, gap: 12 }}>
           <Card style={{ padding: 16, gap: 12 }}>
-            <T size={15} weight="bold">
-              Loại công việc
-            </T>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Image source={require('../../../../assets/icons/watering.png')} style={{ width: 48, height: 48 }} contentFit="contain" accessibilityLabel="Tưới nước và chăm sóc cây" />
+              <View style={{ flex: 1, gap: 2 }}>
+                <T size={15} weight="bold">Chăm sóc cây</T>
+                <T size={12} c={color.muted}>Chọn công việc đã thực hiện</T>
+              </View>
+            </View>
             <Chips value={careType} onChange={setCareType} items={CARE_TYPES.map((t) => ({ key: t, label: t }))} />
             <Field label="Việc đã làm" required value={name} onChangeText={setName} placeholder="Ví dụ: tưới nhỏ giọt 30 phút" />
             <Field label="Ghi chú" value={note} onChangeText={setNote} placeholder="Không bắt buộc" />
@@ -106,6 +111,7 @@ function CareForm({ id }: { id: string }) {
               Ảnh minh chứng <T c={color.red}>*</T>
             </T>
             <PhotoSlot label="Ảnh công việc" photo={photo} onChange={setPhoto} />
+            <T size={12} c={color.redDeep}>Bắt buộc có ảnh để lưu sự kiện chăm sóc.</T>
           </Card>
           {!writable && <Notice kind="warn" title="Không thể ghi vào vụ này" body="Vụ chưa bắt đầu, đã kết thúc hoặc bạn không còn quyền ghi. Quay lại mùa vụ để kiểm tra phân công." />}
           {error && <Notice kind="error" title={error} />}
