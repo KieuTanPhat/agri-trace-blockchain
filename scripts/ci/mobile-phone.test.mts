@@ -2,18 +2,28 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { PhoneAuthError, PhoneChallenge, normalizePhone, phoneError } = require('../../apps/mobile/src/auth/phone-challenge.ts') as typeof import('../../apps/mobile/src/auth/phone-challenge.ts');
+const { PhoneAuthError, PhoneChallenge, phoneError } = require('../../apps/mobile/src/auth/phone-challenge.ts') as typeof import('../../apps/mobile/src/auth/phone-challenge.ts');
 const { SessionGate } = require('../../apps/mobile/src/auth/session-gate.ts') as typeof import('../../apps/mobile/src/auth/session-gate.ts');
 const configureApp = require('../../apps/mobile/app.config.ts').default as typeof import('../../apps/mobile/app.config.ts').default;
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-test("normalizes Vietnam numbers and rejects foreign or malformed input", () => {
-  assert.equal(normalizePhone("090 123 4567"), "+84901234567");
-  assert.equal(normalizePhone("+84901234567"), "+84901234567");
+test("normalizes Vietnam numbers and rejects foreign or malformed input", async () => {
+  const requested: string[] = [];
+  const challenge = () => new PhoneChallenge(async (phone) => {
+    requested.push(phone);
+    return { confirm: async () => "proof", dispose: async () => {} };
+  });
+  for (const phone of ["090 123 4567", "+84901234567"]) {
+    const current = challenge();
+    await current.request(phone);
+    await current.clear();
+  }
+  assert.deepEqual(requested, ["+84901234567", "+84901234567"]);
   for (const phone of ["+11234567890", "123456", "09012345678"])
-    assert.throws(() => normalizePhone(phone));
+    await assert.rejects(challenge().request(phone), /Số điện thoại Việt Nam chưa đúng/);
+  assert.equal(requested.length, 2, "invalid input must not request an SMS");
 });
 test("starts no SMS until requested and retains cooldown when returning to step one", async () => {
   let now = 0,
